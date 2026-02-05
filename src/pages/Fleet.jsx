@@ -379,7 +379,8 @@ export default function Fleet() {
                                 whileHover={{ scale: 1.05 }}
                                 onError={(e) => {
                                   e.target.style.display = 'none';
-                                  e.target.nextElementSibling?.style.display = 'flex';
+                                  const sibling = e.target.nextElementSibling;
+                                  if (sibling) sibling.style.display = 'flex';
                                 }}
                               />
                             ) : null}
