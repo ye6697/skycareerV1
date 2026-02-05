@@ -38,12 +38,10 @@ Deno.serve(async (req) => {
 ----------------------------
 local API_ENDPOINT = "${apiEndpoint}"
 local API_KEY = "${apiKey}"
-local UPDATE_INTERVAL = 2.0
 
 ----------------------------
 -- STATE VARIABLES
 ----------------------------
-local last_update = 0
 local flight_started = false
 local flight_landed = false
 local last_on_ground = true
@@ -88,15 +86,13 @@ function classify_landing(g_force, vspeed)
 end
 
 ------------------------------------------------------------
--- HTTP SEND (fire and forget)
+-- HTTP SEND (non-blocking)
 ------------------------------------------------------------
 function send_flight_data(json_payload)
     if SYSTEM == "IBM" then
-        -- Windows
-        os.execute('start /B curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\"') .. '" --max-time 1 --silent')
+        os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\"') .. '" -m 0.5 --silent >nul 2>&1')
     else
-        -- Mac/Linux
-        os.execute("curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' --max-time 1 --silent &")
+        os.execute("nohup curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 0.5 --silent >/dev/null 2>&1 &")
     end
 end
 
@@ -104,16 +100,6 @@ end
 -- MAIN MONITOR
 ------------------------------------------------------------
 function monitor_flight()
-    local current_time = get("sim/time/total_running_time_sec")
-    if not current_time then
-        return
-    end
-
-    if current_time - last_update < UPDATE_INTERVAL then
-        return
-    end
-
-    last_update = current_time
 
     -- Safe DataRef reads with fallbacks
     local altitude = (get("sim/flightmodel/position/elevation") or 0) * 3.28084
@@ -289,16 +275,10 @@ function monitor_flight()
         .. '"reputation":"' .. reputation .. '"'
         .. "}"
 
-    -- Debug output to X-Plane log (shows what we're sending)
-    logMsg("SkyCareer: Alt=" .. string.format("%.0f", altitude) .. "ft Speed=" .. string.format("%.0f", speed) .. "kts Ground=" .. tostring(on_ground))
-    logMsg("SkyCareer: JSON=" .. json_payload)
-    
     send_flight_data(json_payload)
 end
 
-do_often("monitor_flight()")
-
-logMsg("SkyCareer PRO System Loaded - Monitoring every 2 seconds")
+do_sometimes("monitor_flight()")
 `;
     
     return new Response(luaScript, {
