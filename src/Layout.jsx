@@ -174,23 +174,30 @@ export default function Layout({ children, currentPageName }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-700">
-          <div className="p-3 bg-slate-900 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-2 h-2 rounded-full ${
-                xplaneStatus === 'connected' ? 'bg-emerald-500' : 
-                xplaneStatus === 'connecting' ? 'bg-amber-500' : 
-                'bg-slate-500'
-              }`} />
-              <span className="text-xs text-slate-400 font-medium">X-Plane Status</span>
-            </div>
-            <p className="text-sm text-slate-300">
-              {xplaneStatus === 'connected' ? 'Verbunden' : 
-               xplaneStatus === 'connecting' ? 'Verbinde...' : 
-               'Getrennt'}
-            </p>
-          </div>
-        </div>
+        <div className="p-4 border-t border-slate-700 space-y-3">
+                  <div className="p-3 bg-slate-900 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Star className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs text-slate-400 font-medium">Level</span>
+                    </div>
+                    <p className="text-sm font-semibold text-amber-400">{company?.level || 1}</p>
+                  </div>
+                  <div className="p-3 bg-slate-900 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        xplaneStatus === 'connected' ? 'bg-emerald-500' : 
+                        xplaneStatus === 'connecting' ? 'bg-amber-500' : 
+                        'bg-slate-500'
+                      }`} />
+                      <span className="text-xs text-slate-400 font-medium">X-Plane Status</span>
+                    </div>
+                    <p className="text-sm text-slate-300">
+                      {xplaneStatus === 'connected' ? 'Verbunden' : 
+                       xplaneStatus === 'connecting' ? 'Verbinde...' : 
+                       'Getrennt'}
+                    </p>
+                  </div>
+                </div>
       </aside>
 
       {/* Main Content */}
