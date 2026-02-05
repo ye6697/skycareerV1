@@ -614,6 +614,7 @@ export default function FlightTracker() {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
