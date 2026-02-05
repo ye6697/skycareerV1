@@ -122,6 +122,37 @@ export default function ActiveFlights() {
     }
   });
 
+  const cancelFlightMutation = useMutation({
+    mutationFn: async (contractToCancel) => {
+      const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
+      
+      // Update contract status
+      await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
+      
+      // Deduct penalty from company
+      if (company) {
+        await base44.entities.Company.update(company.id, {
+          balance: Math.max(0, (company.balance || 0) - penalty)
+        });
+        
+        // Create transaction for penalty
+        await base44.entities.Transaction.create({
+          type: 'expense',
+          category: 'other',
+          amount: penalty,
+          description: `Stornierungsgebühr: ${contractToCancel.title}`,
+          date: new Date().toISOString()
+        });
+      }
+      
+      return penalty;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+    }
+  });
+
   const getCrewRequirement = (contract, role) => {
     return contract?.required_crew?.[role] || 0;
   };
