@@ -222,7 +222,7 @@ export default function FlightTracker() {
         category: 'flight_revenue',
         amount: profit,
         description: `Flug: ${contract?.title}`,
-        reference_id: flight.id,
+        reference_id: flight?.id,
         date: new Date().toISOString()
       });
 
