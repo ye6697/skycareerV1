@@ -72,10 +72,8 @@ dataref("sim_time", "sim/time/total_running_time_sec")
 dataref("onground", "sim/flightmodel/failures/onground_any")
 dataref("park_brake", "sim/flightmodel/controls/parkbrake")
 dataref("flap_ratio", "sim/flightmodel/controls/flaprat")
-dataref("total_fuel", "sim/aircraft/weight/acf_m_fuel_tot")
 dataref("pitch", "sim/flightmodel/position/theta")
 dataref("gear_handle", "sim/cockpit2/controls/gear_handle_down")
-dataref("airspeed_ind", "sim/flightmodel/position/indicated_airspeed")
 
 ------------------------------------------------------------
 -- LANDING CLASSIFICATION
@@ -117,6 +115,7 @@ function monitor_flight()
 
     last_update = sim_time
 
+    -- Safe DataRef reads with fallbacks
     local altitude = (get("sim/flightmodel/position/elevation") or 0) * 3.28084
     local speed = (get("sim/flightmodel/position/groundspeed") or 0) * 1.94384
     local vs = (get("sim/flightmodel/position/vh_ind") or 0) * 196.85
@@ -124,20 +123,24 @@ function monitor_flight()
     local g_force = get("sim/flightmodel2/misc/gforce_normal") or 1.0
     local latitude = get("sim/flightmodel/position/latitude") or 0
     local longitude = get("sim/flightmodel/position/longitude") or 0
-
-    local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot") or 1
+    local total_fuel_current = get("sim/flightmodel/weight/m_fuel_total") or 0
+    local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot") or 1000
+    
     local fuel_percentage = 100
-    if fuel_max > 0 and total_fuel then
-        fuel_percentage = (total_fuel / fuel_max * 100)
+    if fuel_max > 0 and total_fuel_current > 0 then
+        fuel_percentage = (total_fuel_current / fuel_max * 100)
     end
 
     local on_ground = (onground == 1)
 
-    -- Simplified engine detection using throttle position as fallback
+    -- Simplified engine detection using multiple methods
     local throttle1 = get("sim/cockpit2/engine/actuators/throttle_ratio[0]") or 0
     local throttle2 = get("sim/cockpit2/engine/actuators/throttle_ratio[1]") or 0
-    local engine1_running = (throttle1 > 0.05)
-    local engine2_running = (throttle2 > 0.05)
+    local engine_running_1 = get("sim/flightmodel/engine/ENGN_running[0]") or 0
+    local engine_running_2 = get("sim/flightmodel/engine/ENGN_running[1]") or 0
+    
+    local engine1_running = (throttle1 > 0.05 or engine_running_1 > 0)
+    local engine2_running = (throttle2 > 0.05 or engine_running_2 > 0)
 
     if g_force > max_g_force then
         max_g_force = g_force
@@ -189,7 +192,8 @@ function monitor_flight()
     end
 
     -- Stall detection via low airspeed at high altitude
-    if airspeed_ind and altitude > 500 and airspeed_ind < 80 and not on_ground then
+    local ias = get("sim/flightmodel/position/indicated_airspeed") or 0
+    if ias and altitude > 500 and ias < 80 and not on_ground then
         stall_detected = true
     end
 
