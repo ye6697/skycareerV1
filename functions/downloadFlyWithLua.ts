@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Create complete FlyWithLua script from pastebin
+    // Create complete FlyWithLua script with CORRECT XP12 DataRefs
     const luaScript = `-- =========================================================
 -- SkyCareer PRO Complete Monitoring System
 -- X-Plane 12 / FlyWithLua (Mac + Windows)
@@ -59,18 +59,16 @@ local gear_up_landing = false
 local crash_detected = false
 
 ----------------------------
--- DATAREFS (XP12 kompatibel)
+-- DATAREFS (XP12 CORRECTED)
 ----------------------------
 dataref("sim_time", "sim/time/total_running_time_sec")
-dataref("gear_on_ground", "sim/aircraft/ground_collision")
+dataref("on_ground_any", "sim/flightmodel/failures/onground_any")
 dataref("park_brake", "sim/flightmodel/controls/parkbrake")
-dataref("engine1_running", "sim/flightmodel/engine/ENGN_running[0]")
-dataref("engine2_running", "sim/flightmodel/engine/ENGN_running[1]")
 dataref("flap_ratio", "sim/flightmodel/controls/flaprat")
-dataref("stall_warning", "sim/cockpit2/alerts/stall_warning")
 dataref("total_fuel", "sim/aircraft/weight/acf_m_fuel_tot")
 dataref("pitch", "sim/flightmodel/position/theta")
 dataref("gear_handle", "sim/cockpit2/controls/gear_handle_down")
+dataref("ias", "sim/flightmodel/position/indicated_airspeed")
 
 ------------------------------------------------------------
 -- LANDING CLASSIFICATION
@@ -121,9 +119,24 @@ function monitor_flight()
     local longitude = get("sim/flightmodel/position/longitude")
 
     local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot")
-    local fuel_percentage = (total_fuel / fuel_max * 100)
+    local fuel_percentage = 100
+    if fuel_max > 0 then
+        fuel_percentage = (total_fuel / fuel_max * 100)
+    end
 
-    local on_ground = (gear_on_ground == 1)
+    local on_ground = (on_ground_any == 1)
+
+    -- Check if engines are running (any engine)
+    local num_engines = get("sim/aircraft/engine/acf_num_engines")
+    local engine1_running = false
+    local engine2_running = false
+    
+    if num_engines >= 1 then
+        engine1_running = (get("sim/flightmodel/engine/ENGN_N2_[0]") > 20)
+    end
+    if num_engines >= 2 then
+        engine2_running = (get("sim/flightmodel/engine/ENGN_N2_[1]") > 20)
+    end
 
     if g_force > max_g_force then
         max_g_force = g_force
@@ -136,6 +149,13 @@ function monitor_flight()
         max_g_force = 0
         flight_score = 100
         maintenance_cost = 0
+        tailstrike_detected = false
+        stall_detected = false
+        overstress_detected = false
+        flaps_overspeed = false
+        fuel_emergency = false
+        gear_up_landing = false
+        crash_detected = false
     end
 
     ---------------- LANDING ----------------
@@ -171,7 +191,8 @@ function monitor_flight()
         tailstrike_detected = true
     end
 
-    if stall_warning == 1 then
+    -- Stall detection via low airspeed at high altitude
+    if altitude > 500 and ias < 80 and not on_ground then
         stall_detected = true
     end
 
@@ -254,8 +275,8 @@ function monitor_flight()
         .. '"longitude":' .. longitude .. ","
         .. '"on_ground":' .. tostring(on_ground) .. ","
         .. '"park_brake":' .. tostring(park_brake > 0.5) .. ","
-        .. '"engine1_running":' .. tostring(engine1_running == 1) .. ","
-        .. '"engine2_running":' .. tostring(engine2_running == 1) .. ","
+        .. '"engine1_running":' .. tostring(engine1_running) .. ","
+        .. '"engine2_running":' .. tostring(engine2_running) .. ","
         .. '"tailstrike":' .. tostring(tailstrike_detected) .. ","
         .. '"stall":' .. tostring(stall_detected) .. ","
         .. '"overstress":' .. tostring(overstress_detected) .. ","

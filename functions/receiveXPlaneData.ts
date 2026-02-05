@@ -40,6 +40,24 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'company_id required' }, { status: 400 });
     }
 
+    // Verify we have valid flight data before marking as connected
+    if (!altitude && !speed) {
+      return Response.json({ 
+        error: 'Invalid data - no altitude or speed received',
+        xplane_connection_status: 'disconnected' 
+      }, { status: 400 });
+    }
+
+    // Update company connection status ONLY if we have valid data
+    const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id });
+    const company = companies[0];
+
+    if (company && company.xplane_connection_status !== 'connected') {
+      await base44.asServiceRole.entities.Company.update(company.id, { 
+        xplane_connection_status: 'connected' 
+      });
+    }
+
     // Get active flight for this company
     const flights = await base44.asServiceRole.entities.Flight.filter({ 
       status: 'in_flight',
@@ -47,19 +65,8 @@ Deno.serve(async (req) => {
     });
     const flight = flights[0];
 
-    // Update company connection status
-    const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id });
-    const company = companies[0];
-
-    // Set status to connected whenever we receive data (regardless of active flight)
-    if (company && company.xplane_connection_status !== 'connected') {
-      await base44.asServiceRole.entities.Company.update(company.id, { 
-        xplane_connection_status: 'connected' 
-      });
-    }
-
     if (!flight) {
-      // No active flight - but still show as connected
+      // No active flight - but X-Plane is connected
       return Response.json({ 
         message: 'X-Plane connected - no active flight',
         xplane_connection_status: 'connected' 
