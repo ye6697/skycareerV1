@@ -21,9 +21,6 @@ import {
   DollarSign,
   CheckCircle2,
   AlertTriangle,
-  Code,
-  Copy,
-  Check
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
@@ -58,7 +55,6 @@ export default function FlightTracker() {
     }
   });
   const [useRealData, setUseRealData] = useState(true); // Default to real data
-  const [copiedFlightId, setCopiedFlightId] = useState(false);
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractId],
@@ -87,55 +83,56 @@ export default function FlightTracker() {
     }
   });
 
-  // Poll X-Plane data or simulate
+  // Update flight data from entity (same as debug page)
   useEffect(() => {
     if (flightPhase === 'completed') return;
-    if (!flight?.id) return;
+    if (!flight) return;
 
-    const interval = setInterval(async () => {
-      if (useRealData && company?.xplane_connection_status === 'connected') {
-        // Get real data from X-Plane directly from flight entity (same as debug page)
-        if (flight.xplane_data) {
-          const xp = flight.xplane_data;
-          setFlightData({
-            altitude: xp.altitude || 0,
-            speed: xp.speed || 0,
-            verticalSpeed: xp.vertical_speed || 0,
-            heading: xp.heading || 0,
-            fuel: xp.fuel_percentage || 100,
-            gForce: xp.g_force || 1.0,
-            maxGForce: xp.max_g_force || flight.max_g_force || 1.0,
-            landingVs: xp.touchdown_vspeed || 0,
-            flightScore: xp.flight_score || 100,
-            maintenanceCost: xp.maintenance_cost || 0,
-            reputation: xp.reputation || 'EXCELLENT',
-            events: {
-              tailstrike: xp.tailstrike || false,
-              stall: xp.stall || false,
-              overstress: xp.overstress || false,
-              flaps_overspeed: xp.flaps_overspeed || false,
-              fuel_emergency: xp.fuel_emergency || false,
-              gear_up_landing: xp.gear_up_landing || false,
-              crash: xp.crash || false
-            }
-          });
-
-          // Auto-detect phase
-          if (xp.altitude > 10000) {
-            setFlightPhase('cruise');
-          } else if (xp.altitude > 100 && xp.vertical_speed > 500) {
-            setFlightPhase('takeoff');
-          } else if (xp.altitude > 100 && xp.vertical_speed < -200) {
-            setFlightPhase('landing');
-          }
-
-          // Check if completed
-          if (flight.status === 'completed') {
-            setFlightPhase('completed');
-            queryClient.invalidateQueries();
-          }
+    // Get real data from X-Plane directly from flight entity (same as debug page)
+    if (useRealData && company?.xplane_connection_status === 'connected' && flight.xplane_data) {
+      const xp = flight.xplane_data;
+      setFlightData({
+        altitude: xp.altitude || 0,
+        speed: xp.speed || 0,
+        verticalSpeed: xp.vertical_speed || 0,
+        heading: xp.heading || 0,
+        fuel: xp.fuel_percentage || 100,
+        gForce: xp.g_force || 1.0,
+        maxGForce: xp.max_g_force || flight.max_g_force || 1.0,
+        landingVs: xp.touchdown_vspeed || 0,
+        flightScore: xp.flight_score || 100,
+        maintenanceCost: xp.maintenance_cost || 0,
+        reputation: xp.reputation || 'EXCELLENT',
+        events: {
+          tailstrike: xp.tailstrike || false,
+          stall: xp.stall || false,
+          overstress: xp.overstress || false,
+          flaps_overspeed: xp.flaps_overspeed || false,
+          fuel_emergency: xp.fuel_emergency || false,
+          gear_up_landing: xp.gear_up_landing || false,
+          crash: xp.crash || false
         }
-      } else {
+      });
+
+      // Auto-detect phase and auto-start
+      if (flightPhase === 'preflight' && xp.altitude > 10) {
+        setFlightPhase('takeoff');
+      } else if (xp.altitude > 10000) {
+        setFlightPhase('cruise');
+      } else if (xp.altitude > 100 && xp.vertical_speed > 500) {
+        setFlightPhase('takeoff');
+      } else if (xp.altitude > 100 && xp.vertical_speed < -200) {
+        setFlightPhase('landing');
+      }
+
+      // Check if completed
+      if (flight.status === 'completed') {
+        setFlightPhase('completed');
+        queryClient.invalidateQueries();
+      }
+    } else if (!useRealData) {
+      // Simulate flight data
+      const interval = setInterval(() => {
         // Simulate flight data
         setFlightData(prev => {
           let newData = { ...prev };
@@ -172,10 +169,10 @@ export default function FlightTracker() {
           
           return newData;
         });
-      }
-    }, 1000);
+      }, 1000);
 
-    return () => clearInterval(interval);
+      return () => clearInterval(interval);
+    }
   }, [flightPhase, useRealData, company?.xplane_connection_status, flight]);
 
   const completeFlightMutation = useMutation({
@@ -353,50 +350,6 @@ export default function FlightTracker() {
               </Badge>
             </div>
             </div>
-            
-            {/* Flight ID for X-Plane Config */}
-            {flightPhase === 'preflight' && (
-              <Card className="p-4 bg-blue-900/20 border border-blue-700/50">
-                <div className="flex items-start gap-3">
-                  <Code className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm text-blue-300 mb-2 font-medium">
-                      X-Plane Konfiguration
-                    </p>
-                    <p className="text-xs text-slate-300 mb-2">
-                      Kopiere diese Flight ID in deine SkyCareer_config.txt:
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-xs bg-slate-900 text-blue-400 px-3 py-2 rounded border border-slate-700">
-                        {flight?.id}
-                      </code>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(flight?.id || '');
-                          setCopiedFlightId(true);
-                          setTimeout(() => setCopiedFlightId(false), 2000);
-                        }}
-                        className="border-slate-700 text-slate-300 hover:bg-slate-800"
-                      >
-                        {copiedFlightId ? (
-                          <>
-                            <Check className="w-4 h-4 mr-1" />
-                            Kopiert
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4 mr-1" />
-                            Kopieren
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
           </div>
 
           {/* Progress */}
