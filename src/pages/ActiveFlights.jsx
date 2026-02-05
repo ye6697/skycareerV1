@@ -337,7 +337,7 @@ export default function ActiveFlights() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                 >
-                  <Link to={createPageUrl(`FlightTracker?contractId=${contract.id}`)}>
+                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
                     <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
                       <div className="h-1 bg-emerald-500" />
                       <div className="p-6">
