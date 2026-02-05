@@ -339,10 +339,14 @@ export default function Fleet() {
                   
                   <div className="space-y-3">
                     {company && (
-                      <div className="p-3 bg-slate-50 rounded-lg flex items-center justify-between sticky top-0">
-                        <span className="text-sm text-slate-600">Verfügbares Budget:</span>
-                        <span className="font-bold text-slate-900">${company.balance?.toLocaleString()}</span>
-                      </div>
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-gradient-to-r from-emerald-900/30 to-emerald-800/30 border border-emerald-700/50 rounded-lg flex items-center justify-between sticky top-0 z-10"
+                      >
+                        <span className="text-sm font-semibold text-emerald-300">💰 Verfügbares Budget:</span>
+                        <span className="font-bold text-lg text-emerald-400">${company.balance?.toLocaleString()}</span>
+                      </motion.div>
                     )}
 
                     {AIRCRAFT_MARKET.map((ac, index) => (
