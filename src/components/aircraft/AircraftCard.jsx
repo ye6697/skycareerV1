@@ -169,22 +169,89 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </span>
           </div>
 
+          {/* Current & Depreciation Value */}
+          <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-400">Aktueller Wert:</span>
+              <span className="font-semibold text-emerald-400">
+                ${(aircraft.current_value || aircraft.purchase_price || 0).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-400">Neuwert:</span>
+              <span className="font-semibold text-slate-300">
+                ${(aircraft.purchase_price || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => onView?.(aircraft)}>
-              Details
-            </Button>
-            {aircraft.status === "available" && (
-              <Button 
-                size="sm" 
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                onClick={() => onSelect?.(aircraft)}
-              >
-                Auswählen
-              </Button>
+            {aircraft.status === "damaged" ? (
+              <>
+                <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
+                  <Button 
+                    size="sm" 
+                    className="flex-1 bg-amber-600 hover:bg-amber-700"
+                    onClick={() => setIsRepairDialogOpen(true)}
+                  >
+                    <Hammer className="w-4 h-4 mr-1" />
+                    Reparieren
+                  </Button>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Flugzeug reparieren</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-slate-100 rounded-lg">
+                        <p className="text-sm text-slate-600 mb-2">Reparaturkosten (35% des Neuwertes):</p>
+                        <p className="text-2xl font-bold text-amber-700">${repairCost.toLocaleString()}</p>
+                      </div>
+                      <p className="text-sm text-slate-600">
+                        Das Flugzeug wird nach der Reparatur wieder einsatzfähig.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)}>
+                        Abbrechen
+                      </Button>
+                      <Button 
+                        onClick={() => repairMutation.mutate()}
+                        disabled={repairMutation.isPending}
+                        className="bg-amber-600 hover:bg-amber-700"
+                      >
+                        {repairMutation.isPending ? 'Repariere...' : 'Reparieren'}
+                      </Button>
+                      <Button 
+                        onClick={() => scrapMutation.mutate()}
+                        disabled={scrapMutation.isPending}
+                        variant="destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        {scrapMutation.isPending ? 'Entsorge...' : `Entsorgen (+$${scrapValue.toLocaleString()})`}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => onView?.(aircraft)}>
+                  Details
+                </Button>
+                {aircraft.status === "available" && (
+                  <Button 
+                    size="sm" 
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    onClick={() => onSelect?.(aircraft)}
+                  >
+                    Auswählen
+                  </Button>
+                )}
+              </>
             )}
           </div>
-        </div>
-      </Card>
-    </motion.div>
-  );
-}
+          </div>
+          </Card>
+          </motion.div>
+          );
+          }
