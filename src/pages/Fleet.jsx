@@ -30,7 +30,7 @@ const AIRCRAFT_MARKET = [
     type: "small_prop",
     passenger_capacity: 3,
     cargo_capacity_kg: 100,
-    fuel_consumption_per_hour: 35,
+    fuel_consumption_per_hour: 45,
     range_nm: 640,
     purchase_price: 150000,
     maintenance_cost_per_hour: 25
@@ -40,7 +40,7 @@ const AIRCRAFT_MARKET = [
     type: "small_prop",
     passenger_capacity: 4,
     cargo_capacity_kg: 150,
-    fuel_consumption_per_hour: 45,
+    fuel_consumption_per_hour: 55,
     range_nm: 750,
     purchase_price: 200000,
     maintenance_cost_per_hour: 35
@@ -50,7 +50,7 @@ const AIRCRAFT_MARKET = [
     type: "turboprop",
     passenger_capacity: 8,
     cargo_capacity_kg: 350,
-    fuel_consumption_per_hour: 220,
+    fuel_consumption_per_hour: 350,
     range_nm: 1800,
     purchase_price: 750000,
     maintenance_cost_per_hour: 120
@@ -60,7 +60,7 @@ const AIRCRAFT_MARKET = [
     type: "turboprop",
     passenger_capacity: 14,
     cargo_capacity_kg: 1500,
-    fuel_consumption_per_hour: 180,
+    fuel_consumption_per_hour: 280,
     range_nm: 1200,
     purchase_price: 400000,
     maintenance_cost_per_hour: 90
@@ -70,7 +70,7 @@ const AIRCRAFT_MARKET = [
     type: "turboprop",
     passenger_capacity: 78,
     cargo_capacity_kg: 2700,
-    fuel_consumption_per_hour: 650,
+    fuel_consumption_per_hour: 850,
     range_nm: 1700,
     purchase_price: 1400000,
     maintenance_cost_per_hour: 280
@@ -80,7 +80,7 @@ const AIRCRAFT_MARKET = [
     type: "regional_jet",
     passenger_capacity: 76,
     cargo_capacity_kg: 2000,
-    fuel_consumption_per_hour: 1800,
+    fuel_consumption_per_hour: 2400,
     range_nm: 2200,
     purchase_price: 2500000,
     maintenance_cost_per_hour: 450
@@ -90,7 +90,7 @@ const AIRCRAFT_MARKET = [
     type: "regional_jet",
     passenger_capacity: 130,
     cargo_capacity_kg: 3400,
-    fuel_consumption_per_hour: 2200,
+    fuel_consumption_per_hour: 2800,
     range_nm: 2800,
     purchase_price: 4200000,
     maintenance_cost_per_hour: 650
@@ -100,7 +100,7 @@ const AIRCRAFT_MARKET = [
     type: "narrow_body",
     passenger_capacity: 180,
     cargo_capacity_kg: 5000,
-    fuel_consumption_per_hour: 2500,
+    fuel_consumption_per_hour: 3200,
     range_nm: 3500,
     purchase_price: 12000000,
     maintenance_cost_per_hour: 1200
@@ -110,7 +110,7 @@ const AIRCRAFT_MARKET = [
     type: "narrow_body",
     passenger_capacity: 210,
     cargo_capacity_kg: 5300,
-    fuel_consumption_per_hour: 2800,
+    fuel_consumption_per_hour: 3500,
     range_nm: 3500,
     purchase_price: 13500000,
     maintenance_cost_per_hour: 1350
@@ -120,7 +120,7 @@ const AIRCRAFT_MARKET = [
     type: "narrow_body",
     passenger_capacity: 242,
     cargo_capacity_kg: 4500,
-    fuel_consumption_per_hour: 3000,
+    fuel_consumption_per_hour: 3800,
     range_nm: 5000,
     purchase_price: 18000000,
     maintenance_cost_per_hour: 1600
@@ -130,7 +130,7 @@ const AIRCRAFT_MARKET = [
     type: "wide_body",
     passenger_capacity: 295,
     cargo_capacity_kg: 13600,
-    fuel_consumption_per_hour: 5500,
+    fuel_consumption_per_hour: 7200,
     range_nm: 5650,
     purchase_price: 25000000,
     maintenance_cost_per_hour: 2800
@@ -140,7 +140,7 @@ const AIRCRAFT_MARKET = [
     type: "wide_body",
     passenger_capacity: 396,
     cargo_capacity_kg: 22000,
-    fuel_consumption_per_hour: 7500,
+    fuel_consumption_per_hour: 10000,
     range_nm: 7370,
     purchase_price: 35000000,
     maintenance_cost_per_hour: 3500
@@ -150,7 +150,7 @@ const AIRCRAFT_MARKET = [
     type: "wide_body",
     passenger_capacity: 325,
     cargo_capacity_kg: 16600,
-    fuel_consumption_per_hour: 6200,
+    fuel_consumption_per_hour: 8200,
     range_nm: 8000,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3800
@@ -160,7 +160,7 @@ const AIRCRAFT_MARKET = [
     type: "wide_body",
     passenger_capacity: 467,
     cargo_capacity_kg: 21870,
-    fuel_consumption_per_hour: 8500,
+    fuel_consumption_per_hour: 11200,
     range_nm: 8000,
     purchase_price: 45000000,
     maintenance_cost_per_hour: 4200
@@ -170,7 +170,7 @@ const AIRCRAFT_MARKET = [
     type: "wide_body",
     passenger_capacity: 555,
     cargo_capacity_kg: 18600,
-    fuel_consumption_per_hour: 9500,
+    fuel_consumption_per_hour: 12500,
     range_nm: 8000,
     purchase_price: 55000000,
     maintenance_cost_per_hour: 5000
@@ -180,7 +180,7 @@ const AIRCRAFT_MARKET = [
     type: "cargo",
     passenger_capacity: 0,
     cargo_capacity_kg: 102000,
-    fuel_consumption_per_hour: 7200,
+    fuel_consumption_per_hour: 9500,
     range_nm: 4435,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3600
@@ -190,7 +190,7 @@ const AIRCRAFT_MARKET = [
     type: "cargo",
     passenger_capacity: 0,
     cargo_capacity_kg: 134000,
-    fuel_consumption_per_hour: 11000,
+    fuel_consumption_per_hour: 14500,
     range_nm: 4120,
     purchase_price: 42000000,
     maintenance_cost_per_hour: 4500
@@ -200,7 +200,7 @@ const AIRCRAFT_MARKET = [
     type: "cargo",
     passenger_capacity: 0,
     cargo_capacity_kg: 70000,
-    fuel_consumption_per_hour: 5300,
+    fuel_consumption_per_hour: 7000,
     range_nm: 5550,
     purchase_price: 24000000,
     maintenance_cost_per_hour: 2600
