@@ -337,41 +337,43 @@ export default function ActiveFlights() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                 >
-                  <Card className="overflow-hidden bg-slate-800 border border-slate-700">
-                    <div className="h-1 bg-emerald-500" />
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-semibold text-white">
-                              {contract.title}
-                            </h3>
-                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                              Abgeschlossen
-                            </Badge>
+                  <Link to={createPageUrl(`FlightTracker?contractId=${contract.id}`)}>
+                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
+                      <div className="h-1 bg-emerald-500" />
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-xl font-semibold text-white">
+                                {contract.title}
+                              </h3>
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                Abgeschlossen
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.departure_airport}
+                              </span>
+                              <ArrowRight className="w-4 h-4" />
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.arrival_airport}
+                              </span>
+                              <span className="text-slate-600">|</span>
+                              <span>{contract.distance_nm} NM</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 text-slate-400">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4" />
-                              {contract.departure_airport}
-                            </span>
-                            <ArrowRight className="w-4 h-4" />
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4" />
-                              {contract.arrival_airport}
-                            </span>
-                            <span className="text-slate-600">|</span>
-                            <span>{contract.distance_nm} NM</span>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-emerald-600">
+                              ${contract.payout?.toLocaleString()}
+                            </p>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-emerald-600">
-                            ${contract.payout?.toLocaleString()}
-                          </p>
                         </div>
                       </div>
-                    </div>
-                  </Card>
+                    </Card>
+                  </Link>
                 </motion.div>
               ))}
             </AnimatePresence>
