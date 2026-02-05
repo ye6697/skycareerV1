@@ -20,7 +20,10 @@ import {
   Star,
   DollarSign,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Code,
+  Copy,
+  Check
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
@@ -301,21 +304,22 @@ export default function FlightTracker() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{contract.title}</h1>
-              <div className="flex items-center gap-4 mt-2 text-slate-400">
-                <span className="flex items-center gap-1 font-mono">
-                  <MapPin className="w-4 h-4" />
-                  {contract.departure_airport}
-                </span>
-                <span>→</span>
-                <span className="flex items-center gap-1 font-mono">
-                  <MapPin className="w-4 h-4" />
-                  {contract.arrival_airport}
-                </span>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h1 className="text-2xl font-bold">{contract.title}</h1>
+                <div className="flex items-center gap-4 mt-2 text-slate-400">
+                  <span className="flex items-center gap-1 font-mono">
+                    <MapPin className="w-4 h-4" />
+                    {contract.departure_airport}
+                  </span>
+                  <span>→</span>
+                  <span className="flex items-center gap-1 font-mono">
+                    <MapPin className="w-4 h-4" />
+                    {contract.arrival_airport}
+                  </span>
+                </div>
               </div>
-            </div>
               <div className="flex items-center gap-2">
               {company?.xplane_connection_status === 'connected' && (
                 <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
@@ -331,6 +335,51 @@ export default function FlightTracker() {
                 {phaseLabels[flightPhase]}
               </Badge>
             </div>
+            </div>
+            
+            {/* Flight ID for X-Plane Config */}
+            {flightPhase === 'preflight' && (
+              <Card className="p-4 bg-blue-900/20 border border-blue-700/50">
+                <div className="flex items-start gap-3">
+                  <Code className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-blue-300 mb-2 font-medium">
+                      X-Plane Konfiguration
+                    </p>
+                    <p className="text-xs text-slate-300 mb-2">
+                      Kopiere diese Flight ID in deine SkyCareer_config.txt:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs bg-slate-900 text-blue-400 px-3 py-2 rounded border border-slate-700">
+                        {flight?.id}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(flight?.id || '');
+                          setCopiedFlightId(true);
+                          setTimeout(() => setCopiedFlightId(false), 2000);
+                        }}
+                        className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                      >
+                        {copiedFlightId ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1" />
+                            Kopiert
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-1" />
+                            Kopieren
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* Progress */}
