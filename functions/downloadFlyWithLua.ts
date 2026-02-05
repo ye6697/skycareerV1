@@ -63,17 +63,13 @@ local fuel_emergency = false
 local gear_up_landing = false
 local crash_detected = false
 
-----------------------------
--- DATAREFS - safe access only
-----------------------------
-
 ------------------------------------------------------------
 -- LANDING CLASSIFICATION
 ------------------------------------------------------------
 function classify_landing(g_force, vspeed)
-    if g_force < 1.4 and vspeed > -200 then
+    if vspeed > -200 and g_force < 1.4 then
         return "SOFT"
-    elseif g_force < 1.8 then
+    elseif vspeed >= -500 and g_force < 1.8 then
         return "MEDIUM"
     else
         return "HARD"
@@ -81,22 +77,44 @@ function classify_landing(g_force, vspeed)
 end
 
 ------------------------------------------------------------
--- HTTP SEND (non-blocking)
+-- HTTP SEND (ULTRA SAFE with pcall)
 ------------------------------------------------------------
 function send_flight_data(json_payload)
-    if SYSTEM == "IBM" then
-        os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\"') .. '" -m 0.5 --silent >nul 2>&1')
-    else
-        os.execute("nohup curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 0.5 --silent >/dev/null 2>&1 &")
-    end
+    -- Protected call - if this fails, script continues
+    local success, error_msg = pcall(function()
+        -- Try to load socket.http if available
+        local http_available, http = pcall(require, "socket.http")
+        local ltn12_available, ltn12 = pcall(require, "ltn12")
+        
+        if http_available and ltn12_available then
+            -- Use socket.http if available
+            local full_url = API_ENDPOINT .. "?api_key=" .. API_KEY
+            http.TIMEOUT = 3
+            
+            http.request{
+                url = full_url,
+                method = "POST",
+                headers = { ["Content-Type"] = "application/json" },
+                source = ltn12.source.string(json_payload),
+                sink = ltn12.sink.null()
+            }
+        else
+            -- Fallback to curl (works but may block briefly)
+            if SYSTEM == "IBM" then
+                os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 1 --silent >nul 2>&1')
+            else
+                os.execute("nohup curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 1 --silent >/dev/null 2>&1 &")
+            end
+        end
+    end)
+    
+    -- If send failed, do nothing - just continue
 end
 
 ------------------------------------------------------------
--- MAIN MONITOR (MINIMAL - NO CRASHES)
+-- MAIN MONITOR
 ------------------------------------------------------------
 function monitor_flight()
-
-    -- Safe DataRef reads with fallbacks
     local altitude = (get("sim/flightmodel/position/elevation") or 0) * 3.28084
     local speed = (get("sim/flightmodel/position/groundspeed") or 0) * 1.94384
     local vs = (get("sim/flightmodel/position/vh_ind") or 0) * 196.85
@@ -109,29 +127,32 @@ function monitor_flight()
 
     local fuel_percentage = 100
     if fuel_max > 0 and total_fuel_current > 0 then
-        fuel_percentage = (total_fuel_current / fuel_max * 100)
+        fuel_percentage = (total_fuel_current / fuel_max) * 100
     end
 
-    local on_ground_raw = get("sim/flightmodel/failures/onground_any") or 0
+    local on_ground_raw = get("sim/flightmodel/failures/onground_any")
     local on_ground = false
-    if type(on_ground_raw) == "boolean" then
-        on_ground = on_ground_raw
-    elseif type(on_ground_raw) == "number" then
-        on_ground = (on_ground_raw == 1)
+    if on_ground_raw ~= nil then
+        if type(on_ground_raw) == "boolean" then
+            on_ground = on_ground_raw
+        elseif type(on_ground_raw) == "number" then
+            on_ground = (on_ground_raw == 1)
+        end
     end
 
-    local park_brake_raw = get("sim/flightmodel/controls/parkbrake") or 0
+    local park_brake_raw = get("sim/flightmodel/controls/parkbrake")
     local park_brake = false
-    if type(park_brake_raw) == "boolean" then
-        park_brake = park_brake_raw
-    elseif type(park_brake_raw) == "number" then
-        park_brake = (park_brake_raw > 0.5)
+    if park_brake_raw ~= nil then
+        if type(park_brake_raw) == "boolean" then
+            park_brake = park_brake_raw
+        elseif type(park_brake_raw) == "number" then
+            park_brake = (park_brake_raw > 0.5)
+        end
     end
 
-    -- Engine detection - safe fallback
     local n1_1 = get("sim/cockpit2/engine/indicators/N1_percent[0]") or 0
     local n1_2 = get("sim/cockpit2/engine/indicators/N1_percent[1]") or 0
-
+    
     local engine1_running = (n1_1 > 15)
     local engine2_running = (n1_2 > 15)
 
@@ -170,8 +191,8 @@ function monitor_flight()
             maintenance_cost = maintenance_cost + 5000
         end
 
-        local gear_handle = get("sim/cockpit2/controls/gear_handle_down") or 1
-        if gear_handle == 0 then
+        local gear_handle = get("sim/cockpit2/controls/gear_handle_down")
+        if gear_handle == nil or gear_handle == false or gear_handle == 0 then
             gear_up_landing = true
             flight_score = flight_score - 40
             maintenance_cost = maintenance_cost + 30000
@@ -180,7 +201,7 @@ function monitor_flight()
 
     last_on_ground = on_ground
 
-    ---------------- EVENT DETECTION (SAFE) ----------------
+    ---------------- EVENT DETECTION ----------------
     local pitch = get("sim/flightmodel/position/theta") or 0
     if pitch > 10 and on_ground then
         tailstrike_detected = true
@@ -253,7 +274,7 @@ function monitor_flight()
         reputation = "UNSAFE"
     end
 
-    ---------------- JSON ----------------
+    ---------------- CONSTRUCT JSON ----------------
     local json_payload =
         "{"
         .. '"altitude":' .. string.format("%.1f", altitude) .. ","
