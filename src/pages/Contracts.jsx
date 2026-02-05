@@ -110,6 +110,51 @@ export default function Contracts() {
           </div>
         </motion.div>
 
+        {/* Range Filter */}
+        <div className="flex items-center gap-3 mb-6">
+          <Filter className="w-4 h-4 text-slate-400" />
+          <button
+            onClick={() => setRangeFilter('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              rangeFilter === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            Alle Entfernungen
+          </button>
+          <button
+            onClick={() => setRangeFilter('short')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              rangeFilter === 'short'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            Kurzstrecke (≤500 NM)
+          </button>
+          <button
+            onClick={() => setRangeFilter('medium')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              rangeFilter === 'medium'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            Mittelstrecke (500-1500 NM)
+          </button>
+          <button
+            onClick={() => setRangeFilter('long')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              rangeFilter === 'long'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            Langstrecke (>1500 NM)
+          </button>
+        </div>
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="bg-slate-800 border border-slate-700">
