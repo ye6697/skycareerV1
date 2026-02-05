@@ -215,23 +215,34 @@ export default function FlightTracker() {
   });
 
   const completeFlightMutation = useMutation({
-    mutationFn: async () => {
-      // Calculate costs and profit
-      const fuelUsed = (100 - flightData.fuel) * 10; // Simplified
-      const fuelCost = fuelUsed * 1.5; // $1.50 per liter
-      const crewCost = 500; // Simplified
-      const maintenanceCost = 200; // Simplified
+   mutationFn: async () => {
+     // Realistic cost calculations based on aviation industry
+     const fuelUsed = (100 - flightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
+     const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
+     const fuelCost = fuelUsed * fuelCostPerLiter;
 
-      let revenue = contract?.payout || 0;
+     // Crew costs based on flight hours
+     const flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2; // Average cruise speed 450 knots
+     const crewCostPerHour = 250; // $250 per flight hour (captain + first officer)
+     const crewCost = flightHours * crewCostPerHour;
 
-      // Bonus based on rating
-      if (ratings.overall >= 4.5 && contract?.bonus_potential) {
-        revenue += contract.bonus_potential;
-      } else if (ratings.overall >= 4) {
-        revenue += (contract?.bonus_potential || 0) * 0.5;
-      }
+     // Maintenance cost per flight hour
+     const maintenanceCostPerHour = 400; // $400 per flight hour
+     const maintenanceCost = flightHours * maintenanceCostPerHour;
 
-      const profit = revenue - fuelCost - crewCost - maintenanceCost;
+     // Landing and airport fees
+     const airportFee = 150;
+
+     let revenue = contract?.payout || 0;
+
+     // Bonus based on rating
+     if (ratings.overall >= 4.5 && contract?.bonus_potential) {
+       revenue += contract.bonus_potential;
+     } else if (ratings.overall >= 4) {
+       revenue += (contract?.bonus_potential || 0) * 0.5;
+     }
+
+     const profit = revenue - fuelCost - crewCost - maintenanceCost - airportFee;
 
       // Update flight record
       await base44.entities.Flight.update(flight.id, {
