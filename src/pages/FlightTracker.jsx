@@ -53,24 +53,24 @@ export default function FlightTracker() {
     }
   });
 
-  const { data: contract } = useQuery({
-    queryKey: ['contract', contractId],
+  // Get active flight with real-time updates
+  const { data: flight } = useQuery({
+    queryKey: ['active-flight'],
     queryFn: async () => {
-      const contracts = await base44.entities.Contract.filter({ id: contractId });
-      return contracts[0];
+      const flights = await base44.entities.Flight.list('-updated_date', 1);
+      return flights.find(f => f.status === 'in_flight') || null;
     },
-    enabled: !!contractId
+    refetchInterval: 500
   });
 
-  // Get flight data with real-time updates
-  const { data: flight } = useQuery({
-    queryKey: ['flight', contractId],
+  const { data: contract } = useQuery({
+    queryKey: ['contract', flight?.contract_id],
     queryFn: async () => {
-      const flights = await base44.entities.Flight.filter({ contract_id: contractId });
-      return flights[0] || null;
+      if (!flight?.contract_id) return null;
+      const contracts = await base44.entities.Contract.filter({ id: flight.contract_id });
+      return contracts[0];
     },
-    enabled: !!contractId,
-    refetchInterval: 500
+    enabled: !!flight?.contract_id
   });
 
   const { data: company } = useQuery({
