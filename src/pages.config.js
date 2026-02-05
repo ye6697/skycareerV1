@@ -58,6 +58,7 @@ import FlightHistory from './pages/FlightHistory';
 import FlightTracker from './pages/FlightTracker';
 import Setup from './pages/Setup';
 import XPlaneSetup from './pages/XPlaneSetup';
+import XPlaneDebug from './pages/XPlaneDebug';
 import __Layout from './Layout.jsx';
 
 
@@ -73,6 +74,7 @@ export const PAGES = {
     "FlightTracker": FlightTracker,
     "Setup": Setup,
     "XPlaneSetup": XPlaneSetup,
+    "XPlaneDebug": XPlaneDebug,
 }
 
 export const pagesConfig = {

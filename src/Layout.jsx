@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   Settings,
-  ChevronRight
+  ChevronRight,
+  Activity
 } from "lucide-react";
 
 const navItems = [
@@ -28,6 +29,7 @@ const navItems = [
   { name: "Finanzen", icon: DollarSign, path: "Finances" },
   { name: "Flughistorie", icon: History, path: "FlightHistory" },
   { name: "X-Plane Setup", icon: Settings, path: "XPlaneSetup" },
+  { name: "X-Plane Debug", icon: Activity, path: "XPlaneDebug" },
 ];
 
 export default function Layout({ children, currentPageName }) {
