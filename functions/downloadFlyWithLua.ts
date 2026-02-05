@@ -289,8 +289,9 @@ function monitor_flight()
         .. '"reputation":"' .. reputation .. '"'
         .. "}"
 
-    -- Debug output to X-Plane log
-    logMsg("SkyCareer: Sending data - Alt:" .. altitude .. " Speed:" .. speed .. " OnGround:" .. tostring(on_ground))
+    -- Debug output to X-Plane log (shows what we're sending)
+    logMsg("SkyCareer: Alt=" .. string.format("%.0f", altitude) .. "ft Speed=" .. string.format("%.0f", speed) .. "kts Ground=" .. tostring(on_ground))
+    logMsg("SkyCareer: JSON=" .. json_payload)
     
     send_flight_data(json_payload)
 end
