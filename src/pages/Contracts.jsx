@@ -43,18 +43,27 @@ export default function Contracts() {
     }
   });
 
+  const getRangeCategory = (distanceNm) => {
+    if (distanceNm <= 500) return 'short';
+    if (distanceNm <= 1500) return 'medium';
+    return 'long';
+  };
+
   const filteredContracts = contracts.filter(contract => {
     const matchesSearch = 
       contract.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contract.departure_airport?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contract.arrival_airport?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    if (activeTab === 'all') return matchesSearch && contract.status === 'available';
-    if (activeTab === 'accepted') return matchesSearch && contract.status === 'accepted';
-    if (activeTab === 'passenger') return matchesSearch && contract.type === 'passenger' && contract.status === 'available';
-    if (activeTab === 'cargo') return matchesSearch && contract.type === 'cargo' && contract.status === 'available';
-    if (activeTab === 'charter') return matchesSearch && contract.type === 'charter' && contract.status === 'available';
-    return matchesSearch;
+    const rangeCategory = getRangeCategory(contract.distance_nm || 0);
+    const matchesRange = rangeFilter === 'all' || rangeCategory === rangeFilter;
+    
+    if (activeTab === 'all') return matchesSearch && matchesRange && contract.status === 'available';
+    if (activeTab === 'accepted') return matchesSearch && matchesRange && contract.status === 'accepted';
+    if (activeTab === 'passenger') return matchesSearch && matchesRange && contract.type === 'passenger' && contract.status === 'available';
+    if (activeTab === 'cargo') return matchesSearch && matchesRange && contract.type === 'cargo' && contract.status === 'available';
+    if (activeTab === 'charter') return matchesSearch && matchesRange && contract.type === 'charter' && contract.status === 'available';
+    return matchesSearch && matchesRange;
   });
 
   const handleAccept = (contract) => {
