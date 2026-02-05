@@ -10,10 +10,25 @@ import {
   Fuel,
   Clock,
   Wrench,
-  DollarSign
+  DollarSign,
+  AlertTriangle,
+  Hammer,
+  Trash2
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { base44 } from '@/api/base44Client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
+  const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
+  const queryClient = useQueryClient();
+
   const typeConfig = {
     small_prop: { label: "Propeller (Klein)", icon: "🛩️" },
     turboprop: { label: "Turboprop", icon: "✈️" },
@@ -27,8 +42,56 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     available: { label: "Verfügbar", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
     in_flight: { label: "Im Flug", color: "bg-blue-100 text-blue-700 border-blue-200" },
     maintenance: { label: "Wartung", color: "bg-amber-100 text-amber-700 border-amber-200" },
+    damaged: { label: "Beschädigt", color: "bg-red-100 text-red-700 border-red-200" },
     sold: { label: "Verkauft", color: "bg-slate-100 text-slate-600 border-slate-200" }
   };
+
+  const repairCost = (aircraft.purchase_price || 0) * 0.35;
+  const scrapValue = (aircraft.purchase_price || 0) * 0.1;
+
+  const repairMutation = useMutation({
+    mutationFn: async () => {
+      const company = (await base44.entities.Company.list())[0];
+      if (!company) throw new Error('Unternehmen nicht gefunden');
+
+      await base44.entities.Aircraft.update(aircraft.id, { status: 'available' });
+      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - repairCost });
+      await base44.entities.Transaction.create({
+        type: 'expense',
+        category: 'maintenance',
+        amount: repairCost,
+        description: `Reparatur: ${aircraft.name}`,
+        date: new Date().toISOString()
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      setIsRepairDialogOpen(false);
+    }
+  });
+
+  const scrapMutation = useMutation({
+    mutationFn: async () => {
+      const company = (await base44.entities.Company.list())[0];
+      if (!company) throw new Error('Unternehmen nicht gefunden');
+
+      await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
+      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) + scrapValue });
+      await base44.entities.Transaction.create({
+        type: 'income',
+        category: 'aircraft_sale',
+        amount: scrapValue,
+        description: `Verschrottung: ${aircraft.name}`,
+        date: new Date().toISOString()
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      setIsRepairDialogOpen(false);
+    }
+  });
 
   const type = typeConfig[aircraft.type] || typeConfig.small_prop;
   const status = statusConfig[aircraft.status] || statusConfig.available;
