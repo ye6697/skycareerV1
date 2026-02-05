@@ -231,19 +231,22 @@ X-Plane 12/Log.txt
     skycareerFolder.file("README.md", readmeContent);
 
     const zipBlob = await zip.generateAsync({ 
-      type: 'nodebuffer',
-      compression: 'DEFLATE',
-      compressionOptions: {
-        level: 9
-      },
-      platform: 'UNIX'
+      type: 'base64'
     });
 
-    return new Response(zipBlob, {
+    // Convert base64 to Uint8Array
+    const binaryString = atob(zipBlob);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    return new Response(bytes, {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': 'attachment; filename="SkyCareer-XPlane-Plugin.zip"'
+        'Content-Disposition': 'attachment; filename="SkyCareer-XPlane-Plugin.zip"',
+        'Content-Transfer-Encoding': 'binary'
       }
     });
 
