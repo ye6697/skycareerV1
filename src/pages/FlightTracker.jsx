@@ -30,6 +30,7 @@ export default function FlightTracker() {
   const queryClient = useQueryClient();
 
   const [flightPhase, setFlightPhase] = useState('preflight');
+  const [flight, setFlight] = useState(null);
   const [flightData, setFlightData] = useState({
     altitude: 0,
     speed: 0,
@@ -53,14 +54,15 @@ export default function FlightTracker() {
     }
   });
 
-  // Get active flight with real-time updates
-  const { data: flight } = useQuery({
-    queryKey: ['active-flight'],
+  // Get latest X-Plane data directly
+  const { data: xplaneLog } = useQuery({
+    queryKey: ['xplane-log'],
     queryFn: async () => {
-      const flights = await base44.entities.Flight.list('-updated_date', 1);
-      return flights.find(f => f.status === 'in_flight') || null;
+      const logs = await base44.entities.XPlaneLog.list('-created_date', 1);
+      return logs[0] || null;
     },
-    refetchInterval: 500
+    refetchInterval: 500,
+    enabled: flightPhase !== 'preflight'
   });
 
   const { data: contract } = useQuery({
@@ -81,62 +83,49 @@ export default function FlightTracker() {
     }
   });
 
-  // Update flight data from flight.xplane_data continuously (same as debug page)
+  // Update flight data from X-Plane log
   useEffect(() => {
-    if (!flight || flightPhase === 'completed') return;
+    if (!xplaneLog?.raw_data || flightPhase === 'completed' || flightPhase === 'preflight') return;
 
-    // Always update from flight.xplane_data when available
-    if (flight.xplane_data) {
-      const xp = flight.xplane_data;
-      
-      setFlightData({
-        altitude: xp.altitude || 0,
-        speed: xp.speed || 0,
-        verticalSpeed: xp.vertical_speed || 0,
-        heading: xp.heading || 0,
-        fuel: xp.fuel_percentage || 100,
-        gForce: xp.g_force || 1.0,
-        maxGForce: xp.max_g_force || flight.max_g_force || 1.0,
-        landingVs: xp.touchdown_vspeed || 0,
-        flightScore: xp.flight_score || 100,
-        maintenanceCost: xp.maintenance_cost || 0,
-        reputation: xp.reputation || 'EXCELLENT',
-        events: {
-          tailstrike: xp.tailstrike || false,
-          stall: xp.stall || false,
-          overstress: xp.overstress || false,
-          flaps_overspeed: xp.flaps_overspeed || false,
-          fuel_emergency: xp.fuel_emergency || false,
-          gear_up_landing: xp.gear_up_landing || false,
-          crash: xp.crash || false
-        }
-      });
-
-      // Auto-detect phase - start if in air
-      if (flightPhase === 'preflight' && xp.altitude > 10 && !xp.on_ground) {
-        setFlightPhase('takeoff');
-      } else if (flightPhase !== 'preflight' && xp.altitude > 10 && !xp.on_ground) {
-        // Adjust phase during flight
-        if (xp.altitude > 10000) {
-          setFlightPhase('cruise');
-        } else if (xp.vertical_speed < -200) {
-          setFlightPhase('landing');
-        }
+    const xp = xplaneLog.raw_data;
+    
+    setFlightData(prev => ({
+      altitude: xp.altitude || prev.altitude,
+      speed: xp.speed || prev.speed,
+      verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
+      heading: xp.heading || prev.heading,
+      fuel: xp.fuel_percentage || prev.fuel,
+      gForce: xp.g_force || prev.gForce,
+      maxGForce: Math.max(prev.maxGForce, xp.g_force || 1.0),
+      landingVs: xp.touchdown_vspeed || prev.landingVs,
+      flightScore: xp.flight_score || prev.flightScore,
+      maintenanceCost: xp.maintenance_cost || prev.maintenanceCost,
+      reputation: xp.reputation || prev.reputation,
+      events: {
+        tailstrike: xp.tailstrike || prev.events.tailstrike,
+        stall: xp.stall || prev.events.stall,
+        overstress: xp.overstress || prev.events.overstress,
+        flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
+        fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
+        gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
+        crash: xp.crash || prev.events.crash
       }
+    }));
 
-      // Check if landed and parked
-      if (xp.on_ground && xp.park_brake && flightPhase !== 'completed') {
-        setFlightPhase('completed');
-        queryClient.invalidateQueries();
-      }
-
-      // Check if flight status changed
-      if (flight.status === 'completed') {
-        setFlightPhase('completed');
-        queryClient.invalidateQueries();
+    // Auto-detect phase - start if in air
+    if (flightPhase === 'takeoff' && xp.altitude > 10 && !xp.on_ground) {
+      setFlightPhase('cruise');
+    } else if (flightPhase === 'cruise') {
+      if (xp.vertical_speed < -200) {
+        setFlightPhase('landing');
       }
     }
-  }, [flight]);
+
+    // Check if landed and parked
+    if (xp.on_ground && xp.park_brake && flightPhase !== 'completed') {
+      setFlightPhase('completed');
+    }
+  }, [xplaneLog]);
 
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
