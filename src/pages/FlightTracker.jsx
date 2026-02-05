@@ -89,6 +89,37 @@ export default function FlightTracker() {
 
   const ratings = calculateRatings(flightData);
 
+  const generateComments = (ratings, data) => {
+    const comments = [];
+    
+    if (data.events.crash) {
+      comments.push("Flugzeug zerstört!");
+      return comments;
+    }
+
+    if (ratings.landing >= 4.5) {
+      comments.push("Butterweiche Landung! Professionell!");
+    } else if (ratings.landing <= 2) {
+      comments.push("Die Landung war etwas ruppig...");
+    } else {
+      comments.push("Normale Landung.");
+    }
+
+    if (ratings.flight >= 4) {
+      comments.push("Sehr angenehmer, sanfter Flug.");
+    } else if (ratings.flight <= 2) {
+      comments.push("Mir wurde bei den Turbulenzen übel.");
+    }
+
+    if (ratings.overall >= 4.5) {
+      comments.push("Werde diese Airline weiterempfehlen!");
+    } else if (ratings.overall <= 2) {
+      comments.push("Ich buche nie wieder hier.");
+    }
+
+    return comments;
+  };
+
   // Get latest X-Plane data directly
   const { data: xplaneLog } = useQuery({
     queryKey: ['xplane-log'],
