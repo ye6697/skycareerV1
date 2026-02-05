@@ -25,6 +25,7 @@ const navItems = [
   { name: "Flotte", icon: Plane, path: "Fleet" },
   { name: "Finanzen", icon: DollarSign, path: "Finances" },
   { name: "Flughistorie", icon: History, path: "FlightHistory" },
+  { name: "X-Plane Setup", icon: Settings, path: "XPlaneSetup" },
 ];
 
 export default function Layout({ children, currentPageName }) {

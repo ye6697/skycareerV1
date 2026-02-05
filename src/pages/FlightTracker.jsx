@@ -42,6 +42,7 @@ export default function FlightTracker() {
     maxGForce: 1.0,
     landingVs: 0
   });
+  const [useRealData, setUseRealData] = useState(false);
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractId],
@@ -69,51 +70,92 @@ export default function FlightTracker() {
     }
   });
 
-  // Simulate flight data (in real implementation, this would come from X-Plane plugin)
+  // Poll X-Plane data or simulate
   useEffect(() => {
     if (flightPhase === 'completed') return;
+    if (!flight?.id) return;
 
-    const interval = setInterval(() => {
-      setFlightData(prev => {
-        let newData = { ...prev };
-        
-        // Simulate based on phase
-        if (flightPhase === 'takeoff') {
-          newData.altitude = Math.min(prev.altitude + Math.random() * 500, 35000);
-          newData.speed = Math.min(prev.speed + Math.random() * 20, 450);
-          newData.verticalSpeed = 1500 + Math.random() * 500;
-          newData.gForce = 1.0 + Math.random() * 0.3;
-          newData.maxGForce = Math.max(prev.maxGForce, newData.gForce);
-          
-          if (newData.altitude >= 10000) {
-            setFlightPhase('cruise');
+    const interval = setInterval(async () => {
+      if (useRealData && company?.xplane_connection_status === 'connected') {
+        // Get real data from X-Plane
+        try {
+          const { data } = await base44.functions.invoke('getActiveFlightData', {
+            flight_id: flight.id
+          });
+
+          if (data.xplane_data) {
+            const xp = data.xplane_data;
+            setFlightData({
+              altitude: xp.altitude || 0,
+              speed: xp.speed || 0,
+              verticalSpeed: xp.vertical_speed || 0,
+              heading: xp.heading || 0,
+              fuel: xp.fuel_percentage || 100,
+              gForce: xp.g_force || 1.0,
+              maxGForce: data.max_g_force || 1.0,
+              landingVs: 0
+            });
+
+            // Auto-detect phase
+            if (xp.altitude > 10000) {
+              setFlightPhase('cruise');
+            } else if (xp.altitude > 100 && xp.vertical_speed > 500) {
+              setFlightPhase('takeoff');
+            } else if (xp.altitude > 100 && xp.vertical_speed < -200) {
+              setFlightPhase('landing');
+            }
+
+            // Check if completed
+            if (data.status === 'completed') {
+              setFlightPhase('completed');
+              queryClient.invalidateQueries();
+            }
           }
-        } else if (flightPhase === 'cruise') {
-          newData.altitude = 35000 + (Math.random() - 0.5) * 100;
-          newData.speed = 450 + (Math.random() - 0.5) * 20;
-          newData.verticalSpeed = (Math.random() - 0.5) * 200;
-          newData.gForce = 1.0 + (Math.random() - 0.5) * 0.1;
-          newData.maxGForce = Math.max(prev.maxGForce, newData.gForce);
-          newData.fuel = Math.max(prev.fuel - 0.1, 0);
-        } else if (flightPhase === 'landing') {
-          newData.altitude = Math.max(prev.altitude - Math.random() * 300, 0);
-          newData.speed = Math.max(prev.speed - Math.random() * 10, 0);
-          newData.verticalSpeed = -800 - Math.random() * 400;
-          newData.gForce = 1.0 + Math.random() * 0.4;
-          newData.maxGForce = Math.max(prev.maxGForce, newData.gForce);
-          
-          if (newData.altitude <= 0) {
-            newData.landingVs = newData.verticalSpeed;
-            setFlightPhase('completed');
-          }
+        } catch (error) {
+          console.error('Error fetching X-Plane data:', error);
         }
-        
-        return newData;
-      });
+      } else {
+        // Simulate flight data
+        setFlightData(prev => {
+          let newData = { ...prev };
+          
+          if (flightPhase === 'takeoff') {
+            newData.altitude = Math.min(prev.altitude + Math.random() * 500, 35000);
+            newData.speed = Math.min(prev.speed + Math.random() * 20, 450);
+            newData.verticalSpeed = 1500 + Math.random() * 500;
+            newData.gForce = 1.0 + Math.random() * 0.3;
+            newData.maxGForce = Math.max(prev.maxGForce, newData.gForce);
+            
+            if (newData.altitude >= 10000) {
+              setFlightPhase('cruise');
+            }
+          } else if (flightPhase === 'cruise') {
+            newData.altitude = 35000 + (Math.random() - 0.5) * 100;
+            newData.speed = 450 + (Math.random() - 0.5) * 20;
+            newData.verticalSpeed = (Math.random() - 0.5) * 200;
+            newData.gForce = 1.0 + (Math.random() - 0.5) * 0.1;
+            newData.maxGForce = Math.max(prev.maxGForce, newData.gForce);
+            newData.fuel = Math.max(prev.fuel - 0.1, 0);
+          } else if (flightPhase === 'landing') {
+            newData.altitude = Math.max(prev.altitude - Math.random() * 300, 0);
+            newData.speed = Math.max(prev.speed - Math.random() * 10, 0);
+            newData.verticalSpeed = -800 - Math.random() * 400;
+            newData.gForce = 1.0 + Math.random() * 0.4;
+            newData.maxGForce = Math.max(prev.maxGForce, newData.gForce);
+            
+            if (newData.altitude <= 0) {
+              newData.landingVs = newData.verticalSpeed;
+              setFlightPhase('completed');
+            }
+          }
+          
+          return newData;
+        });
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [flightPhase]);
+  }, [flightPhase, useRealData, company?.xplane_connection_status, flight?.id]);
 
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
@@ -273,13 +315,21 @@ export default function FlightTracker() {
                 </span>
               </div>
             </div>
-            <Badge className={`px-4 py-2 text-lg ${
-              flightPhase === 'completed' 
-                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-            }`}>
-              {phaseLabels[flightPhase]}
-            </Badge>
+              <div className="flex items-center gap-2">
+              {company?.xplane_connection_status === 'connected' && (
+                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  X-Plane Live
+                </Badge>
+              )}
+              <Badge className={`px-4 py-2 text-lg ${
+                flightPhase === 'completed' 
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+              }`}>
+                {phaseLabels[flightPhase]}
+              </Badge>
+            </div>
           </div>
 
           {/* Progress */}
@@ -362,6 +412,27 @@ export default function FlightTracker() {
             {flightPhase !== 'completed' && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4">Flugsteuerung</h3>
+                
+                {/* Data Source Toggle */}
+                <div className="mb-4 p-3 bg-slate-900 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useRealData}
+                      onChange={(e) => setUseRealData(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded"
+                    />
+                    <span className="text-sm text-slate-300">
+                      X-Plane Echtzeitdaten verwenden
+                    </span>
+                  </label>
+                  {useRealData && company?.xplane_connection_status !== 'connected' && (
+                    <p className="text-xs text-amber-400 mt-2">
+                      ⚠️ X-Plane ist nicht verbunden. Stelle sicher, dass das Plugin läuft.
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-3">
                   {flightPhase === 'preflight' && (
                     <Button 
@@ -372,7 +443,7 @@ export default function FlightTracker() {
                       Start beginnen
                     </Button>
                   )}
-                  {flightPhase === 'cruise' && (
+                  {flightPhase === 'cruise' && !useRealData && (
                     <Button 
                       onClick={() => setFlightPhase('landing')}
                       className="bg-amber-600 hover:bg-amber-700"
@@ -383,10 +454,12 @@ export default function FlightTracker() {
                   )}
                 </div>
                 <p className="text-sm text-slate-400 mt-3">
-                  {flightPhase === 'preflight' && "Starte den Flug, wenn du in X-Plane bereit bist."}
+                  {flightPhase === 'preflight' && "Starte den Flug in X-Plane oder im Simulator."}
                   {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
-                  {flightPhase === 'cruise' && "Du befindest dich im Reiseflug. Leite den Landeanflug ein, wenn du bereit bist."}
-                  {flightPhase === 'landing' && "Sinkflug zum Zielflughafen..."}
+                  {flightPhase === 'cruise' && useRealData && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst."}
+                  {flightPhase === 'cruise' && !useRealData && "Leite den Landeanflug ein, wenn du bereit bist."}
+                  {flightPhase === 'landing' && useRealData && "Lande und parke das Flugzeug in X-Plane, um den Flug abzuschließen."}
+                  {flightPhase === 'landing' && !useRealData && "Sinkflug zum Zielflughafen..."}
                 </p>
               </Card>
             )}

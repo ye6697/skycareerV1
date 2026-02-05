@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plane, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function XPlaneStatus({ status = "disconnected", onConnect, onDisconnect, isLoading }) {
+export default function XPlaneStatus({ status = "disconnected", isLoading }) {
   const statusConfig = {
     connected: {
       color: "bg-emerald-500",
@@ -72,24 +72,15 @@ export default function XPlaneStatus({ status = "disconnected", onConnect, onDis
         </span>
       </div>
 
-      {status === "connected" ? (
-        <Button 
-          variant="outline" 
-          className="w-full bg-white/5 border-white/20 text-white hover:bg-white/10"
-          onClick={onDisconnect}
-          disabled={isLoading}
-        >
-          Trennen
-        </Button>
-      ) : (
-        <Button 
-          className="w-full bg-blue-600 hover:bg-blue-700"
-          onClick={onConnect}
-          disabled={isLoading || status === "connecting"}
-        >
-          {status === "connecting" ? "Verbinde..." : "Mit X-Plane verbinden"}
-        </Button>
-      )}
+      <div className="p-3 bg-white/5 rounded-lg">
+        <p className="text-xs text-slate-300 mb-2">Plugin Endpoint:</p>
+        <code className="text-xs text-blue-400 break-all">
+          {window.location.origin}/api/receiveXPlaneData
+        </code>
+        <p className="text-xs text-slate-400 mt-2">
+          Konfiguriere diesen Endpoint in deinem X-Plane Plugin
+        </p>
+      </div>
     </Card>
   );
 }
