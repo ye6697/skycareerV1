@@ -27,6 +27,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
+  const [isSellDialogOpen, setIsSellDialogOpen] = React.useState(false);
   const queryClient = useQueryClient();
 
   const typeConfig = {
