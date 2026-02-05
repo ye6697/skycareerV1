@@ -186,16 +186,17 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           </div>
 
           <div className="flex gap-2">
-            {aircraft.status === "damaged" ? (
-              <>
+            {aircraft.status === "damaged" && (
+              <div className="w-full mb-3 p-3 bg-red-100 border border-red-300 rounded-lg">
+                <p className="text-sm text-red-800 font-semibold mb-3">Flugzeug beschädigt</p>
                 <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
                   <Button 
                     size="sm" 
-                    className="flex-1 bg-amber-600 hover:bg-amber-700"
+                    className="w-full bg-amber-600 hover:bg-amber-700"
                     onClick={() => setIsRepairDialogOpen(true)}
                   >
                     <Hammer className="w-4 h-4 mr-1" />
-                    Reparieren
+                    Reparieren oder Entsorgen
                   </Button>
                   <DialogContent>
                     <DialogHeader>
