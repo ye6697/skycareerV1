@@ -258,6 +258,7 @@ export default function FlightTracker() {
         fuel_cost: fuelCost,
         crew_cost: crewCost,
         maintenance_cost: maintenanceCost,
+        flight_duration_hours: flightHours,
         revenue,
         profit,
         passenger_comments: generateComments(ratings, flightData)
