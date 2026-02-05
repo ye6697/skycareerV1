@@ -491,7 +491,7 @@ export default function FlightTracker() {
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4">Flugsteuerung</h3>
                 
-                {flightPhase === 'preflight' && (
+                {flightPhase === 'preflight' && !flight?.xplane_data && (
                   <div className="space-y-4">
                     <Button 
                       onClick={() => setFlightPhase('takeoff')}
@@ -509,8 +509,8 @@ export default function FlightTracker() {
                 {flightPhase !== 'preflight' && (
                   <p className="text-sm text-slate-400">
                     {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
-                    {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst."}
-                    {flightPhase === 'landing' && "Lande und parke das Flugzeug in X-Plane, um den Flug abzuschließen."}
+                    {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst und die Parkbremse aktiviert ist."}
+                    {flightPhase === 'landing' && "Lande das Flugzeug und schalte die Parkbremse ein, um den Flug abzuschließen."}
                   </p>
                 )}
               </Card>
