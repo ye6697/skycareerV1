@@ -25,6 +25,13 @@ export default function FlightRating({ flight }) {
     return "Katastrophal";
   };
 
+  const getStatusBgColor = (rating) => {
+    if (rating >= 4.5) return "bg-emerald-50 border-emerald-200 text-emerald-700";
+    if (rating >= 3.5) return "bg-blue-50 border-blue-200 text-blue-700";
+    if (rating >= 2.5) return "bg-amber-50 border-amber-200 text-amber-700";
+    return "bg-red-50 border-red-200 text-red-700";
+  };
+
   const RatingStars = ({ rating, label, icon: Icon }) => (
     <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
       <div className="flex items-center gap-2">
