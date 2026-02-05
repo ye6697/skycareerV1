@@ -31,7 +31,7 @@ export default function FlightTracker() {
   const urlParams = new URLSearchParams(window.location.search);
   const contractId = urlParams.get('contractId');
 
-  const [flightPhase, setFlightPhase] = useState('preflight'); // preflight, takeoff, cruise, landing, completed
+  const [flightPhase, setFlightPhase] = useState('preflight');
   const [flightData, setFlightData] = useState({
     altitude: 0,
     speed: 0,
@@ -54,7 +54,7 @@ export default function FlightTracker() {
       crash: false
     }
   });
-  const [useRealData, setUseRealData] = useState(true); // Default to real data
+  const [useRealData, setUseRealData] = useState(true);
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractId],
@@ -65,15 +65,16 @@ export default function FlightTracker() {
     enabled: !!contractId
   });
 
-  const { data: flight } = useQuery({
-    queryKey: ['flight', contractId],
+  // Get active flight (same method as debug page)
+  const { data: allFlights = [] } = useQuery({
+    queryKey: ['all-flights'],
     queryFn: async () => {
-      const flights = await base44.entities.Flight.filter({ contract_id: contractId });
-      return flights[0];
+      return await base44.entities.Flight.list('-updated_date', 5);
     },
-    enabled: !!contractId,
     refetchInterval: 1000
   });
+
+  const flight = allFlights.find(f => f.contract_id === contractId) || null;
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -546,33 +547,11 @@ export default function FlightTracker() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  {flightPhase === 'preflight' && (
-                    <Button 
-                      onClick={() => setFlightPhase('takeoff')}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <PlaneTakeoff className="w-4 h-4 mr-2" />
-                      Start beginnen
-                    </Button>
-                  )}
-                  {flightPhase === 'cruise' && !useRealData && (
-                    <Button 
-                      onClick={() => setFlightPhase('landing')}
-                      className="bg-amber-600 hover:bg-amber-700"
-                    >
-                      <PlaneLanding className="w-4 h-4 mr-2" />
-                      Landeanflug einleiten
-                    </Button>
-                  )}
-                </div>
-                <p className="text-sm text-slate-400 mt-3">
-                  {flightPhase === 'preflight' && "Starte den Flug in X-Plane oder im Simulator."}
+                <p className="text-sm text-slate-400">
+                  {flightPhase === 'preflight' && "Starte den Flug in X-Plane - Daten werden automatisch erkannt."}
                   {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
-                  {flightPhase === 'cruise' && useRealData && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst."}
-                  {flightPhase === 'cruise' && !useRealData && "Leite den Landeanflug ein, wenn du bereit bist."}
-                  {flightPhase === 'landing' && useRealData && "Lande und parke das Flugzeug in X-Plane, um den Flug abzuschließen."}
-                  {flightPhase === 'landing' && !useRealData && "Sinkflug zum Zielflughafen..."}
+                  {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst."}
+                  {flightPhase === 'landing' && "Lande und parke das Flugzeug in X-Plane, um den Flug abzuschließen."}
                 </p>
               </Card>
             )}
