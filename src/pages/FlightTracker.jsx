@@ -453,14 +453,20 @@ export default function FlightTracker() {
 
             {/* Fuel & Status */}
             <Card className="p-6 bg-slate-800/50 border-slate-700">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Fuel className="w-5 h-5 text-amber-400" />
                   Treibstoff
                 </h3>
                 <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
               </div>
-              <Progress value={flightData.fuel} className="h-3 bg-slate-700" />
+              <Progress value={flightData.fuel} className="h-3 bg-slate-700 mb-3" />
+              <div className="p-2 bg-slate-900 rounded text-center">
+                <p className="text-xs text-slate-400">Treibstoff</p>
+                <p className="text-lg font-mono font-bold text-amber-400">
+                  {Math.round(flightData.fuelKg)} kg
+                </p>
+              </div>
               {flightData.events.fuel_emergency && (
                 <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
                   <AlertTriangle className="w-4 h-4" />
