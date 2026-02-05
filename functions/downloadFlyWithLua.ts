@@ -20,6 +20,13 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Company not found' }, { status: 404 });
     }
 
+    // Generate API key if not exists
+    let apiKey = company.xplane_api_key;
+    if (!apiKey) {
+      apiKey = crypto.randomUUID();
+      await base44.entities.Company.update(company.id, { xplane_api_key: apiKey });
+    }
+
     // Create complete FlyWithLua script with CORRECT XP12 DataRefs
     const luaScript = `-- =========================================================
 -- SkyCareer PRO Complete Monitoring System
@@ -30,7 +37,7 @@ Deno.serve(async (req) => {
 -- CONFIG
 ----------------------------
 local API_ENDPOINT = "${apiEndpoint}"
-local COMPANY_ID = "${company.id}"
+local API_KEY = "${apiKey}"
 local UPDATE_INTERVAL = 1.0
 
 ----------------------------
@@ -91,9 +98,9 @@ function send_flight_data(json_payload)
     local command
 
     if SYSTEM == "IBM" then
-        command = 'curl -X POST "' .. API_ENDPOINT .. '" -H "Content-Type: application/json" -d "' .. json_payload .. '" --max-time 3 --silent'
+        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload .. '" --max-time 3 --silent'
     else
-        command = 'curl -X POST "' .. API_ENDPOINT .. '" -H "Content-Type: application/json" -d \\'' .. json_payload .. '\\' --max-time 3 --silent'
+        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d \\'' .. json_payload .. '\\' --max-time 3 --silent'
     end
 
     os.execute(command)
@@ -262,7 +269,6 @@ function monitor_flight()
     ---------------- JSON ----------------
     local json_payload =
         "{"
-        .. '"company_id":"' .. COMPANY_ID .. '",'
         .. '"altitude":' .. string.format("%.1f", altitude) .. ","
         .. '"speed":' .. string.format("%.1f", speed) .. ","
         .. '"vertical_speed":' .. string.format("%.1f", vs) .. ","

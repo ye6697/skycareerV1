@@ -4,10 +4,24 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     
+    // Get API key from query params
+    const url = new URL(req.url);
+    const apiKey = url.searchParams.get('api_key');
+    
+    if (!apiKey) {
+      return Response.json({ error: 'API key required' }, { status: 401 });
+    }
+
+    // Find company by API key
+    const companies = await base44.asServiceRole.entities.Company.filter({ xplane_api_key: apiKey });
+    if (companies.length === 0) {
+      return Response.json({ error: 'Invalid API key' }, { status: 401 });
+    }
+    const company = companies[0];
+    
     const data = await req.json();
     
     const {
-      company_id,
       altitude,
       speed,
       vertical_speed,
@@ -36,17 +50,9 @@ Deno.serve(async (req) => {
       reputation
     } = data;
 
-    if (!company_id) {
-      return Response.json({ error: 'company_id required' }, { status: 400 });
-    }
-
-    // Get company
-    const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id });
-    const company = companies[0];
-
     // Log ALL received data (regardless of active flight)
     await base44.asServiceRole.entities.XPlaneLog.create({
-      company_id,
+      company_id: company.id,
       raw_data: data,
       altitude,
       speed,
@@ -72,10 +78,19 @@ Deno.serve(async (req) => {
 
     // Get active flight for this company
     const flights = await base44.asServiceRole.entities.Flight.filter({ 
-      status: 'in_flight',
-      company_id: company_id
+      status: 'in_flight'
     });
-    const flight = flights[0];
+    
+    // Find flight for this user's company (match by contract ownership)
+    let flight = null;
+    for (const f of flights) {
+      const contract = await base44.asServiceRole.entities.Contract.get(f.contract_id);
+      if (contract && contract.created_by === company.created_by) {
+        flight = f;
+        break;
+      }
+    }
+    
 
     if (!flight) {
       // No active flight - but X-Plane is connected and sending data
@@ -87,7 +102,7 @@ Deno.serve(async (req) => {
     }
 
     // Update log to mark that there was an active flight
-    const logs = await base44.asServiceRole.entities.XPlaneLog.filter({ company_id });
+    const logs = await base44.asServiceRole.entities.XPlaneLog.filter({ company_id: company.id });
     if (logs.length > 0) {
       await base44.asServiceRole.entities.XPlaneLog.update(logs[0].id, {
         has_active_flight: true
