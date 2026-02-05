@@ -62,13 +62,13 @@ local crash_detected = false
 -- DATAREFS (XP12 CORRECTED)
 ----------------------------
 dataref("sim_time", "sim/time/total_running_time_sec")
-dataref("on_ground_any", "sim/flightmodel/failures/onground_any")
+dataref("onground", "sim/flightmodel/failures/onground_any")
 dataref("park_brake", "sim/flightmodel/controls/parkbrake")
 dataref("flap_ratio", "sim/flightmodel/controls/flaprat")
 dataref("total_fuel", "sim/aircraft/weight/acf_m_fuel_tot")
 dataref("pitch", "sim/flightmodel/position/theta")
 dataref("gear_handle", "sim/cockpit2/controls/gear_handle_down")
-dataref("ias", "sim/flightmodel/position/indicated_airspeed")
+dataref("airspeed_ind", "sim/flightmodel/position/indicated_airspeed")
 
 ------------------------------------------------------------
 -- LANDING CLASSIFICATION
@@ -124,7 +124,7 @@ function monitor_flight()
         fuel_percentage = (total_fuel / fuel_max * 100)
     end
 
-    local on_ground = (on_ground_any == 1)
+    local on_ground = (onground == 1)
 
     -- Check if engines are running (any engine)
     local num_engines = get("sim/aircraft/engine/acf_num_engines") or 0
@@ -194,7 +194,7 @@ function monitor_flight()
     end
 
     -- Stall detection via low airspeed at high altitude
-    if ias and altitude > 500 and ias < 80 and not on_ground then
+    if airspeed_ind and altitude > 500 and airspeed_ind < 80 and not on_ground then
         stall_detected = true
     end
 
