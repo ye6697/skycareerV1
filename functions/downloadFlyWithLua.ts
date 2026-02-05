@@ -305,9 +305,9 @@ function monitor_flight()
     send_flight_data(json_payload)
 end
 
-do_often("monitor_flight()")
+do_every_frame("monitor_flight()")
 
-logMsg("SkyCareer PRO Complete System Loaded (XP12)")
+logMsg("SkyCareer PRO Complete System Loaded (XP12) - Monitoring active")
 `;
     
     return new Response(luaScript, {
