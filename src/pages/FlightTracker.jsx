@@ -64,13 +64,13 @@ export default function FlightTracker() {
     enabled: !!contractId
   });
 
-  // Get active flight with real-time updates (same as debug page)
+  // Get active flight with real-time updates - faster refresh
   const { data: allFlights = [] } = useQuery({
     queryKey: ['all-flights'],
     queryFn: async () => {
       return await base44.entities.Flight.list('-updated_date', 10);
     },
-    refetchInterval: 1000
+    refetchInterval: 500
   });
 
   // Find the active flight - match by contractId and status 'in_flight' (same as debug page)
