@@ -82,8 +82,20 @@ export default function ActiveFlights() {
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
-      // Get selected aircraft details
+      // Check if aircraft can handle contract requirements
       const ac = aircraft.find(a => a.id === selectedAircraft);
+      if (!ac) throw new Error('Flugzeug nicht gefunden');
+      
+      // Validate aircraft is suitable for contract
+      if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
+        throw new Error('Flugzeug hat nicht genug Sitze');
+      }
+      if (ac.cargo_capacity_kg < (selectedContract?.cargo_weight_kg || 0)) {
+        throw new Error('Flugzeug hat nicht genug Frachtraum');
+      }
+      if (ac.range_nm < (selectedContract?.distance_nm || 0)) {
+        throw new Error('Flugzeug hat nicht genug Reichweite');
+      }
       
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
