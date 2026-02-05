@@ -313,7 +313,7 @@ export default function ActiveFlights() {
               ))}
             </AnimatePresence>
           </div>
-        ) : (
+        ) : activeTab === 'active' ? (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">Keine aktiven Aufträge</h3>
@@ -324,7 +324,67 @@ export default function ActiveFlights() {
               <Button>Aufträge durchsuchen</Button>
             </Link>
           </Card>
-        )}
+        ) : null}
+
+        {/* Completed Contracts */}
+        {activeTab === 'completed' && completedContracts.length > 0 ? (
+          <div className="space-y-4">
+            <AnimatePresence>
+              {completedContracts.map((contract) => (
+                <motion.div
+                  key={contract.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <Card className="overflow-hidden bg-slate-800 border border-slate-700">
+                    <div className="h-1 bg-emerald-500" />
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-xl font-semibold text-white">
+                              {contract.title}
+                            </h3>
+                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                              Abgeschlossen
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              {contract.departure_airport}
+                            </span>
+                            <ArrowRight className="w-4 h-4" />
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              {contract.arrival_airport}
+                            </span>
+                            <span className="text-slate-600">|</span>
+                            <span>{contract.distance_nm} NM</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-emerald-600">
+                            ${contract.payout?.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : activeTab === 'completed' ? (
+          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <CheckCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine abgeschlossenen Flüge</h3>
+            <p className="text-slate-400">
+              Alle abgeschlossenen Flüge werden hier angezeigt
+            </p>
+          </Card>
+        ) : null}
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
