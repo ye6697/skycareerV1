@@ -244,39 +244,61 @@ export default function FlightTracker() {
 
      const profit = revenue - fuelCost - crewCost - maintenanceCost - airportFee;
 
-      // Update flight record
-      await base44.entities.Flight.update(flight.id, {
-        status: 'completed',
-        arrival_time: new Date().toISOString(),
-        takeoff_rating: ratings.takeoff,
-        flight_rating: ratings.flight,
-        landing_rating: ratings.landing,
-        overall_rating: ratings.overall,
-        landing_vs: flightData.landingVs,
-        max_g_force: flightData.maxGForce,
-        fuel_used_liters: fuelUsed,
-        fuel_cost: fuelCost,
-        crew_cost: crewCost,
-        maintenance_cost: maintenanceCost,
-        flight_duration_hours: flightHours,
-        revenue,
-        profit,
-        passenger_comments: generateComments(ratings, flightData)
-      });
+      // Check for crash
+            const hasCrashed = flightData.events.crash;
 
-      // Update contract
-      await base44.entities.Contract.update(flight.contract_id, { status: 'completed' });
+            // Calculate depreciation based on flight hours
+            const airplaneToUpdate = aircraft.find(a => a.id === flight.aircraft_id);
+            const newFlightHours = (airplaneToUpdate?.total_flight_hours || 0) + flightHours;
+            const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
+            const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
 
-      // Update company
-      if (company) {
-        await base44.entities.Company.update(company.id, {
-          balance: (company.balance || 0) + profit,
-          reputation: Math.min(100, Math.max(0, (company.reputation || 50) + (overallRating - 3) * 2)),
-          total_flights: (company.total_flights || 0) + 1,
-          total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
-          total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
-        });
-      }
+            // Update flight record
+            await base44.entities.Flight.update(flight.id, {
+              status: 'completed',
+              arrival_time: new Date().toISOString(),
+              takeoff_rating: ratings.takeoff,
+              flight_rating: ratings.flight,
+              landing_rating: ratings.landing,
+              overall_rating: ratings.overall,
+              landing_vs: flightData.landingVs,
+              max_g_force: flightData.maxGForce,
+              fuel_used_liters: fuelUsed,
+              fuel_cost: fuelCost,
+              crew_cost: crewCost,
+              maintenance_cost: maintenanceCost,
+              flight_duration_hours: flightHours,
+              revenue,
+              profit,
+              passenger_comments: generateComments(ratings, flightData)
+            });
+
+            // Update contract
+            await base44.entities.Contract.update(flight.contract_id, { status: 'completed' });
+
+            // Update aircraft with depreciation and crash status
+            if (flight?.aircraft_id) {
+              await base44.entities.Aircraft.update(flight.aircraft_id, {
+                status: hasCrashed ? 'damaged' : 'available',
+                total_flight_hours: newFlightHours,
+                current_value: newAircraftValue
+              });
+            }
+
+            // Calculate level bonus (10% per level)
+            const levelBonus = (company?.level || 1) > 1 ? revenue * ((company.level - 1) * 0.1) : 0;
+            const totalRevenue = profit + levelBonus;
+
+            // Update company
+            if (company) {
+              await base44.entities.Company.update(company.id, {
+                balance: (company.balance || 0) + totalRevenue,
+                reputation: hasCrashed ? Math.max(0, (company.reputation || 50) - 10) : Math.min(100, Math.max(0, (company.reputation || 50) + (ratings.overall - 3) * 2)),
+                total_flights: (company.total_flights || 0) + 1,
+                total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
+                total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
+              });
+            }
 
       // Create transaction
       await base44.entities.Transaction.create({
