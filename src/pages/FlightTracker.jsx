@@ -301,19 +301,15 @@ export default function FlightTracker() {
             }
 
       // Create transaction
+      const levelBonus = (company?.level || 1) > 1 ? revenue * ((company.level - 1) * 0.1) : 0;
       await base44.entities.Transaction.create({
         type: 'income',
         category: 'flight_revenue',
-        amount: profit,
-        description: `Flug: ${contract?.title}`,
+        amount: profit + levelBonus,
+        description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
         reference_id: flight?.id,
         date: new Date().toISOString()
       });
-
-      // Release aircraft and crew
-      if (flight?.aircraft_id) {
-        await base44.entities.Aircraft.update(flight.aircraft_id, { status: 'available' });
-      }
       if (flight?.crew) {
         for (const member of flight.crew) {
           await base44.entities.Employee.update(member.employee_id, { status: 'available' });
