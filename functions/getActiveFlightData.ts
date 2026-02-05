@@ -9,16 +9,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const url = new URL(req.url);
-    const flightId = url.searchParams.get('flight_id');
+    const payload = await req.json();
+    const flightId = payload.flight_id;
 
     if (!flightId) {
       return Response.json({ error: 'flight_id parameter required' }, { status: 400 });
     }
 
     // Get flight data
-    const flights = await base44.entities.Flight.filter({ id: flightId });
-    const flight = flights[0];
+    const flight = await base44.entities.Flight.get(flightId);
 
     if (!flight) {
       return Response.json({ error: 'Flight not found' }, { status: 404 });
