@@ -33,7 +33,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 45,
     range_nm: 640,
     purchase_price: 150000,
-    maintenance_cost_per_hour: 25
+    maintenance_cost_per_hour: 25,
+    image_url: "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?w=400&h=300&fit=crop"
   },
   {
     name: "Piper PA-44 Seminole",
@@ -43,7 +44,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 55,
     range_nm: 750,
     purchase_price: 200000,
-    maintenance_cost_per_hour: 35
+    maintenance_cost_per_hour: 35,
+    image_url: "https://images.unsplash.com/photo-1544794221-8b78a403e99e?w=400&h=300&fit=crop"
   },
   {
     name: "Beechcraft King Air 350",
@@ -53,7 +55,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 350,
     range_nm: 1800,
     purchase_price: 750000,
-    maintenance_cost_per_hour: 120
+    maintenance_cost_per_hour: 120,
+    image_url: "https://images.unsplash.com/photo-1570720803582-6ea8a4f62da1?w=400&h=300&fit=crop"
   },
   {
     name: "Cessna Caravan",
@@ -63,7 +66,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 280,
     range_nm: 1200,
     purchase_price: 400000,
-    maintenance_cost_per_hour: 90
+    maintenance_cost_per_hour: 90,
+    image_url: "https://images.unsplash.com/photo-1562109280-4ff9ee6b2f56?w=400&h=300&fit=crop"
   },
   {
     name: "Bombardier Q400",
@@ -73,7 +77,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 850,
     range_nm: 1700,
     purchase_price: 1400000,
-    maintenance_cost_per_hour: 280
+    maintenance_cost_per_hour: 280,
+    image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop"
   },
   {
     name: "Embraer E175",
@@ -83,7 +88,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 2400,
     range_nm: 2200,
     purchase_price: 2500000,
-    maintenance_cost_per_hour: 450
+    maintenance_cost_per_hour: 450,
+    image_url: "https://images.unsplash.com/photo-1552819125-81b7e8c1c98a?w=400&h=300&fit=crop"
   },
   {
     name: "Airbus A220",
@@ -93,7 +99,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 2800,
     range_nm: 2800,
     purchase_price: 4200000,
-    maintenance_cost_per_hour: 650
+    maintenance_cost_per_hour: 650,
+    image_url: "https://images.unsplash.com/photo-1570718436944-bc21b3b01a71?w=400&h=300&fit=crop"
   },
   {
     name: "Airbus A320neo",
@@ -103,7 +110,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 3200,
     range_nm: 3500,
     purchase_price: 12000000,
-    maintenance_cost_per_hour: 1200
+    maintenance_cost_per_hour: 1200,
+    image_url: "https://images.unsplash.com/photo-1569015615565-1f8c7fb53d63?w=400&h=300&fit=crop"
   },
   {
     name: "Boeing 737 MAX 8",
@@ -113,7 +121,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 3500,
     range_nm: 3500,
     purchase_price: 13500000,
-    maintenance_cost_per_hour: 1350
+    maintenance_cost_per_hour: 1350,
+    image_url: "https://images.unsplash.com/photo-1567794348618-8d34755c16da?w=400&h=300&fit=crop"
   },
   {
     name: "Boeing 787-8",
@@ -123,7 +132,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 3800,
     range_nm: 5000,
     purchase_price: 18000000,
-    maintenance_cost_per_hour: 1600
+    maintenance_cost_per_hour: 1600,
+    image_url: "https://images.unsplash.com/photo-1564622246329-d0b3b9c7f7b8?w=400&h=300&fit=crop"
   },
   {
     name: "Airbus A330-200",
@@ -133,7 +143,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 7200,
     range_nm: 5650,
     purchase_price: 25000000,
-    maintenance_cost_per_hour: 2800
+    maintenance_cost_per_hour: 2800,
+    image_url: "https://images.unsplash.com/photo-1608449662850-e08b0e0b6110?w=400&h=300&fit=crop"
   },
   {
     name: "Boeing 777-300ER",
@@ -143,7 +154,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 10000,
     range_nm: 7370,
     purchase_price: 35000000,
-    maintenance_cost_per_hour: 3500
+    maintenance_cost_per_hour: 3500,
+    image_url: "https://images.unsplash.com/photo-1476519622667-75898657ea14?w=400&h=300&fit=crop"
   },
   {
     name: "Airbus A350-900",
@@ -153,7 +165,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 8200,
     range_nm: 8000,
     purchase_price: 38000000,
-    maintenance_cost_per_hour: 3800
+    maintenance_cost_per_hour: 3800,
+    image_url: "https://images.unsplash.com/photo-1579783902614-e3fb5141b0cb?w=400&h=300&fit=crop"
   },
   {
     name: "Boeing 747-8",
@@ -163,7 +176,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 11200,
     range_nm: 8000,
     purchase_price: 45000000,
-    maintenance_cost_per_hour: 4200
+    maintenance_cost_per_hour: 4200,
+    image_url: "https://images.unsplash.com/photo-1544794221-e9fdf7fc3c3b?w=400&h=300&fit=crop"
   },
   {
     name: "Airbus A380",
@@ -173,7 +187,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 12500,
     range_nm: 8000,
     purchase_price: 55000000,
-    maintenance_cost_per_hour: 5000
+    maintenance_cost_per_hour: 5000,
+    image_url: "https://images.unsplash.com/photo-1571996477506-de9c812b3434?w=400&h=300&fit=crop"
   },
   {
     name: "Boeing 777F",
@@ -183,7 +198,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 9500,
     range_nm: 4435,
     purchase_price: 38000000,
-    maintenance_cost_per_hour: 3600
+    maintenance_cost_per_hour: 3600,
+    image_url: "https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=400&h=300&fit=crop"
   },
   {
     name: "Boeing 747-8F",
@@ -193,7 +209,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 14500,
     range_nm: 4120,
     purchase_price: 42000000,
-    maintenance_cost_per_hour: 4500
+    maintenance_cost_per_hour: 4500,
+    image_url: "https://images.unsplash.com/photo-1568839419197-e5fa7eda60a8?w=400&h=300&fit=crop"
   },
   {
     name: "Airbus A330-200F",
@@ -203,7 +220,8 @@ const AIRCRAFT_MARKET = [
     fuel_consumption_per_hour: 7000,
     range_nm: 5550,
     purchase_price: 24000000,
-    maintenance_cost_per_hour: 2600
+    maintenance_cost_per_hour: 2600,
+    image_url: "https://images.unsplash.com/photo-1493514789560-586cb221a7f7?w=400&h=300&fit=crop"
   }
 ];
 
