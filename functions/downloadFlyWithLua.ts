@@ -112,11 +112,21 @@ function monitor_flight()
         fuel_percentage = (total_fuel_current / fuel_max * 100)
     end
 
-    local on_ground_raw = get("sim/flightmodel/failures/onground_any")
-    local on_ground = (on_ground_raw == 1)
+    local on_ground_raw = get("sim/flightmodel/failures/onground_any") or 0
+    local on_ground = false
+    if type(on_ground_raw) == "boolean" then
+        on_ground = on_ground_raw
+    elseif type(on_ground_raw) == "number" then
+        on_ground = (on_ground_raw == 1)
+    end
 
     local park_brake_raw = get("sim/flightmodel/controls/parkbrake") or 0
-    local park_brake = (park_brake_raw > 0.5)
+    local park_brake = false
+    if type(park_brake_raw) == "boolean" then
+        park_brake = park_brake_raw
+    elseif type(park_brake_raw) == "number" then
+        park_brake = (park_brake_raw > 0.5)
+    end
 
     -- Engine detection - safe fallback
     local n1_1 = get("sim/cockpit2/engine/indicators/N1_percent[0]") or 0
@@ -259,7 +269,7 @@ function monitor_flight()
         .. '"latitude":' .. latitude .. ","
         .. '"longitude":' .. longitude .. ","
         .. '"on_ground":' .. tostring(on_ground) .. ","
-        .. '"park_brake":' .. tostring(park_brake > 0.5) .. ","
+        .. '"park_brake":' .. tostring(park_brake) .. ","
         .. '"engine1_running":' .. tostring(engine1_running) .. ","
         .. '"engine2_running":' .. tostring(engine2_running) .. ","
         .. '"tailstrike":' .. tostring(tailstrike_detected) .. ","
