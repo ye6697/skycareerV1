@@ -26,10 +26,12 @@ export default function EmployeeDetails() {
   const { data: employee, isLoading } = useQuery({
     queryKey: ['employee', employeeId],
     queryFn: async () => {
+      if (!employeeId) return null;
       const employees = await base44.entities.Employee.filter({ id: employeeId });
-      return employees[0];
+      return employees?.[0] || null;
     },
-    enabled: !!employeeId
+    enabled: !!employeeId,
+    retry: false
   });
 
   if (isLoading || !employee) {
