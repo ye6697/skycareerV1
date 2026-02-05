@@ -265,12 +265,23 @@ export default function FlightTracker() {
     }
   };
 
-  if (!contract || !flight) {
+  if (!flight) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
           <Plane className="w-12 h-12 text-blue-400" />
         </motion.div>
+      </div>
+    );
+  }
+
+  if (!contract) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-white">Vertrag nicht gefunden</p>
+        </div>
       </div>
     );
   }
