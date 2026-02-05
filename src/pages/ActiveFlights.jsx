@@ -470,7 +470,13 @@ export default function ActiveFlights() {
                     <SelectValue placeholder="Flugzeug wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {aircraft.map((ac) => (
+                    {aircraft.filter(ac => {
+                      // Filter to only show compatible aircraft
+                      const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
+                      const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
+                      const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
+                      return passengerOk && cargoOk && rangeOk;
+                    }).map((ac) => (
                       <SelectItem key={ac.id} value={ac.id}>
                         {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
                       </SelectItem>
