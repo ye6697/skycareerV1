@@ -271,29 +271,18 @@ export default function FlightTracker() {
     }
   };
 
-  if (flightPhase === 'preflight' && !flight) {
+  if (flightPhase === 'preflight' && !contract) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-          <p className="text-white mb-4">Wähle einen Flug aus und starten Sie in X-Plane</p>
+          <p className="text-white mb-4">Vertrag nicht gefunden</p>
           <Button 
             onClick={() => navigate(createPageUrl("ActiveFlights"))}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Zu Aktiven Flügen
           </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (flightPhase !== 'preflight' && !contract) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-white">Vertrag nicht gefunden</p>
         </div>
       </div>
     );
