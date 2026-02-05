@@ -114,12 +114,16 @@ end
 -- MAIN MONITOR
 ------------------------------------------------------------
 function monitor_flight()
-
-    if sim_time - last_update < UPDATE_INTERVAL then
+    local current_time = get("sim/time/total_running_time_sec")
+    if not current_time then
         return
     end
 
-    last_update = sim_time
+    if current_time - last_update < UPDATE_INTERVAL then
+        return
+    end
+
+    last_update = current_time
 
     -- Safe DataRef reads with fallbacks
     local altitude = (get("sim/flightmodel/position/elevation") or 0) * 3.28084
