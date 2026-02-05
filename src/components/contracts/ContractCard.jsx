@@ -73,30 +73,30 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
           </div>
 
           <div className="flex items-center gap-2 mb-4 text-sm">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-lg">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
               <MapPin className="w-4 h-4 text-slate-400" />
               <span className="font-mono font-medium">{contract.departure_airport}</span>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-lg">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
               <MapPin className="w-4 h-4 text-slate-400" />
               <span className="font-mono font-medium">{contract.arrival_airport}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-slate-300">
               <Plane className="w-4 h-4 text-slate-400" />
               <span>{contract.distance_nm?.toLocaleString() || "---"} NM</span>
             </div>
             {contract.type === "passenger" && (
-              <div className="flex items-center gap-2 text-slate-600">
+              <div className="flex items-center gap-2 text-slate-300">
                 <Users className="w-4 h-4 text-slate-400" />
                 <span>{contract.passenger_count} Passagiere</span>
               </div>
             )}
             {contract.type === "cargo" && (
-              <div className="flex items-center gap-2 text-slate-600">
+              <div className="flex items-center gap-2 text-slate-300">
                 <Package className="w-4 h-4 text-slate-400" />
                 <span>{contract.cargo_weight_kg?.toLocaleString()} kg</span>
               </div>

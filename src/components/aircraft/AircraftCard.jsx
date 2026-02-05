@@ -68,19 +68,19 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-slate-300">
               <Users className="w-4 h-4 text-slate-400" />
               <span>{aircraft.passenger_capacity || 0} Sitze</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-slate-300">
               <Package className="w-4 h-4 text-slate-400" />
               <span>{aircraft.cargo_capacity_kg?.toLocaleString() || 0} kg</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-slate-300">
               <Fuel className="w-4 h-4 text-slate-400" />
               <span>{aircraft.fuel_consumption_per_hour} L/h</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-slate-300">
               <Plane className="w-4 h-4 text-slate-400" />
               <span>{aircraft.range_nm?.toLocaleString()} NM</span>
             </div>
