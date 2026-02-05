@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const apiEndpoint = url.searchParams.get('endpoint') || 'https://aero-career-pilot.base44.app/api/receiveXPlaneData';
+    const apiEndpoint = url.searchParams.get('endpoint') || 'https://aero-career-pilot.base44.app/functions/receiveXPlaneData';
     
     // Get company info
     const companies = await base44.entities.Company.list();
