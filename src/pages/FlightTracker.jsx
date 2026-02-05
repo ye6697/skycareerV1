@@ -509,9 +509,9 @@ export default function FlightTracker() {
                             CRASH ERKANNT!
                           </div>
                         )}
-                      </div>
-                    </div>
-                  )}
+                        </div>
+                        </div>
+                        )}
                 </div>
               </Card>
             )}
