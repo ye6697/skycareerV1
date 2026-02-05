@@ -57,6 +57,11 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
   });
 
+  const { data: completedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'completed'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
+  });
+
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
     queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
