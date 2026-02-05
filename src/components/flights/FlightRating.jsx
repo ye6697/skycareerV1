@@ -95,8 +95,10 @@ export default function FlightRating({ flight }) {
             <div>
               <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Landegeschw.</p>
               <p className={`text-xl font-mono font-bold ${
-                Math.abs(flight.landing_vs) < 150 ? 'text-emerald-400' :
+                Math.abs(flight.landing_vs) < 100 ? 'text-emerald-400' :
+                Math.abs(flight.landing_vs) < 200 ? 'text-green-400' :
                 Math.abs(flight.landing_vs) < 300 ? 'text-amber-400' :
+                Math.abs(flight.landing_vs) < 500 ? 'text-orange-400' :
                 'text-red-400'
               }`}>
                 {Math.abs(flight.landing_vs)} ft/min
@@ -107,8 +109,9 @@ export default function FlightRating({ flight }) {
             <div>
               <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Max G-Kraft</p>
               <p className={`text-xl font-mono font-bold ${
-                flight.max_g_force < 1.5 ? 'text-emerald-400' :
-                flight.max_g_force < 2.0 ? 'text-amber-400' :
+                flight.max_g_force < 1.3 ? 'text-emerald-400' :
+                flight.max_g_force < 1.8 ? 'text-amber-400' :
+                flight.max_g_force < 2.5 ? 'text-orange-400' :
                 'text-red-400'
               }`}>
                 {flight.max_g_force?.toFixed(2) || "-"} G
@@ -117,6 +120,30 @@ export default function FlightRating({ flight }) {
           )}
         </div>
       </div>
+
+      {/* Additional Flight Metrics */}
+      {(flight?.fuel_used_liters || flight?.flight_duration_hours) && (
+        <div className="p-4 bg-slate-900 rounded-lg mb-4">
+          <div className="grid grid-cols-2 gap-4 text-center text-sm">
+            {flight?.fuel_used_liters && (
+              <div>
+                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Treibstoff</p>
+                <p className="text-lg font-mono font-bold text-blue-400">
+                  {Math.round(flight.fuel_used_liters)} L
+                </p>
+              </div>
+            )}
+            {flight?.flight_duration_hours && (
+              <div>
+                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Flugzeit</p>
+                <p className="text-lg font-mono font-bold text-purple-400">
+                  {flight.flight_duration_hours.toFixed(1)}h
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {flight?.passenger_comments?.length > 0 && (
         <div>
