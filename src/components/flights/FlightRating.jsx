@@ -89,9 +89,9 @@ export default function FlightRating({ flight }) {
         />
       </div>
 
-      {flight?.landing_vs && (
-        <div className="p-4 bg-slate-900 rounded-lg mb-4">
-          <div className="grid grid-cols-2 gap-4 text-center">
+      <div className="p-4 bg-slate-900 rounded-lg mb-4">
+        <div className="grid grid-cols-2 gap-4 text-center">
+          {flight?.landing_vs !== undefined && (
             <div>
               <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Landegeschw.</p>
               <p className={`text-xl font-mono font-bold ${
@@ -99,9 +99,11 @@ export default function FlightRating({ flight }) {
                 Math.abs(flight.landing_vs) < 300 ? 'text-amber-400' :
                 'text-red-400'
               }`}>
-                {flight.landing_vs} ft/min
+                {Math.abs(flight.landing_vs)} ft/min
               </p>
             </div>
+          )}
+          {flight?.max_g_force && (
             <div>
               <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Max G-Kraft</p>
               <p className={`text-xl font-mono font-bold ${
@@ -112,9 +114,9 @@ export default function FlightRating({ flight }) {
                 {flight.max_g_force?.toFixed(2) || "-"} G
               </p>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {flight?.passenger_comments?.length > 0 && (
         <div>
