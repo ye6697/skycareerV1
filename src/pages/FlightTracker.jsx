@@ -301,16 +301,19 @@ export default function FlightTracker() {
     completed: 'Abgeschlossen'
   };
 
-  const getPhaseProgress = () => {
-    switch (flightPhase) {
-      case 'preflight': return 0;
-      case 'takeoff': return 25;
-      case 'cruise': return 50;
-      case 'landing': return 75;
-      case 'completed': return 100;
-      default: return 0;
-    }
+  const calculateDistance = () => {
+    if (!contract || flightData.latitude === 0) return 100;
+    // Simple distance calculation (Haversine formula approximation)
+    // Airports have approximate coordinates (ICAO codes not provided)
+    // For demo: simulate distance based on flight phase
+    if (flightPhase === 'preflight') return 0;
+    if (flightPhase === 'takeoff') return 10;
+    if (flightPhase === 'cruise') return 50;
+    if (flightPhase === 'landing') return 85;
+    return 100;
   };
+
+  const distanceProgress = calculateDistance();
 
   if (flightPhase === 'preflight' && !contract) {
     return (
