@@ -128,7 +128,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <StatCard
             title="Flüge Gesamt"
             value={company.total_flights?.toLocaleString() || 0}
@@ -146,6 +146,13 @@ export default function Dashboard() {
             value={company.total_cargo_kg?.toLocaleString() || 0}
             icon={Package}
             color="orange"
+          />
+          <StatCard
+            title="Level"
+            value={company.level || 1}
+            subtitle="+10% Bonusgewinn/Level"
+            icon={TrendingUp}
+            color="amber"
           />
           <StatCard
             title="Mitarbeiter"
