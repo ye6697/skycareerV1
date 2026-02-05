@@ -55,6 +55,8 @@ import Fleet from './pages/Fleet';
 import ActiveFlights from './pages/ActiveFlights';
 import FlightTracker from './pages/FlightTracker';
 import FlightHistory from './pages/FlightHistory';
+import Finances from './pages/Finances';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -66,9 +68,11 @@ export const PAGES = {
     "ActiveFlights": ActiveFlights,
     "FlightTracker": FlightTracker,
     "FlightHistory": FlightHistory,
+    "Finances": Finances,
 }
 
 export const pagesConfig = {
     mainPage: "Dashboard",
     Pages: PAGES,
+    Layout: __Layout,
 };
