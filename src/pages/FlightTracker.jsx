@@ -159,26 +159,29 @@ export default function FlightTracker() {
     const xp = xplaneLog.raw_data;
     
     setFlightData(prev => ({
-      altitude: xp.altitude || prev.altitude,
-      speed: xp.speed || prev.speed,
-      verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
-      heading: xp.heading || prev.heading,
-      fuel: xp.fuel_percentage || prev.fuel,
-      gForce: xp.g_force || prev.gForce,
-      maxGForce: Math.max(prev.maxGForce, xp.g_force || 1.0),
-      landingVs: xp.touchdown_vspeed || prev.landingVs,
-      flightScore: xp.flight_score || prev.flightScore,
-      maintenanceCost: xp.maintenance_cost || prev.maintenanceCost,
-      reputation: xp.reputation || prev.reputation,
-      events: {
-        tailstrike: xp.tailstrike || prev.events.tailstrike,
-        stall: xp.stall || prev.events.stall,
-        overstress: xp.overstress || prev.events.overstress,
-        flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
-        fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
-        gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-        crash: xp.crash || prev.events.crash
-      }
+     altitude: xp.altitude || prev.altitude,
+     speed: xp.speed || prev.speed,
+     verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
+     heading: xp.heading || prev.heading,
+     fuel: xp.fuel_percentage || prev.fuel,
+     fuelKg: xp.fuel_kg || prev.fuelKg,
+     gForce: xp.g_force || prev.gForce,
+     maxGForce: Math.max(prev.maxGForce, xp.g_force || 1.0),
+     landingVs: xp.touchdown_vspeed || prev.landingVs,
+     flightScore: xp.flight_score || prev.flightScore,
+     maintenanceCost: xp.maintenance_cost || prev.maintenanceCost,
+     reputation: xp.reputation || prev.reputation,
+     latitude: xp.latitude || prev.latitude,
+     longitude: xp.longitude || prev.longitude,
+     events: {
+       tailstrike: xp.tailstrike || prev.events.tailstrike,
+       stall: xp.stall || prev.events.stall,
+       overstress: xp.overstress || prev.events.overstress,
+       flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
+       fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
+       gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
+       crash: xp.crash || prev.events.crash
+     }
     }));
 
     // Auto-detect phase - start if in air
