@@ -64,13 +64,8 @@ local gear_up_landing = false
 local crash_detected = false
 
 ----------------------------
--- DATAREFS (XP12 CORRECTED)
+-- DATAREFS - safe access only
 ----------------------------
-dataref("onground", "sim/flightmodel/failures/onground_any")
-dataref("park_brake", "sim/flightmodel/controls/parkbrake")
-dataref("flap_ratio", "sim/flightmodel/controls/flaprat")
-dataref("pitch", "sim/flightmodel/position/theta")
-dataref("gear_handle", "sim/cockpit2/controls/gear_handle_down")
 
 ------------------------------------------------------------
 -- LANDING CLASSIFICATION
@@ -97,7 +92,7 @@ function send_flight_data(json_payload)
 end
 
 ------------------------------------------------------------
--- MAIN MONITOR
+-- MAIN MONITOR (MINIMAL - NO CRASHES)
 ------------------------------------------------------------
 function monitor_flight()
 
@@ -111,22 +106,24 @@ function monitor_flight()
     local longitude = get("sim/flightmodel/position/longitude") or 0
     local total_fuel_current = get("sim/flightmodel/weight/m_fuel_total") or 0
     local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot") or 1000
-    
+
     local fuel_percentage = 100
     if fuel_max > 0 and total_fuel_current > 0 then
         fuel_percentage = (total_fuel_current / fuel_max * 100)
     end
 
-    local on_ground = (onground == 1)
+    local on_ground_raw = get("sim/flightmodel/failures/onground_any")
+    local on_ground = (on_ground_raw == 1)
 
-    -- Simplified engine detection using multiple methods
-    local throttle1 = get("sim/cockpit2/engine/actuators/throttle_ratio[0]") or 0
-    local throttle2 = get("sim/cockpit2/engine/actuators/throttle_ratio[1]") or 0
-    local engine_running_1 = get("sim/flightmodel/engine/ENGN_running[0]") or 0
-    local engine_running_2 = get("sim/flightmodel/engine/ENGN_running[1]") or 0
-    
-    local engine1_running = (throttle1 > 0.05 or engine_running_1 > 0)
-    local engine2_running = (throttle2 > 0.05 or engine_running_2 > 0)
+    local park_brake_raw = get("sim/flightmodel/controls/parkbrake") or 0
+    local park_brake = (park_brake_raw > 0.5)
+
+    -- Engine detection - safe fallback
+    local n1_1 = get("sim/cockpit2/engine/indicators/N1_percent[0]") or 0
+    local n1_2 = get("sim/cockpit2/engine/indicators/N1_percent[1]") or 0
+
+    local engine1_running = (n1_1 > 15)
+    local engine2_running = (n1_2 > 15)
 
     if g_force > max_g_force then
         max_g_force = g_force
@@ -163,6 +160,7 @@ function monitor_flight()
             maintenance_cost = maintenance_cost + 5000
         end
 
+        local gear_handle = get("sim/cockpit2/controls/gear_handle_down") or 1
         if gear_handle == 0 then
             gear_up_landing = true
             flight_score = flight_score - 40
@@ -172,30 +170,31 @@ function monitor_flight()
 
     last_on_ground = on_ground
 
-    ---------------- EVENT DETECTION ----------------
-    if pitch and pitch > 10 and on_ground then
+    ---------------- EVENT DETECTION (SAFE) ----------------
+    local pitch = get("sim/flightmodel/position/theta") or 0
+    if pitch > 10 and on_ground then
         tailstrike_detected = true
     end
 
-    -- Stall detection via low airspeed at high altitude
     local ias = get("sim/flightmodel/position/indicated_airspeed") or 0
-    if ias and altitude > 500 and ias < 80 and not on_ground then
+    if altitude > 500 and ias < 80 and not on_ground then
         stall_detected = true
     end
 
-    if g_force and (g_force > 2.5 or g_force < -1.0) then
+    if g_force > 2.5 or g_force < -1.0 then
         overstress_detected = true
     end
 
-    if flap_ratio and flap_ratio > 0 and speed > 200 then
+    local flap_ratio = get("sim/flightmodel/controls/flaprat") or 0
+    if flap_ratio > 0 and speed > 200 then
         flaps_overspeed = true
     end
 
-    if total_fuel and total_fuel < 300 then
+    if total_fuel_current < 300 then
         fuel_emergency = true
     end
 
-    if g_force and g_force > 3.5 then
+    if g_force > 3.5 then
         crash_detected = true
     end
 
