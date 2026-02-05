@@ -305,7 +305,7 @@ function monitor_flight()
     send_flight_data(json_payload)
 end
 
-do_every_frame("monitor_flight()")
+do_often("monitor_flight()")
 
 logMsg("SkyCareer PRO Complete System Loaded (XP12)")
 `;
