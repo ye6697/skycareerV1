@@ -256,52 +256,59 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Flights */}
-        {recentFlights.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-white">Letzte Flüge</h2>
-              <Link to={createPageUrl("FlightHistory")}>
-                <Button variant="ghost" className="text-blue-600">
-                  Alle anzeigen <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </Link>
-            </div>
-            <Card className="overflow-hidden bg-slate-800 border border-slate-700">
-              <div className="divide-y divide-slate-100">
-                {recentFlights.map((flight) => (
-                  <div key={flight.id} className="p-4 flex items-center justify-between hover:bg-slate-700 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                        <Plane className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-white">Flug #{flight.id?.slice(-6)}</p>
-                        <p className="text-sm text-slate-400">
-                          {flight.departure_time ? new Date(flight.departure_time).toLocaleDateString('de-DE') : '-'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-sm text-slate-400">Bewertung</p>
-                        <div className="flex items-center gap-1">
-                          <Star className={`w-4 h-4 ${flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
-                          <span className="font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-slate-400">Gewinn</p>
-                        <p className={`font-semibold ${flight.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {formatCurrency(flight.profit)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )}
+         {recentFlights.length > 0 && (
+           <div>
+             <div className="flex items-center justify-between mb-4">
+               <div>
+                 <h2 className="text-xl font-semibold text-white">Letzter Flug</h2>
+                 {recentFlights[0] && (
+                   <p className="text-sm text-slate-400">
+                     {recentFlights[0].departure_time ? new Date(recentFlights[0].departure_time).toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                   </p>
+                 )}
+               </div>
+               <Link to={createPageUrl("FlightHistory")}>
+                 <Button variant="ghost" className="text-blue-600">
+                   Alle anzeigen <ChevronRight className="w-4 h-4 ml-1" />
+                 </Button>
+               </Link>
+             </div>
+             <Card className="p-6 bg-slate-800 border border-slate-700">
+               {recentFlights[0] && (
+                 <div className="space-y-4">
+                   <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                       <Plane className="w-6 h-6 text-blue-600" />
+                     </div>
+                     <div>
+                       <p className="font-medium text-white">Flug #{recentFlights[0].id?.slice(-6)}</p>
+                       <p className="text-sm text-slate-400">Status: Abgeschlossen</p>
+                     </div>
+                   </div>
+                   <div className="grid grid-cols-3 gap-4 p-4 bg-slate-900 rounded-lg">
+                     <div className="text-center">
+                       <p className="text-sm text-slate-400 mb-1">Bewertung</p>
+                       <div className="flex items-center justify-center gap-1">
+                         <Star className={`w-5 h-5 ${recentFlights[0].overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
+                         <span className="text-lg font-semibold text-white">{recentFlights[0].overall_rating?.toFixed(1) || '-'}</span>
+                       </div>
+                     </div>
+                     <div className="text-center">
+                       <p className="text-sm text-slate-400 mb-1">Gewinn</p>
+                       <p className={`text-lg font-semibold ${recentFlights[0].profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                         {formatCurrency(recentFlights[0].profit)}
+                       </p>
+                     </div>
+                     <div className="text-center">
+                       <p className="text-sm text-slate-400 mb-1">Flugstunden</p>
+                       <p className="text-lg font-semibold text-white">{(recentFlights[0].flight_duration_hours || 0).toFixed(1)}h</p>
+                     </div>
+                   </div>
+                 </div>
+               )}
+             </Card>
+           </div>
+         )}
       </div>
     </div>
   );
