@@ -496,8 +496,8 @@ export default function ActiveFlights() {
                 </Label>
 
                 {['captain', 'first_officer', 'flight_attendant', 'loadmaster'].map((role) => {
-                  const required = getCrewRequirement(selectedContract, role);
-                  const roleEmployees = employees.filter((e) => e.role === role);
+                   const required = getCrewRequirement(selectedContract, role);
+                   const roleEmployees = employees.filter((e) => e.role === role && e.status !== 'terminated');
 
                   if (required === 0 && roleEmployees.length === 0) return null;
 
