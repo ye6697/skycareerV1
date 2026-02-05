@@ -43,7 +43,19 @@ export default function FlightTracker() {
     fuel: 100,
     gForce: 1.0,
     maxGForce: 1.0,
-    landingVs: 0
+    landingVs: 0,
+    flightScore: 100,
+    maintenanceCost: 0,
+    reputation: 'EXCELLENT',
+    events: {
+      tailstrike: false,
+      stall: false,
+      overstress: false,
+      flaps_overspeed: false,
+      fuel_emergency: false,
+      gear_up_landing: false,
+      crash: false
+    }
   });
   const [useRealData, setUseRealData] = useState(true); // Default to real data
   const [copiedFlightId, setCopiedFlightId] = useState(false);
@@ -96,8 +108,20 @@ export default function FlightTracker() {
               heading: xp.heading || 0,
               fuel: xp.fuel_percentage || 100,
               gForce: xp.g_force || 1.0,
-              maxGForce: data.max_g_force || 1.0,
-              landingVs: 0
+              maxGForce: xp.max_g_force || data.max_g_force || 1.0,
+              landingVs: xp.touchdown_vspeed || 0,
+              flightScore: xp.flight_score || 100,
+              maintenanceCost: xp.maintenance_cost || 0,
+              reputation: xp.reputation || 'EXCELLENT',
+              events: {
+                tailstrike: xp.tailstrike || false,
+                stall: xp.stall || false,
+                overstress: xp.overstress || false,
+                flaps_overspeed: xp.flaps_overspeed || false,
+                fuel_emergency: xp.fuel_emergency || false,
+                gear_up_landing: xp.gear_up_landing || false,
+                crash: xp.crash || false
+              }
             });
 
             // Auto-detect phase
@@ -456,7 +480,100 @@ export default function FlightTracker() {
                 <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
               </div>
               <Progress value={flightData.fuel} className="h-3 bg-slate-700" />
+              {flightData.events.fuel_emergency && (
+                <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
+                  <AlertTriangle className="w-4 h-4" />
+                  Treibstoff-Notstand!
+                </div>
+              )}
             </Card>
+
+            {/* Flight Score & Events */}
+            {useRealData && (
+              <Card className="p-6 bg-slate-800/50 border-slate-700">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Star className="w-5 h-5 text-amber-400" />
+                  Flug-Score
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Score</span>
+                    <span className={`text-2xl font-bold ${
+                      flightData.flightScore >= 95 ? 'text-emerald-400' :
+                      flightData.flightScore >= 85 ? 'text-green-400' :
+                      flightData.flightScore >= 70 ? 'text-amber-400' :
+                      'text-red-400'
+                    }`}>
+                      {Math.round(flightData.flightScore)}
+                    </span>
+                  </div>
+                  <Progress value={flightData.flightScore} className="h-2 bg-slate-700" />
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">Reputation</span>
+                    <Badge className={`${
+                      flightData.reputation === 'EXCELLENT' ? 'bg-emerald-500/20 text-emerald-400' :
+                      flightData.reputation === 'VERY_GOOD' ? 'bg-green-500/20 text-green-400' :
+                      flightData.reputation === 'ACCEPTABLE' ? 'bg-amber-500/20 text-amber-400' :
+                      flightData.reputation === 'POOR' ? 'bg-orange-500/20 text-orange-400' :
+                      'bg-red-500/20 text-red-400'
+                    }`}>
+                      {flightData.reputation}
+                    </Badge>
+                  </div>
+                  {flightData.maintenanceCost > 0 && (
+                    <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
+                      <span className="text-slate-400">Wartungskosten</span>
+                      <span className="text-red-400 font-mono">${flightData.maintenanceCost.toLocaleString()}</span>
+                    </div>
+                  )}
+                  
+                  {/* Events */}
+                  {Object.entries(flightData.events).some(([_, val]) => val) && (
+                    <div className="pt-3 border-t border-slate-700">
+                      <p className="text-xs text-slate-500 mb-2">Vorfälle:</p>
+                      <div className="space-y-1">
+                        {flightData.events.tailstrike && (
+                          <div className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Tailstrike
+                          </div>
+                        )}
+                        {flightData.events.stall && (
+                          <div className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Strömungsabriss
+                          </div>
+                        )}
+                        {flightData.events.overstress && (
+                          <div className="text-xs text-orange-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Überlastung
+                          </div>
+                        )}
+                        {flightData.events.flaps_overspeed && (
+                          <div className="text-xs text-orange-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Klappen zu schnell
+                          </div>
+                        )}
+                        {flightData.events.gear_up_landing && (
+                          <div className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Landung ohne Fahrwerk!
+                          </div>
+                        )}
+                        {flightData.events.crash && (
+                          <div className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            CRASH ERKANNT!
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             {/* Controls */}
             {flightPhase !== 'completed' && (
