@@ -520,14 +520,18 @@ export default function FlightTracker() {
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4">Flugsteuerung</h3>
                 
-                {flightPhase === 'preflight' && !flight?.xplane_data && (
+                {flightPhase === 'preflight' && (
                   <div className="space-y-4">
                     <Button 
-                      onClick={() => setFlightPhase('takeoff')}
+                      onClick={() => {
+                        setFlightPhase('takeoff');
+                        startFlightMutation.mutate();
+                      }}
+                      disabled={startFlightMutation.isPending}
                       className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
                     >
                       <PlaneTakeoff className="w-5 h-5 mr-2" />
-                      Flug starten
+                      {startFlightMutation.isPending ? 'Starte...' : 'Flug starten'}
                     </Button>
                     <p className="text-sm text-slate-400 text-center">
                       Klicke auf "Flug starten" und starte dann in X-Plane
