@@ -68,7 +68,6 @@ local crash_detected = false
 ----------------------------
 -- DATAREFS (XP12 CORRECTED)
 ----------------------------
-dataref("sim_time", "sim/time/total_running_time_sec")
 dataref("onground", "sim/flightmodel/failures/onground_any")
 dataref("park_brake", "sim/flightmodel/controls/parkbrake")
 dataref("flap_ratio", "sim/flightmodel/controls/flaprat")
