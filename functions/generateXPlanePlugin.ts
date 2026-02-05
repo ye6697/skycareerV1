@@ -12,6 +12,14 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const apiEndpoint = url.searchParams.get('endpoint') || 'http://localhost:5173/api/receiveXPlaneData';
+    
+    // Get company info
+    const companies = await base44.entities.Company.list();
+    const company = companies[0];
+    
+    if (!company) {
+      return Response.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     // Create plugin Python code
     const pluginCode = `"""
@@ -36,9 +44,9 @@ class PythonInterface:
         
         # Configuration
         self.api_endpoint = "${apiEndpoint}"
+        self.company_id = "${company.id}"
         self.update_interval = 1.0  # seconds
         self.last_update = 0
-        self.current_flight_id = None
         self.last_on_ground = True
         self.flight_started = False
         
@@ -120,24 +128,9 @@ class PythonInterface:
             if not self.flight_started and on_ground:
                 return -1
             
-            # Get active flight ID from config file
-            if self.current_flight_id is None:
-                try:
-                    config_path = xp.getSystemPath() + "Output/preferences/SkyCareer_config.txt"
-                    with open(config_path, 'r') as f:
-                        config = json.load(f)
-                        self.current_flight_id = config.get('flight_id')
-                        self.api_endpoint = config.get('api_endpoint', self.api_endpoint)
-                except:
-                    # No config file yet - skip this update
-                    return -1
-            
-            if not self.current_flight_id:
-                return -1
-            
             # Prepare payload
             payload = {
-                'flight_id': self.current_flight_id,
+                'company_id': self.company_id,
                 'altitude': round(altitude, 1),
                 'speed': round(speed, 1),
                 'vertical_speed': round(vs, 1),
@@ -198,23 +191,18 @@ class PythonInterface:
 
 3. Starte X-Plane 12 neu
 
-## Konfiguration
+## Verwendung
 
-1. Starte einen Flug in der SkyCareer Web-App
-2. Kopiere die Flight ID aus der URL
-3. Erstelle eine Konfigurationsdatei:
-   X-Plane 12/Output/preferences/SkyCareer_config.txt
+1. Akzeptiere einen Auftrag in der SkyCareer Web-App
+2. Starte den Flug in der App (weist Flugzeug und Crew zu)
+3. Lade in X-Plane 12:
+   - Das richtige Flugzeug
+   - Den Startflughafen (ICAO Code aus dem Auftrag)
+   - Stelle das Payload-Gewicht ein (aus dem Auftrag)
+4. Starte deinen Flug in X-Plane!
 
-Inhalt der Datei (JSON):
-\`\`\`json
-{
-  "flight_id": "DEINE_FLIGHT_ID_HIER",
-  "api_endpoint": "${apiEndpoint}"
-}
-\`\`\`
-
-4. Lade den Flug in X-Plane (richtiges Flugzeug und Startflughafen)
-5. Starte deinen Flug!
+Das Plugin erkennt automatisch deinen aktiven Flug und sendet die Daten.
+Keine weitere Konfiguration nötig!
 
 ## Funktionen
 
@@ -242,13 +230,20 @@ X-Plane 12/Log.txt
     skycareerFolder.file("PI_SkyCareer.py", pluginCode);
     skycareerFolder.file("README.md", readmeContent);
 
-    const zipBlob = await zip.generateAsync({ type: 'arraybuffer' });
+    const zipBlob = await zip.generateAsync({ 
+      type: 'uint8array',
+      compression: 'DEFLATE',
+      compressionOptions: {
+        level: 6
+      }
+    });
 
     return new Response(zipBlob, {
       status: 200,
       headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': 'attachment; filename=SkyCareer-XPlane-Plugin.zip'
+        'Content-Type': 'application/x-zip-compressed',
+        'Content-Disposition': 'attachment; filename="SkyCareer-XPlane-Plugin.zip"',
+        'Content-Length': zipBlob.length.toString()
       }
     });
 

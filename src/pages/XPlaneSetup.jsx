@@ -65,8 +65,8 @@ export default function XPlaneSetup() {
           <Link to={createPageUrl("Dashboard")} className="text-blue-400 hover:text-blue-300 text-sm mb-4 inline-block">
             ← Zurück zum Dashboard
           </Link>
-          <h1 className="text-3xl font-bold text-white">X-Plane 12 Integration</h1>
-          <p className="text-slate-400">Verbinde SkyCareer mit X-Plane 12 für Echtzeit-Flugdaten</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white">X-Plane 12 Integration</h1>
+          <p className="text-sm lg:text-base text-slate-400">Verbinde SkyCareer mit X-Plane 12 für Echtzeit-Flugdaten</p>
         </motion.div>
 
         {/* Setup Steps */}

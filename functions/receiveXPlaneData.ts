@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
     const data = await req.json();
     
     const {
-      flight_id,
+      company_id, // Using company ID instead of flight ID
       altitude,
       speed,
       vertical_speed,
@@ -22,12 +22,12 @@ Deno.serve(async (req) => {
       engines_running
     } = data;
 
-    if (!flight_id) {
-      return Response.json({ error: 'flight_id required' }, { status: 400 });
+    if (!company_id) {
+      return Response.json({ error: 'company_id required' }, { status: 400 });
     }
 
-    // Get current flight
-    const flights = await base44.asServiceRole.entities.Flight.filter({ id: flight_id });
+    // Get active flight for this company
+    const flights = await base44.asServiceRole.entities.Flight.filter({ status: 'in_flight' });
     const flight = flights[0];
 
     if (!flight) {
