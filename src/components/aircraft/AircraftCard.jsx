@@ -185,65 +185,65 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </div>
           </div>
 
-          <div className="flex gap-2">
-            {aircraft.status === "damaged" && (
-              <div className="w-full mb-3 p-3 bg-red-100 border border-red-300 rounded-lg">
-                <p className="text-sm text-red-800 font-semibold mb-3">Flugzeug beschädigt</p>
-                <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
-                  <Button 
-                    size="sm" 
-                    className="w-full bg-amber-600 hover:bg-amber-700"
-                    onClick={() => setIsRepairDialogOpen(true)}
-                  >
-                    <Hammer className="w-4 h-4 mr-1" />
-                    Reparieren oder Entsorgen
-                  </Button>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Flugzeug reparieren</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="p-4 bg-slate-100 rounded-lg">
-                        <p className="text-sm text-slate-600 mb-2">Reparaturkosten (35% des Neuwertes):</p>
-                        <p className="text-2xl font-bold text-amber-700">${repairCost.toLocaleString()}</p>
-                      </div>
-                      <p className="text-sm text-slate-600">
-                        Das Flugzeug wird nach der Reparatur wieder einsatzfähig.
-                      </p>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)}>
-                        Abbrechen
-                      </Button>
-                      <Button 
-                        onClick={() => repairMutation.mutate()}
-                        disabled={repairMutation.isPending}
-                        className="bg-amber-600 hover:bg-amber-700"
-                      >
-                        {repairMutation.isPending ? 'Repariere...' : 'Reparieren'}
-                      </Button>
-                      <Button 
-                        onClick={() => scrapMutation.mutate()}
-                        disabled={scrapMutation.isPending}
-                        variant="destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        {scrapMutation.isPending ? 'Entsorge...' : `Entsorgen (+$${scrapValue.toLocaleString()})`}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                  </Dialog>
-                  )}
-                  {aircraft.status === "available" && (
-                  <Button 
+          {aircraft.status === "damaged" ? (
+            <div className="w-full p-3 bg-red-100 border border-red-300 rounded-lg mb-3">
+              <p className="text-sm text-red-800 font-semibold mb-3">Flugzeug beschädigt</p>
+              <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
+                <Button 
                   size="sm" 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  onClick={() => onSelect?.(aircraft)}
-                  >
-                  Auswählen
-                  </Button>
-                  )}
+                  className="w-full bg-amber-600 hover:bg-amber-700"
+                  onClick={() => setIsRepairDialogOpen(true)}
+                >
+                  <Hammer className="w-4 h-4 mr-1" />
+                  Reparieren oder Entsorgen
+                </Button>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Flugzeug reparieren</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-slate-100 rounded-lg">
+                      <p className="text-sm text-slate-600 mb-2">Reparaturkosten (35% des Neuwertes):</p>
+                      <p className="text-2xl font-bold text-amber-700">${repairCost.toLocaleString()}</p>
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      Das Flugzeug wird nach der Reparatur wieder einsatzfähig.
+                    </p>
                   </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)}>
+                      Abbrechen
+                    </Button>
+                    <Button 
+                      onClick={() => repairMutation.mutate()}
+                      disabled={repairMutation.isPending}
+                      className="bg-amber-600 hover:bg-amber-700"
+                    >
+                      {repairMutation.isPending ? 'Repariere...' : 'Reparieren'}
+                    </Button>
+                    <Button 
+                      onClick={() => scrapMutation.mutate()}
+                      disabled={scrapMutation.isPending}
+                      variant="destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      {scrapMutation.isPending ? 'Entsorge...' : `Entsorgen (+$${scrapValue.toLocaleString()})`}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          ) : aircraft.status === "available" ? (
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                onClick={() => onSelect?.(aircraft)}
+              >
+                Auswählen
+              </Button>
+            </div>
+          ) : null}
           </div>
           </Card>
           </motion.div>
