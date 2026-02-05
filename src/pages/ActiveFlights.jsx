@@ -318,24 +318,44 @@ export default function ActiveFlights() {
 
                       <div className="flex justify-end gap-2">
                         {contract.status === 'accepted' && (
-                          <Button
-                            onClick={() => {
-                              setSelectedContract(contract);
-                              setIsAssignDialogOpen(true);
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            <Play className="w-4 h-4 mr-2" />
-                            Flug vorbereiten
-                          </Button>
+                          <>
+                            <Button
+                              onClick={() => {
+                                setSelectedContract(contract);
+                                setIsAssignDialogOpen(true);
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Play className="w-4 h-4 mr-2" />
+                              Flug vorbereiten
+                            </Button>
+                            <Button
+                              onClick={() => cancelFlightMutation.mutate(contract)}
+                              disabled={cancelFlightMutation.isPending}
+                              variant="outline"
+                              className="border-red-500 text-red-400 hover:bg-red-500/10"
+                            >
+                              Stornieren
+                            </Button>
+                          </>
                         )}
                         {contract.status === 'in_progress' && (
-                          <Link to={createPageUrl(`FlightTracker?contractId=${contract.id}`)}>
-                            <Button className="bg-emerald-600 hover:bg-emerald-700">
-                              <Plane className="w-4 h-4 mr-2" />
-                              Flug verfolgen
+                          <>
+                            <Link to={createPageUrl(`FlightTracker?contractId=${contract.id}`)}>
+                              <Button className="bg-emerald-600 hover:bg-emerald-700">
+                                <Plane className="w-4 h-4 mr-2" />
+                                Flug verfolgen
+                              </Button>
+                            </Link>
+                            <Button
+                              onClick={() => cancelFlightMutation.mutate(contract)}
+                              disabled={cancelFlightMutation.isPending}
+                              variant="outline"
+                              className="border-red-500 text-red-400 hover:bg-red-500/10"
+                            >
+                              Abbrechen
                             </Button>
-                          </Link>
+                          </>
                         )}
                       </div>
                     </div>
