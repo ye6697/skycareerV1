@@ -583,16 +583,13 @@ export default function FlightTracker() {
               <>
                 <FlightRating 
                   flight={{
-                    takeoff_rating: 3 + Math.random() * 2,
-                    flight_rating: flightData.maxGForce < 1.5 ? 4 : 3,
-                    landing_rating: Math.abs(flightData.landingVs) < 200 ? 5 : 3,
-                    overall_rating: 3.5,
+                    takeoff_rating: ratings.takeoff,
+                    flight_rating: ratings.flight,
+                    landing_rating: ratings.landing,
+                    overall_rating: ratings.overall,
                     landing_vs: flightData.landingVs,
                     max_g_force: flightData.maxGForce,
-                    passenger_comments: [
-                      Math.abs(flightData.landingVs) < 200 ? "Tolle Landung!" : "Landung war etwas hart.",
-                      flightData.maxGForce < 1.5 ? "Angenehmer Flug!" : "Etwas turbulent."
-                    ]
+                    passenger_comments: generateComments(ratings, flightData)
                   }} 
                 />
 
