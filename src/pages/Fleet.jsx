@@ -370,17 +370,20 @@ export default function Fleet() {
                           }`}
                           onClick={() => canAfford(ac.purchase_price) && setSelectedAircraft(ac)}
                         >
-                          <div className="relative h-48 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
+                          <div className="relative h-56 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
                             {ac.image_url ? (
                               <motion.img 
                                 src={ac.image_url}
                                 alt={ac.name}
                                 className="w-full h-full object-cover"
                                 whileHover={{ scale: 1.05 }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextElementSibling?.style.display = 'flex';
+                                }}
                               />
-                            ) : (
-                              <div className="flex items-center justify-center h-full text-6xl">✈️</div>
-                            )}
+                            ) : null}
+                            <div className="absolute inset-0 flex items-center justify-center text-6xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: ac.image_url ? 'none' : 'flex'}}>✈️</div>
                             {selectedAircraft?.name === ac.name && (
                               <motion.div
                                 initial={{ opacity: 0 }}
