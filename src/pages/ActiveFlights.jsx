@@ -35,6 +35,8 @@ import {
   User } from
 "lucide-react";
 
+import PreFlightCalculator from "@/components/flights/PreFlightCalculator";
+
 export default function ActiveFlights() {
   const queryClient = useQueryClient();
   const [selectedContract, setSelectedContract] = useState(null);
@@ -111,7 +113,8 @@ export default function ActiveFlights() {
       // Update contract status
       await base44.entities.Contract.update(selectedContract.id, { status: 'in_progress' });
 
-      // Aircraft status will be updated when flight actually starts in X-Plane
+      // Update aircraft status
+      await base44.entities.Aircraft.update(selectedAircraft, { status: 'in_flight' });
 
       // Update crew status
       for (const [role, id] of Object.entries(selectedCrew)) {
