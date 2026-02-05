@@ -80,7 +80,7 @@ export default function ActiveFlights() {
       // Get selected aircraft details
       const ac = aircraft.find(a => a.id === selectedAircraft);
       
-      // Create flight record
+      // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
@@ -88,7 +88,7 @@ export default function ActiveFlights() {
           .filter(([_, id]) => id)
           .map(([role, id]) => ({ role, employee_id: id })),
         departure_time: new Date().toISOString(),
-        status: 'scheduled'
+        status: 'in_flight'
       });
 
       // Update contract status
