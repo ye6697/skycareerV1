@@ -88,23 +88,32 @@ function classify_landing(g_force, vspeed)
 end
 
 ------------------------------------------------------------
--- HTTP SEND
+-- HTTP SEND (using LuaSocket - non-blocking)
 ------------------------------------------------------------
+local http = require("socket.http")
+local ltn12 = require("ltn12")
+
 function send_flight_data(json_payload)
-    -- Escape quotes in JSON payload
-    local escaped_json = json_payload:gsub('"', '\\"')
+    local response_body = {}
 
-    local command
+    local success, code, response_headers = pcall(function()
+        return http.request{
+            url = API_ENDPOINT .. "?api_key=" .. API_KEY,
+            method = "POST",
+            headers = {
+                ["Content-Type"] = "application/json",
+                ["Content-Length"] = string.len(json_payload)
+            },
+            source = ltn12.source.string(json_payload),
+            sink = ltn12.sink.table(response_body)
+        }
+    end)
 
-    if SYSTEM == "IBM" then
-        -- Windows
-        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. escaped_json .. '" --max-time 3 --silent &'
-    else
-        -- Mac/Linux - run in background to avoid blocking
-        command = "curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' --max-time 3 --silent > /dev/null 2>&1 &"
+    if success and code == 200 then
+        logMsg("SkyCareer: Data sent OK")
+    elseif not success then
+        logMsg("SkyCareer: HTTP failed - " .. tostring(code))
     end
-
-    os.execute(command)
 end
 
 ------------------------------------------------------------
