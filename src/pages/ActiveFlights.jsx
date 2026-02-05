@@ -556,7 +556,21 @@ export default function ActiveFlights() {
                   </div>
                 </div>
               }
-            </div>
+
+              {/* Pre-Flight Calculator */}
+              {selectedAircraft && selectedContract && (
+                <div className="border-t border-slate-700 pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Calculator className="w-5 h-5 text-blue-400" />
+                    <h3 className="text-lg font-semibold text-white">Pre-Flight Kalkulator</h3>
+                  </div>
+                  <PreFlightCalculator 
+                    aircraft={aircraft.find(ac => ac.id === selectedAircraft)}
+                    contract={selectedContract}
+                  />
+                </div>
+              )}
+              </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
