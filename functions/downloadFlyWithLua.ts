@@ -80,35 +80,13 @@ end
 -- HTTP SEND (ULTRA SAFE with pcall)
 ------------------------------------------------------------
 function send_flight_data(json_payload)
-    -- Protected call - if this fails, script continues
     local success, error_msg = pcall(function()
-        -- Try to load socket.http if available
-        local http_available, http = pcall(require, "socket.http")
-        local ltn12_available, ltn12 = pcall(require, "ltn12")
-        
-        if http_available and ltn12_available then
-            -- Use socket.http if available
-            local full_url = API_ENDPOINT .. "?api_key=" .. API_KEY
-            http.TIMEOUT = 3
-            
-            http.request{
-                url = full_url,
-                method = "POST",
-                headers = { ["Content-Type"] = "application/json" },
-                source = ltn12.source.string(json_payload),
-                sink = ltn12.sink.null()
-            }
+        if SYSTEM == "IBM" then
+            os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 1 --silent >nul 2>&1')
         else
-            -- Fallback to curl (works but may block briefly)
-            if SYSTEM == "IBM" then
-                os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 1 --silent >nul 2>&1')
-            else
-                os.execute("nohup curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 1 --silent >/dev/null 2>&1 &")
-            end
+            os.execute("nohup curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 1 --silent >/dev/null 2>&1 &")
         end
     end)
-    
-    -- If send failed, do nothing - just continue
 end
 
 ------------------------------------------------------------
@@ -150,11 +128,10 @@ function monitor_flight()
         end
     end
 
-    local n1_1 = get("sim/cockpit2/engine/indicators/N1_percent[0]") or 0
-    local n1_2 = get("sim/cockpit2/engine/indicators/N1_percent[1]") or 0
-    
-    local engine1_running = (n1_1 > 15)
-    local engine2_running = (n1_2 > 15)
+    -- Engine detection using throttle (simple and reliable)
+    local throttle_1 = get("sim/cockpit2/engine/actuators/throttle_ratio_all") or 0
+    local engine1_running = (throttle_1 > 0.01)
+    local engine2_running = (throttle_1 > 0.01)
 
     if g_force > max_g_force then
         max_g_force = g_force
