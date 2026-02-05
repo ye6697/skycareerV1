@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Input fields always white text */
+input, textarea, select {
+  @apply text-white;
+}
+
+input::placeholder, textarea::placeholder {
+  @apply text-slate-400;
+}
