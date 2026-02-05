@@ -234,21 +234,18 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                 </Dialog>
               </>
             ) : (
-              <>
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => onView?.(aircraft)}>
-                  Details
-                </Button>
-                {aircraft.status === "available" && (
-                  <Button 
-                    size="sm" 
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    onClick={() => onSelect?.(aircraft)}
-                  >
-                    Auswählen
-                  </Button>
-                )}
-              </>
-            )}
+               <>
+                 {aircraft.status === "available" && (
+                   <Button 
+                     size="sm" 
+                     className="flex-1 bg-blue-600 hover:bg-blue-700"
+                     onClick={() => onSelect?.(aircraft)}
+                   >
+                     Auswählen
+                   </Button>
+                 )}
+               </>
+             )}
           </div>
           </div>
           </Card>
