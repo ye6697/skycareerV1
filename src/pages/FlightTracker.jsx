@@ -210,31 +210,6 @@ export default function FlightTracker() {
 
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
-      // Calculate ratings based on flight data
-      const landingRating = Math.abs(flightData.landingVs) < 100 ? 5 :
-                          Math.abs(flightData.landingVs) < 200 ? 4 :
-                          Math.abs(flightData.landingVs) < 300 ? 3 :
-                          Math.abs(flightData.landingVs) < 500 ? 2 : 1;
-
-      const gForceRating = flightData.maxGForce < 1.3 ? 5 :
-                          flightData.maxGForce < 1.5 ? 4 :
-                          flightData.maxGForce < 1.8 ? 3 :
-                          flightData.maxGForce < 2.0 ? 2 : 1;
-
-      const takeoffRating = 3 + Math.random() * 2; // Simulate
-      const flightRating = gForceRating;
-      const overallRating = (takeoffRating + flightRating + landingRating) / 3;
-
-      // Generate passenger comments
-      const comments = [];
-      if (landingRating >= 4) comments.push("Butterweiche Landung! Professionell!");
-      else if (landingRating <= 2) comments.push("Die Landung war etwas ruppig...");
-      
-      if (gForceRating >= 4) comments.push("Sehr angenehmer, sanfter Flug.");
-      else if (gForceRating <= 2) comments.push("Mir wurde bei den Turbulenzen übel.");
-
-      if (overallRating >= 4) comments.push("Werde diese Airline weiterempfehlen!");
-      else if (overallRating <= 2) comments.push("Ich buche nie wieder hier.");
 
       // Calculate costs and profit
       const fuelUsed = (100 - flightData.fuel) * 10; // Simplified
