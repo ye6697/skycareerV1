@@ -27,6 +27,7 @@ export default function Contracts() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [rangeFilter, setRangeFilter] = useState('all');
 
   const { data: contracts = [], isLoading, refetch } = useQuery({
     queryKey: ['contracts'],
