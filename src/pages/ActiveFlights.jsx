@@ -460,7 +460,7 @@ export default function ActiveFlights() {
               <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-6">
+            <div className="space-y-6 max-h-[80vh] overflow-y-auto">
               {/* Aircraft Selection */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -489,6 +489,14 @@ export default function ActiveFlights() {
                 <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
                 }
               </div>
+
+              {/* Pre-Flight Calculator */}
+              {selectedAircraft && selectedContract && (
+                <PreFlightCalculator 
+                  aircraft={aircraft.find(a => a.id === selectedAircraft)}
+                  contract={selectedContract}
+                />
+              )}
 
               {/* Crew Selection */}
               <div className="space-y-4">
