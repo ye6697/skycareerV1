@@ -342,39 +342,62 @@ export default function Fleet() {
                     )}
 
                     {AIRCRAFT_MARKET.map((ac, index) => (
-                      <Card 
+                      <motion.div
                         key={index}
-                        className={`p-4 cursor-pointer transition-all ${
-                          selectedAircraft?.name === ac.name 
-                            ? 'border-blue-500 bg-blue-50' 
-                            : canAfford(ac.purchase_price) 
-                              ? 'hover:border-slate-300' 
-                              : 'opacity-50'
-                        }`}
-                        onClick={() => canAfford(ac.purchase_price) && setSelectedAircraft(ac)}
+                        whileHover={canAfford(ac.purchase_price) ? { scale: 1.02 } : {}}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
                       >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-semibold text-lg">{ac.name}</p>
-                            <p className="text-sm text-slate-500">{typeLabels[ac.type]}</p>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-3 text-sm text-slate-600">
-                              <span>🪑 {ac.passenger_capacity} Sitze</span>
-                              <span>📦 {ac.cargo_capacity_kg?.toLocaleString()} kg</span>
-                              <span>⛽ {ac.fuel_consumption_per_hour} L/h</span>
-                              <span>✈️ {ac.range_nm?.toLocaleString()} NM</span>
-                              <span>🔧 ${ac.maintenance_cost_per_hour}/h</span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-xl font-bold ${canAfford(ac.purchase_price) ? 'text-emerald-600' : 'text-red-500'}`}>
-                              ${ac.purchase_price?.toLocaleString()}
-                            </p>
-                            {!canAfford(ac.purchase_price) && (
-                              <p className="text-xs text-red-500">Nicht genug Budget</p>
+                        <Card 
+                          className={`overflow-hidden cursor-pointer transition-all border-2 ${
+                            selectedAircraft?.name === ac.name 
+                              ? 'border-blue-500 bg-blue-900/20' 
+                              : canAfford(ac.purchase_price) 
+                                ? 'border-slate-600 hover:border-slate-500 hover:shadow-lg hover:shadow-blue-500/20' 
+                                : 'border-slate-700 opacity-60'
+                          }`}
+                          onClick={() => canAfford(ac.purchase_price) && setSelectedAircraft(ac)}
+                        >
+                          <div className="relative h-48 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
+                            {ac.image_url ? (
+                              <motion.img 
+                                src={ac.image_url}
+                                alt={ac.name}
+                                className="w-full h-full object-cover"
+                                whileHover={{ scale: 1.05 }}
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-6xl">✈️</div>
+                            )}
+                            {selectedAircraft?.name === ac.name && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="absolute inset-0 bg-blue-500/30 border-2 border-blue-400"
+                              />
                             )}
                           </div>
-                        </div>
-                      </Card>
+                          <div className="p-4 bg-slate-800">
+                            <div className="mb-3">
+                              <p className="font-bold text-lg text-white">{ac.name}</p>
+                              <p className="text-sm text-slate-400">{typeLabels[ac.type]}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mb-4 text-xs text-slate-300">
+                              <span className="bg-slate-900 px-2 py-1 rounded">🪑 {ac.passenger_capacity}</span>
+                              <span className="bg-slate-900 px-2 py-1 rounded">📦 {ac.cargo_capacity_kg?.toLocaleString()}</span>
+                              <span className="bg-slate-900 px-2 py-1 rounded">⛽ {ac.fuel_consumption_per_hour}L/h</span>
+                              <span className="bg-slate-900 px-2 py-1 rounded">✈️ {ac.range_nm?.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-700">
+                              <p className={`text-lg font-bold ${canAfford(ac.purchase_price) ? 'text-emerald-400' : 'text-red-400'}`}>
+                                ${ac.purchase_price?.toLocaleString()}
+                              </p>
+                              {!canAfford(ac.purchase_price) && (
+                                <p className="text-xs text-red-400">Zu teuer</p>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
                     ))}
                   </div>
 
