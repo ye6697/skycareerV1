@@ -54,7 +54,6 @@ export default function FlightTracker() {
       crash: false
     }
   });
-  const [useRealData, setUseRealData] = useState(true);
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractId],
