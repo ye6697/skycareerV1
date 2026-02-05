@@ -71,13 +71,13 @@ export default function FlightTracker() {
   });
 
   const { data: contract } = useQuery({
-    queryKey: ['contract', flight?.contract_id],
+    queryKey: ['contract', contractIdFromUrl],
     queryFn: async () => {
-      if (!flight?.contract_id) return null;
-      const contracts = await base44.entities.Contract.filter({ id: flight.contract_id });
+      if (!contractIdFromUrl) return null;
+      const contracts = await base44.entities.Contract.filter({ id: contractIdFromUrl });
       return contracts[0];
     },
-    enabled: !!flight?.contract_id
+    enabled: !!contractIdFromUrl
   });
 
   const { data: company } = useQuery({
