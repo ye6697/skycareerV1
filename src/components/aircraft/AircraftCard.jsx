@@ -267,6 +267,42 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               >
                 Auswählen
               </Button>
+              <Button 
+                size="sm" 
+                className="flex-1 bg-slate-600 hover:bg-slate-700"
+                onClick={() => setIsSellDialogOpen(true)}
+              >
+                <DollarSign className="w-4 h-4 mr-1" />
+                Verkaufen
+              </Button>
+              <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Flugzeug verkaufen</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-slate-100 rounded-lg">
+                      <p className="text-sm text-slate-600 mb-2">Verkaufspreis (85% des aktuellen Wertes):</p>
+                      <p className="text-2xl font-bold text-emerald-700">${sellPrice.toLocaleString()}</p>
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      Das Flugzeug wird aus deiner Flotte entfernt.
+                    </p>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsSellDialogOpen(false)}>
+                      Abbrechen
+                    </Button>
+                    <Button 
+                      onClick={() => sellMutation.mutate()}
+                      disabled={sellMutation.isPending}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {sellMutation.isPending ? 'Verkaufe...' : 'Verkaufen'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : null}
           </div>
