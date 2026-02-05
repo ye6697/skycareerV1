@@ -32,10 +32,8 @@ import {
   CheckCircle,
   Play,
   DollarSign,
-  User,
-  Calculator } from
+  User } from
 "lucide-react";
-import PreFlightCalculator from "@/components/flights/PreFlightCalculator";
 
 export default function ActiveFlights() {
   const queryClient = useQueryClient();
@@ -454,19 +452,13 @@ export default function ActiveFlights() {
         null}
 
         {/* Assignment Dialog */}
-         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700">
-             <DialogHeader className="bg-gradient-to-r from-blue-600/10 to-purple-600/10 -mx-6 -mt-6 mb-6 px-6 py-4 rounded-t-lg border-b border-slate-700">
-               <div className="flex items-center gap-3">
-                 <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg">
-                   <Plane className="w-5 h-5 text-white" />
-                 </div>
-                 <DialogTitle className="text-2xl font-bold text-white">Flug vorbereiten</DialogTitle>
-               </div>
-               <p className="text-sm text-slate-400 mt-2">{selectedContract?.title}</p>
-             </DialogHeader>
+        <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
+            </DialogHeader>
 
-             <div className="space-y-6 pb-6">
+            <div className="space-y-6">
               {/* Aircraft Selection */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -518,8 +510,8 @@ export default function ActiveFlights() {
                         </span>
                       </div>
                       <Select
-                        value={selectedCrew[role]}
-                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
+                        value={selectedCrew[role] || ''}
+                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value || '' })}>
 
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
@@ -556,21 +548,7 @@ export default function ActiveFlights() {
                   </div>
                 </div>
               }
-
-              {/* Pre-Flight Calculator */}
-              {selectedAircraft && selectedContract && (
-                <div className="border-t border-slate-700 pt-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Calculator className="w-5 h-5 text-blue-400" />
-                    <h3 className="text-lg font-semibold text-white">Pre-Flight Kalkulator</h3>
-                  </div>
-                  <PreFlightCalculator 
-                    aircraft={aircraft.find(ac => ac.id === selectedAircraft)}
-                    contract={selectedContract}
-                  />
-                </div>
-              )}
-              </div>
+            </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
