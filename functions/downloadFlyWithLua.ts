@@ -133,19 +133,11 @@ function monitor_flight()
 
     local on_ground = (onground == 1)
 
-    -- Check if engines are running (any engine)
-    local num_engines = get("sim/aircraft/engine/acf_num_engines") or 0
-    local engine1_running = false
-    local engine2_running = false
-    
-    if num_engines >= 1 then
-        local n2_1 = get("sim/cockpit2/engine/indicators/N2_percent[0]")
-        engine1_running = (n2_1 and n2_1 > 20)
-    end
-    if num_engines >= 2 then
-        local n2_2 = get("sim/cockpit2/engine/indicators/N2_percent[1]")
-        engine2_running = (n2_2 and n2_2 > 20)
-    end
+    -- Simplified engine detection using throttle position as fallback
+    local throttle1 = get("sim/cockpit2/engine/actuators/throttle_ratio[0]") or 0
+    local throttle2 = get("sim/cockpit2/engine/actuators/throttle_ratio[1]") or 0
+    local engine1_running = (throttle1 > 0.05)
+    local engine2_running = (throttle2 > 0.05)
 
     if g_force > max_g_force then
         max_g_force = g_force
@@ -190,10 +182,6 @@ function monitor_flight()
     end
 
     last_on_ground = on_ground
-
-    if not flight_started then
-        return
-    end
 
     ---------------- EVENT DETECTION ----------------
     if pitch and pitch > 10 and on_ground then
@@ -297,6 +285,9 @@ function monitor_flight()
         .. '"reputation":"' .. reputation .. '"'
         .. "}"
 
+    -- Debug output to X-Plane log
+    logMsg("SkyCareer: Sending data - Alt:" .. altitude .. " Speed:" .. speed .. " OnGround:" .. tostring(on_ground))
+    
     send_flight_data(json_payload)
 end
 
