@@ -388,7 +388,7 @@ export default function FlightTracker() {
                 {contract.arrival_airport}
               </span>
             </div>
-            <Progress value={getPhaseProgress()} className="h-2 bg-slate-700" />
+            <Progress value={distanceProgress} className="h-2 bg-slate-700" />
           </div>
         </motion.div>
         )}
