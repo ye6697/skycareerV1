@@ -140,8 +140,8 @@ export default function FlightRating({ flight }) {
         </div>
       )}
 
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-        <p className="text-sm text-blue-300">
+      <div className={`mt-4 p-4 rounded-lg border ${getStatusBgColor(flight?.overall_rating)}`}>
+        <p className="text-sm font-semibold">
           <strong>Status:</strong> {getRatingLabel(flight?.overall_rating)}
         </p>
       </div>
