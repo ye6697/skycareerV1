@@ -32,38 +32,50 @@ local last_update = 0
 local flight_started = false
 local last_on_ground = true
 
--- HTTP Request Funktion
-function send_flight_data(data)
-    local json_data = "{"
-    local first = true
-    for key, value in pairs(data) do
-        if not first then json_data = json_data .. "," end
-        first = false
-        
-        if type(value) == "string" then
-            json_data = json_data .. '"' .. key .. '":"' .. value .. '"'
-        elseif type(value) == "boolean" then
-            json_data = json_data .. '"' .. key .. '":' .. (value and "true" or "false")
+-- Hilfsfunktion zum JSON-Kodieren
+function encode_json(t)
+    local function escape_string(s)
+        s = string.gsub(s, '\\\\', '\\\\\\\\')
+        s = string.gsub(s, '"', '\\\\"')
+        return s
+    end
+
+    local s = {}
+    for k, v in pairs(t) do
+        local key = escape_string(tostring(k))
+        if type(v) == "string" then
+            s[#s + 1] = '"' .. key .. '":"' .. escape_string(v) .. '"'
+        elseif type(v) == "number" or type(v) == "boolean" then
+            s[#s + 1] = '"' .. key .. '":' .. tostring(v)
         else
-            json_data = json_data .. '"' .. key .. '":' .. tostring(value)
+            s[#s + 1] = '"' .. key .. '":null'
         end
     end
-    json_data = json_data .. "}"
+    return '{' .. table.concat(s, ',') .. '}'
+end
+
+-- HTTP Request Funktion (FlyWithLua Native)
+function send_flight_data(data)
+    local json_data = encode_json(data)
     
-    -- Sende HTTP POST Request
-    local command = 'curl -X POST "' .. API_ENDPOINT .. '" ' ..
-                   '-H "Content-Type: application/json" ' ..
-                   '-d \\'' .. json_data .. '\\' ' ..
-                   '--max-time 2 --silent'
-    
-    os.execute(command .. ' &')
+    HTTP_REQUEST_ASYNC(
+        API_ENDPOINT,
+        "POST",
+        "Content-Type: application/json",
+        json_data,
+        10,
+        function(response_code, response_headers, response_body)
+            if response_code ~= 200 then
+                logMsg("SkyCareer: Fehler " .. response_code)
+            end
+        end
+    )
 end
 
 -- DataRef Überwachung
 function monitor_flight()
     local current_time = os.clock()
     
-    -- Prüfe Update-Intervall
     if current_time - last_update < UPDATE_INTERVAL then
         return
     end
@@ -71,19 +83,21 @@ function monitor_flight()
     last_update = current_time
     
     -- Lese DataRefs
-    local altitude = get("sim/flightmodel/position/elevation") * 3.28084  -- m zu ft
-    local speed = get("sim/flightmodel/position/groundspeed") * 1.94384  -- m/s zu kts
-    local vs = get("sim/flightmodel/position/vh_ind") * 196.85  -- m/s zu ft/min
+    local altitude = get("sim/flightmodel/position/elevation") * 3.28084
+    local speed = get("sim/flightmodel/position/groundspeed") * 1.94384
+    local vs = get("sim/flightmodel/position/vh_ind") * 196.85
     local heading = get("sim/flightmodel/position/psi")
-    local fuel_current = get("sim/flightmodel/weight/m_fuel_total")
-    local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot")
-    local fuel_percentage = (fuel_current / fuel_max * 100)
+    local fuel_total = get("sim/flightmodel/weight/m_fuel_total")
+    local fuel_capacity = get("sim/aircraft/weight/acf_m_fuel_tot")
+    local fuel_percentage = (fuel_total / fuel_capacity * 100)
     local g_force = get("sim/flightmodel/forces/g_load")
     local latitude = get("sim/flightmodel/position/latitude")
     local longitude = get("sim/flightmodel/position/longitude")
     local on_ground = get("sim/flightmodel/failures/onground_any") == 1
     local parking_brake = get("sim/flightmodel/controls/parkbrake") > 0.5
-    local engine1_running = get("sim/flightmodel/engine/ENGN_running[0]") == 1
+    local eng1 = get("sim/flightmodel/engine/ENGN_running[0]") == 1
+    local eng2 = get("sim/flightmodel/engine/ENGN_running[1]") == 1
+    local engines_running = eng1 or eng2
     
     -- Erkenne Takeoff
     if last_on_ground and not on_ground then
@@ -94,7 +108,7 @@ function monitor_flight()
     last_on_ground = on_ground
     
     -- Sende nur Daten wenn Flug gestartet
-    if not flight_started and on_ground then
+    if not flight_started and on_ground and not engines_running then
         return
     end
     
@@ -111,10 +125,9 @@ function monitor_flight()
         longitude = longitude,
         on_ground = on_ground,
         parking_brake = parking_brake,
-        engines_running = engine1_running
+        engines_running = engines_running
     }
     
-    -- Sende Daten
     send_flight_data(data)
 end
 

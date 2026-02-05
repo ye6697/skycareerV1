@@ -4,11 +4,10 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     
-    // Get flight data from X-Plane plugin
     const data = await req.json();
     
     const {
-      company_id, // Using company ID instead of flight ID
+      company_id,
       altitude,
       speed,
       vertical_speed,
@@ -27,11 +26,34 @@ Deno.serve(async (req) => {
     }
 
     // Get active flight for this company
-    const flights = await base44.asServiceRole.entities.Flight.filter({ status: 'in_flight' });
+    const flights = await base44.asServiceRole.entities.Flight.filter({ 
+      status: 'in_flight',
+      company_id: company_id
+    });
     const flight = flights[0];
 
+    // Update company connection status
+    const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id });
+    const company = companies[0];
+
     if (!flight) {
-      return Response.json({ error: 'Flight not found' }, { status: 404 });
+      // No active flight - set status to disconnected
+      if (company && company.xplane_connection_status !== 'disconnected') {
+        await base44.asServiceRole.entities.Company.update(company.id, { 
+          xplane_connection_status: 'disconnected' 
+        });
+      }
+      return Response.json({ 
+        error: 'No active flight found',
+        xplane_connection_status: 'disconnected' 
+      }, { status: 404 });
+    }
+
+    // Active flight found - set status to connected
+    if (company && company.xplane_connection_status !== 'connected') {
+      await base44.asServiceRole.entities.Company.update(company.id, { 
+        xplane_connection_status: 'connected' 
+      });
     }
 
     // Update flight with current data
@@ -59,10 +81,8 @@ Deno.serve(async (req) => {
 
     // Auto-complete flight if parked
     if (on_ground && parking_brake && !engines_running && flight.status === 'in_flight') {
-      // Flight is complete - calculate landing vertical speed
       const landingVs = vertical_speed || flight.xplane_data?.vertical_speed || -200;
       
-      // Calculate ratings
       const landingRating = Math.abs(landingVs) < 100 ? 5 :
                           Math.abs(landingVs) < 200 ? 4 :
                           Math.abs(landingVs) < 300 ? 3 :
@@ -77,7 +97,6 @@ Deno.serve(async (req) => {
       const flightRating = gForceRating;
       const overallRating = (takeoffRating + flightRating + landingRating) / 3;
 
-      // Generate comments
       const comments = [];
       if (landingRating >= 4) comments.push("Butterweiche Landung! Professionell!");
       else if (landingRating <= 2) comments.push("Die Landung war etwas ruppig...");
@@ -88,7 +107,6 @@ Deno.serve(async (req) => {
       if (overallRating >= 4) comments.push("Werde diese Airline weiterempfehlen!");
       else if (overallRating <= 2) comments.push("Ich buche nie wieder hier.");
 
-      // Calculate financials
       const contract = (await base44.asServiceRole.entities.Contract.filter({ id: flight.contract_id }))[0];
       const aircraft = (await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id }))[0];
       
@@ -106,8 +124,7 @@ Deno.serve(async (req) => {
 
       const profit = revenue - fuelCost - crewCost - maintenanceCost;
 
-      // Complete flight
-      await base44.asServiceRole.entities.Flight.update(flight_id, {
+      await base44.asServiceRole.entities.Flight.update(flight.id, {
         ...updateData,
         status: 'completed',
         arrival_time: new Date().toISOString(),
@@ -125,14 +142,10 @@ Deno.serve(async (req) => {
         passenger_comments: comments
       });
 
-      // Update contract
       if (contract) {
         await base44.asServiceRole.entities.Contract.update(contract.id, { status: 'completed' });
       }
 
-      // Update company
-      const companies = await base44.asServiceRole.entities.Company.list();
-      const company = companies[0];
       if (company) {
         await base44.asServiceRole.entities.Company.update(company.id, {
           balance: (company.balance || 0) + profit,
@@ -143,17 +156,15 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create transaction
       await base44.asServiceRole.entities.Transaction.create({
         type: 'income',
         category: 'flight_revenue',
         amount: profit,
         description: `Flug: ${contract?.title}`,
-        reference_id: flight_id,
+        reference_id: flight.id,
         date: new Date().toISOString()
       });
 
-      // Release aircraft and crew
       if (flight.aircraft_id) {
         await base44.asServiceRole.entities.Aircraft.update(flight.aircraft_id, { 
           status: 'available',
@@ -170,19 +181,20 @@ Deno.serve(async (req) => {
         status: 'completed',
         message: 'Flight automatically completed',
         rating: overallRating,
-        profit 
+        profit,
+        xplane_connection_status: 'connected'
       });
     }
 
-    // Just update flight data
-    await base44.asServiceRole.entities.Flight.update(flight_id, updateData);
+    await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
     return Response.json({ 
       status: 'updated',
       message: 'Flight data received',
       on_ground,
       parking_brake,
-      engines_running
+      engines_running,
+      xplane_connection_status: 'connected'
     });
 
   } catch (error) {

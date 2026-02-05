@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard,
   FileText,
@@ -31,7 +33,17 @@ const navItems = [
 export default function Layout({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Don't show layout on setup page
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    },
+    refetchInterval: 5000,
+  });
+
+  const xplaneStatus = company?.xplane_connection_status || 'disconnected';
+
   if (currentPageName === "Setup") {
     return children;
   }
@@ -53,7 +65,7 @@ export default function Layout({ children, currentPageName }) {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                 <Plane className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-slate-900">SkyCareer</span>
+              <span className="font-bold text-white">SkyCareer</span>
             </div>
           </div>
         </div>
@@ -163,10 +175,18 @@ export default function Layout({ children, currentPageName }) {
         <div className="p-4 border-t border-slate-700">
           <div className="p-3 bg-slate-900 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-slate-500 rounded-full" />
+              <div className={`w-2 h-2 rounded-full ${
+                xplaneStatus === 'connected' ? 'bg-emerald-500' : 
+                xplaneStatus === 'connecting' ? 'bg-amber-500' : 
+                'bg-slate-500'
+              }`} />
               <span className="text-xs text-slate-400 font-medium">X-Plane Status</span>
             </div>
-            <p className="text-sm text-slate-300">Plugin erforderlich</p>
+            <p className="text-sm text-slate-300">
+              {xplaneStatus === 'connected' ? 'Verbunden' : 
+               xplaneStatus === 'connecting' ? 'Verbinde...' : 
+               'Getrennt'}
+            </p>
           </div>
         </div>
       </aside>
