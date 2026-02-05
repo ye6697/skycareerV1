@@ -324,14 +324,17 @@ export default function Fleet() {
               </div>
               <Dialog open={isPurchaseDialogOpen} onOpenChange={setIsPurchaseDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
+                  <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30">
                     <Plus className="w-4 h-4 mr-2" />
                     Flugzeug kaufen
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700">
                   <DialogHeader>
-                    <DialogTitle>Flugzeugmarkt</DialogTitle>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-blue-400" />
+                      <DialogTitle className="text-2xl">Flugzeugmarkt</DialogTitle>
+                    </div>
                   </DialogHeader>
                   
                   <div className="space-y-3">
