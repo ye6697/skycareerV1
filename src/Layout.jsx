@@ -6,19 +6,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
-  LayoutDashboard,
-  FileText,
-  Users,
-  Plane,
-  DollarSign,
-  History,
-  PlayCircle,
-  Menu,
-  X,
-  Settings,
-  ChevronRight,
-  Activity
-} from "lucide-react";
+        LayoutDashboard,
+        FileText,
+        Users,
+        Plane,
+        DollarSign,
+        History,
+        PlayCircle,
+        Menu,
+        X,
+        Settings,
+        ChevronRight,
+        Activity,
+        Star
+      } from "lucide-react";
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "Dashboard" },
