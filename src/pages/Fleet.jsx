@@ -392,23 +392,41 @@ export default function Fleet() {
                               />
                             )}
                           </div>
-                          <div className="p-4 bg-slate-800">
-                            <div className="mb-3">
+                          <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-900 space-y-4">
+                            <div>
                               <p className="font-bold text-lg text-white">{ac.name}</p>
-                              <p className="text-sm text-slate-400">{typeLabels[ac.type]}</p>
+                              <p className="text-xs font-semibold text-blue-400 mt-1">{typeLabels[ac.type]}</p>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 mb-4 text-xs text-slate-300">
-                              <span className="bg-slate-900 px-2 py-1 rounded">🪑 {ac.passenger_capacity}</span>
-                              <span className="bg-slate-900 px-2 py-1 rounded">📦 {ac.cargo_capacity_kg?.toLocaleString()}</span>
-                              <span className="bg-slate-900 px-2 py-1 rounded">⛽ {ac.fuel_consumption_per_hour}L/h</span>
-                              <span className="bg-slate-900 px-2 py-1 rounded">✈️ {ac.range_nm?.toLocaleString()}</span>
+                            <div className="grid grid-cols-2 gap-2 text-xs font-medium">
+                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
+                                <p className="text-slate-400 text-[10px] mb-1">PASSAGIERE</p>
+                                <p className="text-white">{ac.passenger_capacity}</p>
+                              </div>
+                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
+                                <p className="text-slate-400 text-[10px] mb-1">FRACHT</p>
+                                <p className="text-white">{ac.cargo_capacity_kg?.toLocaleString()} kg</p>
+                              </div>
+                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
+                                <p className="text-slate-400 text-[10px] mb-1">VERBRAUCH</p>
+                                <p className="text-white">{ac.fuel_consumption_per_hour} L/h</p>
+                              </div>
+                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
+                                <p className="text-slate-400 text-[10px] mb-1">REICHWEITE</p>
+                                <p className="text-white">{ac.range_nm?.toLocaleString()} NM</p>
+                              </div>
                             </div>
                             <div className="flex items-center justify-between pt-3 border-t border-slate-700">
-                              <p className={`text-lg font-bold ${canAfford(ac.purchase_price) ? 'text-emerald-400' : 'text-red-400'}`}>
-                                ${ac.purchase_price?.toLocaleString()}
-                              </p>
+                              <div>
+                                <p className="text-xs text-slate-400 mb-1">KAUFPREIS</p>
+                                <p className={`text-xl font-bold ${canAfford(ac.purchase_price) ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  ${ac.purchase_price?.toLocaleString()}
+                                </p>
+                              </div>
                               {!canAfford(ac.purchase_price) && (
-                                <p className="text-xs text-red-400">Zu teuer</p>
+                                <div className="text-center">
+                                  <p className="text-xs font-semibold text-red-400">Zu teuer</p>
+                                  <p className="text-[10px] text-slate-400 mt-1">${(ac.purchase_price - (company?.balance || 0)).toLocaleString()} mehr</p>
+                                </div>
                               )}
                             </div>
                           </div>
