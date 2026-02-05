@@ -42,7 +42,8 @@ export default function FlightTracker() {
     maxGForce: 1.0,
     landingVs: 0
   });
-  const [useRealData, setUseRealData] = useState(false);
+  const [useRealData, setUseRealData] = useState(true); // Default to real data
+  const [copiedFlightId, setCopiedFlightId] = useState(false);
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractId],
