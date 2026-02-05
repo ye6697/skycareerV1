@@ -362,6 +362,7 @@ export default function FlightTracker() {
           </div>
         )}
 
+        {contract && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Flight Instruments */}
           <div className="lg:col-span-2 space-y-6">
