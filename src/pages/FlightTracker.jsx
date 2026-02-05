@@ -203,7 +203,7 @@ export default function FlightTracker() {
       });
 
       // Update contract
-      await base44.entities.Contract.update(contractId, { status: 'completed' });
+      await base44.entities.Contract.update(flight.contract_id, { status: 'completed' });
 
       // Update company
       if (company) {
