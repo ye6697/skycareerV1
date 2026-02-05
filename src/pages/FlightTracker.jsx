@@ -549,10 +549,10 @@ export default function FlightTracker() {
                 )}
               </Card>
             )}
-          </div>
+            </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
+            {/* Right Column */}
+            <div className="space-y-6">
             {flightPhase === 'completed' ? (
               <>
                 <FlightRating 
