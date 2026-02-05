@@ -68,8 +68,8 @@ export default function ActiveFlights() {
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+    queryKey: ['employees'],
+    queryFn: () => base44.entities.Employee.list()
   });
 
   const { data: company } = useQuery({
@@ -510,8 +510,8 @@ export default function ActiveFlights() {
                         </span>
                       </div>
                       <Select
-                        value={selectedCrew[role] || ''}
-                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value || '' })}>
+                        value={selectedCrew[role]}
+                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
 
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
