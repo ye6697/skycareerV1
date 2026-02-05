@@ -84,11 +84,11 @@ export default function FlightTracker() {
     }
   });
 
-  // Update flight data from entity (EXACT SAME as debug page - direct from xplane_data)
+  // Update flight data from entity - ONLY after flight started
   useEffect(() => {
-    if (!flight) return;
+    if (!flight || flightPhase === 'preflight' || flightPhase === 'completed') return;
 
-    // Always use flight.xplane_data if it exists (same as debug page)
+    // Get data from flight.xplane_data (same as debug page)
     if (flight.xplane_data) {
       const xp = flight.xplane_data;
       
@@ -115,7 +115,7 @@ export default function FlightTracker() {
         }
       });
 
-      // Auto-detect phase
+      // Auto-detect phase changes during flight
       if (xp.altitude > 10 && !xp.on_ground) {
         if (xp.altitude > 10000) {
           setFlightPhase('cruise');
@@ -123,8 +123,6 @@ export default function FlightTracker() {
           setFlightPhase('takeoff');
         } else if (xp.vertical_speed < -200) {
           setFlightPhase('landing');
-        } else {
-          setFlightPhase('takeoff');
         }
       }
 
@@ -134,7 +132,7 @@ export default function FlightTracker() {
         queryClient.invalidateQueries();
       }
     }
-  }, [flight]);
+  }, [flight, flightPhase]);
 
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
@@ -396,7 +394,7 @@ export default function FlightTracker() {
             </Card>
 
             {/* Flight Score & Events */}
-            {useRealData && (
+            {flightPhase !== 'preflight' && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Star className="w-5 h-5 text-amber-400" />
@@ -482,16 +480,33 @@ export default function FlightTracker() {
               </Card>
             )}
 
-            {/* Status Info */}
+            {/* Controls */}
             {flightPhase !== 'completed' && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">Flugstatus</h3>
-                <p className="text-sm text-slate-400">
-                  {flightPhase === 'preflight' && "Starte den Flug in X-Plane - Daten werden automatisch angezeigt."}
-                  {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
-                  {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst."}
-                  {flightPhase === 'landing' && "Lande und parke das Flugzeug in X-Plane, um den Flug abzuschließen."}
-                </p>
+                <h3 className="text-lg font-semibold mb-4">Flugsteuerung</h3>
+                
+                {flightPhase === 'preflight' && (
+                  <div className="space-y-4">
+                    <Button 
+                      onClick={() => setFlightPhase('takeoff')}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
+                    >
+                      <PlaneTakeoff className="w-5 h-5 mr-2" />
+                      Flug starten
+                    </Button>
+                    <p className="text-sm text-slate-400 text-center">
+                      Klicke auf "Flug starten" und starte dann in X-Plane
+                    </p>
+                  </div>
+                )}
+                
+                {flightPhase !== 'preflight' && (
+                  <p className="text-sm text-slate-400">
+                    {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
+                    {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst."}
+                    {flightPhase === 'landing' && "Lande und parke das Flugzeug in X-Plane, um den Flug abzuschließen."}
+                  </p>
+                )}
               </Card>
             )}
           </div>
