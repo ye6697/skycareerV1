@@ -111,8 +111,7 @@ export default function ActiveFlights() {
       // Update contract status
       await base44.entities.Contract.update(selectedContract.id, { status: 'in_progress' });
 
-      // Update aircraft status
-      await base44.entities.Aircraft.update(selectedAircraft, { status: 'in_flight' });
+      // Aircraft status will be updated when flight actually starts in X-Plane
 
       // Update crew status
       for (const [role, id] of Object.entries(selectedCrew)) {
@@ -318,7 +317,7 @@ export default function ActiveFlights() {
                           <div className="flex items-center gap-3">
                             {Object.entries(contract.required_crew).map(([role, count]) =>
                       count > 0 &&
-                      <Badge key={role} variant="outline" className="text-white px-2.5 py-0.5 text-xs font-semibold rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 flex items-center gap-1">
+                      <Badge key={role} variant="outline" className="text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 flex items-center gap-1">
                                   <User className="w-3 h-3" />
                                   {count}x {getRoleLabel(role)}
                                 </Badge>
