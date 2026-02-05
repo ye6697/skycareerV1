@@ -94,6 +94,30 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     }
   });
 
+  const sellPrice = (aircraft.current_value || aircraft.purchase_price || 0) * 0.85;
+
+  const sellMutation = useMutation({
+    mutationFn: async () => {
+      const company = (await base44.entities.Company.list())[0];
+      if (!company) throw new Error('Unternehmen nicht gefunden');
+
+      await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
+      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) + sellPrice });
+      await base44.entities.Transaction.create({
+        type: 'income',
+        category: 'aircraft_sale',
+        amount: sellPrice,
+        description: `Verkauf: ${aircraft.name}`,
+        date: new Date().toISOString()
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      setIsSellDialogOpen(false);
+    }
+  });
+
   const type = typeConfig[aircraft.type] || typeConfig.small_prop;
   const status = statusConfig[aircraft.status] || statusConfig.available;
 
