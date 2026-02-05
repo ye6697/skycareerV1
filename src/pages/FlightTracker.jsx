@@ -268,12 +268,9 @@ export default function FlightTracker() {
   if (!flight) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="mb-4">
-            <Plane className="w-12 h-12 text-blue-400 mx-auto" />
-          </motion.div>
-          <p className="text-slate-400 text-sm">Suche aktiven Flug... ({allFlights.length} Flüge geladen, contractId: {contractId})</p>
-        </div>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
+          <Plane className="w-12 h-12 text-blue-400" />
+        </motion.div>
       </div>
     );
   }
