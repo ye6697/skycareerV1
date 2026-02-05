@@ -121,7 +121,7 @@ function monitor_flight()
     local speed = (get("sim/flightmodel/position/groundspeed") or 0) * 1.94384
     local vs = (get("sim/flightmodel/position/vh_ind") or 0) * 196.85
     local heading = get("sim/flightmodel/position/psi") or 0
-    local g_force = get("sim/flightmodel/forces/g_load") or 1.0
+    local g_force = get("sim/flightmodel2/misc/gforce_normal") or 1.0
     local latitude = get("sim/flightmodel/position/latitude") or 0
     local longitude = get("sim/flightmodel/position/longitude") or 0
 
@@ -139,11 +139,11 @@ function monitor_flight()
     local engine2_running = false
     
     if num_engines >= 1 then
-        local n2_1 = get("sim/flightmodel/engine/ENGN_N2_[0]")
+        local n2_1 = get("sim/cockpit2/engine/indicators/N2_percent[0]")
         engine1_running = (n2_1 and n2_1 > 20)
     end
     if num_engines >= 2 then
-        local n2_2 = get("sim/flightmodel/engine/ENGN_N2_[1]")
+        local n2_2 = get("sim/cockpit2/engine/indicators/N2_percent[1]")
         engine2_running = (n2_2 and n2_2 > 20)
     end
 
