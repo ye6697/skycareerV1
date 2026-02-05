@@ -455,7 +455,7 @@ export default function ActiveFlights() {
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
