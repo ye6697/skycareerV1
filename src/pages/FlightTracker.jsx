@@ -64,16 +64,17 @@ export default function FlightTracker() {
     enabled: !!contractId
   });
 
-  // Get active flight with real-time updates (same as debug page refetchInterval)
+  // Get active flight with real-time updates (same as debug page)
   const { data: allFlights = [] } = useQuery({
     queryKey: ['all-flights'],
     queryFn: async () => {
-      return await base44.entities.Flight.list('-updated_date', 5);
+      return await base44.entities.Flight.list('-updated_date', 10);
     },
-    refetchInterval: 2000
+    refetchInterval: 1000
   });
 
-  const flight = allFlights.find(f => f.contract_id === contractId) || null;
+  // Find the active flight - match by contractId and status 'in_flight'
+  const flight = allFlights.find(f => f.contract_id === contractId && f.status === 'in_flight') || null;
 
   const { data: company } = useQuery({
     queryKey: ['company'],
