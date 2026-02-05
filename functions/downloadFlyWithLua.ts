@@ -98,15 +98,13 @@ function send_flight_data(json_payload)
 
     if SYSTEM == "IBM" then
         -- Windows
-        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. escaped_json .. '" --max-time 3 --silent'
+        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. escaped_json .. '" --max-time 3 --silent &'
     else
-        -- Mac/Linux
-        command = "curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' --max-time 3 --silent"
+        -- Mac/Linux - run in background to avoid blocking
+        command = "curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' --max-time 3 --silent > /dev/null 2>&1 &"
     end
 
-    logMsg("SkyCareer: Executing command: " .. command)
-    local result = os.execute(command)
-    logMsg("SkyCareer: Command result: " .. tostring(result))
+    os.execute(command)
 end
 
 ------------------------------------------------------------
