@@ -92,16 +92,22 @@ end
 -- HTTP SEND
 ------------------------------------------------------------
 function send_flight_data(json_payload)
+    -- Escape quotes in JSON payload
+    local escaped_json = json_payload:gsub('"', '\\"')
 
     local command
 
     if SYSTEM == "IBM" then
-        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload .. '" --max-time 3 --silent'
+        -- Windows
+        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. escaped_json .. '" --max-time 3 --silent'
     else
-        command = 'curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d \\'' .. json_payload .. '\\' --max-time 3 --silent'
+        -- Mac/Linux
+        command = "curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' --max-time 3 --silent"
     end
 
-    os.execute(command)
+    logMsg("SkyCareer: Executing command: " .. command)
+    local result = os.execute(command)
+    logMsg("SkyCareer: Command result: " .. tostring(result))
 end
 
 ------------------------------------------------------------
