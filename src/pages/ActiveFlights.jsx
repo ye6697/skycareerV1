@@ -186,8 +186,32 @@ export default function ActiveFlights() {
           </div>
         </Card>
 
+        {/* Tabs */}
+        <div className="flex gap-4 mb-6 border-b border-slate-700">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={`pb-3 px-4 font-medium transition-colors ${
+              activeTab === 'active'
+                ? 'border-b-2 border-blue-500 text-blue-400'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Aktive Flüge ({allContracts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('completed')}
+            className={`pb-3 px-4 font-medium transition-colors ${
+              activeTab === 'completed'
+                ? 'border-b-2 border-emerald-500 text-emerald-400'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Abgeschlossene Flüge ({completedContracts.length})
+          </button>
+        </div>
+
         {/* Active Contracts */}
-        {allContracts.length > 0 ? (
+        {activeTab === 'active' && allContracts.length > 0 ? (
           <div className="space-y-4">
             <AnimatePresence>
               {allContracts.map((contract) => (
