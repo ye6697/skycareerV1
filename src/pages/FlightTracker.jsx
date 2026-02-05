@@ -28,8 +28,6 @@ import FlightRating from "@/components/flights/FlightRating";
 export default function FlightTracker() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const urlParams = new URLSearchParams(window.location.search);
-  const contractId = urlParams.get('contractId');
 
   const [flightPhase, setFlightPhase] = useState('preflight');
   const [flightData, setFlightData] = useState({
