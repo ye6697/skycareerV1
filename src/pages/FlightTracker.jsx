@@ -210,19 +210,18 @@ export default function FlightTracker() {
 
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
-
       // Calculate costs and profit
       const fuelUsed = (100 - flightData.fuel) * 10; // Simplified
       const fuelCost = fuelUsed * 1.5; // $1.50 per liter
       const crewCost = 500; // Simplified
       const maintenanceCost = 200; // Simplified
-      
+
       let revenue = contract?.payout || 0;
-      
+
       // Bonus based on rating
-      if (overallRating >= 4.5 && contract?.bonus_potential) {
+      if (ratings.overall >= 4.5 && contract?.bonus_potential) {
         revenue += contract.bonus_potential;
-      } else if (overallRating >= 4) {
+      } else if (ratings.overall >= 4) {
         revenue += (contract?.bonus_potential || 0) * 0.5;
       }
 
@@ -232,10 +231,10 @@ export default function FlightTracker() {
       await base44.entities.Flight.update(flight.id, {
         status: 'completed',
         arrival_time: new Date().toISOString(),
-        takeoff_rating: takeoffRating,
-        flight_rating: flightRating,
-        landing_rating: landingRating,
-        overall_rating: overallRating,
+        takeoff_rating: ratings.takeoff,
+        flight_rating: ratings.flight,
+        landing_rating: ratings.landing,
+        overall_rating: ratings.overall,
         landing_vs: flightData.landingVs,
         max_g_force: flightData.maxGForce,
         fuel_used_liters: fuelUsed,
@@ -244,7 +243,7 @@ export default function FlightTracker() {
         maintenance_cost: maintenanceCost,
         revenue,
         profit,
-        passenger_comments: comments
+        passenger_comments: generateComments(ratings, flightData)
       });
 
       // Update contract
