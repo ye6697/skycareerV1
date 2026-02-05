@@ -75,7 +75,8 @@ export default function FlightTracker() {
       const flights = await base44.entities.Flight.filter({ contract_id: contractId });
       return flights[0];
     },
-    enabled: !!contractId
+    enabled: !!contractId,
+    refetchInterval: 1000
   });
 
   const { data: company } = useQuery({
@@ -93,54 +94,46 @@ export default function FlightTracker() {
 
     const interval = setInterval(async () => {
       if (useRealData && company?.xplane_connection_status === 'connected') {
-        // Get real data from X-Plane
-        try {
-          const { data } = await base44.functions.invoke('getActiveFlightData', {
-            flight_id: flight.id
+        // Get real data from X-Plane directly from flight entity (same as debug page)
+        if (flight.xplane_data) {
+          const xp = flight.xplane_data;
+          setFlightData({
+            altitude: xp.altitude || 0,
+            speed: xp.speed || 0,
+            verticalSpeed: xp.vertical_speed || 0,
+            heading: xp.heading || 0,
+            fuel: xp.fuel_percentage || 100,
+            gForce: xp.g_force || 1.0,
+            maxGForce: xp.max_g_force || flight.max_g_force || 1.0,
+            landingVs: xp.touchdown_vspeed || 0,
+            flightScore: xp.flight_score || 100,
+            maintenanceCost: xp.maintenance_cost || 0,
+            reputation: xp.reputation || 'EXCELLENT',
+            events: {
+              tailstrike: xp.tailstrike || false,
+              stall: xp.stall || false,
+              overstress: xp.overstress || false,
+              flaps_overspeed: xp.flaps_overspeed || false,
+              fuel_emergency: xp.fuel_emergency || false,
+              gear_up_landing: xp.gear_up_landing || false,
+              crash: xp.crash || false
+            }
           });
 
-          if (data.xplane_data) {
-            const xp = data.xplane_data;
-            setFlightData({
-              altitude: xp.altitude || 0,
-              speed: xp.speed || 0,
-              verticalSpeed: xp.vertical_speed || 0,
-              heading: xp.heading || 0,
-              fuel: xp.fuel_percentage || 100,
-              gForce: xp.g_force || 1.0,
-              maxGForce: xp.max_g_force || data.max_g_force || 1.0,
-              landingVs: xp.touchdown_vspeed || 0,
-              flightScore: xp.flight_score || 100,
-              maintenanceCost: xp.maintenance_cost || 0,
-              reputation: xp.reputation || 'EXCELLENT',
-              events: {
-                tailstrike: xp.tailstrike || false,
-                stall: xp.stall || false,
-                overstress: xp.overstress || false,
-                flaps_overspeed: xp.flaps_overspeed || false,
-                fuel_emergency: xp.fuel_emergency || false,
-                gear_up_landing: xp.gear_up_landing || false,
-                crash: xp.crash || false
-              }
-            });
-
-            // Auto-detect phase
-            if (xp.altitude > 10000) {
-              setFlightPhase('cruise');
-            } else if (xp.altitude > 100 && xp.vertical_speed > 500) {
-              setFlightPhase('takeoff');
-            } else if (xp.altitude > 100 && xp.vertical_speed < -200) {
-              setFlightPhase('landing');
-            }
-
-            // Check if completed
-            if (data.status === 'completed') {
-              setFlightPhase('completed');
-              queryClient.invalidateQueries();
-            }
+          // Auto-detect phase
+          if (xp.altitude > 10000) {
+            setFlightPhase('cruise');
+          } else if (xp.altitude > 100 && xp.vertical_speed > 500) {
+            setFlightPhase('takeoff');
+          } else if (xp.altitude > 100 && xp.vertical_speed < -200) {
+            setFlightPhase('landing');
           }
-        } catch (error) {
-          console.error('Error fetching X-Plane data:', error);
+
+          // Check if completed
+          if (flight.status === 'completed') {
+            setFlightPhase('completed');
+            queryClient.invalidateQueries();
+          }
         }
       } else {
         // Simulate flight data
@@ -183,7 +176,7 @@ export default function FlightTracker() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [flightPhase, useRealData, company?.xplane_connection_status, flight?.id]);
+  }, [flightPhase, useRealData, company?.xplane_connection_status, flight]);
 
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
