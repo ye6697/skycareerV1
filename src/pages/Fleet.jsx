@@ -19,7 +19,8 @@ import {
   Search,
   Plus,
   Plane,
-  DollarSign
+  DollarSign,
+  Sparkles
 } from "lucide-react";
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
