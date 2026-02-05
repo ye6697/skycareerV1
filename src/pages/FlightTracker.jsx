@@ -73,8 +73,8 @@ export default function FlightTracker() {
     refetchInterval: 1000
   });
 
-  // Find the active flight - match by contractId (any status except completed)
-  const flight = allFlights.find(f => f.contract_id === contractId && f.status !== 'completed') || null;
+  // Find the active flight - match by contractId and status 'in_flight' (same as debug page)
+  const flight = allFlights.find(f => f.contract_id === contractId && f.status === 'in_flight') || null;
 
   const { data: company } = useQuery({
     queryKey: ['company'],
