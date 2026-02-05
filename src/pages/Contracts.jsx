@@ -65,7 +65,7 @@ export default function Contracts() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div 
@@ -75,8 +75,8 @@ export default function Contracts() {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Aufträge</h1>
-              <p className="text-slate-500">Finde und akzeptiere lukrative Flugaufträge</p>
+              <h1 className="text-3xl font-bold text-white">Aufträge</h1>
+              <p className="text-slate-400">Finde und akzeptiere lukrative Flugaufträge</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -85,7 +85,7 @@ export default function Contracts() {
                   placeholder="Suche nach Route, Flughafen..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64 bg-white"
+                  className="pl-10 w-64 bg-slate-800 text-white border-slate-700"
                 />
               </div>
               <Button 
@@ -102,7 +102,7 @@ export default function Contracts() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="bg-white border border-slate-200">
+          <TabsList className="bg-slate-800 border border-slate-700">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <Plane className="w-4 h-4" />
               Alle
@@ -157,10 +157,10 @@ export default function Contracts() {
             </AnimatePresence>
           </motion.div>
         ) : (
-          <Card className="p-12 text-center bg-white border border-slate-200">
-            <Plane className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">Keine Aufträge gefunden</h3>
-            <p className="text-slate-500 mb-4">
+          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+          <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Keine Aufträge gefunden</h3>
+          <p className="text-slate-400 mb-4">
               {searchTerm ? 'Versuche eine andere Suche' : 'Neue Aufträge werden regelmäßig generiert'}
             </p>
             <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>

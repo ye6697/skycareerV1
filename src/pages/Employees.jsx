@@ -144,7 +144,7 @@ export default function Employees() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div 
@@ -154,8 +154,8 @@ export default function Employees() {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Mitarbeiter</h1>
-              <p className="text-slate-500">Verwalte dein Flugpersonal</p>
+              <h1 className="text-3xl font-bold text-white">Mitarbeiter</h1>
+              <p className="text-slate-400">Verwalte dein Flugpersonal</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -164,7 +164,7 @@ export default function Employees() {
                   placeholder="Mitarbeiter suchen..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64 bg-white"
+                  className="pl-10 w-64 bg-slate-800 text-white border-slate-700"
                 />
               </div>
               <Dialog open={isHireDialogOpen} onOpenChange={setIsHireDialogOpen}>
@@ -259,11 +259,11 @@ export default function Employees() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {Object.entries(roleLabels).map(([role, label]) => (
-            <Card key={role} className="p-4 bg-white border border-slate-200">
+            <Card key={role} className="p-4 bg-slate-800 border border-slate-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">{label}</p>
-                  <p className="text-2xl font-bold text-slate-900">{getEmployeeCount(role)}</p>
+                  <p className="text-sm text-slate-400">{label}</p>
+                  <p className="text-2xl font-bold text-white">{getEmployeeCount(role)}</p>
                 </div>
                 <div className={`p-2 rounded-lg ${
                   role === 'captain' ? 'bg-amber-100' :
@@ -285,7 +285,7 @@ export default function Employees() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="bg-white border border-slate-200">
+          <TabsList className="bg-slate-800 border border-slate-700">
             <TabsTrigger value="all">Alle</TabsTrigger>
             <TabsTrigger value="captain">Kapitäne</TabsTrigger>
             <TabsTrigger value="first_officer">Erste Offiziere</TabsTrigger>
@@ -314,10 +314,10 @@ export default function Employees() {
             </AnimatePresence>
           </motion.div>
         ) : (
-          <Card className="p-12 text-center bg-white border border-slate-200">
-            <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">Keine Mitarbeiter gefunden</h3>
-            <p className="text-slate-500 mb-4">Stelle neue Mitarbeiter ein, um Flüge durchführen zu können</p>
+          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine Mitarbeiter gefunden</h3>
+            <p className="text-slate-400 mb-4">Stelle neue Mitarbeiter ein, um Flüge durchführen zu können</p>
             <Button onClick={() => setIsHireDialogOpen(true)}>
               <UserPlus className="w-4 h-4 mr-2" />
               Ersten Mitarbeiter einstellen

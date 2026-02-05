@@ -25,13 +25,13 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, co
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <Card className={`relative overflow-hidden bg-gradient-to-br ${colorClasses[color]} border backdrop-blur-sm p-6`}>
+      <Card className={`relative overflow-hidden bg-slate-800 border-slate-700 backdrop-blur-sm p-6`}>
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">{title}</p>
-            <p className="text-3xl font-bold text-slate-900">{value}</p>
+            <p className="text-sm font-medium text-slate-400 uppercase tracking-wide">{title}</p>
+            <p className="text-3xl font-bold text-white">{value}</p>
             {subtitle && (
-              <p className="text-sm text-slate-500">{subtitle}</p>
+              <p className="text-sm text-slate-400">{subtitle}</p>
             )}
             {trend !== undefined && (
               <p className={`text-sm font-medium ${trend >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>

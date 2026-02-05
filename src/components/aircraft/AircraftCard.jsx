@@ -40,7 +40,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="overflow-hidden bg-white border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all duration-300">
+      <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
         <div className="relative h-32 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
           {aircraft.image_url ? (
             <img 
@@ -58,12 +58,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
         <div className="p-5">
           <div className="mb-4">
-            <h3 className="font-semibold text-lg text-slate-900">{aircraft.name}</h3>
+            <h3 className="font-semibold text-lg text-white">{aircraft.name}</h3>
             <div className="flex items-center gap-2 mt-1">
               <span className="font-mono text-sm text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                 {aircraft.registration}
               </span>
-              <span className="text-sm text-slate-500">{type.label}</span>
+              <span className="text-sm text-slate-400">{type.label}</span>
             </div>
           </div>
 
@@ -86,22 +86,22 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-4">
+          <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg mb-4">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-slate-400" />
-              <span className="text-sm text-slate-600">Flugstunden</span>
+              <span className="text-sm text-slate-400">Flugstunden</span>
             </div>
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-white">
               {aircraft.total_flight_hours?.toLocaleString() || 0}h
             </span>
           </div>
 
           <div className="flex items-center justify-between text-sm mb-4">
-            <div className="flex items-center gap-1 text-slate-500">
+            <div className="flex items-center gap-1 text-slate-400">
               <Wrench className="w-4 h-4" />
               <span>Wartung/h:</span>
             </div>
-            <span className="font-medium text-slate-700">
+            <span className="font-medium text-slate-300">
               ${aircraft.maintenance_cost_per_hour?.toLocaleString()}
             </span>
           </div>

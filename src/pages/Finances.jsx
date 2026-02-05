@@ -113,7 +113,7 @@ export default function Finances() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div 
@@ -121,8 +121,8 @@ export default function Finances() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-slate-900">Finanzen</h1>
-          <p className="text-slate-500">Übersicht deiner Einnahmen und Ausgaben</p>
+          <h1 className="text-3xl font-bold text-white">Finanzen</h1>
+          <p className="text-slate-400">Übersicht deiner Einnahmen und Ausgaben</p>
         </motion.div>
 
         {/* Stats Grid */}
@@ -156,9 +156,9 @@ export default function Finances() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Chart */}
-          <Card className="lg:col-span-2 p-6 bg-white border border-slate-200">
+          <Card className="lg:col-span-2 p-6 bg-slate-800 border border-slate-700">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-slate-900">Einnahmen vs. Ausgaben</h3>
+              <h3 className="text-lg font-semibold text-white">Einnahmen vs. Ausgaben</h3>
               <Tabs value={period} onValueChange={setPeriod}>
                 <TabsList>
                   <TabsTrigger value="week">Woche</TabsTrigger>
@@ -203,8 +203,8 @@ export default function Finances() {
           </Card>
 
           {/* Expense Breakdown */}
-          <Card className="p-6 bg-white border border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 mb-6">Ausgabenverteilung</h3>
+          <Card className="p-6 bg-slate-800 border border-slate-700">
+            <h3 className="text-lg font-semibold text-white mb-6">Ausgabenverteilung</h3>
             {pieData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={200}>
@@ -232,7 +232,7 @@ export default function Finances() {
                           className="w-3 h-3 rounded-full" 
                           style={{ backgroundColor: item.color }}
                         />
-                        <span className="text-slate-600">{item.name}</span>
+                        <span className="text-slate-300">{item.name}</span>
                       </div>
                       <span className="font-medium">{formatCurrency(item.value)}</span>
                     </div>
@@ -240,7 +240,7 @@ export default function Finances() {
                 </div>
               </>
             ) : (
-              <div className="text-center text-slate-500 py-8">
+              <div className="text-center text-slate-400 py-8">
                 Noch keine Ausgaben vorhanden
               </div>
             )}
@@ -248,14 +248,14 @@ export default function Finances() {
         </div>
 
         {/* Recent Transactions */}
-        <Card className="p-6 bg-white border border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Letzte Transaktionen</h3>
+        <Card className="p-6 bg-slate-800 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Letzte Transaktionen</h3>
           {transactions.length > 0 ? (
             <div className="space-y-3">
               {transactions.slice(0, 10).map((transaction) => (
                 <div 
                   key={transaction.id} 
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-slate-900 rounded-lg"
                 >
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${
@@ -268,8 +268,8 @@ export default function Finances() {
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-slate-900">{transaction.description || categoryLabels[transaction.category]}</p>
-                      <p className="text-sm text-slate-500">
+                      <p className="font-medium text-white">{transaction.description || categoryLabels[transaction.category]}</p>
+                      <p className="text-sm text-slate-400">
                         {new Date(transaction.date).toLocaleDateString('de-DE')}
                       </p>
                     </div>
@@ -283,7 +283,7 @@ export default function Finances() {
               ))}
             </div>
           ) : (
-            <div className="text-center text-slate-500 py-8">
+            <div className="text-center text-slate-400 py-8">
               Noch keine Transaktionen vorhanden
             </div>
           )}

@@ -159,7 +159,7 @@ export default function Fleet() {
   const canAfford = (price) => (company?.balance || 0) >= price;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div 
@@ -169,8 +169,8 @@ export default function Fleet() {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Flotte</h1>
-              <p className="text-slate-500">Verwalte und erweitere deine Flugzeugflotte</p>
+              <h1 className="text-3xl font-bold text-white">Flotte</h1>
+              <p className="text-slate-400">Verwalte und erweitere deine Flugzeugflotte</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -179,7 +179,7 @@ export default function Fleet() {
                   placeholder="Flugzeug suchen..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64 bg-white"
+                  className="pl-10 w-64 bg-slate-800 text-white border-slate-700"
                 />
               </div>
               <Dialog open={isPurchaseDialogOpen} onOpenChange={setIsPurchaseDialogOpen}>
@@ -259,7 +259,7 @@ export default function Fleet() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="bg-white border border-slate-200 flex-wrap h-auto p-1">
+          <TabsList className="bg-slate-800 border border-slate-700 flex-wrap h-auto p-1">
             <TabsTrigger value="all">Alle</TabsTrigger>
             {Object.entries(typeLabels).map(([type, label]) => (
               <TabsTrigger key={type} value={type}>{label}</TabsTrigger>
@@ -283,10 +283,10 @@ export default function Fleet() {
             </AnimatePresence>
           </motion.div>
         ) : (
-          <Card className="p-12 text-center bg-white border border-slate-200">
-            <Plane className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">Keine Flugzeuge</h3>
-            <p className="text-slate-500 mb-4">Kaufe dein erstes Flugzeug, um loszulegen</p>
+          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine Flugzeuge</h3>
+            <p className="text-slate-400 mb-4">Kaufe dein erstes Flugzeug, um loszulegen</p>
             <Button onClick={() => setIsPurchaseDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Flugzeug kaufen

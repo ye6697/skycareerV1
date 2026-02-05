@@ -26,10 +26,10 @@ export default function FlightRating({ flight }) {
   };
 
   const RatingStars = ({ rating, label, icon: Icon }) => (
-    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
       <div className="flex items-center gap-2">
         <Icon className="w-4 h-4 text-slate-400" />
-        <span className="text-sm text-slate-600">{label}</span>
+        <span className="text-sm text-slate-300">{label}</span>
       </div>
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -52,15 +52,15 @@ export default function FlightRating({ flight }) {
   );
 
   return (
-    <Card className="p-6 bg-white border border-slate-200">
+    <Card className="p-6 bg-slate-800 border border-slate-700">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-slate-900">Passagier-Bewertung</h3>
+        <h3 className="text-lg font-semibold text-white">Passagier-Bewertung</h3>
         <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
           <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
           <span className={`text-2xl font-bold ${getRatingColor(flight?.overall_rating)}`}>
             {flight?.overall_rating?.toFixed(1) || "-"}
           </span>
-          <span className="text-sm text-slate-500">/ 5.0</span>
+          <span className="text-sm text-slate-400">/ 5.0</span>
         </div>
       </div>
 
@@ -113,7 +113,7 @@ export default function FlightRating({ flight }) {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <MessageCircle className="w-4 h-4 text-slate-400" />
-            <h4 className="font-medium text-slate-700">Passagier-Kommentare</h4>
+            <h4 className="font-medium text-white">Passagier-Kommentare</h4>
           </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {flight.passenger_comments.map((comment, index) => (
@@ -122,7 +122,7 @@ export default function FlightRating({ flight }) {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="p-3 bg-slate-50 rounded-lg text-sm text-slate-600 italic"
+                className="p-3 bg-slate-900 rounded-lg text-sm text-slate-300 italic"
               >
                 "{comment}"
               </motion.div>
@@ -132,7 +132,7 @@ export default function FlightRating({ flight }) {
       )}
 
       <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-        <p className="text-sm text-blue-700">
+        <p className="text-sm text-blue-300">
           <strong>Status:</strong> {getRatingLabel(flight?.overall_rating)}
         </p>
       </div>

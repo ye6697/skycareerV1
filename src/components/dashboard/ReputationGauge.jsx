@@ -21,9 +21,9 @@ export default function ReputationGauge({ reputation = 50, level = 1 }) {
   };
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-slate-50 to-white border border-slate-200/50">
+    <Card className="p-6 bg-slate-800 border border-slate-700">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-slate-700">Unternehmens-Reputation</h3>
+        <h3 className="font-semibold text-white">Unternehmens-Reputation</h3>
         <div className="flex items-center gap-1 px-3 py-1 bg-amber-100 rounded-full">
           <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
           <span className="text-sm font-bold text-amber-700">Level {level}</span>
@@ -48,7 +48,7 @@ export default function ReputationGauge({ reputation = 50, level = 1 }) {
         <span className={`text-2xl font-bold ${getReputationColor(reputation)}`}>
           {reputation}%
         </span>
-        <span className="text-sm text-slate-500">{getReputationLabel(reputation)}</span>
+        <span className="text-sm text-slate-400">{getReputationLabel(reputation)}</span>
       </div>
     </Card>
   );

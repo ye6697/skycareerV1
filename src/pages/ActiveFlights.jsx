@@ -147,7 +147,7 @@ export default function ActiveFlights() {
   const allContracts = [...contracts, ...inProgressContracts];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div 
@@ -155,8 +155,8 @@ export default function ActiveFlights() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-slate-900">Aktive Flüge</h1>
-          <p className="text-slate-500">Bereite Flüge vor und starte sie mit X-Plane 12</p>
+          <h1 className="text-3xl font-bold text-white">Aktive Flüge</h1>
+          <p className="text-slate-400">Bereite Flüge vor und starte sie mit X-Plane 12</p>
         </motion.div>
 
         {/* Connection Status */}
@@ -165,15 +165,15 @@ export default function ActiveFlights() {
             <div className="flex items-center gap-3">
               <div className={`w-3 h-3 rounded-full ${
                 company?.xplane_connection_status === 'connected' 
-                  ? 'bg-emerald-500 animate-pulse' 
-                  : 'bg-slate-500'
+                  ? 'bg-emerald-400 animate-pulse' 
+                  : 'bg-slate-600'
               }`} />
               <span>
                 X-Plane 12: {company?.xplane_connection_status === 'connected' ? 'Verbunden' : 'Nicht verbunden'}
               </span>
             </div>
             {company?.xplane_connection_status !== 'connected' && (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-300">
                 Plugin-Verbindung erforderlich für Live-Flugdaten
               </p>
             )}
@@ -191,7 +191,7 @@ export default function ActiveFlights() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                 >
-                  <Card className="overflow-hidden bg-white border border-slate-200">
+                  <Card className="overflow-hidden bg-slate-800 border border-slate-700">
                     <div className={`h-1 ${
                       contract.status === 'in_progress' 
                         ? 'bg-blue-500' 
@@ -201,7 +201,7 @@ export default function ActiveFlights() {
                       <div className="flex items-start justify-between mb-4">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-semibold text-slate-900">
+                            <h3 className="text-xl font-semibold text-white">
                               {contract.title}
                             </h3>
                             <Badge className={
@@ -212,7 +212,7 @@ export default function ActiveFlights() {
                               {contract.status === 'in_progress' ? 'Im Flug' : 'Bereit'}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-3 text-slate-500">
+                          <div className="flex items-center gap-3 text-slate-400">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-4 h-4" />
                               {contract.departure_airport}
@@ -222,7 +222,7 @@ export default function ActiveFlights() {
                               <MapPin className="w-4 h-4" />
                               {contract.arrival_airport}
                             </span>
-                            <span className="text-slate-400">|</span>
+                            <span className="text-slate-600">|</span>
                             <span>{contract.distance_nm} NM</span>
                           </div>
                         </div>
@@ -240,8 +240,8 @@ export default function ActiveFlights() {
 
                       {/* Required Crew */}
                       {contract.required_crew && (
-                        <div className="flex items-center gap-4 mb-4 p-3 bg-slate-50 rounded-lg">
-                          <span className="text-sm text-slate-500">Benötigte Crew:</span>
+                        <div className="flex items-center gap-4 mb-4 p-3 bg-slate-900 rounded-lg">
+                          <span className="text-sm text-slate-400">Benötigte Crew:</span>
                           <div className="flex items-center gap-3">
                             {Object.entries(contract.required_crew).map(([role, count]) => 
                               count > 0 && (
@@ -284,10 +284,10 @@ export default function ActiveFlights() {
             </AnimatePresence>
           </div>
         ) : (
-          <Card className="p-12 text-center bg-white border border-slate-200">
-            <Plane className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">Keine aktiven Aufträge</h3>
-            <p className="text-slate-500 mb-4">
+          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine aktiven Aufträge</h3>
+            <p className="text-slate-400 mb-4">
               Nimm einen Auftrag an, um einen Flug zu starten
             </p>
             <Link to={createPageUrl("Contracts")}>

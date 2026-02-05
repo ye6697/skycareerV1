@@ -71,7 +71,7 @@ export default function Dashboard() {
 
   if (companyLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
@@ -84,7 +84,7 @@ export default function Dashboard() {
 
   if (!company) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
         <div className="max-w-2xl mx-auto text-center py-20">
           <motion.div
             initial={{ scale: 0 }}
@@ -107,7 +107,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div 
@@ -117,11 +117,11 @@ export default function Dashboard() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">{company.name}</h1>
-              <p className="text-slate-500">{company.callsign} • Hub: {company.hub_airport || "Nicht festgelegt"}</p>
+              <h1 className="text-3xl font-bold text-white">{company.name}</h1>
+              <p className="text-slate-400">{company.callsign} • Hub: {company.hub_airport || "Nicht festgelegt"}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-slate-500">Kontostand</p>
+              <p className="text-sm text-slate-400">Kontostand</p>
               <p className="text-3xl font-bold text-emerald-600">{formatCurrency(company.balance)}</p>
             </div>
           </div>
@@ -162,8 +162,8 @@ export default function Dashboard() {
           <XPlaneStatus status={company.xplane_connection_status} />
           
           {/* Quick Actions */}
-          <Card className="p-6 bg-white border border-slate-200">
-            <h3 className="font-semibold text-slate-700 mb-4">Schnellzugriff</h3>
+          <Card className="p-6 bg-slate-800 border border-slate-700">
+          <h3 className="font-semibold text-white mb-4">Schnellzugriff</h3>
             <div className="space-y-2">
               <Link to={createPageUrl("Contracts")} className="block">
                 <Button variant="outline" className="w-full justify-between">
@@ -203,14 +203,14 @@ export default function Dashboard() {
             animate={{ opacity: 1, scale: 1 }}
             className="mb-8"
           >
-            <Card className="p-4 bg-amber-50 border border-amber-200">
+            <Card className="p-4 bg-amber-900/20 border border-amber-700/50">
               <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600" />
+                <AlertCircle className="w-5 h-5 text-amber-400" />
                 <div className="flex-1">
-                  <p className="font-medium text-amber-900">
+                  <p className="font-medium text-amber-100">
                     {acceptedContracts.length} aktive{acceptedContracts.length === 1 ? 'r' : ''} Auftrag wartet auf Durchführung
                   </p>
-                  <p className="text-sm text-amber-700">
+                  <p className="text-sm text-amber-300">
                     Verbinde X-Plane 12 und führe den Flug durch
                   </p>
                 </div>
@@ -227,7 +227,7 @@ export default function Dashboard() {
         {/* Available Contracts */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-slate-900">Verfügbare Aufträge</h2>
+            <h2 className="text-xl font-semibold text-white">Verfügbare Aufträge</h2>
             <Link to={createPageUrl("Contracts")}>
               <Button variant="ghost" className="text-blue-600">
                 Alle anzeigen <ChevronRight className="w-4 h-4 ml-1" />
@@ -241,9 +241,9 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <Card className="p-8 text-center bg-white border border-slate-200">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Keine verfügbaren Aufträge</p>
+            <Card className="p-8 text-center bg-slate-800 border border-slate-700">
+              <FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">Keine verfügbaren Aufträge</p>
             </Card>
           )}
         </div>
@@ -252,38 +252,38 @@ export default function Dashboard() {
         {recentFlights.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-slate-900">Letzte Flüge</h2>
+              <h2 className="text-xl font-semibold text-white">Letzte Flüge</h2>
               <Link to={createPageUrl("FlightHistory")}>
                 <Button variant="ghost" className="text-blue-600">
                   Alle anzeigen <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
             </div>
-            <Card className="overflow-hidden bg-white border border-slate-200">
+            <Card className="overflow-hidden bg-slate-800 border border-slate-700">
               <div className="divide-y divide-slate-100">
                 {recentFlights.map((flight) => (
-                  <div key={flight.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                  <div key={flight.id} className="p-4 flex items-center justify-between hover:bg-slate-700 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
                         <Plane className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-slate-900">Flug #{flight.id?.slice(-6)}</p>
-                        <p className="text-sm text-slate-500">
+                        <p className="font-medium text-white">Flug #{flight.id?.slice(-6)}</p>
+                        <p className="text-sm text-slate-400">
                           {flight.departure_time ? new Date(flight.departure_time).toLocaleDateString('de-DE') : '-'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-sm text-slate-500">Bewertung</p>
+                        <p className="text-sm text-slate-400">Bewertung</p>
                         <div className="flex items-center gap-1">
                           <Star className={`w-4 h-4 ${flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
                           <span className="font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-slate-500">Gewinn</p>
+                        <p className="text-sm text-slate-400">Gewinn</p>
                         <p className={`font-semibold ${flight.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {formatCurrency(flight.profit)}
                         </p>

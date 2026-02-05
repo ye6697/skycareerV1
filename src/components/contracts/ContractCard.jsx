@@ -40,7 +40,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="overflow-hidden bg-white border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all duration-300">
+      <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
         <div className={`h-1.5 bg-gradient-to-r ${
           config.color === "blue" ? "from-blue-400 to-blue-600" :
           config.color === "orange" ? "from-orange-400 to-orange-600" :
@@ -65,8 +65,8 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                 }`} />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900">{contract.title}</h3>
-                <p className="text-sm text-slate-500">{config.label}</p>
+                <h3 className="font-semibold text-white">{contract.title}</h3>
+                <p className="text-sm text-slate-400">{config.label}</p>
               </div>
             </div>
             <Badge className={`${difficulty.color} border`}>{difficulty.label}</Badge>
@@ -103,9 +103,9 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between pt-4 border-t border-slate-700">
             <div>
-              <p className="text-sm text-slate-500">Vergütung</p>
+              <p className="text-sm text-slate-400">Vergütung</p>
               <p className="text-xl font-bold text-emerald-600">
                 ${contract.payout?.toLocaleString()}
               </p>

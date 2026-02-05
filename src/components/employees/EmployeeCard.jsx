@@ -49,7 +49,7 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="overflow-hidden bg-white border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all duration-300">
+      <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
         <div className="p-5">
           <div className="flex items-start gap-4 mb-4">
             <div className="relative">
@@ -62,14 +62,14 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
               <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${status.color} rounded-full border-2 border-white`} />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-slate-900 truncate">{employee.name}</h3>
+              <h3 className="font-semibold text-white truncate">{employee.name}</h3>
               <Badge className={`${role.color} border mt-1`}>{role.label}</Badge>
             </div>
           </div>
 
           <div className="space-y-2 mb-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Erfahrung</span>
+              <span className="text-slate-400">Erfahrung</span>
               <div className="flex items-center gap-1">
                 {[...Array(4)].map((_, i) => (
                   <Star 
@@ -77,41 +77,41 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
                     className={`w-3.5 h-3.5 ${i < experience.stars ? 'text-amber-400 fill-amber-400' : 'text-slate-200'}`} 
                   />
                 ))}
-                <span className="ml-1 text-slate-700 font-medium">{experience.label}</span>
+                <span className="ml-1 text-slate-300 font-medium">{experience.label}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Skill Rating</span>
+              <span className="text-slate-400">Skill Rating</span>
               <div className="flex items-center gap-2">
-                <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-20 h-2 bg-slate-700 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
                     style={{ width: `${employee.skill_rating || 50}%` }}
                   />
                 </div>
-                <span className="font-medium text-slate-700">{employee.skill_rating || 50}</span>
+                <span className="font-medium text-slate-300">{employee.skill_rating || 50}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Flugstunden</span>
+              <span className="text-slate-400">Flugstunden</span>
               <div className="flex items-center gap-1 text-slate-700">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-medium">{employee.total_flight_hours?.toLocaleString() || 0}h</span>
+                <span className="font-medium text-slate-300">{employee.total_flight_hours?.toLocaleString() || 0}h</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Gehalt/Monat</span>
-              <div className="flex items-center gap-1 text-slate-700">
+              <span className="text-slate-400">Gehalt/Monat</span>
+              <div className="flex items-center gap-1 text-slate-300">
                 <DollarSign className="w-3.5 h-3.5 text-slate-400" />
                 <span className="font-medium">${employee.salary_per_month?.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-2 pt-3 border-t border-slate-100">
+          <div className="flex gap-2 pt-3 border-t border-slate-700">
             <Button variant="outline" size="sm" className="flex-1" onClick={() => onView?.(employee)}>
               Details
             </Button>

@@ -74,7 +74,7 @@ export default function FlightHistory() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div 
@@ -82,8 +82,8 @@ export default function FlightHistory() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-slate-900">Flughistorie</h1>
-          <p className="text-slate-500">Übersicht aller abgeschlossenen Flüge</p>
+          <h1 className="text-3xl font-bold text-white">Flughistorie</h1>
+          <p className="text-slate-400">Übersicht aller abgeschlossenen Flüge</p>
         </motion.div>
 
         {/* Stats */}
@@ -105,8 +105,8 @@ export default function FlightHistory() {
                 <Star className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Ø Bewertung</p>
-                <p className="text-2xl font-bold text-slate-900">{avgRating.toFixed(1)}</p>
+                <p className="text-sm text-slate-400">Ø Bewertung</p>
+                <p className="text-2xl font-bold text-white">{avgRating.toFixed(1)}</p>
               </div>
             </div>
           </Card>
@@ -120,7 +120,7 @@ export default function FlightHistory() {
                 )}
               </div>
               <div>
-                <p className="text-sm text-slate-500">Gesamtgewinn</p>
+                <p className="text-sm text-slate-400">Gesamtgewinn</p>
                 <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {formatCurrency(totalProfit)}
                 </p>
@@ -133,8 +133,8 @@ export default function FlightHistory() {
                 <DollarSign className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Ø Gewinn/Flug</p>
-                <p className="text-2xl font-bold text-slate-900">
+                <p className="text-sm text-slate-400">Ø Gewinn/Flug</p>
+                <p className="text-2xl font-bold text-white">
                   {formatCurrency(flights.length > 0 ? totalProfit / flights.length : 0)}
                 </p>
               </div>
@@ -150,7 +150,7 @@ export default function FlightHistory() {
               placeholder="Flug suchen..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-white"
+              className="pl-10 bg-slate-800 text-white border-slate-700"
             />
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function FlightHistory() {
         {isLoading ? (
           <Card className="animate-pulse bg-slate-100 h-64" />
         ) : flights.length > 0 ? (
-          <Card className="overflow-hidden bg-white border border-slate-200">
+          <Card className="overflow-hidden bg-slate-800 border border-slate-700">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -179,7 +179,7 @@ export default function FlightHistory() {
                   return (
                     <TableRow 
                       key={flight.id} 
-                      className="cursor-pointer hover:bg-slate-50"
+                      className="cursor-pointer hover:bg-slate-700"
                       onClick={() => setSelectedFlight(flight)}
                     >
                       <TableCell>
@@ -231,10 +231,10 @@ export default function FlightHistory() {
             </Table>
           </Card>
         ) : (
-          <Card className="p-12 text-center bg-white border border-slate-200">
-            <Plane className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">Keine Flüge</h3>
-            <p className="text-slate-500">Du hast noch keine Flüge abgeschlossen.</p>
+          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine Flüge</h3>
+            <p className="text-slate-400">Du hast noch keine Flüge abgeschlossen.</p>
           </Card>
         )}
 
