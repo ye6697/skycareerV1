@@ -34,12 +34,31 @@ export default function EmployeeDetails() {
     retry: false
   });
 
-  if (isLoading || !employee) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
           <User className="w-12 h-12 text-blue-400" />
         </motion.div>
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+        <Card className="p-8 bg-slate-800 border border-slate-700 text-center max-w-md">
+          <User className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Mitarbeiter nicht gefunden</h2>
+          <p className="text-slate-400 mb-4">Der angeforderte Mitarbeiter existiert nicht.</p>
+          <Button 
+            onClick={() => navigate(createPageUrl("Employees"))}
+            className="w-full bg-blue-600 hover:bg-blue-700"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Zurück zu Mitarbeitern
+          </Button>
+        </Card>
       </div>
     );
   }
