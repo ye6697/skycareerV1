@@ -83,11 +83,11 @@ export default function FlightTracker() {
     }
   });
 
-  // Update flight data from entity - ONLY after flight started
+  // Update flight data from flight.xplane_data continuously (same as debug page)
   useEffect(() => {
-    if (!flight || flightPhase === 'preflight' || flightPhase === 'completed') return;
+    if (!flight || flightPhase === 'completed') return;
 
-    // Get data from flight.xplane_data (same as debug page)
+    // Always update from flight.xplane_data when available
     if (flight.xplane_data) {
       const xp = flight.xplane_data;
       
@@ -114,24 +114,31 @@ export default function FlightTracker() {
         }
       });
 
-      // Auto-detect phase changes during flight
-      if (xp.altitude > 10 && !xp.on_ground) {
+      // Auto-detect phase - start if in air
+      if (flightPhase === 'preflight' && xp.altitude > 10 && !xp.on_ground) {
+        setFlightPhase('takeoff');
+      } else if (flightPhase !== 'preflight' && xp.altitude > 10 && !xp.on_ground) {
+        // Adjust phase during flight
         if (xp.altitude > 10000) {
           setFlightPhase('cruise');
-        } else if (xp.vertical_speed > 500) {
-          setFlightPhase('takeoff');
         } else if (xp.vertical_speed < -200) {
           setFlightPhase('landing');
         }
       }
 
-      // Check if completed
+      // Check if landed and parked
+      if (xp.on_ground && xp.park_brake && flightPhase !== 'completed') {
+        setFlightPhase('completed');
+        queryClient.invalidateQueries();
+      }
+
+      // Check if flight status changed
       if (flight.status === 'completed') {
         setFlightPhase('completed');
         queryClient.invalidateQueries();
       }
     }
-  }, [flight, flightPhase]);
+  }, [flight]);
 
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
