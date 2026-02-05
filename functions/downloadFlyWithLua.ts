@@ -110,32 +110,34 @@ function monitor_flight()
 
     last_update = sim_time
 
-    local altitude = get("sim/flightmodel/position/elevation") * 3.28084
-    local speed = get("sim/flightmodel/position/groundspeed") * 1.94384
-    local vs = get("sim/flightmodel/position/vh_ind") * 196.85
-    local heading = get("sim/flightmodel/position/psi")
-    local g_force = get("sim/flightmodel/forces/g_load")
-    local latitude = get("sim/flightmodel/position/latitude")
-    local longitude = get("sim/flightmodel/position/longitude")
+    local altitude = (get("sim/flightmodel/position/elevation") or 0) * 3.28084
+    local speed = (get("sim/flightmodel/position/groundspeed") or 0) * 1.94384
+    local vs = (get("sim/flightmodel/position/vh_ind") or 0) * 196.85
+    local heading = get("sim/flightmodel/position/psi") or 0
+    local g_force = get("sim/flightmodel/forces/g_load") or 1.0
+    local latitude = get("sim/flightmodel/position/latitude") or 0
+    local longitude = get("sim/flightmodel/position/longitude") or 0
 
-    local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot")
+    local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot") or 1
     local fuel_percentage = 100
-    if fuel_max > 0 then
+    if fuel_max > 0 and total_fuel then
         fuel_percentage = (total_fuel / fuel_max * 100)
     end
 
     local on_ground = (on_ground_any == 1)
 
     -- Check if engines are running (any engine)
-    local num_engines = get("sim/aircraft/engine/acf_num_engines")
+    local num_engines = get("sim/aircraft/engine/acf_num_engines") or 0
     local engine1_running = false
     local engine2_running = false
     
     if num_engines >= 1 then
-        engine1_running = (get("sim/flightmodel/engine/ENGN_N2_[0]") > 20)
+        local n2_1 = get("sim/flightmodel/engine/ENGN_N2_[0]")
+        engine1_running = (n2_1 and n2_1 > 20)
     end
     if num_engines >= 2 then
-        engine2_running = (get("sim/flightmodel/engine/ENGN_N2_[1]") > 20)
+        local n2_2 = get("sim/flightmodel/engine/ENGN_N2_[1]")
+        engine2_running = (n2_2 and n2_2 > 20)
     end
 
     if g_force > max_g_force then
@@ -187,28 +189,28 @@ function monitor_flight()
     end
 
     ---------------- EVENT DETECTION ----------------
-    if pitch > 10 and on_ground then
+    if pitch and pitch > 10 and on_ground then
         tailstrike_detected = true
     end
 
     -- Stall detection via low airspeed at high altitude
-    if altitude > 500 and ias < 80 and not on_ground then
+    if ias and altitude > 500 and ias < 80 and not on_ground then
         stall_detected = true
     end
 
-    if g_force > 2.5 or g_force < -1.0 then
+    if g_force and (g_force > 2.5 or g_force < -1.0) then
         overstress_detected = true
     end
 
-    if flap_ratio > 0 and speed > 200 then
+    if flap_ratio and flap_ratio > 0 and speed > 200 then
         flaps_overspeed = true
     end
 
-    if total_fuel < 300 then
+    if total_fuel and total_fuel < 300 then
         fuel_emergency = true
     end
 
-    if g_force > 3.5 then
+    if g_force and g_force > 3.5 then
         crash_detected = true
     end
 
