@@ -176,16 +176,20 @@ export default function CompletedFlightDetails() {
                     <span className="text-emerald-400 font-mono">${flight.revenue?.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Treibstoff</span>
+                    <span className="text-slate-400">Treibstoff ({flight.fuel_used_liters?.toLocaleString()} L)</span>
                     <span className="text-red-400 font-mono">-${flight.fuel_cost?.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Crew</span>
+                    <span className="text-slate-400">Crew ({flight.flight_duration_hours?.toFixed(1)}h)</span>
                     <span className="text-red-400 font-mono">-${flight.crew_cost?.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Wartung</span>
+                    <span className="text-slate-400">Wartung ({flight.flight_duration_hours?.toFixed(1)}h)</span>
                     <span className="text-red-400 font-mono">-${flight.maintenance_cost?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                    <span className="text-slate-400">Flughafen-Gebühren</span>
+                    <span className="text-red-400 font-mono">-$150</span>
                   </div>
                   <div className="flex justify-between items-center pt-3">
                     <span className="font-semibold">Gewinn/Verlust</span>
