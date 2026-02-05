@@ -235,7 +235,8 @@ export default function Fleet() {
         ...aircraftData,
         registration,
         status: 'available',
-        total_flight_hours: 0
+        total_flight_hours: 0,
+        current_value: aircraftData.purchase_price
       });
 
       if (company) {
