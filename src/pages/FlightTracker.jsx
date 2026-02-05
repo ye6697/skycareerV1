@@ -127,6 +127,19 @@ export default function FlightTracker() {
     }
   }, [xplaneLog]);
 
+  const startFlightMutation = useMutation({
+    mutationFn: async () => {
+      if (!flight) {
+        throw new Error('Kein Flug gefunden');
+      }
+      await base44.entities.Flight.update(flight.id, { status: 'in_flight' });
+      return flight;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    }
+  });
+
   const completeFlightMutation = useMutation({
     mutationFn: async () => {
       // Calculate ratings based on flight data
