@@ -36,24 +36,6 @@ export default function FlightTracker() {
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
 
-  // Load flight from contractId
-  const { data: flightFromContract } = useQuery({
-    queryKey: ['flight', contractIdFromUrl],
-    queryFn: async () => {
-      if (!contractIdFromUrl) return null;
-      const flights = await base44.entities.Flight.filter({ contract_id: contractIdFromUrl, status: 'in_flight' });
-      return flights[0] || null;
-    },
-    enabled: !!contractIdFromUrl
-  });
-
-  // Set flight when loaded from contract
-  useEffect(() => {
-    if (flightFromContract) {
-      setFlight(flightFromContract);
-    }
-  }, [flightFromContract]);
-
   const [flightData, setFlightData] = useState({
     altitude: 0,
     speed: 0,
