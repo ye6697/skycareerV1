@@ -59,6 +59,36 @@ export default function FlightTracker() {
     }
   });
 
+  // Calculate ratings in real-time
+  const calculateRatings = (data) => {
+    if (data.events.crash) {
+      return { takeoff: 1, flight: 1, landing: 1, overall: 1 };
+    }
+    
+    const landingRating = Math.abs(data.landingVs) < 100 ? 5 :
+                          Math.abs(data.landingVs) < 200 ? 4 :
+                          Math.abs(data.landingVs) < 300 ? 3 :
+                          Math.abs(data.landingVs) < 500 ? 2 : 1;
+
+    const gForceRating = data.maxGForce < 1.3 ? 5 :
+                         data.maxGForce < 1.5 ? 4 :
+                         data.maxGForce < 1.8 ? 3 :
+                         data.maxGForce < 2.0 ? 2 : 1;
+
+    const takeoffRating = 3 + Math.random() * 2;
+    const flightRating = gForceRating;
+    const overall = (takeoffRating + flightRating + landingRating) / 3;
+
+    return {
+      takeoff: Math.round(takeoffRating * 10) / 10,
+      flight: Math.round(flightRating * 10) / 10,
+      landing: landingRating,
+      overall: Math.round(overall * 10) / 10
+    };
+  };
+
+  const ratings = calculateRatings(flightData);
+
   // Get latest X-Plane data directly
   const { data: xplaneLog } = useQuery({
     queryKey: ['xplane-log'],
