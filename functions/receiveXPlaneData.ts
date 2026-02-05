@@ -51,24 +51,19 @@ Deno.serve(async (req) => {
     const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id });
     const company = companies[0];
 
-    if (!flight) {
-      // No active flight - set status to disconnected
-      if (company && company.xplane_connection_status !== 'disconnected') {
-        await base44.asServiceRole.entities.Company.update(company.id, { 
-          xplane_connection_status: 'disconnected' 
-        });
-      }
-      return Response.json({ 
-        error: 'No active flight found',
-        xplane_connection_status: 'disconnected' 
-      }, { status: 404 });
-    }
-
-    // Active flight found - set status to connected
+    // Set status to connected whenever we receive data (regardless of active flight)
     if (company && company.xplane_connection_status !== 'connected') {
       await base44.asServiceRole.entities.Company.update(company.id, { 
         xplane_connection_status: 'connected' 
       });
+    }
+
+    if (!flight) {
+      // No active flight - but still show as connected
+      return Response.json({ 
+        message: 'X-Plane connected - no active flight',
+        xplane_connection_status: 'connected' 
+      }, { status: 200 });
     }
 
     const engines_running = engine1_running || engine2_running;
