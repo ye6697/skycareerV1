@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 ----------------------------
 local API_ENDPOINT = "${apiEndpoint}"
 local API_KEY = "${apiKey}"
-local UPDATE_INTERVAL = 1.0
+local UPDATE_INTERVAL = 2.0
 
 ----------------------------
 -- STATE VARIABLES
@@ -88,27 +88,15 @@ function classify_landing(g_force, vspeed)
 end
 
 ------------------------------------------------------------
--- HTTP SEND (async, error-safe)
+-- HTTP SEND (fire and forget)
 ------------------------------------------------------------
 function send_flight_data(json_payload)
-    local success, result = pcall(function()
-        local escaped_json = json_payload:gsub('"', '\\"')
-
-        local command
-
-        if SYSTEM == "IBM" then
-            -- Windows - background execution
-            command = 'start /B curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. escaped_json .. '" --max-time 2 --silent'
-        else
-            -- Mac/Linux - background execution
-            command = "curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' --max-time 2 --silent >/dev/null 2>&1 &"
-        end
-
-        os.execute(command)
-    end)
-
-    if not success then
-        logMsg("SkyCareer: Send error (non-critical): " .. tostring(result))
+    if SYSTEM == "IBM" then
+        -- Windows
+        os.execute('start /B curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\"') .. '" --max-time 1 --silent')
+    else
+        -- Mac/Linux
+        os.execute("curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' --max-time 1 --silent &")
     end
 end
 
@@ -308,9 +296,9 @@ function monitor_flight()
     send_flight_data(json_payload)
 end
 
-do_every_frame("monitor_flight()")
+do_often("monitor_flight()")
 
-logMsg("SkyCareer PRO Complete System Loaded (XP12) - Monitoring active")
+logMsg("SkyCareer PRO System Loaded - Monitoring every 2 seconds")
 `;
     
     return new Response(luaScript, {
