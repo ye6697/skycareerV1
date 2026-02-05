@@ -134,11 +134,13 @@ export default function FlightTracker() {
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
-      if (!flight) {
-        throw new Error('Kein Flug gefunden');
-      }
-      await base44.entities.Flight.update(flight.id, { status: 'in_flight' });
-      return flight;
+      const newFlight = await base44.entities.Flight.create({
+        contract_id: contractIdFromUrl,
+        status: 'in_flight',
+        departure_time: new Date().toISOString()
+      });
+      setFlight(newFlight);
+      return newFlight;
     },
     onSuccess: () => {
       queryClient.invalidateQueries();
