@@ -27,6 +27,14 @@ export default function XPlaneDebug() {
     refetchInterval: 2000
   });
 
+  const { data: xplaneLogs = [], refetch: refetchLogs } = useQuery({
+    queryKey: ['xplane-logs'],
+    queryFn: async () => {
+      return await base44.entities.XPlaneLog.list('-created_date', 20);
+    },
+    refetchInterval: 2000
+  });
+
   useEffect(() => {
     setLastUpdate(new Date().toLocaleTimeString());
   }, [company, flights]);
@@ -57,6 +65,7 @@ export default function XPlaneDebug() {
                 onClick={() => {
                   refetchCompany();
                   refetchFlights();
+                  refetchLogs();
                 }}
               >
                 <RefreshCw className="w-4 h-4" />
@@ -230,6 +239,78 @@ export default function XPlaneDebug() {
             </p>
           </Card>
         )}
+
+        {/* X-Plane Data Logs - ALL RECEIVED DATA */}
+        <Card className="p-6 bg-slate-800/50 border-slate-700 mb-6">
+          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-emerald-400" />
+            Alle empfangenen X-Plane Daten (letzte 20)
+          </h2>
+          {xplaneLogs.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-slate-400">Noch keine Daten empfangen</p>
+              <p className="text-slate-500 text-sm mt-2">Starte X-Plane mit installiertem Plugin</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {xplaneLogs.map((log) => (
+                <motion.div 
+                  key={log.id} 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="p-4 bg-slate-900 rounded-lg border border-slate-700"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs text-blue-400">{log.id}</code>
+                      {log.has_active_flight && (
+                        <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
+                          Mit aktivem Flug
+                        </Badge>
+                      )}
+                      {!log.has_active_flight && (
+                        <Badge className="bg-slate-500/20 text-slate-400 text-xs">
+                          Ohne Flug
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-slate-500 text-xs">
+                      {new Date(log.created_date).toLocaleString('de-DE')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                    <div className="text-sm">
+                      <span className="text-slate-500">Höhe:</span>{' '}
+                      <span className="text-white font-mono">{Math.round(log.altitude || 0)} ft</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-slate-500">Speed:</span>{' '}
+                      <span className="text-white font-mono">{Math.round(log.speed || 0)} kts</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-slate-500">Score:</span>{' '}
+                      <span className="text-white font-mono">{Math.round(log.flight_score || 100)}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-slate-500">Am Boden:</span>{' '}
+                      <span className="text-white font-mono">{log.on_ground ? 'Ja' : 'Nein'}</span>
+                    </div>
+                  </div>
+
+                  <details className="mt-2">
+                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300">
+                      Rohdaten anzeigen
+                    </summary>
+                    <pre className="text-xs bg-black/30 p-3 rounded mt-2 overflow-auto max-h-48 text-slate-300 font-mono">
+                      {JSON.stringify(log.raw_data, null, 2)}
+                    </pre>
+                  </details>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* Recent Flights */}
         <Card className="p-6 bg-slate-800/50 border-slate-700">

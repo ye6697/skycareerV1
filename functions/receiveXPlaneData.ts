@@ -40,8 +40,23 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'company_id required' }, { status: 400 });
     }
 
+    // Get company
+    const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id });
+    const company = companies[0];
+
+    // Log ALL received data (regardless of active flight)
+    await base44.asServiceRole.entities.XPlaneLog.create({
+      company_id,
+      raw_data: data,
+      altitude,
+      speed,
+      on_ground,
+      flight_score,
+      has_active_flight: false // will update below if flight exists
+    });
+
     // Verify we have valid flight data before marking as connected
-    if (!altitude && !speed) {
+    if (altitude === undefined || speed === undefined) {
       return Response.json({ 
         error: 'Invalid data - no altitude or speed received',
         xplane_connection_status: 'disconnected' 
@@ -49,9 +64,6 @@ Deno.serve(async (req) => {
     }
 
     // Update company connection status ONLY if we have valid data
-    const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id });
-    const company = companies[0];
-
     if (company && company.xplane_connection_status !== 'connected') {
       await base44.asServiceRole.entities.Company.update(company.id, { 
         xplane_connection_status: 'connected' 
@@ -66,11 +78,20 @@ Deno.serve(async (req) => {
     const flight = flights[0];
 
     if (!flight) {
-      // No active flight - but X-Plane is connected
+      // No active flight - but X-Plane is connected and sending data
       return Response.json({ 
         message: 'X-Plane connected - no active flight',
-        xplane_connection_status: 'connected' 
+        xplane_connection_status: 'connected',
+        data_logged: true
       }, { status: 200 });
+    }
+
+    // Update log to mark that there was an active flight
+    const logs = await base44.asServiceRole.entities.XPlaneLog.filter({ company_id });
+    if (logs.length > 0) {
+      await base44.asServiceRole.entities.XPlaneLog.update(logs[0].id, {
+        has_active_flight: true
+      });
     }
 
     const engines_running = engine1_running || engine2_running;
