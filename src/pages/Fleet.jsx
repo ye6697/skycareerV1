@@ -35,7 +35,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 640,
     purchase_price: 150000,
     maintenance_cost_per_hour: 25,
-    image_url: "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Cessna_172_Skyhawk.jpg/1024px-Cessna_172_Skyhawk.jpg"
   },
   {
     name: "Piper PA-44 Seminole",
@@ -46,7 +46,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 750,
     purchase_price: 200000,
     maintenance_cost_per_hour: 35,
-    image_url: "https://images.unsplash.com/photo-1544794221-8b78a403e99e?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Piper_PA-44-180_Seminole_N2445.jpg/1024px-Piper_PA-44-180_Seminole_N2445.jpg"
   },
   {
     name: "Beechcraft King Air 350",
@@ -57,7 +57,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1800,
     purchase_price: 750000,
     maintenance_cost_per_hour: 120,
-    image_url: "https://images.unsplash.com/photo-1570720803582-6ea8a4f62da1?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Beechcraft_King_Air_B200_8.jpg/1024px-Beechcraft_King_Air_B200_8.jpg"
   },
   {
     name: "Cessna Caravan",
@@ -68,7 +68,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1200,
     purchase_price: 400000,
     maintenance_cost_per_hour: 90,
-    image_url: "https://images.unsplash.com/photo-1562109280-4ff9ee6b2f56?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Cessna_Caravan_206H_Rwd.jpg/1024px-Cessna_Caravan_206H_Rwd.jpg"
   },
   {
     name: "Bombardier Q400",
@@ -79,7 +79,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1700,
     purchase_price: 1400000,
     maintenance_cost_per_hour: 280,
-    image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Bombardier_Q400_taxiing.jpg/1024px-Bombardier_Q400_taxiing.jpg"
   },
   {
     name: "Embraer E175",
@@ -90,7 +90,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2200,
     purchase_price: 2500000,
     maintenance_cost_per_hour: 450,
-    image_url: "https://images.unsplash.com/photo-1552819125-81b7e8c1c98a?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Embraer_ERJ-175_5Y-CVK_SkyWest.jpg/1024px-Embraer_ERJ-175_5Y-CVK_SkyWest.jpg"
   },
   {
     name: "Airbus A220",
@@ -101,7 +101,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2800,
     purchase_price: 4200000,
     maintenance_cost_per_hour: 650,
-    image_url: "https://images.unsplash.com/photo-1570718436944-bc21b3b01a71?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Airbus_A220-300_LZQO.jpg/1024px-Airbus_A220-300_LZQO.jpg"
   },
   {
     name: "Airbus A320neo",
@@ -112,7 +112,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3500,
     purchase_price: 12000000,
     maintenance_cost_per_hour: 1200,
-    image_url: "https://images.unsplash.com/photo-1569015615565-1f8c7fb53d63?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Airbus_A320neo_Lufthansa_D-AINN_01.jpg/1024px-Airbus_A320neo_Lufthansa_D-AINN_01.jpg"
   },
   {
     name: "Boeing 737 MAX 8",
@@ -123,7 +123,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3500,
     purchase_price: 13500000,
     maintenance_cost_per_hour: 1350,
-    image_url: "https://images.unsplash.com/photo-1567794348618-8d34755c16da?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/KBWI_-_Southwest_Airlines_N8646Q_-_Flickr_-_Photo_Encoding.jpg/1024px-KBWI_-_Southwest_Airlines_N8646Q_-_Flickr_-_Photo_Encoding.jpg"
   },
   {
     name: "Boeing 787-8",
@@ -134,7 +134,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5000,
     purchase_price: 18000000,
     maintenance_cost_per_hour: 1600,
-    image_url: "https://images.unsplash.com/photo-1564622246329-d0b3b9c7f7b8?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/ANA_B787-8_34A.jpg/1024px-ANA_B787-8_34A.jpg"
   },
   {
     name: "Airbus A330-200",
@@ -145,7 +145,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5650,
     purchase_price: 25000000,
     maintenance_cost_per_hour: 2800,
-    image_url: "https://images.unsplash.com/photo-1608449662850-e08b0e0b6110?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Malaysia_Airlines_Airbus_A330-223_-_9M-MQB.jpg/1024px-Malaysia_Airlines_Airbus_A330-223_-_9M-MQB.jpg"
   },
   {
     name: "Boeing 777-300ER",
@@ -156,7 +156,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 7370,
     purchase_price: 35000000,
     maintenance_cost_per_hour: 3500,
-    image_url: "https://images.unsplash.com/photo-1476519622667-75898657ea14?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/United_Airlines_N228UA_-_B777-322ER.jpg/1024px-United_Airlines_N228UA_-_B777-322ER.jpg"
   },
   {
     name: "Airbus A350-900",
@@ -167,7 +167,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3800,
-    image_url: "https://images.unsplash.com/photo-1579783902614-e3fb5141b0cb?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Airbus_A350-941_F-WXWB_2_Qatar_Airways_2019.jpg/1024px-Airbus_A350-941_F-WXWB_2_Qatar_Airways_2019.jpg"
   },
   {
     name: "Boeing 747-8",
@@ -178,7 +178,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 45000000,
     maintenance_cost_per_hour: 4200,
-    image_url: "https://images.unsplash.com/photo-1544794221-e9fdf7fc3c3b?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Lufthansa_Boeing_747-830_Liotard-1.jpg/1024px-Lufthansa_Boeing_747-830_Liotard-1.jpg"
   },
   {
     name: "Airbus A380",
@@ -189,7 +189,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 55000000,
     maintenance_cost_per_hour: 5000,
-    image_url: "https://images.unsplash.com/photo-1571996477506-de9c812b3434?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/A380_Singapore_Airlines_%289M-SKA%29_%284%29.jpg/1024px-A380_Singapore_Airlines_%289M-SKA%29_%284%29.jpg"
   },
   {
     name: "Boeing 777F",
@@ -200,7 +200,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 4435,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3600,
-    image_url: "https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/FedEx_Boeing_777F_N869FD_2.jpg/1024px-FedEx_Boeing_777F_N869FD_2.jpg"
   },
   {
     name: "Boeing 747-8F",
@@ -211,7 +211,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 4120,
     purchase_price: 42000000,
     maintenance_cost_per_hour: 4500,
-    image_url: "https://images.unsplash.com/photo-1568839419197-e5fa7eda60a8?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Cargo_Boeing_747-400F.jpg/1024px-Cargo_Boeing_747-400F.jpg"
   },
   {
     name: "Airbus A330-200F",
@@ -222,7 +222,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5550,
     purchase_price: 24000000,
     maintenance_cost_per_hour: 2600,
-    image_url: "https://images.unsplash.com/photo-1493514789560-586cb221a7f7?w=400&h=300&fit=crop"
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Airbus_A330-223F.jpg/1024px-Airbus_A330-223F.jpg"
   }
 ];
 
