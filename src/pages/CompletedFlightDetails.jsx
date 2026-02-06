@@ -100,20 +100,20 @@ export default function CompletedFlightDetails() {
               <div className="flex items-center gap-4 text-slate-400">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
-                  {contract.departure_airport}
+                  {finalContract.departure_airport}
                 </span>
                 <span>→</span>
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
-                  {contract.arrival_airport}
+                  {finalContract.arrival_airport}
                 </span>
                 <span className="text-slate-600">|</span>
-                <span>{contract.distance_nm} NM</span>
+                <span>{finalContract.distance_nm} NM</span>
               </div>
             </div>
             <div className="text-right">
               <p className="text-3xl font-bold text-emerald-600">
-                ${contract.payout?.toLocaleString()}
+                ${finalContract.payout?.toLocaleString()}
               </p>
             </div>
           </div>
