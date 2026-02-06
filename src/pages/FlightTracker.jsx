@@ -305,7 +305,7 @@ export default function FlightTracker() {
     }
 
     // Check if landed and parked
-    if (xp.on_ground && xp.park_brake && flightPhase !== 'completed') {
+    if (xp.on_ground && xp.park_brake && flightPhase !== 'completed' && flightPhase !== 'preflight') {
       setFlightPhase('completed');
     }
   }, [xplaneLog, flight, flightPhase]);
