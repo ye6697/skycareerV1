@@ -386,8 +386,7 @@ export default function FlightTracker() {
               xplane_data: {
                 ...flightData,
                 final_score: finalScore,
-                events: flightData.events,
-                maintenanceCost: totalEventMaintenanceCost
+                events: flightData.events
               }
             });
 
