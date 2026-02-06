@@ -285,7 +285,17 @@ function monitor_flight()
     send_flight_data(json_payload)
 end
 
-do_sometimes("monitor_flight()")
+-- Send data every 2 seconds instead of every 10 seconds
+local last_send_time = 0
+function flight_loop_callback()
+    local current_time = os.clock()
+    if current_time - last_send_time >= 2.0 then
+        last_send_time = current_time
+        monitor_flight()
+    end
+end
+
+do_every_frame("flight_loop_callback()")
 `;
     
     return new Response(luaScript, {
