@@ -562,7 +562,7 @@ export default function FlightTracker() {
         maintenanceCostIncrease += aircraftPurchasePrice * 0.02;
       }
       
-      // Stall: -50 Punkte
+      // Stall: -50 Punkte (keine Wartungskosten)
       if (xp.stall && !prev.events.stall) {
         baseScore = Math.max(0, baseScore - 50);
       }
@@ -575,24 +575,22 @@ export default function FlightTracker() {
         baseScore = Math.max(0, baseScore - 25);
       }
       
-      // Strukturbelastung (overstress): 4% des Neuwertes, einmalig
+      // Strukturschaden (overstress): -30 Punkte + 4% des Neuwertes, einmalig
       if (xp.overstress && !prev.events.overstress) {
         baseScore = Math.max(0, baseScore - 30);
         maintenanceCostIncrease += aircraftPurchasePrice * 0.04;
       }
       
-      // Overspeed (flaps_overspeed): 2.5% des Neuwertes, einmalig
+      // Overspeed (flaps_overspeed): 2.5% des Neuwertes, einmalig (kein Score-Abzug)
       if (xp.flaps_overspeed && !prev.events.flaps_overspeed) {
         maintenanceCostIncrease += aircraftPurchasePrice * 0.025;
       }
       
-      // Landing-based penalties
-      if (landingType === 'hard' && !prev.events.hard_landing) {
-        baseScore = Math.max(0, baseScore - 35);
-        maintenanceCostIncrease += 4000;
+      // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten werden vom Flug berechnet
+      if (isCrash && !prev.events.crash) {
+        baseScore = Math.max(0, baseScore - 100);
+        // Crash-Wartungskosten werden in completeFlightMutation berechnet
       }
-      
-      // Crash maintenance cost wird in completeFlightMutation berechnet, nicht hier
       
       // Store departure/arrival coordinates from first X-Plane data
       const depLat = prev.departure_lat || xp.departure_lat || 0;
@@ -942,7 +940,7 @@ export default function FlightTracker() {
                         {flightData.events.stall && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Strömungsabriss (-40 Punkte)
+                            Strömungsabriss (-50 Punkte)
                           </div>
                         )}
                         {flightData.events.overstress && (
@@ -981,10 +979,10 @@ export default function FlightTracker() {
                             Hohe G-Kräfte
                           </div>
                         )}
-                        {flightData.events.hard_landing && (
-                          <div className="text-xs text-red-400 flex items-center gap-1">
+                        {flightData.events.high_g_force && !flightData.events.crash && (
+                          <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Harte Landung (-35 Punkte)
+                            Hohe G-Kräfte (Wartung: {(flightData.maxGForce * 100).toFixed(1)}% Neuwert)
                           </div>
                         )}
                         </div>
