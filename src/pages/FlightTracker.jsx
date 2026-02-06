@@ -153,6 +153,45 @@ export default function FlightTracker() {
     enabled: !!contractIdFromUrl
   });
 
+  // Load existing flight if any
+  const { data: existingFlight } = useQuery({
+    queryKey: ['active-flight', contractIdFromUrl],
+    queryFn: async () => {
+      if (!contractIdFromUrl) return null;
+      const flights = await base44.entities.Flight.filter({ 
+        contract_id: contractIdFromUrl,
+        status: 'in_flight'
+      });
+      return flights[0] || null;
+    },
+    enabled: !!contractIdFromUrl
+  });
+
+  // Restore flight data and phase from existing flight
+  useEffect(() => {
+    if (existingFlight && !flight) {
+      setFlight(existingFlight);
+      
+      // Restore flight data
+      if (existingFlight.xplane_data) {
+        setFlightData(prev => ({
+          ...prev,
+          ...existingFlight.xplane_data
+        }));
+      }
+      
+      // Determine flight phase from altitude
+      const altitude = existingFlight.xplane_data?.altitude || 0;
+      if (altitude > 1000) {
+        setFlightPhase('cruise');
+      } else if (altitude > 10) {
+        setFlightPhase('takeoff');
+      } else {
+        setFlightPhase('takeoff');
+      }
+    }
+  }, [existingFlight, flight]);
+
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
@@ -167,33 +206,44 @@ export default function FlightTracker() {
 
     const xp = xplaneLog.raw_data;
     
-    setFlightData(prev => ({
-     altitude: xp.altitude || prev.altitude,
-     speed: xp.speed || prev.speed,
-     verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
-     heading: xp.heading || prev.heading,
-     fuel: xp.fuel_percentage || prev.fuel,
-     fuelKg: xp.fuel_kg || prev.fuelKg,
-     gForce: xp.g_force || prev.gForce,
-     maxGForce: Math.max(prev.maxGForce, xp.g_force || 1.0),
-     landingVs: xp.touchdown_vspeed || prev.landingVs,
-     flightScore: xp.flight_score || prev.flightScore,
-     maintenanceCost: xp.maintenance_cost || prev.maintenanceCost,
-     reputation: xp.reputation || prev.reputation,
-     latitude: xp.latitude || prev.latitude,
-     longitude: xp.longitude || prev.longitude,
-     events: {
-       tailstrike: xp.tailstrike || prev.events.tailstrike,
-       stall: xp.stall || prev.events.stall,
-       overstress: xp.overstress || prev.events.overstress,
-       flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
-       fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
-       gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-       crash: xp.crash || prev.events.crash,
-       harsh_controls: xp.harsh_controls || prev.events.harsh_controls
-     },
-     maxControlInput: Math.max(prev.maxControlInput, xp.control_input || 0)
-    }));
+    setFlightData(prev => {
+      const newData = {
+        altitude: xp.altitude || prev.altitude,
+        speed: xp.speed || prev.speed,
+        verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
+        heading: xp.heading || prev.heading,
+        fuel: xp.fuel_percentage || prev.fuel,
+        fuelKg: xp.fuel_kg || prev.fuelKg,
+        gForce: xp.g_force || prev.gForce,
+        maxGForce: Math.max(prev.maxGForce, xp.g_force || 1.0),
+        landingVs: xp.touchdown_vspeed || prev.landingVs,
+        flightScore: xp.flight_score || prev.flightScore,
+        maintenanceCost: xp.maintenance_cost || prev.maintenanceCost,
+        reputation: xp.reputation || prev.reputation,
+        latitude: xp.latitude || prev.latitude,
+        longitude: xp.longitude || prev.longitude,
+        events: {
+          tailstrike: xp.tailstrike || prev.events.tailstrike,
+          stall: xp.stall || prev.events.stall,
+          overstress: xp.overstress || prev.events.overstress,
+          flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
+          fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
+          gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
+          crash: xp.crash || prev.events.crash,
+          harsh_controls: xp.harsh_controls || prev.events.harsh_controls
+        },
+        maxControlInput: Math.max(prev.maxControlInput, xp.control_input || 0)
+      };
+      
+      // Save to database every few updates
+      if (flight?.id) {
+        base44.entities.Flight.update(flight.id, {
+          xplane_data: newData
+        });
+      }
+      
+      return newData;
+    });
 
     // Auto-detect phase - start if in air
     if (flightPhase === 'takeoff' && xp.altitude > 10 && !xp.on_ground) {
@@ -208,7 +258,7 @@ export default function FlightTracker() {
     if (xp.on_ground && xp.park_brake && flightPhase !== 'completed') {
       setFlightPhase('completed');
     }
-  }, [xplaneLog]);
+  }, [xplaneLog, flight, flightPhase]);
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
