@@ -98,9 +98,7 @@ export default function CompletedFlightDetails() {
                     updatedAircraft: {
                       id: flight.aircraft_id,
                       status: flight.status === 'completed' ? 'available' : 'damaged',
-                      accumulated_maintenance_cost: flight.xplane_data?.accumulated_maintenance_cost || 0,
-                      total_flight_hours: flight.flight_duration_hours,
-                      current_value: flight.xplane_data?.current_value
+                      accumulated_maintenance_cost: flight.maintenance_cost || 0
                     }
                   }
                 })}
