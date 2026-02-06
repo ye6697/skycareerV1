@@ -255,9 +255,12 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {flight.xplane_data.events.crash && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
-                          <AlertTriangle className="w-4 h-4" />
-                          CRASH
+                        <div className="flex items-center justify-between text-red-400 text-sm font-bold">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            CRASH
+                          </div>
+                          <span className="font-mono">+70% Wartung</span>
                         </div>
                       )}
                       {flight.xplane_data.events.harsh_controls && (
