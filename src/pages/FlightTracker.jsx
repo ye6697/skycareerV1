@@ -365,6 +365,7 @@ export default function FlightTracker() {
             const scoreToRating = (s) => (s / 100) * 5;
             
             // Update flight record with events and final score
+            const totalEventMaintenanceCost = flightData.maintenanceCost + crashMaintenanceCost;
             await base44.entities.Flight.update(flight.id, {
               status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
@@ -377,7 +378,7 @@ export default function FlightTracker() {
               fuel_used_liters: fuelUsed,
               fuel_cost: fuelCost,
               crew_cost: crewCost,
-              maintenance_cost: maintenanceCost,
+              maintenance_cost: (flightHours * maintenanceCostPerHour) + totalEventMaintenanceCost,
               flight_duration_hours: flightHours,
               revenue,
               profit,
@@ -385,7 +386,8 @@ export default function FlightTracker() {
               xplane_data: {
                 ...flightData,
                 final_score: finalScore,
-                events: flightData.events
+                events: flightData.events,
+                maintenanceCost: totalEventMaintenanceCost
               }
             });
 
