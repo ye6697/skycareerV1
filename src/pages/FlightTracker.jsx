@@ -488,11 +488,9 @@ export default function FlightTracker() {
     },
     onSuccess: async (updatedFlight) => {
        console.log('✅ Flug erfolgreich abgeschlossen und in DB gespeichert:', updatedFlight);
-       console.log('🔍 State für CompletedFlightDetails:', { 
-         flightData, 
-         flight: updatedFlight,
-         contract 
-       });
+
+       // FORCE refetch der Aircraft Query damit Fleet aktualisiert wird
+       await queryClient.refetchQueries({ queryKey: ['aircraft'], type: 'active' });
 
        // Direkt navigieren mit aktualisierten Flugdaten
        navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
