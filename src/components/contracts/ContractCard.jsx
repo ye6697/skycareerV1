@@ -3,16 +3,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { 
-  Plane, 
-  Package, 
-  Users, 
-  MapPin, 
-  Clock, 
+import {
+  Plane,
+  Package,
+  Users,
+  MapPin,
+  Clock,
   DollarSign,
   ArrowRight,
-  Star
-} from "lucide-react";
+  Star } from
+"lucide-react";
 
 export default function ContractCard({ contract, onAccept, onView, isAccepting }) {
   const typeConfig = {
@@ -38,31 +38,31 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
-    >
+      transition={{ duration: 0.3 }}>
+
       <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
         <div className={`h-1.5 bg-gradient-to-r ${
-          config.color === "blue" ? "from-blue-400 to-blue-600" :
-          config.color === "orange" ? "from-orange-400 to-orange-600" :
-          config.color === "purple" ? "from-purple-400 to-purple-600" :
-          "from-red-400 to-red-600"
-        }`} />
+        config.color === "blue" ? "from-blue-400 to-blue-600" :
+        config.color === "orange" ? "from-orange-400 to-orange-600" :
+        config.color === "purple" ? "from-purple-400 to-purple-600" :
+        "from-red-400 to-red-600"}`
+        } />
         
         <div className="p-5">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-                config.color === "blue" ? "bg-blue-100" :
-                config.color === "orange" ? "bg-orange-100" :
-                config.color === "purple" ? "bg-purple-100" :
-                "bg-red-100"
-              }`}>
+              config.color === "blue" ? "bg-blue-100" :
+              config.color === "orange" ? "bg-orange-100" :
+              config.color === "purple" ? "bg-purple-100" :
+              "bg-red-100"}`
+              }>
                 <TypeIcon className={`w-5 h-5 ${
-                  config.color === "blue" ? "text-blue-600" :
-                  config.color === "orange" ? "text-orange-600" :
-                  config.color === "purple" ? "text-purple-600" :
-                  "text-red-600"
-                }`} />
+                config.color === "blue" ? "text-blue-600" :
+                config.color === "orange" ? "text-orange-600" :
+                config.color === "purple" ? "text-purple-600" :
+                "text-red-600"}`
+                } />
               </div>
               <div>
                 <h3 className="font-semibold text-white">{contract.title}</h3>
@@ -75,7 +75,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
           <div className="flex items-center gap-2 mb-4 text-sm">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
               <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="font-mono font-medium">{contract.departure_airport}</span>
+              <span className="text-slate-50 font-medium">{contract.departure_airport}</span>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-400" />
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
@@ -84,24 +84,48 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             </div>
           </div>
 
+          {contract.briefing && (
+            <p className="text-sm text-slate-400 italic mb-3 line-clamp-2">
+              "{contract.briefing}"
+            </p>
+          )}
+
           <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
             <div className="flex items-center gap-2 text-slate-300">
               <Plane className="w-4 h-4 text-slate-400" />
               <span>{contract.distance_nm?.toLocaleString() || "---"} NM</span>
             </div>
-            {contract.type === "passenger" && (
-              <div className="flex items-center gap-2 text-slate-300">
+            {contract.type === "passenger" &&
+            <div className="flex items-center gap-2 text-slate-300">
                 <Users className="w-4 h-4 text-slate-400" />
                 <span>{contract.passenger_count} Passagiere</span>
               </div>
-            )}
-            {contract.type === "cargo" && (
-              <div className="flex items-center gap-2 text-slate-300">
+            }
+            {contract.type === "cargo" &&
+            <div className="flex items-center gap-2 text-slate-300">
                 <Package className="w-4 h-4 text-slate-400" />
                 <span>{contract.cargo_weight_kg?.toLocaleString()} kg</span>
               </div>
-            )}
+            }
           </div>
+
+          {contract.required_aircraft_type && contract.required_aircraft_type.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-slate-500 mb-2">Benötigtes Flugzeug:</p>
+              <div className="flex flex-wrap gap-1">
+                {contract.required_aircraft_type.map((type) => (
+                  <Badge key={type} variant="outline" className="text-xs text-blue-400 border-blue-400/50">
+                    {type === 'small_prop' ? 'Propeller' :
+                     type === 'turboprop' ? 'Turboprop' :
+                     type === 'regional_jet' ? 'Regionaljet' :
+                     type === 'narrow_body' ? 'Narrow-Body' :
+                     type === 'wide_body' ? 'Wide-Body' :
+                     type === 'cargo' ? 'Fracht' : type}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-700">
             <div>
@@ -109,30 +133,30 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
               <p className="text-xl font-bold text-emerald-600">
                 ${contract.payout?.toLocaleString()}
               </p>
-              {contract.bonus_potential > 0 && (
-                <p className="text-xs text-amber-600">
+              {contract.bonus_potential > 0 &&
+              <p className="text-xs text-amber-600">
                   +${contract.bonus_potential?.toLocaleString()} Bonus möglich
                 </p>
-              )}
+              }
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>
                 Details
               </Button>
-              {contract.status === "available" && (
-                <Button 
-                  size="sm" 
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={() => onAccept?.(contract)}
-                  disabled={isAccepting}
-                >
+              {contract.status === "available" &&
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => onAccept?.(contract)}
+                disabled={isAccepting}>
+
                   Annehmen
                 </Button>
-              )}
+              }
             </div>
           </div>
         </div>
       </Card>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
