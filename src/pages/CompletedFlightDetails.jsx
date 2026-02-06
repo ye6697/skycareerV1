@@ -210,18 +210,15 @@ export default function CompletedFlightDetails() {
                   </div>
                 )}
 
-                {/* Flight Events & Costs */}
+                {/* Flight Events */}
                 {flight.xplane_data?.events && Object.entries(flight.xplane_data.events).some(([_, val]) => val) && (
-                   <div className="mt-4 pt-4 border-t border-slate-700">
-                     <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges & Wartungskosten:</h4>
-                     <div className="space-y-2">
+                  <div className="mt-4 pt-4 border-t border-slate-700">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges:</h4>
+                    <div className="space-y-2">
                       {flight.xplane_data.events.tailstrike && (
-                        <div className="flex items-center justify-between text-red-400 text-sm">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4" />
-                            Heckaufsetzer
-                          </div>
-                          <span className="font-mono">+2% Wartung</span>
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Heckaufsetzer
                         </div>
                       )}
                       {flight.xplane_data.events.stall && (
@@ -231,21 +228,15 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {flight.xplane_data.events.overstress && (
-                        <div className="flex items-center justify-between text-orange-400 text-sm">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4" />
-                            Strukturbelastung
-                          </div>
-                          <span className="font-mono">+4% Wartung</span>
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Strukturbelastung
                         </div>
                       )}
                       {flight.xplane_data.events.flaps_overspeed && (
-                        <div className="flex items-center justify-between text-orange-400 text-sm">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4" />
-                            Klappen-Overspeed
-                          </div>
-                          <span className="font-mono">+2.5% Wartung</span>
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Klappen-Overspeed
                         </div>
                       )}
                       {flight.xplane_data.events.gear_up_landing && (
@@ -255,12 +246,9 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {flight.xplane_data.events.crash && (
-                        <div className="flex items-center justify-between text-red-400 text-sm font-bold">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4" />
-                            CRASH
-                          </div>
-                          <span className="font-mono">+70% Wartung</span>
+                        <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
+                          <AlertTriangle className="w-4 h-4" />
+                          CRASH
                         </div>
                       )}
                       {flight.xplane_data.events.harsh_controls && (
@@ -270,12 +258,9 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {flight.xplane_data.events.high_g_force && (
-                        <div className="flex items-center justify-between text-orange-400 text-sm">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4" />
-                            Hohe G-Kräfte
-                          </div>
-                          <span className="font-mono">+1% pro G Wartung</span>
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Hohe G-Kräfte
                         </div>
                       )}
                       {flight.xplane_data.events.hard_landing && (
