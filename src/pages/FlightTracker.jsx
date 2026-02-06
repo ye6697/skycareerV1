@@ -484,22 +484,19 @@ export default function FlightTracker() {
       return { profit, revenue, fuelCost };
     },
     onSuccess: async () => {
-      console.log('✅ Flug erfolgreich abgeschlossen - invalidiere alle Queries');
+      console.log('✅ Flug erfolgreich abgeschlossen - FORCE REFETCH ALLER DATEN');
       
-      // SOFORT alle Queries invalidieren und refetchen
-      await queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      await queryClient.invalidateQueries({ queryKey: ['employees'] });
-      await queryClient.invalidateQueries({ queryKey: ['company'] });
-      await queryClient.invalidateQueries({ queryKey: ['active-flight'] });
-      await queryClient.invalidateQueries({ queryKey: ['flights'] });
+      // ALLE Queries SOFORT löschen und neu laden
+      queryClient.removeQueries({ queryKey: ['aircraft'] });
+      queryClient.removeQueries({ queryKey: ['employees'] });
+      queryClient.removeQueries({ queryKey: ['contracts'] });
+      queryClient.removeQueries({ queryKey: ['company'] });
+      queryClient.removeQueries({ queryKey: ['active-flight'] });
+      queryClient.removeQueries({ queryKey: ['flights'] });
       
-      // Warte kurz damit die Updates durchgehen
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('✅ Cache geleert - navigiere zu CompletedFlightDetails');
       
-      console.log('✅ Queries invalidiert - navigiere zu CompletedFlightDetails');
-      
-      // Redirect to completed flight details
+      // Sofort navigieren - die Seiten werden dann frisch laden
       navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`));
     }
   });

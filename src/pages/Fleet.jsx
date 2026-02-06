@@ -254,13 +254,20 @@ export default function Fleet() {
   const { data: aircraft = [], isLoading } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
+      console.log('🔄 Fleet: Lade Flugzeuge NEU von Datenbank...');
       const allAircraft = await base44.entities.Aircraft.list('-created_date');
-      console.log('🛩️ Fleet lädt Flugzeuge:', allAircraft);
+      console.log('✅ Fleet: Flugzeuge geladen:', allAircraft.map(a => ({ 
+        id: a.id, 
+        name: a.name, 
+        status: a.status, 
+        accumulated_maintenance_cost: a.accumulated_maintenance_cost 
+      })));
       return allAircraft;
     },
     staleTime: 0,
+    cacheTime: 0,
     refetchOnMount: 'always',
-    refetchInterval: 2000
+    refetchOnWindowFocus: true
   });
 
   const { data: company } = useQuery({
