@@ -489,13 +489,12 @@ export default function FlightTracker() {
                   <Fuel className="w-5 h-5 text-amber-400" />
                   Treibstoff
                 </h3>
-                <span className="text-amber-400 font-mono">{(flightData.fuelKg / 1000).toFixed(1)} t</span>
+                <span className="text-amber-400 font-mono">{flightData.fuel.toFixed(1)} t</span>
               </div>
-              <Progress value={flightData.fuel} className="h-3 bg-slate-700 mb-3" />
               <div className="p-2 bg-slate-900 rounded text-center">
                 <p className="text-xs text-slate-400">Treibstoff</p>
                 <p className="text-lg font-mono font-bold text-amber-400">
-                  {(flightData.fuelKg / 1000).toFixed(2)} t
+                  {flightData.fuel.toFixed(2)} t
                 </p>
               </div>
               {flightData.events.fuel_emergency && (
