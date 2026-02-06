@@ -59,9 +59,14 @@ export default function FlightTracker() {
       fuel_emergency: false,
       gear_up_landing: false,
       crash: false,
-      harsh_controls: false
+      harsh_controls: false,
+      high_g_force: false
     },
-    maxControlInput: 0
+    maxControlInput: 0,
+    departure_lat: 0,
+    departure_lon: 0,
+    arrival_lat: 0,
+    arrival_lon: 0
   });
 
   // Calculate ratings in real-time
@@ -207,23 +212,30 @@ export default function FlightTracker() {
     const xp = xplaneLog.raw_data;
     
     setFlightData(prev => {
-      const newMaxGForce = Math.max(prev.maxGForce, xp.g_force || 1.0);
+      const currentGForce = xp.g_force || 1.0;
+      const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
       const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
       
-      // Calculate score with G-force and control penalties
+      // Calculate score penalties - only deduct when NEW maximum is reached
       let baseScore = xp.flight_score || prev.flightScore;
       
-      // Deduct points for high G-forces
-      if (newMaxGForce > 1.3) {
-        const gPenalty = (newMaxGForce - 1.3) * 20; // 20 points per 0.1G over 1.3
+      // Deduct points only if G-force increased to a new maximum
+      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.3) {
+        const gPenalty = (newMaxGForce - prev.maxGForce) * 20;
         baseScore = Math.max(0, baseScore - gPenalty);
       }
       
-      // Deduct points for harsh controls
-      if (newMaxControlInput > 0.5) {
-        const controlPenalty = (newMaxControlInput - 0.5) * 10; // 10 points per 0.1 over 0.5
+      // Deduct points only if control input increased to a new maximum
+      if (newMaxControlInput > prev.maxControlInput && newMaxControlInput > 0.5) {
+        const controlPenalty = (newMaxControlInput - prev.maxControlInput) * 10;
         baseScore = Math.max(0, baseScore - controlPenalty);
       }
+      
+      // Store departure/arrival coordinates from first X-Plane data
+      const depLat = prev.departure_lat || xp.departure_lat || 0;
+      const depLon = prev.departure_lon || xp.departure_lon || 0;
+      const arrLat = prev.arrival_lat || xp.arrival_lat || 0;
+      const arrLon = prev.arrival_lon || xp.arrival_lon || 0;
       
       const newData = {
         altitude: xp.altitude || prev.altitude,
@@ -232,7 +244,7 @@ export default function FlightTracker() {
         heading: xp.heading || prev.heading,
         fuel: xp.fuel_percentage || prev.fuel,
         fuelKg: xp.fuel_kg || prev.fuelKg,
-        gForce: xp.g_force || prev.gForce,
+        gForce: currentGForce,
         maxGForce: newMaxGForce,
         landingVs: xp.touchdown_vspeed || prev.landingVs,
         flightScore: baseScore,
@@ -240,6 +252,10 @@ export default function FlightTracker() {
         reputation: xp.reputation || prev.reputation,
         latitude: xp.latitude || prev.latitude,
         longitude: xp.longitude || prev.longitude,
+        departure_lat: depLat,
+        departure_lon: depLon,
+        arrival_lat: arrLat,
+        arrival_lon: arrLon,
         events: {
           tailstrike: xp.tailstrike || prev.events.tailstrike,
           stall: xp.stall || prev.events.stall,
@@ -248,7 +264,8 @@ export default function FlightTracker() {
           fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
           crash: xp.crash || prev.events.crash,
-          harsh_controls: xp.harsh_controls || prev.events.harsh_controls
+          harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
+          high_g_force: newMaxGForce > 1.8 || prev.events.high_g_force
         },
         maxControlInput: newMaxControlInput
       };
@@ -467,15 +484,32 @@ export default function FlightTracker() {
     completed: 'Abgeschlossen'
   };
 
+  // Haversine formula to calculate distance between two coordinates
+  const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 3440.065; // Earth radius in nautical miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
   const calculateDistance = () => {
-    if (!contract) return 0;
-    if (flightPhase === 'preflight') return 0;
+    if (!contract || flightPhase === 'preflight') return 0;
     
-    // Use actual X-Plane distance to destination if available
-    if (xplaneLog?.raw_data?.distance_to_destination !== undefined && contract.distance_nm) {
-      const distanceRemaining = xplaneLog.raw_data.distance_to_destination;
-      const totalDistance = contract.distance_nm;
-      const progress = ((totalDistance - distanceRemaining) / totalDistance) * 100;
+    // Use real coordinates from X-Plane
+    if (flightData.departure_lat && flightData.arrival_lat && flightData.latitude) {
+      const totalDistance = calculateHaversineDistance(
+        flightData.departure_lat, flightData.departure_lon,
+        flightData.arrival_lat, flightData.arrival_lon
+      );
+      const remainingDistance = calculateHaversineDistance(
+        flightData.latitude, flightData.longitude,
+        flightData.arrival_lat, flightData.arrival_lon
+      );
+      const progress = ((totalDistance - remainingDistance) / totalDistance) * 100;
       return Math.max(0, Math.min(100, progress));
     }
     
@@ -565,9 +599,12 @@ export default function FlightTracker() {
             <Progress value={distanceProgress} className="h-2 bg-slate-700" />
             <div className="mt-2 text-xs text-slate-400 text-center">
               {Math.round(distanceProgress)}% des Fluges absolviert
-              {xplaneLog?.raw_data?.distance_to_destination && (
+              {flightData.departure_lat && flightData.arrival_lat && flightData.latitude && (
                 <span className="ml-2">
-                  ({Math.round(xplaneLog.raw_data.distance_to_destination)} nm verbleibend)
+                  ({Math.round(calculateHaversineDistance(
+                    flightData.latitude, flightData.longitude,
+                    flightData.arrival_lat, flightData.arrival_lon
+                  ))} nm verbleibend)
                 </span>
               )}
             </div>
@@ -740,6 +777,12 @@ export default function FlightTracker() {
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Ruppige Steuerung
+                          </div>
+                        )}
+                        {flightData.events.high_g_force && (
+                          <div className="text-xs text-orange-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Hohe G-Kräfte
                           </div>
                         )}
                         </div>
