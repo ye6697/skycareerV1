@@ -187,132 +187,6 @@ export default function FlightTracker() {
     }
   });
 
-  // Update flight data from X-Plane log (freeze data after landing)
-  useEffect(() => {
-    if (!xplaneLog?.raw_data || flightPhase === 'preflight') return;
-    
-    // Don't update data if flight is completed
-    if (flightPhase === 'completed') return;
-
-    const xp = xplaneLog.raw_data;
-    
-    setFlightData(prev => {
-      const currentGForce = xp.g_force || 1.0;
-      const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
-      const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
-      
-      // Calculate score penalties - only deduct when NEW event occurs
-      let baseScore = xp.flight_score || prev.flightScore;
-      
-      // Deduct points only if G-force increased to a new maximum
-      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.3) {
-        const gPenalty = (newMaxGForce - prev.maxGForce) * 20;
-        baseScore = Math.max(0, baseScore - gPenalty);
-      }
-      
-      // Deduct points only if control input increased to a new maximum
-      if (newMaxControlInput > prev.maxControlInput && newMaxControlInput > 0.5) {
-        const controlPenalty = (newMaxControlInput - prev.maxControlInput) * 10;
-        baseScore = Math.max(0, baseScore - controlPenalty);
-      }
-      
-      // Calculate maintenance cost increase based on NEW events only
-      let maintenanceCostIncrease = 0;
-      
-      // Deduct points for critical events (only once when they occur)
-      if (xp.tailstrike && !prev.events.tailstrike) {
-        baseScore = Math.max(0, baseScore - 50);
-        maintenanceCostIncrease += 5000;
-      }
-      if (xp.stall && !prev.events.stall) {
-        baseScore = Math.max(0, baseScore - 40);
-        maintenanceCostIncrease += 2000;
-      }
-      if (xp.overstress && !prev.events.overstress) {
-        baseScore = Math.max(0, baseScore - 30);
-        maintenanceCostIncrease += 3000;
-      }
-      
-      // Check for hard landing (vertical speed worse than -600 fpm)
-      const hardLanding = xp.touchdown_vspeed && xp.touchdown_vspeed < -600;
-      if (hardLanding && !prev.events.hard_landing) {
-        baseScore = Math.max(0, baseScore - 35);
-        maintenanceCostIncrease += 4000;
-      }
-      
-      // Additional maintenance cost for new maximum G-force
-      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.8) {
-        maintenanceCostIncrease += (newMaxGForce - Math.max(prev.maxGForce, 1.8)) * 1000;
-      }
-      
-      // Store departure/arrival coordinates from first X-Plane data
-      const depLat = prev.departure_lat || xp.departure_lat || 0;
-      const depLon = prev.departure_lon || xp.departure_lon || 0;
-      const arrLat = prev.arrival_lat || xp.arrival_lat || 0;
-      const arrLon = prev.arrival_lon || xp.arrival_lon || 0;
-      
-      const newData = {
-        altitude: xp.altitude || prev.altitude,
-        speed: xp.speed || prev.speed,
-        verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
-        heading: xp.heading || prev.heading,
-        fuel: xp.fuel_percentage || prev.fuel,
-        fuelKg: xp.fuel_kg || prev.fuelKg,
-        gForce: currentGForce,
-        maxGForce: newMaxGForce,
-        landingVs: xp.touchdown_vspeed || prev.landingVs,
-        flightScore: baseScore,
-        maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
-        reputation: xp.reputation || prev.reputation,
-        latitude: xp.latitude || prev.latitude,
-        longitude: xp.longitude || prev.longitude,
-        departure_lat: depLat,
-        departure_lon: depLon,
-        arrival_lat: arrLat,
-        arrival_lon: arrLon,
-        events: {
-          tailstrike: xp.tailstrike || prev.events.tailstrike,
-          stall: xp.stall || prev.events.stall,
-          overstress: xp.overstress || prev.events.overstress,
-          flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
-          fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
-          gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-          crash: (xp.crash && xp.on_ground) || prev.events.crash,
-          harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
-          high_g_force: newMaxGForce > 1.8 || prev.events.high_g_force,
-          hard_landing: (xp.touchdown_vspeed && xp.touchdown_vspeed < -600) || prev.events.hard_landing
-        },
-        maxControlInput: newMaxControlInput
-      };
-      
-
-      
-      return newData;
-    });
-
-    // Auto-detect phase - start if in air
-    if (flightPhase === 'takeoff' && xp.altitude > 10 && !xp.on_ground) {
-      setFlightPhase('cruise');
-    } else if (flightPhase === 'cruise') {
-      if (xp.vertical_speed < -200) {
-        setFlightPhase('landing');
-      }
-    }
-
-    // Check if landed and parked - only after actually being in the air
-    if (xp.on_ground && xp.park_brake && flightPhase === 'landing' && flightData.altitude > 500) {
-      setFlightPhase('completed');
-    }
-
-    // Auto-complete flight on crash
-    if (xp.crash && xp.on_ground && flightPhase !== 'preflight' && flightPhase !== 'completed') {
-      setFlightPhase('completed');
-      setTimeout(() => {
-        completeFlightMutation.mutate();
-      }, 1000);
-    }
-    }, [xplaneLog, flight, flightPhase, completeFlightMutation]);
-
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       const newFlight = await base44.entities.Flight.create({
@@ -545,12 +419,138 @@ export default function FlightTracker() {
             }
             }
 
-      return { overallRating, profit, revenue, fuelCost };
+      return { profit, revenue, fuelCost };
     },
     onSuccess: () => {
       queryClient.invalidateQueries();
     }
   });
+
+  // Update flight data from X-Plane log (freeze data after landing)
+  useEffect(() => {
+    if (!xplaneLog?.raw_data || flightPhase === 'preflight') return;
+    
+    // Don't update data if flight is completed
+    if (flightPhase === 'completed') return;
+
+    const xp = xplaneLog.raw_data;
+    
+    setFlightData(prev => {
+      const currentGForce = xp.g_force || 1.0;
+      const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
+      const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
+      
+      // Calculate score penalties - only deduct when NEW event occurs
+      let baseScore = xp.flight_score || prev.flightScore;
+      
+      // Deduct points only if G-force increased to a new maximum
+      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.3) {
+        const gPenalty = (newMaxGForce - prev.maxGForce) * 20;
+        baseScore = Math.max(0, baseScore - gPenalty);
+      }
+      
+      // Deduct points only if control input increased to a new maximum
+      if (newMaxControlInput > prev.maxControlInput && newMaxControlInput > 0.5) {
+        const controlPenalty = (newMaxControlInput - prev.maxControlInput) * 10;
+        baseScore = Math.max(0, baseScore - controlPenalty);
+      }
+      
+      // Calculate maintenance cost increase based on NEW events only
+      let maintenanceCostIncrease = 0;
+      
+      // Deduct points for critical events (only once when they occur)
+      if (xp.tailstrike && !prev.events.tailstrike) {
+        baseScore = Math.max(0, baseScore - 50);
+        maintenanceCostIncrease += 5000;
+      }
+      if (xp.stall && !prev.events.stall) {
+        baseScore = Math.max(0, baseScore - 40);
+        maintenanceCostIncrease += 2000;
+      }
+      if (xp.overstress && !prev.events.overstress) {
+        baseScore = Math.max(0, baseScore - 30);
+        maintenanceCostIncrease += 3000;
+      }
+      
+      // Check for hard landing (vertical speed worse than -600 fpm)
+      const hardLanding = xp.touchdown_vspeed && xp.touchdown_vspeed < -600;
+      if (hardLanding && !prev.events.hard_landing) {
+        baseScore = Math.max(0, baseScore - 35);
+        maintenanceCostIncrease += 4000;
+      }
+      
+      // Additional maintenance cost for new maximum G-force
+      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.8) {
+        maintenanceCostIncrease += (newMaxGForce - Math.max(prev.maxGForce, 1.8)) * 1000;
+      }
+      
+      // Store departure/arrival coordinates from first X-Plane data
+      const depLat = prev.departure_lat || xp.departure_lat || 0;
+      const depLon = prev.departure_lon || xp.departure_lon || 0;
+      const arrLat = prev.arrival_lat || xp.arrival_lat || 0;
+      const arrLon = prev.arrival_lon || xp.arrival_lon || 0;
+      
+      const newData = {
+        altitude: xp.altitude || prev.altitude,
+        speed: xp.speed || prev.speed,
+        verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
+        heading: xp.heading || prev.heading,
+        fuel: xp.fuel_percentage || prev.fuel,
+        fuelKg: xp.fuel_kg || prev.fuelKg,
+        gForce: currentGForce,
+        maxGForce: newMaxGForce,
+        landingVs: xp.touchdown_vspeed || prev.landingVs,
+        flightScore: baseScore,
+        maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
+        reputation: xp.reputation || prev.reputation,
+        latitude: xp.latitude || prev.latitude,
+        longitude: xp.longitude || prev.longitude,
+        departure_lat: depLat,
+        departure_lon: depLon,
+        arrival_lat: arrLat,
+        arrival_lon: arrLon,
+        events: {
+          tailstrike: xp.tailstrike || prev.events.tailstrike,
+          stall: xp.stall || prev.events.stall,
+          overstress: xp.overstress || prev.events.overstress,
+          flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
+          fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
+          gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
+          crash: (xp.crash && xp.on_ground) || prev.events.crash,
+          harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
+          high_g_force: newMaxGForce > 1.8 || prev.events.high_g_force,
+          hard_landing: (xp.touchdown_vspeed && xp.touchdown_vspeed < -600) || prev.events.hard_landing
+        },
+        maxControlInput: newMaxControlInput
+      };
+      
+
+      
+      return newData;
+    });
+
+    // Auto-detect phase - start if in air
+    if (flightPhase === 'takeoff' && xp.altitude > 10 && !xp.on_ground) {
+      setFlightPhase('cruise');
+    } else if (flightPhase === 'cruise') {
+      if (xp.vertical_speed < -200) {
+        setFlightPhase('landing');
+      }
+    }
+
+    // Check if landed and parked - only after actually being in the air
+    if (xp.on_ground && xp.park_brake && flightPhase === 'landing' && flightData.altitude > 500) {
+      setFlightPhase('completed');
+    }
+
+    // Auto-complete flight on crash
+    if (xp.crash && xp.on_ground && flightPhase !== 'preflight' && flightPhase !== 'completed') {
+      setFlightPhase('completed');
+      setTimeout(() => {
+        completeFlightMutation.mutate();
+      }, 1000);
+    }
+  }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude]);
 
   const phaseLabels = {
     preflight: 'Vorbereitung',
