@@ -348,6 +348,12 @@ export default function FlightTracker() {
             const newFlightHours = (airplaneToUpdate?.total_flight_hours || 0) + flightHours;
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
+            
+            // Bei Crash: Wartungskosten = 70% des aktuellen Flugzeugwerts
+            let crashMaintenanceCost = 0;
+            if (hasCrashed) {
+              crashMaintenanceCost = newAircraftValue * 0.7;
+            }
 
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
@@ -380,9 +386,10 @@ export default function FlightTracker() {
             // Update contract
             await base44.entities.Contract.update(flight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
 
-            // Check if maintenance is required (accumulated cost > 10% of current value)
+            // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
-            const newAccumulatedCost = currentAccumulatedCost + flightData.maintenanceCost;
+            const totalMaintenanceCostFromEvents = flightData.maintenanceCost + crashMaintenanceCost;
+            const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostFromEvents;
             const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
 
             // Update aircraft with depreciation, crash status, and maintenance costs
@@ -513,16 +520,21 @@ export default function FlightTracker() {
         maintenanceCostIncrease += 3000;
       }
       
+      // Hohe G-Kräfte: Wartungskosten wenn neue Maximale G-Kraft erreicht wird
+      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.5) {
+        maintenanceCostIncrease += (newMaxGForce - Math.max(prev.maxGForce, 1.5)) * 1000;
+      }
+      
+      // Overspeed (flaps_overspeed)
+      if (xp.flaps_overspeed && !prev.events.flaps_overspeed) {
+        maintenanceCostIncrease += 2000;
+      }
+      
       // Check for hard landing (vertical speed worse than -600 fpm)
       const hardLanding = xp.touchdown_vspeed && xp.touchdown_vspeed < -600;
       if (hardLanding && !prev.events.hard_landing) {
         baseScore = Math.max(0, baseScore - 35);
         maintenanceCostIncrease += 4000;
-      }
-      
-      // Additional maintenance cost for new maximum G-force
-      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.8) {
-        maintenanceCostIncrease += (newMaxGForce - Math.max(prev.maxGForce, 1.8)) * 1000;
       }
       
       // Store departure/arrival coordinates from first X-Plane data
@@ -878,7 +890,7 @@ export default function FlightTracker() {
                         {flightData.events.flaps_overspeed && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Overspeed
+                            Overspeed (+$2,000 Wartung)
                           </div>
                         )}
                         {flightData.events.gear_up_landing && (
