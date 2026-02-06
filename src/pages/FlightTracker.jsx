@@ -197,6 +197,13 @@ export default function FlightTracker() {
     }
   });
 
+  const { data: aircraft } = useQuery({
+    queryKey: ['aircraft'],
+    queryFn: async () => {
+      return await base44.entities.Aircraft.list();
+    }
+  });
+
   // Update flight data from X-Plane log (freeze data after landing)
   useEffect(() => {
     if (!xplaneLog?.raw_data || flightPhase === 'preflight') return;
@@ -395,6 +402,9 @@ export default function FlightTracker() {
 
   const completeFlightMutation = useMutation({
    mutationFn: async () => {
+     if (!aircraft || aircraft.length === 0) {
+       throw new Error('Flugzeugdaten nicht geladen');
+     }
      // Realistic cost calculations based on aviation industry
      const fuelUsed = (100 - flightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
      const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
