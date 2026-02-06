@@ -216,7 +216,7 @@ export default function FlightTracker() {
       const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
       const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
       
-      // Calculate score penalties - only deduct when NEW maximum is reached
+      // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = xp.flight_score || prev.flightScore;
       
       // Deduct points only if G-force increased to a new maximum
@@ -229,6 +229,17 @@ export default function FlightTracker() {
       if (newMaxControlInput > prev.maxControlInput && newMaxControlInput > 0.5) {
         const controlPenalty = (newMaxControlInput - prev.maxControlInput) * 10;
         baseScore = Math.max(0, baseScore - controlPenalty);
+      }
+      
+      // Deduct points for critical events (only once when they occur)
+      if (xp.tailstrike && !prev.events.tailstrike) {
+        baseScore = Math.max(0, baseScore - 50);
+      }
+      if (xp.stall && !prev.events.stall) {
+        baseScore = Math.max(0, baseScore - 40);
+      }
+      if (xp.overstress && !prev.events.overstress) {
+        baseScore = Math.max(0, baseScore - 30);
       }
       
       // Store departure/arrival coordinates from first X-Plane data
@@ -746,7 +757,7 @@ export default function FlightTracker() {
                         {flightData.events.stall && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Strömungsabriss
+                            Strömungsabriss (-40 Punkte)
                           </div>
                         )}
                         {flightData.events.overstress && (
