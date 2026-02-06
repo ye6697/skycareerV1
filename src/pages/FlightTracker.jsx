@@ -953,7 +953,7 @@ export default function FlightTracker() {
                         {flightData.events.flaps_overspeed && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Overspeed (+$2,000 Wartung)
+                            Overspeed (Wartung: 2.5% Neuwert)
                           </div>
                         )}
                         {flightData.events.gear_up_landing && (
