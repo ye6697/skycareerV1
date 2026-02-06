@@ -67,7 +67,9 @@ export default function FlightTracker() {
     departure_lat: 0,
     departure_lon: 0,
     arrival_lat: 0,
-    arrival_lon: 0
+    arrival_lon: 0,
+    wasAirborne: false,
+    previousSpeed: 0
   });
 
   const generateComments = (score, data) => {
@@ -233,7 +235,9 @@ export default function FlightTracker() {
         departure_lat: 0,
         departure_lon: 0,
         arrival_lat: 0,
-        arrival_lon: 0
+        arrival_lon: 0,
+        wasAirborne: false,
+        previousSpeed: 0
       });
       
       queryClient.invalidateQueries();
@@ -349,10 +353,12 @@ export default function FlightTracker() {
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
             
-            // Bei Crash: Wartungskosten = 70% des aktuellen Flugzeugwerts
+            // Bei Crash: Wartungskosten = 70% des aktuellen Flugzeugwerts + Score auf 0
             let crashMaintenanceCost = 0;
+            let finalScore = flightData.flightScore;
             if (hasCrashed) {
               crashMaintenanceCost = newAircraftValue * 0.7;
+              finalScore = 0;
             }
 
             // Calculate ratings based on score for database (for compatibility)
@@ -362,10 +368,10 @@ export default function FlightTracker() {
             await base44.entities.Flight.update(flight.id, {
               status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
-              takeoff_rating: scoreToRating(flightData.flightScore),
-              flight_rating: scoreToRating(flightData.flightScore),
-              landing_rating: scoreToRating(flightData.flightScore),
-              overall_rating: scoreToRating(flightData.flightScore),
+              takeoff_rating: scoreToRating(finalScore),
+              flight_rating: scoreToRating(finalScore),
+              landing_rating: scoreToRating(finalScore),
+              overall_rating: scoreToRating(finalScore),
               landing_vs: flightData.landingVs,
               max_g_force: flightData.maxGForce,
               fuel_used_liters: fuelUsed,
@@ -375,10 +381,10 @@ export default function FlightTracker() {
               flight_duration_hours: flightHours,
               revenue,
               profit,
-              passenger_comments: generateComments(flightData.flightScore, flightData),
+              passenger_comments: generateComments(finalScore, flightData),
               xplane_data: {
                 ...flightData,
-                final_score: flightData.flightScore,
+                final_score: finalScore,
                 events: flightData.events
               }
             });
@@ -418,10 +424,10 @@ export default function FlightTracker() {
             // Update company - only deduct direct costs (fuel, crew, airport)
             if (company) {
               // Reputation based on score (0-100)
-              const reputationChange = hasCrashed ? -10 : Math.round((flightData.flightScore - 85) / 5);
+              const reputationChange = hasCrashed ? -10 : Math.round((finalScore - 85) / 5);
               
               // XP and Level system
-              const earnedXP = Math.round(flightData.flightScore);
+              const earnedXP = Math.round(finalScore);
               const currentXP = (company.experience_points || 0) + earnedXP;
               const newLevel = company.level + Math.floor(currentXP / 100);
               const remainingXP = currentXP % 100;
@@ -474,11 +480,19 @@ export default function FlightTracker() {
     if (flightPhase === 'completed') return;
 
     const xp = xplaneLog.raw_data;
-    
+
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
       const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
       const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
+
+      // Track if aircraft was airborne
+      const newWasAirborne = prev.wasAirborne || (!xp.on_ground && xp.altitude > 10);
+
+      // Crash detection: Speed drops rapidly to 0 while on ground after being airborne
+      const currentSpeed = xp.speed || 0;
+      const speedDrop = prev.previousSpeed - currentSpeed;
+      const isCrash = newWasAirborne && xp.on_ground && speedDrop > 30 && currentSpeed < 5;
       
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = xp.flight_score || prev.flightScore;
@@ -569,12 +583,14 @@ export default function FlightTracker() {
           flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
           fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-          crash: (xp.crash && xp.on_ground) || prev.events.crash,
+          crash: isCrash || prev.events.crash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
           high_g_force: newMaxGForce >= 1.5 || prev.events.high_g_force,
           hard_landing: (xp.touchdown_vspeed && xp.touchdown_vspeed < -600) || prev.events.hard_landing
         },
-        maxControlInput: newMaxControlInput
+        maxControlInput: newMaxControlInput,
+        wasAirborne: newWasAirborne,
+        previousSpeed: currentSpeed
       };
       
 
@@ -597,11 +613,8 @@ export default function FlightTracker() {
     }
 
     // Auto-complete flight on crash
-    if (xp.crash && xp.on_ground && flightPhase !== 'preflight' && flightPhase !== 'completed') {
+    if (flightData.events.crash && flightPhase !== 'preflight' && flightPhase !== 'completed') {
       setFlightPhase('completed');
-      setTimeout(() => {
-        completeFlightMutation.mutate();
-      }, 1000);
     }
   }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude]);
 
