@@ -159,6 +159,90 @@ export default function CompletedFlightDetails() {
                     </p>
                   </div>
                 </div>
+
+                {/* Final Score */}
+                {flight.xplane_data?.final_score !== undefined && (
+                  <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                    <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
+                    <p className={`text-3xl font-mono font-bold ${
+                      flight.xplane_data.final_score >= 95 ? 'text-emerald-400' :
+                      flight.xplane_data.final_score >= 85 ? 'text-green-400' :
+                      flight.xplane_data.final_score >= 70 ? 'text-amber-400' :
+                      'text-red-400'
+                    }`}>
+                      {Math.round(flight.xplane_data.final_score)} / 100
+                    </p>
+                  </div>
+                )}
+
+                {/* Flight Events */}
+                {flight.xplane_data?.events && Object.entries(flight.xplane_data.events).some(([_, val]) => val) && (
+                  <div className="mt-4 pt-4 border-t border-slate-700">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges:</h4>
+                    <div className="space-y-2">
+                      {flight.xplane_data.events.tailstrike && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Heckaufsetzer
+                        </div>
+                      )}
+                      {flight.xplane_data.events.stall && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Strömungsabriss
+                        </div>
+                      )}
+                      {flight.xplane_data.events.overstress && (
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Strukturbelastung
+                        </div>
+                      )}
+                      {flight.xplane_data.events.flaps_overspeed && (
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Klappen-Overspeed
+                        </div>
+                      )}
+                      {flight.xplane_data.events.gear_up_landing && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Landung ohne Fahrwerk
+                        </div>
+                      )}
+                      {flight.xplane_data.events.crash && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
+                          <AlertTriangle className="w-4 h-4" />
+                          CRASH
+                        </div>
+                      )}
+                      {flight.xplane_data.events.harsh_controls && (
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Ruppige Steuerung
+                        </div>
+                      )}
+                      {flight.xplane_data.events.high_g_force && (
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Hohe G-Kräfte
+                        </div>
+                      )}
+                      {flight.xplane_data.events.hard_landing && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Harte Landung
+                        </div>
+                      )}
+                      {flight.xplane_data.events.fuel_emergency && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Treibstoff-Notstand
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </Card>
             </div>
 
