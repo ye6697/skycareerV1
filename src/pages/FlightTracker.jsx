@@ -476,10 +476,18 @@ export default function FlightTracker() {
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = xp.flight_score || prev.flightScore;
       
-      // Deduct points only if G-force increased to a new maximum
-      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.3) {
-        const gPenalty = (newMaxGForce - prev.maxGForce) * 20;
-        baseScore = Math.max(0, baseScore - gPenalty);
+      // Track if high G-force event already happened
+      const hadHighGEvent = prev.events.high_g_force || false;
+      
+      // G-Kräfte ab 1.5: nur einmal abziehen, außer maximale G-Kraft wird wieder überschritten
+      if (newMaxGForce >= 1.5) {
+        if (!hadHighGEvent) {
+          // Erstes Mal über 1.5 G
+          baseScore = Math.max(0, baseScore - 20);
+        } else if (newMaxGForce > prev.maxGForce) {
+          // Maximale G-Kraft wurde wieder überschritten
+          baseScore = Math.max(0, baseScore - 20);
+        }
       }
       
       // Deduct points only if control input increased to a new maximum
@@ -551,7 +559,7 @@ export default function FlightTracker() {
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
           crash: (xp.crash && xp.on_ground) || prev.events.crash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
-          high_g_force: newMaxGForce > 1.8 || prev.events.high_g_force,
+          high_g_force: newMaxGForce >= 1.5 || prev.events.high_g_force,
           hard_landing: (xp.touchdown_vspeed && xp.touchdown_vspeed < -600) || prev.events.hard_landing
         },
         maxControlInput: newMaxControlInput
@@ -1053,7 +1061,7 @@ export default function FlightTracker() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-500">
-                    Halte die G-Kräfte unter 1.5 für zufriedene Passagiere.
+                    Halte die G-Kräfte unter 1.5 G für zufriedene Passagiere.
                     Eine sanfte Landung unter 150 ft/min bringt Bonuspunkte!
                   </p>
                 </div>
