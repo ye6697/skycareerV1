@@ -393,11 +393,12 @@ export default function FlightTracker() {
             console.log('Aktualisiere Contract Status:', flight.contract_id, hasCrashed ? 'failed' : 'completed');
             await base44.entities.Contract.update(flight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
 
-            // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen
-            const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
-            const totalMaintenanceCostFromEvents = flightData.maintenanceCost + crashMaintenanceCost;
-            const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostFromEvents;
-            const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
+            // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen und vom current_value abziehen
+             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
+             const totalMaintenanceCostFromEvents = flightData.maintenanceCost + crashMaintenanceCost;
+             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostFromEvents;
+             const valueAfterMaintenance = Math.max(0, newAircraftValue - totalMaintenanceCostFromEvents);
+             const requiresMaintenance = newAccumulatedCost > (valueAfterMaintenance * 0.1);
             
             console.log('Wartungskosten Update:', {
               currentAccumulatedCost,
