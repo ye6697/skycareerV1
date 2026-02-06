@@ -404,7 +404,7 @@ export default function FlightTracker() {
                 status: hasCrashed ? 'damaged' : 'available',
                 total_flight_hours: newFlightHours,
                 current_value: hasCrashed ? 0 : newAircraftValue,
-                accumulated_maintenance_cost: hasCrashed ? 0 : newAccumulatedCost
+                accumulated_maintenance_cost: newAccumulatedCost
               });
             }
 
@@ -412,7 +412,8 @@ export default function FlightTracker() {
             if (flight?.crew) {
               for (const member of flight.crew) {
                 await base44.entities.Employee.update(member.employee_id, {
-                  status: 'available'
+                  status: 'available',
+                  total_flight_hours: (member.total_flight_hours || 0) + flightHours
                 });
               }
             }
@@ -489,10 +490,26 @@ export default function FlightTracker() {
       // Track if aircraft was airborne
       const newWasAirborne = prev.wasAirborne || (!xp.on_ground && xp.altitude > 10);
 
-      // Crash detection: Speed drops rapidly to 0 while on ground after being airborne
+      // Landing detection based on vertical speed
       const currentSpeed = xp.speed || 0;
-      const speedDrop = prev.previousSpeed - currentSpeed;
-      const isCrash = newWasAirborne && xp.on_ground && speedDrop > 30 && currentSpeed < 5;
+      const touchdownVs = xp.touchdown_vspeed || 0;
+      
+      // Landing categories based on vertical speed
+      let landingType = null;
+      if (touchdownVs !== 0 && xp.on_ground && newWasAirborne) {
+        const absVs = Math.abs(touchdownVs);
+        if (absVs > 1000) {
+          landingType = 'crash'; // Sehr harte Landung = Crash
+        } else if (absVs > 600) {
+          landingType = 'hard'; // Harte Landung
+        } else if (absVs > 300) {
+          landingType = 'acceptable'; // Akzeptable Landung
+        } else {
+          landingType = 'soft'; // Weiche Landung
+        }
+      }
+      
+      const isCrash = landingType === 'crash' || prev.events.crash;
       
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = xp.flight_score || prev.flightScore;
@@ -544,11 +561,14 @@ export default function FlightTracker() {
         maintenanceCostIncrease += 2000;
       }
       
-      // Check for hard landing (vertical speed worse than -600 fpm)
-      const hardLanding = xp.touchdown_vspeed && xp.touchdown_vspeed < -600;
-      if (hardLanding && !prev.events.hard_landing) {
+      // Landing-based penalties
+      if (landingType === 'hard' && !prev.events.hard_landing) {
         baseScore = Math.max(0, baseScore - 35);
         maintenanceCostIncrease += 4000;
+      }
+      
+      if (landingType === 'crash' && !prev.events.crash) {
+        maintenanceCostIncrease += aircraft.find(a => a.id === flight?.aircraft_id)?.current_value * 0.7 || 0;
       }
       
       // Store departure/arrival coordinates from first X-Plane data
@@ -583,10 +603,10 @@ export default function FlightTracker() {
           flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
           fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-          crash: isCrash || prev.events.crash,
+          crash: isCrash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
           high_g_force: newMaxGForce >= 1.5 || prev.events.high_g_force,
-          hard_landing: (xp.touchdown_vspeed && xp.touchdown_vspeed < -600) || prev.events.hard_landing
+          hard_landing: landingType === 'hard' || prev.events.hard_landing
         },
         maxControlInput: newMaxControlInput,
         wasAirborne: newWasAirborne,
@@ -607,8 +627,8 @@ export default function FlightTracker() {
       }
     }
 
-    // Check if landed and parked - only after actually being in the air
-    if (xp.on_ground && xp.park_brake && flightPhase === 'landing' && flightData.altitude > 500) {
+    // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
+    if (flightData.wasAirborne && xp.on_ground && flightPhase === 'landing') {
       setFlightPhase('completed');
     }
 
