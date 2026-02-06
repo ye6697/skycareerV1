@@ -401,7 +401,10 @@ export default function FlightTracker() {
       return { penalty };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries();
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
       navigate(createPageUrl("ActiveFlights"));
     }
   });
