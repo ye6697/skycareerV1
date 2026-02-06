@@ -468,11 +468,13 @@ export default function FlightTracker() {
       return { profit, revenue, fuelCost };
     },
     onSuccess: () => {
+      // Invalidate alle relevanten Queries für sofortige UI-Aktualisierung
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['active-flight'] });
+      queryClient.invalidateQueries({ queryKey: ['flights'] });
       
       // Redirect to completed flight details
       setTimeout(() => {
