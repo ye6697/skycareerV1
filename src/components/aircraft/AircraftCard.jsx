@@ -353,23 +353,14 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               )}
               {aircraft.status === "available" && (
                 <>
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      onClick={() => onSelect?.(aircraft)}
-                    >
-                      Auswählen
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="flex-1 bg-slate-600 hover:bg-slate-700"
-                      onClick={() => setIsSellDialogOpen(true)}
-                    >
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      Verkaufen
-                    </Button>
-                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full bg-slate-600 hover:bg-slate-700"
+                    onClick={() => setIsSellDialogOpen(true)}
+                  >
+                    <DollarSign className="w-4 h-4 mr-1" />
+                    Verkaufen
+                  </Button>
                   <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
                     <DialogContent className="bg-slate-900 border-slate-700">
                       <DialogHeader>
