@@ -14,7 +14,7 @@ import {
   Star } from
 "lucide-react";
 
-export default function ContractCard({ contract, onAccept, onView, isAccepting }) {
+export default function ContractCard({ contract, onAccept, onView, isAccepting, ownedAircraft = [] }) {
   const typeConfig = {
     passenger: { icon: Users, color: "blue", label: "Passagiere" },
     cargo: { icon: Package, color: "orange", label: "Fracht" },
@@ -32,6 +32,50 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
   const config = typeConfig[contract.type] || typeConfig.passenger;
   const difficulty = difficultyConfig[contract.difficulty] || difficultyConfig.medium;
   const TypeIcon = config.icon;
+
+  // Check aircraft compatibility
+  const canFlyContract = () => {
+    if (!contract.required_aircraft_type || contract.required_aircraft_type.length === 0) return { canFly: true, reason: '' };
+    
+    const compatibleAircraft = ownedAircraft.filter(ac => {
+      const typeMatch = contract.required_aircraft_type.includes(ac.type);
+      const passengerOk = ac.passenger_capacity >= (contract.passenger_count || 0);
+      const cargoOk = ac.cargo_capacity_kg >= (contract.cargo_weight_kg || 0);
+      const rangeOk = ac.range_nm >= (contract.distance_nm || 0);
+      const statusOk = ac.status === 'available';
+      
+      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
+      const currentValue = ac.current_value || ac.purchase_price || 0;
+      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
+      const maintenanceOk = maintenancePercent <= 10;
+      
+      return typeMatch && passengerOk && cargoOk && rangeOk && statusOk && maintenanceOk;
+    });
+
+    if (compatibleAircraft.length === 0) {
+      const hasType = ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
+      if (!hasType) return { canFly: false, reason: 'Flugzeugtyp fehlt' };
+      
+      const typeAircraft = ownedAircraft.filter(ac => contract.required_aircraft_type.includes(ac.type));
+      const hasCapacity = typeAircraft.some(ac => 
+        ac.passenger_capacity >= (contract.passenger_count || 0) &&
+        ac.cargo_capacity_kg >= (contract.cargo_weight_kg || 0)
+      );
+      if (!hasCapacity) return { canFly: false, reason: 'Zu wenig Kapazität' };
+      
+      const hasRange = typeAircraft.some(ac => ac.range_nm >= (contract.distance_nm || 0));
+      if (!hasRange) return { canFly: false, reason: 'Reichweite zu gering' };
+      
+      const available = typeAircraft.filter(ac => ac.status === 'available');
+      if (available.length === 0) return { canFly: false, reason: 'Flugzeug nicht verfügbar' };
+      
+      return { canFly: false, reason: 'Wartung erforderlich (>10%)' };
+    }
+    
+    return { canFly: true, reason: '' };
+  };
+
+  const aircraftCheck = canFlyContract();
 
   return (
     <motion.div
@@ -80,7 +124,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             <ArrowRight className="w-4 h-4 text-slate-400" />
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
               <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="text-slate-50 font-medium">{contract.arrival_airport}</span>
+              <span className="font-mono font-medium">{contract.arrival_airport}</span>
             </div>
           </div>
 
@@ -103,6 +147,15 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             }
           </div>
 
+          {!aircraftCheck.canFly && (
+            <div className="mb-3 p-2 bg-amber-900/30 border border-amber-700 rounded-lg">
+              <p className="text-xs text-amber-300 flex items-center gap-1">
+                <Plane className="w-3 h-3" />
+                {aircraftCheck.reason}
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center justify-between pt-4 border-t border-slate-700">
             <div>
               <p className="text-sm text-slate-400">Vergütung</p>
@@ -124,7 +177,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                 size="sm"
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={() => onAccept?.(contract)}
-                disabled={isAccepting}>
+                disabled={isAccepting || !aircraftCheck.canFly}>
 
                   Annehmen
                 </Button>

@@ -231,6 +231,7 @@ export default function Contracts() {
                   onAccept={handleAccept}
                   onView={handleView}
                   isAccepting={acceptContractMutation.isPending}
+                  ownedAircraft={ownedAircraft}
                 />
               ))}
             </AnimatePresence>
