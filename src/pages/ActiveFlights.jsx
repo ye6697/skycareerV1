@@ -123,14 +123,14 @@ export default function ActiveFlights() {
 
       return flight;
     },
-    onSuccess: (flight) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       setIsAssignDialogOpen(false);
-      
-      // Redirect to FlightTracker
-      window.location.href = createPageUrl(`FlightTracker?contractId=${selectedContract.id}`);
+      setSelectedContract(null);
+      setSelectedAircraft('');
+      setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
     }
   });
 
@@ -138,8 +138,38 @@ export default function ActiveFlights() {
     mutationFn: async (contractToCancel) => {
       const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
 
+      // Find the flight associated with this contract to release resources
+      const flights = await base44.entities.Flight.filter({
+        contract_id: contractToCancel.id,
+        status: 'in_flight'
+      });
+      const flight = flights[0];
+
       // Update contract status
       await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
+
+      // Release aircraft if assigned
+      if (flight?.aircraft_id) {
+        await base44.entities.Aircraft.update(flight.aircraft_id, {
+          status: 'available'
+        });
+      }
+
+      // Release crew if assigned
+      if (flight?.crew) {
+        for (const member of flight.crew) {
+          await base44.entities.Employee.update(member.employee_id, {
+            status: 'available'
+          });
+        }
+      }
+
+      // Update flight status
+      if (flight) {
+        await base44.entities.Flight.update(flight.id, {
+          status: 'cancelled'
+        });
+      }
 
       // Deduct penalty from company
       if (company) {
@@ -162,6 +192,8 @@ export default function ActiveFlights() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
     }
   });
 
