@@ -352,7 +352,7 @@ export default function FlightTracker() {
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
             
-            // Update flight record
+            // Update flight record with events and final score
             await base44.entities.Flight.update(flight.id, {
               status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
@@ -370,7 +370,11 @@ export default function FlightTracker() {
               revenue,
               profit,
               passenger_comments: generateComments(flightData.flightScore, flightData),
-              xplane_data: flightData
+              xplane_data: {
+                ...flightData,
+                final_score: flightData.flightScore,
+                events: flightData.events
+              }
             });
 
             // Update contract
