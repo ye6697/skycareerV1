@@ -526,7 +526,7 @@ export default function ActiveFlights() {
                         </SelectContent>
                       </Select>
                       {required > 0 && !selectedCrew[role] &&
-                      <AlertCircle className="w-5 h-5 text-amber-500" />
+                      <AlertCircle className="w-5 h-5 text-amber-100" />
                       }
                       {selectedCrew[role] &&
                       <CheckCircle className="w-5 h-5 text-emerald-100" />
