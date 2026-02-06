@@ -935,7 +935,7 @@ export default function FlightTracker() {
                         {flightData.events.tailstrike && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Heckaufsetzer (-50 Punkte)
+                            Heckaufsetzer (-20 Punkte)
                           </div>
                         )}
                         {flightData.events.stall && (
