@@ -93,15 +93,20 @@ export default function CompletedFlightDetails() {
             {flight && (
               <Button 
                 variant="ghost"
-                onClick={() => navigate(createPageUrl("Fleet"), { 
-                  state: { 
-                    updatedAircraft: {
-                      id: flight.aircraft_id,
-                      status: flight.status === 'completed' ? 'available' : 'damaged',
-                      accumulated_maintenance_cost: flight.maintenance_cost || 0
+                onClick={() => {
+                  const currentValue = (flight.xplane_data?.current_value) || 0;
+                  const newValue = currentValue - flight.maintenance_cost;
+                  navigate(createPageUrl("Fleet"), { 
+                    state: { 
+                      updatedAircraft: {
+                        id: flight.aircraft_id,
+                        status: flight.status === 'completed' ? 'available' : 'damaged',
+                        maintenance_cost: flight.maintenance_cost || 0,
+                        current_value: newValue
+                      }
                     }
-                  }
-                })}
+                  });
+                }}
                 className="mb-4 text-slate-400 hover:text-white"
               >
                 Zur Flotte
