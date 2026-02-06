@@ -210,11 +210,19 @@ export default function CompletedFlightDetails() {
                   </div>
                 )}
 
-                {/* Flight Events */}
-                {flight.xplane_data?.events && Object.entries(flight.xplane_data.events).some(([_, val]) => val) && (
-                  <div className="mt-4 pt-4 border-t border-slate-700">
-                    <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges:</h4>
-                    <div className="space-y-2">
+                {/* Live Maintenance Costs */}
+                  {flight.xplane_data?.maintenanceCost > 0 && (
+                    <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
+                      <p className="text-sm text-red-300 mb-2">Wartungskosten im Flug:</p>
+                      <p className="text-2xl font-bold text-red-400">${flight.xplane_data.maintenanceCost?.toLocaleString()}</p>
+                    </div>
+                  )}
+
+                  {/* Flight Events */}
+                  {flight.xplane_data?.events && Object.entries(flight.xplane_data.events).some(([_, val]) => val) && (
+                    <div className="mt-4 pt-4 border-t border-slate-700">
+                      <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges:</h4>
+                      <div className="space-y-2">
                       {flight.xplane_data.events.tailstrike && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
