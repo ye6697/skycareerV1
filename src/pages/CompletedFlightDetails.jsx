@@ -270,9 +270,12 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {flight.xplane_data.events.high_g_force && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Hohe G-Kräfte
+                        <div className="flex items-center justify-between text-orange-400 text-sm">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            Hohe G-Kräfte
+                          </div>
+                          <span className="font-mono">+1% pro G Wartung</span>
                         </div>
                       )}
                       {flight.xplane_data.events.hard_landing && (
