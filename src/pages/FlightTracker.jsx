@@ -336,7 +336,9 @@ export default function FlightTracker() {
        revenue += contract.bonus_potential * 0.5;
      }
 
-     const profit = revenue - fuelCost - crewCost - maintenanceCost - airportFee;
+     // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
+     const directCosts = fuelCost + crewCost + airportFee;
+     const profit = revenue - directCosts;
 
       // Check for crash
             const hasCrashed = flightData.events.crash;
@@ -402,7 +404,7 @@ export default function FlightTracker() {
             const levelBonus = (company?.level || 1) > 1 ? revenue * ((company.level - 1) * 0.1) : 0;
             const totalRevenue = profit + levelBonus;
 
-            // Update company
+            // Update company - only deduct direct costs (fuel, crew, airport)
             if (company) {
               // Reputation based on score (0-100)
               const reputationChange = hasCrashed ? -10 : Math.round((flightData.flightScore - 85) / 5);
@@ -413,8 +415,11 @@ export default function FlightTracker() {
               const newLevel = company.level + Math.floor(currentXP / 100);
               const remainingXP = currentXP % 100;
               
+              // Calculate actual balance change (revenue - direct costs only)
+              const actualProfit = revenue + levelBonus - directCosts;
+              
               await base44.entities.Company.update(company.id, {
-                balance: (company.balance || 0) + totalRevenue,
+                balance: (company.balance || 0) + actualProfit,
                 reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
                 level: newLevel,
                 experience_points: remainingXP,
@@ -424,11 +429,11 @@ export default function FlightTracker() {
               });
             }
 
-            // Create transaction
+            // Create transaction - only for direct costs
             await base44.entities.Transaction.create({
             type: 'income',
             category: 'flight_revenue',
-            amount: profit + levelBonus,
+            amount: revenue + levelBonus - directCosts,
             description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
             reference_id: flight?.id,
             date: new Date().toISOString()
