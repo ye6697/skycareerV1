@@ -303,7 +303,15 @@ export default function FlightTracker() {
     if (xp.on_ground && xp.park_brake && flightPhase === 'landing' && flightData.altitude > 500) {
       setFlightPhase('completed');
     }
-  }, [xplaneLog, flight, flightPhase]);
+
+    // Auto-complete flight on crash
+    if (xp.crash && xp.on_ground && flightPhase !== 'preflight' && flightPhase !== 'completed') {
+      setFlightPhase('completed');
+      setTimeout(() => {
+        completeFlightMutation.mutate();
+      }, 1000);
+    }
+    }, [xplaneLog, flight, flightPhase, completeFlightMutation]);
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
