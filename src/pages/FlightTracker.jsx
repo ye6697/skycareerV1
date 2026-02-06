@@ -965,7 +965,7 @@ export default function FlightTracker() {
                         {flightData.events.crash && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            CRASH ERKANNT!
+                            CRASH ERKANNT! (-100 Punkte)
                           </div>
                         )}
                         {flightData.events.harsh_controls && (
