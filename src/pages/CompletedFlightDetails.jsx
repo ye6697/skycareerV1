@@ -81,14 +81,35 @@ export default function CompletedFlightDetails() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <Button 
-            variant="ghost"
-            onClick={() => navigate(createPageUrl("ActiveFlights"))}
-            className="mb-4 text-slate-400 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              variant="ghost"
+              onClick={() => navigate(createPageUrl("ActiveFlights"))}
+              className="mb-4 text-slate-400 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück
+            </Button>
+            {flight && (
+              <Button 
+                variant="ghost"
+                onClick={() => navigate(createPageUrl("Fleet"), { 
+                  state: { 
+                    updatedAircraft: {
+                      id: flight.aircraft_id,
+                      status: flight.status === 'completed' ? 'available' : 'damaged',
+                      accumulated_maintenance_cost: flight.xplane_data?.accumulated_maintenance_cost || 0,
+                      total_flight_hours: flight.flight_duration_hours,
+                      current_value: flight.xplane_data?.current_value
+                    }
+                  }
+                })}
+                className="mb-4 text-slate-400 hover:text-white"
+              >
+                Zur Flotte
+              </Button>
+            )}
+          </div>
 
           <div className="flex items-start justify-between">
             <div>
