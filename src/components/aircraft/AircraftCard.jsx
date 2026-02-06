@@ -352,52 +352,53 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                 </Button>
               )}
               {aircraft.status === "available" && (
-              <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  onClick={() => onSelect?.(aircraft)}
-                >
-                  Auswählen
-                </Button>
-                <Button 
-                  size="sm" 
-                  className="flex-1 bg-slate-600 hover:bg-slate-700"
-                  onClick={() => setIsSellDialogOpen(true)}
-                >
-                  <DollarSign className="w-4 h-4 mr-1" />
-                  Verkaufen
-                </Button>
-              </div>
-              <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
-                <DialogContent className="bg-slate-900 border-slate-700">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">Flugzeug verkaufen</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-slate-800 rounded-lg">
-                      <p className="text-sm text-slate-400 mb-2">Verkaufspreis (85% des aktuellen Wertes):</p>
-                      <p className="text-2xl font-bold text-emerald-400">${sellPrice.toLocaleString()}</p>
-                    </div>
-                    <p className="text-sm text-slate-400">
-                      Das Flugzeug wird aus deiner Flotte entfernt.
-                    </p>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsSellDialogOpen(false)} className="border-slate-600 text-slate-300">
-                      Abbrechen
+                <>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      onClick={() => onSelect?.(aircraft)}
+                    >
+                      Auswählen
                     </Button>
                     <Button 
-                      onClick={() => sellMutation.mutate()}
-                      disabled={sellMutation.isPending}
-                      className="bg-emerald-600 hover:bg-emerald-700"
+                      size="sm" 
+                      className="flex-1 bg-slate-600 hover:bg-slate-700"
+                      onClick={() => setIsSellDialogOpen(true)}
                     >
-                      {sellMutation.isPending ? 'Verkaufe...' : 'Verkaufen'}
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      Verkaufen
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              </div>
+                  </div>
+                  <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
+                    <DialogContent className="bg-slate-900 border-slate-700">
+                      <DialogHeader>
+                        <DialogTitle className="text-white">Flugzeug verkaufen</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="p-4 bg-slate-800 rounded-lg">
+                          <p className="text-sm text-slate-400 mb-2">Verkaufspreis (85% des aktuellen Wertes):</p>
+                          <p className="text-2xl font-bold text-emerald-400">${sellPrice.toLocaleString()}</p>
+                        </div>
+                        <p className="text-sm text-slate-400">
+                          Das Flugzeug wird aus deiner Flotte entfernt.
+                        </p>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsSellDialogOpen(false)} className="border-slate-600 text-slate-300">
+                          Abbrechen
+                        </Button>
+                        <Button 
+                          onClick={() => sellMutation.mutate()}
+                          disabled={sellMutation.isPending}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          {sellMutation.isPending ? 'Verkaufe...' : 'Verkaufen'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
               )}
             </div>
           ) : null}
