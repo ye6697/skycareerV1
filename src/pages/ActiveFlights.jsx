@@ -32,7 +32,9 @@ import {
   CheckCircle,
   Play,
   DollarSign,
-  User } from
+  User,
+  Wrench,
+  AlertTriangle } from
 "lucide-react";
 
 export default function ActiveFlights() {
@@ -65,6 +67,16 @@ export default function ActiveFlights() {
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
     queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
+  });
+
+  const { data: allAircraft = [] } = useQuery({
+    queryKey: ['aircraft'],
+    queryFn: () => base44.entities.Aircraft.list()
+  });
+
+  const { data: flights = [] } = useQuery({
+    queryKey: ['flights', 'in_flight'],
+    queryFn: () => base44.entities.Flight.filter({ status: 'in_flight' })
   });
 
   const { data: employees = [] } = useQuery({
@@ -123,14 +135,41 @@ export default function ActiveFlights() {
 
       return flight;
     },
-    onSuccess: (flight) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       setIsAssignDialogOpen(false);
-      
-      // Redirect to FlightTracker
-      window.location.href = createPageUrl(`FlightTracker?contractId=${selectedContract.id}`);
+      setSelectedContract(null);
+      setSelectedAircraft('');
+      setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
+    }
+  });
+
+  const maintenanceMutation = useMutation({
+    mutationFn: async ({ aircraftId, maintenanceCost }) => {
+      await base44.entities.Aircraft.update(aircraftId, {
+        status: 'available'
+      });
+
+      await base44.entities.Company.update(company.id, {
+        balance: Math.max(0, (company.balance || 0) - maintenanceCost)
+      });
+
+      await base44.entities.Transaction.create({
+        type: 'expense',
+        category: 'maintenance',
+        amount: maintenanceCost,
+        description: `Wartung abgeschlossen`,
+        date: new Date().toISOString()
+      });
+
+      return maintenanceCost;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['flights'] });
     }
   });
 
@@ -351,24 +390,54 @@ export default function ActiveFlights() {
                             </Button>
                           </>
                     }
-                        {contract.status === 'in_progress' &&
-                    <>
-                            <Link to={createPageUrl(`FlightTracker?contractId=${contract.id}`)}>
-                              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                                <Plane className="w-4 h-4 mr-2" />
-                                Flug verfolgen
-                              </Button>
-                            </Link>
-                            <Button
-                        onClick={() => cancelFlightMutation.mutate(contract)}
-                        disabled={cancelFlightMutation.isPending}
-                        variant="outline"
-                        className="border-red-500 text-red-400 hover:bg-red-500/10">
+                        {contract.status === 'in_progress' && (() => {
+                          const currentFlight = flights.find(f => f.contract_id === contract.id);
+                          const maintenanceCost = currentFlight?.xplane_data?.maintenanceCost || 0;
+                          const aircraftId = currentFlight?.aircraft_id;
+                          const currentAircraft = allAircraft.find(a => a.id === aircraftId);
+                          const needsMaintenance = maintenanceCost > (currentAircraft?.current_value || 0) * 0.1;
 
-                              Abbrechen
-                            </Button>
-                          </>
-                    }
+                          return (
+                            <>
+                              {maintenanceCost > 0 && (
+                                <div className="flex items-center gap-2 p-3 bg-orange-900/20 rounded-lg border border-orange-500/30 mb-3">
+                                  <Wrench className="w-4 h-4 text-orange-400" />
+                                  <span className="text-sm text-orange-300">
+                                    Wartungskosten: ${maintenanceCost.toLocaleString()}
+                                  </span>
+                                  {needsMaintenance && (
+                                    <AlertTriangle className="w-4 h-4 text-red-400 ml-2" />
+                                  )}
+                                </div>
+                              )}
+                              {needsMaintenance ? (
+                                <Button
+                                  onClick={() => maintenanceMutation.mutate({ aircraftId, maintenanceCost })}
+                                  disabled={maintenanceMutation.isPending || !company || company.balance < maintenanceCost}
+                                  className="bg-orange-600 hover:bg-orange-700"
+                                >
+                                  <Wrench className="w-4 h-4 mr-2" />
+                                  {maintenanceMutation.isPending ? 'Warte...' : `Wartung durchführen ($${maintenanceCost.toLocaleString()})`}
+                                </Button>
+                              ) : (
+                                <Link to={createPageUrl(`FlightTracker?contractId=${contract.id}`)}>
+                                  <Button className="bg-emerald-600 hover:bg-emerald-700">
+                                    <Plane className="w-4 h-4 mr-2" />
+                                    Flug verfolgen
+                                  </Button>
+                                </Link>
+                              )}
+                              <Button
+                                onClick={() => cancelFlightMutation.mutate(contract)}
+                                disabled={cancelFlightMutation.isPending}
+                                variant="outline"
+                                className="border-red-500 text-red-400 hover:bg-red-500/10"
+                              >
+                                Abbrechen
+                              </Button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </Card>
