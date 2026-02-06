@@ -225,6 +225,64 @@ export default function FlightTracker() {
     }
   });
 
+  const cancelFlightMutation = useMutation({
+    mutationFn: async () => {
+      // Calculate cancellation penalty
+      const penalty = contract?.payout ? contract.payout * 0.3 : 5000;
+      
+      // Update flight status
+      if (flight) {
+        await base44.entities.Flight.update(flight.id, {
+          status: 'cancelled'
+        });
+      }
+      
+      // Update contract status
+      await base44.entities.Contract.update(contractIdFromUrl, {
+        status: 'failed'
+      });
+      
+      // Deduct penalty from company balance
+      if (company) {
+        await base44.entities.Company.update(company.id, {
+          balance: (company.balance || 0) - penalty,
+          reputation: Math.max(0, (company.reputation || 50) - 5)
+        });
+      }
+      
+      // Create transaction record
+      await base44.entities.Transaction.create({
+        type: 'expense',
+        category: 'other',
+        amount: penalty,
+        description: `Stornierungsgebühr: ${contract?.title}`,
+        reference_id: contractIdFromUrl,
+        date: new Date().toISOString()
+      });
+      
+      // Free up aircraft and crew
+      if (flight?.aircraft_id) {
+        await base44.entities.Aircraft.update(flight.aircraft_id, {
+          status: 'available'
+        });
+      }
+      
+      if (flight?.crew) {
+        for (const member of flight.crew) {
+          await base44.entities.Employee.update(member.employee_id, {
+            status: 'available'
+          });
+        }
+      }
+      
+      return { penalty };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      navigate(createPageUrl("ActiveFlights"));
+    }
+  });
+
   const completeFlightMutation = useMutation({
    mutationFn: async () => {
      // Realistic cost calculations based on aviation industry
@@ -342,15 +400,23 @@ export default function FlightTracker() {
   };
 
   const calculateDistance = () => {
-    if (!contract || flightData.latitude === 0) return 100;
-    // Simple distance calculation (Haversine formula approximation)
-    // Airports have approximate coordinates (ICAO codes not provided)
-    // For demo: simulate distance based on flight phase
+    if (!contract) return 0;
     if (flightPhase === 'preflight') return 0;
+    
+    // Use actual X-Plane distance to destination if available
+    if (xplaneLog?.raw_data?.distance_to_destination !== undefined && contract.distance_nm) {
+      const distanceRemaining = xplaneLog.raw_data.distance_to_destination;
+      const totalDistance = contract.distance_nm;
+      const progress = ((totalDistance - distanceRemaining) / totalDistance) * 100;
+      return Math.max(0, Math.min(100, progress));
+    }
+    
+    // Fallback: simulate based on flight phase
     if (flightPhase === 'takeoff') return 10;
     if (flightPhase === 'cruise') return 50;
     if (flightPhase === 'landing') return 85;
-    return 100;
+    if (flightPhase === 'completed') return 100;
+    return 0;
   };
 
   const distanceProgress = calculateDistance();
@@ -429,6 +495,14 @@ export default function FlightTracker() {
               </span>
             </div>
             <Progress value={distanceProgress} className="h-2 bg-slate-700" />
+            <div className="mt-2 text-xs text-slate-400 text-center">
+              {Math.round(distanceProgress)}% des Fluges absolviert
+              {xplaneLog?.raw_data?.distance_to_destination && (
+                <span className="ml-2">
+                  ({Math.round(xplaneLog.raw_data.distance_to_destination)} nm verbleibend)
+                </span>
+              )}
+            </div>
           </div>
         </motion.div>
         )}
@@ -632,11 +706,25 @@ export default function FlightTracker() {
                 )}
                 
                 {flightPhase !== 'preflight' && (
-                  <p className="text-sm text-slate-400">
-                    {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
-                    {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst und die Parkbremse aktiviert ist."}
-                    {flightPhase === 'landing' && "Lande das Flugzeug und schalte die Parkbremse ein, um den Flug abzuschließen."}
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-400">
+                      {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
+                      {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst und die Parkbremse aktiviert ist."}
+                      {flightPhase === 'landing' && "Lande das Flugzeug und schalte die Parkbremse ein, um den Flug abzuschließen."}
+                    </p>
+                    <Button 
+                      onClick={() => {
+                        if (confirm(`Flug stornieren? Stornierungsgebühr: $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) {
+                          cancelFlightMutation.mutate();
+                        }
+                      }}
+                      disabled={cancelFlightMutation.isPending}
+                      variant="destructive"
+                      className="w-full"
+                    >
+                      {cancelFlightMutation.isPending ? 'Storniere...' : 'Flug stornieren'}
+                    </Button>
+                  </div>
                 )}
               </Card>
             )}
