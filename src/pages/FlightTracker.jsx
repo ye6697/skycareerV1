@@ -484,7 +484,9 @@ export default function FlightTracker() {
             date: new Date().toISOString()
             });
 
-      return { profit, revenue, fuelCost };
+            // Hole den aktualisierten Flight aus DB
+            const updatedFlightFromDB = await base44.entities.Flight.filter({ id: flight.id });
+            return updatedFlightFromDB[0];
     },
     onSuccess: async (updatedFlight) => {
        console.log('✅ Flug erfolgreich abgeschlossen und in DB gespeichert:', updatedFlight);
