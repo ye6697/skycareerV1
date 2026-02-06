@@ -258,8 +258,8 @@ export default function Fleet() {
     queryFn: async () => {
       return await base44.entities.Aircraft.list('-created_date');
     },
-    refetchInterval: 2000,
-    staleTime: 1000
+    refetchInterval: 1000,
+    staleTime: 0
   });
 
   const { data: company } = useQuery({
