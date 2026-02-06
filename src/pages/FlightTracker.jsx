@@ -207,6 +207,24 @@ export default function FlightTracker() {
     const xp = xplaneLog.raw_data;
     
     setFlightData(prev => {
+      const newMaxGForce = Math.max(prev.maxGForce, xp.g_force || 1.0);
+      const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
+      
+      // Calculate score with G-force and control penalties
+      let baseScore = xp.flight_score || prev.flightScore;
+      
+      // Deduct points for high G-forces
+      if (newMaxGForce > 1.3) {
+        const gPenalty = (newMaxGForce - 1.3) * 20; // 20 points per 0.1G over 1.3
+        baseScore = Math.max(0, baseScore - gPenalty);
+      }
+      
+      // Deduct points for harsh controls
+      if (newMaxControlInput > 0.5) {
+        const controlPenalty = (newMaxControlInput - 0.5) * 10; // 10 points per 0.1 over 0.5
+        baseScore = Math.max(0, baseScore - controlPenalty);
+      }
+      
       const newData = {
         altitude: xp.altitude || prev.altitude,
         speed: xp.speed || prev.speed,
@@ -215,9 +233,9 @@ export default function FlightTracker() {
         fuel: xp.fuel_percentage || prev.fuel,
         fuelKg: xp.fuel_kg || prev.fuelKg,
         gForce: xp.g_force || prev.gForce,
-        maxGForce: Math.max(prev.maxGForce, xp.g_force || 1.0),
+        maxGForce: newMaxGForce,
         landingVs: xp.touchdown_vspeed || prev.landingVs,
-        flightScore: xp.flight_score || prev.flightScore,
+        flightScore: baseScore,
         maintenanceCost: xp.maintenance_cost || prev.maintenanceCost,
         reputation: xp.reputation || prev.reputation,
         latitude: xp.latitude || prev.latitude,
@@ -232,7 +250,7 @@ export default function FlightTracker() {
           crash: xp.crash || prev.events.crash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls
         },
-        maxControlInput: Math.max(prev.maxControlInput, xp.control_input || 0)
+        maxControlInput: newMaxControlInput
       };
       
       // Save to database every few updates
