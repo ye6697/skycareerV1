@@ -308,21 +308,10 @@ export default function Fleet() {
     }
   });
 
-  // Update aircraft status from CompletedFlightDetails state
-  const displayAircraft = aircraft.map(ac => {
-    if (state?.updatedAircraft?.id === ac.id) {
-      const updated = {
-        ...ac,
-        status: state.updatedAircraft.status,
-        accumulated_maintenance_cost: state.updatedAircraft.accumulated_maintenance_cost
-      };
-      console.log('✅ Fleet: Aircraft aktualisiert:', updated);
-      return updated;
-    }
-    return ac;
-  });
-  
-  console.log('📋 Fleet: displayAircraft:', displayAircraft.map(a => ({ id: a.id, name: a.name, status: a.status, maintenance: a.accumulated_maintenance_cost })));
+  // Nur von state darstellen wenn es kommt (KEINE DB-Daten)
+  const displayAircraft = state?.updatedAircraft 
+    ? [state.updatedAircraft] 
+    : aircraft;
 
   const filteredAircraft = displayAircraft.filter(ac => {
     if (ac.status === 'sold') return false;
