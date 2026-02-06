@@ -59,21 +59,17 @@ export default function ActiveFlights() {
 
   const { data: completedContracts = [] } = useQuery({
     queryKey: ['contracts', 'completed'],
-    queryFn: async () => {
-      const completed = await base44.entities.Contract.filter({ status: 'completed' });
-      const failed = await base44.entities.Contract.filter({ status: 'failed' });
-      return [...completed, ...failed];
-    }
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
+    queryKey: ['aircraft'],
+    queryFn: () => base44.entities.Aircraft.list()
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+    queryKey: ['employees'],
+    queryFn: () => base44.entities.Employee.list()
   });
 
   const { data: company } = useQuery({
@@ -405,10 +401,8 @@ export default function ActiveFlights() {
               exit={{ opacity: 0, y: -20 }}>
 
                   <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
-                    <Card className={`overflow-hidden bg-slate-800 border border-slate-700 transition-colors cursor-pointer ${
-                      contract.status === 'failed' ? 'hover:border-red-500' : 'hover:border-emerald-500'
-                    }`}>
-                      <div className={`h-1 ${contract.status === 'failed' ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
+                      <div className="h-1 bg-emerald-500" />
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div>
@@ -416,11 +410,8 @@ export default function ActiveFlights() {
                               <h3 className="text-xl font-semibold text-white">
                                 {contract.title}
                               </h3>
-                              <Badge className={contract.status === 'failed' 
-                                ? 'bg-red-100 text-red-700 border-red-200'
-                                : 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                              }>
-                                {contract.status === 'failed' ? 'Fehlgeschlagen' : 'Abgeschlossen'}
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                Abgeschlossen
                               </Badge>
                             </div>
                             <div className="flex items-center gap-3 text-slate-400">
@@ -479,17 +470,38 @@ export default function ActiveFlights() {
                     <SelectValue placeholder="Flugzeug wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {aircraft.filter((ac) => {
-                      // Filter to only show compatible aircraft
+                    {aircraft.map((ac) => {
+                      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
+                      const currentValue = ac.current_value || ac.purchase_price || 0;
+                      const needsMaintenance = maintenanceCost > (currentValue * 0.1);
+                      
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                      return passengerOk && cargoOk && rangeOk;
-                    }).map((ac) =>
-                    <SelectItem key={ac.id} value={ac.id}>
-                        {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
-                      </SelectItem>
-                    )}
+                      const statusOk = ac.status === 'available';
+                      const maintenanceOk = !needsMaintenance;
+                      
+                      const isAvailable = passengerOk && cargoOk && rangeOk && statusOk && maintenanceOk;
+                      
+                      let reason = '';
+                      if (!statusOk) reason = ac.status === 'in_flight' ? 'Im Flug' : ac.status === 'damaged' ? 'Beschädigt' : ac.status === 'maintenance' ? 'In Wartung' : 'Nicht verfügbar';
+                      else if (needsMaintenance) reason = 'Wartung erforderlich (>10%)';
+                      else if (!passengerOk) reason = 'Zu wenig Sitze';
+                      else if (!cargoOk) reason = 'Zu wenig Frachtraum';
+                      else if (!rangeOk) reason = 'Zu geringe Reichweite';
+                      
+                      return (
+                        <SelectItem 
+                          key={ac.id} 
+                          value={ac.id}
+                          disabled={!isAvailable}
+                          className={!isAvailable ? 'text-red-400 opacity-60' : ''}
+                        >
+                          {ac.name} ({ac.registration})
+                          {!isAvailable && <span className="text-xs ml-2">- {reason}</span>}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 {aircraft.length === 0 &&
@@ -527,11 +539,25 @@ export default function ActiveFlights() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
-                          {roleEmployees.map((emp) =>
-                          <SelectItem key={emp.id} value={emp.id}>
-                              {emp.name} (Skill: {emp.skill_rating})
-                            </SelectItem>
-                          )}
+                          {roleEmployees.map((emp) => {
+                            const isAvailable = emp.status === 'available';
+                            let reason = '';
+                            if (emp.status === 'on_duty') reason = 'Im Dienst';
+                            else if (emp.status === 'on_leave') reason = 'Im Urlaub';
+                            else if (emp.status === 'terminated') reason = 'Entlassen';
+                            
+                            return (
+                              <SelectItem 
+                                key={emp.id} 
+                                value={emp.id}
+                                disabled={!isAvailable}
+                                className={!isAvailable ? 'text-red-400 opacity-60' : ''}
+                              >
+                                {emp.name} (Skill: {emp.skill_rating})
+                                {!isAvailable && <span className="text-xs ml-2">- {reason}</span>}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                       {required > 0 && !selectedCrew[role] &&
