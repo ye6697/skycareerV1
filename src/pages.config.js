@@ -48,37 +48,37 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import ActiveFlights from './pages/ActiveFlights';
-import CompletedFlightDetails from './pages/CompletedFlightDetails';
 import ContractDetails from './pages/ContractDetails';
-import Contracts from './pages/Contracts';
 import Dashboard from './pages/Dashboard';
 import EmployeeDetails from './pages/EmployeeDetails';
 import Employees from './pages/Employees';
 import Finances from './pages/Finances';
-import Fleet from './pages/Fleet';
 import FlightHistory from './pages/FlightHistory';
-import FlightTracker from './pages/FlightTracker';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import Contracts from './pages/Contracts';
+import Fleet from './pages/Fleet';
+import CompletedFlightDetails from './pages/CompletedFlightDetails';
+import FlightTracker from './pages/FlightTracker';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "ActiveFlights": ActiveFlights,
-    "CompletedFlightDetails": CompletedFlightDetails,
     "ContractDetails": ContractDetails,
-    "Contracts": Contracts,
     "Dashboard": Dashboard,
     "EmployeeDetails": EmployeeDetails,
     "Employees": Employees,
     "Finances": Finances,
-    "Fleet": Fleet,
     "FlightHistory": FlightHistory,
-    "FlightTracker": FlightTracker,
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "Contracts": Contracts,
+    "Fleet": Fleet,
+    "CompletedFlightDetails": CompletedFlightDetails,
+    "FlightTracker": FlightTracker,
 }
 
 export const pagesConfig = {
