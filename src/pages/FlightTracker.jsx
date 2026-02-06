@@ -58,8 +58,10 @@ export default function FlightTracker() {
       flaps_overspeed: false,
       fuel_emergency: false,
       gear_up_landing: false,
-      crash: false
-    }
+      crash: false,
+      harsh_controls: false
+    },
+    maxControlInput: 0
   });
 
   // Calculate ratings in real-time
@@ -78,11 +80,16 @@ export default function FlightTracker() {
                          data.maxGForce < 1.8 ? 3 :
                          data.maxGForce < 2.0 ? 2 : 1;
 
+    const controlRating = data.maxControlInput < 0.3 ? 5 :
+                          data.maxControlInput < 0.5 ? 4 :
+                          data.maxControlInput < 0.7 ? 3 :
+                          data.maxControlInput < 0.9 ? 2 : 1;
+
     const takeoffRating = 3 + Math.random() * 2;
-    const flightRating = gForceRating;
+    const flightRating = (gForceRating + controlRating) / 2;
     
-    // Include max G-force in overall rating (25% weight)
-    const overall = (takeoffRating * 0.25 + flightRating * 0.25 + landingRating * 0.25 + gForceRating * 0.25);
+    // Include max G-force and controls in overall rating
+    const overall = (takeoffRating * 0.25 + flightRating * 0.25 + landingRating * 0.25 + gForceRating * 0.15 + controlRating * 0.10);
 
     return {
       takeoff: Math.round(takeoffRating * 10) / 10,
@@ -182,8 +189,10 @@ export default function FlightTracker() {
        flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
        fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
        gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-       crash: xp.crash || prev.events.crash
-     }
+       crash: xp.crash || prev.events.crash,
+       harsh_controls: xp.harsh_controls || prev.events.harsh_controls
+     },
+     maxControlInput: Math.max(prev.maxControlInput, xp.control_input || 0)
     }));
 
     // Auto-detect phase - start if in air
@@ -489,12 +498,12 @@ export default function FlightTracker() {
                   <Fuel className="w-5 h-5 text-amber-400" />
                   Treibstoff
                 </h3>
-                <span className="text-amber-400 font-mono">{flightData.fuel.toFixed(1)} t</span>
+                <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)} t</span>
               </div>
               <div className="p-2 bg-slate-900 rounded text-center">
                 <p className="text-xs text-slate-400">Treibstoff</p>
                 <p className="text-lg font-mono font-bold text-amber-400">
-                  {flightData.fuel.toFixed(2)} t
+                  {Math.round(flightData.fuel)} t
                 </p>
               </div>
               {flightData.events.fuel_emergency && (
@@ -583,6 +592,12 @@ export default function FlightTracker() {
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             CRASH ERKANNT!
+                          </div>
+                        )}
+                        {flightData.events.harsh_controls && (
+                          <div className="text-xs text-orange-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Ruppige Steuerung
                           </div>
                         )}
                         </div>

@@ -68,8 +68,8 @@ export default function ActiveFlights() {
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list()
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
   });
 
   const { data: company } = useQuery({
@@ -123,14 +123,14 @@ export default function ActiveFlights() {
 
       return flight;
     },
-    onSuccess: () => {
+    onSuccess: (flight) => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       setIsAssignDialogOpen(false);
-      setSelectedContract(null);
-      setSelectedAircraft('');
-      setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
+      
+      // Redirect to FlightTracker
+      window.location.href = createPageUrl(`FlightTracker?contractId=${selectedContract.id}`);
     }
   });
 
@@ -496,8 +496,8 @@ export default function ActiveFlights() {
                 </Label>
 
                 {['captain', 'first_officer', 'flight_attendant', 'loadmaster'].map((role) => {
-                   const required = getCrewRequirement(selectedContract, role);
-                   const roleEmployees = employees.filter((e) => e.role === role && e.status !== 'terminated');
+                  const required = getCrewRequirement(selectedContract, role);
+                  const roleEmployees = employees.filter((e) => e.role === role);
 
                   if (required === 0 && roleEmployees.length === 0) return null;
 
