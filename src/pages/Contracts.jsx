@@ -44,7 +44,7 @@ export default function Contracts() {
   });
 
   const { data: contracts = [], isLoading, refetch } = useQuery({
-    queryKey: ['contracts', 'available', company?.level],
+    queryKey: ['contracts', 'available', company?.level, offset],
     queryFn: async () => {
       const all = await base44.entities.Contract.filter({ status: 'available' });
       return all
@@ -54,7 +54,7 @@ export default function Contracts() {
           return ownedAircraft.some(ac => c.required_aircraft_type.includes(ac.type));
         })
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
-        .slice(0, 10);
+        .slice(offset, offset + 10);
     },
     enabled: !!company && ownedAircraft.length >= 0
   });
