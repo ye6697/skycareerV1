@@ -633,13 +633,21 @@ export default function FlightTracker() {
     // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
     if (flightData.wasAirborne && xp.on_ground && flightPhase === 'landing') {
       setFlightPhase('completed');
+      // Automatisch Flug abschließen
+      if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
+        completeFlightMutation.mutate();
+      }
     }
 
     // Auto-complete flight on crash
     if (flightData.events.crash && flightPhase !== 'preflight' && flightPhase !== 'completed') {
       setFlightPhase('completed');
+      // Automatisch Flug abschließen bei Crash
+      if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
+        completeFlightMutation.mutate();
+      }
     }
-  }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude]);
+  }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash]);
 
   const phaseLabels = {
     preflight: 'Vorbereitung',
@@ -1073,13 +1081,15 @@ export default function FlightTracker() {
                   }} 
                 />
 
-                <Button 
-                  onClick={() => completeFlightMutation.mutate()}
-                  disabled={completeFlightMutation.isPending}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
-                >
-                  {completeFlightMutation.isPending ? 'Speichere...' : 'Flug abschließen'}
-                </Button>
+                {!completeFlightMutation.isSuccess && (
+                  <Button 
+                    onClick={() => completeFlightMutation.mutate()}
+                    disabled={completeFlightMutation.isPending}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
+                  >
+                    {completeFlightMutation.isPending ? 'Speichere...' : 'Flug abschließen'}
+                  </Button>
+                )}
 
                 {completeFlightMutation.isSuccess && (
                   <Button 
