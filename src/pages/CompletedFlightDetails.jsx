@@ -231,9 +231,12 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {flight.xplane_data.events.overstress && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Strukturbelastung
+                        <div className="flex items-center justify-between text-orange-400 text-sm">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            Strukturbelastung
+                          </div>
+                          <span className="font-mono">+4% Wartung</span>
                         </div>
                       )}
                       {flight.xplane_data.events.flaps_overspeed && (
