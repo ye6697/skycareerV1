@@ -32,8 +32,7 @@ import {
   CheckCircle,
   Play,
   DollarSign,
-  User,
-  AlertTriangle } from
+  User } from
 "lucide-react";
 
 export default function ActiveFlights() {
@@ -63,14 +62,14 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
+  const { data: failedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'failed'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'failed' })
+  });
+
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
     queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: allAircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'all'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: { $ne: 'sold' } })
   });
 
   const { data: employees = [] } = useQuery({
@@ -201,51 +200,6 @@ export default function ActiveFlights() {
   const allContracts = [...contracts, ...inProgressContracts];
   const [activeTab, setActiveTab] = useState('active');
 
-  // Check if suitable aircraft exists for a contract
-  const getSuitableAircraftForContract = (contract) => {
-    return allAircraft.filter((ac) => {
-      const typeOk = !contract?.required_aircraft_type || 
-                     contract.required_aircraft_type.length === 0 || 
-                     contract.required_aircraft_type.includes(ac.type);
-      const passengerOk = ac.passenger_capacity >= (contract?.passenger_count || 0);
-      const cargoOk = ac.cargo_capacity_kg >= (contract?.cargo_weight_kg || 0);
-      const rangeOk = ac.range_nm >= (contract?.distance_nm || 0);
-      const statusOk = ac.status === 'available';
-      
-      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-      const currentValue = ac.current_value || ac.purchase_price || 0;
-      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
-      const maintenanceOk = maintenancePercent <= 10;
-      
-      return typeOk && passengerOk && cargoOk && rangeOk && statusOk && maintenanceOk;
-    });
-  };
-
-  const getAircraftIssue = (contract) => {
-    if (allAircraft.length === 0) return '';
-    
-    const suitableAircraft = getSuitableAircraftForContract(contract);
-    if (suitableAircraft.length > 0) return '';
-
-    if (contract?.required_aircraft_type && contract.required_aircraft_type.length > 0) {
-      const hasRequiredType = allAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
-      if (!hasRequiredType) {
-        const typeLabels = {
-          small_prop: 'Kleinflugzeug',
-          turboprop: 'Turboprop',
-          regional_jet: 'Regional Jet',
-          narrow_body: 'Narrow-Body',
-          wide_body: 'Wide-Body',
-          cargo: 'Frachtflugzeug'
-        };
-        return `Benötigt: ${contract.required_aircraft_type.map(t => typeLabels[t] || t).join(' oder ')}`;
-      } else {
-        return 'Flugzeug erfüllt Anforderungen nicht (Kapazität/Reichweite/Wartung)';
-      }
-    }
-    return 'Kein passendes Flugzeug verfügbar';
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
@@ -301,6 +255,16 @@ export default function ActiveFlights() {
             }>
 
             Abgeschlossene Flüge ({completedContracts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('failed')}
+            className={`pb-3 px-4 font-medium transition-colors ${
+            activeTab === 'failed' ?
+            'border-b-2 border-red-500 text-red-400' :
+            'text-slate-400 hover:text-white'}`
+            }>
+
+            Fehlgeschlagene Flüge ({failedContracts.length})
           </button>
         </div>
 
@@ -378,17 +342,6 @@ export default function ActiveFlights() {
                           </div>
                         </div>
                   }
-
-                      {/* Aircraft Warning */}
-                      {contract.status === 'accepted' && getAircraftIssue(contract) &&
-                      <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg flex items-start gap-2 mb-4">
-                          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-xs font-medium text-amber-300">Kein geeignetes Flugzeug</p>
-                            <p className="text-xs text-amber-400">{getAircraftIssue(contract)}</p>
-                          </div>
-                        </div>
-                      }
 
                       <div className="flex justify-end gap-2">
                         {contract.status === 'accepted' &&
@@ -513,9 +466,71 @@ export default function ActiveFlights() {
           </Card> :
         null}
 
+        {/* Failed Contracts */}
+        {activeTab === 'failed' && failedContracts.length > 0 ?
+        <div className="space-y-4">
+            <AnimatePresence>
+              {failedContracts.map((contract) =>
+            <motion.div
+              key={contract.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}>
+
+                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
+                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-red-500 transition-colors cursor-pointer">
+                      <div className="h-1 bg-red-500" />
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-xl font-semibold text-white">
+                                {contract.title}
+                              </h3>
+                              <Badge className="bg-red-100 text-red-700 border-red-200">
+                                Fehlgeschlagen
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.departure_airport}
+                              </span>
+                              <ArrowRight className="w-4 h-4" />
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.arrival_airport}
+                              </span>
+                              <span className="text-slate-600">|</span>
+                              <span>{contract.distance_nm} NM</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-red-600">
+                              ${contract.payout?.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                </motion.div>
+            )}
+            </AnimatePresence>
+          </div> :
+        activeTab === 'failed' ?
+        <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <AlertCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine fehlgeschlagenen Flüge</h3>
+            <p className="text-slate-400">
+              Fehlgeschlagene Flüge werden hier angezeigt
+            </p>
+          </Card> :
+        null}
+
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl bg-slate-900 text-white border-slate-700">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
@@ -523,7 +538,7 @@ export default function ActiveFlights() {
             <div className="space-y-6">
               {/* Aircraft Selection */}
               <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-slate-200">
+                <Label className="flex items-center gap-2">
                   <Plane className="w-4 h-4" />
                   Flugzeug auswählen
                 </Label>
@@ -534,19 +549,10 @@ export default function ActiveFlights() {
                   <SelectContent>
                     {aircraft.filter((ac) => {
                       // Filter to only show compatible aircraft
-                      const typeOk = !selectedContract?.required_aircraft_type || 
-                                     selectedContract.required_aircraft_type.length === 0 || 
-                                     selectedContract.required_aircraft_type.includes(ac.type);
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                      
-                      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-                      const currentValue = ac.current_value || ac.purchase_price || 0;
-                      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
-                      const maintenanceOk = maintenancePercent <= 10;
-                      
-                      return typeOk && passengerOk && cargoOk && rangeOk && maintenanceOk;
+                      return passengerOk && cargoOk && rangeOk;
                     }).map((ac) =>
                     <SelectItem key={ac.id} value={ac.id}>
                         {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
@@ -555,19 +561,13 @@ export default function ActiveFlights() {
                   </SelectContent>
                 </Select>
                 {aircraft.length === 0 &&
-                <p className="text-sm text-red-400">Kein verfügbares Flugzeug!</p>
-                }
-                {aircraft.length > 0 && getSuitableAircraftForContract(selectedContract).length === 0 &&
-                <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg">
-                  <p className="text-sm text-amber-300 font-medium mb-2">Kein geeignetes Flugzeug verfügbar:</p>
-                  <p className="text-xs text-amber-400">{getAircraftIssue(selectedContract)}</p>
-                </div>
+                <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
                 }
               </div>
 
               {/* Crew Selection */}
               <div className="space-y-4">
-                <Label className="flex items-center gap-2 text-slate-200">
+                <Label className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   Crew zuweisen
                 </Label>
@@ -581,9 +581,9 @@ export default function ActiveFlights() {
                   return (
                     <div key={role} className="flex items-center gap-4">
                       <div className="w-40">
-                        <span className="text-sm font-medium text-slate-200">
+                        <span className="text-sm font-medium">
                           {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-400 ml-1">*</span>}
+                          {required > 0 && <span className="text-red-100 ml-1">*</span>}
                         </span>
                       </div>
                       <Select
@@ -615,11 +615,11 @@ export default function ActiveFlights() {
 
               {/* Warning */}
               {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-300">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-400">
+                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-700">
                       Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
                     </p>
                   </div>
