@@ -216,9 +216,12 @@ export default function CompletedFlightDetails() {
                      <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges & Wartungskosten:</h4>
                      <div className="space-y-2">
                       {flight.xplane_data.events.tailstrike && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Heckaufsetzer
+                        <div className="flex items-center justify-between text-red-400 text-sm">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            Heckaufsetzer
+                          </div>
+                          <span className="font-mono">+2% Wartung</span>
                         </div>
                       )}
                       {flight.xplane_data.events.stall && (
