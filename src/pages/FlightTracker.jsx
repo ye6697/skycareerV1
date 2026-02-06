@@ -568,10 +568,11 @@ export default function FlightTracker() {
         maintenanceCostIncrease += 2000;
       }
       
-      // G-Kräfte ab 1.5: 1% des Neuwertes pro 0.1G, aber nur wenn neuer Max überschritten wird
+      // G-Kräfte ab 1.5: 1% des Neuwertes pro 1.0 G Überschreitung, aber nur wenn neuer Max überschritten wird
       if (newMaxGForce > prev.maxGForce && newMaxGForce >= 1.5) {
-        const gForcePercentage = (newMaxGForce / 100) * aircraftPurchasePrice;
-        maintenanceCostIncrease += gForcePercentage;
+        const gForceOvershoot = Math.max(0, newMaxGForce - 1.5);
+        const gForceMaintenanceCost = gForceOvershoot * aircraftPurchasePrice * 0.01;
+        maintenanceCostIncrease += gForceMaintenanceCost;
       }
       
       // Strukturbelastung (overstress): 4% des Neuwertes, einmalig
