@@ -453,7 +453,7 @@ export default function ActiveFlights() {
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl bg-slate-900 text-white border-slate-700">
             <DialogHeader>
               <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
@@ -472,19 +472,10 @@ export default function ActiveFlights() {
                   <SelectContent>
                     {aircraft.filter((ac) => {
                       // Filter to only show compatible aircraft
-                      const typeOk = !selectedContract?.required_aircraft_type || 
-                                     selectedContract.required_aircraft_type.length === 0 || 
-                                     selectedContract.required_aircraft_type.includes(ac.type);
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                      
-                      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-                      const currentValue = ac.current_value || ac.purchase_price || 0;
-                      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
-                      const maintenanceOk = maintenancePercent <= 10;
-                      
-                      return typeOk && passengerOk && cargoOk && rangeOk && maintenanceOk;
+                      return passengerOk && cargoOk && rangeOk;
                     }).map((ac) =>
                     <SelectItem key={ac.id} value={ac.id}>
                         {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
@@ -494,57 +485,6 @@ export default function ActiveFlights() {
                 </Select>
                 {aircraft.length === 0 &&
                 <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
-                }
-                {aircraft.length > 0 && aircraft.filter((ac) => {
-                  const typeOk = !selectedContract?.required_aircraft_type || 
-                                 selectedContract.required_aircraft_type.length === 0 || 
-                                 selectedContract.required_aircraft_type.includes(ac.type);
-                  const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
-                  const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
-                  const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                  
-                  const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-                  const currentValue = ac.current_value || ac.purchase_price || 0;
-                  const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
-                  const maintenanceOk = maintenancePercent <= 10;
-                  
-                  return typeOk && passengerOk && cargoOk && rangeOk && maintenanceOk;
-                }).length === 0 &&
-                <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg">
-                  <p className="text-sm text-amber-300 font-medium mb-2">Kein geeignetes Flugzeug verfügbar:</p>
-                  <ul className="text-xs text-amber-400 space-y-1 ml-4">
-                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
-                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) && (
-                      <li>• Flugzeugtyp fehlt (benötigt: {selectedContract.required_aircraft_type.join(', ')})</li>
-                    )}
-                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
-                     aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) &&
-                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type) && 
-                                          ac.passenger_capacity >= (selectedContract?.passenger_count || 0)) && (
-                      <li>• Zu wenig Passagierkapazität (benötigt: {selectedContract.passenger_count} Sitze)</li>
-                    )}
-                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
-                     aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) &&
-                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type) && 
-                                          ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0)) && (
-                      <li>• Zu wenig Frachtkapazität (benötigt: {selectedContract.cargo_weight_kg} kg)</li>
-                    )}
-                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
-                     aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) &&
-                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type) && 
-                                          ac.range_nm >= (selectedContract?.distance_nm || 0)) && (
-                      <li>• Reichweite zu gering (benötigt: {selectedContract.distance_nm} NM)</li>
-                    )}
-                    {aircraft.some(ac => {
-                      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-                      const currentValue = ac.current_value || ac.purchase_price || 0;
-                      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
-                      return maintenancePercent > 10;
-                    }) && (
-                      <li>• Flugzeug benötigt Wartung (Wartungskosten {'>'} 10% des Wertes)</li>
-                    )}
-                  </ul>
-                </div>
                 }
               </div>
 
@@ -564,9 +504,9 @@ export default function ActiveFlights() {
                   return (
                     <div key={role} className="flex items-center gap-4">
                       <div className="w-40">
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium text-slate-200">
                           {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-500 ml-1">*</span>}
+                          {required > 0 && <span className="text-red-400 ml-1">*</span>}
                         </span>
                       </div>
                       <Select
@@ -586,10 +526,10 @@ export default function ActiveFlights() {
                         </SelectContent>
                       </Select>
                       {required > 0 && !selectedCrew[role] &&
-                      <AlertCircle className="w-5 h-5 text-amber-500" />
+                      <AlertCircle className="w-5 h-5 text-amber-100" />
                       }
                       {selectedCrew[role] &&
-                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      <CheckCircle className="w-5 h-5 text-emerald-100" />
                       }
                     </div>);
 
@@ -598,11 +538,11 @@ export default function ActiveFlights() {
 
               {/* Warning */}
               {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-700">
+                    <p className="font-medium text-amber-300">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-400">
                       Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
                     </p>
                   </div>
