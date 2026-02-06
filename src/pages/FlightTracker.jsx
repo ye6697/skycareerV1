@@ -486,28 +486,19 @@ export default function FlightTracker() {
 
       return { profit, revenue, fuelCost };
     },
-    onSuccess: async () => {
-      console.log('✅ Flug erfolgreich abgeschlossen - FORCE REFETCH ALLER DATEN');
-      
-      // ALLE Queries SOFORT löschen und neu laden
-      queryClient.removeQueries({ queryKey: ['aircraft'] });
-      queryClient.removeQueries({ queryKey: ['employees'] });
-      queryClient.removeQueries({ queryKey: ['contracts'] });
-      queryClient.removeQueries({ queryKey: ['company'] });
-      queryClient.removeQueries({ queryKey: ['active-flight'] });
-      queryClient.removeQueries({ queryKey: ['flights'] });
-      
-      console.log('✅ Cache geleert - navigiere zu CompletedFlightDetails');
-      
-      // Sofort navigieren - Flugdaten mitgeben
-      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
-        state: { 
-          flightData,
-          flight,
-          contract
-        }
-      });
-    }
+    onSuccess: async (result) => {
+       console.log('✅ Flug erfolgreich abgeschlossen');
+
+       // Keine Queries löschen - direkt navigieren mit State
+       navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
+         state: { 
+           flightData,
+           flight,
+           contract,
+           calculatedCosts: result
+         }
+       });
+     }
   });
 
   // Update flight data from X-Plane log (freeze data after landing)
