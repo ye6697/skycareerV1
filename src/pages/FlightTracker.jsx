@@ -498,12 +498,12 @@ export default function FlightTracker() {
                   <Fuel className="w-5 h-5 text-amber-400" />
                   Treibstoff
                 </h3>
-                <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)} t</span>
+                <span className="text-amber-400 font-mono">{Math.round(flightData.fuel + 1)} t</span>
               </div>
               <div className="p-2 bg-slate-900 rounded text-center">
                 <p className="text-xs text-slate-400">Treibstoff</p>
                 <p className="text-lg font-mono font-bold text-amber-400">
-                  {Math.round(flightData.fuel)} t
+                  {Math.round(flightData.fuel + 1)} t
                 </p>
               </div>
               {flightData.events.fuel_emergency && (
