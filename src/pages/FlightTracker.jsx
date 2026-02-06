@@ -381,8 +381,8 @@ export default function FlightTracker() {
               await base44.entities.Aircraft.update(flight.aircraft_id, {
                 status: hasCrashed ? 'damaged' : (requiresMaintenance ? 'maintenance' : 'available'),
                 total_flight_hours: newFlightHours,
-                current_value: newAircraftValue,
-                accumulated_maintenance_cost: newAccumulatedCost
+                current_value: hasCrashed ? 0 : newAircraftValue,
+                accumulated_maintenance_cost: hasCrashed ? 0 : newAccumulatedCost
               });
             }
 

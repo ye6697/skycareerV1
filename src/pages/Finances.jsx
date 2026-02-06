@@ -277,7 +277,7 @@ export default function Finances() {
                   <span className={`font-semibold ${
                     transaction.type === 'income' ? 'text-emerald-600' : 'text-red-500'
                   }`}>
-                    {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    {transaction.type === 'income' ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
                   </span>
                 </div>
               ))}

@@ -247,7 +247,7 @@ export default function FlightHistory() {
 
         {/* Flight Detail Dialog */}
         <Dialog open={!!selectedFlight} onOpenChange={() => setSelectedFlight(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Flugdetails</DialogTitle>
             </DialogHeader>
