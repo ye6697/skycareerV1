@@ -301,10 +301,18 @@ export default function Fleet() {
     }
   });
 
-  // Nur von state darstellen wenn es kommt (KEINE DB-Daten)
-  const displayAircraft = state?.updatedAircraft 
-    ? [state.updatedAircraft] 
-    : aircraft;
+  // Wenn state kommt, aktualisiere die DB-Daten mit den neuen Werten
+  const displayAircraft = aircraft.map(ac => {
+    if (state?.updatedAircraft?.id === ac.id) {
+      return {
+        ...ac,
+        status: state.updatedAircraft.status,
+        accumulated_maintenance_cost: state.updatedAircraft.accumulated_maintenance_cost || 0,
+        current_value: state.updatedAircraft.current_value || ac.current_value
+      };
+    }
+    return ac;
+  });
 
   const filteredAircraft = displayAircraft.filter(ac => {
     if (ac.status === 'sold') return false;
