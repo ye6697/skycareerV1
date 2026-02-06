@@ -486,16 +486,20 @@ export default function FlightTracker() {
 
       return { profit, revenue, fuelCost };
     },
-    onSuccess: async (result) => {
-       console.log('✅ Flug erfolgreich abgeschlossen');
+    onSuccess: async (updatedFlight) => {
+       console.log('✅ Flug erfolgreich abgeschlossen und in DB gespeichert:', updatedFlight);
+       console.log('🔍 State für CompletedFlightDetails:', { 
+         flightData, 
+         flight: updatedFlight,
+         contract 
+       });
 
-       // Keine Queries löschen - direkt navigieren mit State
+       // Direkt navigieren mit aktualisierten Flugdaten
        navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
          state: { 
            flightData,
-           flight,
-           contract,
-           calculatedCosts: result
+           flight: updatedFlight,
+           contract
          }
        });
      }
