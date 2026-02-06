@@ -165,6 +165,47 @@ export default function FlightRating({ flight }) {
         </div>
       )}
 
+      {/* Financial Summary */}
+      {(flight?.revenue || flight?.fuel_cost || flight?.crew_cost || flight?.maintenance_cost || flight?.profit) && (
+        <div className="p-4 bg-slate-900 rounded-lg mb-4">
+          <h4 className="text-sm font-semibold text-slate-300 mb-3">Finanzen</h4>
+          <div className="space-y-2">
+            {flight?.revenue && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">Einnahmen</span>
+                <span className="text-emerald-400 font-mono">${Math.round(flight.revenue).toLocaleString()}</span>
+              </div>
+            )}
+            {flight?.fuel_cost && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">Treibstoffkosten</span>
+                <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost).toLocaleString()}</span>
+              </div>
+            )}
+            {flight?.crew_cost && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">Personalkosten</span>
+                <span className="text-red-400 font-mono">-${Math.round(flight.crew_cost).toLocaleString()}</span>
+              </div>
+            )}
+            {flight?.maintenance_cost && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">Wartungskosten</span>
+                <span className="text-red-400 font-mono">-${Math.round(flight.maintenance_cost).toLocaleString()}</span>
+              </div>
+            )}
+            {flight?.profit !== undefined && (
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
+                <span className="text-slate-300 font-semibold">Gewinn</span>
+                <span className={`font-mono font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  ${Math.round(flight.profit).toLocaleString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {flight?.passenger_comments?.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
