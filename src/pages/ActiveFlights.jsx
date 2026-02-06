@@ -72,11 +72,12 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Employee.list()
   });
 
-  // Filter aircraft that can fly (< 10% maintenance cost)
+  // Filter aircraft that can fly (< 10% maintenance cost and available)
   const aircraft = allAircraft.filter((ac) => {
     const maintenanceCost = ac.accumulated_maintenance_cost || 0;
     const currentValue = ac.current_value || ac.purchase_price || 0;
-    const needsMaintenance = maintenanceCost > (currentValue * 0.1);
+    const maintenancePercent = (maintenanceCost / currentValue) * 100;
+    const needsMaintenance = maintenancePercent > 10;
     return ac.status === 'available' && !needsMaintenance;
   });
 
@@ -483,7 +484,8 @@ export default function ActiveFlights() {
                     {allAircraft.map((ac) => {
                       const maintenanceCost = ac.accumulated_maintenance_cost || 0;
                       const currentValue = ac.current_value || ac.purchase_price || 0;
-                      const needsMaintenance = maintenanceCost > (currentValue * 0.1);
+                      const maintenancePercent = (maintenanceCost / currentValue) * 100;
+                      const needsMaintenance = maintenancePercent > 10;
                       
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
@@ -549,7 +551,7 @@ export default function ActiveFlights() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
-                          {allEmployees.filter((e) => e.role === role).map((emp) => {
+                          {roleEmployees.map((emp) => {
                             const isAvailable = emp.status === 'available';
                             let reason = '';
                             if (emp.status === 'on_duty') reason = 'Im Dienst';
