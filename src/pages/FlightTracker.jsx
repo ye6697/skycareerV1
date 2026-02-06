@@ -397,6 +397,14 @@ export default function FlightTracker() {
             const totalMaintenanceCostFromEvents = flightData.maintenanceCost + crashMaintenanceCost;
             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostFromEvents;
             const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
+            
+            console.log('Wartungskosten Update:', {
+              currentAccumulatedCost,
+              flightMaintenanceCost: flightData.maintenanceCost,
+              crashMaintenanceCost,
+              totalMaintenanceCostFromEvents,
+              newAccumulatedCost
+            });
 
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (flight?.aircraft_id) {
@@ -567,9 +575,7 @@ export default function FlightTracker() {
         maintenanceCostIncrease += 4000;
       }
       
-      if (landingType === 'crash' && !prev.events.crash) {
-        maintenanceCostIncrease += aircraft.find(a => a.id === flight?.aircraft_id)?.current_value * 0.7 || 0;
-      }
+      // Crash maintenance cost wird in completeFlightMutation berechnet, nicht hier
       
       // Store departure/arrival coordinates from first X-Plane data
       const depLat = prev.departure_lat || xp.departure_lat || 0;
