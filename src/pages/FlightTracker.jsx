@@ -169,22 +169,28 @@ export default function FlightTracker() {
     if (existingFlight && !flight) {
       setFlight(existingFlight);
       
-      // Restore flight data
-      if (existingFlight.xplane_data) {
-        setFlightData(prev => ({
-          ...prev,
-          ...existingFlight.xplane_data
-        }));
-      }
-      
-      // Determine flight phase from altitude
-      const altitude = existingFlight.xplane_data?.altitude || 0;
-      if (altitude > 1000) {
-        setFlightPhase('cruise');
-      } else if (altitude > 10) {
-        setFlightPhase('takeoff');
+      // Only restore if flight is not completed
+      if (existingFlight.status === 'in_flight') {
+        // Restore flight data
+        if (existingFlight.xplane_data) {
+          setFlightData(prev => ({
+            ...prev,
+            ...existingFlight.xplane_data
+          }));
+        }
+        
+        // Determine flight phase from altitude
+        const altitude = existingFlight.xplane_data?.altitude || 0;
+        if (altitude > 1000) {
+          setFlightPhase('cruise');
+        } else if (altitude > 10) {
+          setFlightPhase('takeoff');
+        } else {
+          setFlightPhase('takeoff');
+        }
       } else {
-        setFlightPhase('takeoff');
+        // Flight is completed, stay in preflight
+        setFlightPhase('preflight');
       }
     }
   }, [existingFlight, flight]);
@@ -726,12 +732,12 @@ export default function FlightTracker() {
                   <Fuel className="w-5 h-5 text-amber-400" />
                   Treibstoff
                 </h3>
-                <span className="text-amber-400 font-mono">{Math.round(flightData.fuel + 1)} t</span>
+                <span className="text-amber-400 font-mono">{Math.round(flightData.fuelKg / 1000)} t</span>
               </div>
               <div className="p-2 bg-slate-900 rounded text-center">
                 <p className="text-xs text-slate-400">Treibstoff</p>
                 <p className="text-lg font-mono font-bold text-amber-400">
-                  {Math.round(flightData.fuel + 1)} t
+                  {Math.round(flightData.fuelKg / 1000)} t
                 </p>
               </div>
               {flightData.events.fuel_emergency && (
