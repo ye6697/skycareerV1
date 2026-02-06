@@ -245,6 +245,7 @@ const AIRCRAFT_MARKET = [
 ];
 
 export default function Fleet() {
+  const { state } = useLocation();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
