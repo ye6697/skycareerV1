@@ -254,26 +254,12 @@ export default function Fleet() {
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [fleetAircraft, setFleetAircraft] = useState([]);
 
-  // Nutze nur die Daten aus Navigation State von CompletedFlightDetails
-  React.useEffect(() => {
-    if (state?.updatedAircraft) {
-      setFleetAircraft(prev => {
-        const updated = prev.map(ac => ac.id === state.updatedAircraft.id ? state.updatedAircraft : ac);
-        return updated.length === prev.length ? updated : [...prev, state.updatedAircraft];
-      });
-    } else {
-      // Lade initial alle Flugzeuge
-      (async () => {
-        const aircraftList = await base44.entities.Aircraft.list('-created_date');
-        setFleetAircraft(aircraftList);
-      })();
-    }
-  }, [state?.updatedAircraft]);
-
-  const { data: aircraft = fleetAircraft, isLoading } = useQuery({
+  // Lade immer die aktuellen Daten aus der Datenbank
+  const { data: aircraft = [], isLoading } = useQuery({
     queryKey: ['aircraft'],
-    queryFn: async () => fleetAircraft,
-    enabled: false
+    queryFn: async () => {
+      return await base44.entities.Aircraft.list('-created_date');
+    }
   });
 
   const { data: company } = useQuery({
