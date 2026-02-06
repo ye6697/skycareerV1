@@ -499,8 +499,14 @@ export default function FlightTracker() {
       
       console.log('✅ Cache geleert - navigiere zu CompletedFlightDetails');
       
-      // Sofort navigieren - die Seiten werden dann frisch laden
-      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`));
+      // Sofort navigieren - Flugdaten mitgeben
+      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
+        state: { 
+          flightData,
+          flight,
+          contract
+        }
+      });
     }
   });
 

@@ -21,9 +21,15 @@ import FlightRating from "@/components/flights/FlightRating";
 
 export default function CompletedFlightDetails() {
   const navigate = useNavigate();
+  const location = useNavigate();
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractId = urlParams.get('contractId');
+  
+  // Hole Daten aus State von FlightTracker
+  const passedFlightData = window.history.state?.usr?.flightData;
+  const passedFlight = window.history.state?.usr?.flight;
+  const passedContract = window.history.state?.usr?.contract;
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractId],
@@ -32,7 +38,7 @@ export default function CompletedFlightDetails() {
       const contracts = await base44.entities.Contract.filter({ id: contractId });
       return contracts[0];
     },
-    enabled: !!contractId
+    enabled: !!contractId && !passedContract
   });
 
   const { data: flights = [] } = useQuery({
@@ -42,13 +48,12 @@ export default function CompletedFlightDetails() {
       const result = await base44.entities.Flight.filter({ contract_id: contractId });
       return result;
     },
-    enabled: !!contractId,
-    staleTime: 0,
-    cacheTime: 0,
-    refetchOnMount: 'always'
+    enabled: !!contractId && !passedFlight
   });
 
-  const flight = flights[0];
+  const flight = passedFlight || flights[0];
+  const finalContract = passedContract || contract;
+  const flightData = passedFlightData;
 
   if (!contract) {
     return (
