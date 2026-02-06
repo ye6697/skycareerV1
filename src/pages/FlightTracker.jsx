@@ -408,13 +408,13 @@ export default function FlightTracker() {
             });
 
             // Update aircraft with depreciation, crash status, and maintenance costs
-            if (flight?.aircraft_id) {
-              const aircraftUpdate = {
-                status: hasCrashed ? 'damaged' : 'available',
-                total_flight_hours: newFlightHours,
-                current_value: hasCrashed ? 0 : newAircraftValue,
-                accumulated_maintenance_cost: newAccumulatedCost
-              };
+             if (flight?.aircraft_id) {
+               const aircraftUpdate = {
+                 status: hasCrashed ? 'damaged' : 'available',
+                 total_flight_hours: newFlightHours,
+                 current_value: hasCrashed ? 0 : Math.max(0, newAircraftValue - totalMaintenanceCostFromEvents),
+                 accumulated_maintenance_cost: newAccumulatedCost
+               };
               
               console.log('🛩️ AKTUALISIERE FLUGZEUG JETZT:', flight.aircraft_id, aircraftUpdate);
               const updatedAircraft = await base44.entities.Aircraft.update(flight.aircraft_id, aircraftUpdate);
