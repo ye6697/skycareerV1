@@ -213,16 +213,6 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </span>
           </div>
 
-          <div className="flex items-center justify-between text-sm mb-4">
-            <div className="flex items-center gap-1 text-slate-400">
-              <Wrench className="w-4 h-4" />
-              <span>Wartung/h:</span>
-            </div>
-            <span className="font-medium text-slate-300">
-              ${aircraft.maintenance_cost_per_hour?.toLocaleString()}
-            </span>
-          </div>
-
           {maintenanceCost > 0 && (
             <div className={`p-3 rounded-lg mb-4 ${needsMaintenance ? 'bg-red-900/30 border border-red-700' : 'bg-amber-900/30 border border-amber-700'}`}>
               <div className="flex items-center justify-between text-sm mb-1">

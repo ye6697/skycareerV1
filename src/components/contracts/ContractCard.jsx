@@ -80,15 +80,9 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             <ArrowRight className="w-4 h-4 text-slate-400" />
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
               <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="font-mono font-medium">{contract.arrival_airport}</span>
+              <span className="text-slate-50 font-medium">{contract.arrival_airport}</span>
             </div>
           </div>
-
-          {contract.briefing && (
-            <p className="text-sm text-slate-400 italic mb-3 line-clamp-2">
-              "{contract.briefing}"
-            </p>
-          )}
 
           <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
             <div className="flex items-center gap-2 text-slate-300">
@@ -108,24 +102,6 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
               </div>
             }
           </div>
-
-          {contract.required_aircraft_type && contract.required_aircraft_type.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs text-slate-500 mb-2">Benötigtes Flugzeug:</p>
-              <div className="flex flex-wrap gap-1">
-                {contract.required_aircraft_type.map((type) => (
-                  <Badge key={type} variant="outline" className="text-xs text-blue-400 border-blue-400/50">
-                    {type === 'small_prop' ? 'Propeller' :
-                     type === 'turboprop' ? 'Turboprop' :
-                     type === 'regional_jet' ? 'Regionaljet' :
-                     type === 'narrow_body' ? 'Narrow-Body' :
-                     type === 'wide_body' ? 'Wide-Body' :
-                     type === 'cargo' ? 'Fracht' : type}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-700">
             <div>
