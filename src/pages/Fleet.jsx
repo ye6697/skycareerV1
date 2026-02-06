@@ -314,7 +314,21 @@ export default function Fleet() {
     }
   });
 
-  const filteredAircraft = aircraft.filter(ac => {
+  // Update aircraft status from CompletedFlightDetails state
+  const displayAircraft = aircraft.map(ac => {
+    if (state?.updatedAircraft?.id === ac.id) {
+      return {
+        ...ac,
+        status: state.updatedAircraft.status,
+        accumulated_maintenance_cost: state.updatedAircraft.accumulated_maintenance_cost,
+        total_flight_hours: (ac.total_flight_hours || 0) + (state.updatedAircraft.total_flight_hours || 0),
+        current_value: state.updatedAircraft.current_value ?? ac.current_value
+      };
+    }
+    return ac;
+  });
+
+  const filteredAircraft = displayAircraft.filter(ac => {
     if (ac.status === 'sold') return false;
     const matchesSearch = ac.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ac.registration?.toLowerCase().includes(searchTerm.toLowerCase());
