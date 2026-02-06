@@ -311,7 +311,7 @@ export default function CompletedFlightDetails() {
                     <span className="text-red-400 font-mono">-${flight.crew_cost?.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Wartung ({flight.flight_duration_hours?.toFixed(1)}h)</span>
+                    <span className="text-slate-400">Wartung ({flight.flight_duration_hours?.toFixed(1)}h + Events)</span>
                     <span className="text-red-400 font-mono">-${flight.maintenance_cost?.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
