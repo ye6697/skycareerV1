@@ -416,8 +416,11 @@ export default function FlightTracker() {
                 accumulated_maintenance_cost: newAccumulatedCost
               };
               
-              console.log('Aktualisiere Flugzeug:', flight.aircraft_id, aircraftUpdate);
-              await base44.entities.Aircraft.update(flight.aircraft_id, aircraftUpdate);
+              console.log('🛩️ AKTUALISIERE FLUGZEUG JETZT:', flight.aircraft_id, aircraftUpdate);
+              const updatedAircraft = await base44.entities.Aircraft.update(flight.aircraft_id, aircraftUpdate);
+              console.log('✅ FLUGZEUG AKTUALISIERT:', updatedAircraft);
+            } else {
+              console.error('❌ KEIN FLUGZEUG GEFUNDEN FÜR UPDATE:', flight);
             }
 
             // Free up crew - SOFORT Status auf available setzen
