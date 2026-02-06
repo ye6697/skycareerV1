@@ -568,8 +568,9 @@ export default function FlightTracker() {
         maintenanceCostIncrease += 2000;
       }
       
-      // G-Kräfte ab 1.5: 1% des Neuwertes pro 1.0 G Überschreitung, aber nur wenn neuer Max überschritten wird
+      // G-Kräfte ab 1.5: -25 Punkte wenn Max überschritten wird + 1% des Neuwertes pro 1.0 G Überschreitung
       if (newMaxGForce > prev.maxGForce && newMaxGForce >= 1.5) {
+        baseScore = Math.max(0, baseScore - 25);
         const gForceOvershoot = Math.max(0, newMaxGForce - 1.5);
         const gForceMaintenanceCost = gForceOvershoot * aircraftPurchasePrice * 0.01;
         maintenanceCostIncrease += gForceMaintenanceCost;
