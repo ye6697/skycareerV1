@@ -59,7 +59,11 @@ export default function ActiveFlights() {
 
   const { data: completedContracts = [] } = useQuery({
     queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
+    queryFn: async () => {
+      const completed = await base44.entities.Contract.filter({ status: 'completed' });
+      const failed = await base44.entities.Contract.filter({ status: 'failed' });
+      return [...completed, ...failed];
+    }
   });
 
   const { data: aircraft = [] } = useQuery({
@@ -138,38 +142,8 @@ export default function ActiveFlights() {
     mutationFn: async (contractToCancel) => {
       const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
 
-      // Find the flight associated with this contract to release resources
-      const flights = await base44.entities.Flight.filter({
-        contract_id: contractToCancel.id,
-        status: 'in_flight'
-      });
-      const flight = flights[0];
-
       // Update contract status
       await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
-
-      // Release aircraft if assigned
-      if (flight?.aircraft_id) {
-        await base44.entities.Aircraft.update(flight.aircraft_id, {
-          status: 'available'
-        });
-      }
-
-      // Release crew if assigned
-      if (flight?.crew) {
-        for (const member of flight.crew) {
-          await base44.entities.Employee.update(member.employee_id, {
-            status: 'available'
-          });
-        }
-      }
-
-      // Update flight status
-      if (flight) {
-        await base44.entities.Flight.update(flight.id, {
-          status: 'cancelled'
-        });
-      }
 
       // Deduct penalty from company
       if (company) {
@@ -192,8 +166,6 @@ export default function ActiveFlights() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
     }
   });
 
@@ -433,8 +405,10 @@ export default function ActiveFlights() {
               exit={{ opacity: 0, y: -20 }}>
 
                   <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
-                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
-                      <div className="h-1 bg-emerald-500" />
+                    <Card className={`overflow-hidden bg-slate-800 border border-slate-700 transition-colors cursor-pointer ${
+                      contract.status === 'failed' ? 'hover:border-red-500' : 'hover:border-emerald-500'
+                    }`}>
+                      <div className={`h-1 ${contract.status === 'failed' ? 'bg-red-500' : 'bg-emerald-500'}`} />
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div>
@@ -442,8 +416,11 @@ export default function ActiveFlights() {
                               <h3 className="text-xl font-semibold text-white">
                                 {contract.title}
                               </h3>
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                                Abgeschlossen
+                              <Badge className={contract.status === 'failed' 
+                                ? 'bg-red-100 text-red-700 border-red-200'
+                                : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                              }>
+                                {contract.status === 'failed' ? 'Fehlgeschlagen' : 'Abgeschlossen'}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-3 text-slate-400">

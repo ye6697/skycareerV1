@@ -38,7 +38,11 @@ export default function FlightHistory() {
 
   const { data: flights = [], isLoading } = useQuery({
     queryKey: ['flights', 'history'],
-    queryFn: () => base44.entities.Flight.filter({ status: 'completed' }, '-created_date')
+    queryFn: async () => {
+      const completed = await base44.entities.Flight.filter({ status: 'completed' }, '-created_date');
+      const failed = await base44.entities.Flight.filter({ status: 'failed' }, '-created_date');
+      return [...completed, ...failed].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+    }
   });
 
   const { data: contracts = [] } = useQuery({
@@ -179,13 +183,16 @@ export default function FlightHistory() {
                   return (
                     <TableRow 
                       key={flight.id} 
-                      className="cursor-pointer hover:bg-slate-700"
+                      className={`cursor-pointer hover:bg-slate-700 ${flight.status === 'failed' ? 'bg-red-900/20' : ''}`}
                       onClick={() => setSelectedFlight(flight)}
                     >
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-slate-400" />
                           {formatDate(flight.departure_time)}
+                          {flight.status === 'failed' && (
+                            <Badge className="bg-red-100 text-red-700 border-red-200 ml-2">Crash</Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
