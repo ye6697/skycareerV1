@@ -520,26 +520,20 @@ export default function FlightTracker() {
       const isCrash = landingType === 'crash' || prev.events.crash;
       
       // Calculate score penalties - only deduct when NEW event occurs
-      let baseScore = xp.flight_score || prev.flightScore;
+      let baseScore = prev.flightScore;
       
       // Track if high G-force event already happened
       const hadHighGEvent = prev.events.high_g_force || false;
       
-      // G-Kräfte ab 1.5: nur einmal abziehen, außer maximale G-Kraft wird wieder überschritten
+      // G-Kräfte ab 1.5: nur einmal abziehen (20 Punkte), außer maximale G-Kraft wird wieder überschritten (dann nochmal 20 Punkte)
       if (newMaxGForce >= 1.5) {
         if (!hadHighGEvent) {
-          // Erstes Mal über 1.5 G
+          // Erstes Mal über 1.5 G - 20 Punkte abziehen
           baseScore = Math.max(0, baseScore - 20);
-        } else if (newMaxGForce > prev.maxGForce) {
-          // Maximale G-Kraft wurde wieder überschritten
+        } else if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.5) {
+          // Maximale G-Kraft wurde wieder überschritten - nochmal 20 Punkte abziehen
           baseScore = Math.max(0, baseScore - 20);
         }
-      }
-      
-      // Deduct points only if control input increased to a new maximum
-      if (newMaxControlInput > prev.maxControlInput && newMaxControlInput > 0.5) {
-        const controlPenalty = (newMaxControlInput - prev.maxControlInput) * 10;
-        baseScore = Math.max(0, baseScore - controlPenalty);
       }
       
       // Calculate maintenance cost increase based on NEW events only
@@ -554,6 +548,7 @@ export default function FlightTracker() {
         baseScore = Math.max(0, baseScore - 40);
         maintenanceCostIncrease += 2000;
       }
+      // Strukturbelastung: nur einmal 30 Punkte abziehen
       if (xp.overstress && !prev.events.overstress) {
         baseScore = Math.max(0, baseScore - 30);
         maintenanceCostIncrease += 3000;
