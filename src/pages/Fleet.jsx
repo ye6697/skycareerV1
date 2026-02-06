@@ -251,7 +251,7 @@ export default function Fleet() {
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
 
-  const { data: aircraft = [], isLoading } = useQuery({
+  const { data: aircraft = [], isLoading, refetch: refetchAircraft } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
       console.log('🔄 Fleet: Lade Flugzeuge NEU von Datenbank...');
@@ -267,7 +267,8 @@ export default function Fleet() {
     staleTime: 0,
     cacheTime: 0,
     refetchOnMount: 'always',
-    refetchOnWindowFocus: true
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000
   });
 
   const { data: company } = useQuery({
