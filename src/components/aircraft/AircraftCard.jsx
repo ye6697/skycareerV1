@@ -52,6 +52,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const maintenanceCost = aircraft.accumulated_maintenance_cost || 0;
   const currentValue = aircraft.current_value || aircraft.purchase_price || 0;
   const needsMaintenance = maintenanceCost > (currentValue * 0.1);
+  const showMaintenanceButton = maintenanceCost > (currentValue * 0.01);
   const canFly = !needsMaintenance;
 
   const repairMutation = useMutation({
@@ -338,15 +339,15 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </div>
           ) : aircraft.status === "available" ? (
             <div className="space-y-2">
-              {maintenanceCost > 0 && (
+              {showMaintenanceButton && (
                 <Button 
                   size="sm" 
-                  className="w-full bg-amber-600 hover:bg-amber-700"
+                  className={`w-full ${needsMaintenance ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
                   onClick={() => performMaintenanceMutation.mutate()}
                   disabled={performMaintenanceMutation.isPending}
                 >
                   <Wrench className="w-4 h-4 mr-1" />
-                  {performMaintenanceMutation.isPending ? 'Warte...' : `Warten ($${maintenanceCost.toLocaleString()})`}
+                  {performMaintenanceMutation.isPending ? 'Warte...' : `Warten ($${maintenanceCost.toLocaleString()})${needsMaintenance ? ' - Erforderlich!' : ''}`}
                 </Button>
               )}
               <div className="flex gap-2">
