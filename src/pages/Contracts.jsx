@@ -29,9 +29,33 @@ export default function Contracts() {
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
 
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    }
+  });
+
+  const { data: ownedAircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'owned'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: { $ne: 'sold' } })
+  });
+
   const { data: contracts = [], isLoading, refetch } = useQuery({
-    queryKey: ['contracts'],
-    queryFn: () => base44.entities.Contract.list('-created_date')
+    queryKey: ['contracts', 'available', company?.level],
+    queryFn: async () => {
+      const all = await base44.entities.Contract.filter({ status: 'available' });
+      return all
+        .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
+        .filter(c => {
+          if (!c.required_aircraft_type || c.required_aircraft_type.length === 0) return true;
+          return ownedAircraft.some(ac => c.required_aircraft_type.includes(ac.type));
+        })
+        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+        .slice(0, 10);
+    },
+    enabled: !!company && ownedAircraft.length >= 0
   });
 
   const acceptContractMutation = useMutation({
