@@ -45,7 +45,7 @@ class PythonInterface:
         # Configuration
         self.api_endpoint = "${apiEndpoint}"
         self.company_id = "${company.id}"
-        self.update_interval = 1.0  # seconds
+        self.update_interval = 2.0  # seconds
         self.last_update = 0
         self.last_on_ground = True
         self.flight_started = False
