@@ -92,7 +92,7 @@ export default function CompletedFlightDetails() {
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold">{contract.title}</h1>
+                <h1 className="text-3xl font-bold">{finalContract.title}</h1>
                 <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
                   Abgeschlossen
                 </Badge>
