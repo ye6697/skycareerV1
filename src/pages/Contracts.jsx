@@ -95,7 +95,7 @@ export default function Contracts() {
   };
 
   const handleView = (contract) => {
-    navigate(createPageUrl(`ContractDetail?id=${contract.id}`));
+    navigate(createPageUrl(`ContractDetails?id=${contract.id}`));
   };
 
   return (
