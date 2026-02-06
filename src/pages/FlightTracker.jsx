@@ -317,7 +317,12 @@ export default function FlightTracker() {
         status: 'in_flight',
         departure_time: new Date().toISOString()
       });
+      
+      return newFlight;
+    },
+    onSuccess: (newFlight) => {
       setFlight(newFlight);
+      setFlightPhase('takeoff');
       
       // Reset flight data for new flight
       setFlightData({
@@ -354,9 +359,6 @@ export default function FlightTracker() {
         arrival_lon: 0
       });
       
-      return newFlight;
-    },
-    onSuccess: () => {
       queryClient.invalidateQueries();
     }
   });
@@ -878,7 +880,6 @@ export default function FlightTracker() {
                   <div className="space-y-4">
                     <Button 
                       onClick={() => {
-                        setFlightPhase('takeoff');
                         startFlightMutation.mutate();
                       }}
                       disabled={startFlightMutation.isPending}
