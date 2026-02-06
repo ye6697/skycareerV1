@@ -247,34 +247,32 @@ const AIRCRAFT_MARKET = [
 
 export default function Fleet() {
   const { state } = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
-  const [fleetAircraft, setFleetAircraft] = useState([]);
 
-  // Nutze nur die Daten aus Navigation State von CompletedFlightDetails
-  React.useEffect(() => {
-    if (state?.updatedAircraft) {
-      setFleetAircraft(prev => {
-        const updated = prev.map(ac => ac.id === state.updatedAircraft.id ? state.updatedAircraft : ac);
-        return updated.length === prev.length ? updated : [...prev, state.updatedAircraft];
-      });
-    } else {
-      // Lade initial alle Flugzeuge
-      (async () => {
-        const aircraftList = await base44.entities.Aircraft.list('-created_date');
-        setFleetAircraft(aircraftList);
-      })();
-    }
-  }, [state?.updatedAircraft]);
+  // Nutze AUSSCHLIESSLICH die Daten aus Navigation State von CompletedFlightDetails
+  const aircraft = state?.updatedAircraft ? [state.updatedAircraft] : [];
+  const isLoading = false;
 
-  const { data: aircraft = fleetAircraft, isLoading } = useQuery({
-    queryKey: ['aircraft'],
-    queryFn: async () => fleetAircraft,
-    enabled: false
-  });
+  // Wenn kein State vorhanden, zeige Meldung
+  if (!state?.updatedAircraft) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+        <Card className="p-8 bg-slate-800 border-slate-700 text-center max-w-md">
+          <Plane className="w-16 h-16 text-slate-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Keine Flugzeugdaten verfügbar</h2>
+          <p className="text-slate-400 mb-6">Navigiere von einer abgeschlossenen Auftragsseite, um die aktualisierte Flotte zu sehen</p>
+          <Button onClick={() => navigate(createPageUrl("CompletedFlightDetails"))} className="bg-blue-600 hover:bg-blue-700">
+            Zu abgeschlossenen Aufträgen
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   const { data: company } = useQuery({
     queryKey: ['company'],
