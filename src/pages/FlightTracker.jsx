@@ -168,30 +168,7 @@ export default function FlightTracker() {
   useEffect(() => {
     if (existingFlight && !flight) {
       setFlight(existingFlight);
-      
-      // Only restore if flight is not completed
-      if (existingFlight.status === 'in_flight') {
-        // Restore flight data
-        if (existingFlight.xplane_data) {
-          setFlightData(prev => ({
-            ...prev,
-            ...existingFlight.xplane_data
-          }));
-        }
-        
-        // Determine flight phase from altitude
-        const altitude = existingFlight.xplane_data?.altitude || 0;
-        if (altitude > 1000) {
-          setFlightPhase('cruise');
-        } else if (altitude > 10) {
-          setFlightPhase('takeoff');
-        } else {
-          setFlightPhase('takeoff');
-        }
-      } else {
-        // Flight is completed, stay in preflight
-        setFlightPhase('preflight');
-      }
+      setFlightPhase('preflight');
     }
   }, [existingFlight, flight]);
 
