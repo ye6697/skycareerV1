@@ -62,15 +62,25 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
-  const { data: aircraft = [] } = useQuery({
+  const { data: allAircraft = [] } = useQuery({
     queryKey: ['aircraft'],
     queryFn: () => base44.entities.Aircraft.list()
   });
 
-  const { data: employees = [] } = useQuery({
+  const { data: allEmployees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: () => base44.entities.Employee.list()
   });
+
+  // Filter aircraft that can fly (< 10% maintenance cost)
+  const aircraft = allAircraft.filter((ac) => {
+    const maintenanceCost = ac.accumulated_maintenance_cost || 0;
+    const currentValue = ac.current_value || ac.purchase_price || 0;
+    const needsMaintenance = maintenanceCost > (currentValue * 0.1);
+    return ac.status === 'available' && !needsMaintenance;
+  });
+
+  const employees = allEmployees.filter((e) => e.status === 'available');
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -470,7 +480,7 @@ export default function ActiveFlights() {
                     <SelectValue placeholder="Flugzeug wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {aircraft.map((ac) => {
+                    {allAircraft.map((ac) => {
                       const maintenanceCost = ac.accumulated_maintenance_cost || 0;
                       const currentValue = ac.current_value || ac.purchase_price || 0;
                       const needsMaintenance = maintenanceCost > (currentValue * 0.1);
@@ -518,7 +528,7 @@ export default function ActiveFlights() {
 
                 {['captain', 'first_officer', 'flight_attendant', 'loadmaster'].map((role) => {
                   const required = getCrewRequirement(selectedContract, role);
-                  const roleEmployees = employees.filter((e) => e.role === role);
+                  const roleEmployees = allEmployees.filter((e) => e.role === role);
 
                   if (required === 0 && roleEmployees.length === 0) return null;
 
@@ -539,7 +549,7 @@ export default function ActiveFlights() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
-                          {roleEmployees.map((emp) => {
+                          {allEmployees.filter((e) => e.role === role).map((emp) => {
                             const isAvailable = emp.status === 'available';
                             let reason = '';
                             if (emp.status === 'on_duty') reason = 'Im Dienst';
