@@ -253,18 +253,11 @@ export default function Fleet() {
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
 
-  // Wenn state mit updatedAircraft kommt, NICHT von Datenbank laden
-  const shouldLoadFromDB = !state?.updatedAircraft;
-
   const { data: aircraft = [], isLoading, refetch: refetchAircraft } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
-      if (!shouldLoadFromDB) return [];
       return await base44.entities.Aircraft.list('-created_date');
-    },
-    enabled: shouldLoadFromDB,
-    staleTime: Infinity,
-    cacheTime: Infinity
+    }
   });
 
   const { data: company } = useQuery({
