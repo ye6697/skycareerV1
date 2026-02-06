@@ -59,11 +59,7 @@ export default function ActiveFlights() {
 
   const { data: completedContracts = [] } = useQuery({
     queryKey: ['contracts', 'completed'],
-    queryFn: async () => {
-      const completed = await base44.entities.Contract.filter({ status: 'completed' });
-      const failed = await base44.entities.Contract.filter({ status: 'failed' });
-      return [...completed, ...failed].sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date));
-    }
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
   const { data: aircraft = [] } = useQuery({
@@ -476,10 +472,19 @@ export default function ActiveFlights() {
                   <SelectContent>
                     {aircraft.filter((ac) => {
                       // Filter to only show compatible aircraft
+                      const typeOk = !selectedContract?.required_aircraft_type || 
+                                     selectedContract.required_aircraft_type.length === 0 || 
+                                     selectedContract.required_aircraft_type.includes(ac.type);
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                      return passengerOk && cargoOk && rangeOk;
+                      
+                      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
+                      const currentValue = ac.current_value || ac.purchase_price || 0;
+                      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
+                      const maintenanceOk = maintenancePercent <= 10;
+                      
+                      return typeOk && passengerOk && cargoOk && rangeOk && maintenanceOk;
                     }).map((ac) =>
                     <SelectItem key={ac.id} value={ac.id}>
                         {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
@@ -489,6 +494,57 @@ export default function ActiveFlights() {
                 </Select>
                 {aircraft.length === 0 &&
                 <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
+                }
+                {aircraft.length > 0 && aircraft.filter((ac) => {
+                  const typeOk = !selectedContract?.required_aircraft_type || 
+                                 selectedContract.required_aircraft_type.length === 0 || 
+                                 selectedContract.required_aircraft_type.includes(ac.type);
+                  const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
+                  const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
+                  const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
+                  
+                  const maintenanceCost = ac.accumulated_maintenance_cost || 0;
+                  const currentValue = ac.current_value || ac.purchase_price || 0;
+                  const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
+                  const maintenanceOk = maintenancePercent <= 10;
+                  
+                  return typeOk && passengerOk && cargoOk && rangeOk && maintenanceOk;
+                }).length === 0 &&
+                <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg">
+                  <p className="text-sm text-amber-300 font-medium mb-2">Kein geeignetes Flugzeug verfügbar:</p>
+                  <ul className="text-xs text-amber-400 space-y-1 ml-4">
+                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
+                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) && (
+                      <li>• Flugzeugtyp fehlt (benötigt: {selectedContract.required_aircraft_type.join(', ')})</li>
+                    )}
+                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
+                     aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) &&
+                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type) && 
+                                          ac.passenger_capacity >= (selectedContract?.passenger_count || 0)) && (
+                      <li>• Zu wenig Passagierkapazität (benötigt: {selectedContract.passenger_count} Sitze)</li>
+                    )}
+                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
+                     aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) &&
+                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type) && 
+                                          ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0)) && (
+                      <li>• Zu wenig Frachtkapazität (benötigt: {selectedContract.cargo_weight_kg} kg)</li>
+                    )}
+                    {selectedContract?.required_aircraft_type && selectedContract.required_aircraft_type.length > 0 && 
+                     aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type)) &&
+                     !aircraft.some(ac => selectedContract.required_aircraft_type.includes(ac.type) && 
+                                          ac.range_nm >= (selectedContract?.distance_nm || 0)) && (
+                      <li>• Reichweite zu gering (benötigt: {selectedContract.distance_nm} NM)</li>
+                    )}
+                    {aircraft.some(ac => {
+                      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
+                      const currentValue = ac.current_value || ac.purchase_price || 0;
+                      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
+                      return maintenancePercent > 10;
+                    }) && (
+                      <li>• Flugzeug benötigt Wartung (Wartungskosten {'>'} 10% des Wertes)</li>
+                    )}
+                  </ul>
+                </div>
                 }
               </div>
 
