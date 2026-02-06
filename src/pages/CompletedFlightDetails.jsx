@@ -99,22 +99,22 @@ export default function CompletedFlightDetails() {
                    if (!originalAircraft) return;
 
                    const newValue = (originalAircraft.current_value || originalAircraft.purchase_price || 0) - flight.maintenance_cost;
-                   navigate(createPageUrl("Fleet"), { 
-                     state: { 
-                       updatedAircraft: {
-                         ...originalAircraft,
-                         status: flight.status === 'completed' ? 'available' : 'damaged',
-                         accumulated_maintenance_cost: (originalAircraft.accumulated_maintenance_cost || 0) + flight.maintenance_cost,
-                         current_value: Math.max(0, newValue)
-                       }
-                     }
-                   });
+                   const updatedData = {
+                     status: flight.status === 'completed' ? 'available' : 'damaged',
+                     accumulated_maintenance_cost: (originalAircraft.accumulated_maintenance_cost || 0) + flight.maintenance_cost,
+                     current_value: Math.max(0, newValue)
+                   };
+
+                   // Speichere direkt in Datenbank
+                   await base44.entities.Aircraft.update(flight.aircraft_id, updatedData);
+
+                   navigate(createPageUrl("Fleet"));
                  }}
                  className="mb-4 text-slate-400 hover:text-white"
                >
                  Zur Flotte
                </Button>
-             )}
+            )}
           </div>
 
           <div className="flex items-start justify-between">
