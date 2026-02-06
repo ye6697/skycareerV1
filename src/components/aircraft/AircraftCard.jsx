@@ -61,13 +61,19 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const company = (await base44.entities.Company.list())[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
-      await base44.entities.Aircraft.update(aircraft.id, { status: 'available' });
-      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - repairCost });
+      const restoredValue = currentValue + (maintenanceCost * 0.5);
+      
+      await base44.entities.Aircraft.update(aircraft.id, { 
+        status: 'available',
+        accumulated_maintenance_cost: 0,
+        current_value: restoredValue
+      });
+      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - maintenanceCost });
       await base44.entities.Transaction.create({
         type: 'expense',
         category: 'maintenance',
-        amount: repairCost,
-        description: `Reparatur: ${aircraft.name}`,
+        amount: maintenanceCost,
+        description: `Wartung: ${aircraft.name}`,
         date: new Date().toISOString()
       });
     },
