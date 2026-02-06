@@ -341,6 +341,42 @@ export default function FlightTracker() {
         departure_time: new Date().toISOString()
       });
       setFlight(newFlight);
+      
+      // Reset flight data for new flight
+      setFlightData({
+        altitude: 0,
+        speed: 0,
+        verticalSpeed: 0,
+        heading: 0,
+        fuel: 100,
+        fuelKg: 0,
+        gForce: 1.0,
+        maxGForce: 1.0,
+        landingVs: 0,
+        flightScore: 100,
+        maintenanceCost: 0,
+        reputation: 'EXCELLENT',
+        latitude: 0,
+        longitude: 0,
+        events: {
+          tailstrike: false,
+          stall: false,
+          overstress: false,
+          flaps_overspeed: false,
+          fuel_emergency: false,
+          gear_up_landing: false,
+          crash: false,
+          harsh_controls: false,
+          high_g_force: false,
+          hard_landing: false
+        },
+        maxControlInput: 0,
+        departure_lat: 0,
+        departure_lon: 0,
+        arrival_lat: 0,
+        arrival_lon: 0
+      });
+      
       return newFlight;
     },
     onSuccess: () => {
