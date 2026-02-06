@@ -551,11 +551,13 @@ export default function FlightTracker() {
       const hadHighGEvent = prev.events.high_g_force || false;
       
       // Calculate maintenance cost increase based on NEW events only
-      let maintenanceCostIncrease = 0;
-      
-      // Get aircraft for maintenance cost calculations (purchase price is neuwert)
-      const currentAircraft = aircraft?.find(a => a.id === flight?.aircraft_id);
-      const aircraftPurchasePrice = currentAircraft?.purchase_price || 0;
+       let maintenanceCostIncrease = 0;
+
+       // Get aircraft for maintenance cost calculations (purchase price is neuwert)
+       // Use flight.aircraft_id if available, otherwise try to find from aircraft list
+       const aircraftId = flight?.aircraft_id;
+       const currentAircraft = aircraft?.find(a => a.id === aircraftId);
+       const aircraftPurchasePrice = currentAircraft?.purchase_price || 1000000; // fallback price if not found
       
       // Heckaufsetzer (Tailstrike): -20 Punkte + 2% des Neuwertes
       if (xp.tailstrike && !prev.events.tailstrike) {
