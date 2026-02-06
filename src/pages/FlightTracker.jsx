@@ -379,11 +379,20 @@ export default function FlightTracker() {
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (flight?.aircraft_id) {
               await base44.entities.Aircraft.update(flight.aircraft_id, {
-                status: hasCrashed ? 'damaged' : (requiresMaintenance ? 'maintenance' : 'available'),
+                status: hasCrashed ? 'damaged' : 'available',
                 total_flight_hours: newFlightHours,
                 current_value: hasCrashed ? 0 : newAircraftValue,
                 accumulated_maintenance_cost: hasCrashed ? 0 : newAccumulatedCost
               });
+            }
+
+            // Free up crew
+            if (flight?.crew) {
+              for (const member of flight.crew) {
+                await base44.entities.Employee.update(member.employee_id, {
+                  status: 'available'
+                });
+              }
             }
 
             // Calculate level bonus (10% per level)
@@ -421,11 +430,6 @@ export default function FlightTracker() {
             reference_id: flight?.id,
             date: new Date().toISOString()
             });
-            if (flight?.crew) {
-            for (const member of flight.crew) {
-            await base44.entities.Employee.update(member.employee_id, { status: 'available' });
-            }
-            }
 
       return { profit, revenue, fuelCost };
     },
