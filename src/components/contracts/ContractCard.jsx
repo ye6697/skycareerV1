@@ -12,8 +12,8 @@ import {
   DollarSign,
   ArrowRight,
   Star,
-  AlertTriangle } from
-"lucide-react";
+  AlertTriangle
+} from "lucide-react";
 
 export default function ContractCard({ contract, onAccept, onView, isAccepting, ownedAircraft = [] }) {
   const typeConfig = {
@@ -82,31 +82,31 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}>
-
+      transition={{ duration: 0.3 }}
+    >
       <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
         <div className={`h-1.5 bg-gradient-to-r ${
-        config.color === "blue" ? "from-blue-400 to-blue-600" :
-        config.color === "orange" ? "from-orange-400 to-orange-600" :
-        config.color === "purple" ? "from-purple-400 to-purple-600" :
-        "from-red-400 to-red-600"}`
-        } />
+          config.color === "blue" ? "from-blue-400 to-blue-600" :
+          config.color === "orange" ? "from-orange-400 to-orange-600" :
+          config.color === "purple" ? "from-purple-400 to-purple-600" :
+          "from-red-400 to-red-600"
+        }`} />
         
         <div className="p-5">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-              config.color === "blue" ? "bg-blue-100" :
-              config.color === "orange" ? "bg-orange-100" :
-              config.color === "purple" ? "bg-purple-100" :
-              "bg-red-100"}`
-              }>
+                config.color === "blue" ? "bg-blue-100" :
+                config.color === "orange" ? "bg-orange-100" :
+                config.color === "purple" ? "bg-purple-100" :
+                "bg-red-100"
+              }`}>
                 <TypeIcon className={`w-5 h-5 ${
-                config.color === "blue" ? "text-blue-600" :
-                config.color === "orange" ? "text-orange-600" :
-                config.color === "purple" ? "text-purple-600" :
-                "text-red-600"}`
-                } />
+                  config.color === "blue" ? "text-blue-600" :
+                  config.color === "orange" ? "text-orange-600" :
+                  config.color === "purple" ? "text-purple-600" :
+                  "text-red-600"
+                }`} />
               </div>
               <div>
                 <h3 className="font-semibold text-white">{contract.title}</h3>
@@ -133,18 +133,18 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
               <Plane className="w-4 h-4 text-slate-400" />
               <span>{contract.distance_nm?.toLocaleString() || "---"} NM</span>
             </div>
-            {contract.type === "passenger" &&
-            <div className="flex items-center gap-2 text-slate-300">
+            {contract.type === "passenger" && (
+              <div className="flex items-center gap-2 text-slate-300">
                 <Users className="w-4 h-4 text-slate-400" />
                 <span>{contract.passenger_count} Passagiere</span>
               </div>
-            }
-            {contract.type === "cargo" &&
-            <div className="flex items-center gap-2 text-slate-300">
+            )}
+            {contract.type === "cargo" && (
+              <div className="flex items-center gap-2 text-slate-300">
                 <Package className="w-4 h-4 text-slate-400" />
                 <span>{contract.cargo_weight_kg?.toLocaleString()} kg</span>
               </div>
-            }
+            )}
           </div>
 
           {hasNoSuitableAircraft && (
@@ -163,30 +163,30 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
               <p className="text-xl font-bold text-emerald-600">
                 ${contract.payout?.toLocaleString()}
               </p>
-              {contract.bonus_potential > 0 &&
-              <p className="text-xs text-amber-600">
+              {contract.bonus_potential > 0 && (
+                <p className="text-xs text-amber-600">
                   +${contract.bonus_potential?.toLocaleString()} Bonus möglich
                 </p>
-              }
+              )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>
                 Details
               </Button>
-              {contract.status === "available" &&
-              <Button
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => onAccept?.(contract)}
-                disabled={isAccepting || hasNoSuitableAircraft}>
-
+              {contract.status === "available" && (
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => onAccept?.(contract)}
+                  disabled={isAccepting || hasNoSuitableAircraft}
+                >
                   Annehmen
                 </Button>
-              }
+              )}
             </div>
           </div>
         </div>
       </Card>
-    </motion.div>);
-
+    </motion.div>
+  );
 }
