@@ -28,7 +28,6 @@ export default function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
-  const [offset, setOffset] = useState(0);
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -44,7 +43,7 @@ export default function Contracts() {
   });
 
   const { data: contracts = [], isLoading, refetch } = useQuery({
-    queryKey: ['contracts', 'available', company?.level, offset],
+    queryKey: ['contracts', 'available', company?.level],
     queryFn: async () => {
       const all = await base44.entities.Contract.filter({ status: 'available' });
       return all
@@ -54,7 +53,7 @@ export default function Contracts() {
           return ownedAircraft.some(ac => c.required_aircraft_type.includes(ac.type));
         })
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
-        .slice(offset, offset + 10);
+        .slice(0, 10);
     },
     enabled: !!company && ownedAircraft.length >= 0
   });
@@ -220,34 +219,24 @@ export default function Contracts() {
             ))}
           </div>
         ) : filteredContracts.length > 0 ? (
-           <>
-             <motion.div 
-               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"
-               layout
-             >
-               <AnimatePresence>
-                 {filteredContracts.map((contract) => (
-                   <ContractCard
-                     key={contract.id}
-                     contract={contract}
-                     onAccept={handleAccept}
-                     onView={handleView}
-                     isAccepting={acceptContractMutation.isPending}
-                     ownedAircraft={ownedAircraft}
-                   />
-                 ))}
-               </AnimatePresence>
-             </motion.div>
-             <div className="flex justify-center">
-               <Button 
-                 onClick={() => setOffset(offset + 10)}
-                 className="bg-blue-600 hover:bg-blue-700"
-               >
-                 Nächste 10 Aufträge laden
-               </Button>
-             </div>
-           </>
-         ) : (
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            layout
+          >
+            <AnimatePresence>
+              {filteredContracts.map((contract) => (
+                <ContractCard
+                  key={contract.id}
+                  contract={contract}
+                  onAccept={handleAccept}
+                  onView={handleView}
+                  isAccepting={acceptContractMutation.isPending}
+                  ownedAircraft={ownedAircraft}
+                />
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
           <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">Keine Aufträge gefunden</h3>

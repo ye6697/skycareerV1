@@ -353,12 +353,12 @@ export default function FlightTracker() {
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
             
-            // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten
+            // Bei Crash: Wartungskosten = 70% des aktuellen Flugzeugwerts + Score auf 0
             let crashMaintenanceCost = 0;
             let finalScore = flightData.flightScore;
             if (hasCrashed) {
-              crashMaintenanceCost = (airplaneToUpdate?.purchase_price || 0) * 0.7;
-              finalScore = Math.max(0, finalScore - 100);
+              crashMaintenanceCost = newAircraftValue * 0.7;
+              finalScore = 0;
             }
 
             // Calculate ratings based on score for database (for compatibility)
@@ -393,12 +393,11 @@ export default function FlightTracker() {
             console.log('Aktualisiere Contract Status:', flight.contract_id, hasCrashed ? 'failed' : 'completed');
             await base44.entities.Contract.update(flight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
 
-            // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen und vom current_value abziehen
-             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
-             const totalMaintenanceCostFromEvents = flightData.maintenanceCost + crashMaintenanceCost;
-             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostFromEvents;
-             const valueAfterMaintenance = Math.max(0, newAircraftValue - totalMaintenanceCostFromEvents);
-             const requiresMaintenance = newAccumulatedCost > (valueAfterMaintenance * 0.1);
+            // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen
+            const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
+            const totalMaintenanceCostFromEvents = flightData.maintenanceCost + crashMaintenanceCost;
+            const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostFromEvents;
+            const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
             
             console.log('Wartungskosten Update:', {
               currentAccumulatedCost,
@@ -409,13 +408,13 @@ export default function FlightTracker() {
             });
 
             // Update aircraft with depreciation, crash status, and maintenance costs
-             if (flight?.aircraft_id) {
-               const aircraftUpdate = {
-                 status: hasCrashed ? 'damaged' : 'available',
-                 total_flight_hours: newFlightHours,
-                 current_value: hasCrashed ? 0 : valueAfterMaintenance,
-                 accumulated_maintenance_cost: newAccumulatedCost
-               };
+            if (flight?.aircraft_id) {
+              const aircraftUpdate = {
+                status: hasCrashed ? 'damaged' : 'available',
+                total_flight_hours: newFlightHours,
+                current_value: hasCrashed ? 0 : newAircraftValue,
+                accumulated_maintenance_cost: newAccumulatedCost
+              };
               
               console.log('🛩️ AKTUALISIERE FLUGZEUG JETZT:', flight.aircraft_id, aircraftUpdate);
               const updatedAircraft = await base44.entities.Aircraft.update(flight.aircraft_id, aircraftUpdate);
@@ -550,42 +549,43 @@ export default function FlightTracker() {
       // Track if high G-force event already happened
       const hadHighGEvent = prev.events.high_g_force || false;
       
+      // G-Kräfte ab 1.5: nur einmal abziehen (20 Punkte), außer maximale G-Kraft wird wieder überschritten (dann nochmal 20 Punkte)
+      if (newMaxGForce >= 1.5) {
+        if (!hadHighGEvent) {
+          // Erstes Mal über 1.5 G - 20 Punkte abziehen
+          baseScore = Math.max(0, baseScore - 20);
+        } else if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.5) {
+          // Maximale G-Kraft wurde wieder überschritten - nochmal 20 Punkte abziehen
+          baseScore = Math.max(0, baseScore - 20);
+        }
+      }
+      
       // Calculate maintenance cost increase based on NEW events only
       let maintenanceCostIncrease = 0;
       
-      // Get aircraft for maintenance cost calculations (purchase price is neuwert)
-      const currentAircraft = aircraft?.find(a => a.id === flight?.aircraft_id);
-      const aircraftPurchasePrice = currentAircraft?.purchase_price || 0;
-      
-      // Heckaufsetzer (Tailstrike): -20 Punkte + 2% des Neuwertes
+      // Deduct points for critical events (only once when they occur)
       if (xp.tailstrike && !prev.events.tailstrike) {
-        baseScore = Math.max(0, baseScore - 20);
-        maintenanceCostIncrease += aircraftPurchasePrice * 0.02;
+        baseScore = Math.max(0, baseScore - 50);
+        maintenanceCostIncrease += 5000;
       }
-      
-      // Stall
       if (xp.stall && !prev.events.stall) {
         baseScore = Math.max(0, baseScore - 40);
         maintenanceCostIncrease += 2000;
       }
-      
-      // G-Kräfte ab 1.5: -25 Punkte wenn Max überschritten wird + 1% des Neuwertes pro 1.0 G Überschreitung
-      if (newMaxGForce > prev.maxGForce && newMaxGForce >= 1.5) {
-        baseScore = Math.max(0, baseScore - 25);
-        const gForceOvershoot = Math.max(0, newMaxGForce - 1.5);
-        const gForceMaintenanceCost = gForceOvershoot * aircraftPurchasePrice * 0.01;
-        maintenanceCostIncrease += gForceMaintenanceCost;
-      }
-      
-      // Strukturbelastung (overstress): 4% des Neuwertes, einmalig
+      // Strukturbelastung: nur einmal 30 Punkte abziehen
       if (xp.overstress && !prev.events.overstress) {
         baseScore = Math.max(0, baseScore - 30);
-        maintenanceCostIncrease += aircraftPurchasePrice * 0.04;
+        maintenanceCostIncrease += 3000;
       }
       
-      // Overspeed (flaps_overspeed): 2.5% des Neuwertes, einmalig
+      // Hohe G-Kräfte: Wartungskosten wenn neue Maximale G-Kraft erreicht wird
+      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.5) {
+        maintenanceCostIncrease += (newMaxGForce - Math.max(prev.maxGForce, 1.5)) * 1000;
+      }
+      
+      // Overspeed (flaps_overspeed)
       if (xp.flaps_overspeed && !prev.events.flaps_overspeed) {
-        maintenanceCostIncrease += aircraftPurchasePrice * 0.025;
+        maintenanceCostIncrease += 2000;
       }
       
       // Landing-based penalties
@@ -938,7 +938,7 @@ export default function FlightTracker() {
                         {flightData.events.tailstrike && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Heckaufsetzer (-20 Punkte)
+                            Heckaufsetzer (-50 Punkte)
                           </div>
                         )}
                         {flightData.events.stall && (
@@ -956,7 +956,7 @@ export default function FlightTracker() {
                         {flightData.events.flaps_overspeed && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Overspeed (Wartung: 2.5% Neuwert)
+                            Overspeed (+$2,000 Wartung)
                           </div>
                         )}
                         {flightData.events.gear_up_landing && (
@@ -968,7 +968,7 @@ export default function FlightTracker() {
                         {flightData.events.crash && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            CRASH ERKANNT! (-100 Punkte)
+                            CRASH ERKANNT!
                           </div>
                         )}
                         {flightData.events.harsh_controls && (

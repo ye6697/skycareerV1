@@ -61,19 +61,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const company = (await base44.entities.Company.list())[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
-      const restoredValue = currentValue + (maintenanceCost * 0.5);
-      
-      await base44.entities.Aircraft.update(aircraft.id, { 
-        status: 'available',
-        accumulated_maintenance_cost: 0,
-        current_value: restoredValue
-      });
-      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - maintenanceCost });
+      await base44.entities.Aircraft.update(aircraft.id, { status: 'available' });
+      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - repairCost });
       await base44.entities.Transaction.create({
         type: 'expense',
         category: 'maintenance',
-        amount: maintenanceCost,
-        description: `Wartung: ${aircraft.name}`,
+        amount: repairCost,
+        description: `Reparatur: ${aircraft.name}`,
         date: new Date().toISOString()
       });
     },
@@ -267,8 +261,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-400">Aktueller Wert:</span>
-              <span className={`font-semibold ${currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
-                ${currentValue.toLocaleString()}
+              <span className="font-semibold text-emerald-400">
+                ${(aircraft.current_value || aircraft.purchase_price || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
