@@ -35,6 +35,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 640,
     purchase_price: 150000,
     maintenance_cost_per_hour: 25,
+    level_requirement: 1,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Cessna_172_Skyhawk.jpg/1024px-Cessna_172_Skyhawk.jpg"
   },
   {
@@ -46,6 +47,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 750,
     purchase_price: 200000,
     maintenance_cost_per_hour: 35,
+    level_requirement: 1,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Piper_PA-44-180_Seminole_N2445.jpg/1024px-Piper_PA-44-180_Seminole_N2445.jpg"
   },
   {
@@ -57,6 +59,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1800,
     purchase_price: 750000,
     maintenance_cost_per_hour: 120,
+    level_requirement: 2,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Beechcraft_King_Air_B200_8.jpg/1024px-Beechcraft_King_Air_B200_8.jpg"
   },
   {
@@ -68,6 +71,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1200,
     purchase_price: 400000,
     maintenance_cost_per_hour: 90,
+    level_requirement: 2,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Cessna_Caravan_206H_Rwd.jpg/1024px-Cessna_Caravan_206H_Rwd.jpg"
   },
   {
@@ -79,6 +83,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1700,
     purchase_price: 1400000,
     maintenance_cost_per_hour: 280,
+    level_requirement: 3,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Bombardier_Q400_taxiing.jpg/1024px-Bombardier_Q400_taxiing.jpg"
   },
   {
@@ -90,6 +95,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2200,
     purchase_price: 2500000,
     maintenance_cost_per_hour: 450,
+    level_requirement: 4,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Embraer_ERJ-175_5Y-CVK_SkyWest.jpg/1024px-Embraer_ERJ-175_5Y-CVK_SkyWest.jpg"
   },
   {
@@ -101,6 +107,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2800,
     purchase_price: 4200000,
     maintenance_cost_per_hour: 650,
+    level_requirement: 5,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Airbus_A220-300_LZQO.jpg/1024px-Airbus_A220-300_LZQO.jpg"
   },
   {
@@ -112,6 +119,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3500,
     purchase_price: 12000000,
     maintenance_cost_per_hour: 1200,
+    level_requirement: 6,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Airbus_A320neo_Lufthansa_D-AINN_01.jpg/1024px-Airbus_A320neo_Lufthansa_D-AINN_01.jpg"
   },
   {
@@ -123,6 +131,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3500,
     purchase_price: 13500000,
     maintenance_cost_per_hour: 1350,
+    level_requirement: 7,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/KBWI_-_Southwest_Airlines_N8646Q_-_Flickr_-_Photo_Encoding.jpg/1024px-KBWI_-_Southwest_Airlines_N8646Q_-_Flickr_-_Photo_Encoding.jpg"
   },
   {
@@ -134,6 +143,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5000,
     purchase_price: 18000000,
     maintenance_cost_per_hour: 1600,
+    level_requirement: 8,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/ANA_B787-8_34A.jpg/1024px-ANA_B787-8_34A.jpg"
   },
   {
@@ -145,6 +155,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5650,
     purchase_price: 25000000,
     maintenance_cost_per_hour: 2800,
+    level_requirement: 10,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Malaysia_Airlines_Airbus_A330-223_-_9M-MQB.jpg/1024px-Malaysia_Airlines_Airbus_A330-223_-_9M-MQB.jpg"
   },
   {
@@ -156,6 +167,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 7370,
     purchase_price: 35000000,
     maintenance_cost_per_hour: 3500,
+    level_requirement: 12,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/United_Airlines_N228UA_-_B777-322ER.jpg/1024px-United_Airlines_N228UA_-_B777-322ER.jpg"
   },
   {
@@ -167,6 +179,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3800,
+    level_requirement: 13,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Airbus_A350-941_F-WXWB_2_Qatar_Airways_2019.jpg/1024px-Airbus_A350-941_F-WXWB_2_Qatar_Airways_2019.jpg"
   },
   {
@@ -178,6 +191,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 45000000,
     maintenance_cost_per_hour: 4200,
+    level_requirement: 15,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Lufthansa_Boeing_747-830_Liotard-1.jpg/1024px-Lufthansa_Boeing_747-830_Liotard-1.jpg"
   },
   {
@@ -189,6 +203,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 55000000,
     maintenance_cost_per_hour: 5000,
+    level_requirement: 20,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/A380_Singapore_Airlines_%289M-SKA%29_%284%29.jpg/1024px-A380_Singapore_Airlines_%289M-SKA%29_%284%29.jpg"
   },
   {
@@ -200,6 +215,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 4435,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3600,
+    level_requirement: 12,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/FedEx_Boeing_777F_N869FD_2.jpg/1024px-FedEx_Boeing_777F_N869FD_2.jpg"
   },
   {
@@ -211,6 +227,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 4120,
     purchase_price: 42000000,
     maintenance_cost_per_hour: 4500,
+    level_requirement: 15,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Cargo_Boeing_747-400F.jpg/1024px-Cargo_Boeing_747-400F.jpg"
   },
   {
@@ -222,6 +239,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5550,
     purchase_price: 24000000,
     maintenance_cost_per_hour: 2600,
+    level_requirement: 10,
     image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Airbus_A330-223F.jpg/1024px-Airbus_A330-223F.jpg"
   }
 ];
@@ -297,6 +315,11 @@ export default function Fleet() {
   };
 
   const canAfford = (price) => (company?.balance || 0) >= price;
+  const canPurchase = (ac) => {
+    const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
+    const hasBalance = canAfford(ac.purchase_price);
+    return hasLevel && hasBalance;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -354,21 +377,26 @@ export default function Fleet() {
                       </motion.div>
                     )}
 
-                    {AIRCRAFT_MARKET.map((ac, index) => (
+                    {AIRCRAFT_MARKET.map((ac, index) => {
+                      const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
+                      const hasBalance = canAfford(ac.purchase_price);
+                      const isPurchasable = hasLevel && hasBalance;
+                      
+                      return (
                       <motion.div
                         key={index}
-                        whileHover={canAfford(ac.purchase_price) ? { scale: 1.02 } : {}}
+                        whileHover={isPurchasable ? { scale: 1.02 } : {}}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
                       >
                         <Card 
                           className={`overflow-hidden cursor-pointer transition-all border-2 ${
                             selectedAircraft?.name === ac.name 
                               ? 'border-blue-500 bg-blue-900/20' 
-                              : canAfford(ac.purchase_price) 
+                              : isPurchasable 
                                 ? 'border-slate-600 hover:border-slate-500 hover:shadow-lg hover:shadow-blue-500/20' 
                                 : 'border-slate-700 opacity-60'
                           }`}
-                          onClick={() => canAfford(ac.purchase_price) && setSelectedAircraft(ac)}
+                          onClick={() => isPurchasable && setSelectedAircraft(ac)}
                         >
                           <div className="relative h-56 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
                             {ac.image_url ? (
@@ -419,11 +447,20 @@ export default function Fleet() {
                             <div className="flex items-center justify-between pt-3 border-t border-slate-700">
                               <div>
                                 <p className="text-xs text-slate-400 mb-1">KAUFPREIS</p>
-                                <p className={`text-xl font-bold ${canAfford(ac.purchase_price) ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <p className={`text-xl font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>
                                   ${ac.purchase_price?.toLocaleString()}
                                 </p>
+                                {ac.level_requirement && ac.level_requirement > 1 && (
+                                  <p className="text-xs text-amber-400 mt-1">Level {ac.level_requirement} benötigt</p>
+                                )}
                               </div>
-                              {!canAfford(ac.purchase_price) && (
+                              {!hasLevel && (
+                                <div className="text-center">
+                                  <p className="text-xs font-semibold text-amber-400">Level zu niedrig</p>
+                                  <p className="text-[10px] text-slate-400 mt-1">Level {ac.level_requirement} benötigt</p>
+                                </div>
+                              )}
+                              {hasLevel && !hasBalance && (
                                 <div className="text-center">
                                   <p className="text-xs font-semibold text-red-400">Zu teuer</p>
                                   <p className="text-[10px] text-slate-400 mt-1">${(ac.purchase_price - (company?.balance || 0)).toLocaleString()} mehr</p>
@@ -433,7 +470,8 @@ export default function Fleet() {
                           </div>
                         </Card>
                       </motion.div>
-                    ))}
+                    );
+                    })}
                   </div>
 
                   <DialogFooter className="gap-2">
