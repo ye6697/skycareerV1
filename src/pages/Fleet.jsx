@@ -305,7 +305,7 @@ export default function Fleet() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      refetchAircraft();
       queryClient.invalidateQueries({ queryKey: ['company'] });
       setIsPurchaseDialogOpen(false);
       setSelectedAircraft(null);
