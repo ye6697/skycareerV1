@@ -353,11 +353,11 @@ export default function FlightTracker() {
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
             
-            // Bei Crash: Wartungskosten = 70% des aktuellen Flugzeugwerts + Score auf 0
+            // Bei Crash: Wartungskosten = 70% des Neuwertes + Score auf 0
             let crashMaintenanceCost = 0;
             let finalScore = flightData.flightScore;
             if (hasCrashed) {
-              crashMaintenanceCost = newAircraftValue * 0.7;
+              crashMaintenanceCost = (airplaneToUpdate?.purchase_price || 0) * 0.7;
               finalScore = 0;
             }
 
