@@ -58,35 +58,55 @@ export default function FlightRating({ flight }) {
     </div>
   );
 
+  // Convert score (0-100) to ratings (0-5)
+  const getScoreColor = (score) => {
+    if (score >= 95) return "text-emerald-500";
+    if (score >= 85) return "text-green-500";
+    if (score >= 70) return "text-amber-500";
+    if (score >= 50) return "text-orange-500";
+    return "text-red-500";
+  };
+
+  const getScoreLabel = (score) => {
+    if (score >= 95) return "Ausgezeichnet";
+    if (score >= 85) return "Sehr Gut";
+    if (score >= 70) return "Gut";
+    if (score >= 50) return "Akzeptabel";
+    return "Schlecht";
+  };
+
+  const getScoreBgColor = (score) => {
+    if (score >= 95) return "bg-emerald-50 border-emerald-200 text-emerald-700";
+    if (score >= 85) return "bg-green-50 border-green-200 text-green-700";
+    if (score >= 70) return "bg-amber-50 border-amber-200 text-amber-700";
+    if (score >= 50) return "bg-orange-50 border-orange-200 text-orange-700";
+    return "bg-red-50 border-red-200 text-red-700";
+  };
+
+  const score = flight?.flight_score !== undefined ? flight.flight_score : 100;
+
   return (
     <Card className="p-6 bg-slate-800 border border-slate-700">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-white">Passagier-Bewertung</h3>
-        <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+        <h3 className="text-lg font-semibold text-white">Flug-Bewertung</h3>
+        <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl border border-slate-600">
           <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-          <span className={`text-2xl font-bold ${getRatingColor(flight?.overall_rating)}`}>
-            {flight?.overall_rating?.toFixed(1) || "-"}
+          <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
+            {Math.round(score)}
           </span>
-          <span className="text-sm text-slate-400">/ 5.0</span>
+          <span className="text-sm text-slate-400">/ 100</span>
         </div>
       </div>
 
       <div className="space-y-3 mb-6">
-        <RatingStars 
-          rating={flight?.takeoff_rating} 
-          label="Start" 
-          icon={PlaneTakeoff} 
-        />
-        <RatingStars 
-          rating={flight?.flight_rating} 
-          label="Flug" 
-          icon={Plane} 
-        />
-        <RatingStars 
-          rating={flight?.landing_rating} 
-          label="Landung" 
-          icon={PlaneLanding} 
-        />
+        <div className="p-3 bg-slate-900 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-300">Score</span>
+            <span className={`text-xl font-bold ${getScoreColor(score)}`}>
+              {Math.round(score)}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="p-4 bg-slate-900 rounded-lg mb-4">
@@ -96,9 +116,9 @@ export default function FlightRating({ flight }) {
               <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Landegeschw.</p>
               <p className={`text-xl font-mono font-bold ${
                 Math.abs(flight.landing_vs) < 100 ? 'text-emerald-400' :
-                Math.abs(flight.landing_vs) < 200 ? 'text-green-400' :
-                Math.abs(flight.landing_vs) < 300 ? 'text-amber-400' :
-                Math.abs(flight.landing_vs) < 500 ? 'text-orange-400' :
+                Math.abs(flight.landing_vs) < 150 ? 'text-green-400' :
+                Math.abs(flight.landing_vs) < 250 ? 'text-amber-400' :
+                Math.abs(flight.landing_vs) < 400 ? 'text-orange-400' :
                 'text-red-400'
               }`}>
                 {Math.abs(flight.landing_vs)} ft/min
@@ -167,9 +187,9 @@ export default function FlightRating({ flight }) {
         </div>
       )}
 
-      <div className={`mt-4 p-4 rounded-lg border ${getStatusBgColor(flight?.overall_rating)}`}>
+      <div className={`mt-4 p-4 rounded-lg border ${getScoreBgColor(score)}`}>
         <p className="text-sm font-semibold">
-          <strong>Status:</strong> {getRatingLabel(flight?.overall_rating)}
+          <strong>Status:</strong> {getScoreLabel(score)}
         </p>
       </div>
     </Card>

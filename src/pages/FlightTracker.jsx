@@ -70,69 +70,60 @@ export default function FlightTracker() {
     arrival_lon: 0
   });
 
-  // Calculate ratings in real-time
-  const calculateRatings = (data) => {
-    if (data.events.crash) {
-      return { takeoff: 1, flight: 1, landing: 1, overall: 1 };
-    }
-    
-    const landingRating = Math.abs(data.landingVs) < 100 ? 5 :
-                          Math.abs(data.landingVs) < 200 ? 4 :
-                          Math.abs(data.landingVs) < 300 ? 3 :
-                          Math.abs(data.landingVs) < 500 ? 2 : 1;
-
-    const gForceRating = data.maxGForce < 1.3 ? 5 :
-                         data.maxGForce < 1.5 ? 4 :
-                         data.maxGForce < 1.8 ? 3 :
-                         data.maxGForce < 2.0 ? 2 : 1;
-
-    const controlRating = data.maxControlInput < 0.3 ? 5 :
-                          data.maxControlInput < 0.5 ? 4 :
-                          data.maxControlInput < 0.7 ? 3 :
-                          data.maxControlInput < 0.9 ? 2 : 1;
-
-    const takeoffRating = 3 + Math.random() * 2;
-    const flightRating = (gForceRating + controlRating) / 2;
-    
-    // Include max G-force and controls in overall rating
-    const overall = (takeoffRating * 0.25 + flightRating * 0.25 + landingRating * 0.25 + gForceRating * 0.15 + controlRating * 0.10);
-
-    return {
-      takeoff: Math.round(takeoffRating * 10) / 10,
-      flight: Math.round(flightRating * 10) / 10,
-      landing: landingRating,
-      overall: Math.round(overall * 10) / 10
-    };
-  };
-
-  const ratings = calculateRatings(flightData);
-
-  const generateComments = (ratings, data) => {
+  const generateComments = (score, data) => {
     const comments = [];
     
     if (data.events.crash) {
-      comments.push("Flugzeug zerstört!");
+      comments.push("Flugzeug zerstört! Nie wieder!");
+      comments.push("Das war die schlimmste Erfahrung meines Lebens.");
       return comments;
     }
 
-    if (ratings.landing >= 4.5) {
+    // Landing-based comments
+    const landingVs = Math.abs(data.landingVs);
+    if (landingVs < 100) {
       comments.push("Butterweiche Landung! Professionell!");
-    } else if (ratings.landing <= 2) {
-      comments.push("Die Landung war etwas ruppig...");
-    } else {
+    } else if (landingVs < 150) {
+      comments.push("Sehr sanfte Landung, gut gemacht.");
+    } else if (landingVs < 250) {
       comments.push("Normale Landung.");
+    } else if (landingVs < 400) {
+      comments.push("Die Landung war etwas hart...");
+    } else {
+      comments.push("Das war eine sehr harte Landung!");
     }
 
-    if (ratings.flight >= 4) {
+    // G-force based comments
+    if (data.maxGForce > 2.0) {
+      comments.push("Mir wurde bei den extremen Manövern übel.");
+    } else if (data.maxGForce > 1.8) {
+      comments.push("Es war ziemlich wackelig während des Fluges.");
+    } else if (data.maxGForce < 1.3) {
       comments.push("Sehr angenehmer, sanfter Flug.");
-    } else if (ratings.flight <= 2) {
-      comments.push("Mir wurde bei den Turbulenzen übel.");
     }
 
-    if (ratings.overall >= 4.5) {
-      comments.push("Werde diese Airline weiterempfehlen!");
-    } else if (ratings.overall <= 2) {
+    // Score-based overall comments
+    if (score >= 95) {
+      comments.push("Perfekter Flug! Werde diese Airline weiterempfehlen!");
+    } else if (score >= 85) {
+      comments.push("Sehr guter Service, gerne wieder.");
+    } else if (score >= 70) {
+      comments.push("Solider Flug, nichts zu beanstanden.");
+    } else if (score >= 50) {
+      comments.push("Es war okay, aber es gibt Verbesserungspotenzial.");
+    } else {
       comments.push("Ich buche nie wieder hier.");
+    }
+
+    // Event-based comments
+    if (data.events.hard_landing) {
+      comments.push("Die Landung war erschreckend hart!");
+    }
+    if (data.events.tailstrike) {
+      comments.push("Ich habe gehört, wie das Heck aufgesetzt hat...");
+    }
+    if (data.events.stall) {
+      comments.push("Das Flugzeug ist ins Trudeln geraten!");
     }
 
     return comments;
@@ -206,9 +197,12 @@ export default function FlightTracker() {
     }
   });
 
-  // Update flight data from X-Plane log
+  // Update flight data from X-Plane log (freeze data after landing)
   useEffect(() => {
-    if (!xplaneLog?.raw_data || flightPhase === 'completed' || flightPhase === 'preflight') return;
+    if (!xplaneLog?.raw_data || flightPhase === 'preflight') return;
+    
+    // Don't update data if flight is completed
+    if (flightPhase === 'completed') return;
 
     const xp = xplaneLog.raw_data;
     
@@ -411,20 +405,21 @@ export default function FlightTracker() {
      const crewCostPerHour = 250; // $250 per flight hour (captain + first officer)
      const crewCost = flightHours * crewCostPerHour;
 
-     // Maintenance cost per flight hour
+     // Maintenance cost per flight hour + event-based costs
      const maintenanceCostPerHour = 400; // $400 per flight hour
-     const maintenanceCost = flightHours * maintenanceCostPerHour;
+     const maintenanceCost = (flightHours * maintenanceCostPerHour) + flightData.maintenanceCost;
 
      // Landing and airport fees
      const airportFee = 150;
 
      let revenue = contract?.payout || 0;
 
-     // Bonus based on rating
-     if (ratings.overall >= 4.5 && contract?.bonus_potential) {
+     // Bonus based on score
+     const score = flightData.flightScore;
+     if (score >= 95 && contract?.bonus_potential) {
        revenue += contract.bonus_potential;
-     } else if (ratings.overall >= 4) {
-       revenue += (contract?.bonus_potential || 0) * 0.5;
+     } else if (score >= 85 && contract?.bonus_potential) {
+       revenue += contract.bonus_potential * 0.5;
      }
 
      const profit = revenue - fuelCost - crewCost - maintenanceCost - airportFee;
@@ -438,14 +433,17 @@ export default function FlightTracker() {
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
 
+            // Calculate ratings based on score for database (for compatibility)
+            const scoreToRating = (s) => (s / 100) * 5;
+            
             // Update flight record
             await base44.entities.Flight.update(flight.id, {
               status: 'completed',
               arrival_time: new Date().toISOString(),
-              takeoff_rating: ratings.takeoff,
-              flight_rating: ratings.flight,
-              landing_rating: ratings.landing,
-              overall_rating: ratings.overall,
+              takeoff_rating: scoreToRating(flightData.flightScore),
+              flight_rating: scoreToRating(flightData.flightScore),
+              landing_rating: scoreToRating(flightData.flightScore),
+              overall_rating: scoreToRating(flightData.flightScore),
               landing_vs: flightData.landingVs,
               max_g_force: flightData.maxGForce,
               fuel_used_liters: fuelUsed,
@@ -455,7 +453,8 @@ export default function FlightTracker() {
               flight_duration_hours: flightHours,
               revenue,
               profit,
-              passenger_comments: generateComments(ratings, flightData)
+              passenger_comments: generateComments(flightData.flightScore, flightData),
+              xplane_data: flightData
             });
 
             // Update contract
@@ -476,9 +475,12 @@ export default function FlightTracker() {
 
             // Update company
             if (company) {
+              // Reputation based on score (0-100)
+              const reputationChange = hasCrashed ? -10 : Math.round((flightData.flightScore - 85) / 5);
+              
               await base44.entities.Company.update(company.id, {
                 balance: (company.balance || 0) + totalRevenue,
-                reputation: hasCrashed ? Math.max(0, (company.reputation || 50) - 10) : Math.min(100, Math.max(0, (company.reputation || 50) + (ratings.overall - 3) * 2)),
+                reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
                 total_flights: (company.total_flights || 0) + 1,
                 total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
                 total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
@@ -884,13 +886,12 @@ export default function FlightTracker() {
               <>
                 <FlightRating 
                   flight={{
-                    takeoff_rating: ratings.takeoff,
-                    flight_rating: ratings.flight,
-                    landing_rating: ratings.landing,
-                    overall_rating: ratings.overall,
+                    flight_score: flightData.flightScore,
                     landing_vs: flightData.landingVs,
                     max_g_force: flightData.maxGForce,
-                    passenger_comments: generateComments(ratings, flightData)
+                    fuel_used_liters: (100 - flightData.fuel) * 10,
+                    flight_duration_hours: contract?.distance_nm ? contract.distance_nm / 450 : 2,
+                    passenger_comments: generateComments(flightData.flightScore, flightData)
                   }} 
                 />
 
