@@ -303,6 +303,9 @@ export default function FlightTracker() {
 
   const completeFlightMutation = useMutation({
    mutationFn: async () => {
+     if (!flight) {
+       throw new Error('Flugdaten nicht geladen');
+     }
      if (!aircraft || aircraft.length === 0) {
        throw new Error('Flugzeugdaten nicht geladen');
      }
@@ -434,7 +437,16 @@ export default function FlightTracker() {
       return { profit, revenue, fuelCost };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries();
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['active-flight'] });
+      
+      // Redirect to completed flight details
+      setTimeout(() => {
+        navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`));
+      }, 500);
     }
   });
 

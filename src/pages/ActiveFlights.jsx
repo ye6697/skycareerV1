@@ -59,29 +59,22 @@ export default function ActiveFlights() {
 
   const { data: completedContracts = [] } = useQuery({
     queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
+    queryFn: async () => {
+      const completed = await base44.entities.Contract.filter({ status: 'completed' });
+      const failed = await base44.entities.Contract.filter({ status: 'failed' });
+      return [...completed, ...failed].sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date));
+    }
   });
 
-  const { data: allAircraft = [] } = useQuery({
-    queryKey: ['aircraft'],
-    queryFn: () => base44.entities.Aircraft.list()
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
-  const { data: allEmployees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list()
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
   });
-
-  // Filter aircraft that can fly (< 10% maintenance cost and available)
-  const aircraft = allAircraft.filter((ac) => {
-    const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-    const currentValue = ac.current_value || ac.purchase_price || 0;
-    const maintenancePercent = (maintenanceCost / currentValue) * 100;
-    const needsMaintenance = maintenancePercent > 10;
-    return ac.status === 'available' && !needsMaintenance;
-  });
-
-  const employees = allEmployees.filter((e) => e.status === 'available');
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -481,39 +474,17 @@ export default function ActiveFlights() {
                     <SelectValue placeholder="Flugzeug wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {allAircraft.map((ac) => {
-                      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-                      const currentValue = ac.current_value || ac.purchase_price || 0;
-                      const maintenancePercent = (maintenanceCost / currentValue) * 100;
-                      const needsMaintenance = maintenancePercent > 10;
-                      
+                    {aircraft.filter((ac) => {
+                      // Filter to only show compatible aircraft
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                      const statusOk = ac.status === 'available';
-                      const maintenanceOk = !needsMaintenance;
-                      
-                      const isAvailable = passengerOk && cargoOk && rangeOk && statusOk && maintenanceOk;
-                      
-                      let reason = '';
-                      if (!statusOk) reason = ac.status === 'in_flight' ? 'Im Flug' : ac.status === 'damaged' ? 'Beschädigt' : ac.status === 'maintenance' ? 'In Wartung' : 'Nicht verfügbar';
-                      else if (needsMaintenance) reason = 'Wartung erforderlich (>10%)';
-                      else if (!passengerOk) reason = 'Zu wenig Sitze';
-                      else if (!cargoOk) reason = 'Zu wenig Frachtraum';
-                      else if (!rangeOk) reason = 'Zu geringe Reichweite';
-                      
-                      return (
-                        <SelectItem 
-                          key={ac.id} 
-                          value={ac.id}
-                          disabled={!isAvailable}
-                          className={!isAvailable ? 'text-red-400 opacity-60' : ''}
-                        >
-                          {ac.name} ({ac.registration})
-                          {!isAvailable && <span className="text-xs ml-2">- {reason}</span>}
-                        </SelectItem>
-                      );
-                    })}
+                      return passengerOk && cargoOk && rangeOk;
+                    }).map((ac) =>
+                    <SelectItem key={ac.id} value={ac.id}>
+                        {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 {aircraft.length === 0 &&
@@ -530,7 +501,7 @@ export default function ActiveFlights() {
 
                 {['captain', 'first_officer', 'flight_attendant', 'loadmaster'].map((role) => {
                   const required = getCrewRequirement(selectedContract, role);
-                  const roleEmployees = allEmployees.filter((e) => e.role === role);
+                  const roleEmployees = employees.filter((e) => e.role === role);
 
                   if (required === 0 && roleEmployees.length === 0) return null;
 
@@ -551,25 +522,11 @@ export default function ActiveFlights() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
-                          {roleEmployees.map((emp) => {
-                            const isAvailable = emp.status === 'available';
-                            let reason = '';
-                            if (emp.status === 'on_duty') reason = 'Im Dienst';
-                            else if (emp.status === 'on_leave') reason = 'Im Urlaub';
-                            else if (emp.status === 'terminated') reason = 'Entlassen';
-                            
-                            return (
-                              <SelectItem 
-                                key={emp.id} 
-                                value={emp.id}
-                                disabled={!isAvailable}
-                                className={!isAvailable ? 'text-red-400 opacity-60' : ''}
-                              >
-                                {emp.name} (Skill: {emp.skill_rating})
-                                {!isAvailable && <span className="text-xs ml-2">- {reason}</span>}
-                              </SelectItem>
-                            );
-                          })}
+                          {roleEmployees.map((emp) =>
+                          <SelectItem key={emp.id} value={emp.id}>
+                              {emp.name} (Skill: {emp.skill_rating})
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       {required > 0 && !selectedCrew[role] &&
