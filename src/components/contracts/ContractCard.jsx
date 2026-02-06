@@ -11,7 +11,8 @@ import {
   Clock,
   DollarSign,
   ArrowRight,
-  Star } from
+  Star,
+  AlertTriangle } from
 "lucide-react";
 
 export default function ContractCard({ contract, onAccept, onView, isAccepting, ownedAircraft = [] }) {
@@ -33,49 +34,48 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
   const difficulty = difficultyConfig[contract.difficulty] || difficultyConfig.medium;
   const TypeIcon = config.icon;
 
-  // Check aircraft compatibility
-  const canFlyContract = () => {
-    if (!contract.required_aircraft_type || contract.required_aircraft_type.length === 0) return { canFly: true, reason: '' };
+  // Check if suitable aircraft is available
+  const suitableAircraft = ownedAircraft.filter((ac) => {
+    const typeOk = !contract?.required_aircraft_type || 
+                   contract.required_aircraft_type.length === 0 || 
+                   contract.required_aircraft_type.includes(ac.type);
+    const passengerOk = ac.passenger_capacity >= (contract?.passenger_count || 0);
+    const cargoOk = ac.cargo_capacity_kg >= (contract?.cargo_weight_kg || 0);
+    const rangeOk = ac.range_nm >= (contract?.distance_nm || 0);
+    const statusOk = ac.status === 'available';
     
-    const compatibleAircraft = ownedAircraft.filter(ac => {
-      const typeMatch = contract.required_aircraft_type.includes(ac.type);
-      const passengerOk = ac.passenger_capacity >= (contract.passenger_count || 0);
-      const cargoOk = ac.cargo_capacity_kg >= (contract.cargo_weight_kg || 0);
-      const rangeOk = ac.range_nm >= (contract.distance_nm || 0);
-      const statusOk = ac.status === 'available';
-      
-      const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-      const currentValue = ac.current_value || ac.purchase_price || 0;
-      const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
-      const maintenanceOk = maintenancePercent <= 10;
-      
-      return typeMatch && passengerOk && cargoOk && rangeOk && statusOk && maintenanceOk;
-    });
+    const maintenanceCost = ac.accumulated_maintenance_cost || 0;
+    const currentValue = ac.current_value || ac.purchase_price || 0;
+    const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
+    const maintenanceOk = maintenancePercent <= 10;
+    
+    return typeOk && passengerOk && cargoOk && rangeOk && statusOk && maintenanceOk;
+  });
 
-    if (compatibleAircraft.length === 0) {
-      const hasType = ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
-      if (!hasType) return { canFly: false, reason: 'Flugzeugtyp fehlt' };
-      
-      const typeAircraft = ownedAircraft.filter(ac => contract.required_aircraft_type.includes(ac.type));
-      const hasCapacity = typeAircraft.some(ac => 
-        ac.passenger_capacity >= (contract.passenger_count || 0) &&
-        ac.cargo_capacity_kg >= (contract.cargo_weight_kg || 0)
-      );
-      if (!hasCapacity) return { canFly: false, reason: 'Zu wenig Kapazität' };
-      
-      const hasRange = typeAircraft.some(ac => ac.range_nm >= (contract.distance_nm || 0));
-      if (!hasRange) return { canFly: false, reason: 'Reichweite zu gering' };
-      
-      const available = typeAircraft.filter(ac => ac.status === 'available');
-      if (available.length === 0) return { canFly: false, reason: 'Flugzeug nicht verfügbar' };
-      
-      return { canFly: false, reason: 'Wartung erforderlich (>10%)' };
+  const hasNoSuitableAircraft = ownedAircraft.length > 0 && suitableAircraft.length === 0;
+  
+  // Determine specific issue
+  let aircraftIssue = '';
+  if (hasNoSuitableAircraft) {
+    if (contract?.required_aircraft_type && contract.required_aircraft_type.length > 0) {
+      const hasRequiredType = ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
+      if (!hasRequiredType) {
+        const typeLabels = {
+          small_prop: 'Kleinflugzeug',
+          turboprop: 'Turboprop',
+          regional_jet: 'Regional Jet',
+          narrow_body: 'Narrow-Body',
+          wide_body: 'Wide-Body',
+          cargo: 'Frachtflugzeug'
+        };
+        aircraftIssue = `Benötigt: ${contract.required_aircraft_type.map(t => typeLabels[t] || t).join(' oder ')}`;
+      } else {
+        aircraftIssue = 'Flugzeug erfüllt Anforderungen nicht (Kapazität/Reichweite/Wartung)';
+      }
+    } else {
+      aircraftIssue = 'Kein passendes Flugzeug verfügbar';
     }
-    
-    return { canFly: true, reason: '' };
-  };
-
-  const aircraftCheck = canFlyContract();
+  }
 
   return (
     <motion.div
@@ -147,12 +147,13 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
             }
           </div>
 
-          {!aircraftCheck.canFly && (
-            <div className="mb-3 p-2 bg-amber-900/30 border border-amber-700 rounded-lg">
-              <p className="text-xs text-amber-300 flex items-center gap-1">
-                <Plane className="w-3 h-3" />
-                {aircraftCheck.reason}
-              </p>
+          {hasNoSuitableAircraft && (
+            <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg flex items-start gap-2 mb-4">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium text-amber-300">Kein geeignetes Flugzeug</p>
+                <p className="text-xs text-amber-400">{aircraftIssue}</p>
+              </div>
             </div>
           )}
 
@@ -177,7 +178,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
                 size="sm"
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={() => onAccept?.(contract)}
-                disabled={isAccepting || !aircraftCheck.canFly}>
+                disabled={isAccepting || hasNoSuitableAircraft}>
 
                   Annehmen
                 </Button>

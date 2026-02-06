@@ -55,6 +55,11 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
+  const { data: allAircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'all'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: { $ne: 'sold' } })
+  });
+
   const { data: recentFlights = [] } = useQuery({
     queryKey: ['flights', 'recent'],
     queryFn: () => base44.entities.Flight.filter({ status: 'completed' }, '-created_date', 5)
@@ -244,7 +249,7 @@ export default function Dashboard() {
           {contracts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {contracts.map((contract) => (
-                <ContractCard key={contract.id} contract={contract} />
+                <ContractCard key={contract.id} contract={contract} ownedAircraft={allAircraft} />
               ))}
             </div>
           ) : (
