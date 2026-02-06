@@ -270,52 +270,50 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </div>
           </div>
 
-          {aircraft.status === "maintenance" ? (
-            <div className="w-full p-3 bg-amber-100 border border-amber-300 rounded-lg mb-3">
-              <p className="text-sm text-amber-800 font-semibold mb-3">Wartung erforderlich</p>
-              <Button 
-                size="sm" 
-                className="w-full bg-amber-600 hover:bg-amber-700"
-                onClick={() => performMaintenanceMutation.mutate()}
-                disabled={performMaintenanceMutation.isPending}
-              >
-                <Wrench className="w-4 h-4 mr-1" />
-                {performMaintenanceMutation.isPending ? 'Warte...' : `Warten ($${maintenanceCost.toLocaleString()})`}
-              </Button>
-            </div>
-          ) : aircraft.status === "damaged" ? (
+          {aircraft.status === "damaged" ? (
             <div className="w-full p-3 bg-red-100 border border-red-300 rounded-lg mb-3">
               <p className="text-sm text-red-800 font-semibold mb-3">Flugzeug beschädigt</p>
               <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
-                <Button 
-                  size="sm" 
-                  className="w-full bg-amber-600 hover:bg-amber-700"
-                  onClick={() => setIsRepairDialogOpen(true)}
-                >
-                  <Hammer className="w-4 h-4 mr-1" />
-                  Reparieren oder Entsorgen
-                </Button>
-                <DialogContent>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    className="flex-1 bg-amber-600 hover:bg-amber-700"
+                    onClick={() => setIsRepairDialogOpen(true)}
+                  >
+                    <Hammer className="w-4 h-4 mr-1" />
+                    Reparieren
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => setIsRepairDialogOpen(true)}
+                    variant="destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Entsorgen
+                  </Button>
+                </div>
+                <DialogContent className="bg-slate-900 border-slate-700">
                   <DialogHeader>
-                    <DialogTitle>Flugzeug reparieren</DialogTitle>
+                    <DialogTitle className="text-white">Flugzeug reparieren oder entsorgen</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="p-4 bg-slate-100 rounded-lg space-y-3">
+                    <div className="p-4 bg-slate-800 rounded-lg space-y-3">
                       <div>
-                        <p className="text-sm text-slate-600 mb-2">Reparaturkosten (30% des Neuwertes):</p>
-                        <p className="text-2xl font-bold text-amber-700">${repairCost.toLocaleString()}</p>
+                        <p className="text-sm text-slate-400 mb-2">Reparaturkosten (30% des Neuwertes):</p>
+                        <p className="text-2xl font-bold text-amber-400">${repairCost.toLocaleString()}</p>
                       </div>
-                      <div className="border-t pt-3">
-                        <p className="text-sm text-slate-600 mb-2">Verschrottungswert (10% des aktuellen Wertes):</p>
-                        <p className="text-xl font-bold text-slate-600">${scrapValue.toLocaleString()}</p>
+                      <div className="border-t border-slate-700 pt-3">
+                        <p className="text-sm text-slate-400 mb-2">Verschrottungswert (10% des aktuellen Wertes):</p>
+                        <p className="text-xl font-bold text-slate-300">${scrapValue.toLocaleString()}</p>
                       </div>
                     </div>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-400">
                       Das Flugzeug wird nach der Reparatur wieder einsatzfähig oder du kannst es verschrotten.
                     </p>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)}>
+                    <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)} className="border-slate-600 text-slate-300">
                       Abbrechen
                     </Button>
                     <Button 
@@ -323,7 +321,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                       disabled={repairMutation.isPending}
                       className="bg-amber-600 hover:bg-amber-700"
                     >
-                      {repairMutation.isPending ? 'Repariere...' : 'Reparieren'}
+                      {repairMutation.isPending ? 'Repariere...' : `Reparieren ($${repairCost.toLocaleString()})`}
                     </Button>
                     <Button 
                       onClick={() => scrapMutation.mutate()}
@@ -338,38 +336,51 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               </Dialog>
             </div>
           ) : aircraft.status === "available" ? (
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                onClick={() => onSelect?.(aircraft)}
-              >
-                Auswählen
-              </Button>
-              <Button 
-                size="sm" 
-                className="flex-1 bg-slate-600 hover:bg-slate-700"
-                onClick={() => setIsSellDialogOpen(true)}
-              >
-                <DollarSign className="w-4 h-4 mr-1" />
-                Verkaufen
-              </Button>
+            <div className="space-y-2">
+              {maintenanceCost > 0 && (
+                <Button 
+                  size="sm" 
+                  className="w-full bg-amber-600 hover:bg-amber-700"
+                  onClick={() => performMaintenanceMutation.mutate()}
+                  disabled={performMaintenanceMutation.isPending}
+                >
+                  <Wrench className="w-4 h-4 mr-1" />
+                  {performMaintenanceMutation.isPending ? 'Warte...' : `Warten ($${maintenanceCost.toLocaleString()})`}
+                </Button>
+              )}
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  onClick={() => onSelect?.(aircraft)}
+                >
+                  Auswählen
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-slate-600 hover:bg-slate-700"
+                  onClick={() => setIsSellDialogOpen(true)}
+                >
+                  <DollarSign className="w-4 h-4 mr-1" />
+                  Verkaufen
+                </Button>
+              </div>
               <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
-                <DialogContent>
+                <DialogContent className="bg-slate-900 border-slate-700">
                   <DialogHeader>
-                    <DialogTitle>Flugzeug verkaufen</DialogTitle>
+                    <DialogTitle className="text-white">Flugzeug verkaufen</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="p-4 bg-slate-100 rounded-lg">
-                      <p className="text-sm text-slate-600 mb-2">Verkaufspreis (85% des aktuellen Wertes):</p>
-                      <p className="text-2xl font-bold text-emerald-700">${sellPrice.toLocaleString()}</p>
+                    <div className="p-4 bg-slate-800 rounded-lg">
+                      <p className="text-sm text-slate-400 mb-2">Verkaufspreis (85% des aktuellen Wertes):</p>
+                      <p className="text-2xl font-bold text-emerald-400">${sellPrice.toLocaleString()}</p>
                     </div>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-400">
                       Das Flugzeug wird aus deiner Flotte entfernt.
                     </p>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsSellDialogOpen(false)}>
+                    <Button variant="outline" onClick={() => setIsSellDialogOpen(false)} className="border-slate-600 text-slate-300">
                       Abbrechen
                     </Button>
                     <Button 
