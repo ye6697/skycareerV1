@@ -248,36 +248,23 @@ const AIRCRAFT_MARKET = [
 export default function Fleet() {
   const { state } = useLocation();
   const queryClient = useQueryClient();
-
-  // Debug log state
-  React.useEffect(() => {
-    if (state?.updatedAircraft) {
-      console.log('🔄 Fleet: State empfangen mit updatedAircraft:', state.updatedAircraft);
-    }
-  }, [state]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
 
+  // Wenn state mit updatedAircraft kommt, NICHT von Datenbank laden
+  const shouldLoadFromDB = !state?.updatedAircraft;
+
   const { data: aircraft = [], isLoading, refetch: refetchAircraft } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
-      console.log('🔄 Fleet: Lade Flugzeuge NEU von Datenbank...');
-      const allAircraft = await base44.entities.Aircraft.list('-created_date');
-      console.log('✅ Fleet: Flugzeuge geladen:', allAircraft.map(a => ({ 
-        id: a.id, 
-        name: a.name, 
-        status: a.status, 
-        accumulated_maintenance_cost: a.accumulated_maintenance_cost 
-      })));
-      return allAircraft;
+      if (!shouldLoadFromDB) return [];
+      return await base44.entities.Aircraft.list('-created_date');
     },
-    staleTime: 0,
-    cacheTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchInterval: 5000
+    enabled: shouldLoadFromDB,
+    staleTime: Infinity,
+    cacheTime: Infinity
   });
 
   const { data: company } = useQuery({
