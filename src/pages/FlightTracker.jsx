@@ -277,7 +277,7 @@ export default function FlightTracker() {
           flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
           fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-          crash: xp.crash || prev.events.crash,
+          crash: (xp.crash && xp.on_ground) || prev.events.crash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
           high_g_force: newMaxGForce > 1.8 || prev.events.high_g_force,
           hard_landing: (xp.touchdown_vspeed && xp.touchdown_vspeed < -600) || prev.events.hard_landing
