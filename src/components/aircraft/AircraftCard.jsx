@@ -213,27 +213,46 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </span>
           </div>
 
-          {maintenanceCost > 0 && (
-            <div className={`p-3 rounded-lg mb-4 ${needsMaintenance ? 'bg-red-900/30 border border-red-700' : 'bg-amber-900/30 border border-amber-700'}`}>
-              <div className="flex items-center justify-between text-sm mb-1">
-                <div className="flex items-center gap-2">
+          <div className={`p-3 rounded-lg mb-4 ${
+            maintenanceCost > 0 
+              ? (needsMaintenance ? 'bg-red-900/30 border border-red-700' : 'bg-amber-900/30 border border-amber-700')
+              : 'bg-slate-900 border border-slate-700'
+          }`}>
+            <div className="flex items-center justify-between text-sm mb-1">
+              <div className="flex items-center gap-2">
+                {maintenanceCost > 0 ? (
                   <AlertTriangle className={`w-4 h-4 ${needsMaintenance ? 'text-red-400' : 'text-amber-400'}`} />
-                  <span className={needsMaintenance ? 'text-red-300 font-semibold' : 'text-amber-300'}>
-                    {needsMaintenance ? 'Wartung erforderlich!' : 'Wartungskosten'}
-                  </span>
-                </div>
-                <span className={`font-bold ${needsMaintenance ? 'text-red-400' : 'text-amber-400'}`}>
-                  ${maintenanceCost.toLocaleString()}
+                ) : (
+                  <Wrench className="w-4 h-4 text-slate-400" />
+                )}
+                <span className={
+                  maintenanceCost > 0
+                    ? (needsMaintenance ? 'text-red-300 font-semibold' : 'text-amber-300')
+                    : 'text-slate-400'
+                }>
+                  {maintenanceCost > 0 
+                    ? (needsMaintenance ? 'Wartung erforderlich!' : 'Wartungskosten akkumuliert')
+                    : 'Wartungskosten'
+                  }
                 </span>
               </div>
+              <span className={`font-bold ${
+                maintenanceCost > 0
+                  ? (needsMaintenance ? 'text-red-400' : 'text-amber-400')
+                  : 'text-slate-300'
+              }`}>
+                ${maintenanceCost.toLocaleString()}
+              </span>
+            </div>
+            {maintenanceCost > 0 && (
               <div className="text-xs text-slate-400 mt-1">
                 {needsMaintenance 
                   ? 'Flugzeug muss gewartet werden (>10% des Wertes)'
                   : `${((maintenanceCost / currentValue) * 100).toFixed(1)}% des Wertes`
                 }
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Current & Depreciation Value */}
           <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
