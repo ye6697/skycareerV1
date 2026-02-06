@@ -253,7 +253,9 @@ export default function Fleet() {
 
   const { data: aircraft = [], isLoading } = useQuery({
     queryKey: ['aircraft'],
-    queryFn: () => base44.entities.Aircraft.list('-created_date')
+    queryFn: () => base44.entities.Aircraft.list('-created_date'),
+    staleTime: 0,
+    refetchOnMount: 'always'
   });
 
   const { data: company } = useQuery({
