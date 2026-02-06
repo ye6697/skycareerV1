@@ -232,21 +232,33 @@ export default function FlightTracker() {
         baseScore = Math.max(0, baseScore - controlPenalty);
       }
       
+      // Calculate maintenance cost increase based on NEW events only
+      let maintenanceCostIncrease = 0;
+      
       // Deduct points for critical events (only once when they occur)
       if (xp.tailstrike && !prev.events.tailstrike) {
         baseScore = Math.max(0, baseScore - 50);
+        maintenanceCostIncrease += 5000;
       }
       if (xp.stall && !prev.events.stall) {
         baseScore = Math.max(0, baseScore - 40);
+        maintenanceCostIncrease += 2000;
       }
       if (xp.overstress && !prev.events.overstress) {
         baseScore = Math.max(0, baseScore - 30);
+        maintenanceCostIncrease += 3000;
       }
       
       // Check for hard landing (vertical speed worse than -600 fpm)
       const hardLanding = xp.touchdown_vspeed && xp.touchdown_vspeed < -600;
       if (hardLanding && !prev.events.hard_landing) {
         baseScore = Math.max(0, baseScore - 35);
+        maintenanceCostIncrease += 4000;
+      }
+      
+      // Additional maintenance cost for new maximum G-force
+      if (newMaxGForce > prev.maxGForce && newMaxGForce > 1.8) {
+        maintenanceCostIncrease += (newMaxGForce - Math.max(prev.maxGForce, 1.8)) * 1000;
       }
       
       // Store departure/arrival coordinates from first X-Plane data
@@ -266,7 +278,7 @@ export default function FlightTracker() {
         maxGForce: newMaxGForce,
         landingVs: xp.touchdown_vspeed || prev.landingVs,
         flightScore: baseScore,
-        maintenanceCost: prev.maintenanceCost,
+        maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
         reputation: xp.reputation || prev.reputation,
         latitude: xp.latitude || prev.latitude,
         longitude: xp.longitude || prev.longitude,
