@@ -60,7 +60,8 @@ export default function FlightTracker() {
       gear_up_landing: false,
       crash: false,
       harsh_controls: false,
-      high_g_force: false
+      high_g_force: false,
+      hard_landing: false
     },
     maxControlInput: 0,
     departure_lat: 0,
@@ -242,6 +243,12 @@ export default function FlightTracker() {
         baseScore = Math.max(0, baseScore - 30);
       }
       
+      // Check for hard landing (vertical speed worse than -600 fpm)
+      const hardLanding = xp.touchdown_vspeed && xp.touchdown_vspeed < -600;
+      if (hardLanding && !prev.events.hard_landing) {
+        baseScore = Math.max(0, baseScore - 35);
+      }
+      
       // Store departure/arrival coordinates from first X-Plane data
       const depLat = prev.departure_lat || xp.departure_lat || 0;
       const depLon = prev.departure_lon || xp.departure_lon || 0;
@@ -276,7 +283,8 @@ export default function FlightTracker() {
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
           crash: xp.crash || prev.events.crash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
-          high_g_force: newMaxGForce > 1.8 || prev.events.high_g_force
+          high_g_force: newMaxGForce > 1.8 || prev.events.high_g_force,
+          hard_landing: (xp.touchdown_vspeed && xp.touchdown_vspeed < -600) || prev.events.hard_landing
         },
         maxControlInput: newMaxControlInput
       };
@@ -794,6 +802,12 @@ export default function FlightTracker() {
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Hohe G-Kräfte
+                          </div>
+                        )}
+                        {flightData.events.hard_landing && (
+                          <div className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Harte Landung (-35 Punkte)
                           </div>
                         )}
                         </div>
