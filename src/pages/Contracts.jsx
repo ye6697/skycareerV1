@@ -220,24 +220,34 @@ export default function Contracts() {
             ))}
           </div>
         ) : filteredContracts.length > 0 ? (
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-            layout
-          >
-            <AnimatePresence>
-              {filteredContracts.map((contract) => (
-                <ContractCard
-                  key={contract.id}
-                  contract={contract}
-                  onAccept={handleAccept}
-                  onView={handleView}
-                  isAccepting={acceptContractMutation.isPending}
-                  ownedAircraft={ownedAircraft}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        ) : (
+           <>
+             <motion.div 
+               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"
+               layout
+             >
+               <AnimatePresence>
+                 {filteredContracts.map((contract) => (
+                   <ContractCard
+                     key={contract.id}
+                     contract={contract}
+                     onAccept={handleAccept}
+                     onView={handleView}
+                     isAccepting={acceptContractMutation.isPending}
+                     ownedAircraft={ownedAircraft}
+                   />
+                 ))}
+               </AnimatePresence>
+             </motion.div>
+             <div className="flex justify-center">
+               <Button 
+                 onClick={() => setOffset(offset + 10)}
+                 className="bg-blue-600 hover:bg-blue-700"
+               >
+                 Nächste 10 Aufträge laden
+               </Button>
+             </div>
+           </>
+         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
           <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">Keine Aufträge gefunden</h3>
