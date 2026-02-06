@@ -28,6 +28,7 @@ export default function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
+  const [offset, setOffset] = useState(0);
 
   const { data: company } = useQuery({
     queryKey: ['company'],
