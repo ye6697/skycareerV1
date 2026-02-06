@@ -248,6 +248,13 @@ const AIRCRAFT_MARKET = [
 export default function Fleet() {
   const { state } = useLocation();
   const queryClient = useQueryClient();
+
+  // Debug log state
+  React.useEffect(() => {
+    if (state?.updatedAircraft) {
+      console.log('🔄 Fleet: State empfangen mit updatedAircraft:', state.updatedAircraft);
+    }
+  }, [state]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
