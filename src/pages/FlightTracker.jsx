@@ -408,12 +408,15 @@ export default function FlightTracker() {
 
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (flight?.aircraft_id) {
-              await base44.entities.Aircraft.update(flight.aircraft_id, {
+              const aircraftUpdate = {
                 status: hasCrashed ? 'damaged' : 'available',
                 total_flight_hours: newFlightHours,
                 current_value: hasCrashed ? 0 : newAircraftValue,
                 accumulated_maintenance_cost: newAccumulatedCost
-              });
+              };
+              
+              console.log('Aktualisiere Flugzeug:', flight.aircraft_id, aircraftUpdate);
+              await base44.entities.Aircraft.update(flight.aircraft_id, aircraftUpdate);
             }
 
             // Free up crew
