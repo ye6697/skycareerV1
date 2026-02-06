@@ -320,9 +320,7 @@ export default function Fleet() {
       return {
         ...ac,
         status: state.updatedAircraft.status,
-        accumulated_maintenance_cost: state.updatedAircraft.accumulated_maintenance_cost,
-        total_flight_hours: (ac.total_flight_hours || 0) + (state.updatedAircraft.total_flight_hours || 0),
-        current_value: state.updatedAircraft.current_value ?? ac.current_value
+        accumulated_maintenance_cost: state.updatedAircraft.accumulated_maintenance_cost
       };
     }
     return ac;
