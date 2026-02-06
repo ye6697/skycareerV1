@@ -299,8 +299,8 @@ export default function FlightTracker() {
       }
     }
 
-    // Check if landed and parked
-    if (xp.on_ground && xp.park_brake && flightPhase !== 'completed' && flightPhase !== 'preflight') {
+    // Check if landed and parked - only after actually being in the air
+    if (xp.on_ground && xp.park_brake && flightPhase === 'landing' && flightData.altitude > 500) {
       setFlightPhase('completed');
     }
   }, [xplaneLog, flight, flightPhase]);
