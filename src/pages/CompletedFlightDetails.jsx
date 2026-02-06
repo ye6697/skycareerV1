@@ -91,27 +91,30 @@ export default function CompletedFlightDetails() {
               Zurück
             </Button>
             {flight && (
-              <Button 
-                variant="ghost"
-                onClick={() => {
-                  const currentValue = (flight.xplane_data?.current_value) || 0;
-                  const newValue = currentValue - flight.maintenance_cost;
-                  navigate(createPageUrl("Fleet"), { 
-                    state: { 
-                      updatedAircraft: {
-                        id: flight.aircraft_id,
-                        status: flight.status === 'completed' ? 'available' : 'damaged',
-                        maintenance_cost: flight.maintenance_cost || 0,
-                        current_value: newValue
-                      }
-                    }
-                  });
-                }}
-                className="mb-4 text-slate-400 hover:text-white"
-              >
-                Zur Flotte
-              </Button>
-            )}
+               <Button 
+                 variant="ghost"
+                 onClick={async () => {
+                   const aircraftList = await base44.entities.Aircraft.filter({ id: flight.aircraft_id });
+                   const originalAircraft = aircraftList[0];
+                   if (!originalAircraft) return;
+
+                   const newValue = (originalAircraft.current_value || originalAircraft.purchase_price || 0) - flight.maintenance_cost;
+                   navigate(createPageUrl("Fleet"), { 
+                     state: { 
+                       updatedAircraft: {
+                         ...originalAircraft,
+                         status: flight.status === 'completed' ? 'available' : 'damaged',
+                         accumulated_maintenance_cost: (originalAircraft.accumulated_maintenance_cost || 0) + flight.maintenance_cost,
+                         current_value: Math.max(0, newValue)
+                       }
+                     }
+                   });
+                 }}
+                 className="mb-4 text-slate-400 hover:text-white"
+               >
+                 Zur Flotte
+               </Button>
+             )}
           </div>
 
           <div className="flex items-start justify-between">
