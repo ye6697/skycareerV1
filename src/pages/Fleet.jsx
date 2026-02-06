@@ -310,7 +310,10 @@ export default function Fleet() {
       }
     },
     onSuccess: () => {
-      refetchAircraft();
+      (async () => {
+        const aircraftList = await base44.entities.Aircraft.list('-created_date');
+        setFleetAircraft(aircraftList);
+      })();
       queryClient.invalidateQueries({ queryKey: ['company'] });
       setIsPurchaseDialogOpen(false);
       setSelectedAircraft(null);
