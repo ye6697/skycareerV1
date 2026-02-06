@@ -240,9 +240,12 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {flight.xplane_data.events.flaps_overspeed && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Klappen-Overspeed
+                        <div className="flex items-center justify-between text-orange-400 text-sm">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            Klappen-Overspeed
+                          </div>
+                          <span className="font-mono">+2.5% Wartung</span>
                         </div>
                       )}
                       {flight.xplane_data.events.gear_up_landing && (
