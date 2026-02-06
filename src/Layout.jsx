@@ -177,11 +177,19 @@ export default function Layout({ children, currentPageName }) {
 
         <div className="p-4 border-t border-slate-700 space-y-3">
                   <div className="p-3 bg-slate-900 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Star className="w-4 h-4 text-amber-400" />
-                      <span className="text-xs text-slate-400 font-medium">Level</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs text-slate-400 font-medium">Level {company?.level || 1}</span>
+                      </div>
+                      <span className="text-xs text-slate-400">{company?.experience_points || 0}/100 XP</span>
                     </div>
-                    <p className="text-sm font-semibold text-amber-400">{company?.level || 1}</p>
+                    <div className="w-full bg-slate-700 rounded-full h-2">
+                      <div 
+                        className="bg-amber-400 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${company?.experience_points || 0}%` }}
+                      />
+                    </div>
                   </div>
                   <div className="p-3 bg-slate-900 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">

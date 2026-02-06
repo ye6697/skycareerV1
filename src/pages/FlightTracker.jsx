@@ -395,9 +395,17 @@ export default function FlightTracker() {
               // Reputation based on score (0-100)
               const reputationChange = hasCrashed ? -10 : Math.round((flightData.flightScore - 85) / 5);
               
+              // XP and Level system
+              const earnedXP = Math.round(flightData.flightScore);
+              const currentXP = (company.experience_points || 0) + earnedXP;
+              const newLevel = company.level + Math.floor(currentXP / 100);
+              const remainingXP = currentXP % 100;
+              
               await base44.entities.Company.update(company.id, {
                 balance: (company.balance || 0) + totalRevenue,
                 reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
+                level: newLevel,
+                experience_points: remainingXP,
                 total_flights: (company.total_flights || 0) + 1,
                 total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
                 total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
@@ -577,6 +585,14 @@ export default function FlightTracker() {
     
     // Use real coordinates from X-Plane
     if (flightData.departure_lat && flightData.arrival_lat && flightData.latitude) {
+      // Only calculate if we have moved from departure
+      const distanceFromDeparture = calculateHaversineDistance(
+        flightData.departure_lat, flightData.departure_lon,
+        flightData.latitude, flightData.longitude
+      );
+      
+      if (distanceFromDeparture < 5) return 0;
+      
       const totalDistance = calculateHaversineDistance(
         flightData.departure_lat, flightData.departure_lon,
         flightData.arrival_lat, flightData.arrival_lon
@@ -589,11 +605,6 @@ export default function FlightTracker() {
       return Math.max(0, Math.min(100, progress));
     }
     
-    // Fallback: simulate based on flight phase
-    if (flightPhase === 'takeoff') return 10;
-    if (flightPhase === 'cruise') return 50;
-    if (flightPhase === 'landing') return 85;
-    if (flightPhase === 'completed') return 100;
     return 0;
   };
 
