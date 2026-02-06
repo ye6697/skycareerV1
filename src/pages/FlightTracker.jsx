@@ -80,7 +80,9 @@ export default function FlightTracker() {
 
     const takeoffRating = 3 + Math.random() * 2;
     const flightRating = gForceRating;
-    const overall = (takeoffRating + flightRating + landingRating) / 3;
+    
+    // Include max G-force in overall rating (25% weight)
+    const overall = (takeoffRating * 0.25 + flightRating * 0.25 + landingRating * 0.25 + gForceRating * 0.25);
 
     return {
       takeoff: Math.round(takeoffRating * 10) / 10,
@@ -487,13 +489,13 @@ export default function FlightTracker() {
                   <Fuel className="w-5 h-5 text-amber-400" />
                   Treibstoff
                 </h3>
-                <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
+                <span className="text-amber-400 font-mono">{(flightData.fuelKg / 1000).toFixed(1)} t</span>
               </div>
               <Progress value={flightData.fuel} className="h-3 bg-slate-700 mb-3" />
               <div className="p-2 bg-slate-900 rounded text-center">
                 <p className="text-xs text-slate-400">Treibstoff</p>
                 <p className="text-lg font-mono font-bold text-amber-400">
-                  {Math.round(flightData.fuelKg)} kg
+                  {(flightData.fuelKg / 1000).toFixed(2)} t
                 </p>
               </div>
               {flightData.events.fuel_emergency && (
@@ -569,7 +571,7 @@ export default function FlightTracker() {
                         {flightData.events.flaps_overspeed && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Klappen zu schnell
+                            Klappen Übergeschwindigkeit
                           </div>
                         )}
                         {flightData.events.gear_up_landing && (

@@ -52,6 +52,7 @@ import CompletedFlightDetails from './pages/CompletedFlightDetails';
 import ContractDetails from './pages/ContractDetails';
 import Contracts from './pages/Contracts';
 import Dashboard from './pages/Dashboard';
+import EmployeeDetails from './pages/EmployeeDetails';
 import Employees from './pages/Employees';
 import Finances from './pages/Finances';
 import Fleet from './pages/Fleet';
@@ -60,7 +61,6 @@ import FlightTracker from './pages/FlightTracker';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
-import EmployeeDetails from './pages/EmployeeDetails';
 import __Layout from './Layout.jsx';
 
 
@@ -70,6 +70,7 @@ export const PAGES = {
     "ContractDetails": ContractDetails,
     "Contracts": Contracts,
     "Dashboard": Dashboard,
+    "EmployeeDetails": EmployeeDetails,
     "Employees": Employees,
     "Finances": Finances,
     "Fleet": Fleet,
@@ -78,7 +79,6 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
-    "EmployeeDetails": EmployeeDetails,
 }
 
 export const pagesConfig = {
