@@ -390,6 +390,7 @@ export default function FlightTracker() {
             });
 
             // Update contract
+            console.log('Aktualisiere Contract Status:', flight.contract_id, hasCrashed ? 'failed' : 'completed');
             await base44.entities.Contract.update(flight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
 
             // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen
@@ -419,13 +420,16 @@ export default function FlightTracker() {
               await base44.entities.Aircraft.update(flight.aircraft_id, aircraftUpdate);
             }
 
-            // Free up crew
-            if (flight?.crew) {
+            // Free up crew - SOFORT Status auf available setzen
+            if (flight?.crew && Array.isArray(flight.crew)) {
+              console.log('Aktualisiere Crew Status:', flight.crew);
               for (const member of flight.crew) {
-                await base44.entities.Employee.update(member.employee_id, {
+                const employeeUpdate = {
                   status: 'available',
                   total_flight_hours: (member.total_flight_hours || 0) + flightHours
-                });
+                };
+                console.log('Update Employee:', member.employee_id, employeeUpdate);
+                await base44.entities.Employee.update(member.employee_id, employeeUpdate);
               }
             }
 
@@ -470,19 +474,24 @@ export default function FlightTracker() {
 
       return { profit, revenue, fuelCost };
     },
-    onSuccess: () => {
-      // Invalidate alle relevanten Queries für sofortige UI-Aktualisierung
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      queryClient.invalidateQueries({ queryKey: ['company'] });
-      queryClient.invalidateQueries({ queryKey: ['active-flight'] });
-      queryClient.invalidateQueries({ queryKey: ['flights'] });
+    onSuccess: async () => {
+      console.log('✅ Flug erfolgreich abgeschlossen - invalidiere alle Queries');
+      
+      // SOFORT alle Queries invalidieren und refetchen
+      await queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      await queryClient.invalidateQueries({ queryKey: ['employees'] });
+      await queryClient.invalidateQueries({ queryKey: ['company'] });
+      await queryClient.invalidateQueries({ queryKey: ['active-flight'] });
+      await queryClient.invalidateQueries({ queryKey: ['flights'] });
+      
+      // Warte kurz damit die Updates durchgehen
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('✅ Queries invalidiert - navigiere zu CompletedFlightDetails');
       
       // Redirect to completed flight details
-      setTimeout(() => {
-        navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`));
-      }, 500);
+      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`));
     }
   });
 
