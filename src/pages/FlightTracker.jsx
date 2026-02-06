@@ -470,12 +470,18 @@ export default function FlightTracker() {
             // Update contract
             await base44.entities.Contract.update(flight.contract_id, { status: 'completed' });
 
-            // Update aircraft with depreciation and crash status
+            // Check if maintenance is required (accumulated cost > 10% of current value)
+            const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
+            const newAccumulatedCost = currentAccumulatedCost + flightData.maintenanceCost;
+            const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
+
+            // Update aircraft with depreciation, crash status, and maintenance costs
             if (flight?.aircraft_id) {
               await base44.entities.Aircraft.update(flight.aircraft_id, {
-                status: hasCrashed ? 'damaged' : 'available',
+                status: hasCrashed ? 'damaged' : (requiresMaintenance ? 'maintenance' : 'available'),
                 total_flight_hours: newFlightHours,
-                current_value: newAircraftValue
+                current_value: newAircraftValue,
+                accumulated_maintenance_cost: newAccumulatedCost
               });
             }
 

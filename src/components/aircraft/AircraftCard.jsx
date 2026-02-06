@@ -49,6 +49,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const repairCost = (aircraft.purchase_price || 0) * 0.35;
   const scrapValue = (aircraft.purchase_price || 0) * 0.1;
+  const maintenanceCost = aircraft.accumulated_maintenance_cost || 0;
+  const currentValue = aircraft.current_value || aircraft.purchase_price || 0;
+  const needsMaintenance = maintenanceCost > (currentValue * 0.1);
 
   const repairMutation = useMutation({
     mutationFn: async () => {
@@ -115,6 +118,32 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       setIsSellDialogOpen(false);
+    }
+  });
+
+  const performMaintenanceMutation = useMutation({
+    mutationFn: async () => {
+      const company = (await base44.entities.Company.list())[0];
+      if (!company) throw new Error('Unternehmen nicht gefunden');
+
+      const cost = maintenanceCost;
+
+      await base44.entities.Aircraft.update(aircraft.id, { 
+        status: 'available',
+        accumulated_maintenance_cost: 0
+      });
+      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - cost });
+      await base44.entities.Transaction.create({
+        type: 'expense',
+        category: 'maintenance',
+        amount: cost,
+        description: `Wartung: ${aircraft.name}`,
+        date: new Date().toISOString()
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
     }
   });
 
@@ -194,6 +223,28 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </span>
           </div>
 
+          {maintenanceCost > 0 && (
+            <div className={`p-3 rounded-lg mb-4 ${needsMaintenance ? 'bg-red-900/30 border border-red-700' : 'bg-amber-900/30 border border-amber-700'}`}>
+              <div className="flex items-center justify-between text-sm mb-1">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className={`w-4 h-4 ${needsMaintenance ? 'text-red-400' : 'text-amber-400'}`} />
+                  <span className={needsMaintenance ? 'text-red-300 font-semibold' : 'text-amber-300'}>
+                    {needsMaintenance ? 'Wartung erforderlich!' : 'Wartungskosten'}
+                  </span>
+                </div>
+                <span className={`font-bold ${needsMaintenance ? 'text-red-400' : 'text-amber-400'}`}>
+                  ${maintenanceCost.toLocaleString()}
+                </span>
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                {needsMaintenance 
+                  ? 'Flugzeug muss gewartet werden (>10% des Wertes)'
+                  : `${((maintenanceCost / currentValue) * 100).toFixed(1)}% des Wertes`
+                }
+              </div>
+            </div>
+          )}
+
           {/* Current & Depreciation Value */}
           <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
@@ -210,7 +261,20 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </div>
           </div>
 
-          {aircraft.status === "damaged" ? (
+          {aircraft.status === "maintenance" ? (
+            <div className="w-full p-3 bg-amber-100 border border-amber-300 rounded-lg mb-3">
+              <p className="text-sm text-amber-800 font-semibold mb-3">Wartung erforderlich</p>
+              <Button 
+                size="sm" 
+                className="w-full bg-amber-600 hover:bg-amber-700"
+                onClick={() => performMaintenanceMutation.mutate()}
+                disabled={performMaintenanceMutation.isPending}
+              >
+                <Wrench className="w-4 h-4 mr-1" />
+                {performMaintenanceMutation.isPending ? 'Warte...' : `Warten ($${maintenanceCost.toLocaleString()})`}
+              </Button>
+            </div>
+          ) : aircraft.status === "damaged" ? (
             <div className="w-full p-3 bg-red-100 border border-red-300 rounded-lg mb-3">
               <p className="text-sm text-red-800 font-semibold mb-3">Flugzeug beschädigt</p>
               <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
