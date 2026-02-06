@@ -51,8 +51,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
   const maintenanceCost = aircraft.accumulated_maintenance_cost || 0;
   const currentValue = aircraft.current_value || aircraft.purchase_price || 0;
-  const needsMaintenance = maintenanceCost > (currentValue * 0.1);
-  const showMaintenanceButton = maintenanceCost > (currentValue * 0.01);
+  const maintenancePercent = (maintenanceCost / currentValue) * 100;
+  const needsMaintenance = maintenancePercent > 10;
+  const showMaintenanceButton = maintenancePercent >= 1;
   const canFly = !needsMaintenance;
 
   const repairMutation = useMutation({
@@ -337,7 +338,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                 </DialogContent>
               </Dialog>
             </div>
-          ) : aircraft.status === "available" ? (
+          ) : (aircraft.status === "available" || aircraft.status === "maintenance") ? (
             <div className="space-y-2">
               {showMaintenanceButton && (
                 <Button 
@@ -350,6 +351,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                   {performMaintenanceMutation.isPending ? 'Warte...' : `Warten ($${maintenanceCost.toLocaleString()})${needsMaintenance ? ' - Erforderlich!' : ''}`}
                 </Button>
               )}
+              {aircraft.status === "available" && (
               <div className="flex gap-2">
                 <Button 
                   size="sm" 
@@ -395,6 +397,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
+              )}
             </div>
           ) : null}
           </div>
