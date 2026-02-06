@@ -42,7 +42,10 @@ export default function CompletedFlightDetails() {
       const result = await base44.entities.Flight.filter({ contract_id: contractId });
       return result;
     },
-    enabled: !!contractId
+    enabled: !!contractId,
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnMount: 'always'
   });
 
   const flight = flights[0];
