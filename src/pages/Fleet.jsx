@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -245,6 +246,7 @@ const AIRCRAFT_MARKET = [
 ];
 
 export default function Fleet() {
+  const { state } = useLocation();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -254,21 +256,8 @@ export default function Fleet() {
   const { data: aircraft = [], isLoading, refetch: refetchAircraft } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
-      console.log('🔄 Fleet: Lade Flugzeuge NEU von Datenbank...');
-      const allAircraft = await base44.entities.Aircraft.list('-created_date');
-      console.log('✅ Fleet: Flugzeuge geladen:', allAircraft.map(a => ({ 
-        id: a.id, 
-        name: a.name, 
-        status: a.status, 
-        accumulated_maintenance_cost: a.accumulated_maintenance_cost 
-      })));
-      return allAircraft;
-    },
-    staleTime: 0,
-    cacheTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchInterval: 5000
+      return await base44.entities.Aircraft.list('-created_date');
+    }
   });
 
   const { data: company } = useQuery({
@@ -312,7 +301,20 @@ export default function Fleet() {
     }
   });
 
-  const filteredAircraft = aircraft.filter(ac => {
+  // Wenn state kommt, aktualisiere die DB-Daten mit den neuen Werten
+  const displayAircraft = aircraft.map(ac => {
+    if (state?.updatedAircraft?.id === ac.id) {
+      return {
+        ...ac,
+        status: state.updatedAircraft.status,
+        accumulated_maintenance_cost: state.updatedAircraft.accumulated_maintenance_cost || 0,
+        current_value: state.updatedAircraft.current_value || ac.current_value
+      };
+    }
+    return ac;
+  });
+
+  const filteredAircraft = displayAircraft.filter(ac => {
     if (ac.status === 'sold') return false;
     const matchesSearch = ac.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ac.registration?.toLowerCase().includes(searchTerm.toLowerCase());
