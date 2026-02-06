@@ -252,7 +252,7 @@ export default function Fleet() {
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
-  const [fleetAircraft, setFleetAircraft] = useState([]);
+
 
   // Lade immer die aktuellen Daten aus der Datenbank
   const { data: aircraft = [], isLoading } = useQuery({
