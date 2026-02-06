@@ -422,15 +422,24 @@ export default function FlightTracker() {
 
             // Free up crew - SOFORT Status auf available setzen
             if (flight?.crew && Array.isArray(flight.crew)) {
-              console.log('Aktualisiere Crew Status:', flight.crew);
+              console.log('🔄 Aktualisiere Crew Status:', flight.crew);
               for (const member of flight.crew) {
-                const employeeUpdate = {
-                  status: 'available',
-                  total_flight_hours: (member.total_flight_hours || 0) + flightHours
-                };
-                console.log('Update Employee:', member.employee_id, employeeUpdate);
-                await base44.entities.Employee.update(member.employee_id, employeeUpdate);
+                // Hole aktuellen Employee um total_flight_hours zu bekommen
+                const employees = await base44.entities.Employee.filter({ id: member.employee_id });
+                const currentEmployee = employees[0];
+                
+                if (currentEmployee) {
+                  const employeeUpdate = {
+                    status: 'available',
+                    total_flight_hours: (currentEmployee.total_flight_hours || 0) + flightHours
+                  };
+                  console.log('✅ Update Employee:', member.employee_id, employeeUpdate);
+                  await base44.entities.Employee.update(member.employee_id, employeeUpdate);
+                } else {
+                  console.error('❌ Employee nicht gefunden:', member.employee_id);
+                }
               }
+              console.log('✅ Alle Crew-Mitglieder aktualisiert');
             }
 
             // Calculate level bonus (10% per level)
