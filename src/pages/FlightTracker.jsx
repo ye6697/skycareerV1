@@ -490,6 +490,9 @@ export default function FlightTracker() {
             date: new Date().toISOString()
             });
 
+            // Invalidiere aircraft query um sicherzustellen, dass Fleet aktualisiert wird
+            queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+
             // Hole den aktualisierten Flight aus DB
             const updatedFlightFromDB = await base44.entities.Flight.filter({ id: flight.id });
             return updatedFlightFromDB[0];
