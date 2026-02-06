@@ -751,7 +751,7 @@ export default function FlightTracker() {
                         {flightData.events.tailstrike && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Tailstrike
+                            Heckaufsetzer (-50 Punkte)
                           </div>
                         )}
                         {flightData.events.stall && (
@@ -763,7 +763,7 @@ export default function FlightTracker() {
                         {flightData.events.overstress && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Überlastung
+                            Strukturbelastung (-30 Punkte)
                           </div>
                         )}
                         {flightData.events.flaps_overspeed && (
