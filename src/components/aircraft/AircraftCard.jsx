@@ -52,6 +52,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const maintenanceCost = aircraft.accumulated_maintenance_cost || 0;
   const currentValue = aircraft.current_value || aircraft.purchase_price || 0;
   const needsMaintenance = maintenanceCost > (currentValue * 0.1);
+  const canFly = !needsMaintenance;
 
   const repairMutation = useMutation({
     mutationFn: async () => {
