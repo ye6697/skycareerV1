@@ -467,7 +467,7 @@ export default function FlightTracker() {
             
             // Update flight record
             await base44.entities.Flight.update(flight.id, {
-              status: 'completed',
+              status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
               takeoff_rating: scoreToRating(flightData.flightScore),
               flight_rating: scoreToRating(flightData.flightScore),
@@ -487,7 +487,7 @@ export default function FlightTracker() {
             });
 
             // Update contract
-            await base44.entities.Contract.update(flight.contract_id, { status: 'completed' });
+            await base44.entities.Contract.update(flight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
 
             // Check if maintenance is required (accumulated cost > 10% of current value)
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
@@ -826,7 +826,7 @@ export default function FlightTracker() {
                         {flightData.events.flaps_overspeed && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Klappen Übergeschwindigkeit
+                            Overspeed
                           </div>
                         )}
                         {flightData.events.gear_up_landing && (
