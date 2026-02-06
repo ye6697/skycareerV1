@@ -136,7 +136,7 @@ export default function FlightTracker() {
       const logs = await base44.entities.XPlaneLog.list('-created_date', 1);
       return logs[0] || null;
     },
-    refetchInterval: 500,
+    refetchInterval: 2000,
     enabled: flightPhase !== 'preflight'
   });
 
@@ -285,12 +285,7 @@ export default function FlightTracker() {
         maxControlInput: newMaxControlInput
       };
       
-      // Save to database every few updates
-      if (flight?.id) {
-        base44.entities.Flight.update(flight.id, {
-          xplane_data: newData
-        });
-      }
+
       
       return newData;
     });
