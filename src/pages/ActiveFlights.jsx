@@ -75,13 +75,28 @@ export default function ActiveFlights() {
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     }
   });
 
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', company?.id],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: company.id, status: 'available' }),
+    enabled: !!company?.id
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', company?.id],
+    queryFn: () => base44.entities.Employee.filter({ company_id: company.id, status: 'available' }),
+    enabled: !!company?.id
+  });
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
+      if (!company?.id) throw new Error('Unternehmen nicht gefunden');
+
       // Check if aircraft can handle contract requirements
       const ac = aircraft.find((a) => a.id === selectedAircraft);
       if (!ac) throw new Error('Flugzeug nicht gefunden');
@@ -99,6 +114,7 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -456,13 +472,6 @@ export default function ActiveFlights() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
-              {startFlightMutation.isError && (
-                <div className="mt-3 p-3 bg-red-900/30 border border-red-700 rounded-lg">
-                  <p className="text-sm text-red-300">
-                    Fehler: {startFlightMutation.error?.message || 'Flug konnte nicht gestartet werden'}
-                  </p>
-                </div>
-              )}
             </DialogHeader>
 
             <div className="space-y-6">
