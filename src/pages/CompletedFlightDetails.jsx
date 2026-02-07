@@ -276,11 +276,40 @@ export default function CompletedFlightDetails() {
                           <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.butter_landing_vs_threshold || 100} ft/min)</span>
                         </>
                       )}
-                    </div>
-                  </div>
-                )}
+                      </div>
 
-                {/* Live Maintenance Costs */}
+                      {/* Score and Cost Impact */}
+                      <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-700">
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">Score-Auswirkung</p>
+                        <p className={`font-mono font-bold ${
+                          (flight.xplane_data?.landingScoreChange || 0) > 0 ? 'text-emerald-400' :
+                          (flight.xplane_data?.landingScoreChange || 0) < 0 ? 'text-red-400' :
+                          'text-slate-400'
+                        }`}>
+                          {(flight.xplane_data?.landingScoreChange || 0) > 0 ? '+' : ''}
+                          {flight.xplane_data?.landingScoreChange || 0} Punkte
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">Finanzielle Auswirkung</p>
+                        {flight.xplane_data?.landingBonus > 0 ? (
+                          <p className="font-mono font-bold text-emerald-400">
+                            +${flight.xplane_data?.landingBonus?.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          </p>
+                        ) : (flight.xplane_data?.landingMaintenanceCost > 0 ? (
+                          <p className="font-mono font-bold text-red-400">
+                            -${flight.xplane_data?.landingMaintenanceCost?.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          </p>
+                        ) : (
+                          <p className="text-slate-400">-</p>
+                        ))}
+                      </div>
+                      </div>
+                      </div>
+                      )}
+
+                      {/* Live Maintenance Costs */}
                   {flight.xplane_data?.maintenanceCost > 0 && (
                     <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
                       <p className="text-sm text-red-300 mb-2">Wartungskosten im Flug:</p>
