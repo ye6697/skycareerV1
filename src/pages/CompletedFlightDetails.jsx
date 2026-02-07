@@ -226,6 +226,19 @@ export default function CompletedFlightDetails() {
                     </div>
                   )}
 
+                  {/* Crash Costs */}
+                  {flight.xplane_data?.events?.crash && (
+                    <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
+                      <p className="text-sm text-red-300 mb-2 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Crash-Reparaturkosten (70% des Neuwertes):
+                      </p>
+                      <p className="text-2xl font-bold text-red-400">
+                        ${((flight.maintenance_cost || 0) * 0.7 / 0.7)?.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Flight Events */}
                   {flight.xplane_data?.events && Object.entries(flight.xplane_data.events).some(([_, val]) => val) && (
                     <div className="mt-4 pt-4 border-t border-slate-700">
