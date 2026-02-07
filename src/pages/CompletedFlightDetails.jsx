@@ -14,7 +14,8 @@ import {
   Plane,
   Star,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Loader
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
