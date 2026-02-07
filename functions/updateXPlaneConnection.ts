@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     }
 
     // Update company connection status
-    const companies = await base44.entities.Company.list();
+    const companies = await base44.entities.Company.filter({ created_by: user.email });
     const company = companies[0];
 
     if (!company) {
