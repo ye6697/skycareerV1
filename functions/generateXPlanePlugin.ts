@@ -74,6 +74,8 @@ class PythonInterface:
         self.datarefs['on_ground'] = xp.findDataRef("sim/flightmodel/failures/onground_any")
         self.datarefs['parking_brake'] = xp.findDataRef("sim/flightmodel/controls/parkbrake")
         self.datarefs['engine_running'] = xp.findDataRef("sim/flightmodel/engine/ENGN_running")
+        self.datarefs['has_crashed'] = xp.findDataRef("sim/flightmodel2/misc/has_crashed")
+        self.datarefs['touchdown_vspeed'] = xp.findDataRef("sim/flightmodel/forces/fsuipc_vert_accel")
         
         # Create flight loop
         xp.createFlightLoop(self.FlightLoopCallback, 1)
@@ -115,7 +117,8 @@ class PythonInterface:
             longitude = xp.getDatad(self.datarefs['longitude'])
             on_ground = xp.getDatai(self.datarefs['on_ground']) == 1
             parking_brake = xp.getDataf(self.datarefs['parking_brake']) > 0.5
-            
+            has_crashed = xp.getDatai(self.datarefs['has_crashed']) == 1
+
             # Check if any engine is running
             engines_running = False
             engine_array = []
@@ -147,7 +150,9 @@ class PythonInterface:
                 'longitude': longitude,
                 'on_ground': on_ground,
                 'parking_brake': parking_brake,
-                'engines_running': engines_running
+                'engines_running': engines_running,
+                'has_crashed': has_crashed,
+                'touchdown_vspeed': round(vs, 1)
             }
             
             # Send to API

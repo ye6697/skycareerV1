@@ -593,6 +593,17 @@ export default function FlightTracker() {
 
     const xp = xplaneLog.raw_data;
 
+    // Check for crash via X-Plane dataref
+    if (xp.has_crashed) {
+    setFlightData(prev => ({
+      ...prev,
+      events: {
+        ...prev.events,
+        crash: true
+      }
+    }));
+    }
+
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
       const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
@@ -709,7 +720,7 @@ export default function FlightTracker() {
         fuelKg: xp.fuel_kg || prev.fuelKg,
         gForce: currentGForce,
         maxGForce: newMaxGForce,
-        landingVs: xp.touchdown_vspeed || prev.landingVs,
+        landingVs: touchdownVs !== 0 ? touchdownVs : prev.landingVs,
         landingType: landingType,
         flightScore: baseScore,
         maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
