@@ -275,7 +275,7 @@ export default function CompletedFlightDetails() {
                   {flight.xplane_data?.maintenanceCost > 0 && (
                     <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
                       <p className="text-sm text-red-300 mb-2">Wartungskosten im Flug:</p>
-                      <p className="text-2xl font-bold text-red-400">${flight.xplane_data.maintenanceCost?.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-red-400">${flight.xplane_data.maintenanceCost?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</p>
                     </div>
                   )}
 
