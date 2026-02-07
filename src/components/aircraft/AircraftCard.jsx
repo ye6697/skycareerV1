@@ -58,7 +58,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const repairMutation = useMutation({
     mutationFn: async () => {
-      const company = (await base44.entities.Company.list())[0];
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      const company = companies[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       const restoredValue = currentValue + (maintenanceCost * 0.5);
@@ -86,7 +88,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const scrapMutation = useMutation({
     mutationFn: async () => {
-      const company = (await base44.entities.Company.list())[0];
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      const company = companies[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
@@ -110,7 +114,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const sellMutation = useMutation({
     mutationFn: async () => {
-      const company = (await base44.entities.Company.list())[0];
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      const company = companies[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
@@ -132,7 +138,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const performMaintenanceMutation = useMutation({
     mutationFn: async () => {
-      const company = (await base44.entities.Company.list())[0];
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      const company = companies[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       const cost = maintenanceCost;
