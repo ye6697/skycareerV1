@@ -245,16 +245,6 @@ export default function Contracts() {
                >
                  Nächste 10 Aufträge laden
                </Button>
-               <Button 
-                 onClick={async () => {
-                   await base44.functions.invoke('generateContracts', {});
-                   refetch();
-                 }}
-                 className="bg-emerald-600 hover:bg-emerald-700"
-               >
-                 <RefreshCw className="w-4 h-4 mr-2" />
-                 Neue Aufträge generieren
-               </Button>
              </div>
            </>
          ) : (
