@@ -31,6 +31,7 @@ export default function FlightTracker() {
 
   const [flightPhase, setFlightPhase] = useState('preflight');
   const [flight, setFlight] = useState(null);
+  const flightDataRef = React.useRef(null);
 
   // Parse URL parameters for contractId
   const urlParams = new URLSearchParams(window.location.search);
@@ -319,8 +320,12 @@ export default function FlightTracker() {
      if (!aircraft || aircraft.length === 0) {
        throw new Error('Flugzeugdaten nicht geladen');
      }
+     
+     // Use the latest flightData from ref to ensure all events are captured
+     const finalFlightData = flightDataRef.current || flightData;
+     
      // Realistic cost calculations based on aviation industry
-     const fuelUsed = (100 - flightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
+     const fuelUsed = (100 - finalFlightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
      const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
      const fuelCost = fuelUsed * fuelCostPerLiter;
 
@@ -331,7 +336,7 @@ export default function FlightTracker() {
 
      // Maintenance cost per flight hour + event-based costs
      const maintenanceCostPerHour = 400; // $400 per flight hour
-     const maintenanceCost = (flightHours * maintenanceCostPerHour) + flightData.maintenanceCost;
+     const maintenanceCost = (flightHours * maintenanceCostPerHour) + finalFlightData.maintenanceCost;
 
      // Landing and airport fees
      const airportFee = 150;
@@ -339,7 +344,7 @@ export default function FlightTracker() {
      let revenue = contract?.payout || 0;
 
      // Bonus based on score
-     const score = flightData.flightScore;
+     const score = finalFlightData.flightScore;
      if (score >= 95 && contract?.bonus_potential) {
        revenue += contract.bonus_potential;
      } else if (score >= 85 && contract?.bonus_potential) {
@@ -351,7 +356,7 @@ export default function FlightTracker() {
      const profit = revenue - directCosts;
 
       // Check for crash
-            const hasCrashed = flightData.events.crash;
+            const hasCrashed = finalFlightData.events.crash;
 
             // Calculate depreciation based on flight hours
             const airplaneToUpdate = aircraft.find(a => a.id === flight.aircraft_id);
@@ -361,7 +366,7 @@ export default function FlightTracker() {
             
             // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten
              let crashMaintenanceCost = 0;
-             let finalScore = flightData.flightScore;
+             let finalScore = finalFlightData.flightScore;
              if (hasCrashed) {
                crashMaintenanceCost = (airplaneToUpdate?.purchase_price || 0) * 0.7;
                // finalScore wurde bereits in useEffect abgezogen, nicht nochmal abziehen
@@ -371,8 +376,17 @@ export default function FlightTracker() {
             const scoreToRating = (s) => (s / 100) * 5;
             
             // Update flight record with events and final score
-            const totalEventMaintenanceCost = flightData.maintenanceCost;
+            const totalEventMaintenanceCost = finalFlightData.maintenanceCost;
             const totalMaintenanceCostWithCrash = totalEventMaintenanceCost + crashMaintenanceCost;
+            
+            console.log('🔍 SPEICHERE FINALE FLUGDATEN:', {
+              finalScore,
+              events: finalFlightData.events,
+              maintenanceCost: finalFlightData.maintenanceCost,
+              crashMaintenanceCost,
+              totalMaintenanceCostWithCrash
+            });
+            
             await base44.entities.Flight.update(flight.id, {
               status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
@@ -380,8 +394,8 @@ export default function FlightTracker() {
               flight_rating: scoreToRating(finalScore),
               landing_rating: scoreToRating(finalScore),
               overall_rating: scoreToRating(finalScore),
-              landing_vs: flightData.landingVs,
-              max_g_force: flightData.maxGForce,
+              landing_vs: finalFlightData.landingVs,
+              max_g_force: finalFlightData.maxGForce,
               fuel_used_liters: fuelUsed,
               fuel_cost: fuelCost,
               crew_cost: crewCost,
@@ -389,11 +403,11 @@ export default function FlightTracker() {
               flight_duration_hours: flightHours,
               revenue,
               profit,
-              passenger_comments: generateComments(finalScore, flightData),
+              passenger_comments: generateComments(finalScore, finalFlightData),
               xplane_data: {
-                ...flightData,
+                ...finalFlightData,
                 final_score: finalScore,
-                events: flightData.events,
+                events: finalFlightData.events,
                 crashMaintenanceCost: crashMaintenanceCost
               }
             });
@@ -676,11 +690,14 @@ export default function FlightTracker() {
       };
       
 
-      
-      return newData;
-    });
 
-    // Auto-detect phase - start if in air
+      // Update ref with latest data
+      flightDataRef.current = newData;
+
+      return newData;
+      });
+
+      // Auto-detect phase - start if in air
     if (flightPhase === 'takeoff' && xp.altitude > 10 && !xp.on_ground) {
       setFlightPhase('cruise');
     } else if (flightPhase === 'cruise') {
@@ -692,19 +709,23 @@ export default function FlightTracker() {
     // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
     if (flightData.wasAirborne && xp.on_ground && flightPhase === 'landing') {
       setFlightPhase('completed');
-      // Automatisch Flug abschließen
-      if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
-        completeFlightMutation.mutate();
-      }
+      // Warte kurz, damit alle State-Updates abgeschlossen sind
+      setTimeout(() => {
+        if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
+          completeFlightMutation.mutate();
+        }
+      }, 500);
     }
 
     // Auto-complete flight on crash
     if (flightData.events.crash && flightPhase !== 'preflight' && flightPhase !== 'completed') {
       setFlightPhase('completed');
-      // Automatisch Flug abschließen bei Crash
-      if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
-        completeFlightMutation.mutate();
-      }
+      // Warte kurz, damit alle State-Updates abgeschlossen sind
+      setTimeout(() => {
+        if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
+          completeFlightMutation.mutate();
+        }
+      }, 500);
     }
   }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash]);
 
