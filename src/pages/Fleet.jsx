@@ -340,28 +340,16 @@ const AIRCRAFT_MARKET = [
     image_url: ""
   },
   {
-    name: "Boeing 777F",
+    name: "ATR 72F",
     type: "cargo",
     passenger_capacity: 0,
-    cargo_capacity_kg: 102000,
-    fuel_consumption_per_hour: 9500,
-    range_nm: 4435,
-    purchase_price: 38000000,
-    maintenance_cost_per_hour: 3600,
-    level_requirement: 12,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/FedEx_Boeing_777F_N869FD_2.jpg/1024px-FedEx_Boeing_777F_N869FD_2.jpg"
-  },
-  {
-    name: "Boeing 747-8F",
-    type: "cargo",
-    passenger_capacity: 0,
-    cargo_capacity_kg: 134000,
-    fuel_consumption_per_hour: 14500,
-    range_nm: 4120,
-    purchase_price: 42000000,
-    maintenance_cost_per_hour: 4500,
-    level_requirement: 15,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Cargo_Boeing_747-400F.jpg/1024px-Cargo_Boeing_747-400F.jpg"
+    cargo_capacity_kg: 6000,
+    fuel_consumption_per_hour: 350,
+    range_nm: 2400,
+    purchase_price: 8000000,
+    maintenance_cost_per_hour: 600,
+    level_requirement: 7,
+    image_url: ""
   },
   {
     name: "Airbus A330-200F",
@@ -373,7 +361,31 @@ const AIRCRAFT_MARKET = [
     purchase_price: 24000000,
     maintenance_cost_per_hour: 2600,
     level_requirement: 10,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Airbus_A330-223F.jpg/1024px-Airbus_A330-223F.jpg"
+    image_url: ""
+  },
+  {
+    name: "Boeing 777F",
+    type: "cargo",
+    passenger_capacity: 0,
+    cargo_capacity_kg: 102000,
+    fuel_consumption_per_hour: 9500,
+    range_nm: 4435,
+    purchase_price: 38000000,
+    maintenance_cost_per_hour: 3600,
+    level_requirement: 12,
+    image_url: ""
+  },
+  {
+    name: "Boeing 747-8F",
+    type: "cargo",
+    passenger_capacity: 0,
+    cargo_capacity_kg: 134000,
+    fuel_consumption_per_hour: 14500,
+    range_nm: 4120,
+    purchase_price: 42000000,
+    maintenance_cost_per_hour: 4500,
+    level_requirement: 15,
+    image_url: ""
   }
 ];
 
