@@ -202,7 +202,8 @@ function monitor_flight()
         fuel_emergency = true
     end
 
-    if g_force > 3.5 then
+    local has_crashed = get("sim/flightmodel2/misc/has_crashed") or false
+    if has_crashed then
         crash_detected = true
     end
 
@@ -277,6 +278,7 @@ function monitor_flight()
         .. '"fuel_emergency":' .. tostring(fuel_emergency) .. ","
         .. '"gear_up_landing":' .. tostring(gear_up_landing) .. ","
         .. '"crash":' .. tostring(crash_detected) .. ","
+        .. '"has_crashed":' .. tostring(has_crashed) .. ","
         .. '"flight_score":' .. flight_score .. ","
         .. '"maintenance_cost":' .. maintenance_cost .. ","
         .. '"reputation":"' .. reputation .. '"'
