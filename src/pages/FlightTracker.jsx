@@ -829,25 +829,17 @@ export default function FlightTracker() {
     }
 
     // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
-    if (flightData.wasAirborne && xp.on_ground && flightPhase === 'landing') {
+    if (flightData.wasAirborne && xp.on_ground && flightPhase === 'landing' && !completeFlightMutation.isPending) {
       setFlightPhase('completed');
-      // Warte kurz, damit alle State-Updates abgeschlossen sind
-      setTimeout(() => {
-        if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
-          completeFlightMutation.mutate();
-        }
-      }, 500);
+      // Starte Mutation sofort
+      completeFlightMutation.mutate();
     }
 
     // Auto-complete flight on crash
-    if (flightData.events.crash && flightPhase !== 'preflight' && flightPhase !== 'completed') {
+    if (flightData.events.crash && flightPhase !== 'preflight' && flightPhase !== 'completed' && !completeFlightMutation.isPending) {
       setFlightPhase('completed');
-      // Warte kurz, damit alle State-Updates abgeschlossen sind
-      setTimeout(() => {
-        if (!completeFlightMutation.isPending && !completeFlightMutation.isSuccess) {
-          completeFlightMutation.mutate();
-        }
-      }, 500);
+      // Starte Mutation sofort
+      completeFlightMutation.mutate();
     }
   }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash]);
 
