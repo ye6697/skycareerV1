@@ -32,6 +32,14 @@ export default function CompletedFlightDetails() {
   const passedFlight = location.state?.flight;
   const passedContract = location.state?.contract;
 
+  const { data: gameSettings } = useQuery({
+    queryKey: ['gameSettings'],
+    queryFn: async () => {
+      const settings = await base44.entities.GameSettings.list();
+      return settings[0] || null;
+    }
+  });
+
   const { data: contract } = useQuery({
     queryKey: ['contract', contractId],
     queryFn: async () => {
