@@ -85,6 +85,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
+    const companies = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
+    if (!companies[0]) {
+      return Response.json({ error: 'Company not found' }, { status: 404 });
+    }
+    const company = companies[0];
+
     const contracts = [];
     
     for (let i = 0; i < 1000; i++) {
@@ -120,6 +126,7 @@ Deno.serve(async (req) => {
       const briefing = briefings[Math.floor(Math.random() * briefings.length)];
       
       contracts.push({
+        company_id: company.id,
         title: `${depAirport.city} → ${arrAirport.city}`,
         briefing,
         type: contractType,
