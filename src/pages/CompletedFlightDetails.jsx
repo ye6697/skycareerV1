@@ -395,12 +395,18 @@ export default function CompletedFlightDetails() {
                   Finanzübersicht
                 </h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Einnahmen</span>
-                    <span className="text-emerald-400 font-mono">${flight.revenue?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Treibstoff ({flight.fuel_used_liters?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} L)</span>
+                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                     <span className="text-slate-400">Auftrag-Payout</span>
+                     <span className="text-emerald-400 font-mono">${finalContract?.payout?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                   </div>
+                   {flight?.xplane_data?.landingBonus > 0 && (
+                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                     <span className="text-slate-400">Landequalitäts-Bonus</span>
+                     <span className="text-emerald-400 font-mono">+${flight.xplane_data.landingBonus.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                   </div>
+                   )}
+                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                     <span className="text-slate-400">Treibstoff ({flight.fuel_used_liters?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} L)</span>
                     <span className="text-red-400 font-mono">-${flight.fuel_cost?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
