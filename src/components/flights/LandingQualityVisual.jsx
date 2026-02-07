@@ -5,7 +5,7 @@ import { Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function LandingQualityVisual({ flight, gameSettings }) {
   const landingVs = Math.abs(flight.landing_vs || 0);
-  const landingGforce = Math.abs(flight.max_g_force || 0);
+  const landingGforce = Math.abs(flight.xplane_data?.landingGForce || flight.landing_g_force || flight.max_g_force || 0);
 
   // Determine landing quality ONLY based on G-force
   const getLandingQuality = () => {
