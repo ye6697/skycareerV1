@@ -60,7 +60,19 @@ export default function Contracts() {
     enabled: !!company
   });
 
-  const contracts = allContracts.slice(offset, offset + 10);
+  // Separate contracts into compatible and incompatible
+  const compatibleContracts = allContracts.filter(contract => {
+    if (!contract.required_aircraft_type || contract.required_aircraft_type.length === 0) return true;
+    return ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
+  });
+  
+  const incompatibleContracts = allContracts.filter(contract => {
+    if (!contract.required_aircraft_type || contract.required_aircraft_type.length === 0) return false;
+    return !ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
+  });
+
+  const contracts = compatibleContracts.slice(offset, offset + 5);
+  const incompatibleShow = incompatibleContracts.slice(0, 5);
 
   const acceptContractMutation = useMutation({
     mutationFn: async (contract) => {
