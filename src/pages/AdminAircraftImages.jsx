@@ -13,13 +13,73 @@ export default function AdminAircraftImages() {
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [uploadingId, setUploadingId] = useState(null);
 
+  // Static market data with default aircraft types for image assignment
+  const AIRCRAFT_MARKET = [
+    { name: "Cessna 172 Skyhawk", type: "small_prop" },
+    { name: "Piper PA-28 Cherokee", type: "small_prop" },
+    { name: "Piper PA-44 Seminole", type: "small_prop" },
+    { name: "Socata Tobago", type: "small_prop" },
+    { name: "Piper PA-46 Malibu", type: "turboprop" },
+    { name: "Beechcraft King Air 350", type: "turboprop" },
+    { name: "Cessna Caravan", type: "turboprop" },
+    { name: "Bombardier Dash 8-100", type: "turboprop" },
+    { name: "Bombardier Q400", type: "turboprop" },
+    { name: "Bombardier CRJ-200", type: "regional_jet" },
+    { name: "Embraer E170", type: "regional_jet" },
+    { name: "Embraer E175", type: "regional_jet" },
+    { name: "Airbus A220", type: "regional_jet" },
+    { name: "Airbus A318", type: "narrow_body" },
+    { name: "Airbus A319", type: "narrow_body" },
+    { name: "Airbus A320neo", type: "narrow_body" },
+    { name: "Boeing 737-700", type: "narrow_body" },
+    { name: "Boeing 737 MAX 8", type: "narrow_body" },
+    { name: "Boeing 787-8", type: "narrow_body" },
+    { name: "Airbus A300", type: "wide_body" },
+    { name: "Airbus A330-200", type: "wide_body" },
+    { name: "Boeing 777-200ER", type: "wide_body" },
+    { name: "Boeing 777-300ER", type: "wide_body" },
+    { name: "Airbus A350-900", type: "wide_body" },
+    { name: "Boeing 747-8", type: "wide_body" },
+    { name: "Airbus A380", type: "wide_body" },
+    { name: "ATR 72F", type: "cargo" },
+    { name: "Airbus A330-200F", type: "cargo" },
+    { name: "Boeing 777F", type: "cargo" },
+    { name: "Boeing 747-8F", type: "cargo" }
+  ];
+
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'all'],
     queryFn: async () => {
       const companies = await base44.entities.Company.list();
       const companyId = companies[0]?.id;
-      return companyId ? base44.entities.Aircraft.filter({ company_id: companyId }) : [];
-    }
+      
+      if (!companyId) {
+        // If no company, show all market aircraft as templates
+        return AIRCRAFT_MARKET.map((ac, idx) => ({
+          id: `template_${idx}`,
+          name: ac.name,
+          type: ac.type,
+          registration: 'N/A',
+          isTemplate: true
+        }));
+      }
+      
+      // Get owned aircraft from database
+      const ownedAircraft = await base44.entities.Aircraft.filter({ company_id: companyId });
+      
+      // Combine owned aircraft with market templates that don't have owned versions
+      const ownedNames = new Set(ownedAircraft.map(ac => ac.name));
+      const templates = AIRCRAFT_MARKET.filter(ac => !ownedNames.has(ac.name)).map((ac, idx) => ({
+        id: `template_${idx}`,
+        name: ac.name,
+        type: ac.type,
+        registration: 'Template',
+        isTemplate: true
+      }));
+      
+      return [...ownedAircraft, ...templates];
+    },
+    refetchInterval: 3000
   });
 
   const uploadImageMutation = useMutation({
