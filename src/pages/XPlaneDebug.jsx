@@ -13,7 +13,8 @@ export default function XPlaneDebug() {
   const { data: company, refetch: refetchCompany } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     },
     refetchInterval: 2000
@@ -30,7 +31,10 @@ export default function XPlaneDebug() {
   const { data: xplaneLogs = [], refetch: refetchLogs } = useQuery({
     queryKey: ['xplane-logs'],
     queryFn: async () => {
-      return await base44.entities.XPlaneLog.list('-created_date', 20);
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      return await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 20);
     },
     refetchInterval: 2000
   });
