@@ -436,15 +436,22 @@ export default function FlightTracker() {
                // finalScore wurde bereits in useEffect abgezogen, nicht nochmal abziehen
              }
 
+            // Apply time bonus/penalty to final score
+            const scoreWithTime = Math.max(0, Math.min(100, finalFlightData.flightScore + timeScoreChange));
+
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
-            
+
             // Update flight record with events and final score
             const totalEventMaintenanceCost = finalFlightData.maintenanceCost;
             const totalMaintenanceCostWithCrash = totalEventMaintenanceCost + crashMaintenanceCost;
-            
+
             console.log('🔍 SPEICHERE FINALE FLUGDATEN:', {
-              finalScore,
+              finalScore: scoreWithTime,
+              flightHours,
+              expectedFlightHours,
+              timeScoreChange,
+              timeBonus,
               events: finalFlightData.events,
               maintenanceCost: finalFlightData.maintenanceCost,
               crashMaintenanceCost,
