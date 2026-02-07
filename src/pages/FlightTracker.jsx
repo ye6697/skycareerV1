@@ -190,6 +190,14 @@ export default function FlightTracker() {
     }
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ['gameSettings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.GameSettings.list();
+      return allSettings[0] || null;
+    }
+  });
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Verwende den existierenden Flight oder erstelle einen neuen (sollte nicht passieren)
@@ -636,9 +644,12 @@ export default function FlightTracker() {
         maintenanceCostIncrease += aircraftPurchasePrice * 0.04;
       }
       
-      // Overspeed (flaps_overspeed): 2.5% des Neuwertes, einmalig (kein Score-Abzug)
+      // Flaps Overspeed: Score-Abzug + Wartungskosten basierend auf Settings
       if (xp.flaps_overspeed && !prev.events.flaps_overspeed) {
-        maintenanceCostIncrease += aircraftPurchasePrice * 0.025;
+        const flapsScorePenalty = settings?.flaps_overspeed_score_penalty || 15;
+        const flapsMaintenancePercent = settings?.flaps_overspeed_maintenance_percent || 2.5;
+        baseScore = Math.max(0, baseScore - flapsScorePenalty);
+        maintenanceCostIncrease += aircraftPurchasePrice * (flapsMaintenancePercent / 100);
       }
       
       // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten werden vom Flug berechnet
@@ -1012,10 +1023,10 @@ export default function FlightTracker() {
                           </div>
                         )}
                         {flightData.events.flaps_overspeed && (
-                          <div className="text-xs text-orange-400 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" />
-                            Overspeed (Wartung: 2.5% Neuwert)
-                          </div>
+                         <div className="text-xs text-orange-400 flex items-center gap-1">
+                           <AlertTriangle className="w-3 h-3" />
+                           Klappen-Overspeed (-{settings?.flaps_overspeed_score_penalty || 15} Punkte)
+                         </div>
                         )}
                         {flightData.events.gear_up_landing && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
