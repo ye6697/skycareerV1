@@ -484,13 +484,13 @@ export default function ActiveFlights() {
                   </SelectContent>
                 </Select>
                 {aircraft.length === 0 &&
-                <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
+                <p className="text-sm text-red-400">Kein verfügbares Flugzeug!</p>
                 }
               </div>
 
               {/* Crew Selection */}
               <div className="space-y-4">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-200">
                   <Users className="w-4 h-4" />
                   Crew zuweisen
                 </Label>
