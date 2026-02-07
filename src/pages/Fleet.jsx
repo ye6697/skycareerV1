@@ -36,8 +36,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 640,
     purchase_price: 150000,
     maintenance_cost_per_hour: 25,
-    level_requirement: 1,
-    image_url: ""
+    level_requirement: 1
   },
   {
     name: "Piper PA-28 Cherokee",
