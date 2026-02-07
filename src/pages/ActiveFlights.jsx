@@ -538,11 +538,11 @@ export default function ActiveFlights() {
 
               {/* Warning */}
               {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-700">
+                    <p className="font-medium text-amber-400">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-300">
                       Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
                     </p>
                   </div>
