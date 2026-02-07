@@ -26,7 +26,7 @@ import {
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
 
-const AIRCRAFT_MARKET = [
+const AIRCRAFT_MARKET_SPECS = [
   {
     name: "Cessna 172 Skyhawk",
     type: "small_prop",
@@ -367,6 +367,13 @@ export default function Fleet() {
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
 
+  const { data: templates = [] } = useQuery({
+    queryKey: ['aircraftTemplates'],
+    queryFn: async () => {
+      return await base44.entities.AircraftTemplate.list();
+    }
+  });
+
 
   // Lade immer die aktuellen Daten aus der Datenbank mit regelmäßigem Refetch
   const { data: aircraft = [], isLoading } = useQuery({
@@ -509,10 +516,10 @@ export default function Fleet() {
                       </motion.div>
                     )}
 
-                    {AIRCRAFT_MARKET.map((ac, index) => {
-                      // Find owned aircraft with same name to get image
-                      const ownedAircraft = aircraft.find(owned => owned.name === ac.name);
-                      const displayData = { ...ac, image_url: ownedAircraft?.image_url };
+                    {AIRCRAFT_MARKET_SPECS.map((ac, index) => {
+                      // Find template with image
+                      const template = templates.find(t => t.name === ac.name);
+                      const displayData = { ...ac, image_url: template?.image_url };
 
                       const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                       const hasBalance = canAfford(ac.purchase_price);
