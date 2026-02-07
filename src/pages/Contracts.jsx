@@ -142,18 +142,18 @@ export default function Contracts() {
                 />
               </div>
               <Button 
-                onClick={() => setOffset(offset + 10)}
-                disabled={offset + 10 >= allContracts.length}
+                onClick={() => setOffset(offset + 5)}
+                disabled={offset + 5 >= compatibleContracts.length}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                10 weitere Aufträge
+                5 weitere Aufträge
               </Button>
               {offset > 0 && (
                 <Button 
-                  onClick={() => setOffset(Math.max(0, offset - 10))}
+                  onClick={() => setOffset(Math.max(0, offset - 5))}
                   variant="outline"
                 >
-                  Vorherige 10
+                  Vorherige 5
                 </Button>
               )}
             </div>
