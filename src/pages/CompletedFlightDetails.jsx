@@ -64,6 +64,16 @@ export default function CompletedFlightDetails() {
   const flight = passedFlight || flights[0];
   const finalContract = passedContract || contract;
 
+  // If we don't have all required data, auto-refresh
+  React.useEffect(() => {
+    if (!flight || !finalContract) {
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [flight, finalContract]);
+
   if (!finalContract) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
