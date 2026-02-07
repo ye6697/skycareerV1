@@ -155,7 +155,7 @@ export default function CompletedFlightDetails() {
             </div>
             <div className="text-right">
               <p className="text-3xl font-bold text-emerald-600">
-                ${finalContract.payout?.toLocaleString()}
+                ${finalContract.payout?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               </p>
             </div>
           </div>
