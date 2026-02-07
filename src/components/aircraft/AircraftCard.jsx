@@ -267,8 +267,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-400">Aktueller Wert:</span>
-              <span className={`font-semibold ${currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
-                ${currentValue.toLocaleString()}
+              <span className={`font-semibold ${(currentValue - maintenanceCost) < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
+                ${(currentValue - maintenanceCost).toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
