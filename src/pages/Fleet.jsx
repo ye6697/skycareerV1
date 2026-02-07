@@ -136,6 +136,30 @@ const AIRCRAFT_MARKET = [
     image_url: ""
   },
   {
+    name: "Bombardier CRJ-200",
+    type: "regional_jet",
+    passenger_capacity: 50,
+    cargo_capacity_kg: 1500,
+    fuel_consumption_per_hour: 1600,
+    range_nm: 2000,
+    purchase_price: 1800000,
+    maintenance_cost_per_hour: 350,
+    level_requirement: 3,
+    image_url: ""
+  },
+  {
+    name: "Embraer E170",
+    type: "regional_jet",
+    passenger_capacity: 70,
+    cargo_capacity_kg: 1850,
+    fuel_consumption_per_hour: 2200,
+    range_nm: 2100,
+    purchase_price: 2300000,
+    maintenance_cost_per_hour: 420,
+    level_requirement: 4,
+    image_url: ""
+  },
+  {
     name: "Embraer E175",
     type: "regional_jet",
     passenger_capacity: 76,
@@ -145,7 +169,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 2500000,
     maintenance_cost_per_hour: 450,
     level_requirement: 4,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Embraer_ERJ-175_5Y-CVK_SkyWest.jpg/1024px-Embraer_ERJ-175_5Y-CVK_SkyWest.jpg"
+    image_url: ""
   },
   {
     name: "Airbus A220",
@@ -157,7 +181,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 4200000,
     maintenance_cost_per_hour: 650,
     level_requirement: 5,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Airbus_A220-300_LZQO.jpg/1024px-Airbus_A220-300_LZQO.jpg"
+    image_url: ""
   },
   {
     name: "Airbus A320neo",
