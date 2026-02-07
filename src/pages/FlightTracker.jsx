@@ -590,6 +590,17 @@ export default function FlightTracker() {
      }
   });
 
+  // Update flight duration every second
+  useEffect(() => {
+    if (flightPhase === 'preflight' || flightPhase === 'completed' || !flightStartTime) return;
+    
+    const timer = setInterval(() => {
+      setFlightDurationSeconds(Math.floor((Date.now() - flightStartTime) / 1000));
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [flightPhase, flightStartTime]);
+
   // Update flight data from X-Plane log (freeze data after landing)
   useEffect(() => {
     if (!xplaneLog?.raw_data || flightPhase === 'preflight') return;
