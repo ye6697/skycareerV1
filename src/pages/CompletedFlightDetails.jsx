@@ -369,8 +369,7 @@ export default function CompletedFlightDetails() {
                       </div>
                       );
                       })()}
-                      )}
-              </Card>
+                      </Card>
             </div>
 
             {/* Sidebar */}
