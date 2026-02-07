@@ -71,11 +71,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         current_value: restoredValue
       });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - maintenanceCost });
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
       
       await base44.entities.Transaction.create({
-        company_id: companies[0].id,
+        company_id: company.id,
         type: 'expense',
         category: 'maintenance',
         amount: maintenanceCost,
@@ -99,11 +97,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
       await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) + scrapValue });
-      const user2 = await base44.auth.me();
-      const companies2 = await base44.entities.Company.filter({ created_by: user2.email });
       
       await base44.entities.Transaction.create({
-        company_id: companies2[0].id,
+        company_id: company.id,
         type: 'income',
         category: 'aircraft_sale',
         amount: scrapValue,
@@ -129,11 +125,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
       await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) + sellPrice });
-      const user3 = await base44.auth.me();
-      const companies3 = await base44.entities.Company.filter({ created_by: user3.email });
       
       await base44.entities.Transaction.create({
-        company_id: companies3[0].id,
+        company_id: company.id,
         type: 'income',
         category: 'aircraft_sale',
         amount: sellPrice,
@@ -162,11 +156,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         accumulated_maintenance_cost: 0
       });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - cost });
-      const user4 = await base44.auth.me();
-      const companies4 = await base44.entities.Company.filter({ created_by: user4.email });
       
       await base44.entities.Transaction.create({
-        company_id: companies4[0].id,
+        company_id: company.id,
         type: 'expense',
         category: 'maintenance',
         amount: cost,
