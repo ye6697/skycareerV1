@@ -204,6 +204,15 @@ export default function GameSettingsAdmin() {
             <h3 className="text-xl font-bold text-white mb-4">Klappen-Overspeed</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <Label className="text-white">Score-Abzug</Label>
+                <Input
+                  type="number"
+                  value={formData.flaps_overspeed_score_penalty || ''}
+                  onChange={(e) => handleChange('flaps_overspeed_score_penalty', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+              <div>
                 <Label className="text-white">Wartungskosten (% des Neuwertes)</Label>
                 <Input
                   type="number"
