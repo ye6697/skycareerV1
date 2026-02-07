@@ -684,12 +684,21 @@ export default function FlightTracker() {
         baseScore = Math.max(0, baseScore - 50);
       }
       
-      // G-Kräfte ab 1.5: Kosten entsprechend maxGForce in %, nur wenn neuer Max überschritten wird
-      if (newMaxGForce > prev.maxGForce && newMaxGForce >= 1.5) {
-        const gForceMaintenanceCost = newMaxGForce * aircraftPurchasePrice * 0.01;
-        maintenanceCostIncrease += gForceMaintenanceCost;
-        // 25 Punkte Abzug pro Überschreitung der max G-Kraft
-        baseScore = Math.max(0, baseScore - 25);
+      // G-Kräfte ab 1.5: Kosten in 1 G Schritten, nur einmalig pro Stufe
+      if (newMaxGForce >= 1.5) {
+        const currentGLevel = Math.floor(newMaxGForce);
+        const prevGLevel = Math.floor(prev.maxGForce);
+        
+        if (currentGLevel > prevGLevel) {
+          // Berechne Kosten nur für neue G-Level
+          for (let gLevel = prevGLevel + 1; gLevel <= currentGLevel; gLevel++) {
+            if (!processedGLevels.has(gLevel)) {
+              const gForceMaintenanceCost = aircraftPurchasePrice * (gLevel * 0.01);
+              maintenanceCostIncrease += gForceMaintenanceCost;
+              baseScore = Math.max(0, baseScore - 25);
+            }
+          }
+        }
       }
       
       // Strukturschaden (overstress): -30 Punkte + 4% des Neuwertes, einmalig
