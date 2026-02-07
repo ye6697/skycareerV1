@@ -143,7 +143,7 @@ export default function FlightTracker() {
       const logs = await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 1);
       return logs[0] || null;
     },
-    refetchInterval: 2000,
+    refetchInterval: 500,
     enabled: flightPhase !== 'preflight'
   });
 
