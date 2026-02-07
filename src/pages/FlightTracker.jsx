@@ -370,8 +370,32 @@ export default function FlightTracker() {
      const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
      const fuelCost = fuelUsed * fuelCostPerLiter;
 
-     // Crew costs based on flight hours
-     const flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2; // Average cruise speed 450 knots
+     // Flight hours: Use real-world time from flightStartTime
+     let flightHours;
+     if (flightStartTime) {
+       const realFlightSeconds = (Date.now() - flightStartTime) / 1000;
+       flightHours = realFlightSeconds / 3600; // Convert to hours
+     } else {
+       flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2; // Fallback: Average cruise speed 450 knots
+     }
+
+     // Time efficiency bonus/penalty
+     const expectedFlightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2;
+     let timeBonus = 0;
+     let timeScoreChange = 0;
+
+     if (flightHours < expectedFlightHours * 0.8) {
+       // Flew too fast - penalty
+       timeScoreChange = -20;
+     } else if (flightHours <= expectedFlightHours * 0.95) {
+       // Perfect speed - bonus
+       timeBonus = (contract?.payout || 0) * 0.05;
+       timeScoreChange = 10;
+     } else if (flightHours > expectedFlightHours * 1.2) {
+       // Too slow - penalty
+       timeScoreChange = -15;
+     }
+
      const crewCostPerHour = 250; // $250 per flight hour (captain + first officer)
      const crewCost = flightHours * crewCostPerHour;
 
@@ -387,6 +411,9 @@ export default function FlightTracker() {
      // Bonus based on landing quality (G-force based)
      const landingBonus = finalFlightData.landingBonus || 0;
      revenue += landingBonus;
+
+     // Add time bonus
+     revenue += timeBonus;
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
      const directCosts = fuelCost + crewCost + airportFee;
