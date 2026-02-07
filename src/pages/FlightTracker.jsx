@@ -268,7 +268,8 @@ export default function FlightTracker() {
         arrival_lat: 0,
         arrival_lon: 0,
         wasAirborne: false,
-        previousSpeed: 0
+        previousSpeed: 0,
+        landingType: null
       });
       
       queryClient.invalidateQueries();
