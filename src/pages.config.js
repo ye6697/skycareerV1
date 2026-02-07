@@ -55,12 +55,12 @@ import Dashboard from './pages/Dashboard';
 import EmployeeDetails from './pages/EmployeeDetails';
 import Employees from './pages/Employees';
 import Finances from './pages/Finances';
+import Fleet from './pages/Fleet';
 import FlightHistory from './pages/FlightHistory';
 import FlightTracker from './pages/FlightTracker';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
-import Fleet from './pages/Fleet';
 import __Layout from './Layout.jsx';
 
 
@@ -73,12 +73,12 @@ export const PAGES = {
     "EmployeeDetails": EmployeeDetails,
     "Employees": Employees,
     "Finances": Finances,
+    "Fleet": Fleet,
     "FlightHistory": FlightHistory,
     "FlightTracker": FlightTracker,
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
-    "Fleet": Fleet,
 }
 
 export const pagesConfig = {

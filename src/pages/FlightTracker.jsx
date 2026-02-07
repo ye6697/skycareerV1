@@ -553,16 +553,26 @@ export default function FlightTracker() {
       
       // Landing categories based on vertical speed
       let landingType = null;
-      if (touchdownVs !== 0 && xp.on_ground && newWasAirborne) {
+      let landingScoreChange = 0;
+      let landingMaintenanceCost = 0;
+      
+      if (touchdownVs !== 0 && xp.on_ground && newWasAirborne && !prev.events.hard_landing && !prev.events.crash) {
         const absVs = Math.abs(touchdownVs);
         if (absVs > 1000) {
           landingType = 'crash'; // Sehr harte Landung = Crash
         } else if (absVs > 600) {
           landingType = 'hard'; // Harte Landung
+          landingScoreChange = -15; // 15 Punkte Abzug
+          landingMaintenanceCost = aircraftPurchasePrice * 0.01; // 1% des Flugzeugwerts
         } else if (absVs > 300) {
           landingType = 'acceptable'; // Akzeptable Landung
-        } else {
+          landingScoreChange = 0; // Keine Änderung
+        } else if (absVs > 150) {
           landingType = 'soft'; // Weiche Landung
+          landingScoreChange = 5; // 5 Bonuspunkte
+        } else {
+          landingType = 'butter'; // Butterweiche Landung
+          landingScoreChange = 10; // 10 Bonuspunkte
         }
       }
       
