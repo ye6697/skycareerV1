@@ -76,6 +76,18 @@ const AIRCRAFT_MARKET = [
     image_url: ""
   },
   {
+    name: "Piper PA-46 Malibu",
+    type: "turboprop",
+    passenger_capacity: 6,
+    cargo_capacity_kg: 300,
+    fuel_consumption_per_hour: 150,
+    range_nm: 1500,
+    purchase_price: 350000,
+    maintenance_cost_per_hour: 85,
+    level_requirement: 2,
+    image_url: ""
+  },
+  {
     name: "Beechcraft King Air 350",
     type: "turboprop",
     passenger_capacity: 8,
@@ -85,7 +97,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 750000,
     maintenance_cost_per_hour: 120,
     level_requirement: 2,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Beechcraft_King_Air_B200_8.jpg/1024px-Beechcraft_King_Air_B200_8.jpg"
+    image_url: ""
   },
   {
     name: "Cessna Caravan",
@@ -97,7 +109,19 @@ const AIRCRAFT_MARKET = [
     purchase_price: 400000,
     maintenance_cost_per_hour: 90,
     level_requirement: 2,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Cessna_Caravan_206H_Rwd.jpg/1024px-Cessna_Caravan_206H_Rwd.jpg"
+    image_url: ""
+  },
+  {
+    name: "Bombardier Dash 8-100",
+    type: "turboprop",
+    passenger_capacity: 50,
+    cargo_capacity_kg: 2000,
+    fuel_consumption_per_hour: 600,
+    range_nm: 1550,
+    purchase_price: 1000000,
+    maintenance_cost_per_hour: 200,
+    level_requirement: 3,
+    image_url: ""
   },
   {
     name: "Bombardier Q400",
@@ -109,7 +133,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 1400000,
     maintenance_cost_per_hour: 280,
     level_requirement: 3,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Bombardier_Q400_taxiing.jpg/1024px-Bombardier_Q400_taxiing.jpg"
+    image_url: ""
   },
   {
     name: "Embraer E175",
