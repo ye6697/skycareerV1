@@ -70,7 +70,7 @@ export default function CompletedFlightDetails() {
     if (!flight || !finalContract) {
       const timer = setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [flight, finalContract]);
