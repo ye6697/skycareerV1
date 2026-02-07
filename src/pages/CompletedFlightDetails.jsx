@@ -81,7 +81,8 @@ export default function CompletedFlightDetails() {
     );
   }
 
-  if (!flight) {
+  // Show loading if no flight data and no passed data
+  if (!flight && !passedFlightData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <div className="text-center">
