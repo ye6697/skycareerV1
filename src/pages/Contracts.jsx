@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import ContractCard from "@/components/contracts/ContractCard";
+import { AlertCircle } from "lucide-react";
 
 export default function Contracts() {
   const navigate = useNavigate();
