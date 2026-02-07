@@ -213,7 +213,10 @@ export default function Layout({ children, currentPageName }) {
         <div className="p-6 border-b border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Plane className="w-6 h-6 text-white" />
+              <svg className="w-6 h-6 text-white" viewBox="0 0 100 100" fill="currentColor">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="white" strokeWidth="3"/>
+                <path d="M50 25 L60 40 L75 40 L65 50 L70 65 L50 55 L30 65 L35 50 L25 40 L40 40 Z" fill="white"/>
+              </svg>
             </div>
             <div>
               <span className="font-bold text-lg text-white">SkyCareer</span>
