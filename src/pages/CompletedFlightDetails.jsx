@@ -227,7 +227,7 @@ export default function CompletedFlightDetails() {
                   )}
 
                   {/* Total Maintenance Breakdown */}
-                  {(flight.xplane_data?.maintenanceCost > 0 || flight.xplane_data?.events?.crash) && (
+                  {(flight.xplane_data?.maintenanceCost > 0 || flight.xplane_data?.crashMaintenanceCost > 0 || flight.xplane_data?.events?.crash) && (
                     <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-2">
                       <h4 className="text-sm font-semibold text-white mb-3">Wartungskosten-Aufschlüsselung:</h4>
                       <div className="space-y-2 text-sm">
@@ -238,18 +238,18 @@ export default function CompletedFlightDetails() {
                         {flight.xplane_data?.maintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
                             <span>Event-Schäden im Flug</span>
-                            <span className="text-red-400">${flight.xplane_data.maintenanceCost.toLocaleString()}</span>
+                            <span className="text-red-400">${Math.round(flight.xplane_data.maintenanceCost).toLocaleString()}</span>
                           </div>
                         )}
-                        {flight.xplane_data?.events?.crash && (
+                        {flight.xplane_data?.crashMaintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
                             <span>Crash-Reparatur (70% des Neuwertes)</span>
-                            <span className="text-red-500 font-bold">${(flight.maintenance_cost - ((flight.flight_duration_hours || 0) * 400) - (flight.xplane_data?.maintenanceCost || 0)).toLocaleString()}</span>
+                            <span className="text-red-500 font-bold">${Math.round(flight.xplane_data.crashMaintenanceCost).toLocaleString()}</span>
                           </div>
                         )}
                         <div className="flex justify-between pt-2 border-t border-slate-700 font-bold">
                           <span className="text-white">Gesamt Wartungskosten</span>
-                          <span className="text-red-400">${flight.maintenance_cost?.toLocaleString()}</span>
+                          <span className="text-red-400">${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
