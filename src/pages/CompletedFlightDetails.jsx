@@ -198,7 +198,7 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-900 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Treibstoff verbraucht</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
-                      {flight.fuel_used_liters?.toLocaleString()} L
+                      {flight.fuel_used_liters?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} L
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
