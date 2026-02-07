@@ -52,7 +52,13 @@ export default function GameSettingsAdmin() {
     butter_landing_score_bonus: 10,
     crash_vs_threshold: 1000,
     crash_score_penalty: 100,
-    crash_maintenance_percent: 70
+    crash_maintenance_percent: 70,
+    level_1_4_title: "Freizeit-Simmer",
+    level_5_8_title: "Hobby-Pilot",
+    level_9_12_title: "Regional-Kapitän",
+    level_13_16_title: "Airline-Profi",
+    level_17_20_title: "Flug-Veteran",
+    level_21_plus_title: "Luftfahrt-Legende"
   };
 
   const saveMutation = useMutation({
@@ -85,7 +91,12 @@ export default function GameSettingsAdmin() {
   });
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
+    // Check if it's a string field (level titles)
+    if (field.includes('level_') && field.includes('_title')) {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
+    }
   };
 
   const handleSubmit = (e) => {
@@ -379,6 +390,76 @@ export default function GameSettingsAdmin() {
                   value={formData.crash_maintenance_percent || ''}
                   onChange={(e) => handleChange('crash_maintenance_percent', e.target.value)}
                   className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Level Titles */}
+          <Card className="p-6 bg-slate-800 border-slate-700">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-amber-400" />
+              Level-Bezeichnungen
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-white">Level 1-4</Label>
+                <Input
+                  type="text"
+                  value={formData.level_1_4_title || ''}
+                  onChange={(e) => handleChange('level_1_4_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                  placeholder="z.B. Freizeit-Simmer"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 5-8</Label>
+                <Input
+                  type="text"
+                  value={formData.level_5_8_title || ''}
+                  onChange={(e) => handleChange('level_5_8_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                  placeholder="z.B. Hobby-Pilot"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 9-12</Label>
+                <Input
+                  type="text"
+                  value={formData.level_9_12_title || ''}
+                  onChange={(e) => handleChange('level_9_12_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                  placeholder="z.B. Regional-Kapitän"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 13-16</Label>
+                <Input
+                  type="text"
+                  value={formData.level_13_16_title || ''}
+                  onChange={(e) => handleChange('level_13_16_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                  placeholder="z.B. Airline-Profi"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 17-20</Label>
+                <Input
+                  type="text"
+                  value={formData.level_17_20_title || ''}
+                  onChange={(e) => handleChange('level_17_20_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                  placeholder="z.B. Flug-Veteran"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 21+</Label>
+                <Input
+                  type="text"
+                  value={formData.level_21_plus_title || ''}
+                  onChange={(e) => handleChange('level_21_plus_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                  placeholder="z.B. Luftfahrt-Legende"
                 />
               </div>
             </div>

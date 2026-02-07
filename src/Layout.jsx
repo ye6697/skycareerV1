@@ -46,6 +46,14 @@ export default function Layout({ children, currentPageName }) {
     refetchInterval: 5000,
   });
 
+  const { data: gameSettings } = useQuery({
+    queryKey: ['gameSettings'],
+    queryFn: async () => {
+      const settings = await base44.entities.GameSettings.list();
+      return settings[0] || null;
+    }
+  });
+
   const { data: user } = useQuery({
     queryKey: ['user'],
     queryFn: () => base44.auth.me()
@@ -188,12 +196,12 @@ export default function Layout({ children, currentPageName }) {
                         <Star className="w-4 h-4 text-amber-400" />
                         <span className="text-xs text-slate-400 font-medium">
                           Level {company?.level || 1} - {
-                            (company?.level || 1) <= 4 ? 'Freizeit-Simmer' :
-                            (company?.level || 1) <= 8 ? 'Hobby-Pilot' :
-                            (company?.level || 1) <= 12 ? 'Regional-Kapitän' :
-                            (company?.level || 1) <= 16 ? 'Airline-Profi' :
-                            (company?.level || 1) <= 20 ? 'Flug-Veteran' :
-                            'Luftfahrt-Legende'
+                            (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || 'Freizeit-Simmer') :
+                            (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || 'Hobby-Pilot') :
+                            (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || 'Regional-Kapitän') :
+                            (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || 'Airline-Profi') :
+                            (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || 'Flug-Veteran') :
+                            (gameSettings?.level_21_plus_title || 'Luftfahrt-Legende')
                           }
                         </span>
                       </div>
