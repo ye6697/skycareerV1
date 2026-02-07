@@ -52,9 +52,8 @@ export default function Contracts() {
   const { data: allContracts = [], isLoading } = useQuery({
     queryKey: ['contracts', 'all', company?.level],
     queryFn: async () => {
-      const all = await base44.entities.Contract.list();
-      return all
-        .filter(c => c.status === 'available' && !c.company_id)
+      const res = await base44.functions.invoke('getAvailableContracts', {});
+      return res.data.contracts
         .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
