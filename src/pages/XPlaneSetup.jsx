@@ -47,7 +47,7 @@ export default function XPlaneSetup() {
         endpoint
       });
       
-      const blob = new Blob([response.data], { type: 'text/plain' });
+      const blob = new Blob([response.data], { type: 'text/x-lua' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -56,6 +56,12 @@ export default function XPlaneSetup() {
       a.click();
       window.URL.revokeObjectURL(url);
       a.remove();
+      
+      // Update API key display after download
+      const companies = await base44.entities.Company.list();
+      if (companies[0]?.xplane_api_key) {
+        setApiKey(companies[0].xplane_api_key);
+      }
     } catch (error) {
       console.error('Error downloading Lua script:', error);
       alert('Fehler beim Herunterladen');
