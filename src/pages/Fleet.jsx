@@ -258,7 +258,10 @@ export default function Fleet() {
   const { data: aircraft = [], isLoading } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
-      return await base44.entities.Aircraft.list('-created_date');
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      return await base44.entities.Aircraft.filter({ company_id: companies[0].id }, '-created_date');
     },
     refetchInterval: 3000,
     refetchOnMount: 'always',
@@ -280,6 +283,7 @@ export default function Fleet() {
       
       await base44.entities.Aircraft.create({
         ...aircraftData,
+        company_id: company.id,
         registration,
         status: 'available',
         total_flight_hours: 0,
@@ -291,6 +295,7 @@ export default function Fleet() {
           balance: (company.balance || 0) - aircraftData.purchase_price
         });
         await base44.entities.Transaction.create({
+          company_id: company.id,
           type: 'expense',
           category: 'aircraft_purchase',
           amount: aircraftData.purchase_price,
