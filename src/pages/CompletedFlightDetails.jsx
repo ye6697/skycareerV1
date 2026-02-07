@@ -199,17 +199,59 @@ export default function CompletedFlightDetails() {
                 </div>
 
                 {/* Final Score */}
-                {flight.xplane_data?.final_score !== undefined && (
+                <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                  <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
+                  <p className={`text-3xl font-mono font-bold ${
+                    (flight.xplane_data?.final_score || passedFlightData?.flightScore || 0) >= 95 ? 'text-emerald-400' :
+                    (flight.xplane_data?.final_score || passedFlightData?.flightScore || 0) >= 85 ? 'text-green-400' :
+                    (flight.xplane_data?.final_score || passedFlightData?.flightScore || 0) >= 70 ? 'text-amber-400' :
+                    'text-red-400'
+                  }`}>
+                    {Math.round(flight.xplane_data?.final_score || passedFlightData?.flightScore || 0)} / 100
+                  </p>
+                </div>
+                
+                {/* Landing Quality */}
+                {(flight.xplane_data?.landingType || passedFlightData?.landingType) && (
                   <div className="mt-4 p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
-                    <p className={`text-3xl font-mono font-bold ${
-                      flight.xplane_data.final_score >= 95 ? 'text-emerald-400' :
-                      flight.xplane_data.final_score >= 85 ? 'text-green-400' :
-                      flight.xplane_data.final_score >= 70 ? 'text-amber-400' :
-                      'text-red-400'
-                    }`}>
-                      {Math.round(flight.xplane_data.final_score)} / 100
-                    </p>
+                    <p className="text-slate-400 text-sm mb-2">Landung Bewertung</p>
+                    <div className="flex items-center gap-2">
+                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'crash' && (
+                        <>
+                          <AlertTriangle className="w-5 h-5 text-red-500" />
+                          <span className="text-red-500 font-bold">CRASH</span>
+                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.crash_vs_threshold || 1000} ft/min)</span>
+                        </>
+                      )}
+                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'hard' && (
+                        <>
+                          <AlertTriangle className="w-5 h-5 text-red-400" />
+                          <span className="text-red-400 font-bold">Harte Landung</span>
+                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.hard_landing_vs_threshold || 600} ft/min)</span>
+                        </>
+                      )}
+                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'acceptable' && (
+                        <>
+                          <CheckCircle2 className="w-5 h-5 text-blue-400" />
+                          <span className="text-blue-400 font-semibold">Akzeptable Landung</span>
+                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min)</span>
+                        </>
+                      )}
+                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'soft' && (
+                        <>
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          <span className="text-emerald-400 font-bold">Weiche Landung</span>
+                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.soft_landing_vs_threshold || 150} ft/min)</span>
+                        </>
+                      )}
+                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'butter' && (
+                        <>
+                          <Star className="w-5 h-5 text-amber-400" />
+                          <span className="text-amber-400 font-bold">BUTTERWEICHE LANDUNG!</span>
+                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.butter_landing_vs_threshold || 100} ft/min)</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
 
