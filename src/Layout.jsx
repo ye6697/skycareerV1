@@ -32,6 +32,7 @@ const navItems = [
   { name: "X-Plane Setup", icon: Settings, path: "XPlaneSetup" },
   { name: "X-Plane Debug", icon: Activity, path: "XPlaneDebug" },
   { name: "Spiel-Einstellungen", icon: Settings, path: "GameSettingsAdmin", adminOnly: true },
+  { name: "Flugzeug-Bilder", icon: Plane, path: "AdminAircraftImages", adminOnly: true },
 ];
 
 export default function Layout({ children, currentPageName }) {
