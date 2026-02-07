@@ -231,10 +231,15 @@ export default function CompletedFlightDetails() {
                   })()}
                 </div>
                 
-                {/* Landing Quality */}
+                {/* Landing Quality Details */}
                 {(flight.xplane_data?.landingType || passedFlightData?.landingType) && (
-                  <div className="mt-4 p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-2">Landungs-Bewertung</p>
+                  <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-3">
+                    <div>
+                      <p className="text-slate-400 text-sm mb-2 font-semibold">Landungsqualitäts-Analyse</p>
+                      <p className="text-xs text-slate-500 mb-3">Basierend auf G-Kraft beim Landen</p>
+                    </div>
+
+                    {/* Landing Type */}
                     <div className="flex items-center gap-2">
                       {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'crash' && (
                         <>
