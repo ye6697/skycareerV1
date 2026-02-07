@@ -673,12 +673,23 @@ export default function FlightTracker() {
       
       // Landungs-Score hinzufügen/abziehen
       baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
-      
+
       // Track if high G-force event already happened
       const hadHighGEvent = prev.events.high_g_force || false;
-      
+
       // Calculate maintenance cost increase based on NEW events only
-       let maintenanceCostIncrease = landingMaintenanceCost;
+      let maintenanceCostIncrease = landingMaintenanceCost;
+
+      // Log landing quality calculations for debugging
+      if (landingType && !prev.landingType) {
+        console.log('🎯 LANDUNGSQUALITÄT ERKANNT:', {
+          landingType,
+          gForce: landingGForceValue,
+          landingScoreChange,
+          landingMaintenanceCost,
+          landingBonus
+        });
+      }
 
        // Get aircraft for maintenance cost calculations (purchase price is neuwert)
        // Use flight.aircraft_id if available, otherwise try to find from aircraft list
