@@ -635,14 +635,7 @@ export default function Fleet() {
                       onClick={() => setIsPurchaseDialogOpen(false)}
                       className="border-slate-600 text-slate-300 hover:bg-slate-700"
                     >
-                      Abbrechen
-                    </Button>
-                    <Button
-                      onClick={() => purchaseMutation.mutate(selectedAircraft)}
-                      disabled={!selectedAircraft || purchaseMutation.isPending}
-                      className={`${selectedAircraft ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-500/30' : 'bg-slate-600'}`}
-                    >
-                      {purchaseMutation.isPending ? 'Kaufe...' : `Für $${selectedAircraft?.purchase_price?.toLocaleString() || 0} kaufen`}
+                      Schließen
                     </Button>
                   </DialogFooter>
                 </DialogContent>
