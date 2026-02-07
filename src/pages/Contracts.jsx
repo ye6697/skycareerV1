@@ -56,13 +56,9 @@ export default function Contracts() {
       return all
         .filter(c => c.status === 'available' && !c.company_id)
         .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
-        .filter(c => {
-          if (!c.required_aircraft_type || c.required_aircraft_type.length === 0) return true;
-          return ownedAircraft.some(ac => c.required_aircraft_type.includes(ac.type));
-        })
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
-    enabled: !!company && ownedAircraft.length >= 0
+    enabled: !!company
   });
 
   const contracts = allContracts.slice(offset, offset + 10);
