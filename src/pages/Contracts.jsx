@@ -77,6 +77,15 @@ export default function Contracts() {
     }
   });
 
+  const generateContractsMutation = useMutation({
+    mutationFn: async () => {
+      return await base44.functions.invoke('generateContracts', {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+    }
+  });
+
   const getRangeCategory = (distanceNm) => {
     if (distanceNm <= 500) return 'short';
     if (distanceNm <= 1500) return 'medium';
@@ -139,6 +148,13 @@ export default function Contracts() {
                 disabled={isLoading}
               >
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button 
+                onClick={() => generateContractsMutation.mutate()}
+                disabled={generateContractsMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {generateContractsMutation.isPending ? 'Generiere...' : '1000 Aufträge generieren'}
               </Button>
             </div>
           </div>
