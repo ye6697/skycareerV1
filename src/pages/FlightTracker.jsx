@@ -496,8 +496,15 @@ export default function FlightTracker() {
             date: new Date().toISOString()
             });
 
+            // WARTE bis Aircraft wirklich gespeichert ist und lade es neu
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Hole das aktualisierte Aircraft direkt aus der DB
+            const updatedAircraft = await base44.entities.Aircraft.filter({ id: flight.aircraft_id });
+            console.log('✅ Aircraft nach Update:', updatedAircraft[0]);
+
             // Invalidiere aircraft query um sicherzustellen, dass Fleet aktualisiert wird
-            queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+            await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
 
             // Hole den aktualisierten Flight aus DB
             const updatedFlightFromDB = await base44.entities.Flight.filter({ id: flight.id });
