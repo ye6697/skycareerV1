@@ -121,9 +121,17 @@ export default function CompletedFlightDetails() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold">{finalContract.title}</h1>
-                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                  Abgeschlossen
-                </Badge>
+                {flight?.xplane_data?.events?.crash ? (
+                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4" />
+                    CRASH - Fehlgeschlagen
+                  </Badge>
+                ) : (
+                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                    Abgeschlossen
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-4 text-slate-400">
                 <span className="flex items-center gap-1">
