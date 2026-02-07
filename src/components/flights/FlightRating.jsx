@@ -128,19 +128,19 @@ export default function FlightRating({ flight }) {
               </p>
             </div>
           )}
-          {flight?.max_g_force && (
+          {flight?.xplane_data?.landingGForce || flight?.max_g_force ? (
             <div>
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Max G-Kraft</p>
+              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">G-Kraft beim Landen</p>
               <p className={`text-xl font-mono font-bold ${
-                flight.max_g_force < 1.3 ? 'text-emerald-400' :
-                flight.max_g_force < 1.8 ? 'text-amber-400' :
-                flight.max_g_force < 2.5 ? 'text-orange-400' :
+                (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 1.3 ? 'text-emerald-400' :
+                (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 1.8 ? 'text-amber-400' :
+                (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 2.5 ? 'text-orange-400' :
                 'text-red-400'
               }`}>
-                {flight.max_g_force?.toFixed(2) || "-"} G
+                {(flight.xplane_data?.landingGForce || flight.max_g_force || 0)?.toFixed(2) || "-"} G
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
