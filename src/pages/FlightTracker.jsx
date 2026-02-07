@@ -90,21 +90,25 @@ export default function FlightTracker() {
       return comments;
     }
 
-    // Landing-based comments
-    const landingVs = Math.abs(data.landingVs);
-    if (landingVs < 100) {
-      comments.push("Butterweiche Landung! Professionell!");
-    } else if (landingVs < 150) {
-      comments.push("Sehr sanfte Landung, gut gemacht.");
-    } else if (landingVs < 250) {
-      comments.push("Normale Landung.");
-    } else if (landingVs < 400) {
-      comments.push("Die Landung war etwas hart...");
-    } else {
-      comments.push("Das war eine sehr harte Landung!");
+    // Landing quality-based comments (based on landingType)
+    if (data.landingType === 'butter') {
+      comments.push("Butterweiche Landung! Das war professionell!");
+      comments.push("Ich habe kaum bemerkt, dass wir gelandet sind - perfekt!");
+    } else if (data.landingType === 'soft') {
+      comments.push("Sehr sanfte Landung, ausgezeichnet!");
+      comments.push("Der Pilot weiß, wie man landen muss.");
+    } else if (data.landingType === 'acceptable') {
+      comments.push("Ganz normale Landung.");
+      comments.push("Alles in Ordnung.");
+    } else if (data.landingType === 'hard') {
+      comments.push("Die Landung war ziemlich hart...");
+      comments.push("Mein Getränk ist umgekippt!");
+    } else if (data.landingType === 'very_hard') {
+      comments.push("Das war eine brutale Landung!");
+      comments.push("Ich bin mir nicht sicher, ob das sicher war.");
     }
 
-    // G-force based comments
+    // G-force based comments (during flight)
     if (data.maxGForce > 2.0) {
       comments.push("Mir wurde bei den extremen Manövern übel.");
     } else if (data.maxGForce > 1.8) {
@@ -113,7 +117,7 @@ export default function FlightTracker() {
       comments.push("Sehr angenehmer, sanfter Flug.");
     }
 
-    // Score-based overall comments
+    // Overall score-based comments
     if (score >= 95) {
       comments.push("Perfekter Flug! Werde diese Airline weiterempfehlen!");
     } else if (score >= 85) {
@@ -127,9 +131,6 @@ export default function FlightTracker() {
     }
 
     // Event-based comments
-    if (data.events.hard_landing) {
-      comments.push("Die Landung war erschreckend hart!");
-    }
     if (data.events.tailstrike) {
       comments.push("Ich habe gehört, wie das Heck aufgesetzt hat...");
     }
