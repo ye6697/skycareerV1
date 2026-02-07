@@ -614,7 +614,8 @@ export default function FlightTracker() {
 
       // Landing detection based on vertical speed
       const currentSpeed = xp.speed || 0;
-      const touchdownVs = xp.touchdown_vspeed || 0;
+      // Ensure we capture landing VS properly, prefer xp.landing_vs if available
+      const touchdownVs = xp.landing_vs || xp.touchdown_vspeed || 0;
 
       // Landing categories based on vertical speed and GameSettings thresholds
       let landingType = prev.landingType;
