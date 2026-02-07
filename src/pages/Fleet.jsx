@@ -528,19 +528,19 @@ export default function Fleet() {
                           }`}
                         >
                           <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden flex-shrink-0">
-                            {ac.image_url ? (
-                              <motion.img 
-                                src={ac.image_url}
-                                alt={ac.name}
-                                className="w-full h-full object-cover"
-                                whileHover={{ scale: 1.05 }}
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  const fallback = e.target.parentElement?.querySelector('[data-fallback]');
-                                  if (fallback) fallback.style.display = 'flex';
-                                }}
-                              />
-                            ) : null}
+                            {ac.image_url && (
+                               <motion.img 
+                                 src={ac.image_url}
+                                 alt={ac.name}
+                                 className="w-full h-full object-cover"
+                                 whileHover={{ scale: 1.05 }}
+                                 onError={(e) => {
+                                   e.target.style.display = 'none';
+                                   const fallback = e.target.parentElement?.querySelector('[data-fallback]');
+                                   if (fallback) fallback.style.display = 'flex';
+                                 }}
+                               />
+                            )}
                             <div data-fallback className="absolute inset-0 flex items-center justify-center text-5xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: ac.image_url ? 'none' : 'flex'}}>✈️</div>
                           </div>
                           <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 space-y-3 flex flex-col flex-grow">
