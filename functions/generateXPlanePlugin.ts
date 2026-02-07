@@ -21,6 +21,13 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Company not found' }, { status: 404 });
     }
 
+    // Generate API key if not exists
+    let apiKey = company.xplane_api_key;
+    if (!apiKey) {
+      apiKey = crypto.randomUUID();
+      await base44.entities.Company.update(company.id, { xplane_api_key: apiKey });
+    }
+
     // Create plugin Python code
     const pluginCode = `"""
 SkyCareer X-Plane 12 Plugin
@@ -44,7 +51,7 @@ class PythonInterface:
         
         # Configuration
         self.api_endpoint = "${apiEndpoint}"
-        self.company_id = "${company.id}"
+        self.api_key = "${apiKey}"
         self.update_interval = 2.0  # seconds
         self.last_update = 0
         self.last_on_ground = True
@@ -130,7 +137,6 @@ class PythonInterface:
             
             # Prepare payload
             payload = {
-                'company_id': self.company_id,
                 'altitude': round(altitude, 1),
                 'speed': round(speed, 1),
                 'vertical_speed': round(vs, 1),
@@ -155,8 +161,9 @@ class PythonInterface:
     def send_data(self, data):
         try:
             json_data = json.dumps(data).encode('utf-8')
+            api_url = f"{self.api_endpoint}?api_key={self.api_key}"
             request = urllib.request.Request(
-                self.api_endpoint,
+                api_url,
                 data=json_data,
                 headers={'Content-Type': 'application/json'},
                 method='POST'
