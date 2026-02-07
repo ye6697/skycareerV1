@@ -574,7 +574,7 @@ export default function FlightTracker() {
        // Direkt navigieren mit dem neuesten Flight von der DB
        navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
          state: { 
-           flightData,
+           flightData: flightDataRef.current || flightData,
            flight: updatedFlight,
            contract
          }
