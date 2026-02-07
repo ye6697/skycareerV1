@@ -311,63 +311,65 @@ export default function CompletedFlightDetails() {
                           Heckaufsetzer
                         </div>
                       )}
-                      {flight.xplane_data.events.stall && (
+                      {events.stall && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Strömungsabriss
                         </div>
                       )}
-                      {flight.xplane_data.events.overstress && (
+                      {events.overstress && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Strukturbelastung
                         </div>
                       )}
-                      {flight.xplane_data.events.flaps_overspeed && (
+                      {events.flaps_overspeed && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Klappen-Overspeed
                         </div>
                       )}
-                      {flight.xplane_data.events.gear_up_landing && (
+                      {events.gear_up_landing && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Landung ohne Fahrwerk
                         </div>
                       )}
-                      {flight.xplane_data.events.crash && (
+                      {events.crash && (
                         <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
                           <AlertTriangle className="w-4 h-4" />
                           CRASH
                         </div>
                       )}
-                      {flight.xplane_data.events.harsh_controls && (
+                      {events.harsh_controls && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Ruppige Steuerung
                         </div>
                       )}
-                      {flight.xplane_data.events.high_g_force && (
+                      {events.high_g_force && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Hohe G-Kräfte
                         </div>
                       )}
-                      {flight.xplane_data.events.hard_landing && (
+                      {events.hard_landing && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Harte Landung
                         </div>
                       )}
-                      {flight.xplane_data.events.fuel_emergency && (
+                      {events.fuel_emergency && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Treibstoff-Notstand
                         </div>
                       )}
-                    </div>
-                  </div>
-                )}
+                      </div>
+                      </div>
+                      );
+                      })()}
+                      )}
               </Card>
             </div>
 
