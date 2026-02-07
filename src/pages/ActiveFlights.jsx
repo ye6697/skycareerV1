@@ -107,6 +107,7 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
