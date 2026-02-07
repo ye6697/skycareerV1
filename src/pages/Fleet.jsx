@@ -184,6 +184,30 @@ const AIRCRAFT_MARKET = [
     image_url: ""
   },
   {
+    name: "Airbus A318",
+    type: "narrow_body",
+    passenger_capacity: 108,
+    cargo_capacity_kg: 3200,
+    fuel_consumption_per_hour: 2200,
+    range_nm: 3100,
+    purchase_price: 8500000,
+    maintenance_cost_per_hour: 800,
+    level_requirement: 5,
+    image_url: ""
+  },
+  {
+    name: "Airbus A319",
+    type: "narrow_body",
+    passenger_capacity: 140,
+    cargo_capacity_kg: 3850,
+    fuel_consumption_per_hour: 2600,
+    range_nm: 3300,
+    purchase_price: 10000000,
+    maintenance_cost_per_hour: 950,
+    level_requirement: 6,
+    image_url: ""
+  },
+  {
     name: "Airbus A320neo",
     type: "narrow_body",
     passenger_capacity: 180,
@@ -193,7 +217,19 @@ const AIRCRAFT_MARKET = [
     purchase_price: 12000000,
     maintenance_cost_per_hour: 1200,
     level_requirement: 6,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Airbus_A320neo_Lufthansa_D-AINN_01.jpg/1024px-Airbus_A320neo_Lufthansa_D-AINN_01.jpg"
+    image_url: ""
+  },
+  {
+    name: "Boeing 737-700",
+    type: "narrow_body",
+    passenger_capacity: 155,
+    cargo_capacity_kg: 4700,
+    fuel_consumption_per_hour: 3000,
+    range_nm: 3300,
+    purchase_price: 11000000,
+    maintenance_cost_per_hour: 1050,
+    level_requirement: 6,
+    image_url: ""
   },
   {
     name: "Boeing 737 MAX 8",
@@ -205,7 +241,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 13500000,
     maintenance_cost_per_hour: 1350,
     level_requirement: 7,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/KBWI_-_Southwest_Airlines_N8646Q_-_Flickr_-_Photo_Encoding.jpg/1024px-KBWI_-_Southwest_Airlines_N8646Q_-_Flickr_-_Photo_Encoding.jpg"
+    image_url: ""
   },
   {
     name: "Boeing 787-8",
@@ -217,7 +253,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 18000000,
     maintenance_cost_per_hour: 1600,
     level_requirement: 8,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/ANA_B787-8_34A.jpg/1024px-ANA_B787-8_34A.jpg"
+    image_url: ""
   },
   {
     name: "Airbus A330-200",
