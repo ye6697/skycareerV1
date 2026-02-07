@@ -246,8 +246,9 @@ export default function Contracts() {
           </div>
         ) : filteredContracts.length > 0 ? (
            <>
+             <h2 className="text-xl font-bold text-white mb-4">Kompatible Aufträge ({compatibleContracts.length})</h2>
              <motion.div 
-               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"
+               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
                layout
              >
                <AnimatePresence>
@@ -264,6 +265,35 @@ export default function Contracts() {
                </AnimatePresence>
              </motion.div>
 
+             {incompatibleShow.length > 0 && (
+               <>
+                 <h2 className="text-xl font-bold text-white mb-4">Nicht kompatible Aufträge ({incompatibleContracts.length})</h2>
+                 <motion.div 
+                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-50"
+                   layout
+                 >
+                   <AnimatePresence>
+                     {incompatibleShow.map((contract) => (
+                       <div key={contract.id} className="relative">
+                         <ContractCard
+                           contract={contract}
+                           onAccept={handleAccept}
+                           onView={handleView}
+                           isAccepting={false}
+                           ownedAircraft={ownedAircraft}
+                         />
+                         <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center">
+                           <div className="text-center">
+                             <p className="text-white font-semibold">Zu kleiner Flugzeugtyp</p>
+                             <p className="text-slate-400 text-sm mt-1">Erforderlich: {contract.required_aircraft_type?.join(', ') || 'Unbekannt'}</p>
+                           </div>
+                         </div>
+                       </div>
+                     ))}
+                   </AnimatePresence>
+                 </motion.div>
+               </>
+             )}
            </>
          ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
