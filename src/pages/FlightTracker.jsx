@@ -236,6 +236,9 @@ export default function FlightTracker() {
     onSuccess: (flightData) => {
       setFlight(flightData);
       setFlightPhase('takeoff');
+      setFlightStartTime(Date.now());
+      setFlightDurationSeconds(0);
+      setProcessedGLevels(new Set());
       
       // Reset flight data for new flight
       setFlightData({
