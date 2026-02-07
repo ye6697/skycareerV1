@@ -286,23 +286,23 @@ export default function CompletedFlightDetails() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between text-slate-300">
                           <span>Reguläre Wartung ({flight.flight_duration_hours?.toFixed(1)}h × $400/h)</span>
-                          <span className="text-amber-400">${((flight.flight_duration_hours || 0) * 400).toLocaleString()}</span>
+                          <span className="text-amber-400">${((flight.flight_duration_hours || 0) * 400).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                         </div>
                         {flight.xplane_data?.maintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
                             <span>Event-Schäden im Flug</span>
-                            <span className="text-red-400">${Math.round(flight.xplane_data.maintenanceCost).toLocaleString()}</span>
+                            <span className="text-red-400">${(flight.xplane_data.maintenanceCost).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                           </div>
                         )}
                         {flight.xplane_data?.crashMaintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
                             <span>Crash-Reparatur (70% des Neuwertes)</span>
-                            <span className="text-red-500 font-bold">${Math.round(flight.xplane_data.crashMaintenanceCost).toLocaleString()}</span>
+                            <span className="text-red-500 font-bold">${(flight.xplane_data.crashMaintenanceCost).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                           </div>
                         )}
                         <div className="flex justify-between pt-2 border-t border-slate-700 font-bold">
                           <span className="text-white">Gesamt Wartungskosten</span>
-                          <span className="text-red-400">${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
+                          <span className="text-red-400">${(flight.maintenance_cost || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                         </div>
                       </div>
                     </div>
