@@ -39,15 +39,23 @@ export default function FlightHistory() {
   const { data: flights = [], isLoading } = useQuery({
     queryKey: ['flights', 'history'],
     queryFn: async () => {
-      const completed = await base44.entities.Flight.filter({ status: 'completed' }, '-created_date');
-      const failed = await base44.entities.Flight.filter({ status: 'failed' }, '-created_date');
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      const completed = await base44.entities.Flight.filter({ company_id: companies[0].id, status: 'completed' }, '-created_date');
+      const failed = await base44.entities.Flight.filter({ company_id: companies[0].id, status: 'failed' }, '-created_date');
       return [...completed, ...failed].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     }
   });
 
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'all'],
-    queryFn: () => base44.entities.Contract.list()
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      return await base44.entities.Contract.filter({ company_id: companies[0].id });
+    }
   });
 
   const getContractForFlight = (flight) => {

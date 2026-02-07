@@ -41,13 +41,21 @@ export default function Contracts() {
 
   const { data: ownedAircraft = [] } = useQuery({
     queryKey: ['aircraft', 'owned'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: { $ne: 'sold' } })
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      return await base44.entities.Aircraft.filter({ company_id: companies[0].id, status: { $ne: 'sold' } });
+    }
   });
 
   const { data: contracts = [], isLoading, refetch } = useQuery({
     queryKey: ['contracts', 'available', company?.level, offset],
     queryFn: async () => {
-      const all = await base44.entities.Contract.filter({ status: 'available' });
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      const all = await base44.entities.Contract.filter({ company_id: companies[0].id, status: 'available' });
       return all
         .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
         .filter(c => {

@@ -78,18 +78,11 @@ Deno.serve(async (req) => {
 
     // Get active flight for this company
     const flights = await base44.asServiceRole.entities.Flight.filter({ 
+      company_id: company.id,
       status: 'in_flight'
     });
     
-    // Find flight for this user's company (match by contract ownership)
-    let flight = null;
-    for (const f of flights) {
-      const contract = await base44.asServiceRole.entities.Contract.get(f.contract_id);
-      if (contract && contract.created_by === company.created_by) {
-        flight = f;
-        break;
-      }
-    }
+    const flight = flights[0] || null;
     
 
     if (!flight) {
@@ -256,6 +249,7 @@ Deno.serve(async (req) => {
       }
 
       await base44.asServiceRole.entities.Transaction.create({
+        company_id: company.id,
         type: profit >= 0 ? 'income' : 'expense',
         category: 'flight_revenue',
         amount: Math.abs(profit),
