@@ -20,19 +20,24 @@ import {
 
 export default function XPlaneSetup() {
   const [copied, setCopied] = React.useState(false);
+  const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
   const [apiKey, setApiKey] = React.useState(null);
   const endpoint = `${window.location.origin}/api/receiveXPlaneData`;
 
   React.useEffect(() => {
-    const fetchCompany = async () => {
-      const companies = await base44.entities.Company.list();
-      if (companies[0]) {
-        setApiKey(companies[0].xplane_api_key || 'Wird beim Download generiert');
-      }
+    const ensureApiKey = async () => {
+      const response = await base44.functions.invoke('ensureApiKey', {});
+      setApiKey(response.data.api_key);
     };
-    fetchCompany();
+    ensureApiKey();
   }, []);
+
+  const copyApiKey = () => {
+    navigator.clipboard.writeText(apiKey || '');
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2000);
+  };
 
   const copyEndpoint = () => {
     navigator.clipboard.writeText(endpoint);
@@ -57,11 +62,7 @@ export default function XPlaneSetup() {
       window.URL.revokeObjectURL(url);
       a.remove();
       
-      // Update API key display after download
-      const companies = await base44.entities.Company.list();
-      if (companies[0]?.xplane_api_key) {
-        setApiKey(companies[0].xplane_api_key);
-      }
+
     } catch (error) {
       console.error('Error downloading Lua script:', error);
       alert('Fehler beim Herunterladen');
@@ -284,12 +285,32 @@ export default function XPlaneSetup() {
                     Das Plugin enthält deinen persönlichen API-Key und sendet die Daten nur an deinen Account!
                   </p>
                   <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-xs text-slate-400 mb-1">Dein persönlicher API-Key:</p>
-                    <code className="text-emerald-400 text-sm font-mono break-all">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-slate-400">Dein persönlicher API-Key:</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={copyApiKey}
+                        className="h-6 px-2 text-xs"
+                      >
+                        {copiedKey ? (
+                          <>
+                            <Check className="w-3 h-3 mr-1" />
+                            Kopiert
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3 mr-1" />
+                            Kopieren
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <code className="text-emerald-400 text-sm font-mono break-all block">
                       {apiKey || 'Lädt...'}
                     </code>
                     <p className="text-xs text-slate-500 mt-2">
-                      Dieser Key ist bereits im heruntergeladenen Script enthalten
+                      ⚠️ Dieser Key bleibt dauerhaft gleich und ist bereits im heruntergeladenen Script enthalten
                     </p>
                   </div>
                 </div>
