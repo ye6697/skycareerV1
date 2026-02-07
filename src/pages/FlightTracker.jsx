@@ -170,7 +170,7 @@ export default function FlightTracker() {
   useEffect(() => {
     if (existingFlight && !flight) {
       setFlight(existingFlight);
-      setFlightPhase('preflight');
+      setFlightPhase('takeoff'); // Setze direkt auf takeoff wenn Flight existiert
     }
   }, [existingFlight, flight]);
 
