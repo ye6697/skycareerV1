@@ -213,11 +213,13 @@ export default function Layout({ children, currentPageName }) {
                         </span>
                       </div>
                     </div>
-                    <div className="text-xs text-slate-500 mb-2">{company?.experience_points || 0}/100 XP</div>
+                    <div className="text-xs text-slate-500 mb-2">
+                      {company?.experience_points || 0}/{Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))} XP
+                    </div>
                     <div className="w-full bg-slate-700 rounded-full h-2">
                       <div 
                         className="bg-amber-400 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${company?.experience_points || 0}%` }}
+                        style={{ width: `${((company?.experience_points || 0) / Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))) * 100}%` }}
                       />
                     </div>
                   </div>

@@ -489,11 +489,23 @@ export default function FlightTracker() {
               // Reputation based on score (0-100)
               const reputationChange = hasCrashed ? -10 : Math.round((finalScore - 85) / 5);
               
-              // XP and Level system
+              // XP and Level system with increasing XP requirements (10% per level)
+              const calculateXPForLevel = (level) => {
+                return Math.round(100 * Math.pow(1.1, level - 1));
+              };
+
               const earnedXP = Math.round(finalScore);
-              const currentXP = (company.experience_points || 0) + earnedXP;
-              const newLevel = company.level + Math.floor(currentXP / 100);
-              const remainingXP = currentXP % 100;
+              let currentLevel = company.level || 1;
+              let currentXP = (company.experience_points || 0) + earnedXP;
+
+              // Level up as many times as possible
+              while (currentXP >= calculateXPForLevel(currentLevel)) {
+                currentXP -= calculateXPForLevel(currentLevel);
+                currentLevel++;
+              }
+
+              const newLevel = currentLevel;
+              const remainingXP = currentXP;
               
               // Calculate actual balance change (revenue - direct costs only)
               const actualProfit = revenue + levelBonus - directCosts;
