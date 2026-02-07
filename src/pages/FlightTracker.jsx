@@ -1082,7 +1082,7 @@ export default function FlightTracker() {
                   {flightData.maintenanceCost > 0 && (
                     <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
                       <span className="text-slate-400">Wartungskosten</span>
-                      <span className="text-red-400 font-mono">${flightData.maintenanceCost.toLocaleString()}</span>
+                      <span className="text-red-400 font-mono">${flightData.maintenanceCost.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                     </div>
                   )}
                   
