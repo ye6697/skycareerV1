@@ -202,14 +202,19 @@ export default function CompletedFlightDetails() {
                 {/* Final Score */}
                 <div className="mt-4 p-4 bg-slate-900 rounded-lg">
                   <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
-                  <p className={`text-3xl font-mono font-bold ${
-                    (flight.xplane_data?.final_score || passedFlightData?.flightScore || 0) >= 95 ? 'text-emerald-400' :
-                    (flight.xplane_data?.final_score || passedFlightData?.flightScore || 0) >= 85 ? 'text-green-400' :
-                    (flight.xplane_data?.final_score || passedFlightData?.flightScore || 0) >= 70 ? 'text-amber-400' :
-                    'text-red-400'
-                  }`}>
-                    {Math.round(flight.xplane_data?.final_score || passedFlightData?.flightScore || 0)} / 100
-                  </p>
+                  {(() => {
+                    const score = passedFlightData?.flightScore ?? flight?.xplane_data?.final_score ?? 0;
+                    return (
+                      <p className={`text-3xl font-mono font-bold ${
+                        score >= 95 ? 'text-emerald-400' :
+                        score >= 85 ? 'text-green-400' :
+                        score >= 70 ? 'text-amber-400' :
+                        'text-red-400'
+                      }`}>
+                        {Math.round(score)} / 100
+                      </p>
+                    );
+                  })()}
                 </div>
                 
                 {/* Landing Quality */}
