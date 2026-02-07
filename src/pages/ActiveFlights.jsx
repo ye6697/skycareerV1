@@ -32,8 +32,7 @@ import {
   CheckCircle,
   Play,
   DollarSign,
-  User,
-  Info } from
+  User } from
 "lucide-react";
 
 export default function ActiveFlights() {
@@ -63,22 +62,25 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
-  });
-
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     }
+  });
+
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', company?.id],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: company.id, status: 'available' }),
+    enabled: !!company?.id
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', company?.id],
+    queryFn: () => base44.entities.Employee.filter({ company_id: company.id, status: 'available' }),
+    enabled: !!company?.id
   });
 
   const startFlightMutation = useMutation({
@@ -227,21 +229,6 @@ export default function ActiveFlights() {
                 Plugin-Verbindung erforderlich für Live-Flugdaten
               </p>
             }
-          </div>
-        </Card>
-
-        {/* Important Info */}
-        <Card className="p-4 mb-6 bg-amber-900/30 border border-amber-700">
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="space-y-2">
-              <p className="font-medium text-amber-100">So funktioniert das Flytracking:</p>
-              <ol className="text-sm text-amber-200 space-y-1 ml-4 list-decimal">
-                <li>Starte einen neuen Flug in X-Plane 12</li>
-                <li>Warte, bis der Flug vollständig geladen ist</li>
-                <li>Klicke dann auf "Flug verfolgen", um mit der Verfolgung zu beginnen</li>
-              </ol>
-            </div>
           </div>
         </Card>
 
