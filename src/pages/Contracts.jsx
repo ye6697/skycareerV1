@@ -206,8 +206,17 @@ export default function Contracts() {
           </button>
         </div>
 
+        {/* Info Alert */}
+         <div className="mb-6 p-4 bg-blue-900/40 border border-blue-700 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-blue-100">Wichtig:</p>
+            <p className="text-sm text-blue-200">Um die Flugwerte in einem Auftrag zurückzusetzen, musst du einen neuen Flug in X-Plane 12 starten.</p>
+          </div>
+        </div>
+
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="bg-slate-800 border border-slate-700">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <Plane className="w-4 h-4" />
