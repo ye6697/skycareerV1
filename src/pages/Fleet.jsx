@@ -403,6 +403,7 @@ export default function Fleet() {
       const registration = `${company?.callsign?.slice(0, 2) || 'N'}${String(aircraft.length + 1).padStart(3, '0')}`;
       
       const specs = AIRCRAFT_MARKET_SPECS.find(a => a.name === aircraftData.name) || aircraftData;
+      const template = templates.find(t => t.name === aircraftData.name);
       await base44.entities.Aircraft.create({
         ...specs,
         company_id: company.id,
@@ -410,7 +411,7 @@ export default function Fleet() {
         status: 'available',
         total_flight_hours: 0,
         current_value: aircraftData.purchase_price,
-        image_url: undefined
+        image_url: template?.image_url
       });
 
       if (company) {
