@@ -604,29 +604,34 @@ export default function FlightTracker() {
       // Landing detection based on vertical speed
       const currentSpeed = xp.speed || 0;
       const touchdownVs = xp.touchdown_vspeed || 0;
-      
-      // Landing categories based on vertical speed
-      let landingType = null;
+
+      // Landing categories based on vertical speed and GameSettings thresholds
+      let landingType = prev.landingType;
       let landingScoreChange = 0;
       let landingMaintenanceCost = 0;
-      
-      if (touchdownVs !== 0 && xp.on_ground && newWasAirborne && !prev.events.hard_landing && !prev.events.crash) {
+
+      if (touchdownVs !== 0 && xp.on_ground && newWasAirborne && !prev.events.hard_landing && !prev.events.crash && !prev.landingType) {
         const absVs = Math.abs(touchdownVs);
-        if (absVs > 1000) {
-          landingType = 'crash'; // Sehr harte Landung = Crash
-        } else if (absVs > 600) {
-          landingType = 'hard'; // Harte Landung
-          landingScoreChange = -15; // 15 Punkte Abzug
-          landingMaintenanceCost = aircraftPurchasePrice * 0.01; // 1% des Flugzeugwerts
-        } else if (absVs > 300) {
-          landingType = 'acceptable'; // Akzeptable Landung
-          landingScoreChange = 0; // Keine Änderung
-        } else if (absVs > 150) {
-          landingType = 'soft'; // Weiche Landung
-          landingScoreChange = 5; // 5 Bonuspunkte
+        const crashThreshold = settings?.crash_vs_threshold || 1000;
+        const hardLandingThreshold = settings?.hard_landing_vs_threshold || 600;
+        const softLandingThreshold = settings?.soft_landing_vs_threshold || 150;
+        const butterLandingThreshold = settings?.butter_landing_vs_threshold || 100;
+
+        if (absVs > crashThreshold) {
+          landingType = 'crash';
+        } else if (absVs > hardLandingThreshold) {
+          landingType = 'hard';
+          landingScoreChange = -(settings?.hard_landing_score_penalty || 15);
+          landingMaintenanceCost = aircraftPurchasePrice * ((settings?.hard_landing_maintenance_percent || 1) / 100);
+        } else if (absVs > softLandingThreshold) {
+          landingType = 'acceptable';
+          landingScoreChange = 0;
+        } else if (absVs > butterLandingThreshold) {
+          landingType = 'soft';
+          landingScoreChange = settings?.soft_landing_score_bonus || 5;
         } else {
-          landingType = 'butter'; // Butterweiche Landung
-          landingScoreChange = 10; // 10 Bonuspunkte
+          landingType = 'butter';
+          landingScoreChange = settings?.butter_landing_score_bonus || 10;
         }
       }
       
