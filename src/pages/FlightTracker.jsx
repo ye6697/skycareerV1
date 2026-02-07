@@ -630,6 +630,8 @@ export default function FlightTracker() {
       const currentSpeed = xp.speed || 0;
       // Ensure we capture landing VS properly, prefer xp.landing_vs if available
       const touchdownVs = xp.landing_vs || xp.touchdown_vspeed || 0;
+      // Landing G-force from X-Plane
+      const landingGForceValue = xp.landing_g_force || currentGForce;
 
       // Landing categories based on G-force only
       let landingType = prev.landingType;
@@ -637,8 +639,8 @@ export default function FlightTracker() {
       let landingMaintenanceCost = 0;
       let landingBonus = 0;
 
-      if (newMaxGForce > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
-        const gForce = newMaxGForce;
+      if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
+        const gForce = landingGForceValue;
 
         if (gForce < 0.5) {
           landingType = 'butter';
