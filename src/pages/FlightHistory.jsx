@@ -92,21 +92,21 @@ export default function FlightHistory() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="p-4 bg-white border border-slate-200">
+          <Card className="p-4 bg-slate-800 border border-slate-700">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Plane className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Plane className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Flüge Gesamt</p>
-                <p className="text-2xl font-bold text-slate-900">{flights.length}</p>
+                <p className="text-sm text-slate-400">Flüge Gesamt</p>
+                <p className="text-2xl font-bold text-white">{flights.length}</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4 bg-white border border-slate-200">
+          <Card className="p-4 bg-slate-800 border border-slate-700">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Star className="w-5 h-5 text-amber-600" />
+              <div className="p-2 bg-amber-500/20 rounded-lg">
+                <Star className="w-5 h-5 text-amber-400" />
               </div>
               <div>
                 <p className="text-sm text-slate-400">Ø Bewertung</p>
@@ -114,27 +114,27 @@ export default function FlightHistory() {
               </div>
             </div>
           </Card>
-          <Card className="p-4 bg-white border border-slate-200">
+          <Card className="p-4 bg-slate-800 border border-slate-700">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${totalProfit >= 0 ? 'bg-emerald-100' : 'bg-red-100'}`}>
+              <div className={`p-2 rounded-lg ${totalProfit >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
                 {totalProfit >= 0 ? (
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
                 ) : (
-                  <TrendingDown className="w-5 h-5 text-red-600" />
+                  <TrendingDown className="w-5 h-5 text-red-400" />
                 )}
               </div>
               <div>
                 <p className="text-sm text-slate-400">Gesamtgewinn</p>
-                <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {formatCurrency(totalProfit)}
                 </p>
               </div>
             </div>
           </Card>
-          <Card className="p-4 bg-white border border-slate-200">
+          <Card className="p-4 bg-slate-800 border border-slate-700">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-purple-600" />
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <DollarSign className="w-5 h-5 text-purple-400" />
               </div>
               <div>
                 <p className="text-sm text-slate-400">Ø Gewinn/Flug</p>
@@ -167,13 +167,13 @@ export default function FlightHistory() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Datum</TableHead>
-                  <TableHead>Route</TableHead>
-                  <TableHead>Bewertung</TableHead>
-                  <TableHead>Landung</TableHead>
-                  <TableHead>Einnahmen</TableHead>
-                  <TableHead>Kosten</TableHead>
-                  <TableHead>Gewinn</TableHead>
+                  <TableHead className="text-white">Datum</TableHead>
+                  <TableHead className="text-white">Route</TableHead>
+                  <TableHead className="text-white">Bewertung</TableHead>
+                  <TableHead className="text-white">Landung</TableHead>
+                  <TableHead className="text-white">Einnahmen</TableHead>
+                  <TableHead className="text-white">Kosten</TableHead>
+                  <TableHead className="text-white">Gewinn</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -186,27 +186,27 @@ export default function FlightHistory() {
                       className={`cursor-pointer hover:bg-slate-700 ${flight.status === 'failed' ? 'bg-red-900/20' : ''}`}
                       onClick={() => setSelectedFlight(flight)}
                     >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-slate-400" />
-                          {formatDate(flight.departure_time)}
-                          {flight.status === 'failed' && (
-                            <Badge className="bg-red-100 text-red-700 border-red-200 ml-2">Crash</Badge>
-                          )}
-                        </div>
+                      <TableCell className="text-white">
+                       <div className="flex items-center gap-2">
+                         <Calendar className="w-4 h-4 text-slate-400" />
+                         {formatDate(flight.departure_time)}
+                         {flight.status === 'failed' && (
+                           <Badge className="bg-red-500/20 text-red-400 border-red-500/30 ml-2">Crash</Badge>
+                         )}
+                       </div>
                       </TableCell>
-                      <TableCell>
-                        <span className="font-mono">
-                          {contract?.departure_airport} → {contract?.arrival_airport}
-                        </span>
+                      <TableCell className="text-white">
+                       <span className="font-mono">
+                         {contract?.departure_airport} → {contract?.arrival_airport}
+                       </span>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Star className={`w-4 h-4 ${
-                            flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'
-                          }`} />
-                          <span className="font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
-                        </div>
+                      <TableCell className="text-white">
+                       <div className="flex items-center gap-1">
+                         <Star className={`w-4 h-4 ${
+                           flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'
+                         }`} />
+                         <span className="font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
+                       </div>
                       </TableCell>
                       <TableCell>
                         <Badge className={`${
@@ -219,13 +219,13 @@ export default function FlightHistory() {
                           {flight.landing_vs} ft/min
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-emerald-600 font-medium">
+                      <TableCell className="text-emerald-400 font-medium">
                         {formatCurrency(flight.revenue)}
                       </TableCell>
-                      <TableCell className="text-red-500">
+                      <TableCell className="text-red-400">
                         -{formatCurrency((flight.fuel_cost || 0) + (flight.crew_cost || 0) + (flight.maintenance_cost || 0))}
                       </TableCell>
-                      <TableCell className={`font-bold ${flight.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      <TableCell className={`font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {formatCurrency(flight.profit)}
                       </TableCell>
                       <TableCell>
@@ -255,31 +255,31 @@ export default function FlightHistory() {
               <div className="space-y-4">
                 <FlightRating flight={selectedFlight} />
                 
-                <Card className="p-4 bg-slate-50">
-                  <h4 className="font-semibold mb-3">Finanzübersicht</h4>
+                <Card className="p-4 bg-slate-800 border-slate-700">
+                  <h4 className="font-semibold mb-3 text-white">Finanzübersicht</h4>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-white">
                       <span>Einnahmen</span>
-                      <span className="text-emerald-600 font-medium">
+                      <span className="text-emerald-400 font-medium">
                         {formatCurrency(selectedFlight.revenue)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-white">
                       <span>Treibstoffkosten</span>
-                      <span className="text-red-500">-{formatCurrency(selectedFlight.fuel_cost)}</span>
+                      <span className="text-red-400">-{formatCurrency(selectedFlight.fuel_cost)}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-white">
                       <span>Crew-Kosten</span>
-                      <span className="text-red-500">-{formatCurrency(selectedFlight.crew_cost)}</span>
+                      <span className="text-red-400">-{formatCurrency(selectedFlight.crew_cost)}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-white">
                       <span>Wartungskosten</span>
-                      <span className="text-red-500">-{formatCurrency(selectedFlight.maintenance_cost)}</span>
+                      <span className="text-red-400">-{formatCurrency(selectedFlight.maintenance_cost)}</span>
                     </div>
-                    <hr />
-                    <div className="flex justify-between font-bold">
+                    <hr className="border-slate-600" />
+                    <div className="flex justify-between font-bold text-white">
                       <span>Gewinn</span>
-                      <span className={selectedFlight.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}>
+                      <span className={selectedFlight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                         {formatCurrency(selectedFlight.profit)}
                       </span>
                     </div>
