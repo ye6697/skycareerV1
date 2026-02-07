@@ -12,7 +12,17 @@ Deno.serve(async (req) => {
       c.status === 'available' && !c.company_id
     );
     
-    return Response.json({ contracts: availableContracts });
+    // Get company level
+    const user = await base44.auth.me();
+    const companies = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
+    const companyLevel = companies[0]?.level || 1;
+    
+    // Filter by level requirement
+    const filteredByLevel = availableContracts.filter(c => 
+      (c.level_requirement || 1) <= companyLevel
+    );
+    
+    return Response.json({ contracts: filteredByLevel });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
