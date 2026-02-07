@@ -212,7 +212,7 @@ export default function Contracts() {
               <Plane className="w-4 h-4" />
               Alle
               <Badge variant="secondary" className="ml-1">
-                {contracts.filter(c => c.status === 'available').length}
+                {compatibleContracts.filter(c => c.status === 'available').length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="accepted" className="flex items-center gap-2">
