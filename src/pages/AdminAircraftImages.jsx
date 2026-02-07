@@ -83,9 +83,42 @@ export default function AdminAircraftImages() {
   });
 
   const uploadImageMutation = useMutation({
-    mutationFn: async ({ aircraftId, file }) => {
+    mutationFn: async ({ aircraftId, file, isTemplate, aircraftName }) => {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      await base44.entities.Aircraft.update(aircraftId, { image_url: file_url });
+      
+      if (isTemplate) {
+        // For template aircraft, create a new owned aircraft with the image
+        const user = await base44.auth.me();
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        const company = companies[0];
+        
+        if (company) {
+          // Find the template data to get aircraft type and specs
+          const templateData = AIRCRAFT_MARKET.find(ac => ac.name === aircraftName);
+          if (templateData) {
+            await base44.entities.Aircraft.create({
+              company_id: company.id,
+              name: aircraftName,
+              type: templateData.type,
+              registration: `${company.callsign || 'N'}${String(Date.now()).slice(-3)}`,
+              image_url: file_url,
+              passenger_capacity: templateData.passenger_capacity || 0,
+              cargo_capacity_kg: templateData.cargo_capacity_kg || 0,
+              fuel_consumption_per_hour: templateData.fuel_consumption_per_hour || 0,
+              range_nm: templateData.range_nm || 0,
+              purchase_price: templateData.purchase_price || 0,
+              maintenance_cost_per_hour: templateData.maintenance_cost_per_hour || 0,
+              status: 'available',
+              total_flight_hours: 0,
+              current_value: templateData.purchase_price || 0
+            });
+          }
+        }
+      } else {
+        // For owned aircraft, just update the image
+        await base44.entities.Aircraft.update(aircraftId, { image_url: file_url });
+      }
+      
       return file_url;
     },
     onSuccess: () => {
