@@ -58,7 +58,14 @@ export default function GameSettingsAdmin() {
     level_9_12_title: "Regional-Kapitän",
     level_13_16_title: "Airline-Profi",
     level_17_20_title: "Flug-Veteran",
-    level_21_plus_title: "Luftfahrt-Legende"
+    level_21_30_title: "Charter-Experte",
+    level_31_40_title: "Langstrecken-Ass",
+    level_41_50_title: "Linien-Kapitän",
+    level_51_60_title: "Flotten-Chef",
+    level_61_70_title: "Luftfahrt-Mogul",
+    level_71_80_title: "Aviation-Tycoon",
+    level_81_90_title: "Sky-Emperor",
+    level_91_100_title: "Luftfahrt-Legende"
   };
 
   const saveMutation = useMutation({
@@ -399,9 +406,9 @@ export default function GameSettingsAdmin() {
           <Card className="p-6 bg-slate-800 border-slate-700">
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <Settings className="w-5 h-5 text-amber-400" />
-              Level-Bezeichnungen
+              Level-Bezeichnungen (bis Level 100)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Label className="text-white">Level 1-4</Label>
                 <Input
@@ -409,7 +416,6 @@ export default function GameSettingsAdmin() {
                   value={formData.level_1_4_title || ''}
                   onChange={(e) => handleChange('level_1_4_title', e.target.value)}
                   className="bg-slate-900 text-white border-slate-700"
-                  placeholder="z.B. Freizeit-Simmer"
                 />
               </div>
               <div>
@@ -419,7 +425,6 @@ export default function GameSettingsAdmin() {
                   value={formData.level_5_8_title || ''}
                   onChange={(e) => handleChange('level_5_8_title', e.target.value)}
                   className="bg-slate-900 text-white border-slate-700"
-                  placeholder="z.B. Hobby-Pilot"
                 />
               </div>
               <div>
@@ -429,7 +434,6 @@ export default function GameSettingsAdmin() {
                   value={formData.level_9_12_title || ''}
                   onChange={(e) => handleChange('level_9_12_title', e.target.value)}
                   className="bg-slate-900 text-white border-slate-700"
-                  placeholder="z.B. Regional-Kapitän"
                 />
               </div>
               <div>
@@ -439,7 +443,6 @@ export default function GameSettingsAdmin() {
                   value={formData.level_13_16_title || ''}
                   onChange={(e) => handleChange('level_13_16_title', e.target.value)}
                   className="bg-slate-900 text-white border-slate-700"
-                  placeholder="z.B. Airline-Profi"
                 />
               </div>
               <div>
@@ -449,17 +452,78 @@ export default function GameSettingsAdmin() {
                   value={formData.level_17_20_title || ''}
                   onChange={(e) => handleChange('level_17_20_title', e.target.value)}
                   className="bg-slate-900 text-white border-slate-700"
-                  placeholder="z.B. Flug-Veteran"
                 />
               </div>
               <div>
-                <Label className="text-white">Level 21+</Label>
+                <Label className="text-white">Level 21-30</Label>
                 <Input
                   type="text"
-                  value={formData.level_21_plus_title || ''}
-                  onChange={(e) => handleChange('level_21_plus_title', e.target.value)}
+                  value={formData.level_21_30_title || ''}
+                  onChange={(e) => handleChange('level_21_30_title', e.target.value)}
                   className="bg-slate-900 text-white border-slate-700"
-                  placeholder="z.B. Luftfahrt-Legende"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 31-40</Label>
+                <Input
+                  type="text"
+                  value={formData.level_31_40_title || ''}
+                  onChange={(e) => handleChange('level_31_40_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 41-50</Label>
+                <Input
+                  type="text"
+                  value={formData.level_41_50_title || ''}
+                  onChange={(e) => handleChange('level_41_50_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 51-60</Label>
+                <Input
+                  type="text"
+                  value={formData.level_51_60_title || ''}
+                  onChange={(e) => handleChange('level_51_60_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 61-70</Label>
+                <Input
+                  type="text"
+                  value={formData.level_61_70_title || ''}
+                  onChange={(e) => handleChange('level_61_70_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 71-80</Label>
+                <Input
+                  type="text"
+                  value={formData.level_71_80_title || ''}
+                  onChange={(e) => handleChange('level_71_80_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 81-90</Label>
+                <Input
+                  type="text"
+                  value={formData.level_81_90_title || ''}
+                  onChange={(e) => handleChange('level_81_90_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Level 91-100</Label>
+                <Input
+                  type="text"
+                  value={formData.level_91_100_title || ''}
+                  onChange={(e) => handleChange('level_91_100_title', e.target.value)}
+                  className="bg-slate-900 text-white border-slate-700"
                 />
               </div>
             </div>

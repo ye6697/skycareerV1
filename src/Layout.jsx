@@ -201,7 +201,14 @@ export default function Layout({ children, currentPageName }) {
                             (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || 'Regional-Kapitän') :
                             (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || 'Airline-Profi') :
                             (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || 'Flug-Veteran') :
-                            (gameSettings?.level_21_plus_title || 'Luftfahrt-Legende')
+                            (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || 'Charter-Experte') :
+                            (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || 'Langstrecken-Ass') :
+                            (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || 'Linien-Kapitän') :
+                            (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || 'Flotten-Chef') :
+                            (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || 'Luftfahrt-Mogul') :
+                            (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || 'Aviation-Tycoon') :
+                            (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || 'Sky-Emperor') :
+                            (gameSettings?.level_91_100_title || 'Luftfahrt-Legende')
                           }
                         </span>
                       </div>
