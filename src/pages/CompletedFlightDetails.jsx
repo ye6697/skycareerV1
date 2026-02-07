@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
+import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 
 export default function CompletedFlightDetails() {
   const navigate = useNavigate();
