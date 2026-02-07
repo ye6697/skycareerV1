@@ -134,8 +134,8 @@ export default function ActiveFlights() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['aircraft', 'available'] });
+      queryClient.invalidateQueries({ queryKey: ['employees', 'available'] });
       setIsAssignDialogOpen(false);
       setSelectedContract(null);
       setSelectedAircraft('');
