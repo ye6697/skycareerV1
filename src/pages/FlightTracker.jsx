@@ -49,6 +49,7 @@ export default function FlightTracker() {
     fuelKg: 0,
     gForce: 1.0,
     maxGForce: 1.0,
+    landingGForce: 0,
     landingVs: 0,
     landingType: null,
     flightScore: 100,
