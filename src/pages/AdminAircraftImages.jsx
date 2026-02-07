@@ -173,7 +173,7 @@ export default function AdminAircraftImages() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileSelect(e, ac.id)}
+                          onChange={(e) => handleFileSelect(e, ac.id, ac.isTemplate, ac.name)}
                           disabled={uploadingId === ac.id}
                           className="hidden"
                         />
@@ -187,7 +187,7 @@ export default function AdminAircraftImages() {
                             ) : (
                               <>
                                 <Upload className="w-4 h-4 mr-2" />
-                                Bild ändern
+                                Bild {ac.isTemplate ? 'erstellen' : 'ändern'}
                               </>
                             )}
                           </span>
