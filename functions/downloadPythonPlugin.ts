@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
     const apiEndpoint = url.searchParams.get('endpoint') || 'http://localhost:5173/api/receiveXPlaneData';
     
     // Get company info
-    const companies = await base44.entities.Company.list();
+    const companies = await base44.entities.Company.filter({ created_by: user.email });
     const company = companies[0];
     
     if (!company) {

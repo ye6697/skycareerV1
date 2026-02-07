@@ -40,7 +40,8 @@ export default function Layout({ children, currentPageName }) {
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     },
     refetchInterval: 5000,
