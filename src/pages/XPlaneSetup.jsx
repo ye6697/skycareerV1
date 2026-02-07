@@ -21,7 +21,18 @@ import {
 export default function XPlaneSetup() {
   const [copied, setCopied] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
+  const [apiKey, setApiKey] = React.useState(null);
   const endpoint = `${window.location.origin}/api/receiveXPlaneData`;
+
+  React.useEffect(() => {
+    const fetchCompany = async () => {
+      const companies = await base44.entities.Company.list();
+      if (companies[0]) {
+        setApiKey(companies[0].xplane_api_key || 'Wird beim Download generiert');
+      }
+    };
+    fetchCompany();
+  }, []);
 
   const copyEndpoint = () => {
     navigator.clipboard.writeText(endpoint);
@@ -261,14 +272,19 @@ export default function XPlaneSetup() {
                 <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <p className="text-emerald-300 font-medium">Automatisch konfiguriert</p>
+                    <p className="text-emerald-300 font-medium">Automatisch konfiguriert mit individuellem API-Key</p>
                   </div>
                   <p className="text-sm text-slate-400 mb-3">
-                    Das Plugin erkennt automatisch deinen aktiven Flug über deine Company ID - keine manuelle Konfiguration nötig!
+                    Das Plugin enthält deinen persönlichen API-Key und sendet die Daten nur an deinen Account!
                   </p>
                   <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-xs text-slate-400 mb-1">Deine Company ID:</p>
-                    <code className="text-emerald-400 text-sm font-mono">Bereits im Plugin enthalten</code>
+                    <p className="text-xs text-slate-400 mb-1">Dein persönlicher API-Key:</p>
+                    <code className="text-emerald-400 text-sm font-mono break-all">
+                      {apiKey || 'Lädt...'}
+                    </code>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Dieser Key ist bereits im heruntergeladenen Script enthalten
+                    </p>
                   </div>
                 </div>
               </div>
