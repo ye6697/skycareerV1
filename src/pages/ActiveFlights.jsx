@@ -230,6 +230,21 @@ export default function ActiveFlights() {
           </div>
         </Card>
 
+        {/* Important Info */}
+        <Card className="p-4 mb-6 bg-amber-900/30 border border-amber-700">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="font-medium text-amber-100">So funktioniert das Flytracking:</p>
+              <ol className="text-sm text-amber-200 space-y-1 ml-4 list-decimal">
+                <li>Starte einen neuen Flug in X-Plane 12</li>
+                <li>Warte, bis der Flug vollständig geladen ist</li>
+                <li>Klicke dann auf "Flug verfolgen", um mit der Verfolgung zu beginnen</li>
+              </ol>
+            </div>
+          </div>
+        </Card>
+
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-slate-700">
           <button
