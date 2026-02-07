@@ -230,7 +230,7 @@ export default function CompletedFlightDetails() {
                 {/* Landing Quality */}
                 {(flight.xplane_data?.landingType || passedFlightData?.landingType) && (
                   <div className="mt-4 p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-2">Landung Bewertung</p>
+                    <p className="text-slate-400 text-sm mb-2">Landungs-Bewertung</p>
                     <div className="flex items-center gap-2">
                       {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'crash' && (
                         <>
