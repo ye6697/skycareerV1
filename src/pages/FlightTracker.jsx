@@ -748,6 +748,7 @@ export default function FlightTracker() {
         fuelKg: xp.fuel_kg || prev.fuelKg,
         gForce: currentGForce,
         maxGForce: newMaxGForce,
+        landingGForce: landingGForceValue,
         landingVs: touchdownVs !== 0 ? touchdownVs : prev.landingVs,
         landingType: landingType,
         landingBonus: landingBonus,
