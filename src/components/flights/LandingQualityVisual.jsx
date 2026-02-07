@@ -6,18 +6,14 @@ import { Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 export default function LandingQualityVisual({ flight, gameSettings }) {
   const landingVs = Math.abs(flight.landing_vs || 0);
   const landingGforce = Math.abs(flight.max_g_force || 0);
-  const crashThreshold = gameSettings?.crash_vs_threshold || 1000;
-  const hardLandingThreshold = gameSettings?.hard_landing_vs_threshold || 600;
-  const softLandingThreshold = gameSettings?.soft_landing_vs_threshold || 150;
-  const butterThreshold = gameSettings?.butter_landing_vs_threshold || 100;
 
-  // Determine landing quality
+  // Determine landing quality ONLY based on G-force
   const getLandingQuality = () => {
-    if (landingVs >= crashThreshold) return { type: 'crash', label: 'CRASH', color: 'red', icon: AlertTriangle };
-    if (landingVs >= hardLandingThreshold) return { type: 'hard', label: 'Harte Landung', color: 'red', icon: AlertTriangle };
-    if (landingVs >= softLandingThreshold) return { type: 'acceptable', label: 'Akzeptabel', color: 'blue', icon: CheckCircle2 };
-    if (landingVs >= butterThreshold) return { type: 'soft', label: 'Weich', color: 'emerald', icon: CheckCircle2 };
-    return { type: 'butter', label: 'BUTTERWEICH!', color: 'amber', icon: Star };
+    if (landingGforce < 0.5) return { type: 'butter', label: 'BUTTERWEICH!', color: 'amber', icon: Star };
+    if (landingGforce < 1.0) return { type: 'soft', label: 'Weich', color: 'emerald', icon: CheckCircle2 };
+    if (landingGforce < 1.6) return { type: 'acceptable', label: 'Akzeptabel', color: 'blue', icon: CheckCircle2 };
+    if (landingGforce < 2.0) return { type: 'hard', label: 'Harte Landung', color: 'red', icon: AlertTriangle };
+    return { type: 'very_hard', label: 'Sehr Harte Landung', color: 'red', icon: AlertTriangle };
   };
 
   const quality = getLandingQuality();
@@ -73,12 +69,7 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
             />
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            Schwelle: {
-              landingVs >= crashThreshold ? `${crashThreshold} ft/min (CRASH)` :
-              landingVs >= hardLandingThreshold ? `${hardLandingThreshold} ft/min (Hart)` :
-              landingVs >= softLandingThreshold ? `${softLandingThreshold} ft/min (Weich)` :
-              `${butterThreshold} ft/min (Butter)`
-            }
+           (Vertikalgeschwindigkeit zur Referenz)
           </p>
         </motion.div>
 
@@ -125,25 +116,13 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
         <p className="text-xs text-slate-400 mb-3">Bewertung</p>
         <div className="space-y-2 text-sm text-slate-300">
           <div className="flex justify-between">
-            <span>Vertikalgeschwindigkeit:</span>
+            <span>G-Kraft beim Aufsetzen:</span>
             <span className={`font-semibold text-${quality.color}-400`}>
-              {landingVs < butterThreshold ? '✓ Ausgezeichnet' :
-               landingVs < softLandingThreshold ? '✓ Gut' :
-               landingVs < hardLandingThreshold ? '⚠ Akzeptabel' :
-               landingVs < crashThreshold ? '✗ Hart' :
-               '✗ CRASH'}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Strukturbelastung:</span>
-            <span className={`font-semibold ${
-              landingGforce < 1.5 ? 'text-emerald-400' :
-              landingGforce < 2.0 ? 'text-amber-400' :
-              'text-red-400'
-            }`}>
-              {landingGforce < 1.5 ? '✓ Ausgezeichnet' :
-               landingGforce < 2.0 ? '⚠ Akzeptabel' :
-               '✗ Hoch'}
+              {landingGforce < 0.5 ? '✓✓ Ausgezeichnet (Butterweich)' :
+               landingGforce < 1.0 ? '✓ Sehr Gut (Weich)' :
+               landingGforce < 1.6 ? '⚠ Akzeptabel' :
+               landingGforce < 2.0 ? '✗ Hart' :
+               '✗✗ Sehr Hart'}
             </span>
           </div>
         </div>
