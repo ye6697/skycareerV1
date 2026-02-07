@@ -254,12 +254,15 @@ export default function Fleet() {
   const [selectedAircraft, setSelectedAircraft] = useState(null);
 
 
-  // Lade immer die aktuellen Daten aus der Datenbank
+  // Lade immer die aktuellen Daten aus der Datenbank mit regelmäßigem Refetch
   const { data: aircraft = [], isLoading } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
       return await base44.entities.Aircraft.list('-created_date');
-    }
+    },
+    refetchInterval: 3000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true
   });
 
   const { data: company } = useQuery({
