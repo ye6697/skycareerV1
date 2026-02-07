@@ -72,6 +72,19 @@ export default function CompletedFlightDetails() {
     );
   }
 
+  if (!flight) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin mb-4">
+            <Plane className="w-12 h-12 text-blue-400 mx-auto" />
+          </div>
+          <p className="text-white mb-4">Flugdaten werden geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <div className="max-w-6xl mx-auto p-6">
