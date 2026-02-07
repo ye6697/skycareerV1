@@ -62,25 +62,22 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      return companies[0];
-    }
-  });
-
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available', company?.id],
-    queryFn: () => base44.entities.Aircraft.filter({ company_id: company.id, status: 'available' }),
-    enabled: !!company?.id
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', company?.id],
-    queryFn: () => base44.entities.Employee.filter({ company_id: company.id, status: 'available' }),
-    enabled: !!company?.id
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    }
   });
 
   const startFlightMutation = useMutation({
@@ -459,6 +456,13 @@ export default function ActiveFlights() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
+              {startFlightMutation.isError && (
+                <div className="mt-3 p-3 bg-red-900/30 border border-red-700 rounded-lg">
+                  <p className="text-sm text-red-300">
+                    Fehler: {startFlightMutation.error?.message || 'Flug konnte nicht gestartet werden'}
+                  </p>
+                </div>
+              )}
             </DialogHeader>
 
             <div className="space-y-6">
