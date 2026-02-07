@@ -37,7 +37,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 150000,
     maintenance_cost_per_hour: 25,
     level_requirement: 1,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Cessna_172_Skyhawk.jpg/1024px-Cessna_172_Skyhawk.jpg"
+    image_url: ""
   },
   {
     name: "Piper PA-44 Seminole",
