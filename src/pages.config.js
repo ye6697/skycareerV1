@@ -63,6 +63,7 @@ import Landing from './pages/Landing';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import AdminAircraftImages from './pages/AdminAircraftImages';
 import __Layout from './Layout.jsx';
 
 
@@ -83,6 +84,7 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "AdminAircraftImages": AdminAircraftImages,
 }
 
 export const pagesConfig = {
