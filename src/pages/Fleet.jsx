@@ -47,8 +47,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 700,
     purchase_price: 180000,
     maintenance_cost_per_hour: 30,
-    level_requirement: 1,
-    image_url: ""
+    level_requirement: 1
   },
   {
     name: "Piper PA-44 Seminole",
@@ -59,8 +58,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 750,
     purchase_price: 200000,
     maintenance_cost_per_hour: 35,
-    level_requirement: 1,
-    image_url: ""
+    level_requirement: 1
   },
   {
     name: "Socata Tobago",
@@ -71,8 +69,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 720,
     purchase_price: 190000,
     maintenance_cost_per_hour: 32,
-    level_requirement: 1,
-    image_url: ""
+    level_requirement: 1
   },
   {
     name: "Piper PA-46 Malibu",
@@ -83,8 +80,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1500,
     purchase_price: 350000,
     maintenance_cost_per_hour: 85,
-    level_requirement: 2,
-    image_url: ""
+    level_requirement: 2
   },
   {
     name: "Beechcraft King Air 350",
@@ -95,8 +91,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1800,
     purchase_price: 750000,
     maintenance_cost_per_hour: 120,
-    level_requirement: 2,
-    image_url: ""
+    level_requirement: 2
   },
   {
     name: "Cessna Caravan",
@@ -107,8 +102,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1200,
     purchase_price: 400000,
     maintenance_cost_per_hour: 90,
-    level_requirement: 2,
-    image_url: ""
+    level_requirement: 2
   },
   {
     name: "Bombardier Dash 8-100",
@@ -119,8 +113,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1550,
     purchase_price: 1000000,
     maintenance_cost_per_hour: 200,
-    level_requirement: 3,
-    image_url: ""
+    level_requirement: 3
   },
   {
     name: "Bombardier Q400",
@@ -131,8 +124,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 1700,
     purchase_price: 1400000,
     maintenance_cost_per_hour: 280,
-    level_requirement: 3,
-    image_url: ""
+    level_requirement: 3
   },
   {
     name: "Bombardier CRJ-200",
@@ -143,8 +135,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2000,
     purchase_price: 1800000,
     maintenance_cost_per_hour: 350,
-    level_requirement: 3,
-    image_url: ""
+    level_requirement: 3
   },
   {
     name: "Embraer E170",
@@ -155,8 +146,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2100,
     purchase_price: 2300000,
     maintenance_cost_per_hour: 420,
-    level_requirement: 4,
-    image_url: ""
+    level_requirement: 4
   },
   {
     name: "Embraer E175",
@@ -167,8 +157,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2200,
     purchase_price: 2500000,
     maintenance_cost_per_hour: 450,
-    level_requirement: 4,
-    image_url: ""
+    level_requirement: 4
   },
   {
     name: "Airbus A220",
@@ -179,8 +168,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2800,
     purchase_price: 4200000,
     maintenance_cost_per_hour: 650,
-    level_requirement: 5,
-    image_url: ""
+    level_requirement: 5
   },
   {
     name: "Airbus A318",
@@ -191,8 +179,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3100,
     purchase_price: 8500000,
     maintenance_cost_per_hour: 800,
-    level_requirement: 5,
-    image_url: ""
+    level_requirement: 5
   },
   {
     name: "Airbus A319",
@@ -203,8 +190,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3300,
     purchase_price: 10000000,
     maintenance_cost_per_hour: 950,
-    level_requirement: 6,
-    image_url: ""
+    level_requirement: 6
   },
   {
     name: "Airbus A320neo",
@@ -215,8 +201,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3500,
     purchase_price: 12000000,
     maintenance_cost_per_hour: 1200,
-    level_requirement: 6,
-    image_url: ""
+    level_requirement: 6
   },
   {
     name: "Boeing 737-700",
@@ -227,8 +212,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3300,
     purchase_price: 11000000,
     maintenance_cost_per_hour: 1050,
-    level_requirement: 6,
-    image_url: ""
+    level_requirement: 6
   },
   {
     name: "Boeing 737 MAX 8",
@@ -239,8 +223,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 3500,
     purchase_price: 13500000,
     maintenance_cost_per_hour: 1350,
-    level_requirement: 7,
-    image_url: ""
+    level_requirement: 7
   },
   {
     name: "Boeing 787-8",
@@ -251,8 +234,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5000,
     purchase_price: 18000000,
     maintenance_cost_per_hour: 1600,
-    level_requirement: 8,
-    image_url: ""
+    level_requirement: 8
   },
   {
     name: "Airbus A300",
@@ -263,8 +245,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 4800,
     purchase_price: 20000000,
     maintenance_cost_per_hour: 2400,
-    level_requirement: 9,
-    image_url: ""
+    level_requirement: 9
   },
   {
     name: "Airbus A330-200",
@@ -275,8 +256,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5650,
     purchase_price: 25000000,
     maintenance_cost_per_hour: 2800,
-    level_requirement: 10,
-    image_url: ""
+    level_requirement: 10
   },
   {
     name: "Boeing 777-200ER",
@@ -287,8 +267,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 7065,
     purchase_price: 32000000,
     maintenance_cost_per_hour: 3200,
-    level_requirement: 11,
-    image_url: ""
+    level_requirement: 11
   },
   {
     name: "Boeing 777-300ER",
@@ -299,8 +278,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 7370,
     purchase_price: 35000000,
     maintenance_cost_per_hour: 3500,
-    level_requirement: 12,
-    image_url: ""
+    level_requirement: 12
   },
   {
     name: "Airbus A350-900",
@@ -311,8 +289,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3800,
-    level_requirement: 13,
-    image_url: ""
+    level_requirement: 13
   },
   {
     name: "Boeing 747-8",
@@ -323,8 +300,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 45000000,
     maintenance_cost_per_hour: 4200,
-    level_requirement: 15,
-    image_url: ""
+    level_requirement: 15
   },
   {
     name: "Airbus A380",
@@ -335,8 +311,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 8000,
     purchase_price: 55000000,
     maintenance_cost_per_hour: 5000,
-    level_requirement: 20,
-    image_url: ""
+    level_requirement: 20
   },
   {
     name: "ATR 72F",
@@ -347,8 +322,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 2400,
     purchase_price: 8000000,
     maintenance_cost_per_hour: 600,
-    level_requirement: 7,
-    image_url: ""
+    level_requirement: 7
   },
   {
     name: "Airbus A330-200F",
@@ -359,8 +333,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 5550,
     purchase_price: 24000000,
     maintenance_cost_per_hour: 2600,
-    level_requirement: 10,
-    image_url: ""
+    level_requirement: 10
   },
   {
     name: "Boeing 777F",
@@ -371,8 +344,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 4435,
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3600,
-    level_requirement: 12,
-    image_url: ""
+    level_requirement: 12
   },
   {
     name: "Boeing 747-8F",
@@ -383,9 +355,7 @@ const AIRCRAFT_MARKET = [
     range_nm: 4120,
     purchase_price: 42000000,
     maintenance_cost_per_hour: 4500,
-    level_requirement: 15,
-    image_url: ""
-  }
+    level_requirement: 15
 ];
 
 export default function Fleet() {
