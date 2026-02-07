@@ -40,6 +40,18 @@ const AIRCRAFT_MARKET = [
     image_url: ""
   },
   {
+    name: "Piper PA-28 Cherokee",
+    type: "small_prop",
+    passenger_capacity: 4,
+    cargo_capacity_kg: 120,
+    fuel_consumption_per_hour: 50,
+    range_nm: 700,
+    purchase_price: 180000,
+    maintenance_cost_per_hour: 30,
+    level_requirement: 1,
+    image_url: ""
+  },
+  {
     name: "Piper PA-44 Seminole",
     type: "small_prop",
     passenger_capacity: 4,
@@ -49,7 +61,19 @@ const AIRCRAFT_MARKET = [
     purchase_price: 200000,
     maintenance_cost_per_hour: 35,
     level_requirement: 1,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Piper_PA-44-180_Seminole_N2445.jpg/1024px-Piper_PA-44-180_Seminole_N2445.jpg"
+    image_url: ""
+  },
+  {
+    name: "Socata Tobago",
+    type: "small_prop",
+    passenger_capacity: 4,
+    cargo_capacity_kg: 140,
+    fuel_consumption_per_hour: 52,
+    range_nm: 720,
+    purchase_price: 190000,
+    maintenance_cost_per_hour: 32,
+    level_requirement: 1,
+    image_url: ""
   },
   {
     name: "Beechcraft King Air 350",
