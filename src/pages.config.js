@@ -58,10 +58,10 @@ import Finances from './pages/Finances';
 import Fleet from './pages/Fleet';
 import FlightHistory from './pages/FlightHistory';
 import FlightTracker from './pages/FlightTracker';
+import GameSettingsAdmin from './pages/GameSettingsAdmin';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
-import GameSettingsAdmin from './pages/GameSettingsAdmin';
 import __Layout from './Layout.jsx';
 
 
@@ -77,10 +77,10 @@ export const PAGES = {
     "Fleet": Fleet,
     "FlightHistory": FlightHistory,
     "FlightTracker": FlightTracker,
+    "GameSettingsAdmin": GameSettingsAdmin,
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
-    "GameSettingsAdmin": GameSettingsAdmin,
 }
 
 export const pagesConfig = {

@@ -226,16 +226,32 @@ export default function CompletedFlightDetails() {
                     </div>
                   )}
 
-                  {/* Crash Costs */}
-                  {flight.xplane_data?.events?.crash && flight.aircraft_id && (
-                    <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
-                      <p className="text-sm text-red-300 mb-2 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        Crash-Reparaturkosten (70% des Neuwertes):
-                      </p>
-                      <p className="text-2xl font-bold text-red-400">
-                        Inbegriffen in Wartungskosten
-                      </p>
+                  {/* Total Maintenance Breakdown */}
+                  {(flight.xplane_data?.maintenanceCost > 0 || flight.xplane_data?.events?.crash) && (
+                    <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-2">
+                      <h4 className="text-sm font-semibold text-white mb-3">Wartungskosten-Aufschlüsselung:</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between text-slate-300">
+                          <span>Reguläre Wartung ({flight.flight_duration_hours?.toFixed(1)}h × $400/h)</span>
+                          <span className="text-amber-400">${((flight.flight_duration_hours || 0) * 400).toLocaleString()}</span>
+                        </div>
+                        {flight.xplane_data?.maintenanceCost > 0 && (
+                          <div className="flex justify-between text-slate-300">
+                            <span>Event-Schäden im Flug</span>
+                            <span className="text-red-400">${flight.xplane_data.maintenanceCost.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {flight.xplane_data?.events?.crash && (
+                          <div className="flex justify-between text-slate-300">
+                            <span>Crash-Reparatur (70% des Neuwertes)</span>
+                            <span className="text-red-500 font-bold">${(flight.maintenance_cost - ((flight.flight_duration_hours || 0) * 400) - (flight.xplane_data?.maintenanceCost || 0)).toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between pt-2 border-t border-slate-700 font-bold">
+                          <span className="text-white">Gesamt Wartungskosten</span>
+                          <span className="text-red-400">${flight.maintenance_cost?.toLocaleString()}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
 

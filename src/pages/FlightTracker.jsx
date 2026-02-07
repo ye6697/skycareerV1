@@ -1017,13 +1017,13 @@ export default function FlightTracker() {
                         {flightData.events.high_g_force && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Hohe G-Kräfte
+                            Hohe G-Kräfte (Wartung: {(flightData.maxGForce * 100).toFixed(1)}% Neuwert)
                           </div>
                         )}
-                        {flightData.events.high_g_force && !flightData.events.crash && (
-                          <div className="text-xs text-orange-400 flex items-center gap-1">
+                        {flightData.events.hard_landing && (
+                          <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Hohe G-Kräfte (Wartung: {(flightData.maxGForce * 100).toFixed(1)}% Neuwert)
+                            Harte Landung (Wartung: 1% Flugzeugwert)
                           </div>
                         )}
                         </div>
