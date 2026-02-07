@@ -238,12 +238,22 @@ export default function Contracts() {
                  ))}
                </AnimatePresence>
              </motion.div>
-             <div className="flex justify-center">
+             <div className="flex justify-center gap-3">
                <Button 
                  onClick={() => setOffset(offset + 10)}
                  className="bg-blue-600 hover:bg-blue-700"
                >
                  Nächste 10 Aufträge laden
+               </Button>
+               <Button 
+                 onClick={async () => {
+                   await base44.functions.invoke('generateContracts', {});
+                   refetch();
+                 }}
+                 className="bg-emerald-600 hover:bg-emerald-700"
+               >
+                 <RefreshCw className="w-4 h-4 mr-2" />
+                 Neue Aufträge generieren
                </Button>
              </div>
            </>
