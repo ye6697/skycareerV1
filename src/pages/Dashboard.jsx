@@ -120,10 +120,18 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-white">{company.name}</h1>
               <p className="text-slate-400">{company.callsign} • Hub: {company.hub_airport || "Nicht festgelegt"}</p>
+              {company.xplane_api_key && (
+                <div className="mt-2 flex items-center gap-2">
+                  <p className="text-xs text-slate-500">API-Key:</p>
+                  <code className="text-xs text-slate-400 font-mono bg-slate-800 px-2 py-1 rounded">
+                    {company.xplane_api_key}
+                  </code>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-400">Kontostand</p>
