@@ -81,19 +81,25 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     
-    if (!user || user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const companies = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
+    const companies = await base44.entities.Company.filter({ created_by: user.email });
     if (!companies[0]) {
       return Response.json({ error: 'Company not found' }, { status: 404 });
     }
     const company = companies[0];
 
+    // Delete old contracts for this company
+    const oldContracts = await base44.entities.Contract.filter({ company_id: company.id, status: 'available' });
+    for (const contract of oldContracts) {
+      await base44.entities.Contract.delete(contract.id);
+    }
+
     const contracts = [];
     
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 10; i++) {
       const depAirport = airports[Math.floor(Math.random() * airports.length)];
       let arrAirport = airports[Math.floor(Math.random() * airports.length)];
       
@@ -153,7 +159,7 @@ Deno.serve(async (req) => {
     }
     
     for (const contract of contracts) {
-      await base44.asServiceRole.entities.Contract.create(contract);
+      await base44.entities.Contract.create(contract);
     }
     
     return Response.json({ 

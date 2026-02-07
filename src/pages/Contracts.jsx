@@ -154,7 +154,7 @@ export default function Contracts() {
                 disabled={generateContractsMutation.isPending}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {generateContractsMutation.isPending ? 'Generiere...' : '1000 Aufträge generieren'}
+                {generateContractsMutation.isPending ? 'Generiere...' : '10 neue Aufträge'}
               </Button>
             </div>
           </div>
