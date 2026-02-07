@@ -136,7 +136,10 @@ export default function FlightTracker() {
   const { data: xplaneLog } = useQuery({
     queryKey: ['xplane-log'],
     queryFn: async () => {
-      const logs = await base44.entities.XPlaneLog.list('-created_date', 1);
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return null;
+      const logs = await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 1);
       return logs[0] || null;
     },
     refetchInterval: 2000,
@@ -147,7 +150,10 @@ export default function FlightTracker() {
     queryKey: ['contract', contractIdFromUrl],
     queryFn: async () => {
       if (!contractIdFromUrl) return null;
-      const contracts = await base44.entities.Contract.filter({ id: contractIdFromUrl });
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return null;
+      const contracts = await base44.entities.Contract.filter({ company_id: companies[0].id, id: contractIdFromUrl });
       return contracts[0];
     },
     enabled: !!contractIdFromUrl
@@ -158,7 +164,11 @@ export default function FlightTracker() {
     queryKey: ['active-flight', contractIdFromUrl],
     queryFn: async () => {
       if (!contractIdFromUrl) return null;
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return null;
       const flights = await base44.entities.Flight.filter({ 
+        company_id: companies[0].id,
         contract_id: contractIdFromUrl,
         status: 'in_flight'
       });
@@ -187,7 +197,10 @@ export default function FlightTracker() {
   const { data: aircraft } = useQuery({
     queryKey: ['aircraft'],
     queryFn: async () => {
-      return await base44.entities.Aircraft.list();
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      return await base44.entities.Aircraft.filter({ company_id: companies[0].id });
     }
   });
 
@@ -208,6 +221,7 @@ export default function FlightTracker() {
       
       // Fallback: Sollte nicht verwendet werden, da Flights in ActiveFlights erstellt werden
       const newFlight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: contractIdFromUrl,
         status: 'in_flight',
         departure_time: new Date().toISOString()
@@ -287,6 +301,7 @@ export default function FlightTracker() {
       
       // Create transaction record
       await base44.entities.Transaction.create({
+        company_id: company.id,
         type: 'expense',
         category: 'other',
         amount: penalty,
@@ -524,6 +539,7 @@ export default function FlightTracker() {
 
             // Create transaction - only for direct costs
             await base44.entities.Transaction.create({
+            company_id: company.id,
             type: 'income',
             category: 'flight_revenue',
             amount: revenue + levelBonus - directCosts,

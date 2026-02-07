@@ -43,6 +43,7 @@ export default function Setup() {
 
       // Create starter aircraft
       await base44.entities.Aircraft.create({
+        company_id: company.id,
         name: "Cessna 172 Skyhawk",
         registration: `${data.callsign?.slice(0, 2) || 'N'}001`,
         type: "small_prop",
@@ -59,6 +60,7 @@ export default function Setup() {
       // Create starter employees
       await base44.entities.Employee.bulkCreate([
         {
+          company_id: company.id,
           name: "Max Mustermann",
           role: "captain",
           experience_level: "intermediate",
@@ -70,6 +72,7 @@ export default function Setup() {
           licenses: ["small_prop", "turboprop"]
         },
         {
+          company_id: company.id,
           name: "Anna Schmidt",
           role: "first_officer",
           experience_level: "junior",
@@ -85,6 +88,7 @@ export default function Setup() {
       // Create sample contracts
       await base44.entities.Contract.bulkCreate([
         {
+          company_id: company.id,
           title: "Kurze Inselhopping-Tour",
           type: "passenger",
           departure_airport: data.hub_airport || "EDDF",
@@ -101,6 +105,7 @@ export default function Setup() {
           status: "available"
         },
         {
+          company_id: company.id,
           title: "Geschäftsreise Premium",
           type: "charter",
           departure_airport: "EDDM",
@@ -117,6 +122,7 @@ export default function Setup() {
           status: "available"
         },
         {
+          company_id: company.id,
           title: "Frachtlieferung Express",
           type: "cargo",
           departure_airport: data.hub_airport || "EDDF",

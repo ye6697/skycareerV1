@@ -66,7 +66,12 @@ export default function Employees() {
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list('-created_date'),
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      return await base44.entities.Employee.filter({ company_id: companies[0].id }, '-created_date');
+    },
     staleTime: 0,
     refetchOnMount: 'always'
   });
@@ -83,6 +88,7 @@ export default function Employees() {
   const hireMutation = useMutation({
     mutationFn: async (candidate) => {
       await base44.entities.Employee.create({
+        company_id: company.id,
         name: candidate.name,
         role: selectedRole,
         experience_level: candidate.experience,
@@ -103,6 +109,7 @@ export default function Employees() {
           balance: (company.balance || 0) - hiringBonus
         });
         await base44.entities.Transaction.create({
+          company_id: company.id,
           type: 'expense',
           category: 'salary',
           amount: hiringBonus,
