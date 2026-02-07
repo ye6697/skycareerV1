@@ -504,16 +504,16 @@ export default function ActiveFlights() {
                   return (
                     <div key={role} className="flex items-center gap-4">
                       <div className="w-40">
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium text-slate-200">
                           {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-100 ml-1">*</span>}
+                          {required > 0 && <span className="text-red-400 ml-1">*</span>}
                         </span>
                       </div>
                       <Select
                         value={selectedCrew[role]}
                         onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
 
-                        <SelectTrigger className="flex-1">
+                         <SelectTrigger className="flex-1 bg-slate-700 border-slate-600 text-white">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
                         <SelectContent>
