@@ -191,6 +191,12 @@ export default function FlightTracker() {
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
+      // Verwende den existierenden Flight oder erstelle einen neuen (sollte nicht passieren)
+      if (existingFlight) {
+        return existingFlight;
+      }
+      
+      // Fallback: Sollte nicht verwendet werden, da Flights in ActiveFlights erstellt werden
       const newFlight = await base44.entities.Flight.create({
         contract_id: contractIdFromUrl,
         status: 'in_flight',
@@ -199,8 +205,8 @@ export default function FlightTracker() {
       
       return newFlight;
     },
-    onSuccess: (newFlight) => {
-      setFlight(newFlight);
+    onSuccess: (flightData) => {
+      setFlight(flightData);
       setFlightPhase('takeoff');
       
       // Reset flight data for new flight
