@@ -461,10 +461,10 @@ export default function FlightTracker() {
             await base44.entities.Flight.update(flight.id, {
               status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
-              takeoff_rating: scoreToRating(finalScore),
-              flight_rating: scoreToRating(finalScore),
-              landing_rating: scoreToRating(finalScore),
-              overall_rating: scoreToRating(finalScore),
+              takeoff_rating: scoreToRating(scoreWithTime),
+              flight_rating: scoreToRating(scoreWithTime),
+              landing_rating: scoreToRating(scoreWithTime),
+              overall_rating: scoreToRating(scoreWithTime),
               landing_vs: finalFlightData.landingVs,
               max_g_force: finalFlightData.maxGForce,
               fuel_used_liters: fuelUsed,
@@ -474,10 +474,13 @@ export default function FlightTracker() {
               flight_duration_hours: flightHours,
               revenue,
               profit,
-              passenger_comments: generateComments(finalScore, finalFlightData),
+              passenger_comments: generateComments(scoreWithTime, finalFlightData),
               xplane_data: {
                 ...finalFlightData,
-                final_score: finalScore,
+                final_score: scoreWithTime,
+                flightHours,
+                timeScoreChange,
+                timeBonus,
                 events: finalFlightData.events,
                 crashMaintenanceCost: crashMaintenanceCost
               }
