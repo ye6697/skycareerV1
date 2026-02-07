@@ -52,8 +52,9 @@ export default function Contracts() {
   const { data: allContracts = [], isLoading } = useQuery({
     queryKey: ['contracts', 'all', company?.level],
     queryFn: async () => {
-      const all = await base44.entities.Contract.filter({ status: 'available' });
+      const all = await base44.entities.Contract.list();
       return all
+        .filter(c => c.status === 'available' && !c.company_id)
         .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
         .filter(c => {
           if (!c.required_aircraft_type || c.required_aircraft_type.length === 0) return true;
