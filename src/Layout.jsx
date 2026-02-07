@@ -107,9 +107,7 @@ export default function Layout({ children, currentPageName }) {
             >
               <div className="p-4 border-b border-slate-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <Plane className="w-5 h-5 text-white" />
-                  </div>
+                  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-10 h-10 rounded-xl shadow-lg shadow-blue-500/20 object-cover" />
                   <div>
                     <span className="font-bold text-white">SkyCareer</span>
                     <p className="text-xs text-slate-400">X-Plane 12 Career</p>
