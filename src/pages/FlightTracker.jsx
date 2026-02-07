@@ -634,33 +634,35 @@ export default function FlightTracker() {
       // Ensure we capture landing VS properly, prefer xp.landing_vs if available
       const touchdownVs = xp.landing_vs || xp.touchdown_vspeed || 0;
 
-      // Landing categories based on vertical speed and GameSettings thresholds
+      // Landing categories based on G-force only
       let landingType = prev.landingType;
       let landingScoreChange = 0;
       let landingMaintenanceCost = 0;
+      let landingBonus = 0;
 
-      if (touchdownVs !== 0 && xp.on_ground && newWasAirborne && !prev.events.hard_landing && !prev.events.crash && !prev.landingType) {
-        const absVs = Math.abs(touchdownVs);
-        const crashThreshold = settings?.crash_vs_threshold || 1000;
-        const hardLandingThreshold = settings?.hard_landing_vs_threshold || 600;
-        const softLandingThreshold = settings?.soft_landing_vs_threshold || 150;
-        const butterLandingThreshold = settings?.butter_landing_vs_threshold || 100;
+      if (newMaxGForce > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
+        const gForce = newMaxGForce;
 
-        if (absVs > crashThreshold) {
-          landingType = 'crash';
-        } else if (absVs > hardLandingThreshold) {
-          landingType = 'hard';
-          landingScoreChange = -(settings?.hard_landing_score_penalty || 15);
-          landingMaintenanceCost = aircraftPurchasePrice * ((settings?.hard_landing_maintenance_percent || 1) / 100);
-        } else if (absVs > softLandingThreshold) {
-          landingType = 'acceptable';
-          landingScoreChange = 0;
-        } else if (absVs > butterLandingThreshold) {
-          landingType = 'soft';
-          landingScoreChange = settings?.soft_landing_score_bonus || 5;
-        } else {
+        if (gForce < 0.5) {
           landingType = 'butter';
-          landingScoreChange = settings?.butter_landing_score_bonus || 10;
+          landingScoreChange = 40;
+          landingBonus = contract?.payout ? (contract.payout * 0.1) : 0;
+        } else if (gForce < 1.0) {
+          landingType = 'soft';
+          landingScoreChange = 20;
+          landingBonus = contract?.payout ? (contract.payout * 0.05) : 0;
+        } else if (gForce < 1.6) {
+          landingType = 'acceptable';
+          landingScoreChange = 5;
+          landingBonus = contract?.payout ? (contract.payout * 0.01) : 0;
+        } else if (gForce < 2.0) {
+          landingType = 'hard';
+          landingScoreChange = -20;
+          landingMaintenanceCost = aircraftPurchasePrice * 0.01;
+        } else {
+          landingType = 'very_hard';
+          landingScoreChange = -40;
+          landingMaintenanceCost = aircraftPurchasePrice * 0.03;
         }
       }
       
@@ -749,6 +751,7 @@ export default function FlightTracker() {
         maxGForce: newMaxGForce,
         landingVs: touchdownVs !== 0 ? touchdownVs : prev.landingVs,
         landingType: landingType,
+        landingBonus: landingBonus,
         flightScore: baseScore,
         maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
         reputation: xp.reputation || prev.reputation,
@@ -768,7 +771,7 @@ export default function FlightTracker() {
           crash: isCrash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
           high_g_force: newMaxGForce >= 1.5 || prev.events.high_g_force,
-          hard_landing: landingType === 'hard' || prev.events.hard_landing
+          hard_landing: landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing
         },
         maxControlInput: newMaxControlInput,
         wasAirborne: newWasAirborne,

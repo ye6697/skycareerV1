@@ -48,6 +48,7 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import ActiveFlights from './pages/ActiveFlights';
+import AdminAircraftImages from './pages/AdminAircraftImages';
 import CompletedFlightDetails from './pages/CompletedFlightDetails';
 import ContractDetails from './pages/ContractDetails';
 import Contracts from './pages/Contracts';
@@ -63,12 +64,12 @@ import Landing from './pages/Landing';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
-import AdminAircraftImages from './pages/AdminAircraftImages';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "ActiveFlights": ActiveFlights,
+    "AdminAircraftImages": AdminAircraftImages,
     "CompletedFlightDetails": CompletedFlightDetails,
     "ContractDetails": ContractDetails,
     "Contracts": Contracts,
@@ -84,7 +85,6 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
-    "AdminAircraftImages": AdminAircraftImages,
 }
 
 export const pagesConfig = {
