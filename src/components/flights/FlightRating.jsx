@@ -83,9 +83,10 @@ export default function FlightRating({ flight }) {
     return "bg-red-50 border-red-200 text-red-700";
   };
 
-  const score = flight?.flight_score !== undefined ? flight.flight_score : 
-                (flight?.xplane_data?.flightScore !== undefined ? flight.xplane_data.flightScore :
-                (flight?.overall_rating !== undefined ? (flight.overall_rating / 5) * 100 : 100));
+  const score = flight?.xplane_data?.final_score !== undefined ? flight.xplane_data.final_score :
+               (flight?.flight_score !== undefined ? flight.flight_score : 
+               (flight?.xplane_data?.flightScore !== undefined ? flight.xplane_data.flightScore :
+               (flight?.overall_rating !== undefined ? (flight.overall_rating / 5) * 100 : 100)));
 
   return (
     <Card className="p-6 bg-slate-800 border border-slate-700">
