@@ -527,12 +527,12 @@ export default function Fleet() {
                      </div>
                    </DialogHeader>
                   
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {company && (
                       <motion.div 
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-4 bg-gradient-to-r from-emerald-900/30 to-emerald-800/30 border border-emerald-700/50 rounded-lg flex items-center justify-between sticky top-0 z-10"
+                        className="col-span-full p-4 bg-gradient-to-r from-emerald-900/30 to-emerald-800/30 border border-emerald-700/50 rounded-lg flex items-center justify-between sticky top-0 z-10"
                       >
                         <span className="text-sm font-semibold text-emerald-300">💰 Verfügbares Budget:</span>
                         <span className="font-bold text-lg text-emerald-400">${company.balance?.toLocaleString()}</span>
@@ -543,24 +543,22 @@ export default function Fleet() {
                       const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                       const hasBalance = canAfford(ac.purchase_price);
                       const isPurchasable = hasLevel && hasBalance;
-                      
+
                       return (
                       <motion.div
                         key={index}
-                        whileHover={isPurchasable ? { scale: 1.02 } : {}}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
                       >
                         <Card 
-                          className={`overflow-hidden cursor-pointer transition-all border-2 ${
-                            selectedAircraft?.name === ac.name 
-                              ? 'border-blue-500 bg-blue-900/20' 
-                              : isPurchasable 
-                                ? 'border-slate-600 hover:border-slate-500 hover:shadow-lg hover:shadow-blue-500/20' 
-                                : 'border-slate-700 opacity-60'
+                          className={`overflow-hidden flex flex-col h-full transition-all border ${
+                            isPurchasable 
+                              ? 'border-slate-600 hover:border-slate-500 hover:shadow-lg hover:shadow-blue-500/20 cursor-pointer' 
+                              : 'border-slate-700 opacity-60'
                           }`}
-                          onClick={() => isPurchasable && setSelectedAircraft(ac)}
                         >
-                          <div className="relative h-56 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
+                          <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden flex-shrink-0">
                             {ac.image_url ? (
                               <motion.img 
                                 src={ac.image_url}
@@ -574,60 +572,55 @@ export default function Fleet() {
                                 }}
                               />
                             ) : null}
-                            <div className="absolute inset-0 flex items-center justify-center text-6xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: ac.image_url ? 'none' : 'flex'}}>✈️</div>
-                            {selectedAircraft?.name === ac.name && (
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="absolute inset-0 bg-blue-500/30 border-2 border-blue-400"
-                              />
-                            )}
+                            <div className="absolute inset-0 flex items-center justify-center text-5xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: ac.image_url ? 'none' : 'flex'}}>✈️</div>
                           </div>
-                          <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-900 space-y-4">
+                          <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 space-y-3 flex flex-col flex-grow">
                             <div>
-                              <p className="font-bold text-lg text-white">{ac.name}</p>
-                              <p className="text-xs font-semibold text-blue-400 mt-1">{typeLabels[ac.type]}</p>
+                              <p className="font-bold text-sm text-white line-clamp-1">{ac.name}</p>
+                              <p className="text-xs font-semibold text-blue-400">{typeLabels[ac.type]}</p>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs font-medium">
-                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
-                                <p className="text-slate-400 text-[10px] mb-1">PASSAGIERE</p>
-                                <p className="text-white">{ac.passenger_capacity}</p>
+                            <div className="grid grid-cols-2 gap-1 text-xs font-medium flex-grow">
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
+                                <p className="text-slate-400 text-[9px] mb-0.5">Passagiere</p>
+                                <p className="text-white text-sm">{ac.passenger_capacity}</p>
                               </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
-                                <p className="text-slate-400 text-[10px] mb-1">FRACHT</p>
-                                <p className="text-white">{ac.cargo_capacity_kg?.toLocaleString()} kg</p>
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
+                                <p className="text-slate-400 text-[9px] mb-0.5">Fracht</p>
+                                <p className="text-white text-xs">{(ac.cargo_capacity_kg / 1000).toFixed(1)}k</p>
                               </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
-                                <p className="text-slate-400 text-[10px] mb-1">VERBRAUCH</p>
-                                <p className="text-white">{ac.fuel_consumption_per_hour} L/h</p>
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
+                                <p className="text-slate-400 text-[9px] mb-0.5">Verbrauch</p>
+                                <p className="text-white text-sm">{ac.fuel_consumption_per_hour}</p>
                               </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-3 py-2 rounded-lg">
-                                <p className="text-slate-400 text-[10px] mb-1">REICHWEITE</p>
-                                <p className="text-white">{ac.range_nm?.toLocaleString()} NM</p>
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
+                                <p className="text-slate-400 text-[9px] mb-0.5">Reichweite</p>
+                                <p className="text-white text-sm">{(ac.range_nm / 1000).toFixed(1)}k</p>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between pt-3 border-t border-slate-700">
+                            <div className="pt-2 border-t border-slate-700 space-y-2">
                               <div>
-                                <p className="text-xs text-slate-400 mb-1">KAUFPREIS</p>
-                                <p className={`text-xl font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>
-                                  ${ac.purchase_price?.toLocaleString()}
+                                <p className="text-xs text-slate-400">Kaufpreis</p>
+                                <p className={`text-lg font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  ${(ac.purchase_price / 1000000).toFixed(1)}M
                                 </p>
-                                {ac.level_requirement && ac.level_requirement > 1 && (
-                                  <p className="text-xs text-amber-400 mt-1">Level {ac.level_requirement} benötigt</p>
-                                )}
                               </div>
                               {!hasLevel && (
-                                <div className="text-center">
-                                  <p className="text-xs font-semibold text-amber-400">Level zu niedrig</p>
-                                  <p className="text-[10px] text-slate-400 mt-1">Level {ac.level_requirement} benötigt</p>
-                                </div>
+                                <p className="text-xs font-semibold text-amber-400 text-center">Level {ac.level_requirement} benötigt</p>
                               )}
                               {hasLevel && !hasBalance && (
-                                <div className="text-center">
-                                  <p className="text-xs font-semibold text-red-400">Zu teuer</p>
-                                  <p className="text-[10px] text-slate-400 mt-1">${(ac.purchase_price - (company?.balance || 0)).toLocaleString()} mehr</p>
-                                </div>
+                                <p className="text-xs font-semibold text-red-400 text-center">Budget: ${(ac.purchase_price - (company?.balance || 0)).toLocaleString()}</p>
                               )}
+                              <Button
+                                onClick={() => {
+                                  setSelectedAircraft(ac);
+                                  purchaseMutation.mutate(ac);
+                                }}
+                                disabled={!isPurchasable || purchaseMutation.isPending}
+                                size="sm"
+                                className={`w-full ${isPurchasable ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-600'}`}
+                              >
+                                {purchaseMutation.isPending && selectedAircraft?.name === ac.name ? 'Kaufe...' : 'Kaufen'}
+                              </Button>
                             </div>
                           </div>
                         </Card>
