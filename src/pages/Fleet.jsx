@@ -256,6 +256,18 @@ const AIRCRAFT_MARKET = [
     image_url: ""
   },
   {
+    name: "Airbus A300",
+    type: "wide_body",
+    passenger_capacity: 266,
+    cargo_capacity_kg: 11000,
+    fuel_consumption_per_hour: 6500,
+    range_nm: 4800,
+    purchase_price: 20000000,
+    maintenance_cost_per_hour: 2400,
+    level_requirement: 9,
+    image_url: ""
+  },
+  {
     name: "Airbus A330-200",
     type: "wide_body",
     passenger_capacity: 295,
@@ -265,7 +277,19 @@ const AIRCRAFT_MARKET = [
     purchase_price: 25000000,
     maintenance_cost_per_hour: 2800,
     level_requirement: 10,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Malaysia_Airlines_Airbus_A330-223_-_9M-MQB.jpg/1024px-Malaysia_Airlines_Airbus_A330-223_-_9M-MQB.jpg"
+    image_url: ""
+  },
+  {
+    name: "Boeing 777-200ER",
+    type: "wide_body",
+    passenger_capacity: 350,
+    cargo_capacity_kg: 20000,
+    fuel_consumption_per_hour: 9200,
+    range_nm: 7065,
+    purchase_price: 32000000,
+    maintenance_cost_per_hour: 3200,
+    level_requirement: 11,
+    image_url: ""
   },
   {
     name: "Boeing 777-300ER",
@@ -277,7 +301,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 35000000,
     maintenance_cost_per_hour: 3500,
     level_requirement: 12,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/United_Airlines_N228UA_-_B777-322ER.jpg/1024px-United_Airlines_N228UA_-_B777-322ER.jpg"
+    image_url: ""
   },
   {
     name: "Airbus A350-900",
@@ -289,7 +313,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 38000000,
     maintenance_cost_per_hour: 3800,
     level_requirement: 13,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Airbus_A350-941_F-WXWB_2_Qatar_Airways_2019.jpg/1024px-Airbus_A350-941_F-WXWB_2_Qatar_Airways_2019.jpg"
+    image_url: ""
   },
   {
     name: "Boeing 747-8",
@@ -301,7 +325,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 45000000,
     maintenance_cost_per_hour: 4200,
     level_requirement: 15,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Lufthansa_Boeing_747-830_Liotard-1.jpg/1024px-Lufthansa_Boeing_747-830_Liotard-1.jpg"
+    image_url: ""
   },
   {
     name: "Airbus A380",
@@ -313,7 +337,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 55000000,
     maintenance_cost_per_hour: 5000,
     level_requirement: 20,
-    image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/A380_Singapore_Airlines_%289M-SKA%29_%284%29.jpg/1024px-A380_Singapore_Airlines_%289M-SKA%29_%284%29.jpg"
+    image_url: ""
   },
   {
     name: "Boeing 777F",
