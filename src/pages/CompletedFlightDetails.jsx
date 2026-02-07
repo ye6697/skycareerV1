@@ -180,13 +180,13 @@ export default function CompletedFlightDetails() {
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">Max G-Kraft</p>
+                    <p className="text-slate-400 text-sm mb-1">G-Kraft beim Landen</p>
                     <p className={`text-2xl font-mono font-bold ${
-                      flight.max_g_force < 1.5 ? 'text-emerald-400' :
-                      flight.max_g_force < 2.0 ? 'text-amber-400' :
+                      (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 1.5 ? 'text-emerald-400' :
+                      (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 2.0 ? 'text-amber-400' :
                       'text-red-400'
                     }`}>
-                      {flight.max_g_force?.toFixed(2)} G
+                      {(flight.xplane_data?.landingGForce || flight.max_g_force || 0)?.toFixed(2)} G
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
