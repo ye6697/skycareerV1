@@ -356,6 +356,7 @@ const AIRCRAFT_MARKET = [
     purchase_price: 42000000,
     maintenance_cost_per_hour: 4500,
     level_requirement: 15
+  }
 ];
 
 export default function Fleet() {
