@@ -31,6 +31,7 @@ const navItems = [
   { name: "Flughistorie", icon: History, path: "FlightHistory" },
   { name: "X-Plane Setup", icon: Settings, path: "XPlaneSetup" },
   { name: "X-Plane Debug", icon: Activity, path: "XPlaneDebug" },
+  { name: "Spiel-Einstellungen", icon: Settings, path: "GameSettingsAdmin", adminOnly: true },
 ];
 
 export default function Layout({ children, currentPageName }) {
@@ -43,6 +44,11 @@ export default function Layout({ children, currentPageName }) {
       return companies[0];
     },
     refetchInterval: 5000,
+  });
+
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => base44.auth.me()
   });
 
   const xplaneStatus = company?.xplane_connection_status || 'disconnected';
@@ -107,7 +113,7 @@ export default function Layout({ children, currentPageName }) {
                 </Button>
               </div>
               <nav className="p-4 space-y-1">
-                {navItems.map((item) => {
+                {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item) => {
                   const isActive = currentPageName === item.path;
                   return (
                     <Link
@@ -148,7 +154,7 @@ export default function Layout({ children, currentPageName }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => {
+          {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item) => {
             const isActive = currentPageName === item.path;
             return (
               <Link key={item.path} to={createPageUrl(item.path)}>

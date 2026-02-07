@@ -359,12 +359,12 @@ export default function FlightTracker() {
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
             
-            // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten werden vom aktuellen Wert abgezogen
+            // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten
              let crashMaintenanceCost = 0;
              let finalScore = flightData.flightScore;
              if (hasCrashed) {
                crashMaintenanceCost = (airplaneToUpdate?.purchase_price || 0) * 0.7;
-               finalScore = Math.max(0, finalScore - 100);
+               // finalScore wurde bereits in useEffect abgezogen, nicht nochmal abziehen
              }
 
             // Calculate ratings based on score for database (for compatibility)
@@ -402,15 +402,16 @@ export default function FlightTracker() {
 
             // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
-            const totalMaintenanceCostFromEvents = flightData.maintenanceCost + crashMaintenanceCost;
-            const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostFromEvents;
+            const totalMaintenanceCostFromEvents = flightData.maintenanceCost;
+            const totalMaintenanceCostWithCrash = totalMaintenanceCostFromEvents + crashMaintenanceCost;
+            const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostWithCrash;
             const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
             
             console.log('Wartungskosten Update:', {
               currentAccumulatedCost,
               flightMaintenanceCost: flightData.maintenanceCost,
               crashMaintenanceCost,
-              totalMaintenanceCostFromEvents,
+              totalMaintenanceCostWithCrash,
               newAccumulatedCost
             });
 
@@ -420,7 +421,7 @@ export default function FlightTracker() {
                  const aircraftUpdate = {
                    status: hasCrashed ? 'damaged' : 'available',
                    total_flight_hours: newFlightHours,
-                   current_value: hasCrashed ? 0 : Math.max(0, newAircraftValue - totalMaintenanceCostFromEvents),
+                   current_value: hasCrashed ? 0 : Math.max(0, newAircraftValue),
                    accumulated_maintenance_cost: newAccumulatedCost
                  };
 

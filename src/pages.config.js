@@ -61,6 +61,7 @@ import FlightTracker from './pages/FlightTracker';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import GameSettingsAdmin from './pages/GameSettingsAdmin';
 import __Layout from './Layout.jsx';
 
 
@@ -79,6 +80,7 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "GameSettingsAdmin": GameSettingsAdmin,
 }
 
 export const pagesConfig = {
