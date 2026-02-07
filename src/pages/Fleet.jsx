@@ -402,13 +402,15 @@ export default function Fleet() {
     mutationFn: async (aircraftData) => {
       const registration = `${company?.callsign?.slice(0, 2) || 'N'}${String(aircraft.length + 1).padStart(3, '0')}`;
       
+      const specs = AIRCRAFT_MARKET_SPECS.find(a => a.name === aircraftData.name) || aircraftData;
       await base44.entities.Aircraft.create({
-        ...aircraftData,
+        ...specs,
         company_id: company.id,
         registration,
         status: 'available',
         total_flight_hours: 0,
-        current_value: aircraftData.purchase_price
+        current_value: aircraftData.purchase_price,
+        image_url: undefined
       });
 
       if (company) {
