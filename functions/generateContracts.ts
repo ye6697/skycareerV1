@@ -120,7 +120,6 @@ Deno.serve(async (req) => {
       const briefing = briefings[Math.floor(Math.random() * briefings.length)];
       
       contracts.push({
-        company_id: company.id,
         title: `${depAirport.city} → ${arrAirport.city}`,
         briefing,
         type: contractType,
@@ -146,9 +145,7 @@ Deno.serve(async (req) => {
       });
     }
     
-    for (const contract of contracts) {
-      await base44.entities.Contract.create(contract);
-    }
+    await base44.asServiceRole.entities.Contract.bulkCreate(contracts);
     
     return Response.json({ 
       success: true, 
