@@ -104,7 +104,7 @@ export default function Layout({ children, currentPageName }) {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="lg:hidden fixed top-0 left-0 bottom-0 z-50 w-[280px] bg-slate-800 border-r border-slate-700"
+              className="lg:hidden fixed top-0 left-0 bottom-0 z-50 w-[280px] bg-slate-800 border-r border-slate-700 flex flex-col"
             >
               <div className="p-4 border-b border-slate-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -120,7 +120,7 @@ export default function Layout({ children, currentPageName }) {
                   <X className="w-5 h-5" />
                 </Button>
               </div>
-              <nav className="p-4 space-y-1">
+              <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
                 {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item) => {
                   const isActive = currentPageName === item.path;
                   return (
@@ -142,6 +142,66 @@ export default function Layout({ children, currentPageName }) {
                   );
                 })}
               </nav>
+
+              <div className="p-4 border-t border-slate-700 space-y-3">
+                <div className="p-3 bg-slate-900 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs text-slate-400 font-medium">
+                        Level {company?.level || 1} - {
+                          (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || 'Freizeit-Simmer') :
+                          (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || 'Hobby-Pilot') :
+                          (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || 'Regional-Kapitän') :
+                          (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || 'Airline-Profi') :
+                          (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || 'Flug-Veteran') :
+                          (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || 'Charter-Experte') :
+                          (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || 'Langstrecken-Ass') :
+                          (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || 'Linien-Kapitän') :
+                          (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || 'Flotten-Chef') :
+                          (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || 'Luftfahrt-Mogul') :
+                          (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || 'Aviation-Tycoon') :
+                          (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || 'Sky-Emperor') :
+                          (gameSettings?.level_91_100_title || 'Luftfahrt-Legende')
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500 mb-2">
+                    {company?.experience_points || 0}/{Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))} XP
+                  </div>
+                  <div className="w-full bg-slate-700 rounded-full h-2">
+                    <div 
+                      className="bg-amber-400 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${((company?.experience_points || 0) / Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="p-3 bg-slate-900 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs text-slate-400 font-medium">Kontostand</span>
+                  </div>
+                  <p className="text-lg font-bold text-emerald-400">
+                    ${(company?.balance || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-900 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      xplaneStatus === 'connected' ? 'bg-emerald-500' : 
+                      xplaneStatus === 'connecting' ? 'bg-amber-500' : 
+                      'bg-slate-500'
+                    }`} />
+                    <span className="text-xs text-slate-400 font-medium">X-Plane Status</span>
+                  </div>
+                  <p className="text-sm text-slate-300">
+                    {xplaneStatus === 'connected' ? 'Verbunden' : 
+                     xplaneStatus === 'connecting' ? 'Verbinde...' : 
+                     'Getrennt'}
+                  </p>
+                </div>
+              </div>
             </motion.aside>
           </>
         )}
