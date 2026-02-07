@@ -62,6 +62,7 @@ import GameSettingsAdmin from './pages/GameSettingsAdmin';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import Landing from './pages/Landing';
 import __Layout from './Layout.jsx';
 
 
@@ -81,6 +82,7 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "Landing": Landing,
 }
 
 export const pagesConfig = {
