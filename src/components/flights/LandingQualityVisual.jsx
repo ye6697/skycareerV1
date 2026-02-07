@@ -20,6 +20,7 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
   const Icon = quality.icon;
 
   // Calculate visual indicators
+  const crashThreshold = gameSettings?.crash_vs_threshold || 1000;
   const vsPercentage = Math.min((landingVs / crashThreshold) * 100, 100);
   const gforcePercentage = Math.min((landingGforce / 3) * 100, 100);
 
