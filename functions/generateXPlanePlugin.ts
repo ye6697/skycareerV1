@@ -76,6 +76,8 @@ class PythonInterface:
         self.datarefs['engine_running'] = xp.findDataRef("sim/flightmodel/engine/ENGN_running")
         self.datarefs['has_crashed'] = xp.findDataRef("sim/flightmodel2/misc/has_crashed")
         self.datarefs['touchdown_vspeed'] = xp.findDataRef("sim/flightmodel/forces/fsuipc_vert_accel")
+        self.datarefs['indicated_airspeed'] = xp.findDataRef("sim/flightmodel/position/indicated_airspeed")
+        self.datarefs['theta'] = xp.findDataRef("sim/flightmodel/position/theta")
         
         # Create flight loop
         xp.createFlightLoop(self.FlightLoopCallback, 1)
@@ -118,6 +120,12 @@ class PythonInterface:
             on_ground = xp.getDatai(self.datarefs['on_ground']) == 1
             parking_brake = xp.getDataf(self.datarefs['parking_brake']) > 0.5
             has_crashed = xp.getDatai(self.datarefs['has_crashed']) == 1
+            ias = xp.getDataf(self.datarefs['indicated_airspeed']) or 0
+            pitch = xp.getDataf(self.datarefs['theta']) or 0
+
+            # Event detection
+            tailstrike = pitch > 10 and on_ground
+            stall = altitude > 500 and ias < 80 and not on_ground
 
             # Check if any engine is running
             engines_running = False
@@ -152,7 +160,9 @@ class PythonInterface:
                 'parking_brake': parking_brake,
                 'engines_running': engines_running,
                 'has_crashed': has_crashed,
-                'touchdown_vspeed': round(vs, 1)
+                'touchdown_vspeed': round(vs, 1),
+                'tailstrike': tailstrike,
+                'stall': stall
             }
             
             # Send to API
