@@ -153,10 +153,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       const cost = maintenanceCost;
+      // Reduce aircraft value by maintenance cost
+      const newValue = Math.max(0, currentValue - cost);
 
       await base44.entities.Aircraft.update(aircraft.id, { 
         status: 'available',
-        accumulated_maintenance_cost: 0
+        accumulated_maintenance_cost: 0,
+        current_value: newValue
       });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - cost });
       
