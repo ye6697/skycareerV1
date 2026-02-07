@@ -375,13 +375,9 @@ export default function FlightTracker() {
 
      let revenue = contract?.payout || 0;
 
-     // Bonus based on score
-     const score = finalFlightData.flightScore;
-     if (score >= 95 && contract?.bonus_potential) {
-       revenue += contract.bonus_potential;
-     } else if (score >= 85 && contract?.bonus_potential) {
-       revenue += contract.bonus_potential * 0.5;
-     }
+     // Bonus based on landing quality (G-force based)
+     const landingBonus = finalFlightData.landingBonus || 0;
+     revenue += landingBonus;
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
      const directCosts = fuelCost + crewCost + airportFee;
@@ -1083,11 +1079,18 @@ export default function FlightTracker() {
                     </Badge>
                   </div>
                   {flightData.maintenanceCost > 0 && (
-                    <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
-                      <span className="text-slate-400">Wartungskosten</span>
-                      <span className="text-red-400 font-mono">${flightData.maintenanceCost.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
-                    </div>
-                  )}
+                    {flightData.maintenanceCost > 0 && (
+                     <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
+                        <span className="text-slate-400">Wartungskosten</span>
+                        <span className="text-red-400 font-mono">${flightData.maintenanceCost.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                      </div>
+                    )}
+                    {flightData.landingBonus > 0 && (
+                     <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
+                        <span className="text-slate-400">Landequalitäts-Bonus</span>
+                        <span className="text-emerald-400 font-mono">+${flightData.landingBonus.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                      </div>
+                    )}
                   
                   {/* Events */}
                   {Object.entries(flightData.events).some(([_, val]) => val) && (
