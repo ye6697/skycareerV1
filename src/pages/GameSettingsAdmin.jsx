@@ -38,6 +38,7 @@ export default function GameSettingsAdmin() {
     stall_score_penalty: 50,
     overstress_score_penalty: 30,
     overstress_maintenance_percent: 4,
+    flaps_overspeed_score_penalty: 15,
     flaps_overspeed_maintenance_percent: 2.5,
     g_force_threshold: 1.5,
     g_force_score_penalty: 25,
