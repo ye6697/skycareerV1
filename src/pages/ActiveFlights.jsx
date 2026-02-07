@@ -62,31 +62,26 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  });
+
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      const companies = await base44.entities.Company.list();
       return companies[0];
     }
   });
 
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available', company?.id],
-    queryFn: () => base44.entities.Aircraft.filter({ company_id: company.id, status: 'available' }),
-    enabled: !!company?.id
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', company?.id],
-    queryFn: () => base44.entities.Employee.filter({ company_id: company.id, status: 'available' }),
-    enabled: !!company?.id
-  });
-
   const startFlightMutation = useMutation({
     mutationFn: async () => {
-      if (!company?.id) throw new Error('Unternehmen nicht gefunden');
-
       // Check if aircraft can handle contract requirements
       const ac = aircraft.find((a) => a.id === selectedAircraft);
       if (!ac) throw new Error('Flugzeug nicht gefunden');
@@ -104,7 +99,6 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
-        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -236,7 +230,7 @@ export default function ActiveFlights() {
         </Card>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-slate-700">
+        <div className="flex gap-4 mb-6 border-b border-slate-700 flex-wrap">
           <button
             onClick={() => setActiveTab('active')}
             className={`pb-3 px-4 font-medium transition-colors ${
@@ -256,6 +250,26 @@ export default function ActiveFlights() {
             }>
 
             Abgeschlossene Flüge ({completedContracts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('crashed')}
+            className={`pb-3 px-4 font-medium transition-colors ${
+            activeTab === 'crashed' ?
+            'border-b-2 border-red-500 text-red-400' :
+            'text-slate-400 hover:text-white'}`
+            }>
+
+            Abgestürzte Flüge ({completedContracts.filter(c => c.status === 'failed').length})
+          </button>
+          <button
+            onClick={() => setActiveTab('cancelled')}
+            className={`pb-3 px-4 font-medium transition-colors ${
+            activeTab === 'cancelled' ?
+            'border-b-2 border-orange-500 text-orange-400' :
+            'text-slate-400 hover:text-white'}`
+            }>
+
+            Stornierte Flüge ({contracts.filter(c => c.status === 'available' && c.company_id).length})
           </button>
         </div>
 
