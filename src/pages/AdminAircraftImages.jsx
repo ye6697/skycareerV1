@@ -13,126 +13,91 @@ export default function AdminAircraftImages() {
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [uploadingId, setUploadingId] = useState(null);
 
-  // Static market data with default aircraft types for image assignment
+  // Static market data with all aircraft specs
   const AIRCRAFT_MARKET = [
-    { name: "Cessna 172 Skyhawk", type: "small_prop" },
-    { name: "Piper PA-28 Cherokee", type: "small_prop" },
-    { name: "Piper PA-44 Seminole", type: "small_prop" },
-    { name: "Socata Tobago", type: "small_prop" },
-    { name: "Piper PA-46 Malibu", type: "turboprop" },
-    { name: "Beechcraft King Air 350", type: "turboprop" },
-    { name: "Cessna Caravan", type: "turboprop" },
-    { name: "Bombardier Dash 8-100", type: "turboprop" },
-    { name: "Bombardier Q400", type: "turboprop" },
-    { name: "Bombardier CRJ-200", type: "regional_jet" },
-    { name: "Embraer E170", type: "regional_jet" },
-    { name: "Embraer E175", type: "regional_jet" },
-    { name: "Airbus A220", type: "regional_jet" },
-    { name: "Airbus A318", type: "narrow_body" },
-    { name: "Airbus A319", type: "narrow_body" },
-    { name: "Airbus A320neo", type: "narrow_body" },
-    { name: "Boeing 737-700", type: "narrow_body" },
-    { name: "Boeing 737 MAX 8", type: "narrow_body" },
-    { name: "Boeing 787-8", type: "narrow_body" },
-    { name: "Airbus A300", type: "wide_body" },
-    { name: "Airbus A330-200", type: "wide_body" },
-    { name: "Boeing 777-200ER", type: "wide_body" },
-    { name: "Boeing 777-300ER", type: "wide_body" },
-    { name: "Airbus A350-900", type: "wide_body" },
-    { name: "Boeing 747-8", type: "wide_body" },
-    { name: "Airbus A380", type: "wide_body" },
-    { name: "ATR 72F", type: "cargo" },
-    { name: "Airbus A330-200F", type: "cargo" },
-    { name: "Boeing 777F", type: "cargo" },
-    { name: "Boeing 747-8F", type: "cargo" }
+    { name: "Cessna 172 Skyhawk", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 100, fuel_consumption_per_hour: 45, range_nm: 640, purchase_price: 150000, maintenance_cost_per_hour: 25, level_requirement: 1 },
+    { name: "Piper PA-28 Cherokee", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 120, fuel_consumption_per_hour: 50, range_nm: 700, purchase_price: 180000, maintenance_cost_per_hour: 30, level_requirement: 1 },
+    { name: "Piper PA-44 Seminole", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 150, fuel_consumption_per_hour: 55, range_nm: 750, purchase_price: 200000, maintenance_cost_per_hour: 35, level_requirement: 1 },
+    { name: "Socata Tobago", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 140, fuel_consumption_per_hour: 52, range_nm: 720, purchase_price: 190000, maintenance_cost_per_hour: 32, level_requirement: 1 },
+    { name: "Piper PA-46 Malibu", type: "turboprop", passenger_capacity: 6, cargo_capacity_kg: 300, fuel_consumption_per_hour: 150, range_nm: 1500, purchase_price: 350000, maintenance_cost_per_hour: 85, level_requirement: 2 },
+    { name: "Beechcraft King Air 350", type: "turboprop", passenger_capacity: 8, cargo_capacity_kg: 350, fuel_consumption_per_hour: 350, range_nm: 1800, purchase_price: 750000, maintenance_cost_per_hour: 120, level_requirement: 2 },
+    { name: "Cessna Caravan", type: "turboprop", passenger_capacity: 14, cargo_capacity_kg: 1500, fuel_consumption_per_hour: 280, range_nm: 1200, purchase_price: 400000, maintenance_cost_per_hour: 90, level_requirement: 2 },
+    { name: "Bombardier Dash 8-100", type: "turboprop", passenger_capacity: 50, cargo_capacity_kg: 2000, fuel_consumption_per_hour: 600, range_nm: 1550, purchase_price: 1000000, maintenance_cost_per_hour: 200, level_requirement: 3 },
+    { name: "Bombardier Q400", type: "turboprop", passenger_capacity: 78, cargo_capacity_kg: 2700, fuel_consumption_per_hour: 850, range_nm: 1700, purchase_price: 1400000, maintenance_cost_per_hour: 280, level_requirement: 3 },
+    { name: "Bombardier CRJ-200", type: "regional_jet", passenger_capacity: 50, cargo_capacity_kg: 1500, fuel_consumption_per_hour: 1600, range_nm: 2000, purchase_price: 1800000, maintenance_cost_per_hour: 350, level_requirement: 3 },
+    { name: "Embraer E170", type: "regional_jet", passenger_capacity: 70, cargo_capacity_kg: 1850, fuel_consumption_per_hour: 2200, range_nm: 2100, purchase_price: 2300000, maintenance_cost_per_hour: 420, level_requirement: 4 },
+    { name: "Embraer E175", type: "regional_jet", passenger_capacity: 76, cargo_capacity_kg: 2000, fuel_consumption_per_hour: 2400, range_nm: 2200, purchase_price: 2500000, maintenance_cost_per_hour: 450, level_requirement: 4 },
+    { name: "Airbus A220", type: "regional_jet", passenger_capacity: 130, cargo_capacity_kg: 3400, fuel_consumption_per_hour: 2800, range_nm: 2800, purchase_price: 4200000, maintenance_cost_per_hour: 650, level_requirement: 5 },
+    { name: "Airbus A318", type: "narrow_body", passenger_capacity: 108, cargo_capacity_kg: 3200, fuel_consumption_per_hour: 2200, range_nm: 3100, purchase_price: 8500000, maintenance_cost_per_hour: 800, level_requirement: 5 },
+    { name: "Airbus A319", type: "narrow_body", passenger_capacity: 140, cargo_capacity_kg: 3850, fuel_consumption_per_hour: 2600, range_nm: 3300, purchase_price: 10000000, maintenance_cost_per_hour: 950, level_requirement: 6 },
+    { name: "Airbus A320neo", type: "narrow_body", passenger_capacity: 180, cargo_capacity_kg: 5000, fuel_consumption_per_hour: 3200, range_nm: 3500, purchase_price: 12000000, maintenance_cost_per_hour: 1200, level_requirement: 6 },
+    { name: "Boeing 737-700", type: "narrow_body", passenger_capacity: 155, cargo_capacity_kg: 4700, fuel_consumption_per_hour: 3000, range_nm: 3300, purchase_price: 11000000, maintenance_cost_per_hour: 1050, level_requirement: 6 },
+    { name: "Boeing 737 MAX 8", type: "narrow_body", passenger_capacity: 210, cargo_capacity_kg: 5300, fuel_consumption_per_hour: 3500, range_nm: 3500, purchase_price: 13500000, maintenance_cost_per_hour: 1350, level_requirement: 7 },
+    { name: "Boeing 787-8", type: "narrow_body", passenger_capacity: 242, cargo_capacity_kg: 4500, fuel_consumption_per_hour: 3800, range_nm: 5000, purchase_price: 18000000, maintenance_cost_per_hour: 1600, level_requirement: 8 },
+    { name: "Airbus A300", type: "wide_body", passenger_capacity: 266, cargo_capacity_kg: 11000, fuel_consumption_per_hour: 6500, range_nm: 4800, purchase_price: 20000000, maintenance_cost_per_hour: 2400, level_requirement: 9 },
+    { name: "Airbus A330-200", type: "wide_body", passenger_capacity: 295, cargo_capacity_kg: 13600, fuel_consumption_per_hour: 7200, range_nm: 5650, purchase_price: 25000000, maintenance_cost_per_hour: 2800, level_requirement: 10 },
+    { name: "Boeing 777-200ER", type: "wide_body", passenger_capacity: 350, cargo_capacity_kg: 20000, fuel_consumption_per_hour: 9200, range_nm: 7065, purchase_price: 32000000, maintenance_cost_per_hour: 3200, level_requirement: 11 },
+    { name: "Boeing 777-300ER", type: "wide_body", passenger_capacity: 396, cargo_capacity_kg: 22000, fuel_consumption_per_hour: 10000, range_nm: 7370, purchase_price: 35000000, maintenance_cost_per_hour: 3500, level_requirement: 12 },
+    { name: "Airbus A350-900", type: "wide_body", passenger_capacity: 325, cargo_capacity_kg: 16600, fuel_consumption_per_hour: 8200, range_nm: 8000, purchase_price: 38000000, maintenance_cost_per_hour: 3800, level_requirement: 13 },
+    { name: "Boeing 747-8", type: "wide_body", passenger_capacity: 467, cargo_capacity_kg: 21870, fuel_consumption_per_hour: 11200, range_nm: 8000, purchase_price: 45000000, maintenance_cost_per_hour: 4200, level_requirement: 15 },
+    { name: "Airbus A380", type: "wide_body", passenger_capacity: 555, cargo_capacity_kg: 18600, fuel_consumption_per_hour: 12500, range_nm: 8000, purchase_price: 55000000, maintenance_cost_per_hour: 5000, level_requirement: 20 },
+    { name: "ATR 72F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 6000, fuel_consumption_per_hour: 350, range_nm: 2400, purchase_price: 8000000, maintenance_cost_per_hour: 600, level_requirement: 7 },
+    { name: "Airbus A330-200F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 70000, fuel_consumption_per_hour: 7000, range_nm: 5550, purchase_price: 24000000, maintenance_cost_per_hour: 2600, level_requirement: 10 },
+    { name: "Boeing 777F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 102000, fuel_consumption_per_hour: 9500, range_nm: 4435, purchase_price: 38000000, maintenance_cost_per_hour: 3600, level_requirement: 12 },
+    { name: "Boeing 747-8F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 134000, fuel_consumption_per_hour: 14500, range_nm: 4120, purchase_price: 42000000, maintenance_cost_per_hour: 4500, level_requirement: 15 }
   ];
 
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'all'],
+  const { data: templates = [] } = useQuery({
+    queryKey: ['aircraftTemplates'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      const companyId = companies[0]?.id;
-      
-      if (!companyId) {
-        // If no company, show all market aircraft as templates
-        return AIRCRAFT_MARKET.map((ac, idx) => ({
-          id: `template_${idx}`,
-          name: ac.name,
-          type: ac.type,
-          registration: 'N/A',
-          isTemplate: true
-        }));
-      }
-      
-      // Get owned aircraft from database
-      const ownedAircraft = await base44.entities.Aircraft.filter({ company_id: companyId });
-      
-      // Combine owned aircraft with market templates that don't have owned versions
-      const ownedNames = new Set(ownedAircraft.map(ac => ac.name));
-      const templates = AIRCRAFT_MARKET.filter(ac => !ownedNames.has(ac.name)).map((ac, idx) => ({
-        id: `template_${idx}`,
-        name: ac.name,
-        type: ac.type,
-        registration: 'Template',
-        isTemplate: true
-      }));
-      
-      return [...ownedAircraft, ...templates];
+      return await base44.entities.AircraftTemplate.list();
     },
     refetchInterval: 3000
   });
 
   const uploadImageMutation = useMutation({
-    mutationFn: async ({ aircraftId, file, isTemplate, aircraftName }) => {
+    mutationFn: async ({ aircraftName, file }) => {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
-      if (isTemplate) {
-        // For template aircraft, create a new owned aircraft with the image
-        const user = await base44.auth.me();
-        const companies = await base44.entities.Company.filter({ created_by: user.email });
-        const company = companies[0];
-        
-        if (company) {
-          // Find the template data to get aircraft type and specs
-          const templateData = AIRCRAFT_MARKET.find(ac => ac.name === aircraftName);
-          if (templateData) {
-            await base44.entities.Aircraft.create({
-              company_id: company.id,
-              name: aircraftName,
-              type: templateData.type,
-              registration: `${company.callsign || 'N'}${String(Date.now()).slice(-3)}`,
-              image_url: file_url,
-              passenger_capacity: templateData.passenger_capacity || 0,
-              cargo_capacity_kg: templateData.cargo_capacity_kg || 0,
-              fuel_consumption_per_hour: templateData.fuel_consumption_per_hour || 0,
-              range_nm: templateData.range_nm || 0,
-              purchase_price: templateData.purchase_price || 0,
-              maintenance_cost_per_hour: templateData.maintenance_cost_per_hour || 0,
-              status: 'available',
-              total_flight_hours: 0,
-              current_value: templateData.purchase_price || 0
-            });
-          }
-        }
+      // Check if template exists
+      const existing = templates.find(t => t.name === aircraftName);
+      
+      if (existing) {
+        // Update existing template
+        await base44.entities.AircraftTemplate.update(existing.id, { image_url: file_url });
       } else {
-        // For owned aircraft, just update the image
-        await base44.entities.Aircraft.update(aircraftId, { image_url: file_url });
+        // Create new template
+        const specs = AIRCRAFT_MARKET.find(ac => ac.name === aircraftName);
+        if (specs) {
+          await base44.entities.AircraftTemplate.create({
+            name: aircraftName,
+            type: specs.type,
+            image_url: file_url,
+            passenger_capacity: specs.passenger_capacity,
+            cargo_capacity_kg: specs.cargo_capacity_kg,
+            fuel_consumption_per_hour: specs.fuel_consumption_per_hour,
+            range_nm: specs.range_nm,
+            purchase_price: specs.purchase_price,
+            maintenance_cost_per_hour: specs.maintenance_cost_per_hour,
+            level_requirement: specs.level_requirement
+          });
+        }
       }
       
       return file_url;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['aircraftTemplates'] });
       setUploadingId(null);
     }
   });
 
-  const handleFileSelect = async (e, aircraftId, isTemplate = false, aircraftName = '') => {
+  const handleFileSelect = async (e, aircraftName) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploadingId(aircraftId);
-    uploadImageMutation.mutate({ aircraftId, file, isTemplate, aircraftName });
+    setUploadingId(aircraftName);
+    uploadImageMutation.mutate({ aircraftName, file });
   };
 
   return (
@@ -149,116 +114,106 @@ export default function AdminAircraftImages() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence>
-            {aircraft.map((ac) => (
-              <motion.div
-                key={ac.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <Card className="overflow-hidden bg-slate-800 border-slate-700 flex flex-col h-full">
-                  <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center overflow-hidden group">
-                    {ac.image_url ? (
-                      <motion.img
-                        src={ac.image_url}
-                        alt={ac.name}
-                        className="w-full h-full object-cover"
-                        whileHover={{ scale: 1.05 }}
-                      />
-                    ) : (
-                      <ImageIcon className="w-16 h-16 text-slate-600" />
-                    )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <label className="cursor-pointer">
+            {AIRCRAFT_MARKET.map((ac) => {
+              const template = templates.find(t => t.name === ac.name);
+              return (
+                <motion.div
+                  key={ac.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <Card className="overflow-hidden bg-slate-800 border-slate-700 flex flex-col h-full">
+                    <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center overflow-hidden group">
+                      {template?.image_url ? (
+                        <motion.img
+                          src={template.image_url}
+                          alt={ac.name}
+                          className="w-full h-full object-cover"
+                          whileHover={{ scale: 1.05 }}
+                        />
+                      ) : (
+                        <ImageIcon className="w-16 h-16 text-slate-600" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileSelect(e, ac.name)}
+                            disabled={uploadingId === ac.name}
+                            className="hidden"
+                          />
+                          <Button
+                            asChild
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <span className="cursor-pointer">
+                              {uploadingId === ac.name ? (
+                                <>Lädt...</>
+                              ) : (
+                                <>
+                                  <Upload className="w-4 h-4 mr-2" />
+                                  Bild hochladen
+                                </>
+                              )}
+                            </span>
+                          </Button>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="p-4 flex-grow bg-gradient-to-br from-slate-800 to-slate-900">
+                      <p className="font-bold text-white text-sm line-clamp-1">{ac.name}</p>
+                      <p className="text-xs text-slate-400 mt-1">{ac.type}</p>
+
+                      <div className="mt-3 flex items-center gap-2">
+                        {template?.image_url ? (
+                          <>
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span className="text-xs text-emerald-400">Bild vorhanden</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-4 h-4 text-amber-400" />
+                            <span className="text-xs text-amber-400">Kein Bild</span>
+                          </>
+                        )}
+                      </div>
+
+                      <label className="block mt-3 w-full">
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileSelect(e, ac.id, ac.isTemplate, ac.name)}
-                          disabled={uploadingId === ac.id}
+                          onChange={(e) => handleFileSelect(e, ac.name)}
+                          disabled={uploadingId === ac.name}
                           className="hidden"
                         />
                         <Button
                           asChild
-                          className="bg-blue-600 hover:bg-blue-700"
+                          size="sm"
+                          variant={template?.image_url ? "outline" : "default"}
+                          className="w-full cursor-pointer"
                         >
                           <span className="cursor-pointer">
-                            {uploadingId === ac.id ? (
-                              <>Lädt...</>
+                            {uploadingId === ac.name ? (
+                              'Lädt...'
                             ) : (
                               <>
-                                <Upload className="w-4 h-4 mr-2" />
-                                Bild {ac.isTemplate ? 'erstellen' : 'ändern'}
+                                <Upload className="w-3 h-3 mr-1" />
+                                Bild hochladen
                               </>
                             )}
                           </span>
                         </Button>
                       </label>
                     </div>
-                  </div>
-
-                  <div className="p-4 flex-grow bg-gradient-to-br from-slate-800 to-slate-900">
-                    <p className="font-bold text-white text-sm line-clamp-1">{ac.name}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-slate-400">{ac.registration}</p>
-                      {ac.isTemplate && (
-                        <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-1 rounded">Template</span>
-                      )}
-                    </div>
-
-                    <div className="mt-3 flex items-center gap-2">
-                      {ac.image_url ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-400" />
-                          <span className="text-xs text-emerald-400">Bild vorhanden</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="w-4 h-4 text-amber-400" />
-                          <span className="text-xs text-amber-400">Kein Bild</span>
-                        </>
-                      )}
-                    </div>
-
-                    <label className="block mt-3 w-full">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileSelect(e, ac.id, ac.isTemplate, ac.name)}
-                        disabled={uploadingId === ac.id}
-                        className="hidden"
-                      />
-                      <Button
-                        asChild
-                        size="sm"
-                        variant={ac.image_url ? "outline" : "default"}
-                        className="w-full cursor-pointer"
-                      >
-                        <span className="cursor-pointer">
-                          {uploadingId === ac.id ? (
-                            'Lädt...'
-                          ) : (
-                            <>
-                              <Upload className="w-3 h-3 mr-1" />
-                              Bild {ac.isTemplate ? 'erstellen' : 'hochladen'}
-                            </>
-                          )}
-                        </span>
-                      </Button>
-                    </label>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
+                  </Card>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
-
-        {aircraft.length === 0 && (
-          <Card className="p-12 text-center bg-slate-800 border-slate-700">
-            <ImageIcon className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine Flugzeuge</h3>
-            <p className="text-slate-400">Sie haben noch keine Flugzeuge in Ihrer Flotte</p>
-          </Card>
-        )}
       </div>
     </div>
   );
