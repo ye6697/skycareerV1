@@ -64,12 +64,20 @@ export default function ActiveFlights() {
 
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      const companyId = companies[0]?.id;
+      return companyId ? base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }) : [];
+    }
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      const companyId = companies[0]?.id;
+      return companyId ? base44.entities.Employee.filter({ status: 'available', company_id: companyId }) : [];
+    }
   });
 
   const { data: company } = useQuery({
@@ -230,7 +238,7 @@ export default function ActiveFlights() {
         </Card>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-slate-700 flex-wrap">
+        <div className="flex gap-4 mb-6 border-b border-slate-700">
           <button
             onClick={() => setActiveTab('active')}
             className={`pb-3 px-4 font-medium transition-colors ${
@@ -250,26 +258,6 @@ export default function ActiveFlights() {
             }>
 
             Abgeschlossene Flüge ({completedContracts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('crashed')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'crashed' ?
-            'border-b-2 border-red-500 text-red-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-
-            Abgestürzte Flüge ({completedContracts.filter(c => c.status === 'failed').length})
-          </button>
-          <button
-            onClick={() => setActiveTab('cancelled')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'cancelled' ?
-            'border-b-2 border-orange-500 text-orange-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-
-            Stornierte Flüge ({contracts.filter(c => c.status === 'available' && c.company_id).length})
           </button>
         </div>
 
