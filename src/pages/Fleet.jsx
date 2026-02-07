@@ -567,12 +567,12 @@ export default function Fleet() {
                                 whileHover={{ scale: 1.05 }}
                                 onError={(e) => {
                                   e.target.style.display = 'none';
-                                  const sibling = e.target.nextElementSibling;
-                                  if (sibling) sibling.style.display = 'flex';
+                                  const fallback = e.target.parentElement?.querySelector('[data-fallback]');
+                                  if (fallback) fallback.style.display = 'flex';
                                 }}
                               />
                             ) : null}
-                            <div className="absolute inset-0 flex items-center justify-center text-5xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: ac.image_url ? 'none' : 'flex'}}>✈️</div>
+                            <div data-fallback className="absolute inset-0 flex items-center justify-center text-5xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: ac.image_url ? 'none' : 'flex'}}>✈️</div>
                           </div>
                           <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 space-y-3 flex flex-col flex-grow">
                             <div>
