@@ -64,12 +64,20 @@ export default function ActiveFlights() {
 
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
+    queryFn: async () => {
+      if (!company?.id) return [];
+      return base44.entities.Aircraft.filter({ status: 'available', company_id: company.id });
+    },
+    enabled: !!company?.id
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+    queryFn: async () => {
+      if (!company?.id) return [];
+      return base44.entities.Employee.filter({ status: 'available', company_id: company.id });
+    },
+    enabled: !!company?.id
   });
 
   const { data: company } = useQuery({
@@ -453,15 +461,15 @@ export default function ActiveFlights() {
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl bg-slate-800 border border-slate-700 text-white">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-white">Flug vorbereiten: {selectedContract?.title}</DialogTitle>
+              <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-6">
               {/* Aircraft Selection */}
               <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-slate-200">
+                <Label className="flex items-center gap-2">
                   <Plane className="w-4 h-4" />
                   Flugzeug auswählen
                 </Label>
@@ -484,13 +492,13 @@ export default function ActiveFlights() {
                   </SelectContent>
                 </Select>
                 {aircraft.length === 0 &&
-                <p className="text-sm text-red-400">Kein verfügbares Flugzeug!</p>
+                <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
                 }
               </div>
 
               {/* Crew Selection */}
               <div className="space-y-4">
-                <Label className="flex items-center gap-2 text-slate-200">
+                <Label className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   Crew zuweisen
                 </Label>
@@ -504,16 +512,16 @@ export default function ActiveFlights() {
                   return (
                     <div key={role} className="flex items-center gap-4">
                       <div className="w-40">
-                        <span className="text-sm font-medium text-slate-200">
+                        <span className="text-sm font-medium">
                           {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-400 ml-1">*</span>}
+                          {required > 0 && <span className="text-red-100 ml-1">*</span>}
                         </span>
                       </div>
                       <Select
                         value={selectedCrew[role]}
                         onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
 
-                         <SelectTrigger className="flex-1 bg-slate-700 border-slate-600 text-white">
+                        <SelectTrigger className="flex-1">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
                         <SelectContent>
@@ -538,11 +546,11 @@ export default function ActiveFlights() {
 
               {/* Warning */}
               {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-400">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-300">
+                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-700">
                       Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
                     </p>
                   </div>
