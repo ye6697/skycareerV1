@@ -80,9 +80,7 @@ export default function Layout({ children, currentPageName }) {
               <Menu className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <Plane className="w-4 h-4 text-white" />
-              </div>
+              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-8 h-8 rounded-lg object-cover" />
               <span className="font-bold text-white">SkyCareer</span>
             </div>
           </div>
