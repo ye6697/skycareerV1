@@ -763,6 +763,8 @@ export default function FlightTracker() {
         landingGForce: landingGForceValue,
         landingVs: touchdownVs !== 0 ? touchdownVs : prev.landingVs,
         landingType: landingType,
+        landingScoreChange: landingScoreChange,
+        landingMaintenanceCost: landingMaintenanceCost,
         landingBonus: landingBonus,
         flightScore: baseScore,
         maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
