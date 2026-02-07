@@ -769,6 +769,18 @@ export default function FlightTracker() {
       // Update ref with latest data
       flightDataRef.current = newData;
 
+      // Update processed G levels if we processed new ones
+      if (newMaxGForce >= 1.5) {
+       const currentGLevel = Math.floor(newMaxGForce);
+       setProcessedGLevels(prev => {
+         const updated = new Set(prev);
+         for (let gLevel = 2; gLevel <= currentGLevel; gLevel++) {
+           updated.add(gLevel);
+         }
+         return updated;
+       });
+      }
+
       return newData;
       });
 
