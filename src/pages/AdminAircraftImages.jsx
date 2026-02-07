@@ -127,12 +127,12 @@ export default function AdminAircraftImages() {
     }
   });
 
-  const handleFileSelect = async (e, aircraftId) => {
+  const handleFileSelect = async (e, aircraftId, isTemplate = false, aircraftName = '') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadingId(aircraftId);
-    uploadImageMutation.mutate({ aircraftId, file });
+    uploadImageMutation.mutate({ aircraftId, file, isTemplate, aircraftName });
   };
 
   return (
