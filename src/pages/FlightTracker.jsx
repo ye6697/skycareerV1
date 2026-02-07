@@ -690,8 +690,8 @@ export default function FlightTracker() {
         maintenanceCostIncrease += aircraftPurchasePrice * 0.02;
       }
       
-      // Stall: -50 Punkte (keine Wartungskosten)
-      if (xp.stall && !prev.events.stall) {
+      // Stall: -50 Punkte (keine Wartungskosten) - aber auch erkennen wenn Flugzeug im Stall ist
+      if ((xp.stall || xp.is_in_stall) && !prev.events.stall) {
         baseScore = Math.max(0, baseScore - 50);
       }
       
