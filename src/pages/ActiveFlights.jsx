@@ -64,20 +64,12 @@ export default function ActiveFlights() {
 
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
-    queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      const companyId = companies[0]?.id;
-      return companyId ? base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }) : [];
-    }
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', 'available'],
-    queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      const companyId = companies[0]?.id;
-      return companyId ? base44.entities.Employee.filter({ status: 'available', company_id: companyId }) : [];
-    }
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
   });
 
   const { data: company } = useQuery({
@@ -107,7 +99,6 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
-        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -462,15 +453,15 @@ export default function ActiveFlights() {
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl bg-slate-800 border border-slate-700 text-white">
             <DialogHeader>
-              <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
+              <DialogTitle className="text-white">Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-6">
               {/* Aircraft Selection */}
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-200">
                   <Plane className="w-4 h-4" />
                   Flugzeug auswählen
                 </Label>
