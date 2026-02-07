@@ -404,8 +404,6 @@ export default function FlightTracker() {
 
             // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
-            const totalMaintenanceCostFromEvents = flightData.maintenanceCost;
-            const totalMaintenanceCostWithCrash = totalMaintenanceCostFromEvents + crashMaintenanceCost;
             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostWithCrash;
             const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
             
