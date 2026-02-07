@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const companies = await base44.entities.Company.list();
+    const companies = await base44.entities.Company.filter({ created_by: user.email });
     const company = companies[0];
     
     if (!company) {
