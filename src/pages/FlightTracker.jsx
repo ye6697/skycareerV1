@@ -710,6 +710,7 @@ export default function FlightTracker() {
         gForce: currentGForce,
         maxGForce: newMaxGForce,
         landingVs: xp.touchdown_vspeed || prev.landingVs,
+        landingType: landingType,
         flightScore: baseScore,
         maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
         reputation: xp.reputation || prev.reputation,
