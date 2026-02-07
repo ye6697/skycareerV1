@@ -415,6 +415,12 @@ export default function CompletedFlightDetails() {
                     <span className="text-slate-400">Flughafen-Gebühren</span>
                     <span className="text-red-400 font-mono">-$150.00</span>
                   </div>
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-700">
+                    <span className="font-semibold">Gesamt-Einnahmen</span>
+                    <span className="text-xl font-bold font-mono text-emerald-400">
+                      ${(flight.revenue || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center pt-3">
                     <span className="font-semibold">Gewinn/Verlust</span>
                     <span className={`text-xl font-bold font-mono ${
