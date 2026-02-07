@@ -49,37 +49,29 @@ export default function Contracts() {
     }
   });
 
-  const { data: contracts = [], isLoading, refetch } = useQuery({
-    queryKey: ['contracts', 'available', company?.level, offset],
+  const { data: allContracts = [], isLoading } = useQuery({
+    queryKey: ['contracts', 'all', company?.level],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      const all = await base44.entities.Contract.filter({ company_id: companies[0].id, status: 'available' });
+      const all = await base44.entities.Contract.filter({ status: 'available' });
       return all
         .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
         .filter(c => {
           if (!c.required_aircraft_type || c.required_aircraft_type.length === 0) return true;
           return ownedAircraft.some(ac => c.required_aircraft_type.includes(ac.type));
         })
-        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
-        .slice(offset, offset + 10);
+        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
     enabled: !!company && ownedAircraft.length >= 0
   });
 
+  const contracts = allContracts.slice(offset, offset + 10);
+
   const acceptContractMutation = useMutation({
     mutationFn: async (contract) => {
-      await base44.entities.Contract.update(contract.id, { status: 'accepted' });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
-    }
-  });
-
-  const generateContractsMutation = useMutation({
-    mutationFn: async () => {
-      return await base44.functions.invoke('generateContracts', {});
+      await base44.entities.Contract.update(contract.id, { 
+        status: 'accepted',
+        company_id: company.id
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
@@ -142,20 +134,20 @@ export default function Contracts() {
                 />
               </div>
               <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => refetch()}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button 
-                onClick={() => generateContractsMutation.mutate()}
-                disabled={generateContractsMutation.isPending}
+                onClick={() => setOffset(offset + 10)}
+                disabled={offset + 10 >= allContracts.length}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {generateContractsMutation.isPending ? 'Generiere...' : '10 neue Aufträge'}
+                10 weitere Aufträge
               </Button>
+              {offset > 0 && (
+                <Button 
+                  onClick={() => setOffset(Math.max(0, offset - 10))}
+                  variant="outline"
+                >
+                  Vorherige 10
+                </Button>
+              )}
             </div>
           </div>
         </motion.div>
@@ -263,14 +255,7 @@ export default function Contracts() {
                  ))}
                </AnimatePresence>
              </motion.div>
-             <div className="flex justify-center gap-3">
-               <Button 
-                 onClick={() => setOffset(offset + 10)}
-                 className="bg-blue-600 hover:bg-blue-700"
-               >
-                 Nächste 10 Aufträge laden
-               </Button>
-             </div>
+
            </>
          ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
@@ -279,8 +264,8 @@ export default function Contracts() {
           <p className="text-slate-400 mb-4">
               {searchTerm ? 'Versuche eine andere Suche' : 'Neue Aufträge werden regelmäßig generiert'}
             </p>
-            <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
-              Filter zurücksetzen
+            <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); setOffset(0); }}>
+             Filter zurücksetzen
             </Button>
           </Card>
         )}
