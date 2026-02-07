@@ -510,6 +510,10 @@ export default function Fleet() {
                     )}
 
                     {AIRCRAFT_MARKET.map((ac, index) => {
+                      // Find owned aircraft with same name to get image
+                      const ownedAircraft = aircraft.find(owned => owned.name === ac.name);
+                      const displayData = { ...ac, image_url: ownedAircraft?.image_url };
+
                       const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                       const hasBalance = canAfford(ac.purchase_price);
                       const isPurchasable = hasLevel && hasBalance;
@@ -529,10 +533,10 @@ export default function Fleet() {
                           }`}
                         >
                           <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden flex-shrink-0">
-                            {ac.image_url && (
+                            {displayData.image_url && (
                                <motion.img 
-                                 src={ac.image_url}
-                                 alt={ac.name}
+                                 src={displayData.image_url}
+                                 alt={displayData.name}
                                  className="w-full h-full object-cover"
                                  whileHover={{ scale: 1.05 }}
                                  onError={(e) => {
@@ -542,7 +546,7 @@ export default function Fleet() {
                                  }}
                                />
                             )}
-                            <div data-fallback className="absolute inset-0 flex items-center justify-center text-5xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: ac.image_url ? 'none' : 'flex'}}>✈️</div>
+                            <div data-fallback className="absolute inset-0 flex items-center justify-center text-5xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: displayData.image_url ? 'none' : 'flex'}}>✈️</div>
                           </div>
                           <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 space-y-3 flex flex-col flex-grow">
                             <div>
