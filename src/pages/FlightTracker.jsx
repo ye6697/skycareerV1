@@ -581,11 +581,14 @@ export default function FlightTracker() {
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;
       
+      // Landungs-Score hinzufügen/abziehen
+      baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
+      
       // Track if high G-force event already happened
       const hadHighGEvent = prev.events.high_g_force || false;
       
       // Calculate maintenance cost increase based on NEW events only
-       let maintenanceCostIncrease = 0;
+       let maintenanceCostIncrease = landingMaintenanceCost;
 
        // Get aircraft for maintenance cost calculations (purchase price is neuwert)
        // Use flight.aircraft_id if available, otherwise try to find from aircraft list
