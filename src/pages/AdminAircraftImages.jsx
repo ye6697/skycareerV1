@@ -198,7 +198,12 @@ export default function AdminAircraftImages() {
 
                   <div className="p-4 flex-grow bg-gradient-to-br from-slate-800 to-slate-900">
                     <p className="font-bold text-white text-sm line-clamp-1">{ac.name}</p>
-                    <p className="text-xs text-slate-400 mt-1">{ac.registration}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-slate-400">{ac.registration}</p>
+                      {ac.isTemplate && (
+                        <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-1 rounded">Template</span>
+                      )}
+                    </div>
 
                     <div className="mt-3 flex items-center gap-2">
                       {ac.image_url ? (
