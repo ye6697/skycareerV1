@@ -61,15 +61,41 @@ export default function Contracts() {
     enabled: !!company
   });
 
+  // Filter available aircraft (not in flight, not sold, not damaged)
+  const availableAircraft = ownedAircraft.filter(ac => ac.status === 'available');
+
   // Separate contracts into compatible and incompatible
   const compatibleContracts = allContracts.filter(contract => {
-    if (!contract.required_aircraft_type || contract.required_aircraft_type.length === 0) return true;
-    return ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
+    // Check if any available aircraft can fulfill this contract
+    return availableAircraft.some(plane => {
+      // Check type match
+      const typeMatch = !contract.required_aircraft_type || 
+                       contract.required_aircraft_type.length === 0 || 
+                       contract.required_aircraft_type.includes(plane.type);
+      
+      // Check cargo capacity
+      const cargoMatch = !contract.cargo_weight_kg || 
+                        (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
+      
+      // Check range
+      const rangeMatch = !contract.distance_nm || 
+                        (plane.range_nm && plane.range_nm >= contract.distance_nm);
+      
+      return typeMatch && cargoMatch && rangeMatch;
+    });
   });
   
   const incompatibleContracts = allContracts.filter(contract => {
-    if (!contract.required_aircraft_type || contract.required_aircraft_type.length === 0) return false;
-    return !ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
+    return !availableAircraft.some(plane => {
+      const typeMatch = !contract.required_aircraft_type || 
+                       contract.required_aircraft_type.length === 0 || 
+                       contract.required_aircraft_type.includes(plane.type);
+      const cargoMatch = !contract.cargo_weight_kg || 
+                        (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
+      const rangeMatch = !contract.distance_nm || 
+                        (plane.range_nm && plane.range_nm >= contract.distance_nm);
+      return typeMatch && cargoMatch && rangeMatch;
+    });
   });
 
   const contracts = compatibleContracts.slice(offset, offset + 5);
