@@ -621,31 +621,28 @@ export default function FlightTracker() {
             const levelBonus = (company?.level || 1) > 1 ? revenue * ((company.level - 1) * 0.1) : 0;
             const totalRevenue = profit + levelBonus;
 
+            // Calculate actual balance change (revenue - direct costs only)
+            const actualProfit = revenue + levelBonus - directCosts;
+
             // Update company - only deduct direct costs (fuel, crew, airport)
             if (company) {
               // Reputation based on score (0-100)
               const reputationChange = hasCrashed ? -10 : Math.round((scoreWithTime - 85) / 5);
               
               // XP and Level system with increasing XP requirements (10% per level)
-                const calculateXPForLevel = (level) => {
-                  return Math.round(100 * Math.pow(1.1, level - 1));
-                };
+              const calculateXPForLevel = (level) => {
+                return Math.round(100 * Math.pow(1.1, level - 1));
+              };
 
-                const earnedXP = Math.round(scoreWithTime);
-                let currentLevel = company.level || 1;
-                let currentXP = (company.experience_points || 0) + earnedXP;
+              const earnedXP = Math.round(scoreWithTime);
+              let currentLevel = company.level || 1;
+              let currentXP = (company.experience_points || 0) + earnedXP;
 
               // Level up as many times as possible
               while (currentXP >= calculateXPForLevel(currentLevel)) {
                 currentXP -= calculateXPForLevel(currentLevel);
                 currentLevel++;
               }
-
-              const newLevel = currentLevel;
-              const remainingXP = currentXP;
-              
-              // Calculate actual balance change (revenue - direct costs only)
-              const actualProfit = revenue + levelBonus - directCosts;
 
               console.log('💰 FINANZBERECHNUNG:', {
                 revenue,
@@ -658,24 +655,24 @@ export default function FlightTracker() {
               await base44.entities.Company.update(company.id, {
                 balance: (company.balance || 0) + actualProfit,
                 reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
-                level: newLevel,
-                experience_points: remainingXP,
+                level: currentLevel,
+                experience_points: currentXP,
                 total_flights: (company.total_flights || 0) + 1,
                 total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
                 total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
               });
-              }
 
-              // Create transaction - nur die tatsächlichen Einnahmen (actualProfit)
+              // Create transaction
               await base44.entities.Transaction.create({
-              company_id: company.id,
-              type: 'income',
-              category: 'flight_revenue',
-              amount: actualProfit,
-              description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
-              reference_id: flight?.id,
-              date: new Date().toISOString()
+                company_id: company.id,
+                type: 'income',
+                category: 'flight_revenue',
+                amount: actualProfit,
+                description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
+                reference_id: flight?.id,
+                date: new Date().toISOString()
               });
+            }
 
             // WARTE bis Aircraft wirklich gespeichert ist und lade es neu
             await new Promise(resolve => setTimeout(resolve, 500));
