@@ -356,6 +356,11 @@ export default function FlightTracker() {
 
   const completeFlightMutation = useMutation({
    mutationFn: async () => {
+     // Verhindere mehrfache Ausführung
+     if (isCompletingFlight) {
+       throw new Error('Flug wird bereits abgeschlossen');
+     }
+     setIsCompletingFlight(true);
      if (!flight) {
        throw new Error('Flugdaten nicht geladen');
      }
