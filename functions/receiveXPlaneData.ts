@@ -48,10 +48,19 @@ Deno.serve(async (req) => {
       fuel_emergency,
       gear_up_landing,
       crash,
+      has_crashed,
       flight_score,
       maintenance_cost,
-      reputation
+      reputation,
+      parking_brake,
+      engines_running
     } = data;
+
+    // Normalize field names (plugin sends parking_brake/engines_running, also support park_brake/engine1_running)
+    const park_brake = parking_brake || data.park_brake || false;
+    const engine1_running = data.engine1_running || false;
+    const engine2_running = data.engine2_running || false;
+    const isCrash = crash || has_crashed || false;
 
     // Log ALL received data (regardless of active flight)
     await base44.asServiceRole.entities.XPlaneLog.create({
