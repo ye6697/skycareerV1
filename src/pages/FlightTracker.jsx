@@ -893,15 +893,17 @@ export default function FlightTracker() {
 
     // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
     if (flightData.wasAirborne && xp.on_ground && flightPhase === 'landing' && !completeFlightMutation.isPending && !isCompletingFlight) {
+      console.log('🛬 LANDUNG ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
-      // Starte Mutation sofort
+      // Starte Mutation sofort und warte auf Navigation
       completeFlightMutation.mutate();
     }
 
     // Auto-complete flight on crash
     if (flightData.events.crash && flightPhase !== 'preflight' && flightPhase !== 'completed' && !completeFlightMutation.isPending && !isCompletingFlight) {
+      console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
-      // Starte Mutation sofort
+      // Starte Mutation sofort und warte auf Navigation
       completeFlightMutation.mutate();
     }
   }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash]);
