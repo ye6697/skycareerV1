@@ -32,21 +32,23 @@ export default function Dashboard() {
     queryFn: () => base44.auth.me()
   });
 
+  const userCompanyId = user?.company_id || user?.data?.company_id;
+
   const { data: company, isLoading: companyLoading } = useQuery({
-    queryKey: ['company', user?.company_id],
+    queryKey: ['company', userCompanyId],
     queryFn: async () => {
-      if (!user?.company_id) {
-        // Fallback: try finding company by created_by
-        const companies = await base44.entities.Company.filter({ created_by: user.email });
-        if (companies[0]) {
-          // Save company_id for future lookups
-          await base44.auth.updateMe({ company_id: companies[0].id });
-          return companies[0];
-        }
-        return null;
+      if (userCompanyId) {
+        const companies = await base44.entities.Company.filter({ id: userCompanyId });
+        if (companies[0]) return companies[0];
       }
-      const companies = await base44.entities.Company.filter({ id: user.company_id });
-      return companies[0] || null;
+      // Fallback: try finding company by created_by
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (companies[0]) {
+        // Save company_id for future lookups
+        await base44.auth.updateMe({ company_id: companies[0].id });
+        return companies[0];
+      }
+      return null;
     },
     enabled: !!user
   });
