@@ -280,9 +280,9 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
-          {contracts.length > 0 ? (
+          {filteredContracts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {contracts.map((contract) => (
+              {filteredContracts.map((contract) => (
                 <ContractCard key={contract.id} contract={contract} ownedAircraft={allAircraft} />
               ))}
             </div>
