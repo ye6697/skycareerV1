@@ -145,15 +145,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's company
-    const companies = await base44.entities.Company.filter({ created_by: user.email });
+    // Get user's company (use service role to ensure access)
+    const companies = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
     const company = companies[0];
     if (!company) {
       return Response.json({ error: 'Keine Firma gefunden' }, { status: 400 });
     }
 
     // Get user's aircraft
-    const aircraft = await base44.entities.Aircraft.filter({ company_id: company.id });
+    const aircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
     const availableAircraft = aircraft.filter(a => a.status !== 'sold');
 
     if (availableAircraft.length === 0) {
@@ -161,9 +161,9 @@ Deno.serve(async (req) => {
     }
 
     // Delete old available contracts for this company
-    const oldContracts = await base44.entities.Contract.filter({ company_id: company.id, status: 'available' });
+    const oldContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id, status: 'available' });
     for (const old of oldContracts) {
-      await base44.entities.Contract.delete(old.id);
+      await base44.asServiceRole.entities.Contract.delete(old.id);
     }
 
     // Get the types the user owns
