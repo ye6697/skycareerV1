@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const engines_running = engine1_running || engine2_running;
+    const areEnginesRunning = engines_running || engine1_running || engine2_running;
 
     // Update flight with comprehensive X-Plane data
     const updateData = {
