@@ -41,6 +41,10 @@ export default function Setup() {
         total_cargo_kg: 0
       });
 
+      // Get template image for Cessna 172 Skyhawk
+      const templates = await base44.entities.AircraftTemplate.filter({ name: "Cessna 172 Skyhawk" });
+      const template = templates[0];
+
       // Create starter aircraft
       await base44.entities.Aircraft.create({
         company_id: company.id,
@@ -54,7 +58,8 @@ export default function Setup() {
         purchase_price: 0,
         maintenance_cost_per_hour: 25,
         status: "available",
-        total_flight_hours: 0
+        total_flight_hours: 0,
+        image_url: template?.image_url
       });
 
       // Create starter employees
