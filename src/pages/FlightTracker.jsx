@@ -209,11 +209,6 @@ export default function FlightTracker() {
     enabled: !!contractIdFromUrl
   });
 
-  // Keep activeFlightId in sync
-  useEffect(() => {
-    setActiveFlightId(flight?.id || existingFlight?.id || null);
-  }, [flight?.id, existingFlight?.id]);
-
   // Restore flight data and phase from existing flight
   useEffect(() => {
     if (existingFlight && !flight) {
