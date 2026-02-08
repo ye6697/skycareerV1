@@ -75,8 +75,14 @@ export default function ActiveFlights() {
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
+      const u = await base44.auth.me();
+      const cid = u?.company_id || u?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: u.email });
+      return companies[0] || null;
     }
   });
 
@@ -136,57 +142,23 @@ export default function ActiveFlights() {
 
   const cancelFlightMutation = useMutation({
     mutationFn: async (contractToCancel) => {
-      const penalty = contractToCancel.payout ? contractToCancel.payout * 0.3 : 5000;
+      const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
 
-      // Update contract status to failed (not available!)
-      await base44.entities.Contract.update(contractToCancel.id, { status: 'failed' });
+      // Update contract status
+      await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
 
-      // Find and cancel associated flight if in_progress
-      if (contractToCancel.status === 'in_progress') {
-        const flights = await base44.entities.Flight.filter({
-          contract_id: contractToCancel.id,
-          status: 'in_flight'
-        });
-        
-        for (const fl of flights) {
-          await base44.entities.Flight.update(fl.id, { status: 'cancelled' });
-          
-          // Free up aircraft
-          if (fl.aircraft_id) {
-            await base44.entities.Aircraft.update(fl.aircraft_id, { status: 'available' });
-          }
-          
-          // Free up crew
-          if (fl.crew && Array.isArray(fl.crew)) {
-            for (const member of fl.crew) {
-              if (member.employee_id) {
-                await base44.entities.Employee.update(member.employee_id, { status: 'available' });
-              }
-            }
-          }
-        }
-      }
-
-      // Deduct penalty from company - use fresh company data
+      // Deduct penalty from company
       if (company) {
-        // Re-fetch current balance to avoid stale data
-        const freshCompanies = await base44.entities.Company.filter({ id: company.id });
-        const freshCompany = freshCompanies[0];
-        if (freshCompany) {
-          await base44.entities.Company.update(company.id, {
-            balance: (freshCompany.balance || 0) - penalty,
-            reputation: Math.max(0, (freshCompany.reputation || 50) - 5)
-          });
-        }
+        await base44.entities.Company.update(company.id, {
+          balance: Math.max(0, (company.balance || 0) - penalty)
+        });
 
         // Create transaction for penalty
         await base44.entities.Transaction.create({
-          company_id: company.id,
           type: 'expense',
           category: 'other',
           amount: penalty,
           description: `Stornierungsgebühr: ${contractToCancel.title}`,
-          reference_id: contractToCancel.id,
           date: new Date().toISOString()
         });
       }
@@ -196,8 +168,6 @@ export default function ActiveFlights() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
     }
   });
 
@@ -378,11 +348,7 @@ export default function ActiveFlights() {
                               Flug vorbereiten
                             </Button>
                             <Button
-                        onClick={() => {
-                          if (confirm(`Auftrag stornieren? Stornierungsgebühr: $${(contract.payout * 0.3 || 5000).toLocaleString()}`)) {
-                            cancelFlightMutation.mutate(contract);
-                          }
-                        }}
+                        onClick={() => cancelFlightMutation.mutate(contract)}
                         disabled={cancelFlightMutation.isPending}
                         variant="outline"
                         className="border-red-500 text-red-400 hover:bg-red-500/10">
@@ -400,11 +366,7 @@ export default function ActiveFlights() {
                               </Button>
                             </Link>
                             <Button
-                        onClick={() => {
-                          if (confirm(`Flug abbrechen? Stornierungsgebühr: $${(contract.payout * 0.3 || 5000).toLocaleString()}`)) {
-                            cancelFlightMutation.mutate(contract);
-                          }
-                        }}
+                        onClick={() => cancelFlightMutation.mutate(contract)}
                         disabled={cancelFlightMutation.isPending}
                         variant="outline"
                         className="border-red-500 text-red-400 hover:bg-red-500/10">
