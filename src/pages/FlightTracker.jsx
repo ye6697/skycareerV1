@@ -270,7 +270,7 @@ export default function FlightTracker() {
           stall: false,
           overstress: false,
           flaps_overspeed: false,
-          fuel_emergency: false,
+          fuel_emergency: xp.fuel_percentage < 3 || prev.events.fuel_emergency,
           gear_up_landing: false,
           crash: false,
           harsh_controls: false,
@@ -1092,7 +1092,7 @@ export default function FlightTracker() {
                   {Math.round(flightData.fuel)}%
                 </p>
               </div>
-              {flightData.events.fuel_emergency && (
+              {flightData.fuel < 3 && (
                 <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
                   <AlertTriangle className="w-4 h-4" />
                   Treibstoff-Notstand!
