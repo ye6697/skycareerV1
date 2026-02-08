@@ -331,12 +331,20 @@ export default function XPlaneSetup() {
                 </p>
                 <div className="space-y-3 text-sm">
                   <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-slate-300 mb-2">1. Auftrag in SkyCareer annehmen und Flug starten</p>
-                    <p className="text-xs text-slate-400">Weise Flugzeug und Crew zu</p>
+                    <p className="text-slate-300 mb-2">1. Auftrag in SkyCareer annehmen und Flug vorbereiten</p>
+                    <p className="text-xs text-slate-400">Weise Flugzeug und Crew zu und klicke auf "Flug starten"</p>
                   </div>
                   <div className="bg-slate-900 rounded-lg p-3">
                     <p className="text-slate-300 mb-2">2. X-Plane 12 laden</p>
                     <p className="text-xs text-slate-400">Richtiges Flugzeug, Startflughafen (ICAO), Payload-Gewicht einstellen</p>
+                  </div>
+                  <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3">
+                    <p className="text-amber-300 font-medium mb-1">⏳ Warte auf Abheben</p>
+                    <p className="text-xs text-slate-400">
+                      SkyCareer wartet geduldig, bis du in X-Plane tatsächlich abhebst.<br/>
+                      Solange du am Boden bist, passiert nichts – keine Kosten, kein Scoring.<br/>
+                      Du kannst dir so viel Zeit lassen wie du möchtest!
+                    </p>
                   </div>
                   <div className="bg-slate-900 rounded-lg p-3">
                     <p className="text-slate-300 mb-2">3. Flug durchführen</p>
