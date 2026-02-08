@@ -358,8 +358,10 @@ export default function FlightTracker() {
    mutationFn: async () => {
      // Verhindere mehrfache Ausführung
      if (isCompletingFlight) {
-       throw new Error('Flug wird bereits abgeschlossen');
+       console.log('⚠️ FLUG WIRD BEREITS ABGESCHLOSSEN - ABBRUCH');
+       return null;
      }
+     console.log('🚀 STARTE FLUGABSCHLUSS');
      setIsCompletingFlight(true);
      if (!flight) {
        throw new Error('Flugdaten nicht geladen');
@@ -619,23 +621,33 @@ export default function FlightTracker() {
             return updatedFlightFromDB[0];
     },
     onSuccess: async (updatedFlight) => {
-       console.log('✅ Flug erfolgreich abgeschlossen:', updatedFlight);
+      // Wenn null zurückgegeben wurde, war die Mutation bereits in Bearbeitung
+      if (!updatedFlight) {
+        console.log('⚠️ Keine Daten - Flug wurde bereits abgeschlossen');
+        return;
+      }
 
-       // WARTE nochmal um sicherzustellen dass alles committed ist
-       await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('✅ Flug erfolgreich abgeschlossen:', updatedFlight);
 
-       // FORCE refetch der Aircraft Query damit Fleet aktualisiert wird
-       await queryClient.refetchQueries({ queryKey: ['aircraft'] });
+      // FORCE refetch der Aircraft Query damit Fleet aktualisiert wird
+      await queryClient.refetchQueries({ queryKey: ['aircraft'] });
+      await queryClient.invalidateQueries({ queryKey: ['company'] });
+      await queryClient.invalidateQueries({ queryKey: ['contracts'] });
 
-       // Direkt navigieren mit dem neuesten Flight von der DB
-       navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
-         state: { 
-           flightData: flightDataRef.current || flightData,
-           flight: updatedFlight,
-           contract
-         }
-       });
-     }
+      // Direkt navigieren mit dem neuesten Flight von der DB
+      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
+        state: { 
+          flightData: flightDataRef.current || flightData,
+          flight: updatedFlight,
+          contract
+        },
+        replace: true
+      });
+    },
+    onError: (error) => {
+      console.error('❌ FEHLER BEIM FLUGABSCHLUSS:', error);
+      setIsCompletingFlight(false);
+    }
   });
 
   // Update flight duration every second
