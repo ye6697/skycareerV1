@@ -30,19 +30,28 @@ export default function Contracts() {
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
 
-  const { data: companyData } = useQuery({
-    queryKey: ['companyAndAircraft'],
+  // Fetch company exactly like Dashboard does
+  const { data: company } = useQuery({
+    queryKey: ['company'],
     queryFn: async () => {
-      const res = await base44.functions.invoke('getCompanyData', {});
-      return res.data;
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      return companies[0] || null;
     }
   });
 
-  const company = companyData?.company || null;
-  const ownedAircraft = companyData?.aircraft || [];
+  const companyId = company?.id;
 
+  // Fetch aircraft exactly like Dashboard does
+  const { data: ownedAircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'all', companyId],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: { $ne: 'sold' } }),
+    enabled: !!companyId
+  });
+
+  // Fetch contracts exactly like Dashboard does
   const { data: allContracts = [], isLoading } = useQuery({
-    queryKey: ['contracts', 'available', company?.id],
+    queryKey: ['contracts', 'available', companyId],
     queryFn: async () => {
       const res = await base44.functions.invoke('getAvailableContracts', {});
       const contracts = res.data.contracts || [];
@@ -50,7 +59,7 @@ export default function Contracts() {
         .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
-    enabled: !!company?.id
+    enabled: !!companyId
   });
 
   const generateMutation = useMutation({
