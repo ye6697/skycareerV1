@@ -531,6 +531,10 @@ export default function FlightTracker() {
      const directCosts = fuelCost + crewCost + airportFee;
      const profit = revenue - directCosts;
 
+            // Calculate level bonus (1% per level auf den Gewinn)
+            const levelBonusPercent = (company?.level || 1) * 0.01; // 1% pro Level
+            const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
+
             // Calculate depreciation based on flight hours
             const airplaneToUpdate = aircraft.find(a => a.id === flight.aircraft_id);
             const newFlightHours = (airplaneToUpdate?.total_flight_hours || 0) + flightHours;
