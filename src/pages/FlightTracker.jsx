@@ -1473,58 +1473,43 @@ export default function FlightTracker() {
             {flightPhase === 'completed' ? (
               <>
                 <FlightRating 
-                  flight={{
-                    flight_score: flightData.flightScore,
-                    landing_vs: flightData.landingVs,
-                    max_g_force: flightData.maxGForce,
-                    fuel_used_liters: (100 - flightData.fuel) * 10,
-                    flight_duration_hours: contract?.distance_nm ? contract.distance_nm / 450 : 2,
-                    passenger_comments: generateComments(flightData.flightScore, flightData),
-                    revenue: (() => {
-                      const flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2;
-                      const score = flightData.flightScore;
-                      let revenue = contract?.payout || 0;
-                      if (score >= 95 && contract?.bonus_potential) {
-                        revenue += contract.bonus_potential;
-                      } else if (score >= 85 && contract?.bonus_potential) {
-                        revenue += contract.bonus_potential * 0.5;
-                      }
-                      const levelBonus = (company?.level || 1) > 1 ? revenue * ((company.level - 1) * 0.1) : 0;
-                      return revenue + levelBonus;
-                    })(),
-                    fuel_cost: (() => {
-                      const fuelUsed = (100 - flightData.fuel) * 10;
-                      const fuelCostPerLiter = 1.2;
-                      return fuelUsed * fuelCostPerLiter;
-                    })(),
-                    crew_cost: (() => {
-                      const flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2;
-                      const crewCostPerHour = 250;
-                      return flightHours * crewCostPerHour;
-                    })(),
-                    maintenance_cost: (() => {
-                      const flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2;
-                      const maintenanceCostPerHour = 400;
-                      return (flightHours * maintenanceCostPerHour) + flightData.maintenanceCost;
-                    })(),
-                    profit: (() => {
-                      const flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2;
-                      const fuelUsed = (100 - flightData.fuel) * 10;
-                      const fuelCost = fuelUsed * 1.2;
-                      const crewCost = flightHours * 250;
-                      const maintenanceCost = (flightHours * 400) + flightData.maintenanceCost;
-                      const airportFee = 150;
-                      const score = flightData.flightScore;
-                      let revenue = contract?.payout || 0;
-                      if (score >= 95 && contract?.bonus_potential) {
-                        revenue += contract.bonus_potential;
-                      } else if (score >= 85 && contract?.bonus_potential) {
-                        revenue += contract.bonus_potential * 0.5;
-                      }
-                      const levelBonus = (company?.level || 1) > 1 ? revenue * ((company.level - 1) * 0.1) : 0;
-                      return (revenue + levelBonus) - fuelCost - crewCost - maintenanceCost - airportFee;
-                    })()
-                  }} 
+                  flight={(() => {
+                    const fuelUsed = (100 - flightData.fuel) * 10;
+                    const fuelCost = fuelUsed * 1.2;
+                    const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
+                    const crewCost = flightHours * 250;
+                    const airportFee = 150;
+                    let revenue = contract?.payout || 0;
+                    revenue += flightData.landingBonus || 0;
+                    const directCosts = fuelCost + crewCost + airportFee;
+                    const profit = revenue - directCosts;
+                    const levelBonusPercent = (company?.level || 1) * 0.01;
+                    const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
+                    return {
+                      flight_score: flightData.flightScore,
+                      landing_vs: flightData.landingVs,
+                      max_g_force: flightData.maxGForce,
+                      fuel_used_liters: fuelUsed,
+                      flight_duration_hours: flightHours,
+                      passenger_comments: generateComments(flightData.flightScore, flightData),
+                      xplane_data: {
+                        final_score: flightData.flightScore,
+                        landingGForce: flightData.landingGForce,
+                        events: flightData.events,
+                        levelBonus,
+                        levelBonusPercent: levelBonusPercent * 100,
+                        companyLevel: company?.level || 1,
+                        landingScoreChange: flightData.landingScoreChange,
+                        landingBonus: flightData.landingBonus,
+                        landingMaintenanceCost: flightData.landingMaintenanceCost
+                      },
+                      revenue,
+                      fuel_cost: fuelCost,
+                      crew_cost: crewCost,
+                      maintenance_cost: flightData.maintenanceCost,
+                      profit: profit + levelBonus
+                    };
+                  })()} 
                 />
 
                 {!completeFlightMutation.isSuccess && (
