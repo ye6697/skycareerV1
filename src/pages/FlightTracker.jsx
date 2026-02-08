@@ -147,9 +147,14 @@ export default function FlightTracker() {
     queryKey: ['xplane-log'],
     queryFn: async () => {
       const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return null;
-      const logs = await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 1);
+      const cid = user?.company_id || user?.data?.company_id;
+      let companyId = cid;
+      if (!companyId) {
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        companyId = companies[0]?.id;
+      }
+      if (!companyId) return null;
+      const logs = await base44.entities.XPlaneLog.filter({ company_id: companyId }, '-created_date', 1);
       return logs[0] || null;
     },
     refetchInterval: 500,
