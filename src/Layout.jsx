@@ -41,19 +41,20 @@ export default function Layout({ children, currentPageName }) {
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const u = await base44.auth.me();
-      if (u?.company_id) {
-        const companies = await base44.entities.Company.filter({ id: u.company_id });
-        if (companies[0]) return companies[0];
-      }
-      // Fallback
-      const companies = await base44.entities.Company.filter({ created_by: u.email });
-      if (companies[0]) {
-        await base44.auth.updateMe({ company_id: companies[0].id });
-        return companies[0];
-      }
-      return null;
-    },
+        const u = await base44.auth.me();
+        const cid = u?.company_id || u?.data?.company_id;
+        if (cid) {
+          const companies = await base44.entities.Company.filter({ id: cid });
+          if (companies[0]) return companies[0];
+        }
+        // Fallback
+        const companies = await base44.entities.Company.filter({ created_by: u.email });
+        if (companies[0]) {
+          await base44.auth.updateMe({ company_id: companies[0].id });
+          return companies[0];
+        }
+        return null;
+      },
     refetchInterval: 5000,
   });
 
