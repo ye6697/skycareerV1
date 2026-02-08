@@ -1051,13 +1051,10 @@ export default function FlightTracker() {
     // Erlaube Abschluss in ALLEN aktiven Flugphasen (takeoff, cruise, landing)
     const isActivePhase = flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing';
     
-    if (flightData.wasAirborne && flightStartTime && xp.on_ground && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
-      // Parkbremse und Triebwerke aus = Flug abgeschlossen
-      if (xp.parking_brake && !xp.engines_running) {
-        console.log('🛬 LANDUNG ERKANNT (Parkbremse + Triebwerke aus) - Starte Flugabschluss');
-        setFlightPhase('completed');
-        completeFlightMutation.mutate();
-      }
+    if (flightData.wasAirborne && flightStartTime && xp.on_ground && flightPhase === 'landing' && !completeFlightMutation.isPending && !isCompletingFlight) {
+      console.log('🛬 LANDUNG ERKANNT (on_ground + landing phase) - Starte Flugabschluss');
+      setFlightPhase('completed');
+      completeFlightMutation.mutate();
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
