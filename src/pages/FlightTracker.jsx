@@ -924,8 +924,9 @@ export default function FlightTracker() {
         maintenanceCostIncrease += aircraftPurchasePrice * 0.02;
       }
       
-      // Stall: -50 Punkte (keine Wartungskosten) - aber auch erkennen wenn Flugzeug im Stall ist
-      if ((xp.stall || xp.is_in_stall) && !prev.events.stall) {
+      // Stall: -50 Punkte (keine Wartungskosten) - erkennen über mehrere Datarefs
+      if ((xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha) && !prev.events.stall) {
+        console.log('⚠️ STALL ERKANNT:', { stall: xp.stall, is_in_stall: xp.is_in_stall, stall_warning: xp.stall_warning, override_alpha: xp.override_alpha });
         baseScore = Math.max(0, baseScore - 50);
       }
       
