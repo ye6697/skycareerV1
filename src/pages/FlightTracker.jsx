@@ -242,7 +242,8 @@ export default function FlightTracker() {
     onSuccess: (flightData) => {
       setFlight(flightData);
       setFlightPhase('takeoff');
-      setFlightStartTime(Date.now());
+      // flightStartTime wird NICHT hier gesetzt, sondern erst beim Abheben
+      setFlightStartTime(null);
       setFlightDurationSeconds(0);
       setProcessedGLevels(new Set());
       
@@ -692,11 +693,36 @@ export default function FlightTracker() {
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
-      const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
       const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
 
       // Track if aircraft was airborne
       const newWasAirborne = prev.wasAirborne || (!xp.on_ground && xp.altitude > 10);
+
+      // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
+      if (!newWasAirborne) {
+        const groundData = {
+          ...prev,
+          altitude: xp.altitude || prev.altitude,
+          speed: xp.speed || prev.speed,
+          verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
+          heading: xp.heading || prev.heading,
+          fuel: xp.fuel_percentage || prev.fuel,
+          fuelKg: xp.fuel_kg || prev.fuelKg,
+          gForce: currentGForce,
+          latitude: xp.latitude || prev.latitude,
+          longitude: xp.longitude || prev.longitude,
+          departure_lat: prev.departure_lat || xp.departure_lat || 0,
+          departure_lon: prev.departure_lon || xp.departure_lon || 0,
+          arrival_lat: prev.arrival_lat || xp.arrival_lat || 0,
+          arrival_lon: prev.arrival_lon || xp.arrival_lon || 0,
+          wasAirborne: false,
+        };
+        flightDataRef.current = groundData;
+        return groundData;
+      }
+
+      // Ab hier: Flugzeug WAR in der Luft - normale Verarbeitung
+      const newMaxGForce = Math.max(prev.maxGForce, currentGForce);
 
       // Landing detection based on vertical speed
       const currentSpeed = xp.speed || 0;
@@ -883,9 +909,13 @@ export default function FlightTracker() {
       return newData;
       });
 
-      // Auto-detect phase - start if in air
-    if (flightPhase === 'takeoff' && xp.altitude > 10 && !xp.on_ground) {
+      // Auto-detect phase - ERST wenn tatsächlich abgehoben (!on_ground)
+    if (flightPhase === 'takeoff' && !xp.on_ground && xp.altitude > 10) {
       setFlightPhase('cruise');
+      // Setze Flugstart-Zeit erst beim tatsächlichen Abheben
+      if (!flightStartTime) {
+        setFlightStartTime(Date.now());
+      }
     } else if (flightPhase === 'cruise') {
       if (xp.vertical_speed < -200) {
         setFlightPhase('landing');
@@ -893,18 +923,17 @@ export default function FlightTracker() {
     }
 
     // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
-    if (flightData.wasAirborne && xp.on_ground && flightPhase === 'landing' && !completeFlightMutation.isPending && !isCompletingFlight) {
+    // KRITISCH: NUR abschließen wenn wasAirborne UND flightStartTime gesetzt (= tatsächlich geflogen)
+    if (flightData.wasAirborne && flightStartTime && xp.on_ground && flightPhase === 'landing' && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('🛬 LANDUNG ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
-      // Starte Mutation sofort und warte auf Navigation
       completeFlightMutation.mutate();
     }
 
-    // Auto-complete flight on crash
-    if (flightData.events.crash && flightPhase !== 'preflight' && flightPhase !== 'completed' && !completeFlightMutation.isPending && !isCompletingFlight) {
+    // Auto-complete flight on crash - NUR wenn bereits abgehoben
+    if (flightData.events.crash && flightData.wasAirborne && flightStartTime && flightPhase !== 'preflight' && flightPhase !== 'completed' && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
-      // Starte Mutation sofort und warte auf Navigation
       completeFlightMutation.mutate();
     }
   }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash]);
