@@ -146,10 +146,14 @@ export default function Setup() {
         }
       ]);
 
+      // Save company_id on the user
+      await base44.auth.updateMe({ company_id: company.id });
+
       return company;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
       navigate(createPageUrl("Dashboard"));
     }
   });
