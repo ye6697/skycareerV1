@@ -62,37 +62,22 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      return companies[0];
-    }
-  });
-
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
-    queryFn: async () => {
-      if (!company) return [];
-      return await base44.entities.Aircraft.filter({ 
-        company_id: company.id,
-        status: 'available' 
-      });
-    },
-    enabled: !!company
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
     queryFn: async () => {
-      if (!company) return [];
-      return await base44.entities.Employee.filter({ 
-        company_id: company.id,
-        status: 'available' 
-      });
-    },
-    enabled: !!company
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    }
   });
 
   const startFlightMutation = useMutation({
@@ -114,6 +99,7 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
