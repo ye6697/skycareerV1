@@ -62,22 +62,37 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      return companies[0];
+    }
+  });
+
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
+    queryFn: async () => {
+      if (!company) return [];
+      return await base44.entities.Aircraft.filter({ 
+        company_id: company.id,
+        status: 'available' 
+      });
+    },
+    enabled: !!company
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
-  });
-
-  const { data: company } = useQuery({
-    queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
-    }
+      if (!company) return [];
+      return await base44.entities.Employee.filter({ 
+        company_id: company.id,
+        status: 'available' 
+      });
+    },
+    enabled: !!company
   });
 
   const startFlightMutation = useMutation({
@@ -136,70 +151,28 @@ export default function ActiveFlights() {
 
   const cancelFlightMutation = useMutation({
     mutationFn: async (contractToCancel) => {
-      // Check if flight was in progress
-      const wasInProgress = contractToCancel.status === 'in_progress';
-      
-      // If flight was in progress, find and update it
-      if (wasInProgress) {
-        const flights = await base44.entities.Flight.filter({ 
-          contract_id: contractToCancel.id,
-          status: 'in_flight'
-        });
-        
-        if (flights.length > 0) {
-          const flight = flights[0];
-          
-          // Update flight status
-          await base44.entities.Flight.update(flight.id, {
-            status: 'cancelled'
-          });
-          
-          // Free up aircraft
-          if (flight.aircraft_id) {
-            await base44.entities.Aircraft.update(flight.aircraft_id, {
-              status: 'available'
-            });
-          }
-          
-          // Free up crew
-          if (flight.crew) {
-            for (const member of flight.crew) {
-              await base44.entities.Employee.update(member.employee_id, {
-                status: 'available'
-              });
-            }
-          }
-        }
-        
-        // 30% penalty if flight was already in progress
-        const penalty = contractToCancel.payout * 0.3;
-        
-        if (company) {
-          await base44.entities.Company.update(company.id, {
-            balance: Math.max(0, (company.balance || 0) - penalty),
-            reputation: Math.max(0, (company.reputation || 50) - 5)
-          });
+      const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
 
-          // Create transaction for penalty with company_id
-          await base44.entities.Transaction.create({
-            company_id: company.id,
-            type: 'expense',
-            category: 'other',
-            amount: penalty,
-            description: `Stornierungsgebühr: ${contractToCancel.title}`,
-            reference_id: contractToCancel.id,
-            date: new Date().toISOString()
-          });
-        }
+      // Update contract status
+      await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
+
+      // Deduct penalty from company
+      if (company) {
+        await base44.entities.Company.update(company.id, {
+          balance: Math.max(0, (company.balance || 0) - penalty)
+        });
+
+        // Create transaction for penalty
+        await base44.entities.Transaction.create({
+          type: 'expense',
+          category: 'other',
+          amount: penalty,
+          description: `Stornierungsgebühr: ${contractToCancel.title}`,
+          date: new Date().toISOString()
+        });
       }
 
-      // Update contract status to available
-      await base44.entities.Contract.update(contractToCancel.id, { 
-        status: 'available',
-        company_id: null
-      });
-
-      return { wasInProgress };
+      return penalty;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
