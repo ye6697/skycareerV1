@@ -30,23 +30,16 @@ export default function Contracts() {
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
+  const { data: companyData } = useQuery({
+    queryKey: ['companyAndAircraft'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      return companies[0];
+      const res = await base44.functions.invoke('getCompanyData', {});
+      return res.data;
     }
   });
 
-  const { data: ownedAircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'owned'],
-    queryFn: async () => {
-      if (!company) return [];
-      return await base44.entities.Aircraft.filter({ company_id: company.id, status: { $ne: 'sold' } });
-    },
-    enabled: !!company
-  });
+  const company = companyData?.company || null;
+  const ownedAircraft = companyData?.aircraft || [];
 
   const { data: allContracts = [], isLoading } = useQuery({
     queryKey: ['contracts', 'available', company?.id],
