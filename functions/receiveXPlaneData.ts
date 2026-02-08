@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
       }
 
       if (tailstrike) comments.push("Ich habe gehört, wie das Heck aufgesetzt hat!");
-      if (stall) comments.push("Der Strömungsabriss war beängstigend!");
+      if (stall || is_in_stall || stall_warning || override_alpha) comments.push("Der Strömungsabriss war beängstigend!");
       if (overstress) comments.push("Die G-Kräfte waren extrem unangenehm!");
       if (flaps_overspeed) comments.push("Die Klappen haben verdächtig geknarzt...");
       if (fuel_emergency) comments.push("Wir hatten kaum noch Treibstoff!");
