@@ -1482,8 +1482,12 @@ export default function FlightTracker() {
                     const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
                     const crewCost = flightHours * 250;
                     const airportFee = 150;
-                    let revenue = contract?.payout || 0;
-                    revenue += flightData.landingBonus || 0;
+                    const isCrashed = flightData.events.crash;
+                    let revenue = 0;
+                    if (!isCrashed) {
+                      revenue = contract?.payout || 0;
+                      revenue += flightData.landingBonus || 0;
+                    }
                     const directCosts = fuelCost + crewCost + airportFee;
                     const profit = revenue - directCosts;
                     const levelBonusPercent = (company?.level || 1) * 0.01;
