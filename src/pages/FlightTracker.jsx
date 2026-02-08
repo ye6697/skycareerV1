@@ -583,7 +583,15 @@ export default function FlightTracker() {
               
               // Calculate actual balance change (revenue - direct costs only)
               const actualProfit = revenue + levelBonus - directCosts;
-              
+
+              console.log('💰 FINANZBERECHNUNG:', {
+                revenue,
+                levelBonus,
+                directCosts,
+                actualProfit,
+                currentBalance: company.balance
+              });
+
               await base44.entities.Company.update(company.id, {
                 balance: (company.balance || 0) + actualProfit,
                 reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
@@ -593,18 +601,18 @@ export default function FlightTracker() {
                 total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
                 total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
               });
-            }
+              }
 
-            // Create transaction - only for direct costs
-            await base44.entities.Transaction.create({
-            company_id: company.id,
-            type: 'income',
-            category: 'flight_revenue',
-            amount: revenue + levelBonus - directCosts,
-            description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
-            reference_id: flight?.id,
-            date: new Date().toISOString()
-            });
+              // Create transaction - nur die tatsächlichen Einnahmen (actualProfit)
+              await base44.entities.Transaction.create({
+              company_id: company.id,
+              type: 'income',
+              category: 'flight_revenue',
+              amount: actualProfit,
+              description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
+              reference_id: flight?.id,
+              date: new Date().toISOString()
+              });
 
             // WARTE bis Aircraft wirklich gespeichert ist und lade es neu
             await new Promise(resolve => setTimeout(resolve, 500));
