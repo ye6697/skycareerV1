@@ -40,13 +40,20 @@ export default function Dashboard() {
 
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'available'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'available' }, '-created_date', 50),
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getAvailableContracts', {});
+      return res.data.contracts || [];
+    },
     enabled: !!companyId
   });
 
   const { data: acceptedContracts = [] } = useQuery({
     queryKey: ['contracts', 'accepted', companyId],
-    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'accepted' }),
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getAvailableContracts', {});
+      const allContracts = res.data.contracts || [];
+      return allContracts.filter(c => c.status === 'accepted' && c.company_id === companyId);
+    },
     enabled: !!companyId
   });
 
