@@ -464,6 +464,54 @@ export default function ActiveFlights() {
           </Card> :
         null}
 
+        {/* Failed Contracts */}
+        {activeTab === 'failed' && failedContracts.length > 0 ?
+        <div className="space-y-4">
+            <AnimatePresence>
+              {failedContracts.map((ct) =>
+            <motion.div
+              key={ct.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}>
+                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${ct.id}`)}>
+                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-red-500 transition-colors cursor-pointer">
+                      <div className="h-1 bg-red-500" />
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-xl font-semibold text-white">{ct.title}</h3>
+                              <Badge className="bg-red-100 text-red-700 border-red-200">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                Fehlgeschlagen
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 text-slate-400">
+                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{ct.departure_airport}</span>
+                              <ArrowRight className="w-4 h-4" />
+                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{ct.arrival_airport}</span>
+                              <span className="text-slate-600">|</span>
+                              <span>{ct.distance_nm} NM</span>
+                            </div>
+                          </div>
+                          <p className="text-2xl font-bold text-red-500">${ct.payout?.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                </motion.div>
+            )}
+            </AnimatePresence>
+          </div> :
+        activeTab === 'failed' ?
+        <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <AlertCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine fehlgeschlagenen Flüge</h3>
+            <p className="text-slate-400">Gecrashte Flüge werden hier angezeigt</p>
+          </Card> :
+        null}
+
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
           <DialogContent className="max-w-2xl">
