@@ -513,14 +513,16 @@ export default function FlightTracker() {
      // Landing and airport fees
      const airportFee = 150;
 
-     let revenue = contract?.payout || 0;
-
-     // Bonus based on landing quality (G-force based)
-     const landingBonus = finalFlightData.landingBonus || 0;
-     revenue += landingBonus;
-
-     // Add time bonus
-     revenue += timeBonus;
+     // Bei Crash: KEIN Payout und KEIN Bonus
+     let revenue = 0;
+     if (!hasCrashed) {
+       revenue = contract?.payout || 0;
+       // Bonus based on landing quality (G-force based)
+       const landingBonus = finalFlightData.landingBonus || 0;
+       revenue += landingBonus;
+       // Add time bonus
+       revenue += timeBonus;
+     }
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
      const directCosts = fuelCost + crewCost + airportFee;
