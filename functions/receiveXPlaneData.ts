@@ -204,13 +204,17 @@ Deno.serve(async (req) => {
       const baseMaintenance = aircraft?.maintenance_cost_per_hour || 200;
       const totalMaintenanceCost = baseMaintenance + (maintenance_cost || 0);
       
-      let revenue = contract?.payout || 0;
-      
-      // Bonus based on score
-      if (flight_score >= 95 && contract?.bonus_potential) {
-        revenue += contract.bonus_potential;
-      } else if (flight_score >= 85 && contract?.bonus_potential) {
-        revenue += contract.bonus_potential * 0.5;
+      // Bei Crash: KEIN Payout und KEIN Bonus
+      let revenue = 0;
+      if (!crash) {
+        revenue = contract?.payout || 0;
+        
+        // Bonus based on score
+        if (flight_score >= 95 && contract?.bonus_potential) {
+          revenue += contract.bonus_potential;
+        } else if (flight_score >= 85 && contract?.bonus_potential) {
+          revenue += contract.bonus_potential * 0.5;
+        }
       }
 
       const profit = revenue - fuelCost - crewCost - totalMaintenanceCost;
