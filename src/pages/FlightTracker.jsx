@@ -257,16 +257,19 @@ export default function FlightTracker() {
       
       return newFlight;
     },
-    onSuccess: (flightData) => {
-      setFlight(flightData);
+    onSuccess: (flightResult) => {
+      setFlight(flightResult);
       setFlightPhase('takeoff');
       // flightStartTime wird NICHT hier gesetzt, sondern erst beim Abheben
       setFlightStartTime(null);
       setFlightDurationSeconds(0);
       setProcessedGLevels(new Set());
+      setIsCompletingFlight(false);
+      // Merke Zeitpunkt des Flugstarts, um alte X-Plane Logs zu ignorieren
+      setFlightStartedAt(Date.now());
       
-      // Reset flight data for new flight
-      setFlightData({
+      // Reset flight data for new flight - komplett sauber
+      const cleanData = {
         altitude: 0,
         speed: 0,
         verticalSpeed: 0,
@@ -290,7 +293,7 @@ export default function FlightTracker() {
           stall: false,
           overstress: false,
           flaps_overspeed: false,
-          fuel_emergency: xp.fuel_percentage < 3 || prev.events.fuel_emergency,
+          fuel_emergency: false,
           gear_up_landing: false,
           crash: false,
           harsh_controls: false,
@@ -305,7 +308,9 @@ export default function FlightTracker() {
         wasAirborne: false,
         previousSpeed: 0,
         landingType: null
-      });
+      };
+      setFlightData(cleanData);
+      flightDataRef.current = cleanData;
       
       queryClient.invalidateQueries();
     }
