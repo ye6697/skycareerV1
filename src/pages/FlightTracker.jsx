@@ -733,7 +733,7 @@ export default function FlightTracker() {
     const xp = xplaneLog.raw_data;
 
     // Check for crash via X-Plane dataref - NUR wenn wasAirborne
-    if (xp.has_crashed && flightData.wasAirborne) {
+    if (xp.crash && flightData.wasAirborne) {
     setFlightData(prev => ({
       ...prev,
       events: {
