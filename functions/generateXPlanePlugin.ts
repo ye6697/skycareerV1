@@ -167,7 +167,9 @@ class PythonInterface:
                 'has_crashed': has_crashed,
                 'touchdown_vspeed': round(vs, 1),
                 'tailstrike': tailstrike,
-                'stall': stall
+                'stall': stall,
+                'stall_warning': stall_warning,
+                'override_alpha': override_alpha
             }
             
             # Send to API
