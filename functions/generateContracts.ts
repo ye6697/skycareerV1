@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
     const allContracts = [...compatibleContracts, ...incompatibleContracts];
     
     if (allContracts.length > 0) {
-      await base44.entities.Contract.bulkCreate(allContracts);
+      await base44.asServiceRole.entities.Contract.bulkCreate(allContracts);
     }
 
     return Response.json({
