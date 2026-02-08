@@ -35,6 +35,7 @@ export default function FlightTracker() {
   const [flightDurationSeconds, setFlightDurationSeconds] = useState(0);
   const [processedGLevels, setProcessedGLevels] = useState(new Set());
   const [isCompletingFlight, setIsCompletingFlight] = useState(false);
+  const [flightStartedAt, setFlightStartedAt] = useState(null); // Timestamp when flight was started, to ignore old logs
   const flightDataRef = React.useRef(null);
 
   // Parse URL parameters for contractId
