@@ -80,6 +80,29 @@ export default function ActiveFlights() {
     }
   });
 
+  // Check if X-Plane is actively sending data (only when dialog is open)
+  const { data: latestXPlaneLog } = useQuery({
+    queryKey: ['xplane-log-check'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return null;
+      const logs = await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 1);
+      return logs[0] || null;
+    },
+    refetchInterval: 2000,
+    enabled: isAssignDialogOpen && company?.xplane_connection_status === 'connected'
+  });
+
+  // Check if X-Plane is actively sending data
+  const isXPlaneSendingData = React.useMemo(() => {
+    if (!latestXPlaneLog) return false;
+    
+    // Check if log is recent (within last 3 seconds)
+    const logAge = Date.now() - new Date(latestXPlaneLog.created_date).getTime();
+    return logAge <= 3000;
+  }, [latestXPlaneLog]);
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Check if aircraft can handle contract requirements
@@ -221,11 +244,11 @@ export default function ActiveFlights() {
                 X-Plane 12: {company?.xplane_connection_status === 'connected' ? 'Verbunden' : 'Nicht verbunden'}
               </span>
             </div>
-            {company?.xplane_connection_status !== 'connected' &&
-            <p className="text-sm text-slate-300">
-                Plugin-Verbindung erforderlich für Live-Flugdaten
-              </p>
-            }
+            <p className="text-sm text-slate-400">
+              {company?.xplane_connection_status === 'connected' 
+                ? 'Bereite Flüge vor und starte sie in X-Plane' 
+                : 'Verbinde X-Plane für Live-Flugverfolgung'}
+            </p>
           </div>
         </Card>
 
