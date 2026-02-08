@@ -160,6 +160,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Flugzeuge vorhanden' }, { status: 400 });
     }
 
+    // Delete old available contracts for this company
+    const oldContracts = await base44.entities.Contract.filter({ company_id: company.id, status: 'available' });
+    for (const old of oldContracts) {
+      await base44.entities.Contract.delete(old.id);
+    }
+
     // Get the types the user owns
     const ownedTypes = [...new Set(availableAircraft.map(a => a.type))];
     const ownedTypeSpecs = allAircraftTypes.filter(t => ownedTypes.includes(t.type));
