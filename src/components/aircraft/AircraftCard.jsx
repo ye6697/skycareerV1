@@ -179,7 +179,10 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   });
 
   const type = typeConfig[aircraft.type] || typeConfig.small_prop;
-  const status = statusConfig[aircraft.status] || statusConfig.available;
+  // Override status display if maintenance is needed but status is still "available"
+  const displayStatus = (aircraft.status === 'available' && needsMaintenance) 
+    ? { label: "Wartung erforderlich", color: "bg-orange-100 text-orange-700 border-orange-200" }
+    : (statusConfig[aircraft.status] || statusConfig.available);
 
   return (
     <motion.div
