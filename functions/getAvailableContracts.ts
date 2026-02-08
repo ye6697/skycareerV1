@@ -3,13 +3,24 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's company
+    const companies = await base44.entities.Company.filter({ created_by: user.email });
+    const company = companies[0];
+    if (!company) {
+      return Response.json({ contracts: [] });
+    }
+
+    // Use service role to get all available contracts
+    const contracts = await base44.asServiceRole.entities.Contract.filter({ status: 'available' });
     
-    // Use service role to bypass RLS
-    const contracts = await base44.asServiceRole.entities.Contract.list();
-    
-    // Filter for available contracts without company_id
+    // Show contracts that either have no company_id (global) or belong to this user's company
     const availableContracts = contracts.filter(c => 
-      c.status === 'available' && !c.company_id
+      !c.company_id || c.company_id === company.id
     );
     
     return Response.json({ contracts: availableContracts });
