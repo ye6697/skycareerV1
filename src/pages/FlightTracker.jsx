@@ -999,7 +999,7 @@ export default function FlightTracker() {
         arrival_lon: arrLon,
         events: {
          tailstrike: xp.tailstrike || prev.events.tailstrike,
-         stall: (xp.stall || xp.is_in_stall) || prev.events.stall,
+         stall: (xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha) || prev.events.stall,
          overstress: xp.overstress || prev.events.overstress,
           flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
           fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
