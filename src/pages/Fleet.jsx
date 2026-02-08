@@ -75,27 +75,33 @@ export default function Fleet() {
   });
 
 
-  // Lade immer die aktuellen Daten aus der Datenbank mit regelmäßigem Refetch
-  const { data: aircraft = [], isLoading } = useQuery({
-    queryKey: ['aircraft'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Aircraft.filter({ company_id: companies[0].id }, '-created_date');
-    },
-    refetchInterval: 3000,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me()
   });
 
   const { data: company } = useQuery({
-    queryKey: ['company'],
+    queryKey: ['company', currentUser?.company_id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (currentUser?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
-    }
+    },
+    enabled: !!currentUser
+  });
+
+  const { data: aircraft = [], isLoading } = useQuery({
+    queryKey: ['aircraft', company?.id],
+    queryFn: async () => {
+      return await base44.entities.Aircraft.filter({ company_id: company.id }, '-created_date');
+    },
+    enabled: !!company?.id,
+    refetchInterval: 3000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true
   });
 
   const purchaseMutation = useMutation({
