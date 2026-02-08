@@ -15,15 +15,18 @@ Deno.serve(async (req) => {
       return Response.json({ contracts: [] });
     }
 
-    // Use service role to get all available contracts
-    const contracts = await base44.asServiceRole.entities.Contract.filter({ status: 'available' });
+    // Use service role to get all contracts (available + accepted for this company)
+    const availableContracts = await base44.asServiceRole.entities.Contract.filter({ status: 'available' });
+    const acceptedContracts = await base44.asServiceRole.entities.Contract.filter({ status: 'accepted', company_id: company.id });
     
-    // Show contracts that either have no company_id (global) or belong to this user's company
-    const availableContracts = contracts.filter(c => 
+    // Filter available: show contracts that either have no company_id (global) or belong to this user's company
+    const filteredAvailable = availableContracts.filter(c => 
       !c.company_id || c.company_id === company.id
     );
     
-    return Response.json({ contracts: availableContracts });
+    const allContracts = [...filteredAvailable, ...acceptedContracts];
+    
+    return Response.json({ contracts: allContracts });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

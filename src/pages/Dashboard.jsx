@@ -103,7 +103,7 @@ export default function Dashboard() {
         
         return typeMatch && cargoMatch && rangeMatch;
       });
-    }).slice(0, 3);
+    }).slice(0, 10);
   }, [contracts, aircraft]);
 
   const formatCurrency = (amount) => {
