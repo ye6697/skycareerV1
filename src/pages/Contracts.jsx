@@ -347,11 +347,24 @@ export default function Contracts() {
           <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">Keine Aufträge gefunden</h3>
           <p className="text-slate-400 mb-4">
-              {searchTerm ? 'Versuche eine andere Suche' : 'Neue Aufträge werden regelmäßig generiert'}
-            </p>
-            <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); setOffset(0); }}>
-             Filter zurücksetzen
-            </Button>
+             {searchTerm ? 'Versuche eine andere Suche' : 'Klicke auf "Aufträge generieren" um neue Aufträge zu erhalten'}
+           </p>
+           <div className="flex gap-3 justify-center">
+             <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
+              Filter zurücksetzen
+             </Button>
+             <Button 
+               onClick={() => generateMutation.mutate()}
+               disabled={generateMutation.isPending}
+               className="bg-emerald-600 hover:bg-emerald-700"
+             >
+               {generateMutation.isPending ? (
+                 <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generiere...</>
+               ) : (
+                 <><RefreshCw className="w-4 h-4 mr-2" /> Aufträge generieren</>
+               )}
+             </Button>
+           </div>
           </Card>
         )}
       </div>
