@@ -84,7 +84,6 @@ Deno.serve(async (req) => {
     
     const flight = flights[0] || null;
     
-
     if (!flight) {
       // No active flight - but X-Plane is connected and sending data
       return Response.json({ 
@@ -93,6 +92,12 @@ Deno.serve(async (req) => {
         data_logged: true
       }, { status: 200 });
     }
+
+    // Track if aircraft was ever airborne during this flight
+    // This prevents auto-completing a flight that never took off
+    const wasAirborne = flight.xplane_data?.was_airborne || false;
+    const isNowAirborne = !on_ground && altitude > 50;
+    const hasBeenAirborne = wasAirborne || isNowAirborne;
 
     // Update log to mark that there was an active flight
     const logs = await base44.asServiceRole.entities.XPlaneLog.filter({ company_id: company.id });
