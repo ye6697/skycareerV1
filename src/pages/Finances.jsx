@@ -33,33 +33,38 @@ import StatCard from "@/components/dashboard/StatCard";
 export default function Finances() {
   const [period, setPeriod] = useState('week');
 
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me()
+  });
+
   const { data: company } = useQuery({
-    queryKey: ['company'],
+    queryKey: ['company', currentUser?.company_id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (currentUser?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
-    }
+    },
+    enabled: !!currentUser
   });
 
   const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions'],
+    queryKey: ['transactions', company?.id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Transaction.filter({ company_id: companies[0].id }, '-date');
-    }
+      return await base44.entities.Transaction.filter({ company_id: company.id }, '-date');
+    },
+    enabled: !!company?.id
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
+    queryKey: ['employees', company?.id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Employee.filter({ company_id: companies[0].id, status: 'available' });
-    }
+      return await base44.entities.Employee.filter({ company_id: company.id, status: 'available' });
+    },
+    enabled: !!company?.id
   });
 
   const formatCurrency = (amount) => {
