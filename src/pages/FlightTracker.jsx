@@ -1048,15 +1048,20 @@ export default function FlightTracker() {
     }
 
     // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
-    // KRITISCH: NUR abschließen wenn wasAirborne UND flightStartTime gesetzt (= tatsächlich geflogen)
-    if (flightData.wasAirborne && flightStartTime && xp.on_ground && flightPhase === 'landing' && !completeFlightMutation.isPending && !isCompletingFlight) {
-      console.log('🛬 LANDUNG ERKANNT - Starte Flugabschluss');
-      setFlightPhase('completed');
-      completeFlightMutation.mutate();
+    // Erlaube Abschluss in ALLEN aktiven Flugphasen (takeoff, cruise, landing)
+    const isActivePhase = flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing';
+    
+    if (flightData.wasAirborne && flightStartTime && xp.on_ground && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
+      // Parkbremse und Triebwerke aus = Flug abgeschlossen
+      if (xp.parking_brake && !xp.engines_running) {
+        console.log('🛬 LANDUNG ERKANNT (Parkbremse + Triebwerke aus) - Starte Flugabschluss');
+        setFlightPhase('completed');
+        completeFlightMutation.mutate();
+      }
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
-    if (flightData.events.crash && flightData.wasAirborne && flightStartTime && flightPhase !== 'preflight' && flightPhase !== 'completed' && !completeFlightMutation.isPending && !isCompletingFlight) {
+    if (flightData.events.crash && flightData.wasAirborne && flightStartTime && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
       completeFlightMutation.mutate();
