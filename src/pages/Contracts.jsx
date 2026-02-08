@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 import ContractCard from "@/components/contracts/ContractCard";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function Contracts() {
   const navigate = useNavigate();
@@ -29,7 +29,6 @@ export default function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
-  const [offset, setOffset] = useState(0);
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -43,22 +42,34 @@ export default function Contracts() {
   const { data: ownedAircraft = [] } = useQuery({
     queryKey: ['aircraft', 'owned'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Aircraft.filter({ company_id: companies[0].id, status: { $ne: 'sold' } });
-    }
+      if (!company) return [];
+      return await base44.entities.Aircraft.filter({ company_id: company.id, status: { $ne: 'sold' } });
+    },
+    enabled: !!company
   });
 
   const { data: allContracts = [], isLoading } = useQuery({
-    queryKey: ['contracts', 'all', company?.level],
+    queryKey: ['contracts', 'available', company?.id],
     queryFn: async () => {
-      const res = await base44.functions.invoke('getAvailableContracts', {});
-      return res.data.contracts
+      const contracts = await base44.entities.Contract.filter({ 
+        company_id: company.id, 
+        status: 'available' 
+      });
+      return contracts
         .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
     enabled: !!company
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await base44.functions.invoke('generateContracts', {});
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+    }
   });
 
   // Filter available aircraft (not in flight, not sold, not damaged)
