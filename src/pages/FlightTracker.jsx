@@ -845,9 +845,9 @@ export default function FlightTracker() {
 
       // Landing categories based on G-force only
       let landingType = prev.landingType;
-      let landingScoreChange = 0;
-      let landingMaintenanceCost = 0;
-      let landingBonus = 0;
+      let landingScoreChange = prev.landingScoreChange || 0;
+      let landingMaintenanceCost = prev.landingMaintenanceCost || 0;
+      let landingBonus = prev.landingBonus || 0;
 
        // Get aircraft for maintenance cost calculations (purchase price is neuwert)
        // Use flight.aircraft_id if available, otherwise try to find from aircraft list
