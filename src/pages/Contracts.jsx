@@ -180,20 +180,16 @@ export default function Contracts() {
                 />
               </div>
               <Button 
-                onClick={() => setOffset(offset + 5)}
-                disabled={offset + 5 >= compatibleContracts.length}
-                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700"
               >
-                5 weitere Aufträge
+                {generateMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generiere...</>
+                ) : (
+                  <><RefreshCw className="w-4 h-4 mr-2" /> Aufträge generieren</>
+                )}
               </Button>
-              {offset > 0 && (
-                <Button 
-                  onClick={() => setOffset(Math.max(0, offset - 5))}
-                  variant="outline"
-                >
-                  Vorherige 5
-                </Button>
-              )}
             </div>
           </div>
         </motion.div>
