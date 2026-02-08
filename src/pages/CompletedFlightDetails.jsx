@@ -185,24 +185,40 @@ export default function CompletedFlightDetails() {
                   Flugdetails
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
+                  {(() => {
+                    const isCrash = flight?.xplane_data?.events?.crash || passedFlightData?.events?.crash;
+                    const landingG = flight?.xplane_data?.landing_g_force || flight?.xplane_data?.landingGForce || flight?.max_g_force || 0;
+                    return (
+                      <div className="p-4 bg-slate-900 rounded-lg">
+                        <p className="text-slate-400 text-sm mb-1">G-Kraft beim Aufsetzen</p>
+                        {isCrash ? (
+                          <p className="text-2xl font-mono font-bold text-red-500">CRASH</p>
+                        ) : (
+                          <p className={`text-2xl font-mono font-bold ${
+                            landingG < 1.5 ? 'text-emerald-400' :
+                            landingG < 2.0 ? 'text-amber-400' :
+                            'text-red-400'
+                          }`}>
+                            {landingG?.toFixed(2)} G
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div className="p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">G-Kraft beim Landen</p>
+                    <p className="text-slate-400 text-sm mb-1">Sinkrate beim Landen</p>
                     <p className={`text-2xl font-mono font-bold ${
-                      (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 1.5 ? 'text-emerald-400' :
-                      (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 2.0 ? 'text-amber-400' :
+                      Math.abs(flight.landing_vs || 0) < 150 ? 'text-emerald-400' :
+                      Math.abs(flight.landing_vs || 0) < 300 ? 'text-amber-400' :
                       'text-red-400'
                     }`}>
-                      {(flight.xplane_data?.landingGForce || flight.max_g_force || 0)?.toFixed(2)} G
+                      {Math.abs(flight.landing_vs || 0)} ft/min
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Landegeschwindigkeit</p>
-                    <p className={`text-2xl font-mono font-bold ${
-                      Math.abs(flight.landing_vs) < 150 ? 'text-emerald-400' :
-                      Math.abs(flight.landing_vs) < 300 ? 'text-amber-400' :
-                      'text-red-400'
-                    }`}>
-                      {Math.abs(flight.landing_vs)} ft/min
+                    <p className="text-2xl font-mono font-bold text-blue-400">
+                      {Math.round(flight?.xplane_data?.speed || passedFlightData?.speed || 0)} kts
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
@@ -223,7 +239,7 @@ export default function CompletedFlightDetails() {
                 <div className="mt-4 p-4 bg-slate-900 rounded-lg">
                   <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
                   {(() => {
-                    const score = passedFlightData?.flightScore ?? flight?.xplane_data?.final_score ?? 0;
+                    const score = flight?.xplane_data?.final_score ?? passedFlightData?.flightScore ?? flight?.flight_score ?? 0;
                     return (
                       <p className={`text-3xl font-mono font-bold ${
                         score >= 95 ? 'text-emerald-400' :
@@ -355,65 +371,69 @@ export default function CompletedFlightDetails() {
                   {/* Flight Events */}
                   {(() => {
                     const events = flight?.xplane_data?.events || passedFlightData?.events;
-                    return events && Object.entries(events).some(([_, val]) => val) && (
+                    if (!events) return null;
+                    // Filter out falsy values AND numeric 0 values (the "schwarze Null" bug)
+                    const activeEvents = Object.entries(events).filter(([key, val]) => val === true);
+                    if (activeEvents.length === 0 && !(events.fuel_emergency === true && (flight?.xplane_data?.fuel_percentage || flight?.xplane_data?.fuel || 100) < 3)) return null;
+                    return (
                       <div className="mt-4 pt-4 border-t border-slate-700">
                         <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges:</h4>
                         <div className="space-y-2">
-                        {events.tailstrike && (
+                        {events.tailstrike === true && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Heckaufsetzer
                         </div>
                       )}
-                      {events.stall && (
+                      {events.stall === true && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Strömungsabriss
                         </div>
                       )}
-                      {events.overstress && (
+                      {events.overstress === true && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Strukturbelastung
                         </div>
                       )}
-                      {events.flaps_overspeed && (
+                      {events.flaps_overspeed === true && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Klappen-Overspeed
                         </div>
                       )}
-                      {events.gear_up_landing && (
+                      {events.gear_up_landing === true && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Landung ohne Fahrwerk
                         </div>
                       )}
-                      {events.crash && (
+                      {events.crash === true && (
                        <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
                          <AlertTriangle className="w-4 h-4" />
                          CRASH (-100 Punkte, Wartung: 70% Neuwert)
                        </div>
                       )}
-                      {events.harsh_controls && (
+                      {events.harsh_controls === true && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Ruppige Steuerung
                         </div>
                       )}
-                      {events.high_g_force && (
+                      {events.high_g_force === true && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Hohe G-Kräfte
                         </div>
                       )}
-                      {events.hard_landing && (
+                      {events.hard_landing === true && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Harte Landung
                         </div>
                       )}
-                      {(flight.xplane_data?.fuel < 3 || events.fuel_emergency) && (
+                      {events.fuel_emergency === true && (flight?.xplane_data?.fuel_percentage || flight?.xplane_data?.fuel || 100) < 3 && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Treibstoff-Notstand (unter 3%)

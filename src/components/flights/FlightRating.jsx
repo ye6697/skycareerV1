@@ -83,10 +83,8 @@ export default function FlightRating({ flight }) {
     return "bg-red-50 border-red-200 text-red-700";
   };
 
-  const score = flight?.xplane_data?.final_score !== undefined ? flight.xplane_data.final_score :
-               (flight?.flight_score !== undefined ? flight.flight_score : 
-               (flight?.xplane_data?.flightScore !== undefined ? flight.xplane_data.flightScore :
-               (flight?.overall_rating !== undefined ? (flight.overall_rating / 5) * 100 : 100)));
+  // Use final_score from xplane_data as authoritative source, then flightScore, then flight_score prop
+  const score = flight?.xplane_data?.final_score ?? flight?.xplane_data?.flightScore ?? flight?.flight_score ?? (flight?.overall_rating !== undefined ? (flight.overall_rating / 5) * 100 : 100);
 
   return (
     <Card className="p-6 bg-slate-800 border border-slate-700">
@@ -128,19 +126,27 @@ export default function FlightRating({ flight }) {
               </p>
             </div>
           )}
-          {flight?.xplane_data?.landingGForce || flight?.max_g_force ? (
-            <div>
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">G-Kraft beim Landen</p>
-              <p className={`text-xl font-mono font-bold ${
-                (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 1.3 ? 'text-emerald-400' :
-                (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 1.8 ? 'text-amber-400' :
-                (flight.xplane_data?.landingGForce || flight.max_g_force || 0) < 2.5 ? 'text-orange-400' :
-                'text-red-400'
-              }`}>
-                {(flight.xplane_data?.landingGForce || flight.max_g_force || 0)?.toFixed(2) || "-"} G
-              </p>
-            </div>
-          ) : null}
+          {(() => {
+            const isCrash = flight?.xplane_data?.events?.crash;
+            const landingG = flight?.xplane_data?.landing_g_force || flight?.xplane_data?.landingGForce || flight?.max_g_force || 0;
+            return (
+              <div>
+                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">G-Kraft beim Aufsetzen</p>
+                {isCrash ? (
+                  <p className="text-xl font-mono font-bold text-red-500">CRASH</p>
+                ) : (
+                  <p className={`text-xl font-mono font-bold ${
+                    landingG < 1.3 ? 'text-emerald-400' :
+                    landingG < 1.8 ? 'text-amber-400' :
+                    landingG < 2.5 ? 'text-orange-400' :
+                    'text-red-400'
+                  }`}>
+                    {landingG?.toFixed(2) || "-"} G
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
