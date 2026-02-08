@@ -130,7 +130,7 @@ class PythonInterface:
 
             # Event detection
             tailstrike = pitch > 10 and on_ground
-            stall = (altitude > 500 and ias < 80 and not on_ground) or stall_warning or override_alpha
+            stall = stall_warning or override_alpha
 
             # Check if any engine is running
             engines_running = False
