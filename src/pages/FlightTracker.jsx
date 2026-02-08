@@ -816,7 +816,7 @@ export default function FlightTracker() {
       }
       
       // Crash nur wenn tatsächlich abgehoben war
-      const isCrash = (landingType === 'crash' || prev.events.crash || (xp.has_crashed && newWasAirborne)) && newWasAirborne;
+      const isCrash = (landingType === 'crash' || prev.events.crash || (xp.crash && newWasAirborne)) && newWasAirborne;
       
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;
