@@ -66,6 +66,31 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Flight.filter({ status: 'completed' }, '-created_date', 5)
   });
 
+  // Filter contracts based on available aircraft capabilities
+  const filteredContracts = React.useMemo(() => {
+    if (!contracts.length || !aircraft.length) return contracts;
+
+    return contracts.filter(contract => {
+      // Check if any available aircraft can fulfill this contract
+      return aircraft.some(plane => {
+        // Check type match
+        const typeMatch = !contract.required_aircraft_type || 
+                         contract.required_aircraft_type.length === 0 || 
+                         contract.required_aircraft_type.includes(plane.type);
+        
+        // Check cargo capacity
+        const cargoMatch = !contract.cargo_weight_kg || 
+                          (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
+        
+        // Check range
+        const rangeMatch = !contract.distance_nm || 
+                          (plane.range_nm && plane.range_nm >= contract.distance_nm);
+        
+        return typeMatch && cargoMatch && rangeMatch;
+      });
+    }).slice(0, 3);
+  }, [contracts, aircraft]);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
