@@ -47,50 +47,37 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const u = await base44.auth.me();
-      const cid = u?.company_id || u?.data?.company_id;
-      if (cid) {
-        const companies = await base44.entities.Company.filter({ id: cid });
-        if (companies[0]) return companies[0];
-      }
-      const companies = await base44.entities.Company.filter({ created_by: u.email });
-      return companies[0] || null;
-    }
-  });
-
-  const companyId = company?.id;
-
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'accepted'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
   });
 
   const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'in_progress'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
   });
 
   const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'completed'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', companyId],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    }
   });
 
   const startFlightMutation = useMutation({
@@ -110,11 +97,8 @@ export default function ActiveFlights() {
         throw new Error('Flugzeug hat nicht genug Reichweite');
       }
 
-      if (!company) throw new Error('Keine Firma gefunden');
-
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
-        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -152,23 +136,57 @@ export default function ActiveFlights() {
 
   const cancelFlightMutation = useMutation({
     mutationFn: async (contractToCancel) => {
-      const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
+      const penalty = contractToCancel.payout ? contractToCancel.payout * 0.3 : 5000;
 
-      // Update contract status
-      await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
+      // Update contract status to failed (not available!)
+      await base44.entities.Contract.update(contractToCancel.id, { status: 'failed' });
 
-      // Deduct penalty from company
-      if (company) {
-        await base44.entities.Company.update(company.id, {
-          balance: Math.max(0, (company.balance || 0) - penalty)
+      // Find and cancel associated flight if in_progress
+      if (contractToCancel.status === 'in_progress') {
+        const flights = await base44.entities.Flight.filter({
+          contract_id: contractToCancel.id,
+          status: 'in_flight'
         });
+        
+        for (const fl of flights) {
+          await base44.entities.Flight.update(fl.id, { status: 'cancelled' });
+          
+          // Free up aircraft
+          if (fl.aircraft_id) {
+            await base44.entities.Aircraft.update(fl.aircraft_id, { status: 'available' });
+          }
+          
+          // Free up crew
+          if (fl.crew && Array.isArray(fl.crew)) {
+            for (const member of fl.crew) {
+              if (member.employee_id) {
+                await base44.entities.Employee.update(member.employee_id, { status: 'available' });
+              }
+            }
+          }
+        }
+      }
+
+      // Deduct penalty from company - use fresh company data
+      if (company) {
+        // Re-fetch current balance to avoid stale data
+        const freshCompanies = await base44.entities.Company.filter({ id: company.id });
+        const freshCompany = freshCompanies[0];
+        if (freshCompany) {
+          await base44.entities.Company.update(company.id, {
+            balance: (freshCompany.balance || 0) - penalty,
+            reputation: Math.max(0, (freshCompany.reputation || 50) - 5)
+          });
+        }
 
         // Create transaction for penalty
         await base44.entities.Transaction.create({
+          company_id: company.id,
           type: 'expense',
           category: 'other',
           amount: penalty,
           description: `Stornierungsgebühr: ${contractToCancel.title}`,
+          reference_id: contractToCancel.id,
           date: new Date().toISOString()
         });
       }
@@ -178,6 +196,8 @@ export default function ActiveFlights() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
     }
   });
 
