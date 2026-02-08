@@ -465,6 +465,12 @@ export default function CompletedFlightDetails() {
                      <span className="text-emerald-400 font-mono">+${flight.xplane_data.landingBonus.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                    </div>
                    )}
+                   {flight?.xplane_data?.levelBonus > 0 && (
+                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                     <span className="text-amber-400">Level-Bonus (Lv.{flight.xplane_data.companyLevel || 1} × {flight.xplane_data.levelBonusPercent?.toFixed(0) || 1}%)</span>
+                     <span className="text-amber-400 font-mono">+${flight.xplane_data.levelBonus.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                   </div>
+                   )}
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-slate-400">Treibstoff ({flight.fuel_used_liters?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} L)</span>
                     <span className="text-red-400 font-mono">-${flight.fuel_cost?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
