@@ -143,8 +143,40 @@ export default function FlightTracker() {
     return comments;
   };
 
-  // xplaneLog query - polls the company's XPlaneLog (same source as Debug page)
-  // plus checks Flight.xplane_data directly
+  const { data: contract } = useQuery({
+    queryKey: ['contract', contractIdFromUrl],
+    queryFn: async () => {
+      if (!contractIdFromUrl) return null;
+      const contracts = await base44.entities.Contract.filter({ id: contractIdFromUrl });
+      return contracts[0];
+    },
+    enabled: !!contractIdFromUrl
+  });
+
+  // Load existing flight if any - MUST be before xplaneLog query
+  const { data: existingFlight } = useQuery({
+    queryKey: ['active-flight', contractIdFromUrl],
+    queryFn: async () => {
+      if (!contractIdFromUrl) return null;
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      let companyId = cid;
+      if (!companyId) {
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        companyId = companies[0]?.id;
+      }
+      if (!companyId) return null;
+      const flights = await base44.entities.Flight.filter({ 
+        company_id: companyId,
+        contract_id: contractIdFromUrl,
+        status: 'in_flight'
+      });
+      return flights[0] || null;
+    },
+    enabled: !!contractIdFromUrl
+  });
+
+  // xplaneLog query - polls Flight.xplane_data + XPlaneLog (same source as Debug page)
   const { data: xplaneLog } = useQuery({
     queryKey: ['xplane-live-data', flight?.id, existingFlight?.id],
     queryFn: async () => {
@@ -174,39 +206,6 @@ export default function FlightTracker() {
     },
     refetchInterval: 1000,
     enabled: flightPhase !== 'completed'
-  });
-
-  const { data: contract } = useQuery({
-    queryKey: ['contract', contractIdFromUrl],
-    queryFn: async () => {
-      if (!contractIdFromUrl) return null;
-      const contracts = await base44.entities.Contract.filter({ id: contractIdFromUrl });
-      return contracts[0];
-    },
-    enabled: !!contractIdFromUrl
-  });
-
-  // Load existing flight if any
-  const { data: existingFlight } = useQuery({
-    queryKey: ['active-flight', contractIdFromUrl],
-    queryFn: async () => {
-      if (!contractIdFromUrl) return null;
-      const user = await base44.auth.me();
-      const cid = user?.company_id || user?.data?.company_id;
-      let companyId = cid;
-      if (!companyId) {
-        const companies = await base44.entities.Company.filter({ created_by: user.email });
-        companyId = companies[0]?.id;
-      }
-      if (!companyId) return null;
-      const flights = await base44.entities.Flight.filter({ 
-        company_id: companyId,
-        contract_id: contractIdFromUrl,
-        status: 'in_flight'
-      });
-      return flights[0] || null;
-    },
-    enabled: !!contractIdFromUrl
   });
 
   // Restore flight data and phase from existing flight
