@@ -116,10 +116,19 @@ export default function AdminAircraftImages() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-8 flex items-center justify-between"
         >
-          <h1 className="text-3xl font-bold text-white">Flugzeug-Bilder verwalten</h1>
-          <p className="text-slate-400">Laden Sie benutzerdefinierte Bilder für Ihre Flugzeuge hoch</p>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Flugzeug-Bilder verwalten</h1>
+            <p className="text-slate-400">Laden Sie benutzerdefinierte Bilder für Ihre Flugzeuge hoch</p>
+          </div>
+          <Button 
+            onClick={() => updateAllAircraftMutation.mutate()}
+            disabled={updateAllAircraftMutation.isPending}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            {updateAllAircraftMutation.isPending ? 'Aktualisiere...' : 'Alle Flugzeuge aktualisieren'}
+          </Button>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
