@@ -199,7 +199,27 @@ export default function FlightTracker() {
   useEffect(() => {
     if (existingFlight && !flight) {
       setFlight(existingFlight);
-      setFlightPhase('takeoff'); // Setze direkt auf takeoff wenn Flight existiert
+      setFlightPhase('takeoff');
+      // Setze flightStartedAt auf jetzt, damit nur neue Logs verarbeitet werden
+      setFlightStartedAt(Date.now());
+      setIsCompletingFlight(false);
+      // Reset flightData komplett für sauberen Start
+      const cleanData = {
+        altitude: 0, speed: 0, verticalSpeed: 0, heading: 0,
+        fuel: 100, fuelKg: 0, gForce: 1.0, maxGForce: 1.0,
+        landingGForce: 0, landingVs: 0, landingScoreChange: 0,
+        landingMaintenanceCost: 0, landingBonus: 0, flightScore: 100,
+        maintenanceCost: 0, reputation: 'EXCELLENT', latitude: 0, longitude: 0,
+        events: {
+          tailstrike: false, stall: false, overstress: false,
+          flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
+          crash: false, harsh_controls: false, high_g_force: false, hard_landing: false
+        },
+        maxControlInput: 0, departure_lat: 0, departure_lon: 0,
+        arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0, landingType: null
+      };
+      setFlightData(cleanData);
+      flightDataRef.current = cleanData;
     }
   }, [existingFlight, flight]);
 
