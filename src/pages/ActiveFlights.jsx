@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -47,69 +47,46 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  // WICHTIG: Company des aktuellen Users laden (nicht einfach die erste aus der Liste)
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const u = await base44.auth.me();
-      const cid = u?.company_id || u?.data?.company_id;
-      if (cid) {
-        const companies = await base44.entities.Company.filter({ id: cid });
-        if (companies[0]) return companies[0];
-      }
-      const companies = await base44.entities.Company.filter({ created_by: u.email });
-      if (companies[0]) {
-        await base44.auth.updateMe({ company_id: companies[0].id });
-        return companies[0];
-      }
-      return null;
-    }
-  });
-
-  const companyId = company?.id;
-
-  // Alle Queries filtern nach company_id des Users
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'accepted'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
   });
 
   const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'in_progress'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
   });
 
   const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
-    enabled: !!companyId
-  });
-
-  const { data: failedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'failed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'failed', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'completed'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', companyId],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    }
   });
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
+      // Check if aircraft can handle contract requirements
       const ac = aircraft.find((a) => a.id === selectedAircraft);
       if (!ac) throw new Error('Flugzeug nicht gefunden');
 
+      // Validate aircraft is suitable for contract
       if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
         throw new Error('Flugzeug hat nicht genug Sitze');
       }
@@ -120,8 +97,8 @@ export default function ActiveFlights() {
         throw new Error('Flugzeug hat nicht genug Reichweite');
       }
 
+      // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
-        company_id: companyId,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -131,9 +108,13 @@ export default function ActiveFlights() {
         status: 'in_flight'
       });
 
+      // Update contract status
       await base44.entities.Contract.update(selectedContract.id, { status: 'in_progress' });
+
+      // Update aircraft status
       await base44.entities.Aircraft.update(selectedAircraft, { status: 'in_flight' });
 
+      // Update crew status
       for (const [role, id] of Object.entries(selectedCrew)) {
         if (id) {
           await base44.entities.Employee.update(id, { status: 'on_duty' });
@@ -157,15 +138,17 @@ export default function ActiveFlights() {
     mutationFn: async (contractToCancel) => {
       const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
 
+      // Update contract status
       await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
 
+      // Deduct penalty from company
       if (company) {
         await base44.entities.Company.update(company.id, {
           balance: Math.max(0, (company.balance || 0) - penalty)
         });
 
+        // Create transaction for penalty
         await base44.entities.Transaction.create({
-          company_id: companyId,
           type: 'expense',
           category: 'other',
           amount: penalty,
@@ -255,6 +238,7 @@ export default function ActiveFlights() {
             'border-b-2 border-blue-500 text-blue-400' :
             'text-slate-400 hover:text-white'}`
             }>
+
             Aktive Flüge ({allContracts.length})
           </button>
           <button
@@ -264,16 +248,8 @@ export default function ActiveFlights() {
             'border-b-2 border-emerald-500 text-emerald-400' :
             'text-slate-400 hover:text-white'}`
             }>
+
             Abgeschlossene Flüge ({completedContracts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('failed')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'failed' ?
-            'border-b-2 border-red-500 text-red-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-            Fehlgeschlagen ({failedContracts.length})
           </button>
         </div>
 
@@ -332,6 +308,7 @@ export default function ActiveFlights() {
                               +${contract.bonus_potential?.toLocaleString()} Bonus
                             </p>
                       }
+                          <p className="text-xs text-amber-400">+ Level-Bonus auf Gewinn</p>
                         </div>
                       </div>
 
@@ -475,54 +452,6 @@ export default function ActiveFlights() {
           </Card> :
         null}
 
-        {/* Failed Contracts */}
-        {activeTab === 'failed' && failedContracts.length > 0 ?
-        <div className="space-y-4">
-            <AnimatePresence>
-              {failedContracts.map((ct) =>
-            <motion.div
-              key={ct.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}>
-                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${ct.id}`)}>
-                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-red-500 transition-colors cursor-pointer">
-                      <div className="h-1 bg-red-500" />
-                      <div className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-xl font-semibold text-white">{ct.title}</h3>
-                              <Badge className="bg-red-100 text-red-700 border-red-200">
-                                <AlertCircle className="w-3 h-3 mr-1" />
-                                Fehlgeschlagen
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-3 text-slate-400">
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{ct.departure_airport}</span>
-                              <ArrowRight className="w-4 h-4" />
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{ct.arrival_airport}</span>
-                              <span className="text-slate-600">|</span>
-                              <span>{ct.distance_nm} NM</span>
-                            </div>
-                          </div>
-                          <p className="text-2xl font-bold text-red-500">${ct.payout?.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
-                </motion.div>
-            )}
-            </AnimatePresence>
-          </div> :
-        activeTab === 'failed' ?
-        <Card className="p-12 text-center bg-slate-800 border border-slate-700">
-            <AlertCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine fehlgeschlagenen Flüge</h3>
-            <p className="text-slate-400">Gecrashte Flüge werden hier angezeigt</p>
-          </Card> :
-        null}
-
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
           <DialogContent className="max-w-2xl">
@@ -543,6 +472,7 @@ export default function ActiveFlights() {
                   </SelectTrigger>
                   <SelectContent>
                     {aircraft.filter((ac) => {
+                      // Filter to only show compatible aircraft
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
