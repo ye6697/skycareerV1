@@ -153,7 +153,7 @@ export default function FlightTracker() {
       return logs[0] || null;
     },
     refetchInterval: 500,
-    enabled: flightPhase !== 'preflight'
+    enabled: flightPhase !== 'preflight' && flightPhase !== 'completed'
   });
 
   const { data: contract } = useQuery({
@@ -498,14 +498,14 @@ export default function FlightTracker() {
             console.log('Aktualisiere Contract Status:', flight.contract_id, hasCrashed ? 'failed' : 'completed');
             await base44.entities.Contract.update(flight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
 
-            // Alle Event-Wartungskosten zu accumulated_maintenance_cost hinzufügen
+            // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostWithCrash;
             const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
-            
+
             console.log('Wartungskosten Update:', {
               currentAccumulatedCost,
-              flightMaintenanceCost: flightData.maintenanceCost,
+              flightMaintenanceCost: finalFlightData.maintenanceCost,
               crashMaintenanceCost,
               totalMaintenanceCostWithCrash,
               newAccumulatedCost
@@ -671,7 +671,8 @@ export default function FlightTracker() {
 
   // Update flight data from X-Plane log (freeze data after landing)
   useEffect(() => {
-    if (!xplaneLog?.raw_data || flightPhase === 'preflight') return;
+    if (!xplaneLog?.raw_data) return;
+    if (flightPhase === 'preflight') return;
     
     // Don't update data if flight is completed
     if (flightPhase === 'completed') return;
