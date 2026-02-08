@@ -128,7 +128,7 @@ export default function FlightRating({ flight }) {
           )}
           {(() => {
             const isCrash = flight?.xplane_data?.events?.crash;
-            const landingG = flight?.xplane_data?.landingGForce || flight?.xplane_data?.landing_g_force || flight?.max_g_force || 0;
+            const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? flight?.max_g_force ?? 0;
             return (
               <div>
                 <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">G-Kraft beim Aufsetzen</p>
