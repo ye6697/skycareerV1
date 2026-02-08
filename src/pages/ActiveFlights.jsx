@@ -48,41 +48,40 @@ export default function ActiveFlights() {
   });
 
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
+    queryKey: ['contracts', 'accepted', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: company.id }),
+    enabled: !!company?.id
   });
 
   const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
+    queryKey: ['contracts', 'in_progress', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: company.id }),
+    enabled: !!company?.id
   });
 
   const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
+    queryKey: ['contracts', 'completed', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: company.id }),
+    enabled: !!company?.id
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
+    queryKey: ['aircraft', 'available', company?.id],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: company.id }),
+    enabled: !!company?.id
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+    queryKey: ['employees', 'available', company?.id],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: company.id }),
+    enabled: !!company?.id
   });
 
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const u = await base44.auth.me();
-      const cid = u?.company_id || u?.data?.company_id;
-      if (cid) {
-        const companies = await base44.entities.Company.filter({ id: cid });
-        if (companies[0]) return companies[0];
-      }
-      const companies = await base44.entities.Company.filter({ created_by: u.email });
-      return companies[0] || null;
+      const companies = await base44.entities.Company.list();
+      return companies[0];
     }
   });
 
