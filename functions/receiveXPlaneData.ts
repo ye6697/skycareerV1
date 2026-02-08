@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
         flight_score,
         maintenance_cost,
         reputation,
+        was_airborne: hasBeenAirborne,
         timestamp: new Date().toISOString()
       }
     };
