@@ -78,6 +78,8 @@ class PythonInterface:
         self.datarefs['touchdown_vspeed'] = xp.findDataRef("sim/flightmodel/forces/fsuipc_vert_accel")
         self.datarefs['indicated_airspeed'] = xp.findDataRef("sim/flightmodel/position/indicated_airspeed")
         self.datarefs['theta'] = xp.findDataRef("sim/flightmodel/position/theta")
+        self.datarefs['stall_warning'] = xp.findDataRef("sim/cockpit2/annunciators/stall_warning")
+        self.datarefs['override_alpha'] = xp.findDataRef("sim/flightmodel/failures/over_alpha")
         
         # Create flight loop
         xp.createFlightLoop(self.FlightLoopCallback, 1)
