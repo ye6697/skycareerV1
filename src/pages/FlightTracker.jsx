@@ -165,10 +165,7 @@ export default function FlightTracker() {
     queryKey: ['contract', contractIdFromUrl],
     queryFn: async () => {
       if (!contractIdFromUrl) return null;
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return null;
-      const contracts = await base44.entities.Contract.filter({ company_id: companies[0].id, id: contractIdFromUrl });
+      const contracts = await base44.entities.Contract.filter({ id: contractIdFromUrl });
       return contracts[0];
     },
     enabled: !!contractIdFromUrl
@@ -180,10 +177,15 @@ export default function FlightTracker() {
     queryFn: async () => {
       if (!contractIdFromUrl) return null;
       const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return null;
+      const cid = user?.company_id || user?.data?.company_id;
+      let companyId = cid;
+      if (!companyId) {
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        companyId = companies[0]?.id;
+      }
+      if (!companyId) return null;
       const flights = await base44.entities.Flight.filter({ 
-        company_id: companies[0].id,
+        company_id: companyId,
         contract_id: contractIdFromUrl,
         status: 'in_flight'
       });
