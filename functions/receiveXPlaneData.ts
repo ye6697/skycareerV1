@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
       if (flaps_overspeed) comments.push("Die Klappen haben verdächtig geknarzt...");
       if (fuel_emergency) comments.push("Wir hatten kaum noch Treibstoff!");
       if (gear_up_landing) comments.push("NOTLANDUNG OHNE FAHRWERK! Nie wieder!");
-      if (crash) comments.push("Das war ein CRASH! Wir hätten sterben können!");
+      if (isCrash) comments.push("Das war ein CRASH! Wir hätten sterben können!");
 
       if (flight_score >= 95) {
         comments.push("Perfekter Flug! Werde diese Airline weiterempfehlen!");
