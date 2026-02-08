@@ -64,25 +64,32 @@ export default function Employees() {
   const [selectedRole, setSelectedRole] = useState('captain');
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
-  const { data: employees = [], isLoading } = useQuery({
-    queryKey: ['employees'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Employee.filter({ company_id: companies[0].id }, '-created_date');
-    },
-    staleTime: 0,
-    refetchOnMount: 'always'
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me()
   });
 
   const { data: company } = useQuery({
-    queryKey: ['company'],
+    queryKey: ['company', currentUser?.company_id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (currentUser?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
-    }
+    },
+    enabled: !!currentUser
+  });
+
+  const { data: employees = [], isLoading } = useQuery({
+    queryKey: ['employees', company?.id],
+    queryFn: async () => {
+      return await base44.entities.Employee.filter({ company_id: company.id }, '-created_date');
+    },
+    enabled: !!company?.id,
+    staleTime: 0,
+    refetchOnMount: 'always'
   });
 
   const hireMutation = useMutation({
