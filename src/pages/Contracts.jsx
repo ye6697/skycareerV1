@@ -30,37 +30,19 @@ export default function Contracts() {
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
 
-  // Fetch company exactly like Dashboard does
-  const { data: company } = useQuery({
-    queryKey: ['company'],
+  // Single backend call that fetches everything with service role
+  const { data: pageData, isLoading } = useQuery({
+    queryKey: ['contractsPageData'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      return companies[0] || null;
+      const res = await base44.functions.invoke('getContractsPageData', {});
+      return res.data;
     }
   });
 
-  const companyId = company?.id;
-
-  // Fetch aircraft exactly like Dashboard does
-  const { data: ownedAircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'all', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: { $ne: 'sold' } }),
-    enabled: !!companyId
-  });
-
-  // Fetch contracts exactly like Dashboard does
-  const { data: allContracts = [], isLoading } = useQuery({
-    queryKey: ['contracts', 'available', companyId],
-    queryFn: async () => {
-      const res = await base44.functions.invoke('getAvailableContracts', {});
-      const contracts = res.data.contracts || [];
-      return contracts
-        .filter(c => (c.level_requirement || 1) <= (company?.level || 1))
-        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-    },
-    enabled: !!companyId
-  });
+  const company = pageData?.company || null;
+  const ownedAircraft = pageData?.aircraft || [];
+  const allContracts = (pageData?.contracts || [])
+    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
   const generateMutation = useMutation({
     mutationFn: async () => {
