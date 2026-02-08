@@ -902,12 +902,12 @@ export default function FlightTracker() {
       const arrLon = prev.arrival_lon || xp.arrival_lon || 0;
       
       const newData = {
-        altitude: xp.altitude || prev.altitude,
-        speed: xp.speed || prev.speed,
-        verticalSpeed: xp.vertical_speed || prev.verticalSpeed,
-        heading: xp.heading || prev.heading,
-        fuel: xp.fuel_percentage || prev.fuel,
-        fuelKg: xp.fuel_kg || prev.fuelKg,
+        altitude: xp.altitude !== undefined ? xp.altitude : prev.altitude,
+        speed: xp.speed !== undefined ? xp.speed : prev.speed,
+        verticalSpeed: xp.vertical_speed !== undefined ? xp.vertical_speed : prev.verticalSpeed,
+        heading: xp.heading !== undefined ? xp.heading : prev.heading,
+        fuel: xp.fuel_percentage !== undefined ? xp.fuel_percentage : prev.fuel,
+        fuelKg: xp.fuel_kg !== undefined ? xp.fuel_kg : prev.fuelKg,
         gForce: currentGForce,
         maxGForce: newMaxGForce,
         landingGForce: landingGForceValue,
