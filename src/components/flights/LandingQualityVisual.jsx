@@ -138,6 +138,36 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
             </span>
           </div>
         </div>
+
+        {/* Score & Financial Impact */}
+        {(landingScoreChange !== 0 || landingBonus > 0 || landingMaintenanceCost > 0) && (
+          <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-700">
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Score-Auswirkung</p>
+              <p className={`font-mono font-bold ${
+                landingScoreChange > 0 ? 'text-emerald-400' :
+                landingScoreChange < 0 ? 'text-red-400' :
+                'text-slate-400'
+              }`}>
+                {landingScoreChange > 0 ? '+' : ''}{landingScoreChange} Punkte
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Finanzielle Auswirkung</p>
+              {landingBonus > 0 ? (
+                <p className="font-mono font-bold text-emerald-400">
+                  +${landingBonus.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                </p>
+              ) : landingMaintenanceCost > 0 ? (
+                <p className="font-mono font-bold text-red-400">
+                  -${landingMaintenanceCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                </p>
+              ) : (
+                <p className="text-slate-400">-</p>
+              )}
+            </div>
+          </div>
+        )}
       </motion.div>
     </Card>
   );
