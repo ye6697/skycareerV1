@@ -80,6 +80,36 @@ export default function ActiveFlights() {
     }
   });
 
+  // Check if X-Plane is actively sending data
+  const { data: latestXPlaneLog } = useQuery({
+    queryKey: ['xplane-log-check'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return null;
+      const logs = await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 1);
+      return logs[0] || null;
+    },
+    refetchInterval: 2000,
+    enabled: company?.xplane_connection_status === 'connected'
+  });
+
+  // Check if X-Plane is actively flying (engines running, speed > 0)
+  const isXPlaneActivelyFlying = React.useMemo(() => {
+    if (!latestXPlaneLog?.raw_data) return false;
+    const data = latestXPlaneLog.raw_data;
+    
+    // Check if log is recent (within last 5 seconds)
+    const logAge = Date.now() - new Date(latestXPlaneLog.created_date).getTime();
+    if (logAge > 5000) return false;
+    
+    // Check if engines are running (speed > 30 knots or altitude > 100ft)
+    const hasSpeed = (data.speed || 0) > 30;
+    const hasAltitude = (data.altitude || 0) > 100;
+    
+    return hasSpeed || hasAltitude;
+  }, [latestXPlaneLog]);
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Check if aircraft can handle contract requirements
@@ -344,10 +374,15 @@ export default function ActiveFlights() {
                           setSelectedContract(contract);
                           setIsAssignDialogOpen(true);
                         }}
+                        disabled={company?.xplane_connection_status !== 'connected' || !isXPlaneActivelyFlying}
                         className="bg-blue-600 hover:bg-blue-700">
 
                               <Play className="w-4 h-4 mr-2" />
-                              Flug vorbereiten
+                              {company?.xplane_connection_status !== 'connected' 
+                                ? 'X-Plane nicht verbunden' 
+                                : !isXPlaneActivelyFlying 
+                                ? 'Starte Flug in X-Plane' 
+                                : 'Flug vorbereiten'}
                             </Button>
                             <Button
                         onClick={() => cancelFlightMutation.mutate(contract)}
