@@ -721,10 +721,19 @@ export default function FlightTracker() {
     // Don't update data if flight is completed
     if (flightPhase === 'completed') return;
 
+    // KRITISCH: Ignoriere Logs die ÄLTER sind als der Flugstart
+    // Damit werden alte Crash/Landungs-Daten vom vorherigen Flug nicht übernommen
+    if (flightStartedAt && xplaneLog.created_date) {
+      const logTime = new Date(xplaneLog.created_date).getTime();
+      if (logTime < flightStartedAt) {
+        return; // Altes Log ignorieren
+      }
+    }
+
     const xp = xplaneLog.raw_data;
 
-    // Check for crash via X-Plane dataref
-    if (xp.has_crashed) {
+    // Check for crash via X-Plane dataref - NUR wenn wasAirborne
+    if (xp.has_crashed && flightData.wasAirborne) {
     setFlightData(prev => ({
       ...prev,
       events: {
