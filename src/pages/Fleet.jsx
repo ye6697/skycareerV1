@@ -278,7 +278,7 @@ export default function Fleet() {
                               </div>
                               <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
                                 <p className="text-slate-400 text-[9px] mb-0.5">Reichweite</p>
-                                <p className="text-white text-sm">{(ac.range_nm / 1000).toFixed(1)}k</p>
+                                <p className="text-white text-sm">{ac.range_nm} NM</p>
                               </div>
                             </div>
                             <div className="pt-2 border-t border-slate-700 space-y-2">
