@@ -112,9 +112,8 @@ export default function Contracts() {
 
   const acceptContractMutation = useMutation({
     mutationFn: async (contract) => {
-      await base44.entities.Contract.update(contract.id, { 
-        status: 'accepted',
-        company_id: company.id
+      await base44.functions.invoke('acceptContract', { 
+        contractId: contract.id 
       });
     },
     onSuccess: () => {
