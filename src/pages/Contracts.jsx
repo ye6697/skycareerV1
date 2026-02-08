@@ -109,8 +109,8 @@ export default function Contracts() {
     });
   });
 
-  const contracts = compatibleContracts.slice(offset, offset + 5);
-  const incompatibleShow = incompatibleContracts.slice(0, 5);
+  const contracts = compatibleContracts;
+  const incompatibleShow = incompatibleContracts;
 
   const acceptContractMutation = useMutation({
     mutationFn: async (contract) => {
