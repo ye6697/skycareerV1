@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { useNavigate } from "react-router-dom";
 import {
   Plane,
   Users,
