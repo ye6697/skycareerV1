@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
         ? Math.floor(Math.random() * selectedAircraft.cargo * 0.8) + Math.floor(selectedAircraft.cargo * 0.2)
         : 0;
       
-      const basePayout = distance * 5 + passengers * 50 + cargo * 0.5;
+      const basePayout = distance * 50 + passengers * 500 + cargo * 5;
       const payout = Math.round(basePayout * (0.8 + Math.random() * 0.4));
       
       const level = Math.max(1, Math.floor(distance / 300) + Math.floor(i / 100));
@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
         passenger_count: passengers,
         cargo_weight_kg: cargo,
         payout,
-        bonus_potential: Math.round(payout * 0.2),
+        bonus_potential: Math.round(payout * 0.3),
         required_aircraft_type: [selectedAircraft.type],
         required_crew: {
           captain: 1,
