@@ -55,10 +55,11 @@ export default function Setup() {
         cargo_capacity_kg: 100,
         fuel_consumption_per_hour: 35,
         range_nm: 640,
-        purchase_price: 0,
+        purchase_price: 425000,
         maintenance_cost_per_hour: 25,
         status: "available",
         total_flight_hours: 0,
+        current_value: 425000,
         image_url: template?.image_url
       });
 
