@@ -87,8 +87,10 @@ export default function FlightTracker() {
     const comments = [];
     
     if (data.events.crash) {
-      comments.push("Flugzeug zerstört! Nie wieder!");
+      comments.push("Flugzeug zerstört! Nie wieder mit dieser Airline!");
       comments.push("Das war die schlimmste Erfahrung meines Lebens.");
+      comments.push("Ich bin froh, dass ich überlebt habe...");
+      comments.push("Meine Familie wird von meinem Anwalt hören!");
       return comments;
     }
 
@@ -96,48 +98,82 @@ export default function FlightTracker() {
     if (data.landingType === 'butter') {
       comments.push("Butterweiche Landung! Das war professionell!");
       comments.push("Ich habe kaum bemerkt, dass wir gelandet sind - perfekt!");
+      comments.push("So muss eine Landung sein! Chapeau, Kapitän!");
+      comments.push("Mein Kaffee stand noch aufrecht - unglaublich sanft!");
     } else if (data.landingType === 'soft') {
       comments.push("Sehr sanfte Landung, ausgezeichnet!");
       comments.push("Der Pilot weiß, wie man landen muss.");
+      comments.push("Angenehme Landung, meine Kinder haben nicht mal aufgewacht.");
     } else if (data.landingType === 'acceptable') {
-      comments.push("Ganz normale Landung.");
-      comments.push("Alles in Ordnung.");
+      comments.push("Ganz normale Landung, nichts besonderes.");
+      comments.push("Alles in Ordnung, solide gelandet.");
+      comments.push("Standard-Landung, kein Grund zur Beschwerde.");
     } else if (data.landingType === 'hard') {
       comments.push("Die Landung war ziemlich hart...");
       comments.push("Mein Getränk ist umgekippt!");
+      comments.push("Mein Rücken tut weh nach dieser Landung.");
+      comments.push("Das Fahrwerk hat laut geknallt - war das normal?!");
     } else if (data.landingType === 'very_hard') {
       comments.push("Das war eine brutale Landung!");
       comments.push("Ich bin mir nicht sicher, ob das sicher war.");
+      comments.push("Mein Gepäck ist aus dem Fach gefallen!");
+      comments.push("Sind die Reifen noch dran?!");
     }
 
     // G-force based comments (during flight)
-    if (data.maxGForce > 2.0) {
-      comments.push("Mir wurde bei den extremen Manövern übel.");
+    if (data.maxGForce > 2.5) {
+      comments.push("Mir wurde bei den extremen Manövern richtig schlecht.");
+      comments.push("Ich dachte, ich bin in einer Achterbahn und nicht im Flugzeug!");
+    } else if (data.maxGForce > 2.0) {
+      comments.push("Die Manöver waren viel zu heftig für einen normalen Flug.");
     } else if (data.maxGForce > 1.8) {
       comments.push("Es war ziemlich wackelig während des Fluges.");
+    } else if (data.maxGForce < 1.2) {
+      comments.push("Sehr angenehmer, sanfter Flug. Wie auf Wolken!");
     } else if (data.maxGForce < 1.3) {
-      comments.push("Sehr angenehmer, sanfter Flug.");
+      comments.push("Ruhiger Flug, gut gemacht.");
     }
 
     // Overall score-based comments
     if (score >= 95) {
       comments.push("Perfekter Flug! Werde diese Airline weiterempfehlen!");
+      comments.push("5 Sterne! Besser geht es nicht.");
     } else if (score >= 85) {
       comments.push("Sehr guter Service, gerne wieder.");
+      comments.push("Professionelle Crew, angenehmer Flug.");
     } else if (score >= 70) {
       comments.push("Solider Flug, nichts zu beanstanden.");
     } else if (score >= 50) {
       comments.push("Es war okay, aber es gibt Verbesserungspotenzial.");
+      comments.push("Nicht der beste Flug, den ich je hatte...");
+    } else if (score >= 30) {
+      comments.push("Ich buche nie wieder bei dieser Airline.");
+      comments.push("Katastrophal. Ich habe Angst gehabt.");
     } else {
-      comments.push("Ich buche nie wieder hier.");
+      comments.push("Nie wieder! Das war lebensgefährlich!");
+      comments.push("Ich stelle eine Beschwerde bei der Luftfahrtbehörde!");
     }
 
     // Event-based comments
     if (data.events.tailstrike) {
-      comments.push("Ich habe gehört, wie das Heck aufgesetzt hat...");
+      comments.push("Ich habe gehört, wie das Heck aufgesetzt hat - furchtbar!");
+      comments.push("Beim Start hat es laut gekracht am Heck...");
     }
     if (data.events.stall) {
-      comments.push("Das Flugzeug ist ins Trudeln geraten!");
+      comments.push("Das Flugzeug ist plötzlich abgesackt! Panik an Bord!");
+      comments.push("Strömungsabriss?! Das darf nicht passieren!");
+    }
+    if (data.events.overstress) {
+      comments.push("Das Flugzeug hat beängstigende Geräusche gemacht...");
+    }
+    if (data.events.flaps_overspeed) {
+      comments.push("Die Klappen haben komische Geräusche gemacht bei der Geschwindigkeit.");
+    }
+    if (data.events.hard_landing) {
+      comments.push("Meine Knochen vibrieren noch von dieser Landung.");
+    }
+    if (data.events.fuel_emergency && data.fuel < 3) {
+      comments.push("Wir hatten kaum noch Treibstoff?! Das ist unverantwortlich!");
     }
 
     return comments;
