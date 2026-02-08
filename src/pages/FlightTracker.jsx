@@ -153,7 +153,7 @@ export default function FlightTracker() {
     enabled: !!contractIdFromUrl
   });
 
-  // Load existing flight if any - MUST be before xplaneLog query
+  // Load existing flight if any
   const { data: existingFlight } = useQuery({
     queryKey: ['active-flight', contractIdFromUrl],
     queryFn: async () => {
@@ -176,21 +176,21 @@ export default function FlightTracker() {
     enabled: !!contractIdFromUrl
   });
 
-  // xplaneLog query - polls Flight.xplane_data + XPlaneLog (same source as Debug page)
+  // xplaneLog query - uses flight?.id (set from existingFlight via useEffect) 
+  // Polls Flight.xplane_data first, falls back to XPlaneLog (same as Debug page)
   const { data: xplaneLog } = useQuery({
-    queryKey: ['xplane-live-data', flight?.id, existingFlight?.id],
+    queryKey: ['xplane-live-data', flight?.id, contractIdFromUrl],
     queryFn: async () => {
       // Source 1: Read xplane_data directly from the active Flight record
-      const flightId = flight?.id || existingFlight?.id;
-      if (flightId) {
-        const flights = await base44.entities.Flight.filter({ id: flightId });
+      if (flight?.id) {
+        const flights = await base44.entities.Flight.filter({ id: flight.id });
         const currentFlight = flights[0];
         if (currentFlight?.xplane_data) {
           return { raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date };
         }
       }
       
-      // Source 2: Fallback to XPlaneLog (same as Debug page)
+      // Source 2: Fallback to XPlaneLog (same as Debug page uses)
       const user = await base44.auth.me();
       const cid = user?.company_id || user?.data?.company_id;
       let companyId = cid;
