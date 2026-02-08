@@ -989,7 +989,7 @@ export default function FlightTracker() {
       setFlightPhase('completed');
       completeFlightMutation.mutate();
     }
-  }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash]);
+  }, [xplaneLog, flight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt]);
 
   const phaseLabels = {
     preflight: 'Vorbereitung',
