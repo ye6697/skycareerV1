@@ -838,8 +838,10 @@ export default function FlightTracker() {
       const currentSpeed = xp.speed || 0;
       // Ensure we capture landing VS properly, prefer xp.landing_vs if available
       const touchdownVs = xp.landing_vs || xp.touchdown_vspeed || 0;
-      // Landing G-force from X-Plane
-      const landingGForceValue = xp.landing_g_force || currentGForce;
+      // Landing G-force from X-Plane - only capture at moment of landing, keep value after
+      const landingGForceValue = prev.landingType 
+        ? prev.landingGForce  // Already landed - keep the captured value
+        : (xp.landing_g_force || currentGForce);
 
       // Landing categories based on G-force only
       let landingType = prev.landingType;
