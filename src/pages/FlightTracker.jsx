@@ -537,14 +537,22 @@ export default function FlightTracker() {
             
             // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten
              let crashMaintenanceCost = 0;
-             let finalScore = finalFlightData.flightScore;
              if (hasCrashed) {
                crashMaintenanceCost = (airplaneToUpdate?.purchase_price || 0) * 0.7;
-               // finalScore wurde bereits in useEffect abgezogen, nicht nochmal abziehen
              }
 
-            // Apply time bonus/penalty to final score
+            // Apply time bonus/penalty to final score - use the LIVE score from flightData
             const scoreWithTime = Math.max(0, Math.min(100, finalFlightData.flightScore + timeScoreChange));
+
+            console.log('🎯 SCORE BERECHNUNG:', {
+             baseScore: finalFlightData.flightScore,
+             timeScoreChange,
+             finalScoreWithTime: scoreWithTime,
+             hasCrashed,
+             events: finalFlightData.events,
+             landingType: finalFlightData.landingType,
+             landingScoreChange: finalFlightData.landingScoreChange
+            });
 
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
