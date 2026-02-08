@@ -185,6 +185,12 @@ export default function FlightRating({ flight }) {
                 <span className="text-emerald-400 font-mono">${Math.round(flight.revenue).toLocaleString()}</span>
               </div>
             )}
+            {flight?.xplane_data?.levelBonus > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-amber-400">Level-Bonus ({flight.xplane_data.companyLevel || 1}x {flight.xplane_data.levelBonusPercent?.toFixed(0) || 1}%)</span>
+                <span className="text-amber-400 font-mono">+${Math.round(flight.xplane_data.levelBonus).toLocaleString()}</span>
+              </div>
+            )}
             {flight?.fuel_cost && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-400">Treibstoffkosten</span>
