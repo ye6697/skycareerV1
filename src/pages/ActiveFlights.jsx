@@ -38,6 +38,7 @@ import {
 
 export default function ActiveFlights() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedContract, setSelectedContract] = useState(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState('');
