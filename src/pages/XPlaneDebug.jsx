@@ -10,20 +10,28 @@ import { motion } from "framer-motion";
 export default function XPlaneDebug() {
   const [lastUpdate, setLastUpdate] = useState(null);
 
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me()
+  });
+
   const { data: company, refetch: refetchCompany } = useQuery({
-    queryKey: ['company'],
+    queryKey: ['company', currentUser?.company_id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (currentUser?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
     },
+    enabled: !!currentUser,
     refetchInterval: 2000
   });
 
   const { data: flights = [], refetch: refetchFlights } = useQuery({
     queryKey: ['all-flights', company?.id],
     queryFn: async () => {
-      if (!company?.id) return [];
       return await base44.entities.Flight.filter({ company_id: company.id }, '-updated_date', 5);
     },
     enabled: !!company?.id,
@@ -31,13 +39,11 @@ export default function XPlaneDebug() {
   });
 
   const { data: xplaneLogs = [], refetch: refetchLogs } = useQuery({
-    queryKey: ['xplane-logs'],
+    queryKey: ['xplane-logs', company?.id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 20);
+      return await base44.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 20);
     },
+    enabled: !!company?.id,
     refetchInterval: 2000
   });
 
