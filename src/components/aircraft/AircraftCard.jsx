@@ -202,8 +202,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           ) : (
             <span className="text-5xl">{type.icon}</span>
           )}
-          <Badge className={`absolute top-3 right-3 ${status.color} border`}>
-            {status.label}
+          <Badge className={`absolute top-3 right-3 ${displayStatus.color} border`}>
+            {displayStatus.label}
           </Badge>
         </div>
 
