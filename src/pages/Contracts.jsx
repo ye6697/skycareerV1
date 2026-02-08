@@ -319,9 +319,13 @@ export default function Contracts() {
                            ownedAircraft={ownedAircraft}
                          />
                          <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center">
-                           <div className="text-center">
-                             <p className="text-white font-semibold">Zu kleiner Flugzeugtyp</p>
-                             <p className="text-slate-400 text-sm mt-1">Erforderlich: {contract.required_aircraft_type?.join(', ') || 'Unbekannt'}</p>
+                           <div className="text-center px-4">
+                             <p className="text-white font-semibold">Keine passenden Flugzeuge</p>
+                             <p className="text-slate-400 text-sm mt-1">
+                               Erforderlich: Typ {contract.required_aircraft_type?.join(', ') || 'Beliebig'}<br />
+                               {contract.distance_nm && `Reichweite: ${contract.distance_nm} NM`}
+                               {contract.cargo_weight_kg && ` • Cargo: ${contract.cargo_weight_kg} kg`}
+                             </p>
                            </div>
                          </div>
                        </div>
