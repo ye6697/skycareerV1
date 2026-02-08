@@ -80,29 +80,6 @@ export default function ActiveFlights() {
     }
   });
 
-  // Check if X-Plane is actively sending data
-  const { data: latestXPlaneLog } = useQuery({
-    queryKey: ['xplane-log-check'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return null;
-      const logs = await base44.entities.XPlaneLog.filter({ company_id: companies[0].id }, '-created_date', 1);
-      return logs[0] || null;
-    },
-    refetchInterval: 2000,
-    enabled: company?.xplane_connection_status === 'connected'
-  });
-
-  // Check if X-Plane is actively sending data
-  const isXPlaneSendingData = React.useMemo(() => {
-    if (!latestXPlaneLog) return false;
-    
-    // Check if log is recent (within last 3 seconds)
-    const logAge = Date.now() - new Date(latestXPlaneLog.created_date).getTime();
-    return logAge <= 3000;
-  }, [latestXPlaneLog]);
-
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Check if aircraft can handle contract requirements
@@ -244,19 +221,11 @@ export default function ActiveFlights() {
                 X-Plane 12: {company?.xplane_connection_status === 'connected' ? 'Verbunden' : 'Nicht verbunden'}
               </span>
             </div>
-            {company?.xplane_connection_status !== 'connected' ? (
+            {company?.xplane_connection_status !== 'connected' &&
             <p className="text-sm text-slate-300">
-              Plugin-Verbindung erforderlich für Live-Flugdaten
-            </p>
-            ) : !isXPlaneSendingData ? (
-            <p className="text-sm text-amber-300">
-              Verbunden - Warte auf X-Plane Daten...
-            </p>
-            ) : (
-            <p className="text-sm text-emerald-300">
-              Bereit - X-Plane sendet Daten
-            </p>
-            )}
+                Plugin-Verbindung erforderlich für Live-Flugdaten
+              </p>
+            }
           </div>
         </Card>
 
@@ -367,15 +336,10 @@ export default function ActiveFlights() {
                           setSelectedContract(contract);
                           setIsAssignDialogOpen(true);
                         }}
-                        disabled={company?.xplane_connection_status !== 'connected' || !isXPlaneSendingData}
                         className="bg-blue-600 hover:bg-blue-700">
 
                               <Play className="w-4 h-4 mr-2" />
-                              {company?.xplane_connection_status !== 'connected' 
-                                ? 'X-Plane nicht verbunden' 
-                                : !isXPlaneSendingData 
-                                ? 'Warte auf X-Plane Daten' 
-                                : 'Flug vorbereiten'}
+                              Flug vorbereiten
                             </Button>
                             <Button
                         onClick={() => cancelFlightMutation.mutate(contract)}
@@ -572,13 +536,39 @@ export default function ActiveFlights() {
                 })}
               </div>
 
-              {/* Warning */}
-              {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              {/* X-Plane Warning */}
+              {company?.xplane_connection_status === 'connected' && !isXPlaneSendingData && (
+              <div className="p-3 bg-amber-900/30 border border-amber-600 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-700">
+                    <p className="font-medium text-amber-300">X-Plane nicht bereit</p>
+                    <p className="text-sm text-amber-200">
+                      Starte X-Plane und lade ein Flugzeug, bevor du den Flug startest. Sonst entstehen unnötige Kosten!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Connection Warning */}
+              {company?.xplane_connection_status !== 'connected' && (
+              <div className="p-3 bg-red-900/30 border border-red-600 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-red-300">X-Plane nicht verbunden</p>
+                    <p className="text-sm text-red-200">
+                      Verbinde X-Plane über das Plugin, bevor du den Flug startest!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Crew Warning */}
+              {!isCrewComplete(selectedContract) &&
+              <div className="p-3 bg-amber-900/30 border border-amber-600 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-300">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-200">
                       Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
                     </p>
                   </div>
@@ -592,7 +582,7 @@ export default function ActiveFlights() {
               </Button>
               <Button
                 onClick={() => startFlightMutation.mutate()}
-                disabled={!canStartFlight() || startFlightMutation.isPending}
+                disabled={!canStartFlight() || startFlightMutation.isPending || company?.xplane_connection_status !== 'connected' || !isXPlaneSendingData}
                 className="bg-emerald-600 hover:bg-emerald-700">
 
                 {startFlightMutation.isPending ? 'Starte...' : 'Flug starten'}
