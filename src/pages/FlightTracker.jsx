@@ -588,6 +588,9 @@ export default function FlightTracker() {
                 flightHours,
                 timeScoreChange,
                 timeBonus,
+                levelBonus: levelBonus,
+                levelBonusPercent: levelBonusPercent * 100,
+                companyLevel: company?.level || 1,
                 events: finalFlightData.events,
                 crashMaintenanceCost: crashMaintenanceCost
               }
