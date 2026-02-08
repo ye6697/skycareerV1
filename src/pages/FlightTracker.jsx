@@ -1324,7 +1324,7 @@ export default function FlightTracker() {
                 {flightPhase !== 'preflight' && (
                   <div className="space-y-4">
                     <p className="text-sm text-slate-400">
-                      {flightPhase === 'takeoff' && "Steige auf Reiseflughöhe..."}
+                      {flightPhase === 'takeoff' && flightData.wasAirborne && "Steige auf Reiseflughöhe..."}
                       {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst und die Parkbremse aktiviert ist."}
                       {flightPhase === 'landing' && "Lande das Flugzeug und schalte die Parkbremse ein, um den Flug abzuschließen."}
                     </p>
