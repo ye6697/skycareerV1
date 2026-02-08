@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
 
     // Auto-complete flight if parked with engines off
     // CRITICAL: Only auto-complete if the aircraft was airborne at some point
-    if (on_ground && park_brake && !engines_running && flight.status === 'in_flight' && hasBeenAirborne) {
+    if (on_ground && park_brake && !areEnginesRunning && flight.status === 'in_flight' && hasBeenAirborne) {
       const contract = (await base44.asServiceRole.entities.Contract.filter({ id: flight.contract_id }))[0];
       const aircraft = (await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id }))[0];
       
