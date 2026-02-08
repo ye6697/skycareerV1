@@ -47,6 +47,20 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const u = await base44.auth.me();
+      const cid = u?.company_id || u?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: u.email });
+      return companies[0] || null;
+    }
+  });
+
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'accepted', company?.id],
     queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: company.id }),
@@ -75,14 +89,6 @@ export default function ActiveFlights() {
     queryKey: ['employees', 'available', company?.id],
     queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: company.id }),
     enabled: !!company?.id
-  });
-
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
-    }
   });
 
   const startFlightMutation = useMutation({
