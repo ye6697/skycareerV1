@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
       
       // Bei Crash: KEIN Payout und KEIN Bonus
       let revenue = 0;
-      if (!crash) {
+      if (!isCrash) {
         revenue = contract?.payout || 0;
         
         // Bonus based on score
