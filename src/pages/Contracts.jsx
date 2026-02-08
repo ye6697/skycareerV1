@@ -102,6 +102,7 @@ export default function Contracts() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
     }
   });
