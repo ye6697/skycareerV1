@@ -735,13 +735,11 @@ export default function FlightTracker() {
   // Update flight data from X-Plane log (freeze data after landing)
   useEffect(() => {
     if (!xplaneLog?.raw_data) return;
-    if (flightPhase === 'preflight') return;
-    
-    // Don't update data if flight is completed
-    if (flightPhase === 'completed') return;
+    // Only block in preflight AND completed
+    if (flightPhase === 'preflight' || flightPhase === 'completed') return;
 
-    // KRITISCH: Ignoriere Logs die ÄLTER sind als der Flugstart
-    // Damit werden alte Crash/Landungs-Daten vom vorherigen Flug nicht übernommen
+    // Only filter by timestamp if flightStartedAt is set (from startFlightMutation, not from existingFlight restore)
+    // This prevents blocking data that's already on the Flight record when restoring an existing flight
     if (flightStartedAt && xplaneLog.created_date) {
       const logTime = new Date(xplaneLog.created_date).getTime();
       if (logTime < flightStartedAt) {
