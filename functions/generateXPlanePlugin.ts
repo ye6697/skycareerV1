@@ -125,9 +125,12 @@ class PythonInterface:
             ias = xp.getDataf(self.datarefs['indicated_airspeed']) or 0
             pitch = xp.getDataf(self.datarefs['theta']) or 0
 
+            stall_warning = xp.getDatai(self.datarefs['stall_warning']) == 1
+            override_alpha = xp.getDatai(self.datarefs['override_alpha']) == 1
+
             # Event detection
             tailstrike = pitch > 10 and on_ground
-            stall = altitude > 500 and ias < 80 and not on_ground
+            stall = (altitude > 500 and ias < 80 and not on_ground) or stall_warning or override_alpha
 
             # Check if any engine is running
             engines_running = False
