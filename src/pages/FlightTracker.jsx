@@ -143,10 +143,22 @@ export default function FlightTracker() {
     return comments;
   };
 
-  // Get latest X-Plane data directly
+  // Get latest X-Plane data from XPlaneLog AND from Flight.xplane_data
+  // The receiveXPlaneData function writes to both: XPlaneLog (raw log) and Flight.xplane_data (live data)
   const { data: xplaneLog } = useQuery({
-    queryKey: ['xplane-log'],
+    queryKey: ['xplane-live-data', flight?.id],
     queryFn: async () => {
+      // Primary source: Read live data directly from the Flight record's xplane_data field
+      // This is updated by receiveXPlaneData on every X-Plane tick
+      if (flight?.id) {
+        const flights = await base44.entities.Flight.filter({ id: flight.id });
+        const currentFlight = flights[0];
+        if (currentFlight?.xplane_data) {
+          return { raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date };
+        }
+      }
+      
+      // Fallback: Read from XPlaneLog
       const user = await base44.auth.me();
       const cid = user?.company_id || user?.data?.company_id;
       let companyId = cid;
@@ -158,7 +170,7 @@ export default function FlightTracker() {
       const logs = await base44.entities.XPlaneLog.filter({ company_id: companyId }, '-created_date', 1);
       return logs[0] || null;
     },
-    refetchInterval: 500,
+    refetchInterval: 1000,
     enabled: flightPhase !== 'preflight' && flightPhase !== 'completed'
   });
 
