@@ -94,20 +94,13 @@ export default function ActiveFlights() {
     enabled: company?.xplane_connection_status === 'connected'
   });
 
-  // Check if X-Plane is actively flying (engines running, speed > 0)
-  const isXPlaneActivelyFlying = React.useMemo(() => {
-    if (!latestXPlaneLog?.raw_data) return false;
-    const data = latestXPlaneLog.raw_data;
+  // Check if X-Plane is actively sending data
+  const isXPlaneSendingData = React.useMemo(() => {
+    if (!latestXPlaneLog) return false;
     
-    // Check if log is recent (within last 5 seconds)
+    // Check if log is recent (within last 3 seconds)
     const logAge = Date.now() - new Date(latestXPlaneLog.created_date).getTime();
-    if (logAge > 5000) return false;
-    
-    // Check if engines are running (speed > 30 knots or altitude > 100ft)
-    const hasSpeed = (data.speed || 0) > 30;
-    const hasAltitude = (data.altitude || 0) > 100;
-    
-    return hasSpeed || hasAltitude;
+    return logAge <= 3000;
   }, [latestXPlaneLog]);
 
   const startFlightMutation = useMutation({
@@ -252,18 +245,18 @@ export default function ActiveFlights() {
               </span>
             </div>
             {company?.xplane_connection_status !== 'connected' ? (
-                <p className="text-sm text-slate-300">
-                  Plugin-Verbindung erforderlich für Live-Flugdaten
-                </p>
-                ) : !isXPlaneActivelyFlying ? (
-                <p className="text-sm text-amber-300">
-                  Verbunden - Starte Flug in X-Plane (Triebwerke an, mind. 30 kts oder 100ft)
-                </p>
-                ) : (
-                <p className="text-sm text-emerald-300">
-                  Verbunden - Flug aktiv erkannt
-                </p>
-                )}
+            <p className="text-sm text-slate-300">
+              Plugin-Verbindung erforderlich für Live-Flugdaten
+            </p>
+            ) : !isXPlaneSendingData ? (
+            <p className="text-sm text-amber-300">
+              Verbunden - Warte auf X-Plane Daten...
+            </p>
+            ) : (
+            <p className="text-sm text-emerald-300">
+              Bereit - X-Plane sendet Daten
+            </p>
+            )}
           </div>
         </Card>
 
@@ -374,14 +367,14 @@ export default function ActiveFlights() {
                           setSelectedContract(contract);
                           setIsAssignDialogOpen(true);
                         }}
-                        disabled={company?.xplane_connection_status !== 'connected' || !isXPlaneActivelyFlying}
+                        disabled={company?.xplane_connection_status !== 'connected' || !isXPlaneSendingData}
                         className="bg-blue-600 hover:bg-blue-700">
 
                               <Play className="w-4 h-4 mr-2" />
                               {company?.xplane_connection_status !== 'connected' 
                                 ? 'X-Plane nicht verbunden' 
-                                : !isXPlaneActivelyFlying 
-                                ? 'Starte Flug in X-Plane' 
+                                : !isXPlaneSendingData 
+                                ? 'Warte auf X-Plane Daten' 
                                 : 'Flug vorbereiten'}
                             </Button>
                             <Button
