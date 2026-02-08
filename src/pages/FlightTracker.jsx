@@ -1271,59 +1271,59 @@ export default function FlightTracker() {
                   )}
 
                   {/* Events */}
-                  {Object.entries(flightData.events).some(([_, val]) => val) && (
+                  {Object.entries(flightData.events).some(([_, val]) => val === true) && (
                     <div className="pt-3 border-t border-slate-700">
                       <p className="text-xs text-slate-500 mb-2">Vorfälle:</p>
                       <div className="space-y-1">
-                        {flightData.events.tailstrike && (
+                        {flightData.events.tailstrike === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Heckaufsetzer (-20 Punkte)
                           </div>
                         )}
-                        {flightData.events.stall && (
+                        {flightData.events.stall === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Strömungsabriss (-50 Punkte)
                           </div>
                         )}
-                        {flightData.events.overstress && (
+                        {flightData.events.overstress === true && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Strukturbelastung (-30 Punkte)
                           </div>
                         )}
-                        {flightData.events.flaps_overspeed && (
+                        {flightData.events.flaps_overspeed === true && (
                          <div className="text-xs text-orange-400 flex items-center gap-1">
                            <AlertTriangle className="w-3 h-3" />
                            Klappen-Overspeed (-{settings?.flaps_overspeed_score_penalty || 15} Punkte)
                          </div>
                         )}
-                        {flightData.events.gear_up_landing && (
+                        {flightData.events.gear_up_landing === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Landung ohne Fahrwerk!
                           </div>
                         )}
-                        {flightData.events.crash && (
+                        {flightData.events.crash === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             CRASH ERKANNT! (-100 Punkte)
                           </div>
                         )}
-                        {flightData.events.harsh_controls && (
+                        {flightData.events.harsh_controls === true && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Ruppige Steuerung
                           </div>
                         )}
-                        {flightData.events.high_g_force && (
+                        {flightData.events.high_g_force === true && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Hohe G-Kräfte (Wartung: {(flightData.maxGForce * 100).toFixed(1)}% Neuwert)
                           </div>
                         )}
-                        {flightData.events.hard_landing && (
+                        {flightData.events.hard_landing === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             Harte Landung (Wartung: 1% Flugzeugwert)
