@@ -101,6 +101,8 @@ export default function ActiveFlights() {
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
+      if (!companyId) throw new Error('Firma nicht gefunden');
+      
       // Check if aircraft can handle contract requirements
       const ac = aircraft.find((a) => a.id === selectedAircraft);
       if (!ac) throw new Error('Flugzeug nicht gefunden');
@@ -118,6 +120,7 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: companyId,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -140,9 +143,9 @@ export default function ActiveFlights() {
         }
       }
 
-      return flight;
+      return { flight, contractId: selectedContract.id };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -150,6 +153,8 @@ export default function ActiveFlights() {
       setSelectedContract(null);
       setSelectedAircraft('');
       setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
+      // Navigate to FlightTracker
+      navigate(createPageUrl(`FlightTracker?contractId=${result.contractId}`));
     }
   });
 
