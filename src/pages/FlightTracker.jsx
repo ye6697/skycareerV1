@@ -206,6 +206,11 @@ export default function FlightTracker() {
     queryKey: ['company'],
     queryFn: async () => {
       const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
       const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     }
@@ -215,9 +220,14 @@ export default function FlightTracker() {
     queryKey: ['aircraft'],
     queryFn: async () => {
       const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Aircraft.filter({ company_id: companies[0].id });
+      const cid = user?.company_id || user?.data?.company_id;
+      let companyId = cid;
+      if (!companyId) {
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        companyId = companies[0]?.id;
+      }
+      if (!companyId) return [];
+      return await base44.entities.Aircraft.filter({ company_id: companyId });
     }
   });
 
