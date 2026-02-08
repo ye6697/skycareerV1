@@ -128,7 +128,7 @@ export default function CompletedFlightDetails() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold">{finalContract.title}</h1>
-                {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
+                {(flight?.xplane_data?.events?.crash || passedFlightData?.events?.crash || flight?.status === 'failed') ? (
                   <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4" />
                     CRASH - Fehlgeschlagen
