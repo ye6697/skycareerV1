@@ -143,9 +143,9 @@ export default function FlightTracker() {
     return comments;
   };
 
-  // Get latest X-Plane data from Flight.xplane_data (updated by receiveXPlaneData backend)
-  // Also use existingFlight?.id so we can start fetching before flight state is set
-  const activeFlightId = flight?.id || existingFlight?.id;
+  // activeFlightId will be set after existingFlight query below
+  // Declared here so xplaneLog query can reference it
+  const [activeFlightId, setActiveFlightId] = useState(null);
   
   const { data: xplaneLog } = useQuery({
     queryKey: ['xplane-live-data', activeFlightId],
