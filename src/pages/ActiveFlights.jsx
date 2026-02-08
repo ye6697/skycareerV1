@@ -221,11 +221,19 @@ export default function ActiveFlights() {
                 X-Plane 12: {company?.xplane_connection_status === 'connected' ? 'Verbunden' : 'Nicht verbunden'}
               </span>
             </div>
-            {company?.xplane_connection_status !== 'connected' &&
-            <p className="text-sm text-slate-300">
-                Plugin-Verbindung erforderlich für Live-Flugdaten
-              </p>
-            }
+            {company?.xplane_connection_status !== 'connected' ? (
+                <p className="text-sm text-slate-300">
+                  Plugin-Verbindung erforderlich für Live-Flugdaten
+                </p>
+                ) : !isXPlaneActivelyFlying ? (
+                <p className="text-sm text-amber-300">
+                  Verbunden - Starte Flug in X-Plane (Triebwerke an, mind. 30 kts oder 100ft)
+                </p>
+                ) : (
+                <p className="text-sm text-emerald-300">
+                  Verbunden - Flug aktiv erkannt
+                </p>
+                )}
           </div>
         </Card>
 
@@ -330,17 +338,16 @@ export default function ActiveFlights() {
 
                       <div className="flex justify-end gap-2">
                         {contract.status === 'accepted' &&
-                      <>
+                    <>
                             <Button
                         onClick={() => {
                           setSelectedContract(contract);
                           setIsAssignDialogOpen(true);
                         }}
-                        disabled={company?.xplane_connection_status !== 'connected'}
                         className="bg-blue-600 hover:bg-blue-700">
 
                               <Play className="w-4 h-4 mr-2" />
-                              {company?.xplane_connection_status !== 'connected' ? 'X-Plane nicht verbunden' : 'Flug vorbereiten'}
+                              Flug vorbereiten
                             </Button>
                             <Button
                         onClick={() => cancelFlightMutation.mutate(contract)}
