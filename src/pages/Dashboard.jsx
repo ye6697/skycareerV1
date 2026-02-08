@@ -27,13 +27,28 @@ import ContractCard from "@/components/contracts/ContractCard";
 export default function Dashboard() {
   const queryClient = useQueryClient();
 
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me()
+  });
+
   const { data: company, isLoading: companyLoading } = useQuery({
-    queryKey: ['company'],
+    queryKey: ['company', user?.company_id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!user?.company_id) {
+        // Fallback: try finding company by created_by
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        if (companies[0]) {
+          // Save company_id for future lookups
+          await base44.auth.updateMe({ company_id: companies[0].id });
+          return companies[0];
+        }
+        return null;
+      }
+      const companies = await base44.entities.Company.filter({ id: user.company_id });
       return companies[0] || null;
-    }
+    },
+    enabled: !!user
   });
 
   const companyId = company?.id;
