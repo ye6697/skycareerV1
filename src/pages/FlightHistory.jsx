@@ -36,26 +36,40 @@ export default function FlightHistory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlight, setSelectedFlight] = useState(null);
 
-  const { data: flights = [], isLoading } = useQuery({
-    queryKey: ['flights', 'history'],
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me()
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company', currentUser?.company_id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      const completed = await base44.entities.Flight.filter({ company_id: companies[0].id, status: 'completed' }, '-created_date');
-      const failed = await base44.entities.Flight.filter({ company_id: companies[0].id, status: 'failed' }, '-created_date');
+      if (currentUser?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
+      return companies[0];
+    },
+    enabled: !!currentUser
+  });
+
+  const { data: flights = [], isLoading } = useQuery({
+    queryKey: ['flights', 'history', company?.id],
+    queryFn: async () => {
+      const completed = await base44.entities.Flight.filter({ company_id: company.id, status: 'completed' }, '-created_date');
+      const failed = await base44.entities.Flight.filter({ company_id: company.id, status: 'failed' }, '-created_date');
       return [...completed, ...failed].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-    }
+    },
+    enabled: !!company?.id
   });
 
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'all'],
+    queryKey: ['contracts', 'all', company?.id],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Contract.filter({ company_id: companies[0].id });
-    }
+      return await base44.entities.Contract.filter({ company_id: company.id });
+    },
+    enabled: !!company?.id
   });
 
   const getContractForFlight = (flight) => {
