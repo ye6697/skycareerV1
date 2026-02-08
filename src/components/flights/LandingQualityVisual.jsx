@@ -5,12 +5,18 @@ import { Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function LandingQualityVisual({ flight, gameSettings }) {
   const landingVs = Math.abs(flight.landing_vs || 0);
-  // Priority: landing_g_force from plugin > landingGForce from tracker > max_g_force fallback
+  // Priority: landingGForce from tracker (most accurate) > landing_g_force from plugin > max_g_force fallback
   const landingGforce = Math.abs(
-    flight.xplane_data?.landing_g_force || 
     flight.xplane_data?.landingGForce || 
+    flight.xplane_data?.landing_g_force || 
     flight.max_g_force || 0
   );
+
+  // Landing quality impact data from xplane_data
+  const landingType = flight.xplane_data?.landingType;
+  const landingScoreChange = flight.xplane_data?.landingScoreChange || 0;
+  const landingBonus = flight.xplane_data?.landingBonus || 0;
+  const landingMaintenanceCost = flight.xplane_data?.landingMaintenanceCost || 0;
 
   // Determine landing quality ONLY based on G-force
   const getLandingQuality = () => {
