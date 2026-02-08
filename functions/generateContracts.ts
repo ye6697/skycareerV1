@@ -23,7 +23,7 @@ const airports = [
   { icao: "ESSA", city: "Stockholm", lat: 59.6519, lon: 17.9186 }
 ];
 
-const aircraftTypes = [
+const allAircraftTypes = [
   { type: "small_prop", passengers: 4, cargo: 200, range: 500 },
   { type: "turboprop", passengers: 19, cargo: 1500, range: 1000 },
   { type: "regional_jet", passengers: 50, cargo: 3000, range: 1500 },
@@ -76,81 +76,170 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return Math.round(R * c);
 };
 
+function randomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateContract(companyId, aircraftType, companyLevel) {
+  const depAirport = randomItem(airports);
+  let arrAirport = randomItem(airports);
+  while (arrAirport.icao === depAirport.icao) {
+    arrAirport = randomItem(airports);
+  }
+
+  const distance = calculateDistance(depAirport.lat, depAirport.lon, arrAirport.lat, arrAirport.lon);
+  
+  // Only generate if distance is within aircraft range
+  if (distance > aircraftType.range) return null;
+
+  const contractType = randomItem(contractTypes);
+  
+  const passengers = (contractType === "passenger" || contractType === "charter")
+    ? Math.max(1, Math.floor(Math.random() * aircraftType.passengers * 0.8) + Math.floor(aircraftType.passengers * 0.2))
+    : 0;
+  
+  const cargo = contractType === "cargo"
+    ? Math.max(10, Math.floor(Math.random() * aircraftType.cargo * 0.8) + Math.floor(aircraftType.cargo * 0.2))
+    : 0;
+
+  const basePayout = distance * 50 + passengers * 500 + cargo * 5;
+  const payout = Math.round(basePayout * (0.8 + Math.random() * 0.4));
+
+  const briefings = briefingTemplates[contractType];
+  const briefing = randomItem(briefings);
+
+  const difficulty = distance < 500 ? "easy" : distance < 1500 ? "medium" : distance < 3000 ? "hard" : "extreme";
+
+  return {
+    company_id: companyId,
+    title: `${depAirport.city} → ${arrAirport.city}`,
+    briefing,
+    type: contractType,
+    departure_airport: depAirport.icao,
+    departure_city: depAirport.city,
+    arrival_airport: arrAirport.icao,
+    arrival_city: arrAirport.city,
+    distance_nm: distance,
+    passenger_count: passengers,
+    cargo_weight_kg: cargo,
+    payout,
+    bonus_potential: Math.round(payout * 0.3),
+    required_aircraft_type: [aircraftType.type],
+    required_crew: {
+      captain: 1,
+      first_officer: passengers > 50 ? 1 : 0,
+      flight_attendant: passengers > 20 ? Math.ceil(passengers / 50) : 0,
+      loadmaster: cargo > 5000 ? 1 : 0
+    },
+    status: "available",
+    difficulty,
+    level_requirement: Math.max(1, Math.min(companyLevel, Math.floor(distance / 300)))
+  };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    
-    if (!user || user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contracts = [];
-    
-    for (let i = 0; i < 10000; i++) {
-      const depAirport = airports[Math.floor(Math.random() * airports.length)];
-      let arrAirport = airports[Math.floor(Math.random() * airports.length)];
-      
-      while (arrAirport.icao === depAirport.icao) {
-        arrAirport = airports[Math.floor(Math.random() * airports.length)];
-      }
-      
-      const distance = calculateDistance(depAirport.lat, depAirport.lon, arrAirport.lat, arrAirport.lon);
-      
-      const suitableAircraft = aircraftTypes.filter(ac => ac.range >= distance);
-      if (suitableAircraft.length === 0) continue;
-      
-      const selectedAircraft = suitableAircraft[Math.floor(Math.random() * suitableAircraft.length)];
-      const contractType = contractTypes[Math.floor(Math.random() * contractTypes.length)];
-      
-      const passengers = contractType === "passenger" || contractType === "charter" 
-        ? Math.floor(Math.random() * selectedAircraft.passengers * 0.8) + Math.floor(selectedAircraft.passengers * 0.2)
-        : 0;
-      
-      const cargo = contractType === "cargo" 
-        ? Math.floor(Math.random() * selectedAircraft.cargo * 0.8) + Math.floor(selectedAircraft.cargo * 0.2)
-        : 0;
-      
-      const basePayout = distance * 50 + passengers * 500 + cargo * 5;
-      const payout = Math.round(basePayout * (0.8 + Math.random() * 0.4));
-      
-      const level = Math.max(1, Math.floor(distance / 300) + Math.floor(i / 100));
-      
-      const briefings = briefingTemplates[contractType];
-      const briefing = briefings[Math.floor(Math.random() * briefings.length)];
-      
-      contracts.push({
-        title: `${depAirport.city} → ${arrAirport.city}`,
-        briefing,
-        type: contractType,
-        departure_airport: depAirport.icao,
-        departure_city: depAirport.city,
-        arrival_airport: arrAirport.icao,
-        arrival_city: arrAirport.city,
-        distance_nm: distance,
-        passenger_count: passengers,
-        cargo_weight_kg: cargo,
-        payout,
-        bonus_potential: Math.round(payout * 0.3),
-        required_aircraft_type: [selectedAircraft.type],
-        required_crew: {
-          captain: 1,
-          first_officer: passengers > 50 ? 1 : 0,
-          flight_attendant: passengers > 20 ? Math.ceil(passengers / 50) : 0,
-          loadmaster: cargo > 5000 ? 1 : 0
-        },
-        status: "available",
-        difficulty: distance < 500 ? "easy" : distance < 1500 ? "medium" : distance < 3000 ? "hard" : "extreme",
-        level_requirement: level
-      });
+    // Get user's company
+    const companies = await base44.entities.Company.filter({ created_by: user.email });
+    const company = companies[0];
+    if (!company) {
+      return Response.json({ error: 'Keine Firma gefunden' }, { status: 400 });
     }
+
+    // Get user's aircraft
+    const aircraft = await base44.entities.Aircraft.filter({ company_id: company.id });
+    const availableAircraft = aircraft.filter(a => a.status !== 'sold');
+
+    if (availableAircraft.length === 0) {
+      return Response.json({ error: 'Keine Flugzeuge vorhanden' }, { status: 400 });
+    }
+
+    // Get the types the user owns
+    const ownedTypes = [...new Set(availableAircraft.map(a => a.type))];
+    const ownedTypeSpecs = allAircraftTypes.filter(t => ownedTypes.includes(t.type));
     
-    await base44.asServiceRole.entities.Contract.bulkCreate(contracts);
+    // Types the user does NOT own
+    const notOwnedTypeSpecs = allAircraftTypes.filter(t => !ownedTypes.includes(t.type));
+
+    const compatibleContracts = [];
+    const incompatibleContracts = [];
+
+    // Generate 5 compatible contracts (matching owned aircraft types)
+    let attempts = 0;
+    while (compatibleContracts.length < 5 && attempts < 100) {
+      attempts++;
+      const acType = randomItem(ownedTypeSpecs);
+      const contract = generateContract(company.id, acType, company.level || 1);
+      if (contract) {
+        // Verify an owned aircraft can actually fulfill it
+        const canFulfill = availableAircraft.some(plane => {
+          const typeMatch = contract.required_aircraft_type.includes(plane.type);
+          const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
+          const rangeMatch = !contract.distance_nm || (plane.range_nm && plane.range_nm >= contract.distance_nm);
+          const passengerMatch = !contract.passenger_count || (plane.passenger_capacity && plane.passenger_capacity >= contract.passenger_count);
+          return typeMatch && cargoMatch && rangeMatch && passengerMatch;
+        });
+        if (canFulfill) {
+          compatibleContracts.push(contract);
+        }
+      }
+    }
+
+    // Generate 5 incompatible contracts
+    attempts = 0;
+    while (incompatibleContracts.length < 5 && attempts < 100) {
+      attempts++;
+      
+      if (notOwnedTypeSpecs.length > 0) {
+        // Use a type the user doesn't own
+        const acType = randomItem(notOwnedTypeSpecs);
+        const contract = generateContract(company.id, acType, company.level || 1);
+        if (contract) {
+          incompatibleContracts.push(contract);
+        }
+      } else {
+        // All types owned - generate contracts that exceed capacity/range
+        const acType = randomItem(ownedTypeSpecs);
+        const contract = generateContract(company.id, acType, company.level || 1);
+        if (contract) {
+          // Make it incompatible by increasing requirements beyond what user has
+          const maxRange = Math.max(...availableAircraft.map(a => a.range_nm || 0));
+          const maxCargo = Math.max(...availableAircraft.map(a => a.cargo_capacity_kg || 0));
+          const maxPax = Math.max(...availableAircraft.map(a => a.passenger_capacity || 0));
+          
+          // Randomly exceed one requirement
+          const exceedType = Math.floor(Math.random() * 3);
+          if (exceedType === 0) {
+            contract.distance_nm = maxRange + 500 + Math.floor(Math.random() * 1000);
+          } else if (exceedType === 1 && contract.cargo_weight_kg > 0) {
+            contract.cargo_weight_kg = maxCargo + 1000 + Math.floor(Math.random() * 5000);
+          } else {
+            contract.passenger_count = maxPax + 50 + Math.floor(Math.random() * 100);
+          }
+          contract.title = contract.title + " (Spezial)";
+          incompatibleContracts.push(contract);
+        }
+      }
+    }
+
+    const allContracts = [...compatibleContracts, ...incompatibleContracts];
     
-    return Response.json({ 
-      success: true, 
-      created: contracts.length,
-      message: `${contracts.length} Aufträge erfolgreich erstellt`
+    if (allContracts.length > 0) {
+      await base44.entities.Contract.bulkCreate(allContracts);
+    }
+
+    return Response.json({
+      success: true,
+      created: allContracts.length,
+      compatible: compatibleContracts.length,
+      incompatible: incompatibleContracts.length,
+      message: `${allContracts.length} Aufträge generiert (${compatibleContracts.length} kompatibel, ${incompatibleContracts.length} nicht kompatibel)`
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
