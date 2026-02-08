@@ -677,10 +677,6 @@ export default function FlightTracker() {
               console.log('✅ Alle Crew-Mitglieder aktualisiert');
             }
 
-            // Calculate level bonus (1% per level auf den Gewinn)
-            const levelBonusPercent = (company?.level || 1) * 0.01; // 1% pro Level
-            const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
-
             // Calculate actual balance change (revenue - direct costs + level bonus)
             const actualProfit = profit + levelBonus;
 
