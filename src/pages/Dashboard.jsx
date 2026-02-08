@@ -51,23 +51,15 @@ export default function Dashboard() {
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Employee.filter({ company_id: companies[0].id, status: 'available' });
-    }
+    queryKey: ['employees', companyId],
+    queryFn: () => base44.entities.Employee.filter({ company_id: companyId, status: 'available' }),
+    enabled: !!companyId
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      return await base44.entities.Aircraft.filter({ company_id: companies[0].id, status: 'available' });
-    }
+    queryKey: ['aircraft', companyId],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: 'available' }),
+    enabled: !!companyId
   });
 
   const { data: allAircraft = [] } = useQuery({
