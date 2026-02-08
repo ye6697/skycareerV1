@@ -378,7 +378,11 @@ export default function ActiveFlights() {
                               Flug vorbereiten
                             </Button>
                             <Button
-                        onClick={() => cancelFlightMutation.mutate(contract)}
+                        onClick={() => {
+                          if (confirm(`Auftrag stornieren? Stornierungsgebühr: $${(contract.payout * 0.3 || 5000).toLocaleString()}`)) {
+                            cancelFlightMutation.mutate(contract);
+                          }
+                        }}
                         disabled={cancelFlightMutation.isPending}
                         variant="outline"
                         className="border-red-500 text-red-400 hover:bg-red-500/10">
@@ -396,7 +400,11 @@ export default function ActiveFlights() {
                               </Button>
                             </Link>
                             <Button
-                        onClick={() => cancelFlightMutation.mutate(contract)}
+                        onClick={() => {
+                          if (confirm(`Flug abbrechen? Stornierungsgebühr: $${(contract.payout * 0.3 || 5000).toLocaleString()}`)) {
+                            cancelFlightMutation.mutate(contract);
+                          }
+                        }}
                         disabled={cancelFlightMutation.isPending}
                         variant="outline"
                         className="border-red-500 text-red-400 hover:bg-red-500/10">
