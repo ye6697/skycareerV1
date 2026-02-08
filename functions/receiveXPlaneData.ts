@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       });
 
       if (contract) {
-        await base44.asServiceRole.entities.Contract.update(contract.id, { status: 'completed' });
+        await base44.asServiceRole.entities.Contract.update(contract.id, { status: crash ? 'failed' : 'completed' });
       }
 
       if (company) {
