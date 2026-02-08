@@ -20,11 +20,25 @@ Deno.serve(async (req) => {
     for (const aircraft of allAircraft) {
       const template = templates.find(t => t.name === aircraft.name);
       
-      if (template && template.image_url) {
-        await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
-          image_url: template.image_url
-        });
-        updated++;
+      if (template) {
+        const updateData = {};
+        
+        if (template.image_url) {
+          updateData.image_url = template.image_url;
+        }
+        
+        if (template.purchase_price && (!aircraft.purchase_price || aircraft.purchase_price === 0)) {
+          updateData.purchase_price = template.purchase_price;
+        }
+        
+        if (template.purchase_price && (!aircraft.current_value || aircraft.current_value === 0)) {
+          updateData.current_value = template.purchase_price;
+        }
+        
+        if (Object.keys(updateData).length > 0) {
+          await base44.asServiceRole.entities.Aircraft.update(aircraft.id, updateData);
+          updated++;
+        }
       }
     }
     
