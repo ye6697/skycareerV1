@@ -8,25 +8,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's company
-    const companies = await base44.entities.Company.filter({ created_by: user.email });
-    const company = companies[0];
+    // Get user's company using service role
+    const allCompanies = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
+    const company = allCompanies[0];
     if (!company) {
       return Response.json({ contracts: [] });
     }
 
-    // Use service role to get all contracts (available + accepted for this company)
-    const availableContracts = await base44.asServiceRole.entities.Contract.filter({ status: 'available' });
-    const acceptedContracts = await base44.asServiceRole.entities.Contract.filter({ status: 'accepted', company_id: company.id });
+    // Use service role to get all contracts for this company
+    const companyContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });
     
-    // Filter available: show contracts that either have no company_id (global) or belong to this user's company
-    const filteredAvailable = availableContracts.filter(c => 
-      !c.company_id || c.company_id === company.id
+    // Return available + accepted contracts
+    const relevantContracts = companyContracts.filter(c => 
+      c.status === 'available' || c.status === 'accepted'
     );
     
-    const allContracts = [...filteredAvailable, ...acceptedContracts];
-    
-    return Response.json({ contracts: allContracts });
+    return Response.json({ contracts: relevantContracts });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
