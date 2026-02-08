@@ -860,6 +860,12 @@ export default function FlightTracker() {
       let landingMaintenanceCost = 0;
       let landingBonus = 0;
 
+       // Get aircraft for maintenance cost calculations (purchase price is neuwert)
+       // Use flight.aircraft_id if available, otherwise try to find from aircraft list
+       const aircraftId = flight?.aircraft_id;
+       const currentAircraft = aircraft?.find(a => a.id === aircraftId);
+       const aircraftPurchasePrice = currentAircraft?.purchase_price || 1000000; // fallback price if not found
+
       if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
         const gForce = landingGForceValue;
 
@@ -887,17 +893,7 @@ export default function FlightTracker() {
       }
       
       // Crash nur wenn tatsächlich abgehoben war
-      const isCrash = (landingType === 'crash' || prev.events.crash || (xp.has_crashed && newWasAirborne)) && newWasAirborne;
-      
-      // Calculate score penalties - only deduct when NEW event occurs
-      let baseScore = prev.flightScore;
-      
-      // Landungs-Score hinzufügen/abziehen
-      baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
-
-      // Track if high G-force event already happened
-      const hadHighGEvent = prev.events.high_g_force || false;
-
+...
       // Calculate maintenance cost increase based on NEW events only
       let maintenanceCostIncrease = landingMaintenanceCost;
 
@@ -911,12 +907,6 @@ export default function FlightTracker() {
           landingBonus
         });
       }
-
-       // Get aircraft for maintenance cost calculations (purchase price is neuwert)
-       // Use flight.aircraft_id if available, otherwise try to find from aircraft list
-       const aircraftId = flight?.aircraft_id;
-       const currentAircraft = aircraft?.find(a => a.id === aircraftId);
-       const aircraftPurchasePrice = currentAircraft?.purchase_price || 1000000; // fallback price if not found
       
       // Heckaufsetzer (Tailstrike): -20 Punkte + 2% des Neuwertes
       if (xp.tailstrike && !prev.events.tailstrike) {
