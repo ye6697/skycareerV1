@@ -143,32 +143,37 @@ export default function FlightTracker() {
     return comments;
   };
 
-  // activeFlightId will be set after existingFlight query below
-  // Declared here so xplaneLog query can reference it
-  const [activeFlightId, setActiveFlightId] = useState(null);
-  
+  // xplaneLog query - polls the company's XPlaneLog (same source as Debug page)
+  // plus checks Flight.xplane_data directly
   const { data: xplaneLog } = useQuery({
-    queryKey: ['xplane-live-data', activeFlightId],
+    queryKey: ['xplane-live-data', flight?.id, existingFlight?.id],
     queryFn: async () => {
-      // Primary source: Read live data directly from the Flight record's xplane_data field
-      if (activeFlightId) {
-        const flights = await base44.entities.Flight.filter({ id: activeFlightId });
+      // Source 1: Read xplane_data directly from the active Flight record
+      const flightId = flight?.id || existingFlight?.id;
+      if (flightId) {
+        const flights = await base44.entities.Flight.filter({ id: flightId });
         const currentFlight = flights[0];
         if (currentFlight?.xplane_data) {
           return { raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date };
         }
       }
       
-      // Fallback: Read from XPlaneLog
-      if (company?.id) {
-        const logs = await base44.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 1);
+      // Source 2: Fallback to XPlaneLog (same as Debug page)
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      let companyId = cid;
+      if (!companyId) {
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        companyId = companies[0]?.id;
+      }
+      if (companyId) {
+        const logs = await base44.entities.XPlaneLog.filter({ company_id: companyId }, '-created_date', 1);
         if (logs[0]) return logs[0];
       }
       return null;
     },
     refetchInterval: 1000,
-    // Enable as soon as we have an active flight ID and phase is not completed
-    enabled: !!activeFlightId && flightPhase !== 'completed'
+    enabled: flightPhase !== 'completed'
   });
 
   const { data: contract } = useQuery({
