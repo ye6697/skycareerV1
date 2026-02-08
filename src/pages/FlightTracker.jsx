@@ -1292,6 +1292,35 @@ export default function FlightTracker() {
                   </div>
                 )}
                 
+                {flightPhase === 'takeoff' && !flightData.wasAirborne && (
+                  <div className="p-4 bg-amber-900/20 border border-amber-700/50 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1">
+                        <motion.div
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
+                          <Plane className="w-6 h-6 text-amber-400" />
+                        </motion.div>
+                      </div>
+                      <div>
+                        <p className="font-medium text-amber-200 mb-1">Warte auf X-Plane...</p>
+                        <p className="text-sm text-amber-300/70">
+                          Starte jetzt deinen Flug in X-Plane 12. Lade das richtige Flugzeug am Abflughafen 
+                          <span className="font-mono font-bold text-amber-200"> {contract?.departure_airport}</span> und 
+                          hebe ab. Der Flug wird automatisch erkannt, sobald du in der Luft bist.
+                        </p>
+                        {company?.xplane_connection_status !== 'connected' && (
+                          <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
+                            <AlertTriangle className="w-4 h-4" />
+                            X-Plane ist nicht verbunden. Stelle sicher, dass das Plugin aktiv ist.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {flightPhase !== 'preflight' && (
                   <div className="space-y-4">
                     <p className="text-sm text-slate-400">
