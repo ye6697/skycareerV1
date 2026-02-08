@@ -10,6 +10,16 @@ import { Upload, Image as ImageIcon, Check, AlertCircle } from "lucide-react";
 
 export default function AdminAircraftImages() {
   const queryClient = useQueryClient();
+
+  const updateAllAircraftMutation = useMutation({
+    mutationFn: async () => {
+      return await base44.functions.invoke('updateAircraftImages', {});
+    },
+    onSuccess: (response) => {
+      alert(response.data.message || 'Alle Flugzeuge aktualisiert!');
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+    }
+  });
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [uploadingId, setUploadingId] = useState(null);
 
