@@ -80,7 +80,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             <ArrowRight className="w-4 h-4 text-slate-400" />
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
               <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="font-mono font-medium text-slate-50">{contract.arrival_airport}</span>
+              <span className="font-mono font-medium">{contract.arrival_airport}</span>
             </div>
           </div>
 
@@ -114,6 +114,9 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                   +${contract.bonus_potential?.toLocaleString()} Bonus möglich
                 </p>
               }
+              <p className="text-xs text-amber-400">
+                + Level-Bonus auf Gewinn
+              </p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>
