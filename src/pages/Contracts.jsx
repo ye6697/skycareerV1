@@ -50,6 +50,7 @@ export default function Contracts() {
       return res.data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
     }
   });
