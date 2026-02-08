@@ -686,28 +686,15 @@ export default function FlightTracker() {
               // Reputation based on score (0-100)
               const reputationChange = hasCrashed ? -10 : Math.round((scoreWithTime - 85) / 5);
               
-              // XP and Level system with increasing XP requirements (10% per level)
-              const calculateXPForLevel = (level) => {
-                return Math.round(100 * Math.pow(1.1, level - 1));
-              };
-
+              // XP and Level system
+              const calculateXPForLevel = (level) => Math.round(100 * Math.pow(1.1, level - 1));
               const earnedXP = Math.round(scoreWithTime);
               let currentLevel = company.level || 1;
               let currentXP = (company.experience_points || 0) + earnedXP;
-
-              // Level up as many times as possible
               while (currentXP >= calculateXPForLevel(currentLevel)) {
                 currentXP -= calculateXPForLevel(currentLevel);
                 currentLevel++;
               }
-
-              console.log('💰 FINANZBERECHNUNG:', {
-                revenue,
-                levelBonus,
-                directCosts,
-                actualProfit,
-                currentBalance: company.balance
-              });
 
               await base44.entities.Company.update(company.id, {
                 balance: (company.balance || 0) + actualProfit,
