@@ -45,7 +45,10 @@ export default function CompletedFlightDetails() {
     queryKey: ['contract', contractId],
     queryFn: async () => {
       if (!contractId) return null;
-      const contracts = await base44.entities.Contract.filter({ id: contractId });
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return null;
+      const contracts = await base44.entities.Contract.filter({ id: contractId, company_id: companies[0].id });
       return contracts[0];
     },
     enabled: !!contractId && !passedContract
@@ -55,7 +58,10 @@ export default function CompletedFlightDetails() {
     queryKey: ['flights', contractId],
     queryFn: async () => {
       if (!contractId) return [];
-      const result = await base44.entities.Flight.filter({ contract_id: contractId });
+      const user = await base44.auth.me();
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (!companies[0]) return [];
+      const result = await base44.entities.Flight.filter({ contract_id: contractId, company_id: companies[0].id });
       return result.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
     enabled: !!contractId && !passedFlight

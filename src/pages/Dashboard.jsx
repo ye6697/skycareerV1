@@ -36,14 +36,18 @@ export default function Dashboard() {
     }
   });
 
+  const companyId = company?.id;
+
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'available'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'available' }, '-created_date', 50)
+    queryFn: () => base44.entities.Contract.filter({ status: 'available' }, '-created_date', 50),
+    enabled: !!companyId
   });
 
   const { data: acceptedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
+    queryKey: ['contracts', 'accepted', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'accepted' }),
+    enabled: !!companyId
   });
 
   const { data: employees = [] } = useQuery({
@@ -67,13 +71,15 @@ export default function Dashboard() {
   });
 
   const { data: allAircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'all'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: { $ne: 'sold' } })
+    queryKey: ['aircraft', 'all', companyId],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: { $ne: 'sold' } }),
+    enabled: !!companyId
   });
 
   const { data: recentFlights = [] } = useQuery({
-    queryKey: ['flights', 'recent'],
-    queryFn: () => base44.entities.Flight.filter({ status: 'completed' }, '-created_date', 5)
+    queryKey: ['flights', 'recent', companyId],
+    queryFn: () => base44.entities.Flight.filter({ company_id: companyId, status: 'completed' }, '-created_date', 5),
+    enabled: !!companyId
   });
 
   // Filter contracts based on available aircraft capabilities

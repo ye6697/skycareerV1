@@ -21,10 +21,12 @@ export default function XPlaneDebug() {
   });
 
   const { data: flights = [], refetch: refetchFlights } = useQuery({
-    queryKey: ['all-flights'],
+    queryKey: ['all-flights', company?.id],
     queryFn: async () => {
-      return await base44.entities.Flight.list('-updated_date', 5);
+      if (!company?.id) return [];
+      return await base44.entities.Flight.filter({ company_id: company.id }, '-updated_date', 5);
     },
+    enabled: !!company?.id,
     refetchInterval: 2000
   });
 
