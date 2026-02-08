@@ -133,7 +133,7 @@ function generateContract(companyId, aircraftType, companyLevel) {
     },
     status: "available",
     difficulty,
-    level_requirement: Math.max(1, Math.min(companyLevel, Math.floor(distance / 300)))
+    level_requirement: 1
   };
 }
 
