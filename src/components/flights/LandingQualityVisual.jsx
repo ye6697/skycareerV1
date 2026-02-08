@@ -7,9 +7,9 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
   const landingVs = Math.abs(flight.landing_vs || 0);
   // Priority: landingGForce from tracker (most accurate) > landing_g_force from plugin > max_g_force fallback
   const landingGforce = Math.abs(
-    flight.xplane_data?.landingGForce || 
-    flight.xplane_data?.landing_g_force || 
-    flight.max_g_force || 0
+    flight.xplane_data?.landingGForce ?? 
+    flight.xplane_data?.landing_g_force ?? 
+    flight.max_g_force ?? 0
   );
 
   // Landing quality impact data from xplane_data
