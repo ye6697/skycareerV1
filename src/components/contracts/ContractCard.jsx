@@ -11,11 +11,10 @@ import {
   Clock,
   DollarSign,
   ArrowRight,
-  Star,
-  AlertTriangle
-} from "lucide-react";
+  Star } from
+"lucide-react";
 
-export default function ContractCard({ contract, onAccept, onView, isAccepting, ownedAircraft = [] }) {
+export default function ContractCard({ contract, onAccept, onView, isAccepting }) {
   const typeConfig = {
     passenger: { icon: Users, color: "blue", label: "Passagiere" },
     cargo: { icon: Package, color: "orange", label: "Fracht" },
@@ -34,79 +33,36 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
   const difficulty = difficultyConfig[contract.difficulty] || difficultyConfig.medium;
   const TypeIcon = config.icon;
 
-  // Check if suitable aircraft is available
-  const suitableAircraft = ownedAircraft.filter((ac) => {
-    const typeOk = !contract?.required_aircraft_type || 
-                   contract.required_aircraft_type.length === 0 || 
-                   contract.required_aircraft_type.includes(ac.type);
-    const passengerOk = ac.passenger_capacity >= (contract?.passenger_count || 0);
-    const cargoOk = ac.cargo_capacity_kg >= (contract?.cargo_weight_kg || 0);
-    const rangeOk = ac.range_nm >= (contract?.distance_nm || 0);
-    const statusOk = ac.status === 'available';
-    
-    const maintenanceCost = ac.accumulated_maintenance_cost || 0;
-    const currentValue = ac.current_value || ac.purchase_price || 0;
-    const maintenancePercent = currentValue > 0 ? (maintenanceCost / currentValue) * 100 : 0;
-    const maintenanceOk = maintenancePercent <= 10;
-    
-    return typeOk && passengerOk && cargoOk && rangeOk && statusOk && maintenanceOk;
-  });
-
-  const hasNoSuitableAircraft = ownedAircraft.length > 0 && suitableAircraft.length === 0;
-  
-  // Determine specific issue
-  let aircraftIssue = '';
-  if (hasNoSuitableAircraft) {
-    if (contract?.required_aircraft_type && contract.required_aircraft_type.length > 0) {
-      const hasRequiredType = ownedAircraft.some(ac => contract.required_aircraft_type.includes(ac.type));
-      if (!hasRequiredType) {
-        const typeLabels = {
-          small_prop: 'Kleinflugzeug',
-          turboprop: 'Turboprop',
-          regional_jet: 'Regional Jet',
-          narrow_body: 'Narrow-Body',
-          wide_body: 'Wide-Body',
-          cargo: 'Frachtflugzeug'
-        };
-        aircraftIssue = `Benötigt: ${contract.required_aircraft_type.map(t => typeLabels[t] || t).join(' oder ')}`;
-      } else {
-        aircraftIssue = 'Flugzeug erfüllt Anforderungen nicht (Kapazität/Reichweite/Wartung)';
-      }
-    } else {
-      aircraftIssue = 'Kein passendes Flugzeug verfügbar';
-    }
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
-    >
+      transition={{ duration: 0.3 }}>
+
       <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
         <div className={`h-1.5 bg-gradient-to-r ${
-          config.color === "blue" ? "from-blue-400 to-blue-600" :
-          config.color === "orange" ? "from-orange-400 to-orange-600" :
-          config.color === "purple" ? "from-purple-400 to-purple-600" :
-          "from-red-400 to-red-600"
-        }`} />
+        config.color === "blue" ? "from-blue-400 to-blue-600" :
+        config.color === "orange" ? "from-orange-400 to-orange-600" :
+        config.color === "purple" ? "from-purple-400 to-purple-600" :
+        "from-red-400 to-red-600"}`
+        } />
         
         <div className="p-5">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-                config.color === "blue" ? "bg-blue-100" :
-                config.color === "orange" ? "bg-orange-100" :
-                config.color === "purple" ? "bg-purple-100" :
-                "bg-red-100"
-              }`}>
+              config.color === "blue" ? "bg-blue-100" :
+              config.color === "orange" ? "bg-orange-100" :
+              config.color === "purple" ? "bg-purple-100" :
+              "bg-red-100"}`
+              }>
                 <TypeIcon className={`w-5 h-5 ${
-                  config.color === "blue" ? "text-blue-600" :
-                  config.color === "orange" ? "text-orange-600" :
-                  config.color === "purple" ? "text-purple-600" :
-                  "text-red-600"
-                }`} />
+                config.color === "blue" ? "text-blue-600" :
+                config.color === "orange" ? "text-orange-600" :
+                config.color === "purple" ? "text-purple-600" :
+                "text-red-600"}`
+                } />
               </div>
               <div>
                 <h3 className="font-semibold text-white">{contract.title}</h3>
@@ -124,7 +80,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
             <ArrowRight className="w-4 h-4 text-slate-400" />
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
               <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="font-mono font-medium">{contract.arrival_airport}</span>
+              <span className="font-mono font-medium text-slate-50">{contract.arrival_airport}</span>
             </div>
           </div>
 
@@ -133,29 +89,19 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
               <Plane className="w-4 h-4 text-slate-400" />
               <span>{contract.distance_nm?.toLocaleString() || "---"} NM</span>
             </div>
-            {contract.type === "passenger" && (
-              <div className="flex items-center gap-2 text-slate-300">
+            {contract.type === "passenger" &&
+            <div className="flex items-center gap-2 text-slate-300">
                 <Users className="w-4 h-4 text-slate-400" />
                 <span>{contract.passenger_count} Passagiere</span>
               </div>
-            )}
-            {contract.type === "cargo" && (
-              <div className="flex items-center gap-2 text-slate-300">
+            }
+            {contract.type === "cargo" &&
+            <div className="flex items-center gap-2 text-slate-300">
                 <Package className="w-4 h-4 text-slate-400" />
                 <span>{contract.cargo_weight_kg?.toLocaleString()} kg</span>
               </div>
-            )}
+            }
           </div>
-
-          {hasNoSuitableAircraft && (
-            <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg flex items-start gap-2 mb-4">
-              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-medium text-amber-300">Kein geeignetes Flugzeug</p>
-                <p className="text-xs text-amber-400">{aircraftIssue}</p>
-              </div>
-            </div>
-          )}
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-700">
             <div>
@@ -163,30 +109,30 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting, 
               <p className="text-xl font-bold text-emerald-600">
                 ${contract.payout?.toLocaleString()}
               </p>
-              {contract.bonus_potential > 0 && (
-                <p className="text-xs text-amber-600">
+              {contract.bonus_potential > 0 &&
+              <p className="text-xs text-amber-600">
                   +${contract.bonus_potential?.toLocaleString()} Bonus möglich
                 </p>
-              )}
+              }
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>
                 Details
               </Button>
-              {contract.status === "available" && (
-                <Button
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={() => onAccept?.(contract)}
-                  disabled={isAccepting || hasNoSuitableAircraft}
-                >
+              {contract.status === "available" &&
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => onAccept?.(contract)}
+                disabled={isAccepting}>
+
                   Annehmen
                 </Button>
-              )}
+              }
             </div>
           </div>
         </div>
       </Card>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
