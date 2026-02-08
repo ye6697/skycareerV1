@@ -47,37 +47,54 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
-  });
-
-  const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
-  });
-
-  const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
-  });
-
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
-  });
-
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
+      const u = await base44.auth.me();
+      const cid = u?.company_id || u?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: u.email });
+      if (companies[0]) {
+        await base44.auth.updateMe({ company_id: companies[0].id });
+        return companies[0];
+      }
+      return null;
     }
+  });
+
+  const companyId = company?.id;
+
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['contracts', 'accepted', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: inProgressContracts = [] } = useQuery({
+    queryKey: ['contracts', 'in_progress', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: completedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'completed', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', companyId],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', companyId],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: companyId }),
+    enabled: !!companyId
   });
 
   const startFlightMutation = useMutation({
@@ -308,7 +325,6 @@ export default function ActiveFlights() {
                               +${contract.bonus_potential?.toLocaleString()} Bonus
                             </p>
                       }
-                          <p className="text-xs text-amber-400">+ Level-Bonus auf Gewinn</p>
                         </div>
                       </div>
 
