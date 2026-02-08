@@ -513,6 +513,9 @@ export default function FlightTracker() {
      // Landing and airport fees
      const airportFee = 150;
 
+      // Check for crash
+      const hasCrashed = finalFlightData.events.crash;
+
      // Bei Crash: KEIN Payout und KEIN Bonus
      let revenue = 0;
      if (!hasCrashed) {
@@ -527,9 +530,6 @@ export default function FlightTracker() {
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
      const directCosts = fuelCost + crewCost + airportFee;
      const profit = revenue - directCosts;
-
-      // Check for crash
-            const hasCrashed = finalFlightData.events.crash;
 
             // Calculate depreciation based on flight hours
             const airplaneToUpdate = aircraft.find(a => a.id === flight.aircraft_id);
