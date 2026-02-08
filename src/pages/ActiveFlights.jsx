@@ -110,8 +110,11 @@ export default function ActiveFlights() {
         throw new Error('Flugzeug hat nicht genug Reichweite');
       }
 
+      if (!company) throw new Error('Keine Firma gefunden');
+
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
