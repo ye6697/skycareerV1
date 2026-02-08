@@ -128,7 +128,7 @@ export default function CompletedFlightDetails() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold">{finalContract.title}</h1>
-                {flight?.xplane_data?.events?.crash ? (
+                {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
                   <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4" />
                     CRASH - Fehlgeschlagen
@@ -384,10 +384,10 @@ export default function CompletedFlightDetails() {
                         </div>
                       )}
                       {events.crash && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
-                          <AlertTriangle className="w-4 h-4" />
-                          CRASH
-                        </div>
+                       <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
+                         <AlertTriangle className="w-4 h-4" />
+                         CRASH (-100 Punkte, Wartung: 70% Neuwert)
+                       </div>
                       )}
                       {events.harsh_controls && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
@@ -407,10 +407,10 @@ export default function CompletedFlightDetails() {
                           Harte Landung
                         </div>
                       )}
-                      {events.fuel_emergency && (
+                      {(flight.xplane_data?.fuel < 3 || events.fuel_emergency) && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
-                          Treibstoff-Notstand
+                          Treibstoff-Notstand (unter 3%)
                         </div>
                       )}
                       </div>
