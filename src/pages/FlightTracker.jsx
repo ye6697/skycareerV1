@@ -176,14 +176,19 @@ export default function FlightTracker() {
     enabled: !!contractIdFromUrl
   });
 
-  // xplaneLog query - uses flight?.id (set from existingFlight via useEffect) 
-  // Polls Flight.xplane_data first, falls back to XPlaneLog (same as Debug page)
+  // Derive the active flight ID - either from state (after startFlight) or from existingFlight query
+  // This avoids the async state update delay problem
+  const activeFlightId = flight?.id || existingFlight?.id;
+
+  // xplaneLog query - ALWAYS polls as long as flight is not completed
+  // Uses activeFlightId directly (no state dependency delay)
+  // This is the SAME approach as XPlaneDebug page: fetch Flight record + XPlaneLog
   const { data: xplaneLog } = useQuery({
-    queryKey: ['xplane-live-data', flight?.id, contractIdFromUrl],
+    queryKey: ['xplane-live-data', activeFlightId],
     queryFn: async () => {
-      // Source 1: Read xplane_data directly from the active Flight record
-      if (flight?.id) {
-        const flights = await base44.entities.Flight.filter({ id: flight.id });
+      // Source 1: Read xplane_data directly from the active Flight record (same as Debug page)
+      if (activeFlightId) {
+        const flights = await base44.entities.Flight.filter({ id: activeFlightId });
         const currentFlight = flights[0];
         if (currentFlight?.xplane_data) {
           return { raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date };
@@ -204,7 +209,7 @@ export default function FlightTracker() {
       }
       return null;
     },
-    refetchInterval: 1000,
+    refetchInterval: 2000,
     enabled: flightPhase !== 'completed'
   });
 
@@ -213,8 +218,9 @@ export default function FlightTracker() {
     if (existingFlight && !flight) {
       setFlight(existingFlight);
       setFlightPhase('takeoff');
-      // Setze flightStartedAt auf jetzt, damit nur neue Logs verarbeitet werden
-      setFlightStartedAt(Date.now());
+      // DO NOT set flightStartedAt here - we WANT to process the existing xplane_data on the Flight record
+      // The timestamp filter was incorrectly blocking ALL existing data
+      setFlightStartedAt(null);
       setIsCompletingFlight(false);
       // Reset flightData komplett für sauberen Start
       const cleanData = {
