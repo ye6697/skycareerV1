@@ -880,7 +880,17 @@ export default function FlightTracker() {
       }
       
       // Crash nur wenn tatsächlich abgehoben war
-...
+      const isCrash = (landingType === 'crash' || prev.events.crash || (xp.has_crashed && newWasAirborne)) && newWasAirborne;
+      
+      // Calculate score penalties - only deduct when NEW event occurs
+      let baseScore = prev.flightScore;
+      
+      // Landungs-Score hinzufügen/abziehen
+      baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
+
+      // Track if high G-force event already happened
+      const hadHighGEvent = prev.events.high_g_force || false;
+
       // Calculate maintenance cost increase based on NEW events only
       let maintenanceCostIncrease = landingMaintenanceCost;
 
