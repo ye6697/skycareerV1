@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -47,51 +47,69 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
-  });
-
-  const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
-  });
-
-  const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
-  });
-
-  const { data: failedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'failed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'failed' })
-  });
-
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
-  });
-
+  // WICHTIG: Company des aktuellen Users laden (nicht einfach die erste aus der Liste)
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
+      const u = await base44.auth.me();
+      const cid = u?.company_id || u?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: u.email });
+      if (companies[0]) {
+        await base44.auth.updateMe({ company_id: companies[0].id });
+        return companies[0];
+      }
+      return null;
     }
+  });
+
+  const companyId = company?.id;
+
+  // Alle Queries filtern nach company_id des Users
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['contracts', 'accepted', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: inProgressContracts = [] } = useQuery({
+    queryKey: ['contracts', 'in_progress', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: completedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'completed', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: failedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'failed', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'failed', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', companyId],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }),
+    enabled: !!companyId
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', companyId],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: companyId }),
+    enabled: !!companyId
   });
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
-      // Check if aircraft can handle contract requirements
       const ac = aircraft.find((a) => a.id === selectedAircraft);
       if (!ac) throw new Error('Flugzeug nicht gefunden');
 
-      // Validate aircraft is suitable for contract
       if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
         throw new Error('Flugzeug hat nicht genug Sitze');
       }
@@ -102,8 +120,8 @@ export default function ActiveFlights() {
         throw new Error('Flugzeug hat nicht genug Reichweite');
       }
 
-      // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: companyId,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -113,13 +131,9 @@ export default function ActiveFlights() {
         status: 'in_flight'
       });
 
-      // Update contract status
       await base44.entities.Contract.update(selectedContract.id, { status: 'in_progress' });
-
-      // Update aircraft status
       await base44.entities.Aircraft.update(selectedAircraft, { status: 'in_flight' });
 
-      // Update crew status
       for (const [role, id] of Object.entries(selectedCrew)) {
         if (id) {
           await base44.entities.Employee.update(id, { status: 'on_duty' });
@@ -143,17 +157,15 @@ export default function ActiveFlights() {
     mutationFn: async (contractToCancel) => {
       const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
 
-      // Update contract status
       await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
 
-      // Deduct penalty from company
       if (company) {
         await base44.entities.Company.update(company.id, {
           balance: Math.max(0, (company.balance || 0) - penalty)
         });
 
-        // Create transaction for penalty
         await base44.entities.Transaction.create({
+          company_id: companyId,
           type: 'expense',
           category: 'other',
           amount: penalty,
@@ -243,7 +255,6 @@ export default function ActiveFlights() {
             'border-b-2 border-blue-500 text-blue-400' :
             'text-slate-400 hover:text-white'}`
             }>
-
             Aktive Flüge ({allContracts.length})
           </button>
           <button
@@ -532,7 +543,6 @@ export default function ActiveFlights() {
                   </SelectTrigger>
                   <SelectContent>
                     {aircraft.filter((ac) => {
-                      // Filter to only show compatible aircraft
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
