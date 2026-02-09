@@ -586,6 +586,7 @@ export default function FlightTracker() {
             await base44.entities.Flight.update(activeFlight.id, {
               status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
+              flight_score: scoreWithTime,
               takeoff_rating: scoreToRating(scoreWithTime),
               flight_rating: scoreToRating(scoreWithTime),
               landing_rating: scoreToRating(scoreWithTime),
