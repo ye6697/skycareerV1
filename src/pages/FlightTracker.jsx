@@ -907,14 +907,16 @@ export default function FlightTracker() {
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;
       
-      // Landungs-Score hinzufügen/abziehen
-      baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
+      // Landungs-Score hinzufügen/abziehen - NUR wenn gerade erst gelandet (nicht prev.landingType)
+      if (landingType && !prev.landingType) {
+        baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
+      }
 
       // Track if high G-force event already happened
       const hadHighGEvent = prev.events.high_g_force || false;
 
       // Calculate maintenance cost increase based on NEW events only
-      let maintenanceCostIncrease = landingMaintenanceCost;
+      let maintenanceCostIncrease = (landingType && !prev.landingType) ? landingMaintenanceCost : 0;
 
       // Log landing quality calculations for debugging
       if (landingType && !prev.landingType) {
