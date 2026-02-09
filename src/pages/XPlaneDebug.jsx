@@ -118,139 +118,147 @@ export default function XPlaneDebug() {
           </div>
         </Card>
 
-        {/* Active Flight Data */}
-        {activeFlight ? (
-          <Card className="p-6 bg-slate-800/50 border-slate-700 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Aktiver Flug</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-4">
-              <div>
-                <p className="text-slate-500 mb-1">Flight ID</p>
-                <code className="text-blue-400 font-mono text-xs">{activeFlight.id}</code>
-              </div>
-              <div>
-                <p className="text-slate-500 mb-1">Status</p>
-                <Badge variant="outline">{activeFlight.status}</Badge>
-              </div>
-              <div>
-                <p className="text-slate-500 mb-1">Contract ID</p>
-                <code className="text-blue-400 font-mono text-xs">{activeFlight.contract_id}</code>
-              </div>
-            </div>
-
-            {activeFlight.xplane_data && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-400" />
+        {/* Live Data View - shows data regardless of flight status */}
+        {(() => {
+          const liveData = activeFlight?.xplane_data || (xplaneLogs.length > 0 ? xplaneLogs[0].raw_data : null);
+          const dataSource = activeFlight?.xplane_data ? 'flight' : 'log';
+          
+          return (
+            <Card className="p-6 bg-slate-800/50 border-slate-700 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-400" />
                   Live X-Plane Daten
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">Höhe</p>
-                    <p className="text-white font-mono">{Math.round(activeFlight.xplane_data.altitude || 0)} ft</p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">Geschwindigkeit</p>
-                    <p className="text-white font-mono">{Math.round(activeFlight.xplane_data.speed || 0)} kts</p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">V/S</p>
-                    <p className={`font-mono ${
-                      (activeFlight.xplane_data.vertical_speed || 0) > 0 ? 'text-emerald-400' : 'text-amber-400'
-                    }`}>
-                      {Math.round(activeFlight.xplane_data.vertical_speed || 0)} fpm
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">Treibstoff</p>
-                    <p className="text-white font-mono">{Math.round(activeFlight.xplane_data.fuel_percentage || 0)}%</p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">G-Kraft</p>
-                    <p className={`font-mono ${
-                      (activeFlight.xplane_data.g_force || 0) < 1.3 ? 'text-emerald-400' :
-                      (activeFlight.xplane_data.g_force || 0) < 1.8 ? 'text-amber-400' :
-                      'text-red-400'
-                    }`}>
-                      {(activeFlight.xplane_data.g_force || 0).toFixed(2)} G
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">Max G</p>
-                    <p className="text-white font-mono">{(activeFlight.xplane_data.max_g_force || 0).toFixed(2)} G</p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">Score</p>
-                    <p className={`font-mono ${
-                      (activeFlight.xplane_data.flight_score || 100) >= 95 ? 'text-emerald-400' :
-                      (activeFlight.xplane_data.flight_score || 100) >= 70 ? 'text-amber-400' :
-                      'text-red-400'
-                    }`}>
-                      {Math.round(activeFlight.xplane_data.flight_score || 100)}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <p className="text-slate-500 text-xs mb-1">Reputation</p>
-                    <Badge className="bg-blue-500/20 text-blue-400 text-xs">
-                      {activeFlight.xplane_data.reputation || 'N/A'}
+                </h2>
+                <div className="flex items-center gap-2">
+                  {activeFlight && (
+                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
+                      Flug: {activeFlight.id?.substring(0, 8)}…
                     </Badge>
-                  </div>
-                </div>
-
-                {/* Events */}
-                {(activeFlight.xplane_data.tailstrike || 
-                  activeFlight.xplane_data.stall || 
-                  activeFlight.xplane_data.overstress ||
-                  activeFlight.xplane_data.crash) && (
-                  <div className="mt-4 p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
-                    <h4 className="text-red-400 font-semibold mb-2 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      Vorfälle erkannt
-                    </h4>
-                    <div className="space-y-1 text-sm">
-                      {activeFlight.xplane_data.tailstrike && (
-                        <p className="text-red-300">• Tailstrike</p>
-                      )}
-                      {activeFlight.xplane_data.stall && (
-                        <p className="text-red-300">• Strömungsabriss</p>
-                      )}
-                      {activeFlight.xplane_data.overstress && (
-                        <p className="text-orange-300">• Überlastung</p>
-                      )}
-                      {activeFlight.xplane_data.flaps_overspeed && (
-                        <p className="text-orange-300">• Klappen zu schnell</p>
-                      )}
-                      {activeFlight.xplane_data.fuel_emergency && (
-                        <p className="text-red-300">• Treibstoff-Notstand</p>
-                      )}
-                      {activeFlight.xplane_data.gear_up_landing && (
-                        <p className="text-red-300">• Landung ohne Fahrwerk!</p>
-                      )}
-                      {activeFlight.xplane_data.crash && (
-                        <p className="text-red-300 font-bold">• CRASH ERKANNT!</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Raw JSON */}
-                <div className="mt-4">
-                  <p className="text-slate-500 text-xs mb-2">Rohdaten (letzter Update):</p>
-                  <pre className="text-xs bg-slate-900 p-4 rounded-lg overflow-auto max-h-96 text-slate-300 font-mono">
-                    {JSON.stringify(activeFlight.xplane_data, null, 2)}
-                  </pre>
+                  )}
+                  <Badge className={`text-xs ${liveData ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
+                    {liveData ? (dataSource === 'flight' ? 'Quelle: Flug' : 'Quelle: Log') : 'Keine Daten'}
+                  </Badge>
                 </div>
               </div>
-            )}
-          </Card>
-        ) : (
-          <Card className="p-12 text-center bg-slate-800/50 border-slate-700">
-            <AlertCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Kein aktiver Flug</h3>
-            <p className="text-slate-400">
-              Starte einen Flug über "Aktive Flüge", um Live-Daten zu sehen.
-            </p>
-          </Card>
-        )}
+
+              {liveData ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Höhe</p>
+                      <p className="text-white font-mono">{Math.round(liveData.altitude || 0)} ft</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Geschwindigkeit</p>
+                      <p className="text-white font-mono">{Math.round(liveData.speed || liveData.ias || 0)} kts</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">V/S</p>
+                      <p className={`font-mono ${(liveData.vertical_speed || 0) > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {Math.round(liveData.vertical_speed || 0)} fpm
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Heading</p>
+                      <p className="text-white font-mono">{Math.round(liveData.heading || 0)}°</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Treibstoff</p>
+                      <p className="text-white font-mono">{Math.round(liveData.fuel_percentage || 0)}%{liveData.fuel_kg ? ` (${Math.round(liveData.fuel_kg)} kg)` : ''}</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">G-Kraft</p>
+                      <p className={`font-mono ${(liveData.g_force || 0) < 1.3 ? 'text-emerald-400' : (liveData.g_force || 0) < 1.8 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {(liveData.g_force || 0).toFixed(2)} G
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Max G</p>
+                      <p className="text-white font-mono">{(liveData.max_g_force || 0).toFixed(2)} G</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Am Boden</p>
+                      <p className={`font-mono ${liveData.on_ground ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {liveData.on_ground ? 'Ja' : 'Nein'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Pitch</p>
+                      <p className="text-white font-mono">{(liveData.pitch || 0).toFixed(1)}°</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Gear</p>
+                      <p className={`font-mono ${liveData.gear_down ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {liveData.gear_down ? 'Ausgefahren' : 'Eingefahren'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Flaps</p>
+                      <p className="text-white font-mono">{Math.round((liveData.flap_ratio || 0) * 100)}%</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Lat / Lon</p>
+                      <p className="text-white font-mono text-xs">{(liveData.latitude || 0).toFixed(4)} / {(liveData.longitude || 0).toFixed(4)}</p>
+                    </div>
+                    {liveData.engines_running !== undefined && (
+                      <div className="p-3 bg-slate-900 rounded-lg">
+                        <p className="text-slate-500 text-xs mb-1">Engines</p>
+                        <p className={`font-mono ${liveData.engines_running ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {liveData.engines_running ? 'Laufen' : 'Aus'}
+                        </p>
+                      </div>
+                    )}
+                    {liveData.park_brake !== undefined && (
+                      <div className="p-3 bg-slate-900 rounded-lg">
+                        <p className="text-slate-500 text-xs mb-1">Parkbremse</p>
+                        <p className={`font-mono ${liveData.park_brake ? 'text-amber-400' : 'text-slate-400'}`}>
+                          {liveData.park_brake ? 'Aktiviert' : 'Gelöst'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Events */}
+                  {(liveData.tailstrike || liveData.stall || liveData.overstress || liveData.crash || liveData.overspeed || liveData.flaps_overspeed || liveData.fuel_emergency || liveData.gear_up_landing) && (
+                    <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-lg mb-4">
+                      <h4 className="text-red-400 font-semibold mb-2 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        Vorfälle erkannt
+                      </h4>
+                      <div className="space-y-1 text-sm">
+                        {liveData.tailstrike && <p className="text-red-300">• Tailstrike</p>}
+                        {liveData.stall && <p className="text-red-300">• Strömungsabriss</p>}
+                        {liveData.overstress && <p className="text-orange-300">• Strukturschaden</p>}
+                        {liveData.overspeed && <p className="text-orange-300">• Overspeed</p>}
+                        {liveData.flaps_overspeed && <p className="text-orange-300">• Klappen-Overspeed</p>}
+                        {liveData.fuel_emergency && <p className="text-red-300">• Treibstoff-Notstand</p>}
+                        {liveData.gear_up_landing && <p className="text-red-300">• Landung ohne Fahrwerk!</p>}
+                        {liveData.crash && <p className="text-red-300 font-bold">• CRASH ERKANNT!</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Raw JSON */}
+                  <details>
+                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300 mb-2">
+                      Rohdaten anzeigen
+                    </summary>
+                    <pre className="text-xs bg-slate-900 p-4 rounded-lg overflow-auto max-h-96 text-slate-300 font-mono">
+                      {JSON.stringify(liveData, null, 2)}
+                    </pre>
+                  </details>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-400">Noch keine Daten empfangen</p>
+                  <p className="text-slate-500 text-sm mt-1">Starte X-Plane mit Plugin – Daten werden auch ohne aktiven Flug angezeigt</p>
+                </div>
+              )}
+            </Card>
+          );
+        })()}
 
         {/* X-Plane Data Logs - ALL RECEIVED DATA */}
         <Card className="p-6 bg-slate-800/50 border-slate-700 mb-6">
