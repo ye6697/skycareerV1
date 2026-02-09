@@ -7,6 +7,11 @@ css
 html, body, #root {
   overflow-x: hidden;
   max-width: 100vw;
+  width: 100%;
+}
+
+* {
+  min-width: 0;
 }
 
 /* Input fields always white text */
