@@ -568,7 +568,8 @@ export default function FlightTracker() {
             console.log('🔍 SPEICHERE FINALE FLUGDATEN:', {
               finalScore: scoreWithTime,
               flightHours,
-              expectedFlightHours,
+              deadlineMinutes,
+              madeDeadline,
               timeScoreChange,
               timeBonus,
               events: finalFlightData.events,
