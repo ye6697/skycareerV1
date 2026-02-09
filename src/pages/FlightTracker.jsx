@@ -1073,14 +1073,19 @@ export default function FlightTracker() {
     // Erlaube Abschluss in ALLEN aktiven Flugphasen (takeoff, cruise, landing)
     const isActivePhase = flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing';
     
-    if (flightData.wasAirborne && flightStartTime && xp.on_ground && (flightPhase === 'landing' || flightPhase === 'cruise') && !completeFlightMutation.isPending && !isCompletingFlight) {
+    // flightStartTime kann null sein wenn der Flug wiederhergestellt wurde - dann setze es jetzt
+    if (flightData.wasAirborne && !flightStartTime) {
+      setFlightStartTime(Date.now());
+    }
+    
+    if (flightData.wasAirborne && xp.on_ground && (flightPhase === 'landing' || flightPhase === 'cruise') && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Starte Flugabschluss');
       setFlightPhase('completed');
       completeFlightMutation.mutate();
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
-    if (flightData.events.crash && flightData.wasAirborne && flightStartTime && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
+    if (flightData.events.crash && flightData.wasAirborne && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
       completeFlightMutation.mutate();
