@@ -27,17 +27,14 @@ Deno.serve(async (req) => {
       vertical_speed,
       heading,
       fuel_percentage,
+      fuel_kg,
       g_force,
       max_g_force,
       latitude,
       longitude,
       on_ground,
-      park_brake,
-      engine1_running,
-      engine2_running,
       touchdown_vspeed,
       landing_g_force,
-      landing_quality,
       tailstrike,
       stall,
       is_in_stall,
@@ -49,18 +46,23 @@ Deno.serve(async (req) => {
       gear_up_landing,
       crash,
       has_crashed,
+      overspeed,
+      gear_down,
+      flap_ratio,
+      pitch,
+      ias,
+      // Legacy fields from old plugins
       flight_score,
       maintenance_cost,
       reputation,
-      parking_brake,
-      engines_running,
-      overspeed
+      landing_quality
     } = data;
 
-    // Normalize field names (plugin sends parking_brake/engines_running, also support park_brake/engine1_running)
-    const park_brake = parking_brake || data.park_brake || false;
+    // Normalize field names (support both naming conventions)
+    const park_brake = data.parking_brake || data.park_brake || false;
     const engine1_running = data.engine1_running || false;
     const engine2_running = data.engine2_running || false;
+    const engines_running = data.engines_running || engine1_running || engine2_running;
     const isCrash = crash || has_crashed || false;
 
     // Log ALL received data (regardless of active flight)
@@ -130,6 +132,7 @@ Deno.serve(async (req) => {
         vertical_speed,
         heading,
         fuel_percentage,
+        fuel_kg: fuel_kg || 0,
         g_force,
         max_g_force,
         latitude,
@@ -142,6 +145,10 @@ Deno.serve(async (req) => {
         touchdown_vspeed,
         landing_g_force,
         landing_quality,
+        gear_down: gear_down !== undefined ? gear_down : true,
+        flap_ratio: flap_ratio || 0,
+        pitch: pitch || 0,
+        ias: ias || 0,
         tailstrike,
         stall: stall || is_in_stall || stall_warning || override_alpha,
         is_in_stall,
