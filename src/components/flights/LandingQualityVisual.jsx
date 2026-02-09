@@ -5,20 +5,15 @@ import { Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function LandingQualityVisual({ flight, gameSettings }) {
   const landingVs = Math.abs(flight.landing_vs || 0);
-  // Priority: landingGForce from tracker (most accurate) > landing_g_force from plugin > max_g_force fallback
   const landingGforce = Math.abs(
     flight.xplane_data?.landingGForce ?? 
     flight.xplane_data?.landing_g_force ?? 
     flight.max_g_force ?? 0
   );
 
-  // Landing quality impact data from xplane_data - use ?? to preserve zero values
   const landingType = flight.xplane_data?.landingType;
-  const landingScoreChange = flight.xplane_data?.landingScoreChange ?? 0;
-  const landingBonus = flight.xplane_data?.landingBonus ?? 0;
-  const landingMaintenanceCost = flight.xplane_data?.landingMaintenanceCost ?? 0;
+  const totalRevenue = flight.revenue || flight.xplane_data?.totalRevenue || 0;
   
-  // If no stored landing type but we have g-force, compute it
   const effectiveLandingType = landingType || (() => {
     if (landingGforce <= 0) return null;
     if (landingGforce < 0.5) return 'butter';
@@ -28,22 +23,24 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
     return 'very_hard';
   })();
   
-  // If no stored score/costs but we have a computed landing type, compute them
-  const effectiveScoreChange = landingScoreChange !== 0 ? landingScoreChange : (() => {
+  const effectiveScoreChange = (() => {
     if (!effectiveLandingType) return 0;
     if (effectiveLandingType === 'butter') return 40;
     if (effectiveLandingType === 'soft') return 20;
     if (effectiveLandingType === 'acceptable') return 5;
-    if (effectiveLandingType === 'hard') return -20;
-    if (effectiveLandingType === 'very_hard') return -40;
+    if (effectiveLandingType === 'hard') return -30;
+    if (effectiveLandingType === 'very_hard') return -50;
     return 0;
   })();
   
-  const effectiveMaintenanceCost = landingMaintenanceCost > 0 ? landingMaintenanceCost : (() => {
+  // Financial impact based on total revenue
+  const effectiveFinancialImpact = (() => {
     if (!effectiveLandingType) return 0;
-    const purchasePrice = flight.xplane_data?.aircraftPurchasePrice || 1000000;
-    if (effectiveLandingType === 'hard') return purchasePrice * 0.01;
-    if (effectiveLandingType === 'very_hard') return purchasePrice * 0.03;
+    if (effectiveLandingType === 'butter') return totalRevenue * 4;
+    if (effectiveLandingType === 'soft') return totalRevenue * 2;
+    if (effectiveLandingType === 'acceptable') return 0;
+    if (effectiveLandingType === 'hard') return -(totalRevenue * 0.25);
+    if (effectiveLandingType === 'very_hard') return -(totalRevenue * 0.5);
     return 0;
   })();
 
@@ -154,23 +151,17 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
         transition={{ delay: 0.2 }}
         className="p-4 bg-slate-900 rounded-lg border border-slate-700"
       >
-        <p className="text-xs text-slate-400 mb-3">Bewertung</p>
-        <div className="space-y-2 text-sm text-slate-300">
-          <div className="flex justify-between">
-            <span>G-Kraft beim Aufsetzen:</span>
-            <span className={`font-semibold text-${quality.color}-400`}>
-              {landingGforce < 0.5 ? '✓✓ Ausgezeichnet (Butterweich)' :
-               landingGforce < 1.0 ? '✓ Sehr Gut (Weich)' :
-               landingGforce < 1.6 ? '⚠ Akzeptabel' :
-               landingGforce < 2.0 ? '✗ Hart' :
-               '✗✗ Sehr Hart'}
-            </span>
-          </div>
+        <p className="text-sm font-semibold text-white mb-1">Landungsqualitäts-Analyse</p>
+        <p className="text-xs text-slate-500 mb-3">Basierend auf G-Kraft beim Landen ({landingGforce.toFixed(2)} G)</p>
+        
+        <div className="flex items-center gap-2 mb-3">
+          <Icon className={`w-5 h-5 text-${quality.color}-400`} />
+          <span className={`font-bold text-${quality.color}-400`}>{quality.label}</span>
+          <span className="text-slate-500 ml-2">({landingGforce.toFixed(2)} G)</span>
         </div>
 
-        {/* Score & Financial Impact - always show for any landing type */}
         {effectiveLandingType && (
-          <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-700">
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-700">
             <div>
               <p className="text-xs text-slate-500 mb-1">Score-Auswirkung</p>
               <p className={`font-mono font-bold ${
@@ -183,16 +174,16 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
             </div>
             <div>
               <p className="text-xs text-slate-500 mb-1">Finanzielle Auswirkung</p>
-              {landingBonus > 0 ? (
+              {effectiveFinancialImpact > 0 ? (
                 <p className="font-mono font-bold text-emerald-400">
-                  +${landingBonus.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  +${effectiveFinancialImpact.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 </p>
-              ) : effectiveMaintenanceCost > 0 ? (
+              ) : effectiveFinancialImpact < 0 ? (
                 <p className="font-mono font-bold text-red-400">
-                  -${effectiveMaintenanceCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  -${Math.abs(effectiveFinancialImpact).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 </p>
               ) : (
-                <p className="text-slate-400">-</p>
+                <p className="text-slate-400">$0</p>
               )}
             </div>
           </div>

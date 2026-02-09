@@ -133,7 +133,8 @@ function generateContract(companyId, aircraftType, companyLevel) {
     },
     status: "available",
     difficulty,
-    level_requirement: 1
+    level_requirement: 1,
+    deadline_minutes: Math.round((distance / 250) * 60 * 1.5 + 15)
   };
 }
 
