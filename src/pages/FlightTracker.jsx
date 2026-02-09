@@ -1324,11 +1324,12 @@ export default function FlightTracker() {
               </span>
             </div>
             <Progress value={distanceProgress} className="h-2 bg-slate-700" />
-            <div className="mt-2 text-xs text-slate-400 text-center">
-              {Math.round(distanceProgress)}% des Fluges absolviert
-              <span className="ml-2 font-mono">
-                | {distanceInfo.remainingNm} NM verbleibend
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+              <span>{Math.round(distanceInfo.totalNm - distanceInfo.remainingNm)} NM geflogen</span>
+              <span className="font-mono font-semibold text-blue-400">
+                {distanceInfo.remainingNm} NM verbleibend
               </span>
+              <span>{distanceInfo.totalNm} NM total</span>
             </div>
           </div>
         </motion.div>
