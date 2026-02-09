@@ -652,8 +652,8 @@ export default function FlightTracker() {
                   accumulated_maintenance_cost: newAccumulatedCost
                 };
 
-                console.log('🛩️ AKTUALISIERE FLUGZEUG JETZT:', flight.aircraft_id, aircraftUpdate);
-                await base44.entities.Aircraft.update(flight.aircraft_id, aircraftUpdate);
+                console.log('🛩️ AKTUALISIERE FLUGZEUG JETZT:', activeFlight.aircraft_id, aircraftUpdate);
+                await base44.entities.Aircraft.update(activeFlight.aircraft_id, aircraftUpdate);
                 console.log('✅ FLUGZEUG AKTUALISIERT');
                } catch (error) {
                  console.error('❌ FEHLER BEI FLUGZEUG UPDATE:', error);
