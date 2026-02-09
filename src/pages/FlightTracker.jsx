@@ -736,7 +736,7 @@ export default function FlightTracker() {
             await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
 
             // Hole den aktualisierten Flight aus DB
-            const updatedFlightFromDB = await base44.entities.Flight.filter({ id: flight.id });
+            const updatedFlightFromDB = await base44.entities.Flight.filter({ id: activeFlight.id });
             return updatedFlightFromDB[0];
     },
     onSuccess: async (updatedFlight) => {
