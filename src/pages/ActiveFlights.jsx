@@ -47,37 +47,54 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
-  });
-
-  const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
-  });
-
-  const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
-  });
-
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
-  });
-
+  // Company des eingeloggten Users laden
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (companies[0]) {
+        await base44.auth.updateMe({ company_id: companies[0].id });
+        return companies[0];
+      }
+      return null;
     }
+  });
+
+  // Alle Queries mit company_id filtern
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['contracts', 'accepted', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'accepted' }),
+    enabled: !!company?.id
+  });
+
+  const { data: inProgressContracts = [] } = useQuery({
+    queryKey: ['contracts', 'in_progress', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'in_progress' }),
+    enabled: !!company?.id
+  });
+
+  const { data: completedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'completed', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'completed' }),
+    enabled: !!company?.id
+  });
+
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', company?.id],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: company.id, status: 'available' }),
+    enabled: !!company?.id
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', company?.id],
+    queryFn: () => base44.entities.Employee.filter({ company_id: company.id, status: 'available' }),
+    enabled: !!company?.id
   });
 
   const startFlightMutation = useMutation({
@@ -99,6 +116,7 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -149,6 +167,7 @@ export default function ActiveFlights() {
 
         // Create transaction for penalty
         await base44.entities.Transaction.create({
+          company_id: company.id,
           type: 'expense',
           category: 'other',
           amount: penalty,
@@ -401,24 +420,38 @@ export default function ActiveFlights() {
               exit={{ opacity: 0, y: -20 }}>
 
                   <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
-                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-emerald-500/50 transition-colors cursor-pointer">
+                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
                       <div className="h-1 bg-emerald-500" />
                       <div className="p-6">
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between mb-4">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-xl font-semibold text-white">{contract.title}</h3>
-                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Abgeschlossen</Badge>
+                              <h3 className="text-xl font-semibold text-white">
+                                {contract.title}
+                              </h3>
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                Abgeschlossen
+                              </Badge>
                             </div>
                             <div className="flex items-center gap-3 text-slate-400">
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {contract.departure_airport}</span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.departure_airport}
+                              </span>
                               <ArrowRight className="w-4 h-4" />
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {contract.arrival_airport}</span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.arrival_airport}
+                              </span>
                               <span className="text-slate-600">|</span>
                               <span>{contract.distance_nm} NM</span>
                             </div>
                           </div>
-                          <p className="text-2xl font-bold text-emerald-400">${contract.payout?.toLocaleString()}</p>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-emerald-600">
+                              ${contract.payout?.toLocaleString()}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -497,13 +530,13 @@ export default function ActiveFlights() {
                       </div>
                       <Select
                         value={selectedCrew[role]}
-                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
+                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value === 'none' ? '' : value })}>
 
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
+                          <SelectItem value="none">-- Nicht zuweisen --</SelectItem>
                           {roleEmployees.map((emp) =>
                           <SelectItem key={emp.id} value={emp.id}>
                               {emp.name} (Skill: {emp.skill_rating})
