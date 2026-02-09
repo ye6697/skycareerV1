@@ -635,7 +635,7 @@ export default function FlightTracker() {
             });
 
             // Update aircraft with depreciation, crash status, and maintenance costs
-            if (flight?.aircraft_id) {
+            if (activeFlight?.aircraft_id) {
               try {
                 // Wenn Wartungskosten > 10% des Wertes -> Status "maintenance"
                 let newAircraftStatus = 'available';
