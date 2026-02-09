@@ -197,14 +197,14 @@ export default function ActiveFlights() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
+      <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8">
 
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Aktive Flüge</h1>
+          <h1 className="text-3xl font-bold text-white">Aktive Flüge</h1>
           <p className="text-slate-400">Bereite Flüge vor und starte sie mit X-Plane 12</p>
         </motion.div>
 
@@ -230,7 +230,7 @@ export default function ActiveFlights() {
         </Card>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-slate-700">
+        <div className="flex gap-2 sm:gap-4 mb-6 border-b border-slate-700 overflow-x-auto">
           <button
             onClick={() => setActiveTab('active')}
             className={`pb-3 px-4 font-medium transition-colors ${
@@ -271,10 +271,10 @@ export default function ActiveFlights() {
                 'bg-amber-500'}`
                 } />
                     <div className="p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+                      <div className="flex items-start justify-between mb-4">
                         <div>
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <h3 className="text-lg sm:text-xl font-semibold text-white">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-xl font-semibold text-white">
                               {contract.title}
                             </h3>
                             <Badge className={
@@ -285,7 +285,7 @@ export default function ActiveFlights() {
                               {contract.status === 'in_progress' ? 'Im Flug' : 'Bereit'}
                             </Badge>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-slate-400 text-sm sm:text-base">
+                          <div className="flex items-center gap-3 text-slate-400">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-4 h-4" />
                               {contract.departure_airport}
@@ -299,8 +299,8 @@ export default function ActiveFlights() {
                             <span>{contract.distance_nm} NM</span>
                           </div>
                         </div>
-                        <div className="sm:text-right">
-                          <p className="text-xl sm:text-2xl font-bold text-emerald-600">
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-emerald-600">
                             ${contract.payout?.toLocaleString()}
                           </p>
                           {contract.bonus_potential > 0 &&
@@ -313,9 +313,9 @@ export default function ActiveFlights() {
 
                       {/* Required Crew */}
                       {contract.required_crew &&
-                  <div className="flex items-center gap-4 mb-4 p-3 bg-slate-900 rounded-lg">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4 p-3 bg-slate-900 rounded-lg">
                           <span className="text-sm text-slate-400">Benötigte Crew:</span>
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             {Object.entries(contract.required_crew).map(([role, count]) =>
                       count > 0 &&
                       <Badge key={role} variant="outline" className="text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 flex items-center gap-1">
@@ -328,7 +328,7 @@ export default function ActiveFlights() {
                         </div>
                   }
 
-                      <div className="flex flex-wrap justify-end gap-2">
+                      <div className="flex justify-end gap-2">
                         {contract.status === 'accepted' &&
                     <>
                             <Button
@@ -429,7 +429,7 @@ export default function ActiveFlights() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-xl sm:text-2xl font-bold text-emerald-600">
+                            <p className="text-2xl font-bold text-emerald-600">
                               ${contract.payout?.toLocaleString()}
                             </p>
                           </div>

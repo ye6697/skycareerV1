@@ -174,14 +174,14 @@ export default function Employees() {
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Mitarbeiter</h1>
               <p className="text-slate-400">Verwalte dein Flugpersonal</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   placeholder="Mitarbeiter suchen..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64 bg-slate-800 text-white border-slate-700"
+                  className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
                 />
               </div>
               <Dialog open={isHireDialogOpen} onOpenChange={setIsHireDialogOpen}>

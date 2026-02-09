@@ -72,9 +72,9 @@ export default function XPlaneStatus({ status = "disconnected", isLoading }) {
         </span>
       </div>
 
-      <div className="p-3 bg-white/5 rounded-lg">
+      <div className="p-3 bg-white/5 rounded-lg overflow-hidden">
         <p className="text-xs text-slate-300 mb-2">Plugin Endpoint:</p>
-        <code className="text-xs text-blue-400 break-all">
+        <code className="text-xs text-blue-400 break-all block overflow-wrap-anywhere">
           {window.location.origin}/api/receiveXPlaneData
         </code>
         <p className="text-xs text-slate-400 mt-2">

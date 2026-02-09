@@ -183,9 +183,9 @@ export default function Dashboard() {
               <h1 className="text-2xl sm:text-3xl font-bold text-white">{company.name}</h1>
               <p className="text-slate-400">{company.callsign} • Hub: {company.hub_airport || "Nicht festgelegt"}</p>
               {company.xplane_api_key && (
-                <div className="mt-2 flex items-center gap-2">
-                  <p className="text-xs text-slate-500">API-Key:</p>
-                  <code className="text-xs text-slate-400 font-mono bg-slate-800 px-2 py-1 rounded">
+                <div className="mt-2 flex items-center gap-2 min-w-0">
+                  <p className="text-xs text-slate-500 flex-shrink-0">API-Key:</p>
+                  <code className="text-xs text-slate-400 font-mono bg-slate-800 px-2 py-1 rounded truncate">
                     {company.xplane_api_key}
                   </code>
                 </div>

@@ -72,15 +72,15 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             <Badge className={`${difficulty.color} border`}>{difficulty.label}</Badge>
           </div>
 
-          <div className="flex items-center gap-2 mb-4 text-sm">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
-              <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="text-slate-50 font-medium">{contract.departure_airport}</span>
+          <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-slate-900 rounded-lg">
+              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
+              <span className="text-slate-50 font-medium text-xs sm:text-sm">{contract.departure_airport}</span>
             </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
-              <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="font-mono font-medium">{contract.arrival_airport}</span>
+            <ArrowRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-slate-900 rounded-lg">
+              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
+              <span className="font-mono font-medium text-xs sm:text-sm">{contract.arrival_airport}</span>
             </div>
           </div>
 
@@ -103,10 +103,10 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             }
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-slate-700">
-            <div>
-              <p className="text-sm text-slate-400">Vergütung</p>
-              <p className="text-xl font-bold text-emerald-600">
+          <div className="flex items-center justify-between pt-4 border-t border-slate-700 gap-2">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-slate-400">Vergütung</p>
+              <p className="text-lg sm:text-xl font-bold text-emerald-600">
                 ${contract.payout?.toLocaleString()}
               </p>
               {contract.bonus_potential > 0 &&
@@ -114,9 +114,6 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                   +${contract.bonus_potential?.toLocaleString()} Bonus möglich
                 </p>
               }
-              <p className="text-xs text-amber-400">
-                + Level-Bonus auf Gewinn
-              </p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>

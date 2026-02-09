@@ -25,11 +25,11 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, co
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <Card className={`relative overflow-hidden bg-slate-800 border-slate-700 backdrop-blur-sm p-6`}>
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-400 uppercase tracking-wide">{title}</p>
-            <p className="text-3xl font-bold text-white">{value}</p>
+      <Card className={`relative overflow-hidden bg-slate-800 border-slate-700 backdrop-blur-sm p-3 sm:p-4 lg:p-6`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 sm:space-y-2 min-w-0">
+            <p className="text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wide truncate">{title}</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">{value}</p>
             {subtitle && (
               <p className="text-sm text-slate-400">{subtitle}</p>
             )}
@@ -40,8 +40,8 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, co
             )}
           </div>
           {Icon && (
-            <div className={`p-3 rounded-xl ${iconColors[color]}`}>
-              <Icon className="w-6 h-6" />
+            <div className={`p-2 sm:p-3 rounded-xl ${iconColors[color]} flex-shrink-0`}>
+              <Icon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
             </div>
           )}
         </div>

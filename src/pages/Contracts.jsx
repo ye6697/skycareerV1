@@ -152,14 +152,14 @@ export default function Contracts() {
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Aufträge</h1>
               <p className="text-slate-400">Finde und akzeptiere lukrative Flugaufträge</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   placeholder="Suche nach Route, Flughafen..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64 bg-slate-800 text-white border-slate-700"
+                  className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
                 />
               </div>
               <Button 
@@ -232,36 +232,38 @@ export default function Contracts() {
         </div>
 
         {/* Tabs */}
-         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="bg-slate-800 border border-slate-700">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <Plane className="w-4 h-4" />
-              Alle
-              <Badge variant="secondary" className="ml-1">
-                {compatibleContracts.filter(c => c.status === 'available').length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="accepted" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Angenommen
-              <Badge variant="secondary" className="ml-1 bg-amber-100 text-amber-700">
-                {contracts.filter(c => c.status === 'accepted').length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="passenger" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Passagiere
-            </TabsTrigger>
-            <TabsTrigger value="cargo" className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              Fracht
-            </TabsTrigger>
-            <TabsTrigger value="charter" className="flex items-center gap-2">
-              <Star className="w-4 h-4" />
-              Charter
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+         <div className="mb-6 overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="bg-slate-800 border border-slate-700 inline-flex w-auto min-w-max">
+              <TabsTrigger value="all" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Plane className="w-3 h-3 sm:w-4 sm:h-4" />
+                Alle
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {compatibleContracts.filter(c => c.status === 'available').length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="accepted" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                Angenommen
+                <Badge variant="secondary" className="ml-1 bg-amber-100 text-amber-700 text-xs">
+                  {contracts.filter(c => c.status === 'accepted').length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="passenger" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+                Passagiere
+              </TabsTrigger>
+              <TabsTrigger value="cargo" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Package className="w-3 h-3 sm:w-4 sm:h-4" />
+                Fracht
+              </TabsTrigger>
+              <TabsTrigger value="charter" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Star className="w-3 h-3 sm:w-4 sm:h-4" />
+                Charter
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
         {/* Contract Grid */}
         {isLoading ? (
