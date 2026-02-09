@@ -786,14 +786,18 @@ export default function FlightTracker() {
     const xp = xplaneLog.raw_data;
 
     // Check for crash via X-Plane dataref - NUR wenn wasAirborne
+    // KRITISCH: Sofort in die Ref schreiben, damit completeFlightMutation den Crash sieht
     if (xp.has_crashed && flightData.wasAirborne) {
-    setFlightData(prev => ({
-      ...prev,
-      events: {
-        ...prev.events,
-        crash: true
+      if (flightDataRef.current && !flightDataRef.current.events.crash) {
+        flightDataRef.current = {
+          ...flightDataRef.current,
+          events: { ...flightDataRef.current.events, crash: true }
+        };
       }
-    }));
+      setFlightData(prev => ({
+        ...prev,
+        events: { ...prev.events, crash: true }
+      }));
     }
 
     setFlightData(prev => {
