@@ -1692,6 +1692,7 @@ export default function FlightTracker() {
                 )}
               </>
             ) : (
+              <>
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Star className="w-5 h-5 text-amber-400" />
@@ -1739,6 +1740,7 @@ export default function FlightTracker() {
                   </div>
                 </Card>
               )}
+              </>
             )}
           </div>
         </div>
