@@ -566,16 +566,39 @@ export default function FlightTracker() {
 
             // Apply time bonus/penalty to final score - use the LIVE score from flightData
             // Bei Crash: Score ist IMMER 0, egal was flightData sagt
-            const scoreWithTime = hasCrashed ? 0 : Math.max(0, Math.min(100, finalFlightData.flightScore + timeScoreChange));
+            // WICHTIG: Prüfe ob der Landing-Score schon in flightScore enthalten ist.
+            // Wenn landingScoreChange gesetzt ist aber der Score noch bei 100 steht (Race Condition),
+            // dann addiere den Landing-Score hier explizit.
+            let adjustedFlightScore = finalFlightData.flightScore;
+            const landingScoreChange = finalFlightData.landingScoreChange || 0;
+            
+            // Detect if landing score was NOT yet applied to flightScore
+            // If flightScore is exactly 100 and we have a landing score change, it wasn't applied yet
+            // Also check: if landingType is set but flightScore doesn't reflect the change
+            if (landingScoreChange !== 0 && !finalFlightData._landingScoreApplied) {
+              // Check if score seems like it hasn't been adjusted for landing yet
+              // Simple heuristic: if no events reduced the score and it's still 100, landing wasn't applied
+              const hasOtherPenalties = finalFlightData.events.tailstrike || finalFlightData.events.stall || 
+                finalFlightData.events.overstress || finalFlightData.events.overspeed || 
+                finalFlightData.events.flaps_overspeed || finalFlightData.events.high_g_force;
+              
+              if (adjustedFlightScore === 100 && !hasOtherPenalties) {
+                adjustedFlightScore = Math.max(0, Math.min(100, adjustedFlightScore + landingScoreChange));
+                console.log('🔧 Landing score was not applied yet, adding:', landingScoreChange, '-> new score:', adjustedFlightScore);
+              }
+            }
+            
+            const scoreWithTime = hasCrashed ? 0 : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange));
 
             console.log('🎯 SCORE BERECHNUNG:', {
              baseScore: finalFlightData.flightScore,
+             adjustedFlightScore,
+             landingScoreChange,
              timeScoreChange,
              finalScoreWithTime: scoreWithTime,
              hasCrashed,
              events: finalFlightData.events,
-             landingType: finalFlightData.landingType,
-             landingScoreChange: finalFlightData.landingScoreChange
+             landingType: finalFlightData.landingType
             });
 
             // Calculate ratings based on score for database (for compatibility)
