@@ -322,9 +322,8 @@ export default function Fleet() {
 
                   <DialogFooter className="gap-2">
                     <Button 
-                      variant="outline" 
                       onClick={() => setIsPurchaseDialogOpen(false)}
-                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                      className="bg-white text-black hover:bg-gray-100"
                     >
                       Schließen
                     </Button>
