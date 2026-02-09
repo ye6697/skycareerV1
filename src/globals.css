@@ -19,6 +19,11 @@ input, textarea, select {
   @apply text-white;
 }
 
+/* All headings always white */
+h1, h2, h3, h4, h5, h6 {
+  @apply text-white;
+}
+
 input::placeholder, textarea::placeholder {
   @apply text-slate-400;
 }
