@@ -540,7 +540,7 @@ export default function FlightTracker() {
             const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
 
             // Calculate depreciation based on flight hours
-            const airplaneToUpdate = aircraft.find(a => a.id === flight.aircraft_id);
+            const airplaneToUpdate = aircraft.find(a => a.id === activeFlight.aircraft_id);
             const newFlightHours = (airplaneToUpdate?.total_flight_hours || 0) + flightHours;
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
