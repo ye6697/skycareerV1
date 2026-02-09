@@ -187,7 +187,8 @@ export default function CompletedFlightDetails() {
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(() => {
                     const isCrash = flight?.xplane_data?.events?.crash || flight?.status === 'failed';
-                    const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? flight?.max_g_force ?? 0;
+                    // Use actual landing G-force, NOT max_g_force from the entire flight
+                    const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? 0;
                     return (
                       <div className="p-4 bg-slate-900 rounded-lg">
                         <p className="text-slate-400 text-sm mb-1">G-Kraft beim Aufsetzen</p>
