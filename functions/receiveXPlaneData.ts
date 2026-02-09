@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
         landing_g_force,
         landing_quality,
         gear_down: gear_down !== undefined ? gear_down : true,
-        flap_ratio: flap_ratio !== undefined && flap_ratio !== null ? flap_ratio : 0,
+        flap_ratio: flap_ratio,
         pitch: pitch || 0,
         ias: ias || 0,
         tailstrike,
