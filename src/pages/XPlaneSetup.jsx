@@ -167,6 +167,13 @@ export default function XPlaneSetup() {
                     </div>
                   </div>
 
+                  {/* OR Divider */}
+                  <div className="flex items-center gap-3 my-2">
+                    <div className="flex-1 h-px bg-slate-600" />
+                    <span className="text-amber-400 font-bold text-sm tracking-widest uppercase px-3 py-1 bg-amber-400/10 border border-amber-400/30 rounded-full">ODER</span>
+                    <div className="flex-1 h-px bg-slate-600" />
+                  </div>
+
                   {/* Python Option */}
                   <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
                     <h4 className="text-white font-semibold mb-2">Python Plugin (XPPython3)</h4>
