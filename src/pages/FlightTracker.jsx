@@ -729,7 +729,7 @@ export default function FlightTracker() {
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // Hole das aktualisierte Aircraft direkt aus der DB
-            const updatedAircraft = await base44.entities.Aircraft.filter({ id: flight.aircraft_id });
+            const updatedAircraft = await base44.entities.Aircraft.filter({ id: activeFlight.aircraft_id });
             console.log('✅ Aircraft nach Update:', updatedAircraft[0]);
 
             // Invalidiere aircraft query um sicherzustellen, dass Fleet aktualisiert wird
