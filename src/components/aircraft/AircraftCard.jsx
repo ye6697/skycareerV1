@@ -301,8 +301,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-400">Aktueller Wert:</span>
-              <span className={`font-semibold ${(currentValue - maintenanceCost) < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
-                ${(currentValue - maintenanceCost).toLocaleString()}
+              <span className={`font-semibold ${currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
+                ${Math.round(currentValue).toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -311,6 +311,14 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                 ${(aircraft.purchase_price || 0).toLocaleString()}
               </span>
             </div>
+            {currentValue < (aircraft.purchase_price || 0) && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">Wertverlust:</span>
+                <span className="text-red-400">
+                  -${Math.round((aircraft.purchase_price || 0) - currentValue).toLocaleString()} ({(((aircraft.purchase_price || 0) - currentValue) / (aircraft.purchase_price || 1) * 100).toFixed(1)}%)
+                </span>
+              </div>
+            )}
           </div>
 
           {aircraft.status === "total_loss" ? (
