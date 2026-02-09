@@ -552,7 +552,8 @@ export default function FlightTracker() {
              }
 
             // Apply time bonus/penalty to final score - use the LIVE score from flightData
-            const scoreWithTime = Math.max(0, Math.min(100, finalFlightData.flightScore + timeScoreChange));
+            // Bei Crash: Score ist IMMER 0, egal was flightData sagt
+            const scoreWithTime = hasCrashed ? 0 : Math.max(0, Math.min(100, finalFlightData.flightScore + timeScoreChange));
 
             console.log('🎯 SCORE BERECHNUNG:', {
              baseScore: finalFlightData.flightScore,
