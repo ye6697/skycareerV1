@@ -52,7 +52,7 @@ export default function FlightRating({ flight }) {
           />
         ))}
         <span className={`ml-2 font-semibold ${getRatingColor(rating)}`}>
-          {rating?.toFixed(1) || "-"}
+          {Math.round(rating) || "-"}
         </span>
       </div>
     </div>
@@ -76,11 +76,11 @@ export default function FlightRating({ flight }) {
   };
 
   const getScoreBgColor = (score) => {
-    if (score >= 95) return "bg-emerald-50 border-emerald-200 text-emerald-700";
-    if (score >= 85) return "bg-green-50 border-green-200 text-green-700";
-    if (score >= 70) return "bg-amber-50 border-amber-200 text-amber-700";
-    if (score >= 50) return "bg-orange-50 border-orange-200 text-orange-700";
-    return "bg-red-50 border-red-200 text-red-700";
+    if (score >= 95) return "bg-emerald-500/20 border-emerald-500/30 text-emerald-400";
+    if (score >= 85) return "bg-green-500/20 border-green-500/30 text-green-400";
+    if (score >= 70) return "bg-amber-500/20 border-amber-500/30 text-amber-400";
+    if (score >= 50) return "bg-orange-500/20 border-orange-500/30 text-orange-400";
+    return "bg-red-500/20 border-red-500/30 text-red-400";
   };
 
   // Use final_score from xplane_data as authoritative source, then flightScore, then flight_score prop
