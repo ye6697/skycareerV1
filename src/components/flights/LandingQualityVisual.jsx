@@ -12,11 +12,40 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
     flight.max_g_force ?? 0
   );
 
-  // Landing quality impact data from xplane_data
+  // Landing quality impact data from xplane_data - use ?? to preserve zero values
   const landingType = flight.xplane_data?.landingType;
-  const landingScoreChange = flight.xplane_data?.landingScoreChange || 0;
-  const landingBonus = flight.xplane_data?.landingBonus || 0;
-  const landingMaintenanceCost = flight.xplane_data?.landingMaintenanceCost || 0;
+  const landingScoreChange = flight.xplane_data?.landingScoreChange ?? 0;
+  const landingBonus = flight.xplane_data?.landingBonus ?? 0;
+  const landingMaintenanceCost = flight.xplane_data?.landingMaintenanceCost ?? 0;
+  
+  // If no stored landing type but we have g-force, compute it
+  const effectiveLandingType = landingType || (() => {
+    if (landingGforce <= 0) return null;
+    if (landingGforce < 0.5) return 'butter';
+    if (landingGforce < 1.0) return 'soft';
+    if (landingGforce < 1.6) return 'acceptable';
+    if (landingGforce < 2.0) return 'hard';
+    return 'very_hard';
+  })();
+  
+  // If no stored score/costs but we have a computed landing type, compute them
+  const effectiveScoreChange = landingScoreChange !== 0 ? landingScoreChange : (() => {
+    if (!effectiveLandingType) return 0;
+    if (effectiveLandingType === 'butter') return 40;
+    if (effectiveLandingType === 'soft') return 20;
+    if (effectiveLandingType === 'acceptable') return 5;
+    if (effectiveLandingType === 'hard') return -20;
+    if (effectiveLandingType === 'very_hard') return -40;
+    return 0;
+  })();
+  
+  const effectiveMaintenanceCost = landingMaintenanceCost > 0 ? landingMaintenanceCost : (() => {
+    if (!effectiveLandingType) return 0;
+    const purchasePrice = flight.xplane_data?.aircraftPurchasePrice || 1000000;
+    if (effectiveLandingType === 'hard') return purchasePrice * 0.01;
+    if (effectiveLandingType === 'very_hard') return purchasePrice * 0.03;
+    return 0;
+  })();
 
   // Determine landing quality ONLY based on G-force
   const getLandingQuality = () => {
@@ -139,17 +168,17 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
           </div>
         </div>
 
-        {/* Score & Financial Impact */}
-        {(landingScoreChange !== 0 || landingBonus > 0 || landingMaintenanceCost > 0) && (
+        {/* Score & Financial Impact - always show for any landing type */}
+        {effectiveLandingType && (
           <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-700">
             <div>
               <p className="text-xs text-slate-500 mb-1">Score-Auswirkung</p>
               <p className={`font-mono font-bold ${
-                landingScoreChange > 0 ? 'text-emerald-400' :
-                landingScoreChange < 0 ? 'text-red-400' :
+                effectiveScoreChange > 0 ? 'text-emerald-400' :
+                effectiveScoreChange < 0 ? 'text-red-400' :
                 'text-slate-400'
               }`}>
-                {landingScoreChange > 0 ? '+' : ''}{landingScoreChange} Punkte
+                {effectiveScoreChange > 0 ? '+' : ''}{effectiveScoreChange} Punkte
               </p>
             </div>
             <div>
@@ -158,9 +187,9 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
                 <p className="font-mono font-bold text-emerald-400">
                   +${landingBonus.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 </p>
-              ) : landingMaintenanceCost > 0 ? (
+              ) : effectiveMaintenanceCost > 0 ? (
                 <p className="font-mono font-bold text-red-400">
-                  -${landingMaintenanceCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  -${effectiveMaintenanceCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 </p>
               ) : (
                 <p className="text-slate-400">-</p>

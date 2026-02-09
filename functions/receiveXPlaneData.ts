@@ -169,144 +169,48 @@ Deno.serve(async (req) => {
 
     // Auto-complete flight if parked with engines off
     // CRITICAL: Only auto-complete if the aircraft was airborne at some point
+    // NOTE: The frontend FlightTracker handles the full flight completion with proper score calculations.
+    // This backend completion is a FALLBACK only. It should preserve the xplane_data events that
+    // the FlightTracker has been accumulating on the Flight record.
     if (on_ground && park_brake && !areEnginesRunning && flight.status === 'in_flight' && hasBeenAirborne) {
-      const contract = (await base44.asServiceRole.entities.Contract.filter({ id: flight.contract_id }))[0];
-      const aircraft = (await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id }))[0];
-      
-      // Use Lua-calculated values
-      const landingVs = touchdown_vspeed || vertical_speed || -200;
-      
-      // Convert Lua flight_score (0-100) to ratings (1-5)
-      const scoreToRating = (score) => {
-        if (score >= 95) return 5;
-        if (score >= 85) return 4;
-        if (score >= 70) return 3;
-        if (score >= 50) return 2;
-        return 1;
-      };
-
-      const overallRating = scoreToRating(flight_score);
-      const landingRating = landing_quality === "SOFT" ? 5 : landing_quality === "MEDIUM" ? 3 : 1;
-      const flightRating = overallRating;
-      const takeoffRating = overallRating;
-
-      // Generate passenger comments based on events and score
-      const comments = [];
-      
-      if (landing_quality === "SOFT") {
-        comments.push("Butterweiche Landung! Professionell!");
-      } else if (landing_quality === "HARD") {
-        comments.push("Die Landung war sehr ruppig...");
-      }
-
-      if (tailstrike) comments.push("Ich habe gehört, wie das Heck aufgesetzt hat!");
-      if (stall || is_in_stall || stall_warning || override_alpha) comments.push("Der Strömungsabriss war beängstigend!");
-      if (overstress) comments.push("Die G-Kräfte waren extrem unangenehm!");
-      if (flaps_overspeed) comments.push("Die Klappen haben verdächtig geknarzt...");
-      if (fuel_emergency) comments.push("Wir hatten kaum noch Treibstoff!");
-      if (gear_up_landing) comments.push("NOTLANDUNG OHNE FAHRWERK! Nie wieder!");
-      if (isCrash) comments.push("Das war ein CRASH! Wir hätten sterben können!");
-
-      if (flight_score >= 95) {
-        comments.push("Perfekter Flug! Werde diese Airline weiterempfehlen!");
-      } else if (flight_score >= 85) {
-        comments.push("Sehr guter Flug, professionelle Crew.");
-      } else if (flight_score < 50) {
-        comments.push("Nie wieder mit dieser Airline!");
-      }
-
-      // Calculate costs
-      const fuelUsed = (100 - fuel_percentage) * 10;
-      const fuelCost = fuelUsed * 1.5;
-      const crewCost = 500;
-      const baseMaintenance = aircraft?.maintenance_cost_per_hour || 200;
-      const totalMaintenanceCost = baseMaintenance + (maintenance_cost || 0);
-      
-      // Bei Crash: KEIN Payout und KEIN Bonus
-      let revenue = 0;
-      if (!isCrash) {
-        revenue = contract?.payout || 0;
-        
-        // Bonus based on score
-        if (flight_score >= 95 && contract?.bonus_potential) {
-          revenue += contract.bonus_potential;
-        } else if (flight_score >= 85 && contract?.bonus_potential) {
-          revenue += contract.bonus_potential * 0.5;
-        }
-      }
-
-      const profit = revenue - fuelCost - crewCost - totalMaintenanceCost;
-
-      // Calculate reputation change based on flight_score
-      let reputationChange = 0;
-      if (flight_score >= 95) reputationChange = 5;
-      else if (flight_score >= 85) reputationChange = 3;
-      else if (flight_score >= 70) reputationChange = 1;
-      else if (flight_score >= 50) reputationChange = -2;
-      else reputationChange = -5;
-
+      // Don't auto-complete here - let the frontend FlightTracker handle it
+      // The frontend has the full accumulated events, scores, and maintenance costs
+      // Just update the xplane_data so the frontend knows to trigger completion
       await base44.asServiceRole.entities.Flight.update(flight.id, {
         ...updateData,
-        status: 'completed',
-        arrival_time: new Date().toISOString(),
-        takeoff_rating: takeoffRating,
-        flight_rating: flightRating,
-        landing_rating: landingRating,
-        overall_rating: overallRating,
-        landing_vs: landingVs,
-        fuel_used_liters: fuelUsed,
-        fuel_cost: fuelCost,
-        crew_cost: crewCost,
-        maintenance_cost: totalMaintenanceCost,
-        revenue,
-        profit,
-        passenger_comments: comments
-      });
-
-      if (contract) {
-        await base44.asServiceRole.entities.Contract.update(contract.id, { status: isCrash ? 'failed' : 'completed' });
-      }
-
-      if (company) {
-        await base44.asServiceRole.entities.Company.update(company.id, {
-          balance: (company.balance || 0) + profit,
-          reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
-          total_flights: (company.total_flights || 0) + 1,
-          total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
-          total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
-        });
-      }
-
-      await base44.asServiceRole.entities.Transaction.create({
-        company_id: company.id,
-        type: profit >= 0 ? 'income' : 'expense',
-        category: 'flight_revenue',
-        amount: Math.abs(profit),
-        description: `Flug: ${contract?.title} (Score: ${flight_score})`,
-        reference_id: flight.id,
-        date: new Date().toISOString()
-      });
-
-      if (flight.aircraft_id) {
-        const flightDurationHours = (Date.now() - new Date(flight.departure_time).getTime()) / 3600000;
-        await base44.asServiceRole.entities.Aircraft.update(flight.aircraft_id, { 
-          status: 'available',
-          total_flight_hours: (aircraft?.total_flight_hours || 0) + flightDurationHours
-        });
-      }
-      
-      if (flight.crew) {
-        for (const member of flight.crew) {
-          await base44.asServiceRole.entities.Employee.update(member.employee_id, { status: 'available' });
+        xplane_data: {
+          ...updateData.xplane_data,
+          // Preserve existing accumulated data from previous updates
+          ...(flight.xplane_data || {}),
+          // Override with latest raw values
+          altitude,
+          speed,
+          vertical_speed,
+          heading,
+          fuel_percentage,
+          g_force,
+          latitude,
+          longitude,
+          on_ground: true,
+          park_brake: true,
+          engines_running: false,
+          was_airborne: true,
+          // Ensure crash/event data from current packet is merged
+          crash: isCrash || (flight.xplane_data?.crash || false),
+          has_crashed: isCrash || (flight.xplane_data?.has_crashed || false),
+          tailstrike: tailstrike || (flight.xplane_data?.tailstrike || false),
+          stall: (stall || is_in_stall || stall_warning || override_alpha) || (flight.xplane_data?.stall || false),
+          overstress: overstress || (flight.xplane_data?.overstress || false),
+          overspeed: (overspeed || false) || (flight.xplane_data?.overspeed || false),
+          flaps_overspeed: flaps_overspeed || (flight.xplane_data?.flaps_overspeed || false),
+          landing_g_force: landing_g_force || flight.xplane_data?.landing_g_force,
+          timestamp: new Date().toISOString()
         }
-      }
+      });
 
       return Response.json({ 
-        status: 'completed',
-        message: 'Flight automatically completed',
-        rating: overallRating,
-        flight_score,
-        profit,
+        status: 'ready_to_complete',
+        message: 'Aircraft parked - waiting for frontend to complete flight',
         xplane_connection_status: 'connected'
       });
     }

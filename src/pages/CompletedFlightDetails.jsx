@@ -267,9 +267,19 @@ export default function CompletedFlightDetails() {
                   }
                   if (!lt) return null;
 
-                  const scoreChange = flight.xplane_data?.landingScoreChange || 0;
-                  const bonus = flight.xplane_data?.landingBonus || 0;
-                  const mCost = flight.xplane_data?.landingMaintenanceCost || 0;
+                  // Compute effective score/cost from landing type if not stored
+                  let scoreChange = flight.xplane_data?.landingScoreChange ?? 0;
+                  let bonus = flight.xplane_data?.landingBonus ?? 0;
+                  let mCost = flight.xplane_data?.landingMaintenanceCost ?? 0;
+                  
+                  // If scoreChange is 0 but we have a hard/very_hard landing, compute it
+                  if (scoreChange === 0 && (lt === 'hard' || lt === 'very_hard' || lt === 'butter' || lt === 'soft' || lt === 'acceptable')) {
+                    if (lt === 'butter') scoreChange = 40;
+                    else if (lt === 'soft') scoreChange = 20;
+                    else if (lt === 'acceptable') scoreChange = 5;
+                    else if (lt === 'hard') { scoreChange = -20; if (mCost === 0) mCost = (flight.xplane_data?.aircraftPurchasePrice || 1000000) * 0.01; }
+                    else if (lt === 'very_hard') { scoreChange = -40; if (mCost === 0) mCost = (flight.xplane_data?.aircraftPurchasePrice || 1000000) * 0.03; }
+                  }
                   const vs = Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0);
 
                   return (

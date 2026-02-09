@@ -44,6 +44,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     in_flight: { label: "Im Flug", color: "bg-blue-100 text-blue-700 border-blue-200" },
     maintenance: { label: "Wartung", color: "bg-amber-100 text-amber-700 border-amber-200" },
     damaged: { label: "Beschädigt", color: "bg-red-100 text-red-700 border-red-200" },
+    total_loss: { label: "Totalschaden", color: "bg-red-200 text-red-800 border-red-300" },
     sold: { label: "Verkauft", color: "bg-slate-100 text-slate-600 border-slate-200" }
   };
 
@@ -65,13 +66,17 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
       // Repair cost is 30% of original purchase price
       const repairPrice = (aircraft.purchase_price || 0) * 0.30;
-      // After repair, reduce the current value by the repair cost
-      const restoredValue = Math.max(0, currentValue - repairPrice);
+      // After repair, reduce the current value by 10% of repair cost permanently
+      const valueReduction = repairPrice * 0.10;
+      const newValue = Math.max(0, currentValue - valueReduction);
+      
+      // If value reaches 0, it's a total loss
+      const newStatus = newValue <= 0 ? 'total_loss' : 'available';
       
       await base44.entities.Aircraft.update(aircraft.id, { 
-        status: 'available',
+        status: newStatus,
         accumulated_maintenance_cost: 0,
-        current_value: restoredValue
+        current_value: newValue
       });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - repairPrice });
       
@@ -80,7 +85,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         type: 'expense',
         category: 'maintenance',
         amount: repairPrice,
-        description: `Reparatur: ${aircraft.name}`,
+        description: `Reparatur: ${aircraft.name} (Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
         date: new Date().toISOString()
       });
     },
@@ -153,11 +158,15 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       const cost = maintenanceCost;
-      // Reduce aircraft value by maintenance cost
-      const newValue = Math.max(0, currentValue - cost);
+      // After maintenance, reduce the current value by 10% of maintenance cost permanently
+      const valueReduction = cost * 0.10;
+      const newValue = Math.max(0, currentValue - valueReduction);
+      
+      // If value reaches 0, it's a total loss
+      const newStatus = newValue <= 0 ? 'total_loss' : 'available';
 
       await base44.entities.Aircraft.update(aircraft.id, { 
-        status: 'available',
+        status: newStatus,
         accumulated_maintenance_cost: 0,
         current_value: newValue
       });
@@ -168,7 +177,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         type: 'expense',
         category: 'maintenance',
         amount: cost,
-        description: `Wartung: ${aircraft.name}`,
+        description: `Wartung: ${aircraft.name} (Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
         date: new Date().toISOString()
       });
     },
@@ -304,7 +313,21 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </div>
           </div>
 
-          {aircraft.status === "damaged" ? (
+          {aircraft.status === "total_loss" ? (
+            <div className="w-full p-3 bg-red-200 border border-red-400 rounded-lg mb-3">
+              <p className="text-sm text-red-900 font-semibold mb-3">Totalschaden - Flugzeug ist wertlos</p>
+              <Button 
+                size="sm" 
+                className="w-full"
+                onClick={() => scrapMutation.mutate()}
+                disabled={scrapMutation.isPending}
+                variant="destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                {scrapMutation.isPending ? 'Entsorge...' : 'Verschrotten'}
+              </Button>
+            </div>
+          ) : aircraft.status === "damaged" ? (
             <div className="w-full p-3 bg-red-100 border border-red-300 rounded-lg mb-3">
               <p className="text-sm text-red-800 font-semibold mb-3">Flugzeug beschädigt</p>
               <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>

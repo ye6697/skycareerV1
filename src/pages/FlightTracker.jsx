@@ -939,14 +939,20 @@ export default function FlightTracker() {
         baseScore = Math.max(0, baseScore - 50);
       }
       
-      // G-Kräfte ab 1.5: Kosten in 1 G Schritten, nur einmalig pro Stufe
+      // G-Kräfte ab 1.5: Score-Abzug + Kosten beim ERSTEN Überschreiten und dann pro G-Stufe
       if (newMaxGForce >= 1.5) {
+        // Erster Überschreitung: Score-Abzug sofort wenn 1.5 erstmals erreicht
+        if (!hadHighGEvent && !prev.events.high_g_force) {
+          baseScore = Math.max(0, baseScore - 25);
+          maintenanceCostIncrease += aircraftPurchasePrice * 0.01;
+        }
+        
         const currentGLevel = Math.floor(newMaxGForce);
         const prevGLevel = Math.floor(prev.maxGForce);
         
-        if (currentGLevel > prevGLevel) {
-          // Berechne Kosten nur für neue G-Level
-          for (let gLevel = prevGLevel + 1; gLevel <= currentGLevel; gLevel++) {
+        if (currentGLevel > prevGLevel && currentGLevel >= 2) {
+          // Berechne Kosten nur für neue G-Level ab 2
+          for (let gLevel = Math.max(2, prevGLevel + 1); gLevel <= currentGLevel; gLevel++) {
             if (!processedGLevels.has(gLevel)) {
               const gForceMaintenanceCost = aircraftPurchasePrice * (gLevel * 0.01);
               maintenanceCostIncrease += gForceMaintenanceCost;
@@ -1066,8 +1072,8 @@ export default function FlightTracker() {
     // Erlaube Abschluss in ALLEN aktiven Flugphasen (takeoff, cruise, landing)
     const isActivePhase = flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing';
     
-    if (flightData.wasAirborne && flightStartTime && xp.on_ground && flightPhase === 'landing' && !completeFlightMutation.isPending && !isCompletingFlight) {
-      console.log('🛬 LANDUNG ERKANNT (on_ground + landing phase) - Starte Flugabschluss');
+    if (flightData.wasAirborne && flightStartTime && xp.on_ground && (flightPhase === 'landing' || flightPhase === 'cruise') && !completeFlightMutation.isPending && !isCompletingFlight) {
+      console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Starte Flugabschluss');
       setFlightPhase('completed');
       completeFlightMutation.mutate();
     }
