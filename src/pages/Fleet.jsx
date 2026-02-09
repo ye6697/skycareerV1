@@ -147,6 +147,7 @@ export default function Fleet() {
 
   const filteredAircraft = displayAircraft.filter(ac => {
     if (ac.status === 'sold') return false;
+    if (ac.status === 'total_loss') return true; // Show total loss so user can scrap
     const matchesSearch = ac.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ac.registration?.toLowerCase().includes(searchTerm.toLowerCase());
     if (activeTab === 'all') return matchesSearch;
