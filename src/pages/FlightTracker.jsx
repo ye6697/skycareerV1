@@ -487,24 +487,17 @@ export default function FlightTracker() {
        flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2; // Fallback: Average cruise speed 450 knots
      }
 
-     // Time efficiency bonus/penalty
-     const expectedFlightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2;
+     // Time efficiency bonus/penalty based on contract deadline
+     const deadlineMinutes = contract?.deadline_minutes || Math.round((contract?.distance_nm || 500) / 250 * 60 * 1.5 + 15);
+     const deadlineHours = deadlineMinutes / 60;
      let timeBonus = 0;
      let timeScoreChange = 0;
+     const madeDeadline = flightHours <= deadlineHours;
 
-     // Only apply time penalties for flights longer than 10 minutes expected
-     if (expectedFlightHours > 0.167) {
-       if (flightHours < expectedFlightHours * 0.8) {
-         // Flew too fast - penalty
-         timeScoreChange = -20;
-       } else if (flightHours <= expectedFlightHours * 0.95) {
-         // Perfect speed - bonus
-         timeBonus = (contract?.payout || 0) * 0.05;
-         timeScoreChange = 10;
-       } else if (flightHours > expectedFlightHours * 1.2) {
-         // Too slow - penalty
-         timeScoreChange = -15;
-       }
+     if (madeDeadline) {
+       timeScoreChange = 20; // +20 score for making the deadline
+     } else {
+       timeScoreChange = -20; // -20 score for missing the deadline
      }
 
      const crewCostPerHour = 250; // $250 per flight hour (captain + first officer)
@@ -877,27 +870,29 @@ export default function FlightTracker() {
 
       if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
         const gForce = landingGForceValue;
+        // Revenue = contract payout (Gesamteinnahmen)
+        const totalRevenue = contract?.payout || 0;
 
         if (gForce < 0.5) {
           landingType = 'butter';
           landingScoreChange = 40;
-          landingBonus = contract?.payout ? (contract.payout * 0.1) : 0;
+          landingBonus = totalRevenue * 4; // 4x Gesamteinnahmen
         } else if (gForce < 1.0) {
           landingType = 'soft';
           landingScoreChange = 20;
-          landingBonus = contract?.payout ? (contract.payout * 0.05) : 0;
+          landingBonus = totalRevenue * 2; // 2x Gesamteinnahmen
         } else if (gForce < 1.6) {
           landingType = 'acceptable';
           landingScoreChange = 5;
-          landingBonus = contract?.payout ? (contract.payout * 0.01) : 0;
+          landingBonus = 0; // $0
         } else if (gForce < 2.0) {
           landingType = 'hard';
-          landingScoreChange = -20;
-          landingMaintenanceCost = aircraftPurchasePrice * 0.01;
+          landingScoreChange = -30;
+          landingMaintenanceCost = totalRevenue * 0.25; // -25% der Gesamteinnahmen
         } else {
           landingType = 'very_hard';
-          landingScoreChange = -40;
-          landingMaintenanceCost = aircraftPurchasePrice * 0.03;
+          landingScoreChange = -50;
+          landingMaintenanceCost = totalRevenue * 0.5; // -50% der Gesamteinnahmen
         }
       }
       
