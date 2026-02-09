@@ -1181,34 +1181,53 @@ export default function FlightTracker() {
   const calculateDistanceInfo = () => {
     if (!contract || flightPhase === 'preflight') return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
     
-    // Use real coordinates from X-Plane
-    if (flightData.latitude && flightData.longitude && flightData.arrival_lat && flightData.arrival_lon &&
-        (flightData.latitude !== 0 || flightData.longitude !== 0) &&
-        (flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0)) {
-      
-      const remainingDistance = calculateHaversineDistance(
-        flightData.latitude, flightData.longitude,
-        flightData.arrival_lat, flightData.arrival_lon
-      );
-      
-      // Use departure coords if available for total distance, otherwise contract distance
+    const hasCurrentPos = (flightData.latitude !== 0 || flightData.longitude !== 0);
+    const hasArrivalCoords = flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0;
+    const hasDepartureCoords = flightData.departure_lat !== 0 || flightData.departure_lon !== 0;
+    
+    if (hasCurrentPos) {
+      // Total route distance: prefer calculated from departure->arrival coords, fallback to contract distance_nm
       let totalDistance = contract?.distance_nm || 0;
-      if (flightData.departure_lat && flightData.departure_lon &&
-          (flightData.departure_lat !== 0 || flightData.departure_lon !== 0)) {
-        totalDistance = calculateHaversineDistance(
-          flightData.departure_lat, flightData.departure_lon,
+      
+      if (hasArrivalCoords) {
+        // We have arrival coordinates - calculate remaining distance directly
+        const remainingDistance = calculateHaversineDistance(
+          flightData.latitude, flightData.longitude,
           flightData.arrival_lat, flightData.arrival_lon
         );
+        
+        if (hasDepartureCoords) {
+          totalDistance = calculateHaversineDistance(
+            flightData.departure_lat, flightData.departure_lon,
+            flightData.arrival_lat, flightData.arrival_lon
+          );
+        }
+        
+        if (totalDistance <= 0) totalDistance = contract?.distance_nm || remainingDistance;
+        
+        const progress = ((totalDistance - remainingDistance) / totalDistance) * 100;
+        return { 
+          progress: Math.max(0, Math.min(100, progress)), 
+          remainingNm: Math.max(0, Math.round(remainingDistance)),
+          totalNm: Math.round(totalDistance)
+        };
       }
       
-      if (totalDistance <= 0) return { progress: 0, remainingNm: Math.round(remainingDistance), totalNm: 0 };
-      
-      const progress = ((totalDistance - remainingDistance) / totalDistance) * 100;
-      return { 
-        progress: Math.max(0, Math.min(100, progress)), 
-        remainingNm: Math.max(0, Math.round(remainingDistance)),
-        totalNm: Math.round(totalDistance)
-      };
+      // No arrival coords but have current position and departure coords
+      // Estimate progress based on distance from departure vs total contract distance
+      if (hasDepartureCoords && totalDistance > 0) {
+        const flownDistance = calculateHaversineDistance(
+          flightData.departure_lat, flightData.departure_lon,
+          flightData.latitude, flightData.longitude
+        );
+        const remainingDistance = Math.max(0, totalDistance - flownDistance);
+        const progress = (flownDistance / totalDistance) * 100;
+        return {
+          progress: Math.max(0, Math.min(100, progress)),
+          remainingNm: Math.max(0, Math.round(remainingDistance)),
+          totalNm: Math.round(totalDistance)
+        };
+      }
     }
     
     return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
