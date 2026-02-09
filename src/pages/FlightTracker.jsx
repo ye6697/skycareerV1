@@ -464,7 +464,10 @@ export default function FlightTracker() {
      }
      console.log('🚀 STARTE FLUGABSCHLUSS');
      setIsCompletingFlight(true);
-     if (!flight) {
+     
+     // Use flight from state OR existingFlight from query
+     const activeFlight = flight || existingFlight;
+     if (!activeFlight) {
        throw new Error('Flugdaten nicht geladen');
      }
      if (!aircraft || aircraft.length === 0) {
