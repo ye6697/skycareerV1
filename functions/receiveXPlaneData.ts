@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
       maintenance_cost,
       reputation,
       parking_brake,
-      engines_running
+      engines_running,
+      overspeed
     } = data;
 
     // Normalize field names (plugin sends parking_brake/engines_running, also support park_brake/engine1_running)
@@ -147,6 +148,7 @@ Deno.serve(async (req) => {
         stall_warning,
         override_alpha,
         overstress,
+        overspeed: overspeed || false,
         flaps_overspeed,
         fuel_emergency,
         gear_up_landing,

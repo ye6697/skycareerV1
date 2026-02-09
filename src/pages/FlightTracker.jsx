@@ -962,6 +962,11 @@ export default function FlightTracker() {
         maintenanceCostIncrease += aircraftPurchasePrice * 0.04;
       }
       
+      // Overspeed: -15 Punkte
+      if (xp.overspeed && !prev.events.overspeed) {
+        baseScore = Math.max(0, baseScore - 15);
+      }
+      
       // Flaps Overspeed: Score-Abzug + Wartungskosten basierend auf Settings
       if (xp.flaps_overspeed && !prev.events.flaps_overspeed) {
         const flapsScorePenalty = settings?.flaps_overspeed_score_penalty || 15;
@@ -1362,6 +1367,12 @@ export default function FlightTracker() {
                             <AlertTriangle className="w-3 h-3" />
                             Strukturbelastung (-30 Punkte)
                           </div>
+                        )}
+                        {flightData.events.overspeed === true && (
+                         <div className="text-xs text-orange-400 flex items-center gap-1">
+                           <AlertTriangle className="w-3 h-3" />
+                           Overspeed (-15 Punkte)
+                         </div>
                         )}
                         {flightData.events.flaps_overspeed === true && (
                          <div className="text-xs text-orange-400 flex items-center gap-1">

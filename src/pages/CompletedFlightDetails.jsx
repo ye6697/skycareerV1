@@ -422,6 +422,12 @@ export default function CompletedFlightDetails() {
                           Strukturbelastung
                         </div>
                       )}
+                      {events.overspeed === true && (
+                        <div className="flex items-center gap-2 text-orange-400 text-sm">
+                          <AlertTriangle className="w-4 h-4" />
+                          Overspeed
+                        </div>
+                      )}
                       {events.flaps_overspeed === true && (
                         <div className="flex items-center gap-2 text-orange-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
