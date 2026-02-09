@@ -21,6 +21,7 @@ import {
   DollarSign,
   CheckCircle2,
   AlertTriangle,
+  Timer,
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
@@ -599,6 +600,9 @@ export default function FlightTracker() {
                 flightHours,
                 timeScoreChange,
                 timeBonus,
+                madeDeadline,
+                deadlineMinutes,
+                totalRevenue: contract?.payout || 0,
                 levelBonus: levelBonus,
                 levelBonusPercent: levelBonusPercent * 100,
                 companyLevel: company?.level || 1,
@@ -1276,6 +1280,53 @@ export default function FlightTracker() {
                 </div>
               </div>
             </Card>
+
+            {/* Deadline Timer */}
+            {flightPhase !== 'preflight' && flightStartTime && (
+              <Card className="p-6 bg-slate-800/50 border-slate-700">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Timer className="w-5 h-5 text-amber-400" />
+                  Deadline
+                </h3>
+                {(() => {
+                  const deadlineMin = contract?.deadline_minutes || Math.round((contract?.distance_nm || 500) / 250 * 60 * 1.5 + 15);
+                  const deadlineSec = deadlineMin * 60;
+                  const elapsed = flightDurationSeconds;
+                  const remaining = deadlineSec - elapsed;
+                  const isOver = remaining <= 0;
+                  const absRemaining = Math.abs(remaining);
+                  const mins = Math.floor(absRemaining / 60);
+                  const secs = absRemaining % 60;
+                  const progress = Math.min((elapsed / deadlineSec) * 100, 100);
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-slate-400">Verbleibend</span>
+                        <span className={`text-2xl font-mono font-bold ${
+                          isOver ? 'text-red-400' : remaining < 300 ? 'text-amber-400' : 'text-emerald-400'
+                        }`}>
+                          {isOver ? '-' : ''}{mins}:{secs.toString().padStart(2, '0')}
+                        </span>
+                      </div>
+                      <Progress value={progress} className="h-2 bg-slate-700" />
+                      <div className="flex justify-between mt-2 text-xs text-slate-500">
+                        <span>0 min</span>
+                        <span>{deadlineMin} min</span>
+                      </div>
+                      {isOver && (
+                        <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Deadline überschritten! (-20 Punkte)
+                        </p>
+                      )}
+                      {!isOver && remaining < 300 && (
+                        <p className="text-xs text-amber-400 mt-2">Weniger als 5 Minuten!</p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </Card>
+            )}
 
             {/* Fuel & Status */}
             <Card className="p-6 bg-slate-800/50 border-slate-700">
