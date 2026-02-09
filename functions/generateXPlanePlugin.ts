@@ -80,6 +80,8 @@ class PythonInterface:
         self.datarefs['theta'] = xp.findDataRef("sim/flightmodel/position/theta")
         self.datarefs['stall_warning'] = xp.findDataRef("sim/cockpit2/annunciators/stall_warning")
         self.datarefs['override_alpha'] = xp.findDataRef("sim/flightmodel/failures/over_alpha")
+        self.datarefs['overspeed'] = xp.findDataRef("sim/cockpit2/annunciators/overspeed")
+        self.datarefs['flap_speed_overflow'] = xp.findDataRef("sim/flightmodel/failures/over_vfe")
         
         # Create flight loop
         xp.createFlightLoop(self.FlightLoopCallback, 1)
@@ -127,6 +129,8 @@ class PythonInterface:
 
             stall_warning = xp.getDatai(self.datarefs['stall_warning']) == 1
             override_alpha = xp.getDatai(self.datarefs['override_alpha']) == 1
+            overspeed = xp.getDatai(self.datarefs['overspeed']) == 1
+            flaps_overspeed = xp.getDatai(self.datarefs['flap_speed_overflow']) == 1
 
             # Event detection
             tailstrike = pitch > 10 and on_ground
@@ -169,7 +173,10 @@ class PythonInterface:
                 'tailstrike': tailstrike,
                 'stall': stall,
                 'stall_warning': stall_warning,
-                'override_alpha': override_alpha
+                'override_alpha': override_alpha,
+                'overspeed': overspeed,
+                'flaps_overspeed': flaps_overspeed,
+                'landing_g_force': round(g_force, 2)
             }
             
             # Send to API
