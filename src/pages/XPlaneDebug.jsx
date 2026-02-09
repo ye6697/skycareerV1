@@ -54,7 +54,7 @@ export default function XPlaneDebug() {
   const activeFlight = flights.find(f => f.status === 'in_flight');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-4 lg:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div 
@@ -64,7 +64,7 @@ export default function XPlaneDebug() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">X-Plane Debug</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">X-Plane Debug</h1>
               <p className="text-slate-400">Live-Datenüberwachung für Entwicklung</p>
             </div>
             <div className="flex items-center gap-3">
