@@ -66,6 +66,7 @@ export default function FlightTracker() {
       tailstrike: false,
       stall: false,
       overstress: false,
+      overspeed: false,
       flaps_overspeed: false,
       fuel_emergency: false,
       gear_up_landing: false,
@@ -73,7 +74,7 @@ export default function FlightTracker() {
       harsh_controls: false,
       high_g_force: false,
       hard_landing: false
-    },
+      },
     maxControlInput: 0,
     departure_lat: 0,
     departure_lon: 0,
@@ -491,16 +492,19 @@ export default function FlightTracker() {
      let timeBonus = 0;
      let timeScoreChange = 0;
 
-     if (flightHours < expectedFlightHours * 0.8) {
-       // Flew too fast - penalty
-       timeScoreChange = -20;
-     } else if (flightHours <= expectedFlightHours * 0.95) {
-       // Perfect speed - bonus
-       timeBonus = (contract?.payout || 0) * 0.05;
-       timeScoreChange = 10;
-     } else if (flightHours > expectedFlightHours * 1.2) {
-       // Too slow - penalty
-       timeScoreChange = -15;
+     // Only apply time penalties for flights longer than 10 minutes expected
+     if (expectedFlightHours > 0.167) {
+       if (flightHours < expectedFlightHours * 0.8) {
+         // Flew too fast - penalty
+         timeScoreChange = -20;
+       } else if (flightHours <= expectedFlightHours * 0.95) {
+         // Perfect speed - bonus
+         timeBonus = (contract?.payout || 0) * 0.05;
+         timeScoreChange = 10;
+       } else if (flightHours > expectedFlightHours * 1.2) {
+         // Too slow - penalty
+         timeScoreChange = -15;
+       }
      }
 
      const crewCostPerHour = 250; // $250 per flight hour (captain + first officer)
@@ -840,10 +844,24 @@ export default function FlightTracker() {
       const touchdownVs = prev.landingType 
         ? prev.landingVs  // Already landed - keep the captured value
         : (xp.landing_vs || xp.touchdown_vspeed || 0);
-      // Landing G-force from X-Plane - only capture at moment of landing, keep value after
-      const landingGForceValue = prev.landingType 
-        ? prev.landingGForce  // Already landed - keep the captured value
-        : (xp.landing_g_force || currentGForce);
+      // Landing G-force: Track the PEAK g-force during ground contact transition
+      // Once landed (landingType set), preserve the captured value
+      let landingGForceValue;
+      if (prev.landingType) {
+        landingGForceValue = prev.landingGForce; // Already landed - keep captured value
+      } else if (xp.on_ground && newWasAirborne) {
+        // At the moment of touchdown, take the HIGHEST of: current g_force, previous g_force, landing_g_force from plugin
+        landingGForceValue = Math.max(
+          currentGForce,
+          prev.landingGForce || 0,
+          xp.landing_g_force || 0
+        );
+      } else if (!xp.on_ground && newWasAirborne) {
+        // Still airborne - track peak g-force for upcoming landing
+        landingGForceValue = Math.max(prev.landingGForce || 0, currentGForce);
+      } else {
+        landingGForceValue = xp.landing_g_force || currentGForce;
+      }
 
       // Landing categories based on G-force only
       let landingType = prev.landingType;
@@ -992,6 +1010,7 @@ export default function FlightTracker() {
          tailstrike: xp.tailstrike || prev.events.tailstrike,
          stall: (xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha) || prev.events.stall,
          overstress: xp.overstress || prev.events.overstress,
+          overspeed: xp.overspeed || prev.events.overspeed,
           flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
           fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
