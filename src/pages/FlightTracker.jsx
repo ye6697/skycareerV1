@@ -720,7 +720,7 @@ export default function FlightTracker() {
                 category: 'flight_revenue',
                 amount: actualProfit,
                 description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
-                reference_id: flight?.id,
+                reference_id: activeFlight?.id,
                 date: new Date().toISOString()
               });
             }
