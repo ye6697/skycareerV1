@@ -1288,11 +1288,9 @@ export default function FlightTracker() {
             <Progress value={distanceProgress} className="h-2 bg-slate-700" />
             <div className="mt-2 text-xs text-slate-400 text-center">
               {Math.round(distanceProgress)}% des Fluges absolviert
-              {flightData.latitude !== 0 && contract?.distance_nm > 0 && (
-                <span className="ml-2 font-mono">
-                  | ca. {Math.max(0, Math.round(contract.distance_nm * (1 - distanceProgress / 100)))} NM verbleibend
-                </span>
-              )}
+              <span className="ml-2 font-mono">
+                | {distanceInfo.remainingNm} NM verbleibend
+              </span>
             </div>
           </div>
         </motion.div>
