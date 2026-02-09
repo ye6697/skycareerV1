@@ -606,16 +606,53 @@ export default function FlightTracker() {
               profit,
               passenger_comments: generateComments(scoreWithTime, finalFlightData),
               xplane_data: {
-                ...finalFlightData,
+                // Alle Live-Flugdaten
+                altitude: finalFlightData.altitude,
+                speed: finalFlightData.speed,
+                verticalSpeed: finalFlightData.verticalSpeed,
+                heading: finalFlightData.heading,
+                fuel: finalFlightData.fuel,
+                fuelKg: finalFlightData.fuelKg,
+                gForce: finalFlightData.gForce,
+                maxGForce: finalFlightData.maxGForce,
+                latitude: finalFlightData.latitude,
+                longitude: finalFlightData.longitude,
+                departure_lat: finalFlightData.departure_lat,
+                departure_lon: finalFlightData.departure_lon,
+                arrival_lat: finalFlightData.arrival_lat,
+                arrival_lon: finalFlightData.arrival_lon,
+                // Landungsdaten - EXPLIZIT gespeichert
+                landingGForce: finalFlightData.landingGForce,
+                landingVs: finalFlightData.landingVs,
+                landingType: finalFlightData.landingType,
+                landingScoreChange: finalFlightData.landingScoreChange,
+                landingMaintenanceCost: finalFlightData.landingMaintenanceCost,
+                landingBonus: finalFlightData.landingBonus,
+                // Score & Kosten
+                flightScore: finalFlightData.flightScore,
                 final_score: scoreWithTime,
+                maintenanceCost: finalFlightData.maintenanceCost,
+                crashMaintenanceCost: crashMaintenanceCost,
+                // Events - EXPLIZIT
+                events: {
+                  tailstrike: finalFlightData.events.tailstrike || false,
+                  stall: finalFlightData.events.stall || false,
+                  overstress: finalFlightData.events.overstress || false,
+                  flaps_overspeed: finalFlightData.events.flaps_overspeed || false,
+                  fuel_emergency: finalFlightData.events.fuel_emergency || false,
+                  gear_up_landing: finalFlightData.events.gear_up_landing || false,
+                  crash: finalFlightData.events.crash || hasCrashed,
+                  harsh_controls: finalFlightData.events.harsh_controls || false,
+                  high_g_force: finalFlightData.events.high_g_force || false,
+                  hard_landing: finalFlightData.events.hard_landing || false
+                },
+                // Berechnete Werte
                 flightHours,
                 timeScoreChange,
                 timeBonus,
                 levelBonus: levelBonus,
                 levelBonusPercent: levelBonusPercent * 100,
-                companyLevel: company?.level || 1,
-                events: finalFlightData.events,
-                crashMaintenanceCost: crashMaintenanceCost
+                companyLevel: company?.level || 1
               }
             });
 
