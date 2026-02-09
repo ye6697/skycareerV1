@@ -140,7 +140,7 @@ export default function CompletedFlightDetails() {
                     CRASH - Fehlgeschlagen
                   </Badge>
                 ) : (
-                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                     <CheckCircle2 className="w-4 h-4 mr-1" />
                     Abgeschlossen
                   </Badge>
@@ -161,8 +161,8 @@ export default function CompletedFlightDetails() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold text-emerald-600">
-                ${finalContract.payout?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              <p className="text-3xl font-bold text-emerald-400">
+                ${Math.round(finalContract.payout || 0).toLocaleString()}
               </p>
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-900 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Treibstoff verbraucht</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
-                      {flight.fuel_used_liters?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} L
+                      {Math.round(flight.fuel_used_liters || 0).toLocaleString()} L
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
@@ -392,7 +392,7 @@ export default function CompletedFlightDetails() {
                   {flight.xplane_data?.maintenanceCost > 0 && (
                     <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
                       <p className="text-sm text-red-300 mb-2">Wartungskosten im Flug:</p>
-                      <p className="text-2xl font-bold text-red-400">${flight.xplane_data.maintenanceCost?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</p>
+                      <p className="text-2xl font-bold text-red-400">${Math.round(flight.xplane_data.maintenanceCost || 0).toLocaleString()}</p>
                     </div>
                   )}
 
@@ -403,23 +403,23 @@ export default function CompletedFlightDetails() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between text-slate-300">
                           <span>Reguläre Wartung ({flight.flight_duration_hours?.toFixed(1)}h × $400/h)</span>
-                          <span className="text-amber-400">${((flight.flight_duration_hours || 0) * 400).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                          <span className="text-amber-400">${Math.round((flight.flight_duration_hours || 0) * 400).toLocaleString()}</span>
                         </div>
                         {flight.xplane_data?.maintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
                             <span>Event-Schäden im Flug</span>
-                            <span className="text-red-400">${(flight.xplane_data.maintenanceCost).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                            <span className="text-red-400">${Math.round(flight.xplane_data.maintenanceCost || 0).toLocaleString()}</span>
                           </div>
                         )}
                         {flight.xplane_data?.crashMaintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
                             <span>Crash-Reparatur (70% des Neuwertes)</span>
-                            <span className="text-red-500 font-bold">${(flight.xplane_data.crashMaintenanceCost).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                            <span className="text-red-500 font-bold">${Math.round(flight.xplane_data.crashMaintenanceCost || 0).toLocaleString()}</span>
                           </div>
                         )}
                         <div className="flex justify-between pt-2 border-t border-slate-700 font-bold">
                           <span className="text-white">Gesamt Wartungskosten</span>
-                          <span className="text-red-400">${(flight.maintenance_cost || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                          <span className="text-red-400">${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -520,40 +520,40 @@ export default function CompletedFlightDetails() {
                 <div className="space-y-3">
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-slate-400">Auftrag-Payout</span>
-                     <span className="text-emerald-400 font-mono">${finalContract?.payout?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                     <span className="text-emerald-400 font-mono">${Math.round(finalContract?.payout || 0).toLocaleString()}</span>
                    </div>
                    {flight?.xplane_data?.landingBonus > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-slate-400">Landequalitäts-Bonus</span>
-                     <span className="text-emerald-400 font-mono">+${flight.xplane_data.landingBonus.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                     <span className="text-emerald-400 font-mono">+${Math.round(flight.xplane_data.landingBonus).toLocaleString()}</span>
                    </div>
                    )}
                    {flight?.xplane_data?.levelBonus > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-amber-400">Level-Bonus (Lv.{flight.xplane_data.companyLevel || 1} × {flight.xplane_data.levelBonusPercent?.toFixed(0) || 1}%)</span>
-                     <span className="text-amber-400 font-mono">+${flight.xplane_data.levelBonus.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                     <span className="text-amber-400 font-mono">+${Math.round(flight.xplane_data.levelBonus).toLocaleString()}</span>
                    </div>
                    )}
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Treibstoff ({flight.fuel_used_liters?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} L)</span>
-                    <span className="text-red-400 font-mono">-${flight.fuel_cost?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                     <span className="text-slate-400">Treibstoff ({Math.round(flight.fuel_used_liters || 0).toLocaleString()} L)</span>
+                    <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                     <span className="text-slate-400">Crew ({flight.flight_duration_hours?.toFixed(1)}h)</span>
-                    <span className="text-red-400 font-mono">-${flight.crew_cost?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                    <span className="text-red-400 font-mono">-${Math.round(flight.crew_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                     <span className="text-slate-400">Wartung ({flight.flight_duration_hours?.toFixed(1)}h + Events)</span>
-                    <span className="text-red-400 font-mono">-${flight.maintenance_cost?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                    <span className="text-red-400 font-mono">-${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                     <span className="text-slate-400">Flughafen-Gebühren</span>
-                    <span className="text-red-400 font-mono">-$150.00</span>
+                    <span className="text-red-400 font-mono">-$150</span>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-700">
                     <span className="font-semibold">Gesamt-Einnahmen</span>
                     <span className="text-xl font-bold font-mono text-emerald-400">
-                      ${(flight.revenue || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      ${Math.round(flight.revenue || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-3">
@@ -561,7 +561,7 @@ export default function CompletedFlightDetails() {
                     <span className={`text-xl font-bold font-mono ${
                       flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
-                      ${flight.profit?.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      ${Math.round(flight.profit || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
