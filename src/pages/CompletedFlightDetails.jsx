@@ -528,6 +528,12 @@ export default function CompletedFlightDetails() {
                      <span className="text-emerald-400 font-mono">+${Math.round(flight.xplane_data.landingBonus).toLocaleString()}</span>
                    </div>
                    )}
+                   {flight?.xplane_data?.landingPenalty > 0 && (
+                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                     <span className="text-slate-400">Landequalitäts-Abzug</span>
+                     <span className="text-red-400 font-mono">-${Math.round(flight.xplane_data.landingPenalty).toLocaleString()}</span>
+                   </div>
+                   )}
                    {flight?.xplane_data?.levelBonus > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-amber-400">Level-Bonus (Lv.{flight.xplane_data.companyLevel || 1} × {flight.xplane_data.levelBonusPercent?.toFixed(0) || 1}%)</span>
