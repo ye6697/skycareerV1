@@ -475,7 +475,20 @@ export default function FlightTracker() {
      }
      
      // Use the latest flightData from ref to ensure all events are captured
-     const finalFlightData = flightDataRef.current || flightData;
+     let finalFlightData = flightDataRef.current || flightData;
+     
+     // KRITISCH: Wenn Crash erkannt wurde (egal ob im State oder via has_crashed), 
+     // stelle sicher dass das crash-Event gesetzt ist
+     if (finalFlightData.events && !finalFlightData.events.crash) {
+       // Prüfe ob ein Crash über andere Wege erkannt wurde
+       const latestXPlane = activeFlight?.xplane_data;
+       if (latestXPlane?.has_crashed) {
+         finalFlightData = {
+           ...finalFlightData,
+           events: { ...finalFlightData.events, crash: true }
+         };
+       }
+     }
      
      // Realistic cost calculations based on aviation industry
      const fuelUsed = (100 - finalFlightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
@@ -755,9 +768,10 @@ export default function FlightTracker() {
       await queryClient.invalidateQueries({ queryKey: ['contracts'] });
 
       // Direkt navigieren mit dem neuesten Flight von der DB
+      // KRITISCH: Nutze die Daten vom gespeicherten Flight (aus DB), nicht den lokalen State
+      // Der lokale State kann veraltet sein (z.B. crash-Event fehlt)
       navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
         state: { 
-          flightData: flightDataRef.current || flightData,
           flight: updatedFlight,
           contract
         },
