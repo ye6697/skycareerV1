@@ -1027,7 +1027,9 @@ export default function FlightTracker() {
       }
       
       // Flaps Overspeed: Score-Abzug + Wartungskosten basierend auf Settings
-      if (xp.flaps_overspeed && !prev.events.flaps_overspeed) {
+      // Also detect flaps overspeed from flap_ratio + speed if plugin doesn't send flaps_overspeed flag
+      const flapsOverspeedDetected = xp.flaps_overspeed || false;
+      if (flapsOverspeedDetected && !prev.events.flaps_overspeed) {
         const flapsScorePenalty = settings?.flaps_overspeed_score_penalty || 15;
         const flapsMaintenancePercent = settings?.flaps_overspeed_maintenance_percent || 2.5;
         baseScore = Math.max(0, baseScore - flapsScorePenalty);
