@@ -522,8 +522,8 @@ export default function FlightTracker() {
      // Landing and airport fees
      const airportFee = 150;
 
-      // Check for crash
-      const hasCrashed = finalFlightData.events.crash;
+      // Check for crash - aus ALLEN Quellen zusammenführen
+      const hasCrashed = finalFlightData.events.crash || flightData.events.crash;
 
      // Bei Crash: KEIN Payout und KEIN Bonus
      let revenue = 0;
