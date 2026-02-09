@@ -1173,35 +1173,44 @@ export default function FlightTracker() {
     return R * c;
   };
 
-  const calculateDistance = () => {
-    if (!contract || flightPhase === 'preflight') return 0;
+  const calculateDistanceInfo = () => {
+    if (!contract || flightPhase === 'preflight') return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
     
     // Use real coordinates from X-Plane
-    if (flightData.departure_lat && flightData.arrival_lat && flightData.latitude) {
-      // Only calculate if we have moved from departure
-      const distanceFromDeparture = calculateHaversineDistance(
-        flightData.departure_lat, flightData.departure_lon,
-        flightData.latitude, flightData.longitude
-      );
+    if (flightData.latitude && flightData.longitude && flightData.arrival_lat && flightData.arrival_lon &&
+        (flightData.latitude !== 0 || flightData.longitude !== 0) &&
+        (flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0)) {
       
-      if (distanceFromDeparture < 5) return 0;
-      
-      const totalDistance = calculateHaversineDistance(
-        flightData.departure_lat, flightData.departure_lon,
-        flightData.arrival_lat, flightData.arrival_lon
-      );
       const remainingDistance = calculateHaversineDistance(
         flightData.latitude, flightData.longitude,
         flightData.arrival_lat, flightData.arrival_lon
       );
+      
+      // Use departure coords if available for total distance, otherwise contract distance
+      let totalDistance = contract?.distance_nm || 0;
+      if (flightData.departure_lat && flightData.departure_lon &&
+          (flightData.departure_lat !== 0 || flightData.departure_lon !== 0)) {
+        totalDistance = calculateHaversineDistance(
+          flightData.departure_lat, flightData.departure_lon,
+          flightData.arrival_lat, flightData.arrival_lon
+        );
+      }
+      
+      if (totalDistance <= 0) return { progress: 0, remainingNm: Math.round(remainingDistance), totalNm: 0 };
+      
       const progress = ((totalDistance - remainingDistance) / totalDistance) * 100;
-      return Math.max(0, Math.min(100, progress));
+      return { 
+        progress: Math.max(0, Math.min(100, progress)), 
+        remainingNm: Math.max(0, Math.round(remainingDistance)),
+        totalNm: Math.round(totalDistance)
+      };
     }
     
-    return 0;
+    return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
   };
 
-  const distanceProgress = calculateDistance();
+  const distanceInfo = calculateDistanceInfo();
+  const distanceProgress = distanceInfo.progress;
 
   if (flightPhase === 'preflight' && !contract) {
     return (
