@@ -15,7 +15,8 @@ import {
   Star,
   AlertTriangle,
   CheckCircle2,
-  Loader
+  Loader,
+  Timer
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
@@ -235,6 +236,31 @@ export default function CompletedFlightDetails() {
                   </div>
                 </div>
 
+                {/* Deadline Result */}
+                {flight.xplane_data?.deadlineMinutes && (
+                  <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                    <p className="text-slate-400 text-sm mb-1">Deadline</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-slate-500">
+                          Vorgabe: {flight.xplane_data.deadlineMinutes} min | Geflogen: {(flight.flight_duration_hours * 60).toFixed(0)} min
+                        </p>
+                      </div>
+                      {flight.xplane_data.madeDeadline ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          <span className="text-emerald-400 font-bold">+20 Punkte</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-red-400" />
+                          <span className="text-red-400 font-bold">-20 Punkte</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Final Score */}
                 <div className="mt-4 p-4 bg-slate-900 rounded-lg">
                   <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
@@ -267,19 +293,16 @@ export default function CompletedFlightDetails() {
                   }
                   if (!lt) return null;
 
-                  // Compute effective score/cost from landing type if not stored
-                  let scoreChange = flight.xplane_data?.landingScoreChange ?? 0;
-                  let bonus = flight.xplane_data?.landingBonus ?? 0;
-                  let mCost = flight.xplane_data?.landingMaintenanceCost ?? 0;
+                  // Compute score/financial impact from landing type
+                  const totalRev = flight.revenue || flight.xplane_data?.totalRevenue || 0;
+                  let scoreChange = 0;
+                  let financialImpact = 0;
                   
-                  // If scoreChange is 0 but we have a hard/very_hard landing, compute it
-                  if (scoreChange === 0 && (lt === 'hard' || lt === 'very_hard' || lt === 'butter' || lt === 'soft' || lt === 'acceptable')) {
-                    if (lt === 'butter') scoreChange = 40;
-                    else if (lt === 'soft') scoreChange = 20;
-                    else if (lt === 'acceptable') scoreChange = 5;
-                    else if (lt === 'hard') { scoreChange = -20; if (mCost === 0) mCost = (flight.xplane_data?.aircraftPurchasePrice || 1000000) * 0.01; }
-                    else if (lt === 'very_hard') { scoreChange = -40; if (mCost === 0) mCost = (flight.xplane_data?.aircraftPurchasePrice || 1000000) * 0.03; }
-                  }
+                  if (lt === 'butter') { scoreChange = 40; financialImpact = totalRev * 4; }
+                  else if (lt === 'soft') { scoreChange = 20; financialImpact = totalRev * 2; }
+                  else if (lt === 'acceptable') { scoreChange = 5; financialImpact = 0; }
+                  else if (lt === 'hard') { scoreChange = -30; financialImpact = -(totalRev * 0.25); }
+                  else if (lt === 'very_hard') { scoreChange = -50; financialImpact = -(totalRev * 0.5); }
                   const vs = Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0);
 
                   return (
@@ -349,16 +372,16 @@ export default function CompletedFlightDetails() {
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Finanzielle Auswirkung</p>
-                        {bonus > 0 ? (
+                        {financialImpact > 0 ? (
                           <p className="font-mono font-bold text-emerald-400">
-                            +${bonus.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            +${financialImpact.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                           </p>
-                        ) : mCost > 0 ? (
+                        ) : financialImpact < 0 ? (
                           <p className="font-mono font-bold text-red-400">
-                            -${mCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            -${Math.abs(financialImpact).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                           </p>
                         ) : (
-                          <p className="text-slate-400">-</p>
+                          <p className="text-slate-400">$0</p>
                         )}
                       </div>
                       </div>
