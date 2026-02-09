@@ -121,8 +121,8 @@ export default function XPlaneSetup() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Plugin herunterladen</h3>
-                <p className="text-slate-400 mb-4">
-                  Wähle eine der beiden Methoden - FlyWithLua ist empfohlen für einfachere Installation:
+                <p className="text-sm text-slate-400 mb-4 break-words">
+                  Wähle eine der beiden Methoden – FlyWithLua ist empfohlen für einfachere Installation:
                 </p>
                 <div className="space-y-4">
                   {/* FlyWithLua Option - Empfohlen */}
@@ -133,23 +133,23 @@ export default function XPlaneSetup() {
                       </div>
                       <h4 className="text-white font-semibold">FlyWithLua Script</h4>
                     </div>
-                    <p className="text-sm text-slate-400 mb-3">
-                      Einfachste Methode - funktioniert mit dem beliebten FlyWithLua Plugin
+                    <p className="text-sm text-slate-400 mb-3 break-words">
+                      Einfachste Methode – funktioniert mit dem beliebten FlyWithLua Plugin
                     </p>
                     <Button 
-                      className="bg-emerald-600 hover:bg-emerald-700 w-full"
+                      className="bg-emerald-600 hover:bg-emerald-700 w-full whitespace-normal h-auto py-2"
                       onClick={downloadLua}
                       disabled={downloading}
                     >
                       {downloading ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
                           Lädt...
                         </>
                       ) : (
                         <>
-                          <Download className="w-4 h-4 mr-2" />
-                          FlyWithLua Script herunterladen (.lua)
+                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
+                          SkyCareer V1 herunterladen (.lua)
                         </>
                       )}
                     </Button>
@@ -170,23 +170,22 @@ export default function XPlaneSetup() {
                   {/* Python Option */}
                   <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
                     <h4 className="text-white font-semibold mb-2">Python Plugin (XPPython3)</h4>
-                    <p className="text-sm text-slate-400 mb-3">
+                    <p className="text-sm text-slate-400 mb-3 break-words">
                       Alternative Methode mit XPPython3
                     </p>
                     <Button 
-                      variant="outline"
-                      className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
+                      className="w-full bg-black hover:bg-black/80 text-white border border-slate-600 whitespace-normal h-auto py-2"
                       onClick={downloadPython}
                       disabled={downloading}
                     >
                       {downloading ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
                           Lädt...
                         </>
                       ) : (
                         <>
-                          <Download className="w-4 h-4 mr-2" />
+                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
                           Python Plugin herunterladen (.txt)
                         </>
                       )}
@@ -217,7 +216,7 @@ export default function XPlaneSetup() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Installation</h3>
-                <p className="text-slate-400 mb-4">
+                <p className="text-sm text-slate-400 mb-4 break-words">
                   Je nach gewählter Methode:
                 </p>
                 <div className="space-y-4">
@@ -228,12 +227,12 @@ export default function XPlaneSetup() {
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">1. Installiere FlyWithLua (falls noch nicht vorhanden)</p>
                         <p className="text-xs text-slate-400">Nach:</p>
-                        <code className="text-xs text-emerald-400 block mt-1">X-Plane 12/Resources/plugins/FlyWithLua/</code>
+                        <code className="text-xs text-emerald-400 block mt-1 break-all">X-Plane 12/Resources/plugins/FlyWithLua/</code>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">2. Kopiere SkyCareer.lua</p>
                         <p className="text-xs text-slate-400">Nach:</p>
-                        <code className="text-xs text-emerald-400 block mt-1">X-Plane 12/Resources/plugins/FlyWithLua/Scripts/</code>
+                        <code className="text-xs text-emerald-400 block mt-1 break-all">X-Plane 12/Resources/plugins/FlyWithLua/Scripts/</code>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">3. Starte X-Plane 12 neu</p>
@@ -248,11 +247,11 @@ export default function XPlaneSetup() {
                     <div className="space-y-3 text-sm">
                       <div className="bg-slate-950 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">1. Installiere XPPython3</p>
-                        <code className="text-xs text-blue-400 block mt-1">X-Plane 12/Resources/plugins/XPPython3/</code>
+                        <code className="text-xs text-blue-400 block mt-1 break-all">X-Plane 12/Resources/plugins/XPPython3/</code>
                       </div>
                       <div className="bg-slate-950 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">2. Erstelle Ordner "SkyCareer"</p>
-                        <code className="text-xs text-blue-400 block mt-1">X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/</code>
+                        <code className="text-xs text-blue-400 block mt-1 break-all">X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/</code>
                       </div>
                       <div className="bg-slate-950 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">3. Kopiere die Dateien aus der .txt in den Ordner</p>
@@ -273,13 +272,13 @@ export default function XPlaneSetup() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Fertig - keine weitere Konfiguration nötig!</h3>
-                <p className="text-slate-400 mb-4">
+                <p className="text-sm text-slate-400 mb-4 break-words">
                   Das Plugin ist bereits mit deiner Company ID vorkonfiguriert:
                 </p>
                 <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <p className="text-emerald-300 font-medium">Automatisch konfiguriert mit individuellem API-Key</p>
+                   <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                   <p className="text-emerald-300 font-medium text-sm break-words">Automatisch konfiguriert mit individuellem API-Key</p>
                   </div>
                   <p className="text-sm text-slate-400 mb-3">
                     Das Plugin enthält deinen persönlichen API-Key und sendet die Daten nur an deinen Account!
@@ -326,7 +325,7 @@ export default function XPlaneSetup() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Flug durchführen</h3>
-                <p className="text-slate-400 mb-4">
+                <p className="text-sm text-slate-400 mb-4 break-words">
                   So verwendest du das Plugin:
                 </p>
                 <div className="space-y-3 text-sm">

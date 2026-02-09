@@ -142,25 +142,19 @@ export default function ContractDetails() {
                   config.color === "purple" ? "text-purple-400" :
                   "text-red-400"
                 }`} />
-                Mission Briefing
+                Mission Briefing – {contract.title}
               </h3>
-              {contract.briefing ? (
-                <div className="space-y-3">
+              <div className="space-y-3">
+                {contract.briefing && (
                   <p className="text-slate-300 leading-relaxed">{contract.briefing}</p>
-                  <p className="text-slate-400 text-sm leading-relaxed">
-                    {contract.type === 'passenger' && `Dieser Passagierflug von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} erfordert eine professionelle und komfortable Durchführung. ${contract.passenger_count || 0} Passagiere erwarten einen sicheren und pünktlichen Transport über eine Distanz von ${contract.distance_nm?.toLocaleString() || 0} Nautischen Meilen. Achte auf eine sanfte Landung und halte die G-Kräfte niedrig, um die Passagierzufriedenheit zu maximieren und den bestmöglichen Bonus zu erzielen.`}
-                    {contract.type === 'cargo' && `Für diesen Frachtauftrag müssen ${contract.cargo_weight_kg?.toLocaleString() || 0} kg Ladung sicher von ${contract.departure_airport} nach ${contract.arrival_airport} transportiert werden. Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Stelle sicher, dass dein Flugzeug die nötige Frachtkapazität und Reichweite besitzt. Eine pünktliche Lieferung innerhalb der Deadline wird zusätzlich belohnt.`}
-                    {contract.type === 'charter' && `Ein exklusiver Charterflug von ${contract.departure_airport} nach ${contract.arrival_airport} über ${contract.distance_nm?.toLocaleString() || 0} NM. Charterflüge haben besonders hohe Anforderungen an Komfort und Pünktlichkeit. Die Passagiere erwarten erstklassigen Service – eine butterweiche Landung und ruhiger Flugverlauf werden mit erheblichen Bonuszahlungen belohnt.`}
-                    {contract.type === 'emergency' && `DRINGEND: Notfalleinsatz von ${contract.departure_airport} nach ${contract.arrival_airport}! Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} NM und muss schnellstmöglich geflogen werden. Zeit ist der kritische Faktor – die Deadline muss unbedingt eingehalten werden. Trotz des Zeitdrucks ist eine sichere Flugdurchführung Pflicht.`}
-                  </p>
-                </div>
-              ) : (
+                )}
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  {contract.type === 'passenger' ? `Passagierflug von ${contract.departure_airport} nach ${contract.arrival_airport} über ${contract.distance_nm?.toLocaleString() || 0} NM. ${contract.passenger_count || 0} Passagiere warten auf einen komfortablen und sicheren Flug. Achte auf sanfte Manöver und eine weiche Landung für maximale Zufriedenheit.` :
-                   contract.type === 'cargo' ? `Frachtauftrag: ${contract.cargo_weight_kg?.toLocaleString() || 0} kg von ${contract.departure_airport} nach ${contract.arrival_airport}. Distanz: ${contract.distance_nm?.toLocaleString() || 0} NM. Sichere und pünktliche Lieferung ist gefragt.` :
-                   `Flugauftrag von ${contract.departure_airport} nach ${contract.arrival_airport} über ${contract.distance_nm?.toLocaleString() || 0} NM. Führe den Flug professionell und sicher durch.`}
+                  {contract.type === 'passenger' && `Du wurdest beauftragt, ${contract.passenger_count || 0} Passagiere sicher von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} zu fliegen. Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} Nautische Meilen. Die Passagiere erwarten einen komfortablen und professionellen Flug – achte besonders auf sanfte Manöver, niedrige G-Kräfte und eine butterweiche Landung, um die Zufriedenheit zu maximieren. Je besser dein Flug-Score, desto höher fällt der Bonus aus. Halte die Deadline ein und vermeide Vorfälle wie Strömungsabriss, Overspeed oder harte Landungen, um Strafkosten und Score-Abzüge zu vermeiden.`}
+                  {contract.type === 'cargo' && `Du hast den Auftrag erhalten, ${contract.cargo_weight_kg?.toLocaleString() || 0} kg Fracht von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} zu transportieren. Die Distanz beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Stelle sicher, dass dein Flugzeug die nötige Frachtkapazität und Reichweite besitzt. Fracht ist weniger empfindlich als Passagiere, aber Vorfälle wie harte Landungen oder Strukturbelastung führen trotzdem zu Wartungskosten. Liefere pünktlich innerhalb der vorgegebenen Deadline, um Bonuszahlungen zu sichern.`}
+                  {contract.type === 'charter' && `Exklusiver Charterauftrag: Fliege ${contract.passenger_count ? `${contract.passenger_count} VIP-Passagiere` : 'eine Gruppe'} von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} über ${contract.distance_nm?.toLocaleString() || 0} NM. Charterflüge haben besonders hohe Anforderungen an Komfort und Pünktlichkeit. Die Gäste erwarten erstklassigen Service – eine butterweiche Landung und ein ruhiger, professioneller Flugverlauf werden mit erheblichen Bonuszahlungen belohnt. Jeder Vorfall wirkt sich deutlich stärker auf die Bewertung aus.`}
+                  {contract.type === 'emergency' && `DRINGENDER NOTFALLEINSATZ: Du musst schnellstmöglich von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} fliegen! Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Zeit ist der absolut kritische Faktor – die Deadline muss unbedingt eingehalten werden, da sonst der gesamte Auftrag als fehlgeschlagen gilt. Trotz des Zeitdrucks ist eine sichere Flugdurchführung Pflicht. Unfälle oder Vorfälle führen zu empfindlichen Strafen.`}
                 </p>
-              )}
+              </div>
             </Card>
 
             {/* Flight Details */}
@@ -317,34 +311,88 @@ export default function ContractDetails() {
               </Badge>
             </Card>
 
-            {/* Scoring Info */}
+            {/* Full Scoring & Events Overview */}
             <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Star className="w-5 h-5 text-amber-400" />
-                Bewertungs-Info
+                Score & Auswirkungen
               </h3>
-              <div className="space-y-2 text-sm text-slate-400">
-                <div className="flex justify-between">
-                  <span>Butterweiche Landung (&lt;0.5G)</span>
-                  <span className="text-emerald-400 font-medium">+40 Punkte</span>
+              
+              {/* Bonuses */}
+              <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-2">Bonus-Events</p>
+              <div className="space-y-1.5 text-sm mb-4">
+                <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
+                  <span className="text-slate-300">Butterweiche Landung (&lt;100 ft/min)</span>
+                  <div className="flex gap-3">
+                    <span className="text-emerald-400 font-medium">+10 Score</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Weiche Landung (&lt;1.0G)</span>
-                  <span className="text-emerald-400 font-medium">+20 Punkte</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Harte Landung (&gt;1.6G)</span>
-                  <span className="text-red-400 font-medium">-30 Punkte</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Deadline eingehalten</span>
-                  <span className="text-emerald-400 font-medium">+20 Punkte</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Deadline verpasst</span>
-                  <span className="text-red-400 font-medium">-20 Punkte</span>
+                <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
+                  <span className="text-slate-300">Weiche Landung (&lt;150 ft/min)</span>
+                  <div className="flex gap-3">
+                    <span className="text-emerald-400 font-medium">+5 Score</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Penalties */}
+              <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-2">Straf-Events</p>
+              <div className="space-y-1.5 text-sm mb-4">
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Harte Landung (&gt;600 ft/min)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-15 Score</span>
+                    <span className="text-amber-400">1% Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Heckaufsetzer (Tailstrike)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-20 Score</span>
+                    <span className="text-amber-400">2% Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Klappen-Overspeed</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-15 Score</span>
+                    <span className="text-amber-400">2.5% Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">G-Kraft Überschreitung (&gt;1.5G)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-25 Score/G</span>
+                    <span className="text-amber-400">1%/G Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Strukturschaden (Overstress)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-30 Score</span>
+                    <span className="text-amber-400">4% Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Strömungsabriss (Stall)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-50 Score</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Catastrophic */}
+              <p className="text-xs text-red-500 font-semibold uppercase tracking-wider mb-2">Katastrophal</p>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between items-center p-2 bg-red-900/20 border border-red-800/30 rounded">
+                  <span className="text-red-300 font-medium">Crash (&gt;1000 ft/min)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-bold">-100 Score</span>
+                    <span className="text-red-400 font-bold">70% Wartung</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-3">Wartungskosten berechnen sich als Prozent des Flugzeug-Neuwerts. Score startet bei 100 und bestimmt den Bonus.</p>
             </Card>
           </div>
         </div>

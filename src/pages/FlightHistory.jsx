@@ -181,56 +181,84 @@ export default function FlightHistory() {
           </div>
         </div>
 
-        {/* Flight List */}
+        {/* Departure Board Style Table */}
         {isLoading ? (
           <Card className="animate-pulse bg-slate-800 h-64" />
         ) : flights.length > 0 ? (
-          <div className="space-y-3">
-            {flights.map((flight) => {
-              const contract = getContractForFlight(flight);
-              return (
-                <Card 
-                  key={flight.id} 
-                  className={`p-3 sm:p-4 bg-slate-800 border border-slate-700 cursor-pointer hover:border-slate-500 transition-colors ${flight.status === 'failed' ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-emerald-500'}`}
-                  onClick={() => setSelectedFlight(flight)}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="text-xs text-slate-500">{formatDate(flight.departure_time)}</span>
-                        {flight.status === 'failed' && (
-                          <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Crash</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-white font-mono text-sm sm:text-base">
-                        <span>{contract?.departure_airport || '???'}</span>
-                        <span className="text-slate-500">→</span>
-                        <span>{contract?.arrival_airport || '???'}</span>
-                      </div>
+          <Card className="overflow-hidden bg-[#0c0e14] border border-slate-700 rounded-xl">
+            {/* Board Header */}
+            <div className="bg-[#111318] border-b border-slate-700/50 px-3 sm:px-5 py-3 flex items-center gap-3">
+              <Plane className="w-4 h-4 text-amber-400" />
+              <span className="text-amber-400 font-mono text-xs sm:text-sm font-bold tracking-widest uppercase">Flughistorie – Abflüge</span>
+            </div>
+            {/* Column Headers */}
+            <div className="grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[120px_1fr_80px_80px_100px] gap-1 px-3 sm:px-5 py-2 bg-[#111318] border-b border-slate-700/50 text-[10px] sm:text-xs font-mono font-bold text-amber-400/70 uppercase tracking-wider">
+              <span>Datum</span>
+              <span>Route</span>
+              <span className="text-center hidden sm:block">Score</span>
+              <span className="text-center">Landung</span>
+              <span className="text-right">Gewinn</span>
+            </div>
+            {/* Rows */}
+            <div className="divide-y divide-slate-800/80">
+              {flights.filter(f => {
+                if (!searchTerm) return true;
+                const contract = getContractForFlight(f);
+                const search = searchTerm.toLowerCase();
+                return contract?.departure_airport?.toLowerCase().includes(search) || 
+                       contract?.arrival_airport?.toLowerCase().includes(search) ||
+                       formatDate(f.departure_time).includes(search);
+              }).map((flight, index) => {
+                const contract = getContractForFlight(flight);
+                const isFailed = flight.status === 'failed';
+                return (
+                  <motion.div
+                    key={flight.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.02 }}
+                    className={`grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[120px_1fr_80px_80px_100px] gap-1 items-center px-3 sm:px-5 py-2.5 cursor-pointer transition-colors font-mono text-sm ${isFailed ? 'bg-red-950/20 hover:bg-red-950/40' : 'hover:bg-slate-800/60'}`}
+                    onClick={() => setSelectedFlight(flight)}
+                  >
+                    {/* Date */}
+                    <div className="text-slate-400 text-[11px] sm:text-xs">
+                      {formatDate(flight.departure_time)}
                     </div>
-                    <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
-                      <div className="flex items-center gap-1">
-                        <Star className={`w-4 h-4 ${flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
-                        <span className="text-white text-sm font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
-                      </div>
-                      <Badge className={`text-xs ${
-                        Math.abs(flight.landing_vs || 0) < 150 
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+                    {/* Route */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-white font-bold text-xs sm:text-sm">{contract?.departure_airport || '???'}</span>
+                      <span className="text-amber-400 text-xs">→</span>
+                      <span className="text-white font-bold text-xs sm:text-sm">{contract?.arrival_airport || '???'}</span>
+                      {isFailed && (
+                        <Badge className="bg-red-600 text-white border-0 text-[9px] px-1.5 py-0 font-bold animate-pulse">CRASH</Badge>
+                      )}
+                    </div>
+                    {/* Score */}
+                    <div className="text-center hidden sm:flex items-center justify-center gap-1">
+                      <Star className={`w-3 h-3 ${flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}`} />
+                      <span className="text-white text-xs font-bold">{flight.overall_rating?.toFixed(1) || '-'}</span>
+                    </div>
+                    {/* Landing */}
+                    <div className="flex justify-center">
+                      <span className={`text-[11px] sm:text-xs font-bold px-1.5 py-0.5 rounded ${
+                        Math.abs(flight.landing_vs || 0) < 150
+                          ? 'bg-emerald-500/20 text-emerald-400'
                           : Math.abs(flight.landing_vs || 0) < 300
-                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                          : 'bg-red-500/20 text-red-400 border-red-500/30'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'bg-red-500/20 text-red-400'
                       }`}>
-                        {flight.landing_vs} ft/m
-                      </Badge>
-                      <span className={`text-sm font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {formatCurrency(flight.profit)}
+                        {flight.landing_vs || 0} ft/m
                       </span>
                     </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                    {/* Profit */}
+                    <div className={`text-right text-xs sm:text-sm font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {formatCurrency(flight.profit)}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </Card>
         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
