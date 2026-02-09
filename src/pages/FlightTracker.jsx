@@ -482,11 +482,14 @@ export default function FlightTracker() {
      const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
      const fuelCost = fuelUsed * fuelCostPerLiter;
 
-     // Flight hours: Use real-world time from flightStartTime
+     // Flight hours: Use real-world time from flightStartTime, or departure_time from flight record
      let flightHours;
      if (flightStartTime) {
        const realFlightSeconds = (Date.now() - flightStartTime) / 1000;
        flightHours = realFlightSeconds / 3600; // Convert to hours
+     } else if (activeFlight.departure_time) {
+       const realFlightSeconds = (Date.now() - new Date(activeFlight.departure_time).getTime()) / 1000;
+       flightHours = Math.max(0.01, realFlightSeconds / 3600);
      } else {
        flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2; // Fallback: Average cruise speed 450 knots
      }
