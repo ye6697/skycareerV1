@@ -535,11 +535,21 @@ export default function FlightTracker() {
 
      // Bei Crash: KEIN Payout und KEIN Bonus
      let revenue = 0;
+     let landingBonusUsed = 0;
+     let landingPenaltyUsed = 0;
      if (!hasCrashed) {
        revenue = contract?.payout || 0;
-       // Bonus based on landing quality (G-force based)
+       // Bonus/Penalty based on landing quality (G-force based)
        const landingBonus = finalFlightData.landingBonus || 0;
-       revenue += landingBonus;
+       const landingMaintenanceCost = finalFlightData.landingMaintenanceCost || 0;
+       if (landingBonus > 0) {
+         landingBonusUsed = landingBonus;
+         revenue += landingBonus;
+       }
+       if (landingMaintenanceCost > 0) {
+         landingPenaltyUsed = landingMaintenanceCost;
+         revenue -= landingMaintenanceCost;
+       }
        // Add time bonus
        revenue += timeBonus;
      }
