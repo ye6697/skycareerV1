@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     // Create complete FlyWithLua script with CORRECT XP12 DataRefs
     const luaScript = `-- =========================================================
--- SkyCareer PRO Complete Monitoring System
+-- SkyCareer V1 - Complete Flight Monitoring System
 -- X-Plane 12 / FlyWithLua (Mac + Windows)
 -- =========================================================
 
@@ -51,30 +51,15 @@ local touchdown_vspeed = 0
 local landing_g_force = 0
 local landing_quality = "NONE"
 
-local flight_score = 100
-local maintenance_cost = 0
-local reputation = "EXCELLENT"
-
+-- Event flags (set once, never accumulate)
 local tailstrike_detected = false
 local stall_detected = false
 local overstress_detected = false
-local flaps_overspeed = false
-local fuel_emergency = false
-local gear_up_landing = false
+local overspeed_detected = false
+local flaps_overspeed_detected = false
+local fuel_emergency_detected = false
+local gear_up_landing_detected = false
 local crash_detected = false
-
-------------------------------------------------------------
--- LANDING CLASSIFICATION
-------------------------------------------------------------
-function classify_landing(g_force, vspeed)
-    if vspeed > -200 and g_force < 1.4 then
-        return "SOFT"
-    elseif vspeed >= -500 and g_force < 1.8 then
-        return "MEDIUM"
-    else
-        return "HARD"
-    end
-end
 
 ------------------------------------------------------------
 -- HTTP SEND (ULTRA SAFE with pcall)
@@ -93,63 +78,86 @@ end
 -- MAIN MONITOR
 ------------------------------------------------------------
 function monitor_flight()
+    -- Core flight data
     local altitude = (get("sim/flightmodel/position/elevation") or 0) * 3.28084
     local speed = (get("sim/flightmodel/position/groundspeed") or 0) * 1.94384
+    local ias = get("sim/flightmodel/position/indicated_airspeed") or 0
     local vs = (get("sim/flightmodel/position/vh_ind") or 0) * 196.85
     local heading = get("sim/flightmodel/position/psi") or 0
     local g_force = get("sim/flightmodel2/misc/gforce_normal") or 1.0
     local latitude = get("sim/flightmodel/position/latitude") or 0
     local longitude = get("sim/flightmodel/position/longitude") or 0
-    local total_fuel_current = get("sim/flightmodel/weight/m_fuel_total") or 0
-    local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot") or 1000
 
+    -- Fuel
+    local total_fuel_kg = get("sim/flightmodel/weight/m_fuel_total") or 0
+    local fuel_max = get("sim/aircraft/weight/acf_m_fuel_tot") or 1000
     local fuel_percentage = 100
-    if fuel_max > 0 and total_fuel_current > 0 then
-        fuel_percentage = (total_fuel_current / fuel_max) * 100
+    if fuel_max > 0 and total_fuel_kg > 0 then
+        fuel_percentage = (total_fuel_kg / fuel_max) * 100
     end
 
+    -- On ground
     local on_ground_raw = get("sim/flightmodel/failures/onground_any")
     local on_ground = false
     if on_ground_raw ~= nil then
-        if type(on_ground_raw) == "boolean" then
-            on_ground = on_ground_raw
-        elseif type(on_ground_raw) == "number" then
-            on_ground = (on_ground_raw == 1)
-        end
+        if type(on_ground_raw) == "number" then on_ground = (on_ground_raw == 1)
+        elseif type(on_ground_raw) == "boolean" then on_ground = on_ground_raw end
     end
 
-    local park_brake_raw = get("sim/flightmodel/controls/parkbrake")
+    -- Parking brake
+    local park_brake_raw = get("sim/flightmodel/controls/parkbrake") or 0
     local park_brake = false
-    if park_brake_raw ~= nil then
-        if type(park_brake_raw) == "boolean" then
-            park_brake = park_brake_raw
-        elseif type(park_brake_raw) == "number" then
-            park_brake = (park_brake_raw > 0.5)
-        end
-    end
+    if type(park_brake_raw) == "number" then park_brake = (park_brake_raw > 0.5)
+    elseif type(park_brake_raw) == "boolean" then park_brake = park_brake_raw end
 
-    -- Engine detection using throttle (simple and reliable)
+    -- Engine status
     local throttle_1 = get("sim/cockpit2/engine/actuators/throttle_ratio_all") or 0
     local engine1_running = (throttle_1 > 0.01)
-    local engine2_running = (throttle_1 > 0.01)
+    local engine2_running = engine1_running
 
-    if g_force > max_g_force then
-        max_g_force = g_force
+    -- Gear status
+    local gear_handle = get("sim/cockpit2/controls/gear_handle_down")
+    local gear_down = true
+    if gear_handle ~= nil then
+        if type(gear_handle) == "number" then gear_down = (gear_handle > 0.5) end
     end
+
+    -- Flap ratio
+    local flap_ratio = get("sim/flightmodel/controls/flaprat") or 0
+
+    -- Pitch for tailstrike
+    local pitch = get("sim/flightmodel/position/theta") or 0
+
+    -- Crash detection
+    local has_crashed_raw = get("sim/flightmodel2/misc/has_crashed")
+    local has_crashed = false
+    if has_crashed_raw ~= nil then
+        if type(has_crashed_raw) == "number" then has_crashed = (has_crashed_raw == 1)
+        elseif type(has_crashed_raw) == "boolean" then has_crashed = has_crashed_raw end
+    end
+
+    -- Overspeed
+    local vne = get("sim/aircraft/view/acf_Vne") or 999
+    local is_overspeed = (ias > vne * 0.95)
+
+    -- Track max G
+    if g_force > max_g_force then max_g_force = g_force end
 
     ---------------- TAKEOFF ----------------
     if last_on_ground and not on_ground then
         flight_started = true
         flight_landed = false
-        max_g_force = 0
-        flight_score = 100
-        maintenance_cost = 0
+        max_g_force = g_force
+        touchdown_vspeed = 0
+        landing_g_force = 0
+        landing_quality = "NONE"
         tailstrike_detected = false
         stall_detected = false
         overstress_detected = false
-        flaps_overspeed = false
-        fuel_emergency = false
-        gear_up_landing = false
+        overspeed_detected = false
+        flaps_overspeed_detected = false
+        fuel_emergency_detected = false
+        gear_up_landing_detected = false
         crash_detected = false
     end
 
@@ -159,100 +167,25 @@ function monitor_flight()
         landing_g_force = g_force
         flight_landed = true
 
-        landing_quality = classify_landing(landing_g_force, touchdown_vspeed)
-
-        if landing_quality == "MEDIUM" then
-            flight_score = flight_score - 5
-        elseif landing_quality == "HARD" then
-            flight_score = flight_score - 15
-            maintenance_cost = maintenance_cost + 5000
-        end
-
-        local gear_handle = get("sim/cockpit2/controls/gear_handle_down")
-        if gear_handle == nil or gear_handle == false or gear_handle == 0 then
-            gear_up_landing = true
-            flight_score = flight_score - 40
-            maintenance_cost = maintenance_cost + 30000
+        if not gear_down then
+            gear_up_landing_detected = true
         end
     end
 
     last_on_ground = on_ground
 
-    ---------------- EVENT DETECTION ----------------
-    local pitch = get("sim/flightmodel/position/theta") or 0
-    if pitch > 10 and on_ground then
-        tailstrike_detected = true
-    end
-
-    local ias = get("sim/flightmodel/position/indicated_airspeed") or 0
-    if altitude > 500 and ias < 80 and not on_ground then
-        stall_detected = true
-    end
-
-    if g_force > 2.5 or g_force < -1.0 then
-        overstress_detected = true
-    end
-
-    local flap_ratio = get("sim/flightmodel/controls/flaprat") or 0
-    if flap_ratio > 0 and speed > 200 then
-        flaps_overspeed = true
-    end
-
-    if total_fuel_current < 300 then
-        fuel_emergency = true
-    end
-
-    local has_crashed = get("sim/flightmodel2/misc/has_crashed") or false
-    if has_crashed then
-        crash_detected = true
-    end
-
-    ---------------- SCORE PENALTIES ----------------
-    if tailstrike_detected then
-        flight_score = flight_score - 25
-        maintenance_cost = maintenance_cost + 25000
-    end
-
-    if stall_detected then
-        flight_score = flight_score - 20
-    end
-
-    if overstress_detected then
-        flight_score = flight_score - 20
-        maintenance_cost = maintenance_cost + 15000
-    end
-
-    if flaps_overspeed then
-        flight_score = flight_score - 10
-    end
-
-    if fuel_emergency then
-        flight_score = flight_score - 15
-    end
-
-    if crash_detected then
-        flight_score = flight_score - 80
-        maintenance_cost = maintenance_cost + 100000
-    end
-
-    if flight_score < 0 then
-        flight_score = 0
-    end
-
-    ---------------- REPUTATION ----------------
-    if flight_score >= 95 then
-        reputation = "EXCELLENT"
-    elseif flight_score >= 85 then
-        reputation = "VERY_GOOD"
-    elseif flight_score >= 70 then
-        reputation = "ACCEPTABLE"
-    elseif flight_score >= 50 then
-        reputation = "POOR"
-    else
-        reputation = "UNSAFE"
-    end
+    ---------------- EVENT DETECTION (flags only, no score calc) ----------------
+    if pitch > 10 and on_ground and flight_started then tailstrike_detected = true end
+    if altitude > 500 and ias < 80 and not on_ground and flight_started then stall_detected = true end
+    if (g_force > 2.5 or g_force < -1.0) and flight_started then overstress_detected = true end
+    if is_overspeed and flight_started then overspeed_detected = true end
+    if flap_ratio > 0 and speed > 200 and flight_started then flaps_overspeed_detected = true end
+    if total_fuel_kg < 300 and flight_started then fuel_emergency_detected = true end
+    if has_crashed and flight_started then crash_detected = true end
 
     ---------------- CONSTRUCT JSON ----------------
+    -- NOTE: Score calculation is done entirely on the frontend (FlightTracker).
+    -- The plugin only sends raw data and boolean event flags.
     local json_payload =
         "{"
         .. '"altitude":' .. string.format("%.1f", altitude) .. ","
@@ -260,34 +193,36 @@ function monitor_flight()
         .. '"vertical_speed":' .. string.format("%.1f", vs) .. ","
         .. '"heading":' .. string.format("%.1f", heading) .. ","
         .. '"fuel_percentage":' .. string.format("%.1f", fuel_percentage) .. ","
+        .. '"fuel_kg":' .. string.format("%.1f", total_fuel_kg) .. ","
         .. '"g_force":' .. string.format("%.2f", g_force) .. ","
         .. '"max_g_force":' .. string.format("%.2f", max_g_force) .. ","
         .. '"touchdown_vspeed":' .. string.format("%.1f", touchdown_vspeed) .. ","
         .. '"landing_g_force":' .. string.format("%.2f", landing_g_force) .. ","
-        .. '"landing_quality":"' .. landing_quality .. '",'
-        .. '"latitude":' .. latitude .. ","
-        .. '"longitude":' .. longitude .. ","
+        .. '"latitude":' .. string.format("%.6f", latitude) .. ","
+        .. '"longitude":' .. string.format("%.6f", longitude) .. ","
         .. '"on_ground":' .. tostring(on_ground) .. ","
         .. '"park_brake":' .. tostring(park_brake) .. ","
         .. '"engine1_running":' .. tostring(engine1_running) .. ","
         .. '"engine2_running":' .. tostring(engine2_running) .. ","
+        .. '"gear_down":' .. tostring(gear_down) .. ","
+        .. '"flap_ratio":' .. string.format("%.2f", flap_ratio) .. ","
+        .. '"pitch":' .. string.format("%.1f", pitch) .. ","
+        .. '"ias":' .. string.format("%.1f", ias) .. ","
         .. '"tailstrike":' .. tostring(tailstrike_detected) .. ","
         .. '"stall":' .. tostring(stall_detected) .. ","
         .. '"overstress":' .. tostring(overstress_detected) .. ","
-        .. '"flaps_overspeed":' .. tostring(flaps_overspeed) .. ","
-        .. '"fuel_emergency":' .. tostring(fuel_emergency) .. ","
-        .. '"gear_up_landing":' .. tostring(gear_up_landing) .. ","
+        .. '"overspeed":' .. tostring(overspeed_detected) .. ","
+        .. '"flaps_overspeed":' .. tostring(flaps_overspeed_detected) .. ","
+        .. '"fuel_emergency":' .. tostring(fuel_emergency_detected) .. ","
+        .. '"gear_up_landing":' .. tostring(gear_up_landing_detected) .. ","
         .. '"crash":' .. tostring(crash_detected) .. ","
-        .. '"has_crashed":' .. tostring(has_crashed) .. ","
-        .. '"flight_score":' .. flight_score .. ","
-        .. '"maintenance_cost":' .. maintenance_cost .. ","
-        .. '"reputation":"' .. reputation .. '"'
+        .. '"has_crashed":' .. tostring(has_crashed)
         .. "}"
 
     send_flight_data(json_payload)
 end
 
--- Send data every 2 seconds instead of every 10 seconds
+-- Send data every 2 seconds
 local last_send_time = 0
 function flight_loop_callback()
     local current_time = os.clock()
