@@ -140,7 +140,7 @@ export default function Contracts() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -149,7 +149,7 @@ export default function Contracts() {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white">Aufträge</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Aufträge</h1>
               <p className="text-slate-400">Finde und akzeptiere lukrative Flugaufträge</p>
             </div>
             <div className="flex items-center gap-3">
@@ -178,7 +178,7 @@ export default function Contracts() {
         </motion.div>
 
         {/* Range Filter */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
           <Filter className="w-4 h-4 text-slate-400" />
           <button
             onClick={() => setRangeFilter('all')}

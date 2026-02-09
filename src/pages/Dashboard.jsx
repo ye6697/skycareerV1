@@ -171,7 +171,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -180,7 +180,7 @@ export default function Dashboard() {
         >
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white">{company.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">{company.name}</h1>
               <p className="text-slate-400">{company.callsign} • Hub: {company.hub_airport || "Nicht festgelegt"}</p>
               {company.xplane_api_key && (
                 <div className="mt-2 flex items-center gap-2">
@@ -193,13 +193,13 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-400">Kontostand</p>
-              <p className="text-3xl font-bold text-emerald-600">{formatCurrency(company.balance)}</p>
+              <p className="text-xl sm:text-3xl font-bold text-emerald-600">{formatCurrency(company.balance)}</p>
             </div>
           </div>
         </motion.div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <StatCard
             title="Flüge Gesamt"
             value={company.total_flights?.toLocaleString() || 0}
@@ -235,7 +235,7 @@ export default function Dashboard() {
         </div>
 
         {/* Middle Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <ReputationGauge reputation={company.reputation} level={company.level} />
           <XPlaneStatus status={company.xplane_connection_status} />
           
@@ -356,7 +356,7 @@ export default function Dashboard() {
                        <p className="text-sm text-slate-400">Status: Abgeschlossen</p>
                      </div>
                    </div>
-                   <div className="grid grid-cols-3 gap-4 p-4 bg-slate-900 rounded-lg">
+                   <div className="grid grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-4 bg-slate-900 rounded-lg">
                      <div className="text-center">
                        <p className="text-sm text-slate-400 mb-1">Bewertung</p>
                        <div className="flex items-center justify-center gap-1">

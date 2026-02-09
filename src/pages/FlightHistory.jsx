@@ -101,19 +101,19 @@ export default function FlightHistory() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-white">Flughistorie</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Flughistorie</h1>
           <p className="text-slate-400">Übersicht aller abgeschlossenen Flüge</p>
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <Card className="p-4 bg-slate-800 border border-slate-700">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-500/20 rounded-lg">
@@ -185,8 +185,8 @@ export default function FlightHistory() {
         {isLoading ? (
           <Card className="animate-pulse bg-slate-100 h-64" />
         ) : flights.length > 0 ? (
-          <Card className="overflow-hidden bg-slate-800 border border-slate-700">
-            <Table>
+          <Card className="overflow-hidden bg-slate-800 border border-slate-700 overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-white">Datum</TableHead>

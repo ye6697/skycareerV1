@@ -130,19 +130,19 @@ export default function Finances() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-white">Finanzen</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Finanzen</h1>
           <p className="text-slate-400">Übersicht deiner Einnahmen und Ausgaben</p>
         </motion.div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <StatCard
             title="Kontostand"
             value={formatCurrency(company?.balance)}
@@ -170,7 +170,7 @@ export default function Finances() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Chart */}
           <Card className="lg:col-span-2 p-6 bg-slate-800 border border-slate-700">
             <div className="flex items-center justify-between mb-6">

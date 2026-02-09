@@ -32,8 +32,7 @@ import {
   CheckCircle,
   Play,
   DollarSign,
-  User,
-  XCircle } from
+  User } from
 "lucide-react";
 
 export default function ActiveFlights() {
@@ -48,61 +47,37 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const u = await base44.auth.me();
-      const cid = u?.company_id || u?.data?.company_id;
-      if (cid) {
-        const companies = await base44.entities.Company.filter({ id: cid });
-        if (companies[0]) return companies[0];
-      }
-      const companies = await base44.entities.Company.filter({ created_by: u.email });
-      if (companies[0]) {
-        await base44.auth.updateMe({ company_id: companies[0].id });
-        return companies[0];
-      }
-      return null;
-    },
-    refetchInterval: 5000,
-  });
-
-  const companyId = company?.id;
-
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: companyId }),
-    enabled: !!companyId,
+    queryKey: ['contracts', 'accepted'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
   });
 
   const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: companyId }),
-    enabled: !!companyId,
+    queryKey: ['contracts', 'in_progress'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
   });
 
   const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
-    enabled: !!companyId,
-  });
-
-  const { data: failedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'failed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'failed', company_id: companyId }),
-    enabled: !!companyId,
+    queryKey: ['contracts', 'completed'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId,
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', companyId],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId,
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    }
   });
 
   const startFlightMutation = useMutation({
@@ -124,11 +99,10 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
-        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
-        filter(([_, id]) => id && id !== 'none').
+        filter(([_, id]) => id).
         map(([role, id]) => ({ role, employee_id: id })),
         departure_time: new Date().toISOString(),
         status: 'in_flight'
@@ -142,7 +116,7 @@ export default function ActiveFlights() {
 
       // Update crew status
       for (const [role, id] of Object.entries(selectedCrew)) {
-        if (id && id !== 'none') {
+        if (id) {
           await base44.entities.Employee.update(id, { status: 'on_duty' });
         }
       }
@@ -175,7 +149,6 @@ export default function ActiveFlights() {
 
         // Create transaction for penalty
         await base44.entities.Transaction.create({
-          company_id: company.id,
           type: 'expense',
           category: 'other',
           amount: penalty,
@@ -224,14 +197,14 @@ export default function ActiveFlights() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8">
 
-          <h1 className="text-3xl font-bold text-white">Aktive Flüge</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Aktive Flüge</h1>
           <p className="text-slate-400">Bereite Flüge vor und starte sie mit X-Plane 12</p>
         </motion.div>
 
@@ -278,15 +251,6 @@ export default function ActiveFlights() {
 
             Abgeschlossene Flüge ({completedContracts.length})
           </button>
-          <button
-            onClick={() => setActiveTab('failed')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'failed' ?
-            'border-b-2 border-red-500 text-red-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-            Fehlgeschlagen ({failedContracts.length})
-          </button>
         </div>
 
         {/* Active Contracts */}
@@ -307,10 +271,10 @@ export default function ActiveFlights() {
                 'bg-amber-500'}`
                 } />
                     <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
                         <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-semibold text-white">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="text-lg sm:text-xl font-semibold text-white">
                               {contract.title}
                             </h3>
                             <Badge className={
@@ -321,7 +285,7 @@ export default function ActiveFlights() {
                               {contract.status === 'in_progress' ? 'Im Flug' : 'Bereit'}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-3 text-slate-400">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-slate-400 text-sm sm:text-base">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-4 h-4" />
                               {contract.departure_airport}
@@ -335,8 +299,8 @@ export default function ActiveFlights() {
                             <span>{contract.distance_nm} NM</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-emerald-600">
+                        <div className="sm:text-right">
+                          <p className="text-xl sm:text-2xl font-bold text-emerald-600">
                             ${contract.payout?.toLocaleString()}
                           </p>
                           {contract.bonus_potential > 0 &&
@@ -364,7 +328,7 @@ export default function ActiveFlights() {
                         </div>
                   }
 
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
                         {contract.status === 'accepted' &&
                     <>
                             <Button
@@ -487,67 +451,6 @@ export default function ActiveFlights() {
           </Card> :
         null}
 
-        {/* Failed Contracts */}
-        {activeTab === 'failed' && failedContracts.length > 0 ?
-        <div className="space-y-4">
-            <AnimatePresence>
-              {failedContracts.map((contract) =>
-            <motion.div
-              key={contract.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}>
-                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
-                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-red-500 transition-colors cursor-pointer">
-                      <div className="h-1 bg-red-500" />
-                      <div className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-xl font-semibold text-white">
-                                {contract.title}
-                              </h3>
-                              <Badge className="bg-red-100 text-red-700 border-red-200">
-                                Fehlgeschlagen
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-3 text-slate-400">
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" />
-                                {contract.departure_airport}
-                              </span>
-                              <ArrowRight className="w-4 h-4" />
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" />
-                                {contract.arrival_airport}
-                              </span>
-                              <span className="text-slate-600">|</span>
-                              <span>{contract.distance_nm} NM</span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-red-500">
-                              ${contract.payout?.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
-                </motion.div>
-            )}
-            </AnimatePresence>
-          </div> :
-        activeTab === 'failed' ?
-        <Card className="p-12 text-center bg-slate-800 border border-slate-700">
-            <XCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine fehlgeschlagenen Flüge</h3>
-            <p className="text-slate-400">
-              Gut so! Bisher keine fehlgeschlagenen Aufträge.
-            </p>
-          </Card> :
-        null}
-
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
           <DialogContent className="max-w-2xl">
@@ -614,7 +517,7 @@ export default function ActiveFlights() {
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
                         <SelectContent>
-                          {required === 0 && <SelectItem value="none">-- Nicht zuweisen --</SelectItem>}
+                          <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
                           {roleEmployees.map((emp) =>
                           <SelectItem key={emp.id} value={emp.id}>
                               {emp.name} (Skill: {emp.skill_rating})

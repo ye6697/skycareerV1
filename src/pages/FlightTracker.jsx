@@ -1179,7 +1179,7 @@ export default function FlightTracker() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Flight Header */}
         {contract && (
         <motion.div 
@@ -1268,7 +1268,7 @@ export default function FlightTracker() {
                 <Gauge className="w-5 h-5 text-blue-400" />
                 Flugdaten
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <div className="p-4 bg-slate-900 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">Höhe</p>
                   <p className="text-2xl font-mono font-bold text-blue-400">

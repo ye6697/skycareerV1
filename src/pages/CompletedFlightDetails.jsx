@@ -114,7 +114,7 @@ export default function CompletedFlightDetails() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -130,10 +130,10 @@ export default function CompletedFlightDetails() {
             Zurück
           </Button>
 
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold">{finalContract.title}</h1>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold">{finalContract.title}</h1>
                 {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
                   <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4" />
@@ -146,7 +146,7 @@ export default function CompletedFlightDetails() {
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-4 text-slate-400">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-slate-400 text-sm sm:text-base">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
                   {finalContract.departure_airport}
@@ -160,8 +160,8 @@ export default function CompletedFlightDetails() {
                 <span>{finalContract.distance_nm} NM</span>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-3xl font-bold text-emerald-400">
+            <div className="sm:text-right">
+              <p className="text-2xl sm:text-3xl font-bold text-emerald-400">
                 ${Math.round(finalContract.payout || 0).toLocaleString()}
               </p>
             </div>
@@ -179,12 +179,12 @@ export default function CompletedFlightDetails() {
               <LandingQualityVisual flight={flight} gameSettings={gameSettings} />
 
               {/* Flight Details */}
-              <Card className="p-6 bg-slate-800/50 border-slate-700">
+              <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Plane className="w-5 h-5 text-blue-400" />
                   Flugdetails
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(() => {
                     const isCrash = flight?.xplane_data?.events?.crash || flight?.status === 'failed';
                     const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? flight?.max_g_force ?? 0;
