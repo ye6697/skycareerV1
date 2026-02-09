@@ -429,7 +429,7 @@ export default function ActiveFlights() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-emerald-600">
+                            <p className="text-xl sm:text-2xl font-bold text-emerald-600">
                               ${contract.payout?.toLocaleString()}
                             </p>
                           </div>
