@@ -30,7 +30,6 @@ export default function CompletedFlightDetails() {
   const contractId = urlParams.get('contractId');
   
   // Hole Daten aus State von FlightTracker
-  const passedFlightData = location.state?.flightData;
   const passedFlight = location.state?.flight;
   const passedContract = location.state?.contract;
 
@@ -99,8 +98,8 @@ export default function CompletedFlightDetails() {
     );
   }
 
-  // Show loading if no flight data and no passed data
-  if (!flight && !passedFlightData) {
+  // Show loading if no flight data
+  if (!flight) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <div className="text-center">
@@ -135,7 +134,7 @@ export default function CompletedFlightDetails() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold">{finalContract.title}</h1>
-                {(flight?.xplane_data?.events?.crash || passedFlightData?.events?.crash || flight?.status === 'failed') ? (
+                {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
                   <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4" />
                     CRASH - Fehlgeschlagen
@@ -187,7 +186,7 @@ export default function CompletedFlightDetails() {
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   {(() => {
-                    const isCrash = flight?.xplane_data?.events?.crash || passedFlightData?.events?.crash;
+                    const isCrash = flight?.xplane_data?.events?.crash || flight?.status === 'failed';
                     const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? flight?.max_g_force ?? 0;
                     return (
                       <div className="p-4 bg-slate-900 rounded-lg">
@@ -265,7 +264,7 @@ export default function CompletedFlightDetails() {
                 <div className="mt-4 p-4 bg-slate-900 rounded-lg">
                   <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
                   {(() => {
-                    const score = flight?.xplane_data?.final_score ?? passedFlightData?.flightScore ?? flight?.flight_score ?? 0;
+                    const score = flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0;
                     return (
                       <p className={`text-3xl font-mono font-bold ${
                         score >= 95 ? 'text-emerald-400' :
@@ -282,7 +281,7 @@ export default function CompletedFlightDetails() {
                 {/* Landing Quality Details */}
                 {(() => {
                   // Determine landing type: prefer stored, then compute from G-force
-                  let lt = flight.xplane_data?.landingType || passedFlightData?.landingType;
+                  let lt = flight.xplane_data?.landingType;
                   const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? flight.max_g_force ?? 0;
                   if (!lt && landingG > 0 && !flight.xplane_data?.events?.crash) {
                     if (landingG < 0.5) lt = 'butter';
@@ -303,7 +302,7 @@ export default function CompletedFlightDetails() {
                   else if (lt === 'acceptable') { scoreChange = 5; financialImpact = 0; }
                   else if (lt === 'hard') { scoreChange = -30; financialImpact = -(totalRev * 0.25); }
                   else if (lt === 'very_hard') { scoreChange = -50; financialImpact = -(totalRev * 0.5); }
-                  const vs = Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0);
+                  const vs = Math.abs(flight.landing_vs || 0);
 
                   return (
                   <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-3">
@@ -428,7 +427,7 @@ export default function CompletedFlightDetails() {
 
                   {/* Flight Events */}
                   {(() => {
-                    const events = flight?.xplane_data?.events || passedFlightData?.events;
+                    const events = flight?.xplane_data?.events;
                     if (!events) return null;
                     // Filter out falsy values AND numeric 0 values (the "schwarze Null" bug)
                     const activeEvents = Object.entries(events).filter(([key, val]) => val === true);
