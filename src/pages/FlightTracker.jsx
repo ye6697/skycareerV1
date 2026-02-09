@@ -604,7 +604,7 @@ export default function FlightTracker() {
               maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
               flight_duration_hours: flightHours,
               revenue,
-              profit,
+              profit: profit + levelBonus,
               passenger_comments: generateComments(scoreWithTime, finalFlightData),
               xplane_data: {
                 // Alle Live-Flugdaten
