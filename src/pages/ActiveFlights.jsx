@@ -32,7 +32,8 @@ import {
   CheckCircle,
   Play,
   DollarSign,
-  User } from
+  User,
+  XCircle } from
 "lucide-react";
 
 export default function ActiveFlights() {
@@ -83,6 +84,12 @@ export default function ActiveFlights() {
   const { data: completedContracts = [] } = useQuery({
     queryKey: ['contracts', 'completed', companyId],
     queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
+    enabled: !!companyId,
+  });
+
+  const { data: failedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'failed', companyId],
+    queryFn: () => base44.entities.Contract.filter({ status: 'failed', company_id: companyId }),
     enabled: !!companyId,
   });
 
@@ -270,6 +277,15 @@ export default function ActiveFlights() {
             }>
 
             Abgeschlossene Flüge ({completedContracts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('failed')}
+            className={`pb-3 px-4 font-medium transition-colors ${
+            activeTab === 'failed' ?
+            'border-b-2 border-red-500 text-red-400' :
+            'text-slate-400 hover:text-white'}`
+            }>
+            Fehlgeschlagen ({failedContracts.length})
           </button>
         </div>
 
@@ -467,6 +483,67 @@ export default function ActiveFlights() {
             <h3 className="text-xl font-semibold text-white mb-2">Keine abgeschlossenen Flüge</h3>
             <p className="text-slate-400">
               Alle abgeschlossenen Flüge werden hier angezeigt
+            </p>
+          </Card> :
+        null}
+
+        {/* Failed Contracts */}
+        {activeTab === 'failed' && failedContracts.length > 0 ?
+        <div className="space-y-4">
+            <AnimatePresence>
+              {failedContracts.map((contract) =>
+            <motion.div
+              key={contract.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}>
+                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
+                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-red-500 transition-colors cursor-pointer">
+                      <div className="h-1 bg-red-500" />
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-xl font-semibold text-white">
+                                {contract.title}
+                              </h3>
+                              <Badge className="bg-red-100 text-red-700 border-red-200">
+                                Fehlgeschlagen
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.departure_airport}
+                              </span>
+                              <ArrowRight className="w-4 h-4" />
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.arrival_airport}
+                              </span>
+                              <span className="text-slate-600">|</span>
+                              <span>{contract.distance_nm} NM</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-red-500">
+                              ${contract.payout?.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                </motion.div>
+            )}
+            </AnimatePresence>
+          </div> :
+        activeTab === 'failed' ?
+        <Card className="p-12 text-center bg-slate-800 border border-slate-700">
+            <XCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Keine fehlgeschlagenen Flüge</h3>
+            <p className="text-slate-400">
+              Gut so! Bisher keine fehlgeschlagenen Aufträge.
             </p>
           </Card> :
         null}
