@@ -939,11 +939,11 @@ export default function FlightTracker() {
         baseScore = Math.max(0, baseScore - 50);
       }
       
-      // G-Kräfte ab 1.5: Score-Abzug + Kosten beim ERSTEN Überschreiten und dann pro G-Stufe
+      // G-Kräfte ab 1.5: -10 Punkte pro G-Stufe + Wartungskosten
       if (newMaxGForce >= 1.5) {
-        // Erster Überschreitung: Score-Abzug sofort wenn 1.5 erstmals erreicht
+        // Erster Überschreitung bei 1.5G
         if (!hadHighGEvent && !prev.events.high_g_force) {
-          baseScore = Math.max(0, baseScore - 25);
+          baseScore = Math.max(0, baseScore - 10);
           maintenanceCostIncrease += aircraftPurchasePrice * 0.01;
         }
         
@@ -951,12 +951,11 @@ export default function FlightTracker() {
         const prevGLevel = Math.floor(prev.maxGForce);
         
         if (currentGLevel > prevGLevel && currentGLevel >= 2) {
-          // Berechne Kosten nur für neue G-Level ab 2
           for (let gLevel = Math.max(2, prevGLevel + 1); gLevel <= currentGLevel; gLevel++) {
             if (!processedGLevels.has(gLevel)) {
               const gForceMaintenanceCost = aircraftPurchasePrice * (gLevel * 0.01);
               maintenanceCostIncrease += gForceMaintenanceCost;
-              baseScore = Math.max(0, baseScore - 25);
+              baseScore = Math.max(0, baseScore - 10);
             }
           }
         }
