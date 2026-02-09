@@ -898,23 +898,19 @@ export default function FlightTracker() {
       const touchdownVs = prev.landingType 
         ? prev.landingVs  // Already landed - keep the captured value
         : (xp.landing_vs || xp.touchdown_vspeed || 0);
-      // Landing G-force: Track the PEAK g-force during ground contact transition
+      // Landing G-force: Capture the ACTUAL g-force at touchdown moment
+      // NOT the peak g-force during the entire flight
       // Once landed (landingType set), preserve the captured value
       let landingGForceValue;
       if (prev.landingType) {
         landingGForceValue = prev.landingGForce; // Already landed - keep captured value
       } else if (xp.on_ground && newWasAirborne) {
-        // At the moment of touchdown, take the HIGHEST of: current g_force, previous g_force, landing_g_force from plugin
-        landingGForceValue = Math.max(
-          currentGForce,
-          prev.landingGForce || 0,
-          xp.landing_g_force || 0
-        );
-      } else if (!xp.on_ground && newWasAirborne) {
-        // Still airborne - track peak g-force for upcoming landing
-        landingGForceValue = Math.max(prev.landingGForce || 0, currentGForce);
-      } else {
+        // At the moment of touchdown: prefer landing_g_force from plugin (actual touchdown G),
+        // then current g_force, but NOT previous peak g_force
         landingGForceValue = xp.landing_g_force || currentGForce;
+      } else {
+        // Still airborne - don't accumulate peak, just track current for display
+        landingGForceValue = 0;
       }
 
       // Landing categories based on G-force only
