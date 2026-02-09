@@ -1097,16 +1097,21 @@ export default function FlightTracker() {
     }
     
     if (flightData.wasAirborne && xp.on_ground && (flightPhase === 'landing' || flightPhase === 'cruise') && !completeFlightMutation.isPending && !isCompletingFlight) {
-      console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Starte Flugabschluss');
+      console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Warte auf nächsten Tick für Flugabschluss');
       setFlightPhase('completed');
-      completeFlightMutation.mutate();
+      // Delay mutate to ensure the landing score/bonus state update is committed via flightDataRef
+      setTimeout(() => {
+        completeFlightMutation.mutate();
+      }, 200);
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
     if (flightData.events.crash && flightData.wasAirborne && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
-      completeFlightMutation.mutate();
+      setTimeout(() => {
+        completeFlightMutation.mutate();
+      }, 200);
     }
   }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime]);
 
