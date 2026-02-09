@@ -201,22 +201,40 @@ export default function XPlaneDebug() {
                       <p className="text-slate-500 text-xs mb-1">Lat / Lon</p>
                       <p className="text-white font-mono text-xs">{(liveData.latitude || 0).toFixed(4)} / {(liveData.longitude || 0).toFixed(4)}</p>
                     </div>
-                    {liveData.engines_running !== undefined && (
-                      <div className="p-3 bg-slate-900 rounded-lg">
-                        <p className="text-slate-500 text-xs mb-1">Engines</p>
-                        <p className={`font-mono ${liveData.engines_running ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {liveData.engines_running ? 'Laufen' : 'Aus'}
-                        </p>
-                      </div>
-                    )}
-                    {liveData.park_brake !== undefined && (
-                      <div className="p-3 bg-slate-900 rounded-lg">
-                        <p className="text-slate-500 text-xs mb-1">Parkbremse</p>
-                        <p className={`font-mono ${liveData.park_brake ? 'text-amber-400' : 'text-slate-400'}`}>
-                          {liveData.park_brake ? 'Aktiviert' : 'Gelöst'}
-                        </p>
-                      </div>
-                    )}
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">IAS</p>
+                      <p className="text-white font-mono">{Math.round(liveData.ias || 0)} kts</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Touchdown V/S</p>
+                      <p className={`font-mono ${(liveData.touchdown_vspeed || 0) < -300 ? 'text-red-400' : (liveData.touchdown_vspeed || 0) < -150 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {liveData.touchdown_vspeed != null ? `${Math.round(liveData.touchdown_vspeed)} fpm` : '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Landing G</p>
+                      <p className={`font-mono ${(liveData.landing_g_force || 0) > 1.8 ? 'text-red-400' : (liveData.landing_g_force || 0) > 1.3 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {liveData.landing_g_force != null ? `${(liveData.landing_g_force).toFixed(2)} G` : '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Engine 1</p>
+                      <p className={`font-mono ${liveData.engine1_running ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {liveData.engine1_running ? 'Läuft' : 'Aus'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Engine 2</p>
+                      <p className={`font-mono ${liveData.engine2_running ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {liveData.engine2_running ? 'Läuft' : 'Aus'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <p className="text-slate-500 text-xs mb-1">Parkbremse</p>
+                      <p className={`font-mono ${(liveData.park_brake || liveData.parking_brake) ? 'text-amber-400' : 'text-slate-400'}`}>
+                        {(liveData.park_brake || liveData.parking_brake) ? 'Aktiviert' : 'Gelöst'}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Events */}
