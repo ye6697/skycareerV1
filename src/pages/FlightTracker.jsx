@@ -23,7 +23,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-// FlightRating entfernt - einheitliche Ergebnis-Seite wird verwendet
+import FlightRating from "@/components/flights/FlightRating";
 
 export default function FlightTracker() {
   const navigate = useNavigate();
@@ -470,16 +470,7 @@ export default function FlightTracker() {
      }
      
      // Use the latest flightData from ref to ensure all events are captured
-     // KRITISCH: Ref könnte noch keinen Crash haben wenn State-Update noch pending war
-     const refData = flightDataRef.current || flightData;
-     const finalFlightData = {
-       ...refData,
-       events: {
-         ...refData.events,
-         // Merge crash flag from both sources - React state might have it but ref not yet
-         crash: refData.events.crash || flightData.events.crash
-       }
-     };
+     const finalFlightData = flightDataRef.current || flightData;
      
      // Realistic cost calculations based on aviation industry
      const fuelUsed = (100 - finalFlightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
@@ -522,8 +513,8 @@ export default function FlightTracker() {
      // Landing and airport fees
      const airportFee = 150;
 
-      // Check for crash - aus ALLEN Quellen zusammenführen
-      const hasCrashed = finalFlightData.events.crash || flightData.events.crash;
+      // Check for crash
+      const hasCrashed = finalFlightData.events.crash;
 
      // Bei Crash: KEIN Payout und KEIN Bonus
      let revenue = 0;
@@ -591,7 +582,6 @@ export default function FlightTracker() {
             await base44.entities.Flight.update(flight.id, {
               status: hasCrashed ? 'failed' : 'completed',
               arrival_time: new Date().toISOString(),
-              flight_score: scoreWithTime,
               takeoff_rating: scoreToRating(scoreWithTime),
               flight_rating: scoreToRating(scoreWithTime),
               landing_rating: scoreToRating(scoreWithTime),
@@ -604,56 +594,19 @@ export default function FlightTracker() {
               maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
               flight_duration_hours: flightHours,
               revenue,
-              profit: profit + levelBonus,
+              profit,
               passenger_comments: generateComments(scoreWithTime, finalFlightData),
               xplane_data: {
-                // Alle Live-Flugdaten
-                altitude: finalFlightData.altitude,
-                speed: finalFlightData.speed,
-                verticalSpeed: finalFlightData.verticalSpeed,
-                heading: finalFlightData.heading,
-                fuel: finalFlightData.fuel,
-                fuelKg: finalFlightData.fuelKg,
-                gForce: finalFlightData.gForce,
-                maxGForce: finalFlightData.maxGForce,
-                latitude: finalFlightData.latitude,
-                longitude: finalFlightData.longitude,
-                departure_lat: finalFlightData.departure_lat,
-                departure_lon: finalFlightData.departure_lon,
-                arrival_lat: finalFlightData.arrival_lat,
-                arrival_lon: finalFlightData.arrival_lon,
-                // Landungsdaten - EXPLIZIT gespeichert
-                landingGForce: finalFlightData.landingGForce,
-                landingVs: finalFlightData.landingVs,
-                landingType: finalFlightData.landingType,
-                landingScoreChange: finalFlightData.landingScoreChange,
-                landingMaintenanceCost: finalFlightData.landingMaintenanceCost,
-                landingBonus: finalFlightData.landingBonus,
-                // Score & Kosten
-                flightScore: finalFlightData.flightScore,
+                ...finalFlightData,
                 final_score: scoreWithTime,
-                maintenanceCost: finalFlightData.maintenanceCost,
-                crashMaintenanceCost: crashMaintenanceCost,
-                // Events - EXPLIZIT
-                events: {
-                  tailstrike: finalFlightData.events.tailstrike || false,
-                  stall: finalFlightData.events.stall || false,
-                  overstress: finalFlightData.events.overstress || false,
-                  flaps_overspeed: finalFlightData.events.flaps_overspeed || false,
-                  fuel_emergency: finalFlightData.events.fuel_emergency || false,
-                  gear_up_landing: finalFlightData.events.gear_up_landing || false,
-                  crash: finalFlightData.events.crash || hasCrashed,
-                  harsh_controls: finalFlightData.events.harsh_controls || false,
-                  high_g_force: finalFlightData.events.high_g_force || false,
-                  hard_landing: finalFlightData.events.hard_landing || false
-                },
-                // Berechnete Werte
                 flightHours,
                 timeScoreChange,
                 timeBonus,
                 levelBonus: levelBonus,
                 levelBonusPercent: levelBonusPercent * 100,
-                companyLevel: company?.level || 1
+                companyLevel: company?.level || 1,
+                events: finalFlightData.events,
+                crashMaintenanceCost: crashMaintenanceCost
               }
             });
 
@@ -793,8 +746,13 @@ export default function FlightTracker() {
       await queryClient.invalidateQueries({ queryKey: ['company'] });
       await queryClient.invalidateQueries({ queryKey: ['contracts'] });
 
-      // Navigiere zur einheitlichen Ergebnis-Seite (nur DB-Daten, kein State)
-      navigate(createPageUrl(`CompletedFlightDetails?flightId=${updatedFlight.id}&contractId=${contractIdFromUrl}`), {
+      // Direkt navigieren mit dem neuesten Flight von der DB
+      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
+        state: { 
+          flightData: flightDataRef.current || flightData,
+          flight: updatedFlight,
+          contract
+        },
         replace: true
       });
     },
@@ -833,18 +791,14 @@ export default function FlightTracker() {
     const xp = xplaneLog.raw_data;
 
     // Check for crash via X-Plane dataref - NUR wenn wasAirborne
-    // KRITISCH: Sofort in die Ref schreiben, damit completeFlightMutation den Crash sieht
     if (xp.has_crashed && flightData.wasAirborne) {
-      if (flightDataRef.current && !flightDataRef.current.events.crash) {
-        flightDataRef.current = {
-          ...flightDataRef.current,
-          events: { ...flightDataRef.current.events, crash: true }
-        };
+    setFlightData(prev => ({
+      ...prev,
+      events: {
+        ...prev.events,
+        crash: true
       }
-      setFlightData(prev => ({
-        ...prev,
-        events: { ...prev.events, crash: true }
-      }));
+    }));
     }
 
     setFlightData(prev => {
@@ -1514,13 +1468,69 @@ export default function FlightTracker() {
             <div className="space-y-6">
             {flightPhase === 'completed' ? (
               <>
-                <Card className="p-6 bg-slate-800/50 border-slate-700 text-center">
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
-                    <Plane className="w-10 h-10 text-blue-400 mx-auto mb-3" />
-                  </motion.div>
-                  <p className="text-white font-semibold">Flug wird abgeschlossen...</p>
-                  <p className="text-slate-400 text-sm mt-1">Du wirst gleich zur Ergebnisseite weitergeleitet.</p>
-                </Card>
+                <FlightRating 
+                  flight={(() => {
+                    const fuelUsed = (100 - flightData.fuel) * 10;
+                    const fuelCost = fuelUsed * 1.2;
+                    const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
+                    const crewCost = flightHours * 250;
+                    const airportFee = 150;
+                    const isCrashed = flightData.events.crash;
+                    let revenue = 0;
+                    if (!isCrashed) {
+                      revenue = contract?.payout || 0;
+                      revenue += flightData.landingBonus || 0;
+                    }
+                    const directCosts = fuelCost + crewCost + airportFee;
+                    const profit = revenue - directCosts;
+                    const levelBonusPercent = (company?.level || 1) * 0.01;
+                    const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
+                    return {
+                      flight_score: flightData.flightScore,
+                      landing_vs: flightData.landingVs,
+                      max_g_force: flightData.maxGForce,
+                      fuel_used_liters: fuelUsed,
+                      flight_duration_hours: flightHours,
+                      passenger_comments: generateComments(flightData.flightScore, flightData),
+                      xplane_data: {
+                        final_score: flightData.flightScore,
+                        landingGForce: flightData.landingGForce,
+                        events: flightData.events,
+                        levelBonus,
+                        levelBonusPercent: levelBonusPercent * 100,
+                        companyLevel: company?.level || 1,
+                        landingScoreChange: flightData.landingScoreChange,
+                        landingBonus: flightData.landingBonus,
+                        landingMaintenanceCost: flightData.landingMaintenanceCost
+                      },
+                      revenue,
+                      fuel_cost: fuelCost,
+                      crew_cost: crewCost,
+                      maintenance_cost: flightData.maintenanceCost,
+                      profit: profit + levelBonus
+                    };
+                  })()} 
+                />
+
+                {!completeFlightMutation.isSuccess && (
+                  <Button 
+                    onClick={() => completeFlightMutation.mutate()}
+                    disabled={completeFlightMutation.isPending}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
+                  >
+                    {completeFlightMutation.isPending ? 'Speichere...' : 'Flug abschließen'}
+                  </Button>
+                )}
+
+                {completeFlightMutation.isSuccess && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => navigate(createPageUrl("Dashboard"))}
+                    className="w-full border-slate-600 text-white hover:bg-slate-700"
+                  >
+                    Zurück zum Dashboard
+                  </Button>
+                )}
               </>
             ) : (
               <Card className="p-6 bg-slate-800/50 border-slate-700">

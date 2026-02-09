@@ -13,9 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import {
   Search,
   Plane,
@@ -23,12 +27,14 @@ import {
   DollarSign,
   Calendar,
   TrendingUp,
-  TrendingDown,
-  ExternalLink
+  TrendingDown
 } from "lucide-react";
+
+import FlightRating from "@/components/flights/FlightRating";
 
 export default function FlightHistory() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFlight, setSelectedFlight] = useState(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
@@ -89,20 +95,9 @@ export default function FlightHistory() {
   };
 
   const totalProfit = flights.reduce((sum, f) => sum + (f.profit || 0), 0);
-  const avgScore = flights.length > 0 
-    ? flights.reduce((sum, f) => sum + (f.xplane_data?.final_score ?? f.flight_score ?? 0), 0) / flights.length 
+  const avgRating = flights.length > 0 
+    ? flights.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / flights.length 
     : 0;
-
-  const filteredFlights = flights.filter(f => {
-    if (!searchTerm) return true;
-    const contract = getContractForFlight(f);
-    const search = searchTerm.toLowerCase();
-    return (
-      contract?.title?.toLowerCase().includes(search) ||
-      contract?.departure_airport?.toLowerCase().includes(search) ||
-      contract?.arrival_airport?.toLowerCase().includes(search)
-    );
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -136,8 +131,8 @@ export default function FlightHistory() {
                 <Star className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm text-slate-400">Ø Score</p>
-                <p className="text-2xl font-bold text-white">{Math.round(avgScore)}</p>
+                <p className="text-sm text-slate-400">Ø Bewertung</p>
+                <p className="text-2xl font-bold text-white">{avgRating.toFixed(1)}</p>
               </div>
             </div>
           </Card>
@@ -188,28 +183,31 @@ export default function FlightHistory() {
 
         {/* Table */}
         {isLoading ? (
-          <Card className="animate-pulse bg-slate-800 h-64 border-slate-700" />
-        ) : filteredFlights.length > 0 ? (
+          <Card className="animate-pulse bg-slate-100 h-64" />
+        ) : flights.length > 0 ? (
           <Card className="overflow-hidden bg-slate-800 border border-slate-700">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-white">Datum</TableHead>
                   <TableHead className="text-white">Route</TableHead>
-                  <TableHead className="text-white">Score</TableHead>
+                  <TableHead className="text-white">Bewertung</TableHead>
                   <TableHead className="text-white">Landung</TableHead>
                   <TableHead className="text-white">Einnahmen</TableHead>
+                  <TableHead className="text-white">Kosten</TableHead>
                   <TableHead className="text-white">Gewinn</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredFlights.map((flight) => {
+                {flights.map((flight) => {
                   const contract = getContractForFlight(flight);
-                  const score = flight.xplane_data?.final_score ?? flight.flight_score ?? 0;
-                  const landingType = flight.xplane_data?.landingType;
                   return (
-                    <TableRow key={flight.id} className={`hover:bg-slate-700 ${flight.status === 'failed' ? 'bg-red-900/20' : ''}`}>
+                    <TableRow 
+                      key={flight.id} 
+                      className={`cursor-pointer hover:bg-slate-700 ${flight.status === 'failed' ? 'bg-red-900/20' : ''}`}
+                      onClick={() => setSelectedFlight(flight)}
+                    >
                       <TableCell className="text-white">
                        <div className="flex items-center gap-2">
                          <Calendar className="w-4 h-4 text-slate-400" />
@@ -224,43 +222,36 @@ export default function FlightHistory() {
                          {contract?.departure_airport} → {contract?.arrival_airport}
                        </span>
                       </TableCell>
-                      <TableCell>
-                        <span className={`font-bold ${
-                          score >= 85 ? 'text-emerald-400' :
-                          score >= 70 ? 'text-amber-400' : 'text-red-400'
-                        }`}>
-                          {Math.round(score)}
-                        </span>
+                      <TableCell className="text-white">
+                       <div className="flex items-center gap-1">
+                         <Star className={`w-4 h-4 ${
+                           flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'
+                         }`} />
+                         <span className="font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
+                       </div>
                       </TableCell>
                       <TableCell>
                         <Badge className={`${
-                          landingType === 'butter' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                          landingType === 'soft' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                          landingType === 'acceptable' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                          landingType === 'hard' || landingType === 'very_hard' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                          'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                          Math.abs(flight.landing_vs || 0) < 150 
+                            ? 'bg-emerald-100 text-emerald-700' 
+                            : Math.abs(flight.landing_vs || 0) < 300
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-red-100 text-red-700'
                         }`}>
-                          {landingType === 'butter' ? 'Butter' :
-                           landingType === 'soft' ? 'Weich' :
-                           landingType === 'acceptable' ? 'OK' :
-                           landingType === 'hard' ? 'Hart' :
-                           landingType === 'very_hard' ? 'Sehr hart' :
-                           flight.status === 'failed' ? 'Crash' :
-                           `${Math.abs(flight.landing_vs || 0)} ft/min`}
+                          {flight.landing_vs} ft/min
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-emerald-400 font-medium font-mono">
+                      <TableCell className="text-emerald-400 font-medium">
                         {formatCurrency(flight.revenue)}
                       </TableCell>
-                      <TableCell className={`font-bold font-mono ${(flight.profit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <TableCell className="text-red-400">
+                        -{formatCurrency((flight.fuel_cost || 0) + (flight.crew_cost || 0) + (flight.maintenance_cost || 0))}
+                      </TableCell>
+                      <TableCell className={`font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {formatCurrency(flight.profit)}
                       </TableCell>
                       <TableCell>
-                        <Link to={createPageUrl(`CompletedFlightDetails?flightId=${flight.id}`)}>
-                          <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
-                            <ExternalLink className="w-4 h-4 mr-1" /> Details
-                          </Button>
-                        </Link>
+                        <Button variant="ghost" size="sm">Details</Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -275,6 +266,51 @@ export default function FlightHistory() {
             <p className="text-slate-400">Du hast noch keine Flüge abgeschlossen.</p>
           </Card>
         )}
+
+        {/* Flight Detail Dialog */}
+        <Dialog open={!!selectedFlight} onOpenChange={() => setSelectedFlight(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Flugdetails</DialogTitle>
+            </DialogHeader>
+            {selectedFlight && (
+              <div className="space-y-4">
+                <FlightRating flight={selectedFlight} />
+                
+                <Card className="p-4 bg-slate-800 border-slate-700">
+                  <h4 className="font-semibold mb-3 text-white">Finanzübersicht</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between text-white">
+                      <span>Einnahmen</span>
+                      <span className="text-emerald-400 font-medium">
+                        {formatCurrency(selectedFlight.revenue)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-white">
+                      <span>Treibstoffkosten</span>
+                      <span className="text-red-400">-{formatCurrency(selectedFlight.fuel_cost)}</span>
+                    </div>
+                    <div className="flex justify-between text-white">
+                      <span>Crew-Kosten</span>
+                      <span className="text-red-400">-{formatCurrency(selectedFlight.crew_cost)}</span>
+                    </div>
+                    <div className="flex justify-between text-white">
+                      <span>Wartungskosten</span>
+                      <span className="text-red-400">-{formatCurrency(selectedFlight.maintenance_cost)}</span>
+                    </div>
+                    <hr className="border-slate-600" />
+                    <div className="flex justify-between font-bold text-white">
+                      <span>Gewinn</span>
+                      <span className={selectedFlight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                        {formatCurrency(selectedFlight.profit)}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
