@@ -254,48 +254,73 @@ export default function CompletedFlightDetails() {
                 </div>
                 
                 {/* Landing Quality Details */}
-                {(flight.xplane_data?.landingType || passedFlightData?.landingType) && (
+                {(() => {
+                  // Determine landing type: prefer stored, then compute from G-force
+                  let lt = flight.xplane_data?.landingType || passedFlightData?.landingType;
+                  const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? flight.max_g_force ?? 0;
+                  if (!lt && landingG > 0 && !flight.xplane_data?.events?.crash) {
+                    if (landingG < 0.5) lt = 'butter';
+                    else if (landingG < 1.0) lt = 'soft';
+                    else if (landingG < 1.6) lt = 'acceptable';
+                    else if (landingG < 2.0) lt = 'hard';
+                    else lt = 'very_hard';
+                  }
+                  if (!lt) return null;
+
+                  const scoreChange = flight.xplane_data?.landingScoreChange || 0;
+                  const bonus = flight.xplane_data?.landingBonus || 0;
+                  const mCost = flight.xplane_data?.landingMaintenanceCost || 0;
+                  const vs = Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0);
+
+                  return (
                   <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-3">
                     <div>
                       <p className="text-slate-400 text-sm mb-2 font-semibold">Landungsqualitäts-Analyse</p>
-                      <p className="text-xs text-slate-500 mb-3">Basierend auf G-Kraft beim Landen</p>
+                      <p className="text-xs text-slate-500 mb-3">Basierend auf G-Kraft beim Landen ({landingG.toFixed(2)} G)</p>
                     </div>
 
                     {/* Landing Type */}
                     <div className="flex items-center gap-2">
-                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'crash' && (
+                      {lt === 'crash' && (
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-500" />
                           <span className="text-red-500 font-bold">CRASH</span>
-                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.crash_vs_threshold || 1000} ft/min)</span>
+                          <span className="text-slate-500 ml-2">({vs} ft/min)</span>
                         </>
                       )}
-                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'hard' && (
+                      {lt === 'very_hard' && (
+                        <>
+                          <AlertTriangle className="w-5 h-5 text-red-500" />
+                          <span className="text-red-500 font-bold">Sehr Harte Landung</span>
+                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
+                        </>
+                      )}
+                      {lt === 'hard' && (
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-400" />
                           <span className="text-red-400 font-bold">Harte Landung</span>
-                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.hard_landing_vs_threshold || 600} ft/min)</span>
+                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
-                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'acceptable' && (
+                      {lt === 'acceptable' && (
                         <>
                           <CheckCircle2 className="w-5 h-5 text-blue-400" />
                           <span className="text-blue-400 font-semibold">Akzeptable Landung</span>
-                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min)</span>
+                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
-                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'soft' && (
+                      {lt === 'soft' && (
                         <>
                           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                           <span className="text-emerald-400 font-bold">Weiche Landung</span>
-                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.soft_landing_vs_threshold || 150} ft/min)</span>
+                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
-                      {(flight.xplane_data?.landingType || passedFlightData?.landingType) === 'butter' && (
+                      {lt === 'butter' && (
                         <>
                           <Star className="w-5 h-5 text-amber-400" />
                           <span className="text-amber-400 font-bold">BUTTERWEICHE LANDUNG!</span>
-                          <span className="text-slate-500 ml-2">({Math.abs(flight.landing_vs || passedFlightData?.landingVs || 0)} ft/min, Schwellenwert: {gameSettings?.butter_landing_vs_threshold || 100} ft/min)</span>
+                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       </div>
@@ -305,31 +330,31 @@ export default function CompletedFlightDetails() {
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Score-Auswirkung</p>
                         <p className={`font-mono font-bold ${
-                          (flight.xplane_data?.landingScoreChange || 0) > 0 ? 'text-emerald-400' :
-                          (flight.xplane_data?.landingScoreChange || 0) < 0 ? 'text-red-400' :
+                          scoreChange > 0 ? 'text-emerald-400' :
+                          scoreChange < 0 ? 'text-red-400' :
                           'text-slate-400'
                         }`}>
-                          {(flight.xplane_data?.landingScoreChange || 0) > 0 ? '+' : ''}
-                          {flight.xplane_data?.landingScoreChange || 0} Punkte
+                          {scoreChange > 0 ? '+' : ''}{scoreChange} Punkte
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Finanzielle Auswirkung</p>
-                        {flight.xplane_data?.landingBonus > 0 ? (
+                        {bonus > 0 ? (
                           <p className="font-mono font-bold text-emerald-400">
-                            +${flight.xplane_data?.landingBonus?.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            +${bonus.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                           </p>
-                        ) : (flight.xplane_data?.landingMaintenanceCost > 0 ? (
+                        ) : mCost > 0 ? (
                           <p className="font-mono font-bold text-red-400">
-                            -${flight.xplane_data?.landingMaintenanceCost?.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            -${mCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                           </p>
                         ) : (
                           <p className="text-slate-400">-</p>
-                        ))}
+                        )}
                       </div>
                       </div>
                       </div>
-                      )}
+                  );
+                })()}
 
                       {/* Live Maintenance Costs */}
                   {flight.xplane_data?.maintenanceCost > 0 && (

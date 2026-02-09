@@ -47,9 +47,7 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import ActiveFlights from './pages/ActiveFlights';
 import AdminAircraftImages from './pages/AdminAircraftImages';
-import CompletedFlightDetails from './pages/CompletedFlightDetails';
 import ContractDetails from './pages/ContractDetails';
 import Contracts from './pages/Contracts';
 import Dashboard from './pages/Dashboard';
@@ -57,20 +55,20 @@ import EmployeeDetails from './pages/EmployeeDetails';
 import Employees from './pages/Employees';
 import Finances from './pages/Finances';
 import Fleet from './pages/Fleet';
-import FlightHistory from './pages/FlightHistory';
-import FlightTracker from './pages/FlightTracker';
 import GameSettingsAdmin from './pages/GameSettingsAdmin';
 import Landing from './pages/Landing';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import ActiveFlights from './pages/ActiveFlights';
+import FlightHistory from './pages/FlightHistory';
+import FlightTracker from './pages/FlightTracker';
+import CompletedFlightDetails from './pages/CompletedFlightDetails';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "ActiveFlights": ActiveFlights,
     "AdminAircraftImages": AdminAircraftImages,
-    "CompletedFlightDetails": CompletedFlightDetails,
     "ContractDetails": ContractDetails,
     "Contracts": Contracts,
     "Dashboard": Dashboard,
@@ -78,13 +76,15 @@ export const PAGES = {
     "Employees": Employees,
     "Finances": Finances,
     "Fleet": Fleet,
-    "FlightHistory": FlightHistory,
-    "FlightTracker": FlightTracker,
     "GameSettingsAdmin": GameSettingsAdmin,
     "Landing": Landing,
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "ActiveFlights": ActiveFlights,
+    "FlightHistory": FlightHistory,
+    "FlightTracker": FlightTracker,
+    "CompletedFlightDetails": CompletedFlightDetails,
 }
 
 export const pagesConfig = {
