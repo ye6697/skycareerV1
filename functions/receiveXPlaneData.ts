@@ -124,6 +124,12 @@ Deno.serve(async (req) => {
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
 
     // Update flight with comprehensive X-Plane data
+    // Extract departure/arrival coordinates from plugin (if sent)
+    const departure_lat = data.departure_lat || 0;
+    const departure_lon = data.departure_lon || 0;
+    const arrival_lat = data.arrival_lat || 0;
+    const arrival_lon = data.arrival_lon || 0;
+
     const updateData = {
       xplane_data: {
         altitude,
@@ -164,6 +170,11 @@ Deno.serve(async (req) => {
         maintenance_cost,
         reputation,
         was_airborne: hasBeenAirborne,
+        // Preserve departure/arrival coords: keep first valid values, don't overwrite with 0
+        departure_lat: departure_lat || (flight.xplane_data?.departure_lat || 0),
+        departure_lon: departure_lon || (flight.xplane_data?.departure_lon || 0),
+        arrival_lat: arrival_lat || (flight.xplane_data?.arrival_lat || 0),
+        arrival_lon: arrival_lon || (flight.xplane_data?.arrival_lon || 0),
         timestamp: new Date().toISOString()
       }
     };
