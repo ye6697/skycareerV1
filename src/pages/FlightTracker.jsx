@@ -656,6 +656,8 @@ export default function FlightTracker() {
                 madeDeadline,
                 deadlineMinutes,
                 totalRevenue: contract?.payout || 0,
+                landingBonus: landingBonusUsed,
+                landingPenalty: landingPenaltyUsed,
                 levelBonus: levelBonus,
                 levelBonusPercent: levelBonusPercent * 100,
                 companyLevel: company?.level || 1,
