@@ -868,6 +868,10 @@ export default function FlightTracker() {
 
       // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
       if (!newWasAirborne) {
+        // Use current position as departure if not set yet
+        const curLat = (xp.latitude !== undefined && xp.latitude !== null) ? xp.latitude : prev.latitude;
+        const curLon = (xp.longitude !== undefined && xp.longitude !== null) ? xp.longitude : prev.longitude;
+        
         const groundData = {
           ...prev,
           altitude: xp.altitude || prev.altitude,
@@ -877,10 +881,10 @@ export default function FlightTracker() {
           fuel: xp.fuel_percentage || prev.fuel,
           fuelKg: xp.fuel_kg || prev.fuelKg,
           gForce: currentGForce,
-          latitude: xp.latitude || prev.latitude,
-          longitude: xp.longitude || prev.longitude,
-          departure_lat: prev.departure_lat || xp.departure_lat || 0,
-          departure_lon: prev.departure_lon || xp.departure_lon || 0,
+          latitude: curLat,
+          longitude: curLon,
+          departure_lat: prev.departure_lat || xp.departure_lat || curLat || 0,
+          departure_lon: prev.departure_lon || xp.departure_lon || curLon || 0,
           arrival_lat: prev.arrival_lat || xp.arrival_lat || 0,
           arrival_lon: prev.arrival_lon || xp.arrival_lon || 0,
           wasAirborne: false,
@@ -1043,6 +1047,9 @@ export default function FlightTracker() {
       }
       
       // Store departure/arrival coordinates from first X-Plane data
+      // Use current lat/lon properly (don't use || which treats 0 as falsy)
+      const curLat = (xp.latitude !== undefined && xp.latitude !== null) ? xp.latitude : prev.latitude;
+      const curLon = (xp.longitude !== undefined && xp.longitude !== null) ? xp.longitude : prev.longitude;
       const depLat = prev.departure_lat || xp.departure_lat || 0;
       const depLon = prev.departure_lon || xp.departure_lon || 0;
       const arrLat = prev.arrival_lat || xp.arrival_lat || 0;
@@ -1066,8 +1073,8 @@ export default function FlightTracker() {
         flightScore: baseScore,
         maintenanceCost: prev.maintenanceCost + maintenanceCostIncrease,
         reputation: xp.reputation || prev.reputation,
-        latitude: xp.latitude || prev.latitude,
-        longitude: xp.longitude || prev.longitude,
+        latitude: curLat,
+        longitude: curLon,
         departure_lat: depLat,
         departure_lon: depLon,
         arrival_lat: arrLat,
