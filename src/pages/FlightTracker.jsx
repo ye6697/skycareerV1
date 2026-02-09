@@ -23,7 +23,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import FlightRating from "@/components/flights/FlightRating";
+// FlightRating entfernt - einheitliche Ergebnis-Seite wird verwendet
 
 export default function FlightTracker() {
   const navigate = useNavigate();
@@ -746,13 +746,8 @@ export default function FlightTracker() {
       await queryClient.invalidateQueries({ queryKey: ['company'] });
       await queryClient.invalidateQueries({ queryKey: ['contracts'] });
 
-      // Direkt navigieren mit dem neuesten Flight von der DB
-      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
-        state: { 
-          flightData: flightDataRef.current || flightData,
-          flight: updatedFlight,
-          contract
-        },
+      // Navigiere zur einheitlichen Ergebnis-Seite (nur DB-Daten, kein State)
+      navigate(createPageUrl(`CompletedFlightDetails?flightId=${updatedFlight.id}&contractId=${contractIdFromUrl}`), {
         replace: true
       });
     },
@@ -1468,69 +1463,13 @@ export default function FlightTracker() {
             <div className="space-y-6">
             {flightPhase === 'completed' ? (
               <>
-                <FlightRating 
-                  flight={(() => {
-                    const fuelUsed = (100 - flightData.fuel) * 10;
-                    const fuelCost = fuelUsed * 1.2;
-                    const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
-                    const crewCost = flightHours * 250;
-                    const airportFee = 150;
-                    const isCrashed = flightData.events.crash;
-                    let revenue = 0;
-                    if (!isCrashed) {
-                      revenue = contract?.payout || 0;
-                      revenue += flightData.landingBonus || 0;
-                    }
-                    const directCosts = fuelCost + crewCost + airportFee;
-                    const profit = revenue - directCosts;
-                    const levelBonusPercent = (company?.level || 1) * 0.01;
-                    const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
-                    return {
-                      flight_score: flightData.flightScore,
-                      landing_vs: flightData.landingVs,
-                      max_g_force: flightData.maxGForce,
-                      fuel_used_liters: fuelUsed,
-                      flight_duration_hours: flightHours,
-                      passenger_comments: generateComments(flightData.flightScore, flightData),
-                      xplane_data: {
-                        final_score: flightData.flightScore,
-                        landingGForce: flightData.landingGForce,
-                        events: flightData.events,
-                        levelBonus,
-                        levelBonusPercent: levelBonusPercent * 100,
-                        companyLevel: company?.level || 1,
-                        landingScoreChange: flightData.landingScoreChange,
-                        landingBonus: flightData.landingBonus,
-                        landingMaintenanceCost: flightData.landingMaintenanceCost
-                      },
-                      revenue,
-                      fuel_cost: fuelCost,
-                      crew_cost: crewCost,
-                      maintenance_cost: flightData.maintenanceCost,
-                      profit: profit + levelBonus
-                    };
-                  })()} 
-                />
-
-                {!completeFlightMutation.isSuccess && (
-                  <Button 
-                    onClick={() => completeFlightMutation.mutate()}
-                    disabled={completeFlightMutation.isPending}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
-                  >
-                    {completeFlightMutation.isPending ? 'Speichere...' : 'Flug abschließen'}
-                  </Button>
-                )}
-
-                {completeFlightMutation.isSuccess && (
-                  <Button 
-                    variant="outline"
-                    onClick={() => navigate(createPageUrl("Dashboard"))}
-                    className="w-full border-slate-600 text-white hover:bg-slate-700"
-                  >
-                    Zurück zum Dashboard
-                  </Button>
-                )}
+                <Card className="p-6 bg-slate-800/50 border-slate-700 text-center">
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
+                    <Plane className="w-10 h-10 text-blue-400 mx-auto mb-3" />
+                  </motion.div>
+                  <p className="text-white font-semibold">Flug wird abgeschlossen...</p>
+                  <p className="text-slate-400 text-sm mt-1">Du wirst gleich zur Ergebnisseite weitergeleitet.</p>
+                </Card>
               </>
             ) : (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
