@@ -47,37 +47,64 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
-  });
-
-  const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
-  });
-
-  const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
-  });
-
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me()
   });
 
   const { data: company } = useQuery({
-    queryKey: ['company'],
+    queryKey: ['company', currentUser?.company_id],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
-    }
+      if (currentUser?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
+      if (companies[0]) {
+        await base44.auth.updateMe({ company_id: companies[0].id });
+        return companies[0];
+      }
+      return null;
+    },
+    enabled: !!currentUser
+  });
+
+  const companyId = company?.id;
+
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['contracts', 'accepted', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'accepted' }),
+    enabled: !!companyId
+  });
+
+  const { data: inProgressContracts = [] } = useQuery({
+    queryKey: ['contracts', 'in_progress', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'in_progress' }),
+    enabled: !!companyId
+  });
+
+  const { data: completedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'completed', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'completed' }),
+    enabled: !!companyId
+  });
+
+  const { data: failedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'failed', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'failed' }),
+    enabled: !!companyId
+  });
+
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', companyId],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: 'available' }),
+    enabled: !!companyId
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', companyId],
+    queryFn: () => base44.entities.Employee.filter({ company_id: companyId, status: 'available' }),
+    enabled: !!companyId
   });
 
   const startFlightMutation = useMutation({
@@ -99,6 +126,7 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: companyId,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -149,6 +177,7 @@ export default function ActiveFlights() {
 
         // Create transaction for penalty
         await base44.entities.Transaction.create({
+          company_id: companyId,
           type: 'expense',
           category: 'other',
           amount: penalty,
@@ -193,36 +222,37 @@ export default function ActiveFlights() {
   };
 
   const allContracts = [...contracts, ...inProgressContracts];
+  const allFinishedContracts = [...completedContracts, ...failedContracts].sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date));
   const [activeTab, setActiveTab] = useState('active');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8">
+          className="mb-6 sm:mb-8">
 
-          <h1 className="text-3xl font-bold text-white">Aktive Flüge</h1>
-          <p className="text-slate-400">Bereite Flüge vor und starte sie mit X-Plane 12</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Aktive Flüge</h1>
+          <p className="text-sm sm:text-base text-slate-400">Bereite Flüge vor und starte sie mit X-Plane 12</p>
         </motion.div>
 
         {/* Connection Status */}
-        <Card className="p-4 mb-6 bg-slate-900 text-white">
-          <div className="flex items-center justify-between">
+        <Card className="p-3 sm:p-4 mb-4 sm:mb-6 bg-slate-900 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${
+              <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
               company?.xplane_connection_status === 'connected' ?
               'bg-emerald-400 animate-pulse' :
               'bg-slate-600'}`
               } />
-              <span>
+              <span className="text-sm sm:text-base">
                 X-Plane 12: {company?.xplane_connection_status === 'connected' ? 'Verbunden' : 'Nicht verbunden'}
               </span>
             </div>
             {company?.xplane_connection_status !== 'connected' &&
-            <p className="text-sm text-slate-300">
+            <p className="text-xs sm:text-sm text-slate-300">
                 Plugin-Verbindung erforderlich für Live-Flugdaten
               </p>
             }
@@ -230,7 +260,7 @@ export default function ActiveFlights() {
         </Card>
 
         {/* Tabs */}
-        <div className="flex gap-2 sm:gap-4 mb-6 border-b border-slate-700 overflow-x-auto">
+        <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6 border-b border-slate-700 overflow-x-auto">
           <button
             onClick={() => setActiveTab('active')}
             className={`pb-3 px-4 font-medium transition-colors ${
@@ -239,17 +269,17 @@ export default function ActiveFlights() {
             'text-slate-400 hover:text-white'}`
             }>
 
-            Aktive Flüge ({allContracts.length})
+            Aktive ({allContracts.length})
           </button>
           <button
             onClick={() => setActiveTab('completed')}
-            className={`pb-3 px-4 font-medium transition-colors ${
+            className={`pb-3 px-3 sm:px-4 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
             activeTab === 'completed' ?
             'border-b-2 border-emerald-500 text-emerald-400' :
             'text-slate-400 hover:text-white'}`
             }>
 
-            Abgeschlossene Flüge ({completedContracts.length})
+            Abgeschlossene Flüge ({allFinishedContracts.length})
           </button>
         </div>
 
@@ -270,11 +300,11 @@ export default function ActiveFlights() {
                 'bg-blue-500' :
                 'bg-amber-500'}`
                 } />
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-semibold text-white">
+                    <div className="p-3 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 mb-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="text-base sm:text-xl font-semibold text-white">
                               {contract.title}
                             </h3>
                             <Badge className={
@@ -285,22 +315,22 @@ export default function ActiveFlights() {
                               {contract.status === 'in_progress' ? 'Im Flug' : 'Bereit'}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-3 text-slate-400">
+                          <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base text-slate-400">
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4" />
+                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
                               {contract.departure_airport}
                             </span>
-                            <ArrowRight className="w-4 h-4" />
+                            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4" />
+                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
                               {contract.arrival_airport}
                             </span>
                             <span className="text-slate-600">|</span>
                             <span>{contract.distance_nm} NM</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-emerald-600">
+                        <div className="sm:text-right flex-shrink-0">
+                          <p className="text-xl sm:text-2xl font-bold text-emerald-600">
                             ${contract.payout?.toLocaleString()}
                           </p>
                           {contract.bonus_potential > 0 &&
@@ -314,8 +344,8 @@ export default function ActiveFlights() {
                       {/* Required Crew */}
                       {contract.required_crew &&
                   <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4 p-3 bg-slate-900 rounded-lg">
-                          <span className="text-sm text-slate-400">Benötigte Crew:</span>
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                          <span className="text-xs sm:text-sm text-slate-400">Crew:</span>
+                          <div className="flex flex-wrap items-center gap-2">
                             {Object.entries(contract.required_crew).map(([role, count]) =>
                       count > 0 &&
                       <Badge key={role} variant="outline" className="text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 flex items-center gap-1">
@@ -328,7 +358,7 @@ export default function ActiveFlights() {
                         </div>
                   }
 
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
                         {contract.status === 'accepted' &&
                     <>
                             <Button
@@ -451,46 +481,45 @@ export default function ActiveFlights() {
           </Card> :
         null}
 
-        {/* Assignment Dialog */}
+        {/* Assignment Dialog - Dark Mode */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl bg-slate-900 border-slate-700 text-white max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
+              <DialogTitle className="text-white">Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-6">
               {/* Aircraft Selection */}
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-300">
                   <Plane className="w-4 h-4" />
                   Flugzeug auswählen
                 </Label>
                 <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
                     <SelectValue placeholder="Flugzeug wählen..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-slate-800 border-slate-600">
                     {aircraft.filter((ac) => {
-                      // Filter to only show compatible aircraft
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
                       return passengerOk && cargoOk && rangeOk;
                     }).map((ac) =>
-                    <SelectItem key={ac.id} value={ac.id}>
+                    <SelectItem key={ac.id} value={ac.id} className="text-white focus:bg-slate-700 focus:text-white">
                         {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
                 {aircraft.length === 0 &&
-                <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
+                <p className="text-sm text-red-400">Kein verfügbares Flugzeug!</p>
                 }
               </div>
 
               {/* Crew Selection */}
               <div className="space-y-4">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-300">
                   <Users className="w-4 h-4" />
                   Crew zuweisen
                 </Label>
@@ -502,34 +531,34 @@ export default function ActiveFlights() {
                   if (required === 0 && roleEmployees.length === 0) return null;
 
                   return (
-                    <div key={role} className="flex items-center gap-4">
-                      <div className="w-40">
-                        <span className="text-sm font-medium">
+                    <div key={role} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="sm:w-40">
+                        <span className="text-sm font-medium text-slate-300">
                           {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-100 ml-1">*</span>}
+                          {required > 0 && <span className="text-red-400 ml-1">*</span>}
                         </span>
                       </div>
                       <Select
                         value={selectedCrew[role]}
                         onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
 
-                        <SelectTrigger className="flex-1">
+                        <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
+                        <SelectContent className="bg-slate-800 border-slate-600">
+                          <SelectItem value="none" className="text-slate-400 focus:bg-slate-700 focus:text-white">-- Nicht zuweisen --</SelectItem>
                           {roleEmployees.map((emp) =>
-                          <SelectItem key={emp.id} value={emp.id}>
+                          <SelectItem key={emp.id} value={emp.id} className="text-white focus:bg-slate-700 focus:text-white">
                               {emp.name} (Skill: {emp.skill_rating})
                             </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
                       {required > 0 && !selectedCrew[role] &&
-                      <AlertCircle className="w-5 h-5 text-amber-100" />
+                      <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
                       }
-                      {selectedCrew[role] &&
-                      <CheckCircle className="w-5 h-5 text-emerald-100" />
+                      {selectedCrew[role] && selectedCrew[role] !== 'none' &&
+                      <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                       }
                     </div>);
 
@@ -538,20 +567,20 @@ export default function ActiveFlights() {
 
               {/* Warning */}
               {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-700">
-                      Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
+                    <p className="font-medium text-amber-300">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-400/70">
+                      Für diesen Auftrag wird eine vollständige Crew benötigt.
                     </p>
                   </div>
                 </div>
               }
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)} className="border-slate-600 text-slate-300 hover:bg-slate-800">
                 Abbrechen
               </Button>
               <Button
