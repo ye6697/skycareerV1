@@ -470,7 +470,16 @@ export default function FlightTracker() {
      }
      
      // Use the latest flightData from ref to ensure all events are captured
-     const finalFlightData = flightDataRef.current || flightData;
+     // KRITISCH: Ref könnte noch keinen Crash haben wenn State-Update noch pending war
+     const refData = flightDataRef.current || flightData;
+     const finalFlightData = {
+       ...refData,
+       events: {
+         ...refData.events,
+         // Merge crash flag from both sources - React state might have it but ref not yet
+         crash: refData.events.crash || flightData.events.crash
+       }
+     };
      
      // Realistic cost calculations based on aviation industry
      const fuelUsed = (100 - finalFlightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
