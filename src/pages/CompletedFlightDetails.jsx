@@ -241,8 +241,8 @@ export default function CompletedFlightDetails() {
                     <p className="text-slate-400 text-sm mb-1">Deadline</p>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-500">
-                          Vorgabe: {flight.xplane_data.deadlineMinutes} min | Geflogen: {(flight.flight_duration_hours * 60).toFixed(0)} min
+                        <p className="text-sm text-slate-400">
+                          Vorgabe: {flight.xplane_data.deadlineMinutes} min | Geflogen: {Math.round(flight.flight_duration_hours * 60)} min
                         </p>
                       </div>
                       {flight.xplane_data.madeDeadline ? (
@@ -308,7 +308,7 @@ export default function CompletedFlightDetails() {
                   <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-3">
                     <div>
                       <p className="text-slate-400 text-sm mb-2 font-semibold">Landungsqualitäts-Analyse</p>
-                      <p className="text-xs text-slate-500 mb-3">Basierend auf G-Kraft beim Landen ({landingG.toFixed(2)} G)</p>
+                      <p className="text-xs text-slate-400 mb-3">Basierend auf G-Kraft beim Landen ({landingG.toFixed(2)} G)</p>
                     </div>
 
                     {/* Landing Type */}
@@ -317,42 +317,42 @@ export default function CompletedFlightDetails() {
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-500" />
                           <span className="text-red-500 font-bold">CRASH</span>
-                          <span className="text-slate-500 ml-2">({vs} ft/min)</span>
+                          <span className="text-slate-400 ml-2">({vs} ft/min)</span>
                         </>
                       )}
                       {lt === 'very_hard' && (
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-500" />
                           <span className="text-red-500 font-bold">Sehr Harte Landung</span>
-                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
+                          <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'hard' && (
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-400" />
                           <span className="text-red-400 font-bold">Harte Landung</span>
-                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
+                          <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'acceptable' && (
                         <>
                           <CheckCircle2 className="w-5 h-5 text-blue-400" />
                           <span className="text-blue-400 font-semibold">Akzeptable Landung</span>
-                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
+                          <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'soft' && (
                         <>
                           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                           <span className="text-emerald-400 font-bold">Weiche Landung</span>
-                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
+                          <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'butter' && (
                         <>
                           <Star className="w-5 h-5 text-amber-400" />
                           <span className="text-amber-400 font-bold">BUTTERWEICHE LANDUNG!</span>
-                          <span className="text-slate-500 ml-2">({landingG.toFixed(2)} G)</span>
+                          <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       </div>
@@ -360,7 +360,7 @@ export default function CompletedFlightDetails() {
                       {/* Score and Cost Impact */}
                       <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-700">
                       <div>
-                        <p className="text-xs text-slate-500 mb-1">Score-Auswirkung</p>
+                        <p className="text-xs text-slate-400 mb-1">Score-Auswirkung</p>
                         <p className={`font-mono font-bold ${
                           scoreChange > 0 ? 'text-emerald-400' :
                           scoreChange < 0 ? 'text-red-400' :
@@ -370,14 +370,14 @@ export default function CompletedFlightDetails() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 mb-1">Finanzielle Auswirkung</p>
+                        <p className="text-xs text-slate-400 mb-1">Finanzielle Auswirkung</p>
                         {financialImpact > 0 ? (
                           <p className="font-mono font-bold text-emerald-400">
-                            +${financialImpact.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                           +${Math.round(financialImpact).toLocaleString()}
                           </p>
                         ) : financialImpact < 0 ? (
                           <p className="font-mono font-bold text-red-400">
-                            -${Math.abs(financialImpact).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                           -${Math.round(Math.abs(financialImpact)).toLocaleString()}
                           </p>
                         ) : (
                           <p className="text-slate-400">$0</p>
