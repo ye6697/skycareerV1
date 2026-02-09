@@ -962,8 +962,10 @@ export default function FlightTracker() {
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;
       
-      // Landungs-Score hinzufügen/abziehen
-      baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
+      // Landungs-Score hinzufügen/abziehen (nur wenn sich landingType gerade geändert hat)
+      if (landingType && !prev.landingType) {
+        baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
+      }
 
       // Track if high G-force event already happened
       const hadHighGEvent = prev.events.high_g_force || false;
