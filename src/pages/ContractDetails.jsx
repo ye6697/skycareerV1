@@ -318,20 +318,56 @@ export default function ContractDetails() {
                 Score & Auswirkungen
               </h3>
               
-              {/* Bonuses */}
-              <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-2">Bonus-Events</p>
+              {/* Landing Quality - G-force based */}
+              <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-2">Landequalität (nach G-Kraft)</p>
               <div className="space-y-1.5 text-sm mb-4">
                 <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
-                  <span className="text-slate-300">Butterweiche Landung (&lt;100 ft/min)</span>
-                  <div className="flex gap-3">
-                    <span className="text-emerald-400 font-medium">+10 Score</span>
+                  <span className="text-slate-300">Butterweich (&lt;0.5 G)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-emerald-400 font-medium">+40 Score</span>
+                    <span className="text-emerald-400">+4× Payout</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
-                  <span className="text-slate-300">Weiche Landung (&lt;150 ft/min)</span>
-                  <div className="flex gap-3">
-                    <span className="text-emerald-400 font-medium">+5 Score</span>
+                  <span className="text-slate-300">Weich (&lt;1.0 G)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-emerald-400 font-medium">+20 Score</span>
+                    <span className="text-emerald-400">+2× Payout</span>
                   </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-blue-900/20 rounded">
+                  <span className="text-slate-300">Akzeptabel (&lt;1.6 G)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-blue-400 font-medium">+5 Score</span>
+                    <span className="text-slate-500">kein Bonus</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Hart (&lt;2.0 G)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-30 Score</span>
+                    <span className="text-amber-400">-25% Payout</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Sehr Hart (≥2.0 G)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-50 Score</span>
+                    <span className="text-amber-400">-50% Payout</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deadline */}
+              <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider mb-2">Deadline</p>
+              <div className="space-y-1.5 text-sm mb-4">
+                <div className="flex justify-between items-center p-2 bg-blue-900/10 rounded">
+                  <span className="text-slate-300">Deadline eingehalten</span>
+                  <span className="text-emerald-400 font-medium text-xs">+20 Score</span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-blue-900/10 rounded">
+                  <span className="text-slate-300">Deadline überschritten</span>
+                  <span className="text-red-400 font-medium text-xs">-20 Score</span>
                 </div>
               </div>
 
@@ -339,17 +375,16 @@ export default function ContractDetails() {
               <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-2">Straf-Events</p>
               <div className="space-y-1.5 text-sm mb-4">
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Harte Landung (&gt;600 ft/min)</span>
-                  <div className="flex gap-3 text-xs">
-                    <span className="text-red-400 font-medium">-15 Score</span>
-                    <span className="text-amber-400">1% Wartung</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
                   <span className="text-slate-300">Heckaufsetzer (Tailstrike)</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-20 Score</span>
                     <span className="text-amber-400">2% Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Overspeed</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-15 Score</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
@@ -360,10 +395,17 @@ export default function ContractDetails() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">G-Kraft Überschreitung (&gt;1.5G)</span>
+                  <span className="text-slate-300">G-Kraft ≥1.5 G (erste)</span>
                   <div className="flex gap-3 text-xs">
-                    <span className="text-red-400 font-medium">-25 Score/G</span>
-                    <span className="text-amber-400">1%/G Wartung</span>
+                    <span className="text-red-400 font-medium">-10 Score</span>
+                    <span className="text-amber-400">1% Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
+                  <span className="text-slate-300">Jede weitere G-Stufe (2G, 3G…)</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-medium">-10 Score/G</span>
+                    <span className="text-amber-400">G×1% Wartung</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
@@ -385,14 +427,14 @@ export default function ContractDetails() {
               <p className="text-xs text-red-500 font-semibold uppercase tracking-wider mb-2">Katastrophal</p>
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between items-center p-2 bg-red-900/20 border border-red-800/30 rounded">
-                  <span className="text-red-300 font-medium">Crash (&gt;1000 ft/min)</span>
+                  <span className="text-red-300 font-medium">Crash</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-bold">-100 Score</span>
                     <span className="text-red-400 font-bold">70% Wartung</span>
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-3">Wartungskosten berechnen sich als Prozent des Flugzeug-Neuwerts. Score startet bei 100 und bestimmt den Bonus.</p>
+              <p className="text-xs text-slate-500 mt-3">Wartungskosten = % des Flugzeug-Neuwerts. Landebonus/-abzug basiert auf dem Auftrags-Payout. Score startet bei 100.</p>
             </Card>
           </div>
         </div>
