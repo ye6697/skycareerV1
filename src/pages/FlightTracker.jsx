@@ -660,13 +660,13 @@ export default function FlightTracker() {
                  throw error;
                }
             } else {
-              console.error('❌ KEIN FLUGZEUG GEFUNDEN FÜR UPDATE:', flight);
+              console.error('❌ KEIN FLUGZEUG GEFUNDEN FÜR UPDATE:', activeFlight);
             }
 
             // Free up crew - SOFORT Status auf available setzen
-            if (flight?.crew && Array.isArray(flight.crew)) {
-              console.log('🔄 Aktualisiere Crew Status:', flight.crew);
-              for (const member of flight.crew) {
+            if (activeFlight?.crew && Array.isArray(activeFlight.crew)) {
+              console.log('🔄 Aktualisiere Crew Status:', activeFlight.crew);
+              for (const member of activeFlight.crew) {
                 // Hole aktuellen Employee um total_flight_hours zu bekommen
                 const employees = await base44.entities.Employee.filter({ id: member.employee_id });
                 const currentEmployee = employees[0];
