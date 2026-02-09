@@ -1320,7 +1320,7 @@ export default function FlightTracker() {
                   <p className="text-2xl font-mono font-bold text-emerald-400">
                     {Math.round(flightData.speed)}
                   </p>
-                  <p className="text-xs text-slate-500">kts</p>
+                  <p className="text-xs text-slate-500">kts TAS</p>
                 </div>
                 <div className="p-4 bg-slate-900 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">Vertikalgeschw.</p>
@@ -1402,11 +1402,19 @@ export default function FlightTracker() {
                 </h3>
                 <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
               </div>
-              <div className="p-2 bg-slate-900 rounded text-center">
-                <p className="text-xs text-slate-400">Treibstoff</p>
-                <p className="text-lg font-mono font-bold text-amber-400">
-                  {Math.round(flightData.fuel)}%
-                </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-slate-900 rounded text-center">
+                  <p className="text-xs text-slate-400">Prozent</p>
+                  <p className="text-lg font-mono font-bold text-amber-400">
+                    {Math.round(flightData.fuel)}%
+                  </p>
+                </div>
+                <div className="p-2 bg-slate-900 rounded text-center">
+                  <p className="text-xs text-slate-400">Verbleibend</p>
+                  <p className="text-lg font-mono font-bold text-amber-400">
+                    {Math.round(flightData.fuelKg).toLocaleString()} kg
+                  </p>
+                </div>
               </div>
               {flightData.fuel < 3 && (
                 <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
@@ -1437,15 +1445,19 @@ export default function FlightTracker() {
                   </div>
                   <Progress value={flightData.flightScore} className="h-2 bg-slate-700" />
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Reputation</span>
+                    <span className="text-slate-400">Status</span>
                     <Badge className={`${
-                      flightData.reputation === 'EXCELLENT' ? 'bg-emerald-500/20 text-emerald-400' :
-                      flightData.reputation === 'VERY_GOOD' ? 'bg-green-500/20 text-green-400' :
-                      flightData.reputation === 'ACCEPTABLE' ? 'bg-amber-500/20 text-amber-400' :
-                      flightData.reputation === 'POOR' ? 'bg-orange-500/20 text-orange-400' :
+                      flightData.flightScore >= 95 ? 'bg-emerald-500/20 text-emerald-400' :
+                      flightData.flightScore >= 85 ? 'bg-green-500/20 text-green-400' :
+                      flightData.flightScore >= 70 ? 'bg-amber-500/20 text-amber-400' :
+                      flightData.flightScore >= 50 ? 'bg-orange-500/20 text-orange-400' :
                       'bg-red-500/20 text-red-400'
                     }`}>
-                      {flightData.reputation}
+                      {flightData.flightScore >= 95 ? 'EXCELLENT' :
+                       flightData.flightScore >= 85 ? 'VERY GOOD' :
+                       flightData.flightScore >= 70 ? 'ACCEPTABLE' :
+                       flightData.flightScore >= 50 ? 'POOR' :
+                       'CRITICAL'}
                     </Badge>
                   </div>
                   {flightData.maintenanceCost > 0 && (
@@ -1701,6 +1713,31 @@ export default function FlightTracker() {
                   </p>
                 </div>
               </Card>
+
+              {/* Compact Raw X-Plane Data */}
+              {xplaneLog?.raw_data && (
+                <Card className="p-4 bg-slate-800/50 border-slate-700">
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-slate-400">
+                    <Activity className="w-4 h-4 text-blue-400" />
+                    X-Plane Rohdaten
+                  </h3>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-mono">
+                    {Object.entries(xplaneLog.raw_data)
+                      .filter(([key]) => !['departure_lat','departure_lon','arrival_lat','arrival_lon'].includes(key))
+                      .map(([key, value]) => (
+                      <div key={key} className="flex justify-between gap-1 py-0.5 border-b border-slate-700/50">
+                        <span className="text-slate-500 truncate">{key}</span>
+                        <span className="text-slate-300 shrink-0">
+                          {typeof value === 'number' ? value.toFixed(2) : 
+                           typeof value === 'boolean' ? (value ? '✓' : '✗') :
+                           typeof value === 'object' ? '{}' :
+                           String(value).substring(0, 12)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
             )}
           </div>
         </div>
