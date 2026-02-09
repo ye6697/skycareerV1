@@ -21,42 +21,41 @@ Deno.serve(async (req) => {
     
     const data = await req.json();
     
-    const {
-      altitude,
-      speed,
-      vertical_speed,
-      heading,
-      fuel_percentage,
-      fuel_kg,
-      g_force,
-      max_g_force,
-      latitude,
-      longitude,
-      on_ground,
-      touchdown_vspeed,
-      landing_g_force,
-      tailstrike,
-      stall,
-      is_in_stall,
-      stall_warning,
-      override_alpha,
-      overstress,
-      flaps_overspeed,
-      fuel_emergency,
-      gear_up_landing,
-      crash,
-      has_crashed,
-      overspeed,
-      gear_down,
-      flap_ratio,
-      pitch,
-      ias,
-      // Legacy fields from old plugins
-      flight_score,
-      maintenance_cost,
-      reputation,
-      landing_quality
-    } = data;
+    const altitude = data.altitude;
+    const speed = data.speed;
+    const vertical_speed = data.vertical_speed;
+    const heading = data.heading;
+    const fuel_percentage = data.fuel_percentage;
+    const fuel_kg = data.fuel_kg;
+    const g_force = data.g_force;
+    const max_g_force = data.max_g_force;
+    const latitude = data.latitude;
+    const longitude = data.longitude;
+    const on_ground = data.on_ground;
+    const touchdown_vspeed = data.touchdown_vspeed;
+    const landing_g_force = data.landing_g_force;
+    const tailstrike = data.tailstrike;
+    const stall = data.stall;
+    const is_in_stall = data.is_in_stall;
+    const stall_warning = data.stall_warning;
+    const override_alpha = data.override_alpha;
+    const overstress = data.overstress;
+    const flaps_overspeed = data.flaps_overspeed;
+    const fuel_emergency = data.fuel_emergency;
+    const gear_up_landing = data.gear_up_landing;
+    const crash = data.crash;
+    const has_crashed = data.has_crashed;
+    const overspeed = data.overspeed;
+    const gear_down = data.gear_down;
+    // flap_ratio: preserve 0 as valid value (don't use || which treats 0 as falsy)
+    const flap_ratio = data.flap_ratio !== undefined && data.flap_ratio !== null ? data.flap_ratio : 0;
+    const pitch = data.pitch;
+    const ias = data.ias;
+    // Legacy fields from old plugins
+    const flight_score = data.flight_score;
+    const maintenance_cost = data.maintenance_cost;
+    const reputation = data.reputation;
+    const landing_quality = data.landing_quality;
 
     // Normalize field names (support both naming conventions)
     const park_brake = data.parking_brake || data.park_brake || false;
