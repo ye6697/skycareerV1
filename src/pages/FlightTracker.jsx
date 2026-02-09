@@ -568,8 +568,7 @@ export default function FlightTracker() {
             console.log('🔍 SPEICHERE FINALE FLUGDATEN:', {
               finalScore: scoreWithTime,
               flightHours,
-              deadlineMinutes,
-              madeDeadline,
+              expectedFlightHours,
               timeScoreChange,
               timeBonus,
               events: finalFlightData.events,
@@ -907,16 +906,14 @@ export default function FlightTracker() {
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;
       
-      // Landungs-Score hinzufügen/abziehen - NUR wenn gerade erst gelandet (nicht prev.landingType)
-      if (landingType && !prev.landingType) {
-        baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
-      }
+      // Landungs-Score hinzufügen/abziehen
+      baseScore = Math.max(0, Math.min(100, baseScore + landingScoreChange));
 
       // Track if high G-force event already happened
       const hadHighGEvent = prev.events.high_g_force || false;
 
       // Calculate maintenance cost increase based on NEW events only
-      let maintenanceCostIncrease = (landingType && !prev.landingType) ? landingMaintenanceCost : 0;
+      let maintenanceCostIncrease = landingMaintenanceCost;
 
       // Log landing quality calculations for debugging
       if (landingType && !prev.landingType) {
@@ -1069,22 +1066,18 @@ export default function FlightTracker() {
       }
     }
 
-    // Use ref for LATEST data (state may be stale in this render cycle)
-    const latestData = flightDataRef.current || flightData;
-    const isAirborne = latestData.wasAirborne;
-    const hasCrashedNow = latestData.events?.crash || (xp.has_crashed && isAirborne);
-
     // Landung erkannt: Flugzeug war in der Luft und ist jetzt auf dem Boden
+    // Erlaube Abschluss in ALLEN aktiven Flugphasen (takeoff, cruise, landing)
     const isActivePhase = flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing';
     
-    if (isAirborne && flightStartTime && xp.on_ground && (flightPhase === 'landing' || flightPhase === 'cruise') && !completeFlightMutation.isPending && !isCompletingFlight) {
+    if (flightData.wasAirborne && flightStartTime && xp.on_ground && (flightPhase === 'landing' || flightPhase === 'cruise') && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Starte Flugabschluss');
       setFlightPhase('completed');
       completeFlightMutation.mutate();
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
-    if (hasCrashedNow && isAirborne && flightStartTime && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
+    if (flightData.events.crash && flightData.wasAirborne && flightStartTime && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
       completeFlightMutation.mutate();
