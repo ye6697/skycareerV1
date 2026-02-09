@@ -121,7 +121,7 @@ export default function ActiveFlights() {
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
-        filter(([_, id]) => id).
+        filter(([_, id]) => id && id !== 'none').
         map(([role, id]) => ({ role, employee_id: id })),
         departure_time: new Date().toISOString(),
         status: 'in_flight'
@@ -135,7 +135,7 @@ export default function ActiveFlights() {
 
       // Update crew status
       for (const [role, id] of Object.entries(selectedCrew)) {
-        if (id) {
+        if (id && id !== 'none') {
           await base44.entities.Employee.update(id, { status: 'on_duty' });
         }
       }
