@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Timer,
+  Activity,
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
