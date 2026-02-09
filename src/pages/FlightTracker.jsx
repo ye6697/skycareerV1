@@ -1229,6 +1229,20 @@ export default function FlightTracker() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Flight Header */}
+        {/* Tab Warning */}
+        {flightPhase !== 'preflight' && flightPhase !== 'completed' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-center gap-3"
+          >
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <p className="text-sm text-amber-300">
+              <strong>Wichtig:</strong> Schließe diesen Tab nicht während des Fluges! Die Flugdaten werden hier live verarbeitet und der Flug kann sonst nicht korrekt abgeschlossen werden.
+            </p>
+          </motion.div>
+        )}
+
         {contract && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
