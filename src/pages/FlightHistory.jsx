@@ -114,53 +114,53 @@ export default function FlightHistory() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <Card className="p-4 bg-slate-800 border border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Plane className="w-5 h-5 text-blue-400" />
+          <Card className="p-3 sm:p-4 bg-slate-800 border border-slate-700">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
+                <Plane className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
               </div>
-              <div>
-                <p className="text-sm text-slate-400">Flüge Gesamt</p>
-                <p className="text-2xl font-bold text-white">{flights.length}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-4 bg-slate-800 border border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/20 rounded-lg">
-                <Star className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-400">Ø Bewertung</p>
-                <p className="text-2xl font-bold text-white">{avgRating.toFixed(1)}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-slate-400 truncate">Flüge</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">{flights.length}</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4 bg-slate-800 border border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${totalProfit >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+          <Card className="p-3 sm:p-4 bg-slate-800 border border-slate-700">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-amber-500/20 rounded-lg flex-shrink-0">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-slate-400 truncate">Ø Bewertung</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">{avgRating.toFixed(1)}</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-3 sm:p-4 bg-slate-800 border border-slate-700">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${totalProfit >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
                 {totalProfit >= 0 ? (
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
                 ) : (
-                  <TrendingDown className="w-5 h-5 text-red-400" />
+                  <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                 )}
               </div>
-              <div>
-                <p className="text-sm text-slate-400">Gesamtgewinn</p>
-                <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-slate-400 truncate">Gewinn</p>
+                <p className={`text-lg sm:text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {formatCurrency(totalProfit)}
                 </p>
               </div>
             </div>
           </Card>
-          <Card className="p-4 bg-slate-800 border border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <DollarSign className="w-5 h-5 text-purple-400" />
+          <Card className="p-3 sm:p-4 bg-slate-800 border border-slate-700">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-purple-500/20 rounded-lg flex-shrink-0">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
               </div>
-              <div>
-                <p className="text-sm text-slate-400">Ø Gewinn/Flug</p>
-                <p className="text-2xl font-bold text-white">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-slate-400 truncate">Ø/Flug</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
                   {formatCurrency(flights.length > 0 ? totalProfit / flights.length : 0)}
                 </p>
               </div>
@@ -181,84 +181,56 @@ export default function FlightHistory() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Flight List */}
         {isLoading ? (
-          <Card className="animate-pulse bg-slate-100 h-64" />
+          <Card className="animate-pulse bg-slate-800 h-64" />
         ) : flights.length > 0 ? (
-          <Card className="overflow-hidden bg-slate-800 border border-slate-700 overflow-x-auto">
-            <Table className="min-w-[700px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-white">Datum</TableHead>
-                  <TableHead className="text-white">Route</TableHead>
-                  <TableHead className="text-white">Bewertung</TableHead>
-                  <TableHead className="text-white">Landung</TableHead>
-                  <TableHead className="text-white">Einnahmen</TableHead>
-                  <TableHead className="text-white">Kosten</TableHead>
-                  <TableHead className="text-white">Gewinn</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {flights.map((flight) => {
-                  const contract = getContractForFlight(flight);
-                  return (
-                    <TableRow 
-                      key={flight.id} 
-                      className={`cursor-pointer hover:bg-slate-700 ${flight.status === 'failed' ? 'bg-red-900/20' : ''}`}
-                      onClick={() => setSelectedFlight(flight)}
-                    >
-                      <TableCell className="text-white">
-                       <div className="flex items-center gap-2">
-                         <Calendar className="w-4 h-4 text-slate-400" />
-                         {formatDate(flight.departure_time)}
-                         {flight.status === 'failed' && (
-                           <Badge className="bg-red-500/20 text-red-400 border-red-500/30 ml-2">Crash</Badge>
-                         )}
-                       </div>
-                      </TableCell>
-                      <TableCell className="text-white">
-                       <span className="font-mono">
-                         {contract?.departure_airport} → {contract?.arrival_airport}
-                       </span>
-                      </TableCell>
-                      <TableCell className="text-white">
-                       <div className="flex items-center gap-1">
-                         <Star className={`w-4 h-4 ${
-                           flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'
-                         }`} />
-                         <span className="font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
-                       </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${
-                          Math.abs(flight.landing_vs || 0) < 150 
-                            ? 'bg-emerald-100 text-emerald-700' 
-                            : Math.abs(flight.landing_vs || 0) < 300
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {flight.landing_vs} ft/min
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-emerald-400 font-medium">
-                        {formatCurrency(flight.revenue)}
-                      </TableCell>
-                      <TableCell className="text-red-400">
-                        -{formatCurrency((flight.fuel_cost || 0) + (flight.crew_cost || 0) + (flight.maintenance_cost || 0))}
-                      </TableCell>
-                      <TableCell className={`font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <div className="space-y-3">
+            {flights.map((flight) => {
+              const contract = getContractForFlight(flight);
+              return (
+                <Card 
+                  key={flight.id} 
+                  className={`p-3 sm:p-4 bg-slate-800 border border-slate-700 cursor-pointer hover:border-slate-500 transition-colors ${flight.status === 'failed' ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-emerald-500'}`}
+                  onClick={() => setSelectedFlight(flight)}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-xs text-slate-500">{formatDate(flight.departure_time)}</span>
+                        {flight.status === 'failed' && (
+                          <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Crash</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-white font-mono text-sm sm:text-base">
+                        <span>{contract?.departure_airport || '???'}</span>
+                        <span className="text-slate-500">→</span>
+                        <span>{contract?.arrival_airport || '???'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
+                      <div className="flex items-center gap-1">
+                        <Star className={`w-4 h-4 ${flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
+                        <span className="text-white text-sm font-medium">{flight.overall_rating?.toFixed(1) || '-'}</span>
+                      </div>
+                      <Badge className={`text-xs ${
+                        Math.abs(flight.landing_vs || 0) < 150 
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+                          : Math.abs(flight.landing_vs || 0) < 300
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          : 'bg-red-500/20 text-red-400 border-red-500/30'
+                      }`}>
+                        {flight.landing_vs} ft/m
+                      </Badge>
+                      <span className={`text-sm font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {formatCurrency(flight.profit)}
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm">Details</Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />

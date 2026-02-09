@@ -114,12 +114,12 @@ export default function XPlaneSetup() {
         {/* Setup Steps */}
         <div className="space-y-6">
           {/* Step 1 */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold">1</span>
+          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-400 font-bold text-sm sm:text-base">1</span>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Plugin herunterladen</h3>
                 <p className="text-slate-400 mb-4">
                   Wähle eine der beiden Methoden - FlyWithLua ist empfohlen für einfachere Installation:
@@ -210,12 +210,12 @@ export default function XPlaneSetup() {
           </Card>
 
           {/* Step 2 */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold">2</span>
+          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-400 font-bold text-sm sm:text-base">2</span>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Installation</h3>
                 <p className="text-slate-400 mb-4">
                   Je nach gewählter Methode:
@@ -266,12 +266,12 @@ export default function XPlaneSetup() {
           </Card>
 
           {/* Step 3 */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold">3</span>
+          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-400 font-bold text-sm sm:text-base">3</span>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Fertig - keine weitere Konfiguration nötig!</h3>
                 <p className="text-slate-400 mb-4">
                   Das Plugin ist bereits mit deiner Company ID vorkonfiguriert:
@@ -319,12 +319,12 @@ export default function XPlaneSetup() {
           </Card>
 
           {/* Step 4 */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold">4</span>
+          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-400 font-bold text-sm sm:text-base">4</span>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Flug durchführen</h3>
                 <p className="text-slate-400 mb-4">
                   So verwendest du das Plugin:
@@ -363,34 +363,55 @@ export default function XPlaneSetup() {
           </Card>
 
           {/* Features */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
+          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Wifi className="w-5 h-5 text-blue-400" />
-              Übertragene Daten
+              Übertragene & verarbeitete Daten
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <p className="text-sm text-slate-400 mb-4">Alle Datenpunkte die jede Sekunde von X-Plane empfangen und ausgewertet werden:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
               {[
-                'Höhe',
-                'Geschwindigkeit',
-                'Vertikalgeschwindigkeit',
-                'Kurs',
-                'Treibstoffstand',
-                'G-Kräfte',
-                'Position (GPS)',
-                'Bodenkontakt',
+                'Höhe (ft)',
+                'Geschwindigkeit (kts)',
+                'Vertikalgeschwindigkeit (ft/min)',
+                'Kurs / Heading',
+                'Treibstoffstand (%)',
+                'Treibstoff (kg)',
+                'G-Kräfte (aktuell)',
+                'Max G-Kräfte',
+                'Lande-G-Kraft',
+                'Position (Lat/Lon)',
+                'Bodenkontakt (on_ground)',
                 'Parkbremse',
-                'Triebwerksstatus'
+                'Triebwerksstatus',
+                'Tailstrike-Erkennung',
+                'Strömungsabriss (Stall)',
+                'Strukturbelastung (Overstress)',
+                'Overspeed',
+                'Klappen-Overspeed',
+                'Treibstoff-Notstand',
+                'Fahrwerk-Status',
+                'Crash-Erkennung',
+                'Steuerinput-Intensität',
+                'Lande-Vertikalgeschw.',
+                'Abflug-Koordinaten',
+                'Ziel-Koordinaten',
+                'Flug-Score (0-100)',
+                'Reputation',
+                'Wartungskosten (live)',
+                'Landequalitäts-Typ',
+                'Lande-Bonus'
               ].map((feature, index) => (
-                <div key={index} className="flex items-center gap-2 text-slate-300">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span className="text-sm">{feature}</span>
+                <div key={index} className="flex items-center gap-2 text-slate-300 py-1">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm">{feature}</span>
                 </div>
               ))}
             </div>
           </Card>
 
           {/* Technical Details */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
+          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Code className="w-5 h-5 text-purple-400" />
               Technische Details
@@ -416,7 +437,7 @@ export default function XPlaneSetup() {
           </Card>
 
           {/* Help */}
-          <Card className="p-6 bg-blue-900/20 border border-blue-700/50">
+          <Card className="p-4 sm:p-6 bg-blue-900/20 border border-blue-700/50">
             <h3 className="text-lg font-semibold text-blue-300 mb-2">Benötigst du Hilfe?</h3>
             <p className="text-slate-300 text-sm mb-4">
               Falls das Plugin nicht funktioniert, überprüfe:

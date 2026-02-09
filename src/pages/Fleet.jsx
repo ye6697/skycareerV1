@@ -270,22 +270,22 @@ export default function Fleet() {
                               <p className="font-bold text-sm text-white line-clamp-1">{ac.name}</p>
                               <p className="text-xs font-semibold text-blue-400">{typeLabels[ac.type]}</p>
                             </div>
-                            <div className="grid grid-cols-2 gap-1 text-xs font-medium flex-grow">
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
-                                <p className="text-slate-400 text-[9px] mb-0.5">Passagiere</p>
-                                <p className="text-white text-sm">{ac.passenger_capacity}</p>
+                            <div className="grid grid-cols-2 gap-1.5 text-xs font-medium flex-grow">
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Passagiere</p>
+                                <p className="text-white text-sm font-bold">{ac.passenger_capacity}</p>
                               </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
-                                <p className="text-slate-400 text-[9px] mb-0.5">Fracht</p>
-                                <p className="text-white text-xs">{(ac.cargo_capacity_kg / 1000).toFixed(1)}k</p>
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Fracht</p>
+                                <p className="text-white text-sm font-bold">{ac.cargo_capacity_kg?.toLocaleString()} kg</p>
                               </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
-                                <p className="text-slate-400 text-[9px] mb-0.5">Verbrauch</p>
-                                <p className="text-white text-sm">{ac.fuel_consumption_per_hour}</p>
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Verbrauch</p>
+                                <p className="text-white text-sm font-bold">{ac.fuel_consumption_per_hour} L/h</p>
                               </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-1.5 rounded">
-                                <p className="text-slate-400 text-[9px] mb-0.5">Reichweite</p>
-                                <p className="text-white text-sm">{ac.range_nm} NM</p>
+                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Reichweite</p>
+                                <p className="text-white text-sm font-bold">{ac.range_nm?.toLocaleString()} NM</p>
                               </div>
                             </div>
                             <div className="pt-2 border-t border-slate-700 space-y-2">
