@@ -61,6 +61,118 @@ local fuel_emergency_detected = false
 local gear_up_landing_detected = false
 local crash_detected = false
 
+----------------------------
+-- FAILURE SYSTEM
+----------------------------
+local maintenance_ratio = 0.0
+local last_failure_check = 0
+local failure_check_interval = 30.0
+local active_failures = {}
+
+-- Failure definitions: {dataref, name, category}
+local light_failures = {
+    {"sim/operation/failures/rel_lites_nav", "Navigationslichter", "electrical"},
+    {"sim/operation/failures/rel_lites_land", "Landelichter", "electrical"},
+    {"sim/operation/failures/rel_lites_taxi", "Taxilichter", "electrical"},
+    {"sim/operation/failures/rel_lites_strobe", "Blitzlichter", "electrical"},
+    {"sim/operation/failures/rel_lites_beac", "Beacon-Lichter", "electrical"},
+    {"sim/operation/failures/rel_lites_ins", "Instrumentenbeleuchtung", "avionics"},
+    {"sim/operation/failures/rel_pitot", "Pitotrohr", "avionics"},
+    {"sim/operation/failures/rel_static", "Statikport", "avionics"},
+    {"sim/operation/failures/rel_apts0", "Transponder", "avionics"},
+}
+local medium_failures = {
+    {"sim/operation/failures/rel_genera0", "Generator 1", "electrical"},
+    {"sim/operation/failures/rel_genera1", "Generator 2", "electrical"},
+    {"sim/operation/failures/rel_hydpmp", "Hydraulikpumpe 1", "hydraulics"},
+    {"sim/operation/failures/rel_hydpmp2", "Hydraulikpumpe 2", "hydraulics"},
+    {"sim/operation/failures/rel_batter0", "Batterie 1", "electrical"},
+    {"sim/operation/failures/rel_fc_rud_L", "Seitenruder links", "flight_controls"},
+    {"sim/operation/failures/rel_fc_ail_L", "Querruder links", "flight_controls"},
+    {"sim/operation/failures/rel_otto", "Autopilot Computer", "avionics"},
+    {"sim/operation/failures/rel_auto_servos", "Autopilot Servos", "avionics"},
+    {"sim/operation/failures/rel_smoke_cpit", "Rauch im Cockpit", "pressurization"},
+    {"sim/operation/failures/rel_vacpmp", "Vakuumpumpe", "engine"},
+    {"sim/operation/failures/rel_stbaug", "Stabilisierung", "flight_controls"},
+}
+local severe_failures = {
+    {"sim/operation/failures/rel_engfai0", "Triebwerk 1 Ausfall", "engine"},
+    {"sim/operation/failures/rel_engfai1", "Triebwerk 2 Ausfall", "engine"},
+    {"sim/operation/failures/rel_engfir0", "Triebwerk 1 Feuer", "engine"},
+    {"sim/operation/failures/rel_esys", "Elektrisches System", "electrical"},
+    {"sim/operation/failures/rel_depres_fast", "Schnelle Dekompression", "pressurization"},
+}
+
+------------------------------------------------------------
+-- FAILURE SYSTEM FUNCTIONS
+------------------------------------------------------------
+function check_failures()
+    local current_time = os.clock()
+    if current_time - last_failure_check < failure_check_interval then return end
+    last_failure_check = current_time
+    
+    if maintenance_ratio <= 0 then return end
+    
+    local base_chance = maintenance_ratio * maintenance_ratio * 0.20
+    if math.random() > base_chance then return end
+    
+    local severity_roll = math.random()
+    local failure_pool
+    local severity
+    
+    if maintenance_ratio < 0.3 then
+        failure_pool = light_failures
+        severity = "leicht"
+    elseif maintenance_ratio < 0.6 then
+        if severity_roll < 0.7 then failure_pool = light_failures; severity = "leicht"
+        else failure_pool = medium_failures; severity = "mittel" end
+    elseif maintenance_ratio < 0.85 then
+        if severity_roll < 0.4 then failure_pool = light_failures; severity = "leicht"
+        elseif severity_roll < 0.85 then failure_pool = medium_failures; severity = "mittel"
+        else failure_pool = severe_failures; severity = "schwer" end
+    else
+        if severity_roll < 0.2 then failure_pool = light_failures; severity = "leicht"
+        elseif severity_roll < 0.55 then failure_pool = medium_failures; severity = "mittel"
+        else failure_pool = severe_failures; severity = "schwer" end
+    end
+    
+    -- Pick random failure not already active
+    local available = {}
+    for _, f in ipairs(failure_pool) do
+        local already_active = false
+        for _, af in ipairs(active_failures) do
+            if af[1] == f[1] then already_active = true; break end
+        end
+        if not already_active then table.insert(available, f) end
+    end
+    if #available == 0 then return end
+    
+    local chosen = available[math.random(#available)]
+    set(chosen[1], 6)  -- 6 = inoperative
+    table.insert(active_failures, chosen)
+end
+
+function reset_all_failures()
+    for _, f in ipairs(active_failures) do
+        set(f[1], 0)  -- 0 = working
+    end
+    active_failures = {}
+end
+
+function get_active_failures_json()
+    if #active_failures == 0 then return "[]" end
+    local parts = {}
+    for _, f in ipairs(active_failures) do
+        local severity = "leicht"
+        for _, sf in ipairs(severe_failures) do if sf[1] == f[1] then severity = "schwer"; break end end
+        if severity == "leicht" then
+            for _, mf in ipairs(medium_failures) do if mf[1] == f[1] then severity = "mittel"; break end end
+        end
+        table.insert(parts, '{"name":"' .. f[2] .. '","severity":"' .. severity .. '","category":"' .. f[3] .. '"}')
+    end
+    return "[" .. table.concat(parts, ",") .. "]"
+end
+
 ------------------------------------------------------------
 -- HTTP SEND (ULTRA SAFE with pcall)
 ------------------------------------------------------------
