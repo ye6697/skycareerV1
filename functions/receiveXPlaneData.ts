@@ -130,7 +130,37 @@ Deno.serve(async (req) => {
     const arrival_lat = data.arrival_lat || 0;
     const arrival_lon = data.arrival_lon || 0;
 
+    // Process active failures from plugin and store on flight record
+    const pluginFailures = data.active_failures || [];
+    const existingFailures = flight.active_failures || [];
+    
+    // Merge: keep existing + add new ones from plugin
+    const existingNames = new Set(existingFailures.map(f => f.name));
+    const newFailures = [];
+    for (const pf of pluginFailures) {
+      if (!existingNames.has(pf.name)) {
+        newFailures.push({
+          name: pf.name,
+          severity: pf.severity,
+          category: pf.category,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    const allFailures = [...existingFailures, ...newFailures];
+    
+    // Calculate maintenance damage per category from failures
+    const existingDamage = flight.maintenance_damage || {};
+    const newDamage = { ...existingDamage };
+    for (const f of newFailures) {
+      const cat = f.category || 'airframe';
+      const dmg = f.severity === 'schwer' ? 15 : f.severity === 'mittel' ? 8 : 3;
+      newDamage[cat] = (newDamage[cat] || 0) + dmg;
+    }
+
     const updateData = {
+      active_failures: allFailures,
+      maintenance_damage: newDamage,
       xplane_data: {
         altitude,
         speed,
