@@ -688,18 +688,6 @@ export default function FlightTracker() {
             if (activeFlight?.aircraft_id) {
               try {
                 // Wenn Wartungskosten > 10% des Wertes -> Status "maintenance"
-                let newAircraftStatus = 'available';
-                if (hasCrashed) {
-                  newAircraftStatus = 'damaged';
-                } else {
-                  // Check if any category exceeds threshold after update
-                  const maxCatWear = Math.max(...Object.values(updatedCats));
-                  const avgCatWear = Object.values(updatedCats).reduce((a, b) => a + b, 0) / Object.values(updatedCats).length;
-                  if (maxCatWear > 75 || avgCatWear > 50) {
-                    newAircraftStatus = 'maintenance';
-                  }
-                }
-
                 // Apply maintenance damage from failures to aircraft categories
                 const activeFl = flight || existingFlight;
                 const flightDamage = activeFl?.maintenance_damage || {};
@@ -724,6 +712,19 @@ export default function FlightTracker() {
                 if (hasCrashed) {
                   for (const cat of Object.keys(updatedCats)) {
                     updatedCats[cat] = 100; // Everything maxed on crash
+                  }
+                }
+
+                // Determine aircraft status based on updated categories
+                let newAircraftStatus = 'available';
+                if (hasCrashed) {
+                  newAircraftStatus = 'damaged';
+                } else {
+                  const catVals = Object.values(updatedCats);
+                  const maxCatWear = Math.max(...catVals);
+                  const avgCatWear = catVals.reduce((a, b) => a + b, 0) / catVals.length;
+                  if (maxCatWear > 75 || avgCatWear > 50) {
+                    newAircraftStatus = 'maintenance';
                   }
                 }
 
