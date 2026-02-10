@@ -235,6 +235,18 @@ Deno.serve(async (req) => {
     // Regular update - not completed yet
     await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
+    // Calculate maintenance ratio for failure system
+    // Get aircraft to determine maintenance percentage
+    let maintenanceRatio = 0;
+    if (flight.aircraft_id) {
+      const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+      const aircraft = aircraftList[0];
+      if (aircraft && aircraft.purchase_price > 0) {
+        // maintenance ratio = accumulated_maintenance_cost / purchase_price (0.0 to 1.0+)
+        maintenanceRatio = (aircraft.accumulated_maintenance_cost || 0) / aircraft.purchase_price;
+      }
+    }
+
     return Response.json({ 
       status: 'updated',
       message: 'Flight data received',
@@ -242,6 +254,7 @@ Deno.serve(async (req) => {
       park_brake,
       engines_running,
       flight_score,
+      maintenance_ratio: Math.min(maintenanceRatio, 1.0),
       xplane_connection_status: 'connected'
     });
 
