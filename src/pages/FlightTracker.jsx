@@ -190,7 +190,8 @@ export default function FlightTracker() {
       const contracts = await base44.entities.Contract.filter({ id: contractIdFromUrl });
       return contracts[0];
     },
-    enabled: !!contractIdFromUrl
+    enabled: !!contractIdFromUrl,
+    staleTime: 300000, // Contract doesn't change during flight
   });
 
   // Load existing flight if any
@@ -298,7 +299,8 @@ export default function FlightTracker() {
       }
       const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
-    }
+    },
+    staleTime: 30000, // Don't refetch for 30s - reduce DB load during flight
   });
 
   const { data: aircraft } = useQuery({
@@ -313,7 +315,8 @@ export default function FlightTracker() {
       }
       if (!companyId) return [];
       return await base44.entities.Aircraft.filter({ company_id: companyId });
-    }
+    },
+    staleTime: 60000, // Aircraft data doesn't change during flight
   });
 
   const { data: settings } = useQuery({
@@ -321,7 +324,8 @@ export default function FlightTracker() {
     queryFn: async () => {
       const allSettings = await base44.entities.GameSettings.list();
       return allSettings[0] || null;
-    }
+    },
+    staleTime: 300000, // Settings rarely change
   });
 
   const startFlightMutation = useMutation({
