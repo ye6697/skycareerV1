@@ -157,42 +157,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     }
   });
 
-  const performMaintenanceMutation = useMutation({
-    mutationFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      const company = companies[0];
-      if (!company) throw new Error('Unternehmen nicht gefunden');
-
-      const cost = maintenanceCost;
-      // After maintenance, reduce the current value by 10% of maintenance cost permanently
-      const valueReduction = cost * 0.10;
-      const newValue = Math.max(0, currentValue - valueReduction);
-      
-      // If value reaches 0, it's a total loss
-      const newStatus = newValue <= 0 ? 'total_loss' : 'available';
-
-      await base44.entities.Aircraft.update(aircraft.id, { 
-        status: newStatus,
-        accumulated_maintenance_cost: 0,
-        current_value: newValue
-      });
-      await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - cost });
-      
-      await base44.entities.Transaction.create({
-        company_id: company.id,
-        type: 'expense',
-        category: 'maintenance',
-        amount: cost,
-        description: `Wartung: ${aircraft.name} (Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
-        date: new Date().toISOString()
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['company'] });
-    }
-  });
+  // Legacy performMaintenanceMutation removed - now handled by MaintenanceCategories component
 
   const type = typeConfig[aircraft.type] || typeConfig.small_prop;
   // Override status display if maintenance is needed but status is still "available"
