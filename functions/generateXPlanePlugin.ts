@@ -395,6 +395,13 @@ Keine weitere Konfiguration nötig!
 - 🎯 Erkennt automatisch Start (Abheben)
 - 🏁 Beendet Flug automatisch bei Parkposition (am Boden + Parkbremse + Triebwerke aus)
 - ⭐ Berechnet Bewertungen basierend auf Flugqualität
+- ⚠️ Zufällige Ausfälle basierend auf Wartungszustand des Flugzeugs:
+  - 0% Wartungskosten = keine Ausfälle
+  - Niedrig (< 30%): nur leichte Ausfälle (Lichter, Pitot, etc.)
+  - Mittel (30-60%): leichte + mittlere Ausfälle (Generator, Hydraulik, Autopilot)
+  - Hoch (60-85%): alle Stufen, seltene schwere Ausfälle (Triebwerk, Feuer)
+  - Kritisch (> 85%): häufige und schwere Ausfälle
+- 🔧 Alle Ausfälle werden nach Flugabschluss automatisch zurückgesetzt
 
 ## Fehlerbehebung
 
