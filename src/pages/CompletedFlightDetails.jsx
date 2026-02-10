@@ -21,6 +21,7 @@ import {
 
 import FlightRating from "@/components/flights/FlightRating";
 import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
+import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 
 export default function CompletedFlightDetails() {
   const navigate = useNavigate();
@@ -422,6 +423,35 @@ export default function CompletedFlightDetails() {
                           <span className="text-white">Gesamt Wartungskosten</span>
                           <span className="text-red-400">${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Active Failures during flight */}
+                  {flight?.active_failures && flight.active_failures.length > 0 && (
+                    <div className="mt-4 p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
+                      <ActiveFailuresDisplay failures={flight.active_failures} />
+                    </div>
+                  )}
+
+                  {/* Maintenance Damage Breakdown */}
+                  {flight?.maintenance_damage && Object.values(flight.maintenance_damage).some(v => v > 0) && (
+                    <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                      <h4 className="text-sm font-semibold text-white mb-3">Wartungsschäden durch diesen Flug:</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {Object.entries(flight.maintenance_damage).filter(([_, v]) => v > 0).map(([cat, dmg]) => {
+                          const labels = {
+                            engine: "Triebwerk", hydraulics: "Hydraulik", avionics: "Avionik",
+                            airframe: "Struktur", landing_gear: "Fahrwerk", electrical: "Elektrik",
+                            flight_controls: "Steuerung", pressurization: "Druckkabine"
+                          };
+                          return (
+                            <div key={cat} className="flex justify-between p-2 bg-slate-800 rounded">
+                              <span className="text-slate-400">{labels[cat] || cat}</span>
+                              <span className="text-red-400 font-mono">+{dmg.toFixed(0)}%</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
