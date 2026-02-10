@@ -228,6 +228,7 @@ Deno.serve(async (req) => {
       return Response.json({ 
         status: 'ready_to_complete',
         message: 'Aircraft parked - waiting for frontend to complete flight',
+        maintenance_ratio: 0,
         xplane_connection_status: 'connected'
       });
     }
