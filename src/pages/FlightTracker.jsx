@@ -1195,24 +1195,29 @@ export default function FlightTracker() {
     }
   }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime]);
 
-  // Small component to show live failures - uses xplaneLog from parent instead of separate polling
+  // Show failures from the polled flight data - no extra DB queries
   function FailuresCard({ flightId }) {
     const [failures, setFailures] = useState([]);
     
+    // Read failures from the flight record we already poll
     useEffect(() => {
       if (!flightId) return;
-      // Subscribe to flight updates for real-time failure display
-      const unsub = base44.entities.Flight.subscribe((event) => {
-        if (event.id === flightId && event.data?.active_failures) {
-          setFailures(event.data.active_failures);
-        }
-      });
-      // Initial fetch
+      // One-time fetch, then rely on parent's polling for updates
       base44.entities.Flight.filter({ id: flightId }).then(flights => {
         if (flights[0]?.active_failures) setFailures(flights[0].active_failures);
       });
-      return unsub;
     }, [flightId]);
+
+    // Update from polled xplaneLog data - check if flight has failures
+    useEffect(() => {
+      if (!xplaneLog?.raw_data) return;
+      // Re-fetch failures occasionally when we get new data
+      if (flightId && Math.random() < 0.1) {
+        base44.entities.Flight.filter({ id: flightId }).then(flights => {
+          if (flights[0]?.active_failures) setFailures(flights[0].active_failures);
+        });
+      }
+    }, [xplaneLog, flightId]);
     
     if (failures.length === 0) return null;
     
