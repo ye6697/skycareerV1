@@ -57,6 +57,50 @@ class PythonInterface:
         self.last_on_ground = True
         self.flight_started = False
         
+        # Failure system
+        self.maintenance_ratio = 0.0  # 0.0 = perfect, 1.0 = very worn
+        self.last_failure_check = 0
+        self.failure_check_interval = 30.0  # check every 30 seconds
+        self.active_failures = []  # list of currently active failure datarefs
+        self.failure_datarefs = {}  # cached failure dataref handles
+        
+        # Possible failures grouped by severity
+        # Light failures: minor inconveniences
+        self.light_failures = [
+            ("sim/operation/failures/rel_lites_nav", "Navigationslichter"),
+            ("sim/operation/failures/rel_lites_land", "Landelichter"),
+            ("sim/operation/failures/rel_lites_taxi", "Taxilichter"),
+            ("sim/operation/failures/rel_lites_strobe", "Blitzlichter"),
+            ("sim/operation/failures/rel_lites_beac", "Beacon-Lichter"),
+            ("sim/operation/failures/rel_lites_ins", "Instrumentenbeleuchtung"),
+            ("sim/operation/failures/rel_pitot", "Pitotrohr"),
+            ("sim/operation/failures/rel_static", "Statikport"),
+            ("sim/operation/failures/rel_apts0", "Transponder"),
+        ]
+        # Medium failures: affect flight but manageable
+        self.medium_failures = [
+            ("sim/operation/failures/rel_genera0", "Generator 1"),
+            ("sim/operation/failures/rel_genera1", "Generator 2"),
+            ("sim/operation/failures/rel_hydpmp", "Hydraulikpumpe 1"),
+            ("sim/operation/failures/rel_hydpmp2", "Hydraulikpumpe 2"),
+            ("sim/operation/failures/rel_batter0", "Batterie 1"),
+            ("sim/operation/failures/rel_fc_rud_L", "Seitenruder links"),
+            ("sim/operation/failures/rel_fc_ail_L", "Querruder links"),
+            ("sim/operation/failures/rel_otto", "Autopilot Computer"),
+            ("sim/operation/failures/rel_auto_servos", "Autopilot Servos"),
+            ("sim/operation/failures/rel_smoke_cpit", "Rauch im Cockpit"),
+            ("sim/operation/failures/rel_vacpmp", "Vakuumpumpe"),
+            ("sim/operation/failures/rel_stbaug", "Stabilisierung"),
+        ]
+        # Severe failures: serious problems
+        self.severe_failures = [
+            ("sim/operation/failures/rel_engfai0", "Triebwerk 1 Ausfall"),
+            ("sim/operation/failures/rel_engfai1", "Triebwerk 2 Ausfall"),
+            ("sim/operation/failures/rel_engfir0", "Triebwerk 1 Feuer"),
+            ("sim/operation/failures/rel_esys", "Elektrisches System Bus 1"),
+            ("sim/operation/failures/rel_depres_fast", "Schnelle Dekompression"),
+        ]
+        
         # DataRefs
         self.datarefs = {}
         
