@@ -221,47 +221,33 @@ export default function FlightTracker() {
   // This avoids the async state update delay problem
   const activeFlightId = flight?.id || existingFlight?.id;
 
-  // Live data polling - uses real-time subscription as PRIMARY, polling as fallback
+  // Live data - direct polling only (subscriptions add overhead and latency)
   const [xplaneLog, setXplaneLog] = useState(null);
-  const lastUpdateRef = React.useRef(0);
+  const pollActiveRef = React.useRef(false);
   
   useEffect(() => {
     if (flightPhase === 'completed') return;
     if (!activeFlightId) return;
     
     let isMounted = true;
-    let abortController = new AbortController();
     
-    // Subscribe to real-time Flight updates for instant data (PRIMARY source)
-    const unsubscribe = base44.entities.Flight.subscribe((event) => {
-      if (!isMounted) return;
-      if (event.id === activeFlightId && event.data?.xplane_data) {
-        lastUpdateRef.current = Date.now();
-        setXplaneLog({ raw_data: event.data.xplane_data, created_date: event.data.updated_date });
-      }
-    });
-
-    // Polling as FALLBACK only - fetch if no subscription update in last 3s
     const fetchData = async () => {
-      if (!isMounted) return;
-      // Skip poll if we got a subscription update recently
-      if (Date.now() - lastUpdateRef.current < 3000) return;
+      if (pollActiveRef.current || !isMounted) return;
+      pollActiveRef.current = true;
       try {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
         const currentFlight = flights[0];
         if (currentFlight?.xplane_data && isMounted) {
-          lastUpdateRef.current = Date.now();
           setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
         }
       } catch (e) { /* ignore */ }
+      pollActiveRef.current = false;
     };
     
-    // Initial fetch immediately
     fetchData();
-    // Fallback poll every 2s - but skips if subscription is working
-    const interval = setInterval(fetchData, 2000);
+    const interval = setInterval(fetchData, 1500);
     
-    return () => { isMounted = false; clearInterval(interval); unsubscribe(); abortController.abort(); };
+    return () => { isMounted = false; clearInterval(interval); };
   }, [activeFlightId, flightPhase]);
 
   // Restore flight data and phase from existing flight
