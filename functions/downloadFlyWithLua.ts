@@ -61,6 +61,9 @@ local fuel_emergency_detected = false
 local gear_up_landing_detected = false
 local crash_detected = false
 
+-- Track last sent failure count to only send when changed
+local last_sent_failure_count = 0
+
 ----------------------------
 -- FAILURE SYSTEM
 ----------------------------
@@ -346,6 +349,13 @@ function monitor_flight()
     ---------------- CONSTRUCT JSON ----------------
     -- NOTE: Score calculation is done entirely on the frontend (FlightTracker).
     -- The plugin only sends raw data and boolean event flags.
+    -- Only include active_failures when count changed (avoid processing overhead on server)
+    local failures_json = ""
+    if #active_failures ~= last_sent_failure_count then
+        failures_json = ',"active_failures":' .. get_active_failures_json()
+        last_sent_failure_count = #active_failures
+    end
+
     local json_payload =
         "{"
         .. '"altitude":' .. string.format("%.1f", altitude) .. ","
@@ -356,8 +366,6 @@ function monitor_flight()
         .. '"fuel_kg":' .. string.format("%.1f", total_fuel_kg) .. ","
         .. '"g_force":' .. string.format("%.2f", g_force) .. ","
         .. '"max_g_force":' .. string.format("%.2f", max_g_force) .. ","
-        .. '"touchdown_vspeed":' .. string.format("%.1f", touchdown_vspeed) .. ","
-        .. '"landing_g_force":' .. string.format("%.2f", landing_g_force) .. ","
         .. '"latitude":' .. string.format("%.6f", latitude) .. ","
         .. '"longitude":' .. string.format("%.6f", longitude) .. ","
         .. '"on_ground":' .. tostring(on_ground) .. ","
@@ -376,8 +384,10 @@ function monitor_flight()
         .. '"fuel_emergency":' .. tostring(fuel_emergency_detected) .. ","
         .. '"gear_up_landing":' .. tostring(gear_up_landing_detected) .. ","
         .. '"crash":' .. tostring(crash_detected) .. ","
-        .. '"has_crashed":' .. tostring(has_crashed) .. ","
-        .. '"active_failures":' .. get_active_failures_json()
+        .. '"has_crashed":' .. tostring(has_crashed)
+        -- Only include touchdown data when actually landing
+        .. (flight_landed and (',"touchdown_vspeed":' .. string.format("%.1f", touchdown_vspeed) .. ',"landing_g_force":' .. string.format("%.2f", landing_g_force)) or "")
+        .. failures_json
         .. "}"
 
     send_flight_data(json_payload)
@@ -388,9 +398,9 @@ function monitor_flight()
     end
 end
 
--- Send data every 2 seconds (curl runs async in background, no frame blocking)
+-- Send data every 3 seconds (curl runs async in background, no frame blocking)
 local last_send_time = 0
-local SEND_INTERVAL = 2.0
+local SEND_INTERVAL = 3.0
 function flight_loop_callback()
     local current_time = os.clock()
     if current_time - last_send_time >= SEND_INTERVAL then
