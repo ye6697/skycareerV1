@@ -210,12 +210,28 @@ Deno.serve(async (req) => {
     // Write to DB and respond immediately
     await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
+    // Calculate maintenance_ratio from aircraft's maintenance categories
+    let maintenanceRatio = 0;
+    if (flight.aircraft_id) {
+      try {
+        const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+        const ac = aircraftList[0];
+        if (ac?.maintenance_categories) {
+          const cats = Object.values(ac.maintenance_categories);
+          if (cats.length > 0) {
+            const avg = cats.reduce((a, b) => a + (b || 0), 0) / cats.length;
+            maintenanceRatio = avg / 100; // 0.0 - 1.0
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+
     return Response.json({ 
       status: on_ground && park_brake && !areEnginesRunning && hasBeenAirborne ? 'ready_to_complete' : 'updated',
       on_ground,
       park_brake,
       engines_running: areEnginesRunning,
-      maintenance_ratio: 0,
+      maintenance_ratio: maintenanceRatio,
       xplane_connection_status: 'connected'
     });
 

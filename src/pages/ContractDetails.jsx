@@ -427,6 +427,13 @@ export default function ContractDetails() {
               <p className="text-xs text-red-500 font-semibold uppercase tracking-wider mb-2">Katastrophal</p>
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between items-center p-2 bg-red-900/20 border border-red-800/30 rounded">
+                  <span className="text-red-300 font-medium">Landung ohne Fahrwerk</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-red-400 font-bold">-35 Score</span>
+                    <span className="text-red-400 font-bold">15% Wartung</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-red-900/20 border border-red-800/30 rounded">
                   <span className="text-red-300 font-medium">Crash</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-bold">-100 Score</span>

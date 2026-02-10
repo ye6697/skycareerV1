@@ -990,6 +990,12 @@ export default function FlightTracker() {
         }
       }
       
+      // Gear-up landing: -35 Punkte + 15% Wartungskosten vom Neuwert
+      if (xp.gear_up_landing && !prev.events.gear_up_landing) {
+        landingScoreChange -= 35;
+        landingMaintenanceCost += aircraftPurchasePrice * 0.15;
+      }
+
       // Crash nur wenn tatsächlich abgehoben war
       const isCrash = (landingType === 'crash' || prev.events.crash || (xp.has_crashed && newWasAirborne)) && newWasAirborne;
       
@@ -1597,7 +1603,7 @@ export default function FlightTracker() {
                         {flightData.events.gear_up_landing === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Landung ohne Fahrwerk!
+                            Landung ohne Fahrwerk! (-35 Punkte, 15% Wartung)
                           </div>
                         )}
                         {flightData.events.crash === true && (
