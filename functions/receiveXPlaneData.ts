@@ -268,18 +268,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Regular update - not completed yet
-    await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
+    // Regular update - fire and don't wait for DB confirmation to respond faster
+    const updatePromise = base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
     // Calculate maintenance ratio for failure system
-    // Only fetch aircraft data every ~10th request to reduce DB load
-    // Cache the ratio on the flight's xplane_data
+    // Cache on flight xplane_data, only refresh rarely
     let maintenanceRatio = flight.xplane_data?.cached_maintenance_ratio || 0;
-    const shouldRefreshRatio = Math.random() < 0.1; // ~10% of requests
     
-    if (shouldRefreshRatio && flight.aircraft_id) {
-      try {
-        const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+    if (Math.random() < 0.05 && flight.aircraft_id) {
+      // Don't await - calculate in background
+      base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id }).then(aircraftList => {
         const ac = aircraftList[0];
         if (ac && ac.purchase_price > 0) {
           const cats = ac.maintenance_categories || {};
@@ -292,8 +290,12 @@ Deno.serve(async (req) => {
           const valueRatio = 1 - ((ac.current_value || ac.purchase_price) / ac.purchase_price);
           maintenanceRatio = Math.min(1.0, avgWear * 0.6 + valueRatio * 0.4);
         }
-      } catch (e) { /* use cached value */ }
+      }).catch(() => {});
     }
+
+    // Wait for the flight update to complete before responding
+    // This ensures the data is persisted when the frontend polls
+    await updatePromise;
 
     return Response.json({ 
       status: 'updated',
