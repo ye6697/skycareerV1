@@ -118,194 +118,104 @@ Deno.serve(async (req) => {
     }
     
     // Active flight exists - skip XPlaneLog write entirely to maximize speed
-    // Debug page will read from Flight.xplane_data instead
 
-    // Track if aircraft was ever airborne during this flight
-    // This prevents auto-completing a flight that never took off
+    const areEnginesRunning = engines_running || engine1_running || engine2_running;
     const wasAirborne = flight.xplane_data?.was_airborne || false;
     const isNowAirborne = !on_ground && altitude > 50;
     const hasBeenAirborne = wasAirborne || isNowAirborne;
 
-    const areEnginesRunning = engines_running || engine1_running || engine2_running;
-
-    // Update flight with comprehensive X-Plane data
-    // Extract departure/arrival coordinates from plugin (if sent)
-    const departure_lat = data.departure_lat || 0;
-    const departure_lon = data.departure_lon || 0;
-    const arrival_lat = data.arrival_lat || 0;
-    const arrival_lon = data.arrival_lon || 0;
-
-    // Process active failures from plugin and store on flight record
-    const pluginFailures = data.active_failures || [];
-    const existingFailures = flight.active_failures || [];
-    
-    // Merge: keep existing + add new ones from plugin
-    const existingNames = new Set(existingFailures.map(f => f.name));
-    const newFailures = [];
-    for (const pf of pluginFailures) {
-      if (!existingNames.has(pf.name)) {
-        newFailures.push({
-          name: pf.name,
-          severity: pf.severity,
-          category: pf.category,
-          timestamp: new Date().toISOString()
-        });
-      }
-    }
-    const allFailures = [...existingFailures, ...newFailures];
-    
-    // Calculate maintenance damage per category from failures
-    const existingDamage = flight.maintenance_damage || {};
-    const newDamage = { ...existingDamage };
-    for (const f of newFailures) {
-      const cat = f.category || 'airframe';
-      const dmg = f.severity === 'schwer' ? 15 : f.severity === 'mittel' ? 8 : 3;
-      newDamage[cat] = (newDamage[cat] || 0) + dmg;
-    }
-
-    const updateData = {
-      active_failures: allFailures,
-      maintenance_damage: newDamage,
-      xplane_data: {
-        altitude,
-        speed,
-        vertical_speed,
-        heading,
-        fuel_percentage,
-        fuel_kg: fuel_kg || 0,
-        g_force,
-        max_g_force,
-        latitude,
-        longitude,
-        on_ground,
-        park_brake,
-        engine1_running,
-        engine2_running,
-        engines_running: areEnginesRunning,
-        touchdown_vspeed,
-        landing_g_force,
-        landing_quality,
-        gear_down: gear_down !== undefined ? gear_down : true,
-        flap_ratio: flap_ratio,
-        pitch: pitch || 0,
-        ias: ias || 0,
-        tailstrike,
-        stall: stall || is_in_stall || stall_warning || override_alpha,
-        is_in_stall,
-        stall_warning,
-        override_alpha,
-        overstress,
-        overspeed: overspeed || false,
-        flaps_overspeed: flaps_overspeed || false,
-        fuel_emergency,
-        gear_up_landing,
-        crash: isCrash,
-        has_crashed: isCrash,
-        flight_score,
-        maintenance_cost,
-        reputation,
-        was_airborne: hasBeenAirborne,
-        // Preserve departure/arrival coords: keep first valid values, don't overwrite with 0
-        departure_lat: departure_lat || (flight.xplane_data?.departure_lat || 0),
-        departure_lon: departure_lon || (flight.xplane_data?.departure_lon || 0),
-        arrival_lat: arrival_lat || (flight.xplane_data?.arrival_lat || 0),
-        arrival_lon: arrival_lon || (flight.xplane_data?.arrival_lon || 0),
-        timestamp: new Date().toISOString()
-      }
+    // Build a LEAN xplane_data object - only current sensor readings
+    // No merging with previous data (the frontend tracks accumulated state)
+    const xplaneData = {
+      altitude,
+      speed,
+      vertical_speed,
+      heading,
+      fuel_percentage,
+      fuel_kg: fuel_kg || 0,
+      g_force,
+      max_g_force,
+      latitude,
+      longitude,
+      on_ground,
+      park_brake,
+      engine1_running,
+      engine2_running,
+      engines_running: areEnginesRunning,
+      touchdown_vspeed,
+      landing_g_force,
+      landing_quality,
+      gear_down: gear_down !== undefined ? gear_down : true,
+      flap_ratio,
+      pitch: pitch || 0,
+      ias: ias || 0,
+      tailstrike,
+      stall: stall || is_in_stall || stall_warning || override_alpha,
+      is_in_stall,
+      stall_warning,
+      override_alpha,
+      overstress,
+      overspeed: overspeed || false,
+      flaps_overspeed: flaps_overspeed || false,
+      fuel_emergency,
+      gear_up_landing,
+      crash: isCrash,
+      has_crashed: isCrash,
+      was_airborne: hasBeenAirborne,
+      // Preserve departure/arrival coords from first packet
+      departure_lat: data.departure_lat || (flight.xplane_data?.departure_lat || 0),
+      departure_lon: data.departure_lon || (flight.xplane_data?.departure_lon || 0),
+      arrival_lat: data.arrival_lat || (flight.xplane_data?.arrival_lat || 0),
+      arrival_lon: data.arrival_lon || (flight.xplane_data?.arrival_lon || 0),
+      timestamp: new Date().toISOString()
     };
 
-    // Track max G-force
+    // Build minimal update object - only include what changes
+    const updateData = { xplane_data: xplaneData };
+
+    // Track max G-force on flight level
     if (max_g_force > (flight.max_g_force || 0)) {
       updateData.max_g_force = max_g_force;
     }
 
-    // Auto-complete flight if parked with engines off
-    // CRITICAL: Only auto-complete if the aircraft was airborne at some point
-    // NOTE: The frontend FlightTracker handles the full flight completion with proper score calculations.
-    // This backend completion is a FALLBACK only. It should preserve the xplane_data events that
-    // the FlightTracker has been accumulating on the Flight record.
-    if (on_ground && park_brake && !areEnginesRunning && flight.status === 'in_flight' && hasBeenAirborne) {
-      // Don't auto-complete here - let the frontend FlightTracker handle it
-      // The frontend has the full accumulated events, scores, and maintenance costs
-      // Just update the xplane_data so the frontend knows to trigger completion
-      await base44.asServiceRole.entities.Flight.update(flight.id, {
-        ...updateData,
-        xplane_data: {
-          ...updateData.xplane_data,
-          // Preserve existing accumulated data from previous updates
-          ...(flight.xplane_data || {}),
-          // Override with latest raw values
-          altitude,
-          speed,
-          vertical_speed,
-          heading,
-          fuel_percentage,
-          g_force,
-          latitude,
-          longitude,
-          on_ground: true,
-          park_brake: true,
-          engines_running: false,
-          was_airborne: true,
-          // Ensure crash/event data from current packet is merged
-          crash: isCrash || (flight.xplane_data?.crash || false),
-          has_crashed: isCrash || (flight.xplane_data?.has_crashed || false),
-          tailstrike: tailstrike || (flight.xplane_data?.tailstrike || false),
-          stall: (stall || is_in_stall || stall_warning || override_alpha) || (flight.xplane_data?.stall || false),
-          overstress: overstress || (flight.xplane_data?.overstress || false),
-          overspeed: (overspeed || false) || (flight.xplane_data?.overspeed || false),
-          flaps_overspeed: flaps_overspeed || (flight.xplane_data?.flaps_overspeed || false),
-          landing_g_force: landing_g_force || flight.xplane_data?.landing_g_force,
-          timestamp: new Date().toISOString()
+    // Only process failures if plugin sends them (rare event, not every packet)
+    const pluginFailures = data.active_failures || [];
+    if (pluginFailures.length > 0) {
+      const existingFailures = flight.active_failures || [];
+      const existingNames = new Set(existingFailures.map(f => f.name));
+      const newFailures = [];
+      for (const pf of pluginFailures) {
+        if (!existingNames.has(pf.name)) {
+          newFailures.push({
+            name: pf.name,
+            severity: pf.severity,
+            category: pf.category,
+            timestamp: new Date().toISOString()
+          });
         }
-      });
-
-      return Response.json({ 
-        status: 'ready_to_complete',
-        message: 'Aircraft parked - waiting for frontend to complete flight',
-        maintenance_ratio: 0.0,
-        xplane_connection_status: 'connected'
-      });
+      }
+      if (newFailures.length > 0) {
+        updateData.active_failures = [...existingFailures, ...newFailures];
+        const existingDamage = flight.maintenance_damage || {};
+        const newDamage = { ...existingDamage };
+        for (const f of newFailures) {
+          const cat = f.category || 'airframe';
+          const dmg = f.severity === 'schwer' ? 15 : f.severity === 'mittel' ? 8 : 3;
+          newDamage[cat] = (newDamage[cat] || 0) + dmg;
+        }
+        updateData.maintenance_damage = newDamage;
+      }
     }
 
-    // Regular update - fire and don't wait for DB confirmation to respond faster
-    const updatePromise = base44.asServiceRole.entities.Flight.update(flight.id, updateData);
-
-    // Calculate maintenance ratio for failure system
-    // Cache on flight xplane_data, only refresh rarely
-    let maintenanceRatio = flight.xplane_data?.cached_maintenance_ratio || 0;
-    
-    if (Math.random() < 0.05 && flight.aircraft_id) {
-      // Don't await - calculate in background
-      base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id }).then(aircraftList => {
-        const ac = aircraftList[0];
-        if (ac && ac.purchase_price > 0) {
-          const cats = ac.maintenance_categories || {};
-          const catValues = [
-            cats.engine || 0, cats.hydraulics || 0, cats.avionics || 0,
-            cats.airframe || 0, cats.landing_gear || 0, cats.electrical || 0,
-            cats.flight_controls || 0, cats.pressurization || 0
-          ];
-          const avgWear = catValues.reduce((a, b) => a + b, 0) / catValues.length / 100;
-          const valueRatio = 1 - ((ac.current_value || ac.purchase_price) / ac.purchase_price);
-          maintenanceRatio = Math.min(1.0, avgWear * 0.6 + valueRatio * 0.4);
-        }
-      }).catch(() => {});
-    }
-
-    // Wait for the flight update to complete before responding
-    // This ensures the data is persisted when the frontend polls
-    await updatePromise;
+    // Write to DB and respond immediately
+    await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
     return Response.json({ 
-      status: 'updated',
-      message: 'Flight data received',
+      status: on_ground && park_brake && !areEnginesRunning && hasBeenAirborne ? 'ready_to_complete' : 'updated',
       on_ground,
       park_brake,
-      engines_running,
-      flight_score,
-      maintenance_ratio: maintenanceRatio,
-      active_failures: allFailures,
+      engines_running: areEnginesRunning,
+      maintenance_ratio: 0,
       xplane_connection_status: 'connected'
     });
 
