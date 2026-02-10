@@ -271,6 +271,8 @@ function monitor_flight()
         fuel_emergency_detected = false
         gear_up_landing_detected = false
         crash_detected = false
+        reset_all_failures()
+        maintenance_ratio = 0.0
     end
 
     ---------------- LANDING ----------------
