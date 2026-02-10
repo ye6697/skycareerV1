@@ -178,10 +178,33 @@ end
 ------------------------------------------------------------
 function send_flight_data(json_payload)
     local success, error_msg = pcall(function()
+        -- Write response to temp file to read maintenance_ratio
+        local tmpfile
         if SYSTEM == "IBM" then
-            os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 1 --silent >nul 2>&1')
+            tmpfile = os.getenv("TEMP") .. "\\\\skycareer_resp.txt"
+            os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 2 --silent -o "' .. tmpfile .. '" 2>nul')
         else
-            os.execute("nohup curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 1 --silent >/dev/null 2>&1 &")
+            tmpfile = "/tmp/skycareer_resp.txt"
+            os.execute("curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 2 --silent -o '" .. tmpfile .. "' 2>/dev/null &")
+        end
+        
+        -- Try to read response and extract maintenance_ratio
+        local f = io.open(tmpfile, "r")
+        if f then
+            local resp = f:read("*all")
+            f:close()
+            if resp then
+                local mr = resp:match('"maintenance_ratio":([%d%.]+)')
+                if mr then
+                    maintenance_ratio = tonumber(mr) or 0
+                end
+                -- Check if flight completed -> reset failures
+                if resp:match('"status":"completed"') or resp:match('"status":"ready_to_complete"') then
+                    reset_all_failures()
+                    maintenance_ratio = 0
+                    flight_started = false
+                end
+            end
         end
     end)
 end
