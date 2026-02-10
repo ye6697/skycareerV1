@@ -1172,13 +1172,16 @@ export default function FlightTracker() {
       setFlightStartTime(Date.now());
     }
     
-    if (flightData.wasAirborne && xp.on_ground && (flightPhase === 'landing' || flightPhase === 'cruise') && !completeFlightMutation.isPending && !isCompletingFlight) {
-      console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Warte auf nächsten Tick für Flugabschluss');
+    // Landing detection: aircraft was airborne, is now on ground, in any active flight phase
+    // Also detect "ready_to_complete" status from backend (parked with engines off + parking brake)
+    const isReadyToComplete = xp.on_ground && flightData.wasAirborne;
+    if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
+      console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Warte auf Flugabschluss');
       setFlightPhase('completed');
-      // Delay mutate to ensure the landing score/bonus state update is committed via flightDataRef
+      // Delay to ensure the landing score/bonus state update is committed via flightDataRef
       setTimeout(() => {
         completeFlightMutation.mutate();
-      }, 200);
+      }, 500);
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
