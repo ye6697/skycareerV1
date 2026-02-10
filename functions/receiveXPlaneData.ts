@@ -64,40 +64,6 @@ Deno.serve(async (req) => {
     const engines_running = data.engines_running || engine1_running || engine2_running;
     const isCrash = crash || has_crashed || false;
 
-    // Log received data - only when NO active flight (during flight, data is on the Flight entity)
-    // This dramatically reduces DB writes during active flights
-    const hasActiveFlight = !!(await base44.asServiceRole.entities.Flight.filter({ 
-      company_id: company.id, status: 'in_flight' 
-    }))[0];
-    
-    if (!hasActiveFlight) {
-      // No active flight - log to XPlaneLog for debug page
-      const logPromise = base44.asServiceRole.entities.XPlaneLog.create({
-        company_id: company.id,
-        raw_data: data,
-        altitude,
-        speed,
-        on_ground,
-        flight_score,
-        has_active_flight: false
-      });
-
-      // Cleanup old logs rarely
-      if (Math.random() < 0.03) {
-        logPromise.then(async () => {
-          try {
-            const oldLogs = await base44.asServiceRole.entities.XPlaneLog.filter(
-              { company_id: company.id }, '-created_date', 100
-            );
-            if (oldLogs.length > 50) {
-              const toDelete = oldLogs.slice(50);
-              await Promise.all(toDelete.map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
-            }
-          } catch (e) { /* non-critical */ }
-        });
-      }
-    }
-
     // Verify we have valid flight data before marking as connected
     if (altitude === undefined || speed === undefined) {
       return Response.json({ 
@@ -106,14 +72,14 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // Update company connection status ONLY if we have valid data
+    // Update company connection status ONLY if needed (skip DB write if already connected)
     if (company && company.xplane_connection_status !== 'connected') {
       await base44.asServiceRole.entities.Company.update(company.id, { 
         xplane_connection_status: 'connected' 
       });
     }
 
-    // Get active flight for this company
+    // Get active flight for this company (single DB query)
     const flights = await base44.asServiceRole.entities.Flight.filter({ 
       company_id: company.id,
       status: 'in_flight'
@@ -122,7 +88,29 @@ Deno.serve(async (req) => {
     const flight = flights[0] || null;
     
     if (!flight) {
-      // No active flight - but X-Plane is connected and sending data
+      // No active flight - log to XPlaneLog for debug page visibility
+      // Fire-and-forget to keep response fast
+      base44.asServiceRole.entities.XPlaneLog.create({
+        company_id: company.id,
+        raw_data: data,
+        altitude,
+        speed,
+        on_ground,
+        flight_score,
+        has_active_flight: false
+      }).catch(() => {});
+
+      // Cleanup old logs very rarely
+      if (Math.random() < 0.02) {
+        base44.asServiceRole.entities.XPlaneLog.filter(
+          { company_id: company.id }, '-created_date', 60
+        ).then(async (oldLogs) => {
+          if (oldLogs.length > 30) {
+            await Promise.all(oldLogs.slice(30).map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
+          }
+        }).catch(() => {});
+      }
+
       return Response.json({ 
         message: 'X-Plane connected - no active flight',
         xplane_connection_status: 'connected',
