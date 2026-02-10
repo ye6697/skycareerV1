@@ -64,31 +64,31 @@ Deno.serve(async (req) => {
     const engines_running = data.engines_running || engine1_running || engine2_running;
     const isCrash = crash || has_crashed || false;
 
-    // Log received data (regardless of active flight)
-    await base44.asServiceRole.entities.XPlaneLog.create({
+    // Log received data in background (don't await - fire and forget for speed)
+    const logPromise = base44.asServiceRole.entities.XPlaneLog.create({
       company_id: company.id,
       raw_data: data,
       altitude,
       speed,
       on_ground,
       flight_score,
-      has_active_flight: false // will update below if flight exists
+      has_active_flight: false
     });
 
-    // Cleanup old logs: keep only last 200 per company
-    try {
-      const allLogs = await base44.asServiceRole.entities.XPlaneLog.filter(
-        { company_id: company.id }, '-created_date', 250
-      );
-      if (allLogs.length > 200) {
-        const toDelete = allLogs.slice(200);
-        for (const log of toDelete) {
-          await base44.asServiceRole.entities.XPlaneLog.delete(log.id);
-        }
-      }
-    } catch (e) {
-      // Non-critical: don't fail the request if cleanup fails
-      console.error('Log cleanup error:', e.message);
+    // Cleanup old logs only ~5% of requests (random chance) to avoid slowing every request
+    const shouldCleanup = Math.random() < 0.05;
+    if (shouldCleanup) {
+      logPromise.then(async () => {
+        try {
+          const oldLogs = await base44.asServiceRole.entities.XPlaneLog.filter(
+            { company_id: company.id }, '-created_date', 250
+          );
+          if (oldLogs.length > 200) {
+            const toDelete = oldLogs.slice(200);
+            await Promise.all(toDelete.map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
+          }
+        } catch (e) { /* non-critical */ }
+      });
     }
 
     // Verify we have valid flight data before marking as connected
@@ -128,14 +128,6 @@ Deno.serve(async (req) => {
     const wasAirborne = flight.xplane_data?.was_airborne || false;
     const isNowAirborne = !on_ground && altitude > 50;
     const hasBeenAirborne = wasAirborne || isNowAirborne;
-
-    // Update latest log to mark that there was an active flight
-    const latestLogs = await base44.asServiceRole.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 1);
-    if (latestLogs.length > 0) {
-      await base44.asServiceRole.entities.XPlaneLog.update(latestLogs[0].id, {
-        has_active_flight: true
-      });
-    }
 
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
 
