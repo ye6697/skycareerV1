@@ -118,14 +118,6 @@ Deno.serve(async (req) => {
     const isNowAirborne = !on_ground && altitude > 50;
     const hasBeenAirborne = wasAirborne || isNowAirborne;
 
-    // Update log to mark that there was an active flight
-    const logs = await base44.asServiceRole.entities.XPlaneLog.filter({ company_id: company.id });
-    if (logs.length > 0) {
-      await base44.asServiceRole.entities.XPlaneLog.update(logs[0].id, {
-        has_active_flight: true
-      });
-    }
-
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
 
     // Update flight with comprehensive X-Plane data
