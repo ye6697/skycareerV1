@@ -29,9 +29,9 @@ Deno.serve(async (req) => {
         const now = new Date();
         const secondsSinceLastUpdate = (now - lastUpdate) / 1000;
 
-        // If no data in last 30 seconds, mark as disconnected
+        // If no data in last 15 seconds, mark as disconnected
         // Note: This only changes connection status, it does NOT affect active flights
-        if (secondsSinceLastUpdate > 30) {
+        if (secondsSinceLastUpdate > 15) {
           await base44.asServiceRole.entities.Company.update(company.id, {
             xplane_connection_status: 'disconnected'
           });

@@ -245,17 +245,10 @@ function monitor_flight()
     if type(park_brake_raw) == "number" then park_brake = (park_brake_raw > 0.5)
     elseif type(park_brake_raw) == "boolean" then park_brake = park_brake_raw end
 
-    -- Engine status (use actual engine running state, NOT throttle position)
-    local engn_running = get("sim/flightmodel/engine/ENGN_running")
-    local engine1_running = false
-    local engine2_running = false
-    if type(engn_running) == "table" then
-        engine1_running = (engn_running[0] ~= nil and engn_running[0] > 0.5)
-        engine2_running = (engn_running[1] ~= nil and engn_running[1] > 0.5)
-    elseif type(engn_running) == "number" then
-        engine1_running = (engn_running > 0.5)
-        engine2_running = engine1_running
-    end
+    -- Engine status
+    local throttle_1 = get("sim/cockpit2/engine/actuators/throttle_ratio_all") or 0
+    local engine1_running = (throttle_1 > 0.01)
+    local engine2_running = engine1_running
 
     -- Gear status
     local gear_handle = get("sim/cockpit2/controls/gear_handle_down")
@@ -318,21 +311,12 @@ function monitor_flight()
 
     last_on_ground = on_ground
 
-    -- Stall detection via X-Plane's own stall warning dataref (aircraft-independent)
-    local stall_warning_raw = get("sim/flightmodel/failures/stallwarning") or 0
-    local xp_stall_warning = false
-    if type(stall_warning_raw) == "number" then xp_stall_warning = (stall_warning_raw > 0.5) end
-
-    -- Flaps overspeed: use aircraft's actual Vfe limit
-    local vfe = get("sim/aircraft/overflow/acf_Vfe") or 999
-    local flaps_overspeed_now = (flap_ratio > 0.01 and ias > vfe * 0.95)
-
     ---------------- EVENT DETECTION (flags only, no score calc) ----------------
     if pitch > 10 and on_ground and flight_started then tailstrike_detected = true end
-    if xp_stall_warning and not on_ground and flight_started then stall_detected = true end
+    if altitude > 500 and ias < 80 and not on_ground and flight_started then stall_detected = true end
     if (g_force > 2.5 or g_force < -1.0) and flight_started then overstress_detected = true end
     if is_overspeed and flight_started then overspeed_detected = true end
-    if flaps_overspeed_now and flight_started then flaps_overspeed_detected = true end
+    if flap_ratio > 0 and speed > 200 and flight_started then flaps_overspeed_detected = true end
     if total_fuel_kg < 300 and flight_started then fuel_emergency_detected = true end
     if has_crashed and flight_started then crash_detected = true end
 
