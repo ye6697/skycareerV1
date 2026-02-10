@@ -15,6 +15,7 @@ import {
   Hammer,
   Trash2
 } from "lucide-react";
+import MaintenanceCategories from "./MaintenanceCategories";
 import {
   Dialog,
   DialogContent,
@@ -50,12 +51,18 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const repairCost = (aircraft.purchase_price || 0) * 0.30;
   const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
-  const maintenanceCost = aircraft.accumulated_maintenance_cost || 0;
   const currentValue = aircraft.current_value || aircraft.purchase_price || 0;
-  const maintenancePercent = (maintenanceCost / currentValue) * 100;
-  const needsMaintenance = maintenancePercent > 10;
-  const showMaintenanceButton = maintenancePercent >= 1;
-  const canFly = !needsMaintenance;
+  
+  // New category-based maintenance check
+  const cats = aircraft.maintenance_categories || {};
+  const catValues = [
+    cats.engine || 0, cats.hydraulics || 0, cats.avionics || 0,
+    cats.airframe || 0, cats.landing_gear || 0, cats.electrical || 0,
+    cats.flight_controls || 0, cats.pressurization || 0
+  ];
+  const avgWear = catValues.reduce((a, b) => a + b, 0) / catValues.length;
+  const maxWear = Math.max(...catValues);
+  const needsMaintenance = maxWear > 75 || avgWear > 50;
 
   const repairMutation = useMutation({
     mutationFn: async () => {
@@ -256,45 +263,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </span>
           </div>
 
-          <div className={`p-3 rounded-lg mb-4 ${
-            maintenanceCost > 0 
-              ? (needsMaintenance ? 'bg-red-900/30 border border-red-700' : 'bg-amber-900/30 border border-amber-700')
-              : 'bg-slate-900 border border-slate-700'
-          }`}>
-            <div className="flex items-center justify-between text-sm mb-1">
-              <div className="flex items-center gap-2">
-                {maintenanceCost > 0 ? (
-                  <AlertTriangle className={`w-4 h-4 ${needsMaintenance ? 'text-red-400' : 'text-amber-400'}`} />
-                ) : (
-                  <Wrench className="w-4 h-4 text-slate-400" />
-                )}
-                <span className={
-                  maintenanceCost > 0
-                    ? (needsMaintenance ? 'text-red-300 font-semibold' : 'text-amber-300')
-                    : 'text-slate-400'
-                }>
-                  {maintenanceCost > 0 
-                    ? (needsMaintenance ? 'Wartung erforderlich!' : 'Wartungskosten akkumuliert')
-                    : 'Wartungskosten'
-                  }
-                </span>
-              </div>
-              <span className={`font-bold ${
-                maintenanceCost > 0
-                  ? (needsMaintenance ? 'text-red-400' : 'text-amber-400')
-                  : 'text-slate-300'
-              }`}>
-                ${maintenanceCost.toLocaleString()}
-              </span>
-            </div>
-            {maintenanceCost > 0 && (
-              <div className="text-xs text-slate-400 mt-1">
-                {needsMaintenance 
-                  ? 'Flugzeug muss gewartet werden (>10% des Wertes)'
-                  : `${((maintenanceCost / currentValue) * 100).toFixed(1)}% des Wertes`
-                }
-              </div>
-            )}
+          {/* Detailed Maintenance Categories */}
+          <div className="p-3 bg-slate-900/50 border border-slate-700 rounded-lg mb-4">
+            <MaintenanceCategories aircraft={aircraft} />
           </div>
 
           {/* Current & Depreciation Value */}
@@ -402,17 +373,6 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             </div>
           ) : (aircraft.status === "available" || aircraft.status === "maintenance") ? (
             <div className="space-y-2">
-              {showMaintenanceButton && (
-                <Button 
-                  size="sm" 
-                  className={`w-full ${needsMaintenance ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
-                  onClick={() => performMaintenanceMutation.mutate()}
-                  disabled={performMaintenanceMutation.isPending}
-                >
-                  <Wrench className="w-4 h-4 mr-1" />
-                  {performMaintenanceMutation.isPending ? 'Warte...' : `Warten ($${maintenanceCost.toLocaleString()})${needsMaintenance ? ' - Erforderlich!' : ''}`}
-                </Button>
-              )}
               {aircraft.status === "available" && (
                 <>
                   <Button 
