@@ -1802,10 +1802,7 @@ export default function FlightTracker() {
                 </div>
               </Card>
 
-              {/* Active Failures */}
-              {(flight || existingFlight) && (
-                <FailuresCard flightId={(flight || existingFlight)?.id} />
-              )}
+              {/* Active Failures removed - shown in Events section */}
 
               {/* Compact Raw X-Plane Data */}
               {xplaneLog?.raw_data && (
