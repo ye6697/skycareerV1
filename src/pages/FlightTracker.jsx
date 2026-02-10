@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
+import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 
 export default function FlightTracker() {
   const navigate = useNavigate();
@@ -1158,6 +1159,29 @@ export default function FlightTracker() {
     }
   }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime]);
 
+  // Small component to show live failures
+  function FailuresCard({ flightId }) {
+    const { data: flightRecord } = useQuery({
+      queryKey: ['flight-failures', flightId],
+      queryFn: async () => {
+        if (!flightId) return null;
+        const flights = await base44.entities.Flight.filter({ id: flightId });
+        return flights[0] || null;
+      },
+      refetchInterval: 2000,
+      enabled: !!flightId && flightPhase !== 'completed'
+    });
+    
+    const failures = flightRecord?.active_failures || [];
+    if (failures.length === 0) return null;
+    
+    return (
+      <Card className="p-4 bg-red-900/20 border-red-700/50">
+        <ActiveFailuresDisplay failures={failures} />
+      </Card>
+    );
+  }
+
   const phaseLabels = {
     preflight: 'Vorbereitung',
     takeoff: 'Start',
@@ -1761,6 +1785,11 @@ export default function FlightTracker() {
                   </p>
                 </div>
               </Card>
+
+              {/* Active Failures */}
+              {(flight || existingFlight) && (
+                <FailuresCard flightId={(flight || existingFlight)?.id} />
+              )}
 
               {/* Compact Raw X-Plane Data */}
               {xplaneLog?.raw_data && (
