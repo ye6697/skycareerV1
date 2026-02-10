@@ -209,6 +209,29 @@ class PythonInterface:
                 return -1
             
             # Prepare payload
+            # Build active failures list for API
+            failure_list = []
+            for dataref_path in self.active_failures:
+                # Find name and category
+                for pool, sev in [(self.light_failures, "leicht"), (self.medium_failures, "mittel"), (self.severe_failures, "schwer")]:
+                    for dr, name in pool:
+                        if dr == dataref_path:
+                            # Determine category
+                            cat = "airframe"
+                            if "engine" in dr or "engfai" in dr or "engfir" in dr or "vacpmp" in dr:
+                                cat = "engine"
+                            elif "hydpmp" in dr:
+                                cat = "hydraulics"
+                            elif "lites" in dr or "genera" in dr or "batter" in dr or "esys" in dr:
+                                cat = "electrical"
+                            elif "pitot" in dr or "static" in dr or "apts" in dr or "otto" in dr or "auto_servo" in dr or "ins" in dr:
+                                cat = "avionics"
+                            elif "fc_" in dr or "stbaug" in dr:
+                                cat = "flight_controls"
+                            elif "depres" in dr or "smoke" in dr:
+                                cat = "pressurization"
+                            failure_list.append({"name": name, "severity": sev, "category": cat})
+            
             payload = {
                 'altitude': round(altitude, 1),
                 'speed': round(speed, 1),
@@ -229,7 +252,8 @@ class PythonInterface:
                 'override_alpha': override_alpha,
                 'overspeed': overspeed,
                 'flaps_overspeed': flaps_overspeed,
-                'landing_g_force': round(g_force, 2)
+                'landing_g_force': round(g_force, 2),
+                'active_failures': failure_list
             }
             
             # Send to API
