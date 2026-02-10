@@ -87,30 +87,29 @@ Deno.serve(async (req) => {
     
     const flight = flights[0] || null;
     
-    if (!flight) {
-      // No active flight - log to XPlaneLog for debug page visibility
-      // Fire-and-forget to keep response fast
-      base44.asServiceRole.entities.XPlaneLog.create({
-        company_id: company.id,
-        raw_data: data,
-        altitude,
-        speed,
-        on_ground,
-        flight_score,
-        has_active_flight: false
+    // Always log to XPlaneLog for debug page (fire-and-forget)
+    base44.asServiceRole.entities.XPlaneLog.create({
+      company_id: company.id,
+      raw_data: data,
+      altitude,
+      speed,
+      on_ground,
+      flight_score,
+      has_active_flight: !!flight
+    }).catch(() => {});
+
+    // Cleanup old logs very rarely
+    if (Math.random() < 0.02) {
+      base44.asServiceRole.entities.XPlaneLog.filter(
+        { company_id: company.id }, '-created_date', 60
+      ).then(async (oldLogs) => {
+        if (oldLogs.length > 30) {
+          await Promise.all(oldLogs.slice(30).map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
+        }
       }).catch(() => {});
-
-      // Cleanup old logs very rarely
-      if (Math.random() < 0.02) {
-        base44.asServiceRole.entities.XPlaneLog.filter(
-          { company_id: company.id }, '-created_date', 60
-        ).then(async (oldLogs) => {
-          if (oldLogs.length > 30) {
-            await Promise.all(oldLogs.slice(30).map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
-          }
-        }).catch(() => {});
-      }
-
+    }
+    
+    if (!flight) {
       return Response.json({ 
         message: 'X-Plane connected - no active flight',
         xplane_connection_status: 'connected',

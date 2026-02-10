@@ -239,9 +239,10 @@ export default function FlightTracker() {
       }
     });
 
-    // Initial fetch only - then rely on subscription for real-time updates
+    // Initial fetch + fallback poll every 2s for reliability
     const fetchData = async () => {
-      if (!isMounted) return;
+      if (pollLockRef.current || !isMounted) return;
+      pollLockRef.current = true;
       try {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
         const currentFlight = flights[0];
@@ -249,12 +250,11 @@ export default function FlightTracker() {
           setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
         }
       } catch (e) { /* ignore */ }
+      pollLockRef.current = false;
     };
     
     fetchData();
-    
-    // Fallback poll every 5s only if subscription might have missed updates
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(fetchData, 2000);
     
     return () => { isMounted = false; clearInterval(interval); unsubscribe(); };
   }, [activeFlightId, flightPhase]);
