@@ -235,10 +235,98 @@ class PythonInterface:
             # Send to API
             self.send_data(payload)
             
+            # Failure system: check for random failures based on maintenance ratio
+            if self.flight_started and not on_ground:
+                self.check_failures(current_time)
+            
         except Exception as e:
             xp.log(f"SkyCareer Error: {str(e)}")
         
         return -1  # Continue flight loop
+    
+    def check_failures(self, current_time):
+        """Check and trigger random failures based on aircraft maintenance ratio"""
+        if current_time - self.last_failure_check < self.failure_check_interval:
+            return
+        
+        self.last_failure_check = current_time
+        
+        # No failures if maintenance_ratio is 0
+        if self.maintenance_ratio <= 0.0:
+            return
+        
+        # Base probability per check (per 30 sec): maintenance_ratio determines chance
+        # At 10% maintenance cost: ~1% chance per check (rare)
+        # At 50% maintenance cost: ~8% chance per check (occasional)
+        # At 100% maintenance cost: ~20% chance per check (frequent)
+        base_chance = self.maintenance_ratio * self.maintenance_ratio * 0.20
+        
+        roll = self.random.random()
+        if roll > base_chance:
+            return  # No failure this check
+        
+        # Determine severity based on maintenance ratio
+        # Higher maintenance = higher chance of severe failures
+        severity_roll = self.random.random()
+        
+        if self.maintenance_ratio < 0.3:
+            # Low wear: only light failures
+            failure_pool = self.light_failures
+            severity = "leicht"
+        elif self.maintenance_ratio < 0.6:
+            # Medium wear: mostly light, some medium
+            if severity_roll < 0.7:
+                failure_pool = self.light_failures
+                severity = "leicht"
+            else:
+                failure_pool = self.medium_failures
+                severity = "mittel"
+        elif self.maintenance_ratio < 0.85:
+            # High wear: light, medium, rare severe
+            if severity_roll < 0.4:
+                failure_pool = self.light_failures
+                severity = "leicht"
+            elif severity_roll < 0.85:
+                failure_pool = self.medium_failures
+                severity = "mittel"
+            else:
+                failure_pool = self.severe_failures
+                severity = "schwer"
+        else:
+            # Critical wear: all severities, weighted to severe
+            if severity_roll < 0.2:
+                failure_pool = self.light_failures
+                severity = "leicht"
+            elif severity_roll < 0.55:
+                failure_pool = self.medium_failures
+                severity = "mittel"
+            else:
+                failure_pool = self.severe_failures
+                severity = "schwer"
+        
+        # Pick a random failure from the pool that is not already active
+        available = [(dr, name) for dr, name in failure_pool if dr not in self.active_failures]
+        if not available:
+            return
+        
+        dataref_path, failure_name = self.random.choice(available)
+        
+        # Set the failure: 6 = inoperative
+        ref = self.failure_datarefs.get(dataref_path)
+        if ref:
+            xp.setDatai(ref, 6)
+            self.active_failures.append(dataref_path)
+            xp.log(f"SkyCareer AUSFALL [{severity}]: {failure_name} (Wartung: {self.maintenance_ratio*100:.0f}%)")
+    
+    def reset_all_failures(self):
+        """Reset all active failures to working state"""
+        for dataref_path in self.active_failures:
+            ref = self.failure_datarefs.get(dataref_path)
+            if ref:
+                xp.setDatai(ref, 0)  # 0 = always working
+        if self.active_failures:
+            xp.log(f"SkyCareer: {len(self.active_failures)} Ausfaelle zurueckgesetzt")
+        self.active_failures = []
     
     def send_data(self, data):
         try:
