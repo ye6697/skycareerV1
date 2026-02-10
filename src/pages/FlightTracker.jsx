@@ -305,7 +305,7 @@ export default function FlightTracker() {
       const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     },
-    staleTime: 30000, // Don't refetch for 30s - reduce DB load during flight
+    staleTime: 10000, // Moderate cache - company data needed for connection status
   });
 
   const { data: aircraft } = useQuery({
@@ -321,7 +321,7 @@ export default function FlightTracker() {
       if (!companyId) return [];
       return await base44.entities.Aircraft.filter({ company_id: companyId });
     },
-    staleTime: 60000, // Aircraft data doesn't change during flight
+    staleTime: 30000, // Aircraft data rarely changes during flight
   });
 
   const { data: settings } = useQuery({
