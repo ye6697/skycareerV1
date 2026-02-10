@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     const engines_running = data.engines_running || engine1_running || engine2_running;
     const isCrash = crash || has_crashed || false;
 
-    // Log ALL received data (regardless of active flight)
+    // Log received data (regardless of active flight)
     await base44.asServiceRole.entities.XPlaneLog.create({
       company_id: company.id,
       raw_data: data,
@@ -74,6 +74,22 @@ Deno.serve(async (req) => {
       flight_score,
       has_active_flight: false // will update below if flight exists
     });
+
+    // Cleanup old logs: keep only last 200 per company
+    try {
+      const allLogs = await base44.asServiceRole.entities.XPlaneLog.filter(
+        { company_id: company.id }, '-created_date', 250
+      );
+      if (allLogs.length > 200) {
+        const toDelete = allLogs.slice(200);
+        for (const log of toDelete) {
+          await base44.asServiceRole.entities.XPlaneLog.delete(log.id);
+        }
+      }
+    } catch (e) {
+      // Non-critical: don't fail the request if cleanup fails
+      console.error('Log cleanup error:', e.message);
+    }
 
     // Verify we have valid flight data before marking as connected
     if (altitude === undefined || speed === undefined) {
