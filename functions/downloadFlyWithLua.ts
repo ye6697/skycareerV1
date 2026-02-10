@@ -66,7 +66,7 @@ local crash_detected = false
 ----------------------------
 local maintenance_ratio = 0.0
 local last_failure_check = 0
-local failure_check_interval = 30.0
+local failure_check_interval = 60.0
 local active_failures = {}
 
 -- Failure definitions: {dataref, name, category}
@@ -174,43 +174,52 @@ function get_active_failures_json()
 end
 
 ------------------------------------------------------------
--- HTTP SEND (ULTRA SAFE with pcall)
+-- HTTP SEND (fully non-blocking)
 ------------------------------------------------------------
--- Async HTTP: fire curl in background, read previous response
-local pending_response_file = nil
+local response_file = nil
+local is_request_pending = false
+local last_response_read = 0
 
-function send_flight_data(json_payload)
-    local success, error_msg = pcall(function()
-        -- FIRST: Read response from PREVIOUS request (non-blocking)
-        if pending_response_file then
-            local f = io.open(pending_response_file, "r")
-            if f then
-                local resp = f:read("*all")
-                f:close()
-                if resp and #resp > 2 then
-                    local mr = resp:match('"maintenance_ratio":([%d%.]+)')
-                    if mr then
-                        maintenance_ratio = tonumber(mr) or 0
-                    end
-                    if resp:match('"status":"completed"') or resp:match('"status":"ready_to_complete"') then
-                        reset_all_failures()
-                        maintenance_ratio = 0
-                        flight_started = false
-                    end
+function init_response_file()
+    if response_file then return end
+    if SYSTEM == "IBM" then
+        response_file = os.getenv("TEMP") .. "\\\\skycareer_resp.txt"
+    else
+        response_file = "/tmp/skycareer_resp.txt"
+    end
+end
+
+function read_server_response()
+    if not response_file then return end
+    local ok, _ = pcall(function()
+        local f = io.open(response_file, "r")
+        if f then
+            local resp = f:read("*all")
+            f:close()
+            if resp and #resp > 5 then
+                local mr = resp:match('"maintenance_ratio":([%d%.]+)')
+                if mr then maintenance_ratio = tonumber(mr) or 0 end
+                if resp:match('"ready_to_complete"') or resp:match('"completed"') then
+                    reset_all_failures()
+                    maintenance_ratio = 0
+                    flight_started = false
                 end
             end
         end
-        
-        -- THEN: Fire NEW request in background (non-blocking)
-        local tmpfile
+    end)
+end
+
+function send_flight_data(json_payload)
+    init_response_file()
+    -- Read previous response first (non-blocking file read)
+    read_server_response()
+    -- Fire curl completely in background
+    local ok, _ = pcall(function()
         if SYSTEM == "IBM" then
-            tmpfile = os.getenv("TEMP") .. "\\\\skycareer_resp.txt"
-            os.execute('start /MIN cmd /c "curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 3 --silent -o "' .. tmpfile .. '"" 2>nul')
+            os.execute('start /MIN /B cmd /c curl -s -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 4 -o "' .. response_file .. '" 2>nul')
         else
-            tmpfile = "/tmp/skycareer_resp.txt"
-            os.execute("curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 3 --silent -o '" .. tmpfile .. "' 2>/dev/null &")
+            os.execute("curl -s -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 4 -o '" .. response_file .. "' 2>/dev/null &")
         end
-        pending_response_file = tmpfile
     end)
 end
 
@@ -379,11 +388,12 @@ function monitor_flight()
     end
 end
 
--- Send data every 3 seconds (async, non-blocking)
+-- Send data every 2 seconds (curl runs async in background, no frame blocking)
 local last_send_time = 0
+local SEND_INTERVAL = 2.0
 function flight_loop_callback()
     local current_time = os.clock()
-    if current_time - last_send_time >= 3.0 then
+    if current_time - last_send_time >= SEND_INTERVAL then
         last_send_time = current_time
         monitor_flight()
     end
