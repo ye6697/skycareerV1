@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
-import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 
 export default function FlightTracker() {
   const navigate = useNavigate();
