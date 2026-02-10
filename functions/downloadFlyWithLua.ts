@@ -330,10 +330,16 @@ function monitor_flight()
         .. '"fuel_emergency":' .. tostring(fuel_emergency_detected) .. ","
         .. '"gear_up_landing":' .. tostring(gear_up_landing_detected) .. ","
         .. '"crash":' .. tostring(crash_detected) .. ","
-        .. '"has_crashed":' .. tostring(has_crashed)
+        .. '"has_crashed":' .. tostring(has_crashed) .. ","
+        .. '"active_failures":' .. get_active_failures_json()
         .. "}"
 
     send_flight_data(json_payload)
+    
+    -- Check for failures during flight
+    if flight_started and not on_ground then
+        check_failures()
+    end
 end
 
 -- Send data every 2 seconds
