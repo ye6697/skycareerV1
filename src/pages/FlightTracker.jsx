@@ -1195,38 +1195,8 @@ export default function FlightTracker() {
     }
   }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime]);
 
-  // Show failures from the polled flight data - no extra DB queries
-  function FailuresCard({ flightId }) {
-    const [failures, setFailures] = useState([]);
-    
-    // Read failures from the flight record we already poll
-    useEffect(() => {
-      if (!flightId) return;
-      // One-time fetch, then rely on parent's polling for updates
-      base44.entities.Flight.filter({ id: flightId }).then(flights => {
-        if (flights[0]?.active_failures) setFailures(flights[0].active_failures);
-      });
-    }, [flightId]);
-
-    // Update from polled xplaneLog data - check if flight has failures
-    useEffect(() => {
-      if (!xplaneLog?.raw_data) return;
-      // Re-fetch failures occasionally when we get new data
-      if (flightId && Math.random() < 0.1) {
-        base44.entities.Flight.filter({ id: flightId }).then(flights => {
-          if (flights[0]?.active_failures) setFailures(flights[0].active_failures);
-        });
-      }
-    }, [xplaneLog, flightId]);
-    
-    if (failures.length === 0) return null;
-    
-    return (
-      <Card className="p-4 bg-red-900/20 border-red-700/50">
-        <ActiveFailuresDisplay failures={failures} />
-      </Card>
-    );
-  }
+  // FailuresCard removed - failures are shown in the Events section above
+  // No extra DB queries needed
 
   const phaseLabels = {
     preflight: 'Vorbereitung',
