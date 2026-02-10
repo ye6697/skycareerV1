@@ -249,7 +249,7 @@ export default function FlightTracker() {
       }
       return null;
     },
-    refetchInterval: 500,
+    refetchInterval: 1500,
     enabled: flightPhase !== 'completed'
   });
 
