@@ -237,15 +237,30 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
     // Calculate maintenance ratio for failure system
-    // Get aircraft to determine maintenance percentage
+    // Based on BOTH maintenance categories AND value depreciation
     let maintenanceRatio = 0;
+    let activeFailuresList = [];
     if (flight.aircraft_id) {
       const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
-      const aircraft = aircraftList[0];
-      if (aircraft && aircraft.purchase_price > 0) {
-        // maintenance ratio = accumulated_maintenance_cost / purchase_price (0.0 to 1.0+)
-        maintenanceRatio = (aircraft.accumulated_maintenance_cost || 0) / aircraft.purchase_price;
+      const ac = aircraftList[0];
+      if (ac && ac.purchase_price > 0) {
+        // Factor 1: Average maintenance category wear (0-100 -> 0-1)
+        const cats = ac.maintenance_categories || {};
+        const catValues = [
+          cats.engine || 0, cats.hydraulics || 0, cats.avionics || 0,
+          cats.airframe || 0, cats.landing_gear || 0, cats.electrical || 0,
+          cats.flight_controls || 0, cats.pressurization || 0
+        ];
+        const avgWear = catValues.reduce((a, b) => a + b, 0) / catValues.length / 100;
+        
+        // Factor 2: Value depreciation ratio (how much value was lost)
+        const valueRatio = 1 - ((ac.current_value || ac.purchase_price) / ac.purchase_price);
+        
+        // Combined: weighted average (60% wear, 40% value loss)
+        maintenanceRatio = Math.min(1.0, avgWear * 0.6 + valueRatio * 0.4);
       }
+      // Include active failures from flight record
+      activeFailuresList = flight.active_failures || [];
     }
 
     return Response.json({ 
@@ -255,7 +270,8 @@ Deno.serve(async (req) => {
       park_brake,
       engines_running,
       flight_score,
-      maintenance_ratio: Math.min(maintenanceRatio, 1.0),
+      maintenance_ratio: maintenanceRatio,
+      active_failures: activeFailuresList,
       xplane_connection_status: 'connected'
     });
 
