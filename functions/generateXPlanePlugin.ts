@@ -105,6 +105,15 @@ class PythonInterface:
         self.datarefs = {}
         
     def XPluginStart(self):
+        # Cache failure dataref handles
+        import random
+        self.random = random
+        all_failures = self.light_failures + self.medium_failures + self.severe_failures
+        for dataref_path, name in all_failures:
+            ref = xp.findDataRef(dataref_path)
+            if ref:
+                self.failure_datarefs[dataref_path] = ref
+        
         # Register datarefs
         self.datarefs['altitude'] = xp.findDataRef("sim/flightmodel/position/elevation")
         self.datarefs['speed'] = xp.findDataRef("sim/flightmodel/position/groundspeed")
