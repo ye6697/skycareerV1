@@ -220,48 +220,42 @@ export default function FlightTracker() {
   // This avoids the async state update delay problem
   const activeFlightId = flight?.id || existingFlight?.id;
 
-  // Live data polling via setInterval for stable timing (not react-query refetchInterval)
+  // Live data polling - uses real-time subscription when possible, setInterval as fallback
   const [xplaneLog, setXplaneLog] = useState(null);
+  const pollLockRef = React.useRef(false);
   
   useEffect(() => {
     if (flightPhase === 'completed') return;
+    if (!activeFlightId) return;
     
     let isMounted = true;
     
-    const fetchData = async () => {
-      try {
-        // Source 1: Read xplane_data directly from the active Flight record
-        if (activeFlightId) {
-          const flights = await base44.entities.Flight.filter({ id: activeFlightId });
-          const currentFlight = flights[0];
-          if (currentFlight?.xplane_data && isMounted) {
-            setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
-            return;
-          }
-        }
-        
-        // Source 2: Fallback to XPlaneLog
-        const user = await base44.auth.me();
-        const cid = user?.company_id || user?.data?.company_id;
-        let companyId = cid;
-        if (!companyId) {
-          const companies = await base44.entities.Company.filter({ created_by: user.email });
-          companyId = companies[0]?.id;
-        }
-        if (companyId) {
-          const logs = await base44.entities.XPlaneLog.filter({ company_id: companyId }, '-created_date', 1);
-          if (logs[0] && isMounted) setXplaneLog(logs[0]);
-        }
-      } catch (e) {
-        // Ignore polling errors
+    // Subscribe to real-time Flight updates for instant data
+    const unsubscribe = base44.entities.Flight.subscribe((event) => {
+      if (!isMounted) return;
+      if (event.id === activeFlightId && event.data?.xplane_data) {
+        setXplaneLog({ raw_data: event.data.xplane_data, created_date: event.data.updated_date });
       }
+    });
+
+    // Also do an initial fetch + fallback poll every 2s in case subscription misses
+    const fetchData = async () => {
+      if (pollLockRef.current || !isMounted) return;
+      pollLockRef.current = true;
+      try {
+        const flights = await base44.entities.Flight.filter({ id: activeFlightId });
+        const currentFlight = flights[0];
+        if (currentFlight?.xplane_data && isMounted) {
+          setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
+        }
+      } catch (e) { /* ignore */ }
+      pollLockRef.current = false;
     };
     
-    // Fetch immediately, then every 1.5 seconds (fixed interval, not dependent on response time)
     fetchData();
-    const interval = setInterval(fetchData, 1500);
+    const interval = setInterval(fetchData, 2000);
     
-    return () => { isMounted = false; clearInterval(interval); };
+    return () => { isMounted = false; clearInterval(interval); unsubscribe(); };
   }, [activeFlightId, flightPhase]);
 
   // Restore flight data and phase from existing flight
@@ -1206,20 +1200,25 @@ export default function FlightTracker() {
     }
   }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime]);
 
-  // Small component to show live failures
+  // Small component to show live failures - uses xplaneLog from parent instead of separate polling
   function FailuresCard({ flightId }) {
-    const { data: flightRecord } = useQuery({
-      queryKey: ['flight-failures', flightId],
-      queryFn: async () => {
-        if (!flightId) return null;
-        const flights = await base44.entities.Flight.filter({ id: flightId });
-        return flights[0] || null;
-      },
-      refetchInterval: 2000,
-      enabled: !!flightId && flightPhase !== 'completed'
-    });
+    const [failures, setFailures] = useState([]);
     
-    const failures = flightRecord?.active_failures || [];
+    useEffect(() => {
+      if (!flightId) return;
+      // Subscribe to flight updates for real-time failure display
+      const unsub = base44.entities.Flight.subscribe((event) => {
+        if (event.id === flightId && event.data?.active_failures) {
+          setFailures(event.data.active_failures);
+        }
+      });
+      // Initial fetch
+      base44.entities.Flight.filter({ id: flightId }).then(flights => {
+        if (flights[0]?.active_failures) setFailures(flights[0].active_failures);
+      });
+      return unsub;
+    }, [flightId]);
+    
     if (failures.length === 0) return null;
     
     return (
