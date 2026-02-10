@@ -64,31 +64,38 @@ Deno.serve(async (req) => {
     const engines_running = data.engines_running || engine1_running || engine2_running;
     const isCrash = crash || has_crashed || false;
 
-    // Log received data in background (don't await - fire and forget for speed)
-    const logPromise = base44.asServiceRole.entities.XPlaneLog.create({
-      company_id: company.id,
-      raw_data: data,
-      altitude,
-      speed,
-      on_ground,
-      flight_score,
-      has_active_flight: false
-    });
-
-    // Cleanup old logs only ~5% of requests (random chance) to avoid slowing every request
-    const shouldCleanup = Math.random() < 0.05;
-    if (shouldCleanup) {
-      logPromise.then(async () => {
-        try {
-          const oldLogs = await base44.asServiceRole.entities.XPlaneLog.filter(
-            { company_id: company.id }, '-created_date', 250
-          );
-          if (oldLogs.length > 200) {
-            const toDelete = oldLogs.slice(200);
-            await Promise.all(toDelete.map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
-          }
-        } catch (e) { /* non-critical */ }
+    // Log received data - only when NO active flight (during flight, data is on the Flight entity)
+    // This dramatically reduces DB writes during active flights
+    const hasActiveFlight = !!(await base44.asServiceRole.entities.Flight.filter({ 
+      company_id: company.id, status: 'in_flight' 
+    }))[0];
+    
+    if (!hasActiveFlight) {
+      // No active flight - log to XPlaneLog for debug page
+      const logPromise = base44.asServiceRole.entities.XPlaneLog.create({
+        company_id: company.id,
+        raw_data: data,
+        altitude,
+        speed,
+        on_ground,
+        flight_score,
+        has_active_flight: false
       });
+
+      // Cleanup old logs rarely
+      if (Math.random() < 0.03) {
+        logPromise.then(async () => {
+          try {
+            const oldLogs = await base44.asServiceRole.entities.XPlaneLog.filter(
+              { company_id: company.id }, '-created_date', 100
+            );
+            if (oldLogs.length > 50) {
+              const toDelete = oldLogs.slice(50);
+              await Promise.all(toDelete.map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
+            }
+          } catch (e) { /* non-critical */ }
+        });
+      }
     }
 
     // Verify we have valid flight data before marking as connected
@@ -275,30 +282,27 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
     // Calculate maintenance ratio for failure system
-    // Based on BOTH maintenance categories AND value depreciation
-    let maintenanceRatio = 0;
-    let activeFailuresList = [];
-    if (flight.aircraft_id) {
-      const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
-      const ac = aircraftList[0];
-      if (ac && ac.purchase_price > 0) {
-        // Factor 1: Average maintenance category wear (0-100 -> 0-1)
-        const cats = ac.maintenance_categories || {};
-        const catValues = [
-          cats.engine || 0, cats.hydraulics || 0, cats.avionics || 0,
-          cats.airframe || 0, cats.landing_gear || 0, cats.electrical || 0,
-          cats.flight_controls || 0, cats.pressurization || 0
-        ];
-        const avgWear = catValues.reduce((a, b) => a + b, 0) / catValues.length / 100;
-        
-        // Factor 2: Value depreciation ratio (how much value was lost)
-        const valueRatio = 1 - ((ac.current_value || ac.purchase_price) / ac.purchase_price);
-        
-        // Combined: weighted average (60% wear, 40% value loss)
-        maintenanceRatio = Math.min(1.0, avgWear * 0.6 + valueRatio * 0.4);
-      }
-      // Include active failures from flight record
-      activeFailuresList = flight.active_failures || [];
+    // Only fetch aircraft data every ~10th request to reduce DB load
+    // Cache the ratio on the flight's xplane_data
+    let maintenanceRatio = flight.xplane_data?.cached_maintenance_ratio || 0;
+    const shouldRefreshRatio = Math.random() < 0.1; // ~10% of requests
+    
+    if (shouldRefreshRatio && flight.aircraft_id) {
+      try {
+        const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+        const ac = aircraftList[0];
+        if (ac && ac.purchase_price > 0) {
+          const cats = ac.maintenance_categories || {};
+          const catValues = [
+            cats.engine || 0, cats.hydraulics || 0, cats.avionics || 0,
+            cats.airframe || 0, cats.landing_gear || 0, cats.electrical || 0,
+            cats.flight_controls || 0, cats.pressurization || 0
+          ];
+          const avgWear = catValues.reduce((a, b) => a + b, 0) / catValues.length / 100;
+          const valueRatio = 1 - ((ac.current_value || ac.purchase_price) / ac.purchase_price);
+          maintenanceRatio = Math.min(1.0, avgWear * 0.6 + valueRatio * 0.4);
+        }
+      } catch (e) { /* use cached value */ }
     }
 
     return Response.json({ 
@@ -309,7 +313,7 @@ Deno.serve(async (req) => {
       engines_running,
       flight_score,
       maintenance_ratio: maintenanceRatio,
-      active_failures: activeFailuresList,
+      active_failures: allFailures,
       xplane_connection_status: 'connected'
     });
 
