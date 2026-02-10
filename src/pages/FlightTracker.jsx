@@ -220,38 +220,49 @@ export default function FlightTracker() {
   // This avoids the async state update delay problem
   const activeFlightId = flight?.id || existingFlight?.id;
 
-  // xplaneLog query - ALWAYS polls as long as flight is not completed
-  // Uses activeFlightId directly (no state dependency delay)
-  // This is the SAME approach as XPlaneDebug page: fetch Flight record + XPlaneLog
-  const { data: xplaneLog } = useQuery({
-    queryKey: ['xplane-live-data', activeFlightId],
-    queryFn: async () => {
-      // Source 1: Read xplane_data directly from the active Flight record (same as Debug page)
-      if (activeFlightId) {
-        const flights = await base44.entities.Flight.filter({ id: activeFlightId });
-        const currentFlight = flights[0];
-        if (currentFlight?.xplane_data) {
-          return { raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date };
+  // Live data polling via setInterval for stable timing (not react-query refetchInterval)
+  const [xplaneLog, setXplaneLog] = useState(null);
+  
+  useEffect(() => {
+    if (flightPhase === 'completed') return;
+    
+    let isMounted = true;
+    
+    const fetchData = async () => {
+      try {
+        // Source 1: Read xplane_data directly from the active Flight record
+        if (activeFlightId) {
+          const flights = await base44.entities.Flight.filter({ id: activeFlightId });
+          const currentFlight = flights[0];
+          if (currentFlight?.xplane_data && isMounted) {
+            setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
+            return;
+          }
         }
+        
+        // Source 2: Fallback to XPlaneLog
+        const user = await base44.auth.me();
+        const cid = user?.company_id || user?.data?.company_id;
+        let companyId = cid;
+        if (!companyId) {
+          const companies = await base44.entities.Company.filter({ created_by: user.email });
+          companyId = companies[0]?.id;
+        }
+        if (companyId) {
+          const logs = await base44.entities.XPlaneLog.filter({ company_id: companyId }, '-created_date', 1);
+          if (logs[0] && isMounted) setXplaneLog(logs[0]);
+        }
+      } catch (e) {
+        // Ignore polling errors
       }
-      
-      // Source 2: Fallback to XPlaneLog (same as Debug page uses)
-      const user = await base44.auth.me();
-      const cid = user?.company_id || user?.data?.company_id;
-      let companyId = cid;
-      if (!companyId) {
-        const companies = await base44.entities.Company.filter({ created_by: user.email });
-        companyId = companies[0]?.id;
-      }
-      if (companyId) {
-        const logs = await base44.entities.XPlaneLog.filter({ company_id: companyId }, '-created_date', 1);
-        if (logs[0]) return logs[0];
-      }
-      return null;
-    },
-    refetchInterval: 1500,
-    enabled: flightPhase !== 'completed'
-  });
+    };
+    
+    // Fetch immediately, then every 1.5 seconds (fixed interval, not dependent on response time)
+    fetchData();
+    const interval = setInterval(fetchData, 1500);
+    
+    return () => { isMounted = false; clearInterval(interval); };
+  }, [activeFlightId, flightPhase]);
 
   // Restore flight data and phase from existing flight
   useEffect(() => {
