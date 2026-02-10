@@ -51,22 +51,21 @@ export default function MaintenanceCategories({ aircraft }) {
   const maxWear = Math.max(...catValues);
   const needsMaintenance = maxWear > 75 || avgWear > 50;
 
-  // Cost per category: proportional share of accumulated_maintenance_cost based on wear ratio
-  // This ensures the displayed total matches the actual accumulated cost from flights
+  // Cost = accumulated_maintenance_cost split proportionally by wear per category
+  // This ensures total displayed cost == accumulated_maintenance_cost exactly
   const accumulatedCost = aircraft.accumulated_maintenance_cost || 0;
   const totalWear = categories.reduce((sum, c) => sum + (cats[c.key] || 0), 0);
 
   const getCategoryCost = (key) => {
     const wear = cats[key] || 0;
-    if (wear <= 0 || totalWear <= 0) return 0;
-    // Proportional share of accumulated cost based on this category's wear vs total wear
-    // Plus a base repair cost: 3% of purchase price per 100% wear
-    const proportionalCost = accumulatedCost * (wear / totalWear);
-    const baseCost = purchasePrice * (wear / 100) * 0.03;
-    return Math.round(Math.max(proportionalCost, baseCost));
+    if (wear <= 0 || totalWear <= 0 || accumulatedCost <= 0) return 0;
+    return Math.round(accumulatedCost * (wear / totalWear));
   };
 
-  const getTotalCost = () => categories.reduce((sum, c) => sum + getCategoryCost(c.key), 0);
+  const getTotalCost = () => {
+    if (totalWear <= 0) return 0;
+    return Math.round(accumulatedCost);
+  };
 
   const repairCategoryMutation = useMutation({
     mutationFn: async (categoryKey) => {
