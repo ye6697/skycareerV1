@@ -178,26 +178,22 @@ end
 ------------------------------------------------------------
 function send_flight_data(json_payload)
     local success, error_msg = pcall(function()
-        -- Escape JSON for safe shell usage on all platforms
-        local escaped_json = json_payload:gsub("\\\\", "\\\\\\\\"):gsub('"', '\\\\"')
-        
+        -- Write response to temp file to read maintenance_ratio
         local tmpfile
         if SYSTEM == "IBM" then
             tmpfile = os.getenv("TEMP") .. "\\\\skycareer_resp.txt"
-            -- Windows: synchronous curl in background cmd
-            os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. escaped_json .. '" -m 3 --silent -o "' .. tmpfile .. '" 2>nul')
+            os.execute('start /MIN cmd /c curl -X POST "' .. API_ENDPOINT .. '?api_key=' .. API_KEY .. '" -H "Content-Type: application/json" -d "' .. json_payload:gsub('"', '\\\\"') .. '" -m 2 --silent -o "' .. tmpfile .. '" 2>nul')
         else
             tmpfile = "/tmp/skycareer_resp.txt"
-            -- macOS/Linux: SYNCHRONOUS curl (no &) so file is ready when we read it
-            os.execute("curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. escaped_json:gsub("'", "'\\\\''") .. "' -m 3 --silent -o '" .. tmpfile .. "' 2>/dev/null")
+            os.execute("curl -X POST '" .. API_ENDPOINT .. "?api_key=" .. API_KEY .. "' -H 'Content-Type: application/json' -d '" .. json_payload .. "' -m 2 --silent -o '" .. tmpfile .. "' 2>/dev/null &")
         end
         
-        -- Read response (file is guaranteed to exist after synchronous curl)
+        -- Try to read response and extract maintenance_ratio
         local f = io.open(tmpfile, "r")
         if f then
             local resp = f:read("*all")
             f:close()
-            if resp and #resp > 0 then
+            if resp then
                 local mr = resp:match('"maintenance_ratio":([%d%.]+)')
                 if mr then
                     maintenance_ratio = tonumber(mr) or 0
@@ -249,17 +245,10 @@ function monitor_flight()
     if type(park_brake_raw) == "number" then park_brake = (park_brake_raw > 0.5)
     elseif type(park_brake_raw) == "boolean" then park_brake = park_brake_raw end
 
-    -- Engine status (use actual engine running state, not throttle)
-    local eng_running = get("sim/flightmodel/engine/ENGN_running")
-    local engine1_running = false
-    local engine2_running = false
-    if type(eng_running) == "table" then
-        engine1_running = (eng_running[0] ~= nil and eng_running[0] == 1) or (eng_running[1] ~= nil and eng_running[1] == 1)
-        engine2_running = (eng_running[1] ~= nil and eng_running[1] == 1) or (eng_running[2] ~= nil and eng_running[2] == 1)
-    elseif type(eng_running) == "number" then
-        engine1_running = (eng_running == 1)
-        engine2_running = engine1_running
-    end
+    -- Engine status
+    local throttle_1 = get("sim/cockpit2/engine/actuators/throttle_ratio_all") or 0
+    local engine1_running = (throttle_1 > 0.01)
+    local engine2_running = engine1_running
 
     -- Gear status
     local gear_handle = get("sim/cockpit2/controls/gear_handle_down")
@@ -324,9 +313,7 @@ function monitor_flight()
 
     ---------------- EVENT DETECTION (flags only, no score calc) ----------------
     if pitch > 10 and on_ground and flight_started then tailstrike_detected = true end
-    -- Stall detection: use X-Plane's own stall warning annunciator (works for all aircraft types)
-    local stall_warning_raw = get("sim/cockpit2/annunciators/stall_warning") or 0
-    if stall_warning_raw == 1 and not on_ground and flight_started then stall_detected = true end
+    if altitude > 500 and ias < 80 and not on_ground and flight_started then stall_detected = true end
     if (g_force > 2.5 or g_force < -1.0) and flight_started then overstress_detected = true end
     if is_overspeed and flight_started then overspeed_detected = true end
     if flap_ratio > 0 and speed > 200 and flight_started then flaps_overspeed_detected = true end
