@@ -44,14 +44,14 @@ export default function XPlaneDebug() {
       return await base44.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 20);
     },
     enabled: !!company?.id,
-    refetchInterval: 2000
+    refetchInterval: activeFlight ? 5000 : 2000 // Slower when flight active (data comes from Flight entity)
   });
+
+  const activeFlight = flights.find(f => f.status === 'in_flight');
 
   useEffect(() => {
     setLastUpdate(new Date().toLocaleTimeString());
   }, [company, flights]);
-
-  const activeFlight = flights.find(f => f.status === 'in_flight');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-4 lg:p-6">
