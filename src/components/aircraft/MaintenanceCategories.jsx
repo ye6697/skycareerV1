@@ -51,12 +51,19 @@ export default function MaintenanceCategories({ aircraft }) {
   const maxWear = Math.max(...catValues);
   const needsMaintenance = maxWear > 75 || avgWear > 50;
 
-  // Cost per category: scales with wear % and aircraft value
-  // Use 5% of purchase price per 100% wear per category (realistic maintenance costs)
+  // Cost per category: proportional share of accumulated_maintenance_cost based on wear ratio
+  // This ensures the displayed total matches the actual accumulated cost from flights
+  const accumulatedCost = aircraft.accumulated_maintenance_cost || 0;
+  const totalWear = categories.reduce((sum, c) => sum + (cats[c.key] || 0), 0);
+
   const getCategoryCost = (key) => {
     const wear = cats[key] || 0;
-    if (wear <= 0) return 0;
-    return Math.round(purchasePrice * (wear / 100) * 0.05);
+    if (wear <= 0 || totalWear <= 0) return 0;
+    // Proportional share of accumulated cost based on this category's wear vs total wear
+    // Plus a base repair cost: 3% of purchase price per 100% wear
+    const proportionalCost = accumulatedCost * (wear / totalWear);
+    const baseCost = purchasePrice * (wear / 100) * 0.03;
+    return Math.round(Math.max(proportionalCost, baseCost));
   };
 
   const getTotalCost = () => categories.reduce((sum, c) => sum + getCategoryCost(c.key), 0);
