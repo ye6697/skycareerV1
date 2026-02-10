@@ -342,11 +342,18 @@ class PythonInterface:
             response = urllib.request.urlopen(request, timeout=2)
             result = json.loads(response.read().decode('utf-8'))
             
-            # If flight was completed, reset
-            if result.get('status') == 'completed':
-                xp.log(f"SkyCareer: Flight completed! Rating: {result.get('rating', 0):.1f}/5")
+            # Update maintenance ratio from server (for failure system)
+            if 'maintenance_ratio' in result:
+                self.maintenance_ratio = float(result['maintenance_ratio'])
+            
+            # If flight was completed, reset failures and state
+            if result.get('status') == 'completed' or result.get('status') == 'ready_to_complete':
+                if result.get('status') == 'completed':
+                    xp.log(f"SkyCareer: Flight completed! Rating: {result.get('rating', 0):.1f}/5")
+                self.reset_all_failures()
                 self.current_flight_id = None
                 self.flight_started = False
+                self.maintenance_ratio = 0.0
                 
         except urllib.error.URLError as e:
             # Network error - don't spam logs
