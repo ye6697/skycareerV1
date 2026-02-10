@@ -696,11 +696,39 @@ export default function FlightTracker() {
                   newAircraftStatus = 'maintenance';
                 }
 
+                // Apply maintenance damage from failures to aircraft categories
+                const activeFl = flight || existingFlight;
+                const flightDamage = activeFl?.maintenance_damage || {};
+                const existingCats = airplaneToUpdate?.maintenance_categories || {};
+                const updatedCats = { ...existingCats };
+                for (const [cat, dmg] of Object.entries(flightDamage)) {
+                  updatedCats[cat] = Math.min(100, (updatedCats[cat] || 0) + dmg);
+                }
+                
+                // Also add base wear from flight hours per category
+                const baseWearPerHour = 0.5; // 0.5% per flight hour base wear
+                for (const cat of ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization']) {
+                  updatedCats[cat] = Math.min(100, (updatedCats[cat] || 0) + baseWearPerHour * flightHours);
+                }
+                
+                // Add specific event-based damage to relevant categories
+                if (finalFlightData.events.tailstrike) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + 10);
+                if (finalFlightData.events.overstress) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + 15);
+                if (finalFlightData.events.hard_landing) updatedCats.landing_gear = Math.min(100, (updatedCats.landing_gear || 0) + 12);
+                if (finalFlightData.events.high_g_force) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + 8);
+                if (finalFlightData.events.flaps_overspeed) updatedCats.flight_controls = Math.min(100, (updatedCats.flight_controls || 0) + 10);
+                if (hasCrashed) {
+                  for (const cat of Object.keys(updatedCats)) {
+                    updatedCats[cat] = 100; // Everything maxed on crash
+                  }
+                }
+
                 const aircraftUpdate = {
                   status: newAircraftStatus,
                   total_flight_hours: newFlightHours,
                   current_value: hasCrashed ? 0 : Math.max(0, newAircraftValue),
-                  accumulated_maintenance_cost: newAccumulatedCost
+                  accumulated_maintenance_cost: newAccumulatedCost,
+                  maintenance_categories: updatedCats
                 };
 
                 console.log('🛩️ AKTUALISIERE FLUGZEUG JETZT:', activeFlight.aircraft_id, aircraftUpdate);
