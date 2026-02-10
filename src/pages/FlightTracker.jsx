@@ -675,7 +675,6 @@ export default function FlightTracker() {
             // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostWithCrash;
-            const requiresMaintenance = newAccumulatedCost > (newAircraftValue * 0.1);
 
             console.log('Wartungskosten Update:', {
               currentAccumulatedCost,
@@ -692,8 +691,13 @@ export default function FlightTracker() {
                 let newAircraftStatus = 'available';
                 if (hasCrashed) {
                   newAircraftStatus = 'damaged';
-                } else if (newAccumulatedCost > (newAircraftValue * 0.1)) {
-                  newAircraftStatus = 'maintenance';
+                } else {
+                  // Check if any category exceeds threshold after update
+                  const maxCatWear = Math.max(...Object.values(updatedCats));
+                  const avgCatWear = Object.values(updatedCats).reduce((a, b) => a + b, 0) / Object.values(updatedCats).length;
+                  if (maxCatWear > 75 || avgCatWear > 50) {
+                    newAircraftStatus = 'maintenance';
+                  }
                 }
 
                 // Apply maintenance damage from failures to aircraft categories
