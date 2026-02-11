@@ -180,14 +180,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Flugzeuge vorhanden' }, { status: 400 });
     }
 
-    // Delete old available contracts in batches of 5 for speed
+    // Delete old available contracts (all at once, parallel)
     const oldContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id, status: 'available' });
-    // Delete in parallel batches
-    const batchSize = 5;
-    for (let i = 0; i < oldContracts.length; i += batchSize) {
-      const batch = oldContracts.slice(i, i + batchSize);
-      await Promise.all(batch.map(old => base44.asServiceRole.entities.Contract.delete(old.id)));
-    }
+    await Promise.all(oldContracts.map(old => base44.asServiceRole.entities.Contract.delete(old.id)));
 
     // Get the types the user owns
     const ownedTypes = [...new Set(availableAircraft.map(a => a.type))];
