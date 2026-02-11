@@ -69,6 +69,16 @@ export default function Finances() {
     enabled: !!company?.id
   });
 
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'all', company?.id],
+    queryFn: async () => {
+      return await base44.entities.Aircraft.filter({ company_id: company.id });
+    },
+    enabled: !!company?.id
+  });
+
+  const fleetValue = aircraft.filter(a => a.status !== 'sold').reduce((sum, a) => sum + (a.current_value || 0), 0);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -122,13 +132,26 @@ export default function Finances() {
     color: categoryColors[category] || '#6b7280'
   }));
 
-  // Generate chart data (simplified - would need more data in production)
-  const chartData = [
-    { name: 'Woche 1', einnahmen: 5000, ausgaben: 2000 },
-    { name: 'Woche 2', einnahmen: 8000, ausgaben: 3500 },
-    { name: 'Woche 3', einnahmen: 6500, ausgaben: 2800 },
-    { name: 'Woche 4', einnahmen: 12000, ausgaben: 4500 },
-  ];
+  // Generate real chart data from transactions grouped by day
+  const chartData = React.useMemo(() => {
+    if (transactions.length === 0) return [];
+    
+    // Group transactions by date
+    const grouped = {};
+    transactions.forEach(t => {
+      const date = t.date ? new Date(t.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : 'Unbekannt';
+      if (!grouped[date]) grouped[date] = { einnahmen: 0, ausgaben: 0 };
+      if (t.type === 'income') grouped[date].einnahmen += (t.amount || 0);
+      else grouped[date].ausgaben += (t.amount || 0);
+    });
+
+    // Convert to array, sorted by date (most recent last), max 14 entries
+    return Object.entries(grouped)
+      .map(([name, data]) => ({ name, ...data }))
+      .reverse()
+      .slice(0, 14)
+      .reverse();
+  }, [transactions]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -185,39 +208,46 @@ export default function Finances() {
                 </TabsList>
               </Tabs>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value) => formatCurrency(value)}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="einnahmen" 
-                  stackId="1"
-                  stroke="#10b981" 
-                  fill="#10b981" 
-                  fillOpacity={0.3}
-                  name="Einnahmen"
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="ausgaben" 
-                  stackId="2"
-                  stroke="#ef4444" 
-                  fill="#ef4444" 
-                  fillOpacity={0.3}
-                  name="Ausgaben"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                  <YAxis stroke="#94a3b8" fontSize={11} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }}
+                    formatter={(value) => formatCurrency(value)}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="einnahmen" 
+                    stackId="1"
+                    stroke="#10b981" 
+                    fill="#10b981" 
+                    fillOpacity={0.3}
+                    name="Einnahmen"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="ausgaben" 
+                    stackId="2"
+                    stroke="#ef4444" 
+                    fill="#ef4444" 
+                    fillOpacity={0.3}
+                    name="Ausgaben"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-slate-500 text-sm">
+                Noch keine Transaktionsdaten vorhanden
+              </div>
+            )}
           </Card>
 
           {/* Expense Breakdown */}
@@ -267,7 +297,7 @@ export default function Finances() {
 
         {/* Credit & Level Bonus Info */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <CreditInfoCard company={company} />
+          <CreditInfoCard company={company} fleetValue={fleetValue} />
           <LevelBonusInfo company={company} />
         </div>
 
