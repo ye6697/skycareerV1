@@ -73,7 +73,7 @@ export default function Layout({ children, currentPageName }) {
 
   const xplaneStatus = company?.xplane_connection_status || 'disconnected';
 
-  if (currentPageName === "Setup") {
+  if (currentPageName === "Setup" || currentPageName === "Landing") {
     return children;
   }
 
