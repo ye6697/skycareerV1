@@ -23,6 +23,18 @@ html, body, #root {
 }
 .dark-popup .leaflet-popup-tip { background: #1e293b; }
 
+/* Waypoint label tooltips - remove leaflet default styling */
+.waypoint-label.leaflet-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  white-space: nowrap;
+}
+.waypoint-label.leaflet-tooltip::before {
+  display: none !important;
+}
+
 /* Input fields always white text */
 input, textarea, select {
   @apply text-white;
