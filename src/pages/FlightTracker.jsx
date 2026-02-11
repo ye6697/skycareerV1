@@ -776,18 +776,24 @@ export default function FlightTracker() {
               // Reputation based on score (0-100)
               const reputationChange = hasCrashed ? -10 : Math.round((scoreWithTime - 85) / 5);
               
-              // XP and Level system
+              // XP and Level system with level-up bonus
               const calculateXPForLevel = (level) => Math.round(100 * Math.pow(1.1, level - 1));
+              const calculateLevelUpBonus = (lvl) => Math.round(1000 * Math.pow(1.5, lvl - 1));
               const earnedXP = Math.round(scoreWithTime);
               let currentLevel = company.level || 1;
               let currentXP = (company.experience_points || 0) + earnedXP;
+              let totalLevelUpBonus = 0;
               while (currentXP >= calculateXPForLevel(currentLevel)) {
                 currentXP -= calculateXPForLevel(currentLevel);
                 currentLevel++;
+                // One-time exponential bonus for leveling up
+                const bonus = calculateLevelUpBonus(currentLevel);
+                totalLevelUpBonus += bonus;
+                console.log(`🎉 LEVEL UP! Level ${currentLevel} - Bonus: $${bonus.toLocaleString()}`);
               }
 
               await base44.entities.Company.update(company.id, {
-                balance: (company.balance || 0) + actualProfit,
+                balance: (company.balance || 0) + actualProfit + totalLevelUpBonus,
                 reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
                 level: currentLevel,
                 experience_points: currentXP,
@@ -796,7 +802,7 @@ export default function FlightTracker() {
                 total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
               });
 
-              // Create transaction
+              // Create transaction for flight revenue
               await base44.entities.Transaction.create({
                 company_id: company.id,
                 type: 'income',
@@ -806,6 +812,19 @@ export default function FlightTracker() {
                 reference_id: activeFlight?.id,
                 date: new Date().toISOString()
               });
+
+              // Create separate transaction for level-up bonus
+              if (totalLevelUpBonus > 0) {
+                await base44.entities.Transaction.create({
+                  company_id: company.id,
+                  type: 'income',
+                  category: 'bonus',
+                  amount: totalLevelUpBonus,
+                  description: `Level-Up Bonus! Neues Level: ${currentLevel} (+$${totalLevelUpBonus.toLocaleString()})`,
+                  reference_id: activeFlight?.id,
+                  date: new Date().toISOString()
+                });
+              }
             }
 
             // WARTE bis Aircraft wirklich gespeichert ist und lade es neu
