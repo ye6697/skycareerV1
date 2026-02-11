@@ -6,21 +6,23 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Navigation, Copy, Loader2, RefreshCw } from 'lucide-react';
 
-export default function RouteWaypoints({ contract }) {
+export default function RouteWaypoints({ contract, aircraftType }) {
   const depIcao = contract?.departure_airport;
   const arrIcao = contract?.arrival_airport;
 
   const { data: routeData, isLoading, error, refetch } = useQuery({
-    queryKey: ['route-waypoints', depIcao, arrIcao],
+    queryKey: ['route-waypoints', depIcao, arrIcao, aircraftType],
     queryFn: async () => {
       const response = await base44.functions.invoke('generateRouteWaypoints', {
         departure_icao: depIcao,
-        arrival_icao: arrIcao
+        arrival_icao: arrIcao,
+        aircraft_type: aircraftType || 'narrow_body',
+        distance_nm: contract?.distance_nm || 300
       });
       return response.data;
     },
     enabled: !!depIcao && !!arrIcao,
-    staleTime: Infinity, // Route doesn't change
+    staleTime: Infinity,
     retry: 1,
   });
 
