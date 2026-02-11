@@ -102,8 +102,19 @@ function generateContract(companyId, aircraftType, companyLevel) {
     ? Math.max(10, Math.floor(Math.random() * aircraftType.cargo * 0.8) + Math.floor(aircraftType.cargo * 0.2))
     : 0;
 
-  const basePayout = distance * 50 + passengers * 500 + cargo * 5;
-  const payout = Math.round(basePayout * (0.8 + Math.random() * 0.4));
+  // Exponential payout scaling based on aircraft tier
+  // Tier multipliers: small_prop=1, turboprop=3, regional_jet=8, narrow_body=25, wide_body=80, cargo=40
+  const tierMultiplier = {
+    small_prop: 1,
+    turboprop: 3,
+    regional_jet: 8,
+    narrow_body: 25,
+    wide_body: 80,
+    cargo: 40
+  }[aircraftType.type] || 1;
+
+  const basePayout = (distance * 8 + passengers * 120 + cargo * 1.5) * tierMultiplier;
+  const payout = Math.round(basePayout * (0.85 + Math.random() * 0.3));
 
   const briefings = briefingTemplates[contractType];
   const briefing = randomItem(briefings);

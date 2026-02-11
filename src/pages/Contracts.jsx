@@ -29,6 +29,7 @@ export default function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
+  const [selectedAircraftId, setSelectedAircraftId] = useState('all');
 
   // Single backend call that fetches everything with service role
   const { data: pageData, isLoading } = useQuery({
@@ -58,29 +59,29 @@ export default function Contracts() {
   // Filter available aircraft (not in flight, not sold, not damaged)
   const availableAircraft = ownedAircraft.filter(ac => ac.status === 'available');
 
-  // Separate contracts into compatible and incompatible
+  // Get selected aircraft for filtering
+  const selectedAircraft = selectedAircraftId !== 'all' 
+    ? availableAircraft.find(a => a.id === selectedAircraftId) 
+    : null;
+
+  // Separate contracts into compatible and incompatible based on selected aircraft or all available
+  const aircraftToCheck = selectedAircraft ? [selectedAircraft] : availableAircraft;
+
   const compatibleContracts = allContracts.filter(contract => {
-    // Check if any available aircraft can fulfill this contract
-    return availableAircraft.some(plane => {
-      // Check type match
+    return aircraftToCheck.some(plane => {
       const typeMatch = !contract.required_aircraft_type || 
                        contract.required_aircraft_type.length === 0 || 
                        contract.required_aircraft_type.includes(plane.type);
-      
-      // Check cargo capacity
       const cargoMatch = !contract.cargo_weight_kg || 
                         (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
-      
-      // Check range
       const rangeMatch = !contract.distance_nm || 
                         (plane.range_nm && plane.range_nm >= contract.distance_nm);
-      
       return typeMatch && cargoMatch && rangeMatch;
     });
   });
   
   const incompatibleContracts = allContracts.filter(contract => {
-    return !availableAircraft.some(plane => {
+    return !aircraftToCheck.some(plane => {
       const typeMatch = !contract.required_aircraft_type || 
                        contract.required_aircraft_type.length === 0 || 
                        contract.required_aircraft_type.includes(plane.type);
@@ -177,6 +178,41 @@ export default function Contracts() {
             </div>
           </div>
         </motion.div>
+
+        {/* Aircraft Selector */}
+        {availableAircraft.length > 0 && (
+          <div className="mb-4 sm:mb-6">
+            <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+              <Plane className="w-3 h-3" /> Flugzeug auswählen
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedAircraftId('all')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedAircraftId === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                }`}
+              >
+                Alle Flugzeuge
+              </button>
+              {availableAircraft.map(ac => (
+                <button
+                  key={ac.id}
+                  onClick={() => setSelectedAircraftId(ac.id)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    selectedAircraftId === ac.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                  }`}
+                >
+                  <span>{ac.name}</span>
+                  <span className="text-[10px] opacity-60">{ac.registration}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Range Filter */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
