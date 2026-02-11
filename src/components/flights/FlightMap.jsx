@@ -45,6 +45,13 @@ const waypointIcon = new L.DivIcon({
   iconAnchor: [4, 4],
 });
 
+const routeWaypointIcon = new L.DivIcon({
+  html: `<div style="background:#a78bfa;width:10px;height:10px;border-radius:2px;border:2px solid #6d28d9;transform:rotate(45deg);"></div>`,
+  className: '',
+  iconSize: [10, 10],
+  iconAnchor: [5, 5],
+});
+
 function MapUpdater({ center, zoom }) {
   const map = useMap();
   const prevCenter = useRef(center);
