@@ -14,6 +14,7 @@ import {
 import LangToggle from '@/components/landing/LangToggle';
 import AppScreenshot from '@/components/landing/AppScreenshot';
 import ComparisonSection from '@/components/landing/ComparisonSection';
+import PricingSection from '@/components/landing/PricingSection';
 import { t } from '@/components/landing/translations';
 
 const fadeUp = {
@@ -507,6 +508,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ═══════ PRICING ═══════ */}
+      <PricingSection L={L} lang={lang} onLogin={handleLogin} />
 
       {/* ═══════ TESTIMONIALS ═══════ */}
       <section className="py-16 sm:py-28 px-4 sm:px-6">
