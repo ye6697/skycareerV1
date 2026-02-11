@@ -351,6 +351,57 @@ function monitor_flight()
     if total_fuel_kg < 300 and flight_started then fuel_emergency_detected = true end
     if has_crashed and flight_started then crash_detected = true end
 
+    ---------------- ENVIRONMENT & WEIGHT DATA ----------------
+    local total_weight_kg = get("sim/flightmodel/weight/m_total") or 0
+    local oat_c = get("sim/cockpit2/temperature/outside_air_temp_degc") or 15
+    local elev_msl_m = get("sim/flightmodel/position/elevation") or 0
+    local agl_m = get("sim/flightmodel/position/y_agl") or 0
+    local ground_elevation_ft = (elev_msl_m - agl_m) * 3.28084
+    local baro_inhg = get("sim/cockpit2/gauges/actuators/barometer_setting_in_hg_pilot") or 29.92
+    local baro_hpa = baro_inhg * 33.8639
+    local wind_speed_kts = get("sim/cockpit2/gauges/indicators/wind_speed_kts") or 0
+    local wind_direction = get("sim/cockpit2/gauges/indicators/wind_heading_deg_mag") or 0
+    
+    -- Aircraft ICAO type
+    local aircraft_icao = ""
+    local ok_icao, _ = pcall(function()
+        aircraft_icao = get("sim/aircraft/view/acf_ICAO") or ""
+        if type(aircraft_icao) ~= "string" then aircraft_icao = "" end
+    end)
+
+    ---------------- FMS WAYPOINTS (every 30s) ----------------
+    local current_time_fms = os.clock()
+    if current_time_fms - last_fms_send >= fms_send_interval then
+        last_fms_send = current_time_fms
+        local fms_parts = {}
+        local ok_fms, _ = pcall(function()
+            local fms_count = get("sim/cockpit2/radios/indicators/fms_fplan_count") or 0
+            if fms_count > 50 then fms_count = 50 end
+            for i = 0, fms_count - 1 do
+                local ok_entry, entry_type, entry_id, entry_ref, entry_alt, entry_lat, entry_lon = pcall(XPLMGetFMSEntryInfo, i)
+                if ok_entry and entry_lat and entry_lon then
+                    local wpt_name = ""
+                    local ok_name, nav_name = pcall(function()
+                        if entry_type and entry_ref then
+                            local _, _, _, name = XPLMGetNavAidInfo(entry_ref)
+                            return name
+                        end
+                        return nil
+                    end)
+                    if ok_name and nav_name then wpt_name = nav_name end
+                    if wpt_name == "" then wpt_name = "WPT" .. i end
+                    local alt_ft = (entry_alt or 0) * 3.28084
+                    table.insert(fms_parts, '{"name":"' .. wpt_name .. '","lat":' .. string.format("%.5f", entry_lat) .. ',"lon":' .. string.format("%.5f", entry_lon) .. ',"alt":' .. string.format("%.0f", alt_ft) .. '}')
+                end
+            end
+        end)
+        if #fms_parts > 0 then
+            cached_fms_json = ',"fms_waypoints":[' .. table.concat(fms_parts, ",") .. ']'
+        else
+            cached_fms_json = ""
+        end
+    end
+
     ---------------- CONSTRUCT JSON ----------------
     -- NOTE: Score calculation is done entirely on the frontend (FlightTracker).
     -- The plugin only sends raw data and boolean event flags.
@@ -389,10 +440,18 @@ function monitor_flight()
         .. '"fuel_emergency":' .. tostring(fuel_emergency_detected) .. ","
         .. '"gear_up_landing":' .. tostring(gear_up_landing_detected) .. ","
         .. '"crash":' .. tostring(crash_detected) .. ","
-        .. '"has_crashed":' .. tostring(has_crashed)
+        .. '"has_crashed":' .. tostring(has_crashed) .. ","
+        .. '"total_weight_kg":' .. string.format("%.0f", total_weight_kg) .. ","
+        .. '"oat_c":' .. string.format("%.1f", oat_c) .. ","
+        .. '"ground_elevation_ft":' .. string.format("%.0f", ground_elevation_ft) .. ","
+        .. '"baro_setting":' .. string.format("%.1f", baro_hpa) .. ","
+        .. '"wind_speed_kts":' .. string.format("%.0f", wind_speed_kts) .. ","
+        .. '"wind_direction":' .. string.format("%.0f", wind_direction) .. ","
+        .. '"aircraft_icao":"' .. aircraft_icao .. '"'
         -- Only include touchdown data when actually landing
         .. (flight_landed and (',"touchdown_vspeed":' .. string.format("%.1f", touchdown_vspeed) .. ',"landing_g_force":' .. string.format("%.2f", landing_g_force)) or "")
         .. failures_json
+        .. cached_fms_json
         .. "}"
 
     send_flight_data(json_payload)
