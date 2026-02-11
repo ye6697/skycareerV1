@@ -1499,7 +1499,12 @@ export default function FlightTracker() {
                   Deadline
                 </h3>
                 {(() => {
-                  const deadlineMin = contract?.deadline_minutes || Math.round((contract?.distance_nm || 500) / 250 * 60 * 1.5 + 15);
+                  // Dynamic deadline based on actual X-Plane aircraft, fallback to fleet type
+                  const xpIcao = xplaneLog?.raw_data?.aircraft_icao || null;
+                  const flType = assignedAircraft?.type || null;
+                  const deadlineMin = (contract?.distance_nm)
+                    ? calculateDeadlineMinutes(contract.distance_nm, xpIcao, flType)
+                    : (contract?.deadline_minutes || 120);
                   const deadlineSec = deadlineMin * 60;
                   const elapsed = flightDurationSeconds;
                   const remaining = deadlineSec - elapsed;
