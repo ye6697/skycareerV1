@@ -49,7 +49,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     sold: { label: "Verkauft", color: "bg-slate-100 text-slate-600 border-slate-200" }
   };
 
-  const repairCost = (aircraft.purchase_price || 0) * 0.30;
+  const repairCost = aircraft.accumulated_maintenance_cost || 0;
   const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
   const rawCurrentValue = aircraft.current_value || aircraft.purchase_price || 0;
   const accumulatedMaintCost = aircraft.accumulated_maintenance_cost || 0;
