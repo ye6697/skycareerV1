@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 
 import StatCard from "@/components/dashboard/StatCard";
+import CreditInfoCard from "@/components/finance/CreditInfoCard";
+import LevelBonusInfo from "@/components/finance/LevelBonusInfo";
 
 export default function Finances() {
   const [period, setPeriod] = useState('week');
@@ -261,6 +263,12 @@ export default function Finances() {
               </div>
             )}
           </Card>
+        </div>
+
+        {/* Credit & Level Bonus Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <CreditInfoCard company={company} />
+          <LevelBonusInfo company={company} />
         </div>
 
         {/* Recent Transactions */}

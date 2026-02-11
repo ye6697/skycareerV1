@@ -16,16 +16,19 @@ import {
   Clock,
   Star,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 
 import StatCard from "@/components/dashboard/StatCard";
 import ReputationGauge from "@/components/dashboard/ReputationGauge";
 import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
 import ContractCard from "@/components/contracts/ContractCard";
+import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { data: user } = useQuery({
     queryKey: ['currentUser'],
@@ -327,6 +330,32 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Flights */}
+         {/* Delete Account */}
+         <div className="mt-8 mb-4">
+           <Card className="p-4 bg-slate-800/50 border border-slate-700">
+             <div className="flex items-center justify-between">
+               <div>
+                 <p className="text-sm text-slate-400">Account & Daten</p>
+                 <p className="text-xs text-slate-500">Lösche deinen gesamten Fortschritt unwiderruflich</p>
+               </div>
+               <Button
+                 variant="destructive"
+                 size="sm"
+                 onClick={() => setShowDeleteDialog(true)}
+               >
+                 <Trash2 className="w-4 h-4 mr-2" />
+                 Account löschen
+               </Button>
+             </div>
+           </Card>
+         </div>
+
+         <DeleteAccountDialog 
+           open={showDeleteDialog} 
+           onOpenChange={setShowDeleteDialog} 
+           company={company} 
+         />
+
          {recentFlights.length > 0 && (
            <div>
              <div className="flex items-center justify-between mb-4">
