@@ -14,16 +14,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-const aircraftIcon = new L.DivIcon({
-  html: `<div style="transform:rotate(var(--heading, 0deg));display:flex;align-items:center;justify-content:center;width:32px;height:32px;">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-    </svg>
-  </div>`,
-  className: '',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+function createAircraftIcon(heading) {
+  // The SVG airplane points RIGHT (90°). We subtract 90° so heading 0° = North.
+  const rotation = (heading || 0) - 90;
+  return new L.DivIcon({
+    html: `<div style="transform:rotate(${rotation}deg);display:flex;align-items:center;justify-content:center;width:36px;height:36px;">
+      <svg width="32" height="32" viewBox="0 0 512 512" fill="#3b82f6" xmlns="http://www.w3.org/2000/svg">
+        <path d="M482 196L336 184 224 16h-48l56 168-151 8L40 128H0l32 128-32 128h40l41-64 151 8-56 168h48l112-168 146-12c18 0 30-14 30-32s-12-32-30-32z"/>
+      </svg>
+    </div>`,
+    className: '',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+  });
+}
 
 const depIcon = new L.DivIcon({
   html: `<div style="background:#10b981;width:14px;height:14px;border-radius:50%;border:3px solid #064e3b;box-shadow:0 0 8px #10b981;"></div>`,
@@ -86,16 +90,15 @@ function MapController({ center, bounds }) {
 
 function AircraftMarker({ position, heading }) {
   const markerRef = useRef(null);
+  const icon = React.useMemo(() => createAircraftIcon(heading), [heading]);
+  
   useEffect(() => {
     if (markerRef.current) {
-      const el = markerRef.current.getElement();
-      if (el) {
-        const svg = el.querySelector('div');
-        if (svg) svg.style.setProperty('--heading', `${heading || 0}deg`);
-      }
+      markerRef.current.setIcon(icon);
     }
-  }, [heading]);
-  return <Marker ref={markerRef} position={position} icon={aircraftIcon} />;
+  }, [icon]);
+
+  return <Marker ref={markerRef} position={position} icon={icon} />;
 }
 
 export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [] }) {

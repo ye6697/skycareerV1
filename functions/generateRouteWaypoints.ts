@@ -35,50 +35,54 @@ Deno.serve(async (req) => {
     let wpMin, wpMax, routeType;
     if (dist < 60) {
       wpMin = 2; wpMax = 3;
-      routeType = "VERY SHORT hop. Only 2-3 waypoints: one SID exit fix and one STAR entry fix. Aircraft may never reach cruise FL.";
+      routeType = "VERY SHORT hop. Only 2-3 waypoints.";
     } else if (dist < 120) {
       wpMin = 3; wpMax = 4;
-      routeType = "SHORT route. 3-4 waypoints max: 1 SID fix, maybe 1 enroute fix, 1-2 STAR fixes.";
+      routeType = "SHORT route. 3-4 waypoints.";
     } else if (dist < 250) {
       wpMin = 4; wpMax = 6;
-      routeType = "MEDIUM route. 4-6 waypoints: 1-2 SID, 1-2 enroute, 1-2 STAR.";
+      routeType = "MEDIUM route. 4-6 waypoints.";
     } else if (dist < 600) {
       wpMin = 5; wpMax = 8;
-      routeType = "MEDIUM-LONG route. 5-8 waypoints: SID, multiple enroute fixes, STAR.";
+      routeType = "MEDIUM-LONG route. 5-8 waypoints.";
     } else {
       wpMin = 7; wpMax = 14;
-      routeType = "LONG route. 7-14 waypoints: full SID, many enroute, full STAR.";
+      routeType = "LONG route. 7-14 waypoints.";
     }
 
     let altitudeProfile;
     if (dist < 60) {
-      altitudeProfile = `Very short flight. SID fix: ~${Math.min(5000, cruiseAlt)}ft (climbing). May only reach ${Math.min(cruiseAlt, 10000)}ft before descending. STAR fix: ~5000-8000ft.`;
+      altitudeProfile = `Very short flight. May only reach ${Math.min(cruiseAlt, 10000)}ft.`;
     } else if (dist < 120) {
-      altitudeProfile = `Short flight. First SID fix: 5000-8000ft. Brief cruise at FL${cruiseFL}. STAR fix: 8000-12000ft.`;
+      altitudeProfile = `Short flight. Brief cruise at FL${cruiseFL}.`;
     } else {
-      altitudeProfile = `Climb-cruise-descent: SID fixes climbing 5000→FL150. Enroute at FL${cruiseFL}. STAR descending FL180→5000ft. Always logical.`;
+      altitudeProfile = `Climb-cruise-descent: SID fixes climbing to FL150+. Enroute at FL${cruiseFL}. STAR descending.`;
     }
 
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate a REALISTIC IFR flight route between ${departure_icao} and ${arrival_icao}.
+      prompt: `You are an IFR flight planning system with access to real-world aeronautical databases.
+Generate a REALISTIC IFR route from ${departure_icao} to ${arrival_icao}.
 
 DISTANCE: ${dist} NM | CRUISE: FL${cruiseFL} | AIRCRAFT: ${acType}
-
 ROUTE TYPE: ${routeType}
 
-CRITICAL RULES:
-1. EXACTLY ${wpMin} to ${wpMax} waypoints total. NOT MORE.
-2. Use REAL 5-letter ICAO fixes (AMLUH, SUGOL etc.) and 3-letter VOR identifiers
-3. Use REAL airway designators (Y163, UL608, T180 etc.)
-4. Return ACCURATE real-world coordinates
-5. ${altitudeProfile}
-6. Altitudes MUST form logical climb-cruise-descent profile
+ABSOLUTE RULES FOR WAYPOINTS:
+1. ONLY use waypoints that ACTUALLY EXIST in the real AIRAC navigational database.
+2. Use real published 5-letter ICAO intersection names (e.g. AMKOS, BADGO, LINDO, OLSEN, TENPA).
+3. Use real 3-letter VOR/DME identifiers (e.g. FFM, KPT, MUN, DKB).
+4. Use real published airway identifiers (e.g. L607, UL607, T180, Y163, UN872, Q63).
+5. DO NOT INVENT waypoint names. Every single waypoint MUST be a real navigational fix.
+6. The route must follow real published airways where possible.
+7. Use SID/STAR names that are actually published for those airports.
+8. Coordinates MUST be accurate for the named fix (within 0.01 degrees).
+9. Return ${wpMin} to ${wpMax} waypoints.
+10. ${altitudeProfile}
 
 RUNWAY SELECTION:
-- For ${departure_icao}: pick the most likely active runway based on common wind patterns. Return the runway designator (e.g. "08L", "26R", "09").
-- For ${arrival_icao}: same, pick the most likely active runway.
+- For ${departure_icao}: pick the most commonly used runway. Return just the designator (e.g. "08L", "26R", "09").
+- For ${arrival_icao}: same.
 
-Route string format: "SID_NAME FIX AIRWAY FIX AIRWAY FIX STAR_NAME"`,
+Route string format example: "TOBAK Y163 AMKOS T180 LINDO"`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -88,22 +92,21 @@ Route string format: "SID_NAME FIX AIRWAY FIX AIRWAY FIX STAR_NAME"`,
             items: {
               type: "object",
               properties: {
-                name: { type: "string" },
-                lat: { type: "number" },
-                lon: { type: "number" },
+                name: { type: "string", description: "MUST be a real ICAO fix name" },
+                lat: { type: "number", description: "Accurate latitude of the fix" },
+                lon: { type: "number", description: "Accurate longitude of the fix" },
                 alt: { type: "number", description: "Altitude in feet" },
                 type: { type: "string", enum: ["sid", "enroute", "star"] }
               },
               required: ["name", "lat", "lon", "alt", "type"]
             }
           },
-          route_string: { type: "string" },
-          sid_name: { type: "string" },
-          star_name: { type: "string" },
+          route_string: { type: "string", description: "Full route string with airways" },
+          sid_name: { type: "string", description: "Published SID name" },
+          star_name: { type: "string", description: "Published STAR name" },
           cruise_altitude: { type: "number" },
-          estimated_distance_nm: { type: "number" },
-          departure_runway: { type: "string", description: "Likely active departure runway e.g. 08L" },
-          arrival_runway: { type: "string", description: "Likely active arrival runway e.g. 26R" }
+          departure_runway: { type: "string" },
+          arrival_runway: { type: "string" }
         },
         required: ["waypoints", "route_string", "cruise_altitude"]
       }
