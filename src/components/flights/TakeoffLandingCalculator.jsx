@@ -459,6 +459,15 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
             <ConditionSelector value={ldgRwyCondition} onChange={setLdgRwyCondition} />
           </div>
 
+          {/* Flap Setting */}
+          <div className="flex items-center gap-2 p-2.5 bg-amber-500/10 border border-amber-700/30 rounded-lg">
+            <PlaneLanding className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-400">Landing Flaps: <span className="font-bold">{flapRec.landing}</span></p>
+              <p className="text-[10px] text-amber-300/60">{flapRec.source ? `Basierend auf ${flapRec.source}` : `Empfehlung für ${profile.label}`}</p>
+            </div>
+          </div>
+
           {/* Approach Speeds */}
           <div>
             <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-semibold">Approach Speeds</h4>
