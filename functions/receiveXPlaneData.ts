@@ -134,6 +134,22 @@ Deno.serve(async (req) => {
     const isNowAirborne = !on_ground && altitude > 50;
     const hasBeenAirborne = wasAirborne || isNowAirborne;
 
+    // Track initial fuel for consumption calculation
+    const initial_fuel_kg = flight.xplane_data?.initial_fuel_kg || fuel_kg || 0;
+
+    // Track flight path (add position every update, limited to keep data manageable)
+    const existingPath = flight.xplane_data?.flight_path || [];
+    let newPath = existingPath;
+    if (latitude && longitude && !on_ground) {
+      const lastPt = existingPath[existingPath.length - 1];
+      // Add point only if moved enough (reduce data)
+      if (!lastPt || Math.abs(lastPt[0] - latitude) > 0.005 || Math.abs(lastPt[1] - longitude) > 0.005) {
+        newPath = [...existingPath, [latitude, longitude]];
+        // Keep max 500 points
+        if (newPath.length > 500) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
+      }
+    }
+
     // Build a LEAN xplane_data object - only current sensor readings
     // No merging with previous data (the frontend tracks accumulated state)
     const xplaneData = {
@@ -143,6 +159,7 @@ Deno.serve(async (req) => {
       heading,
       fuel_percentage,
       fuel_kg: fuel_kg || 0,
+      initial_fuel_kg,
       g_force,
       max_g_force,
       latitude,
