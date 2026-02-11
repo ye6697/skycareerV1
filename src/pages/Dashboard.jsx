@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Plane,
@@ -28,12 +28,23 @@ import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const { data: user } = useQuery({
+  const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me()
+    queryFn: async () => {
+      const isAuth = await base44.auth.isAuthenticated();
+      if (!isAuth) return null;
+      return base44.auth.me();
+    }
   });
+
+  useEffect(() => {
+    if (!userLoading && user === null) {
+      navigate(createPageUrl('Landing'));
+    }
+  }, [user, userLoading, navigate]);
 
   const userCompanyId = user?.company_id || user?.data?.company_id;
 
