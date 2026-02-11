@@ -321,13 +321,18 @@ export default function FlightTracker() {
     staleTime: 300000, // Settings rarely change
   });
 
+  // Find the assigned aircraft for this flight
+  const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
+
   // Generate route waypoints based on contract
   const { data: routeData } = useQuery({
-    queryKey: ['route-waypoints', contract?.departure_airport, contract?.arrival_airport],
+    queryKey: ['route-waypoints', contract?.departure_airport, contract?.arrival_airport, assignedAircraft?.type],
     queryFn: async () => {
       const response = await base44.functions.invoke('generateRouteWaypoints', {
         departure_icao: contract.departure_airport,
-        arrival_icao: contract.arrival_airport
+        arrival_icao: contract.arrival_airport,
+        aircraft_type: assignedAircraft?.type || 'narrow_body',
+        distance_nm: contract.distance_nm || 300
       });
       return response.data;
     },
