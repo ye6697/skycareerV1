@@ -1858,8 +1858,10 @@ export default function FlightTracker() {
             )}
           </div>
         </div>
+        )}
 
         {/* Map & Calculator at bottom, full width */}
+        {contract && (
         <div className="space-y-6 mt-6">
           <FlightMap
             flightData={flightData}
