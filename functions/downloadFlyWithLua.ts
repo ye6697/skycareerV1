@@ -367,38 +367,9 @@ function monitor_flight()
         if type(aircraft_icao) ~= "string" then aircraft_icao = "" end
     end)
 
-    ---------------- FMS WAYPOINTS (every 30s) ----------------
-    local current_time_fms = os.clock()
-    if current_time_fms - last_fms_send >= fms_send_interval then
-        last_fms_send = current_time_fms
-        local fms_parts = {}
-        local ok_fms, _ = pcall(function()
-            local fms_count = get("sim/cockpit2/radios/indicators/fms_fplan_count") or 0
-            if fms_count > 50 then fms_count = 50 end
-            for i = 0, fms_count - 1 do
-                local ok_entry, entry_type, entry_id, entry_ref, entry_alt, entry_lat, entry_lon = pcall(XPLMGetFMSEntryInfo, i)
-                if ok_entry and entry_lat and entry_lon then
-                    local wpt_name = ""
-                    local ok_name, nav_name = pcall(function()
-                        if entry_type and entry_ref then
-                            local _, _, _, name = XPLMGetNavAidInfo(entry_ref)
-                            return name
-                        end
-                        return nil
-                    end)
-                    if ok_name and nav_name then wpt_name = nav_name end
-                    if wpt_name == "" then wpt_name = "WPT" .. i end
-                    local alt_ft = (entry_alt or 0) * 3.28084
-                    table.insert(fms_parts, '{"name":"' .. wpt_name .. '","lat":' .. string.format("%.5f", entry_lat) .. ',"lon":' .. string.format("%.5f", entry_lon) .. ',"alt":' .. string.format("%.0f", alt_ft) .. '}')
-                end
-            end
-        end)
-        if #fms_parts > 0 then
-            cached_fms_json = ',"fms_waypoints":[' .. table.concat(fms_parts, ",") .. ']'
-        else
-            cached_fms_json = ""
-        end
-    end
+    -- FMS waypoints: not available in FlyWithLua (XPLM FMS API not exposed)
+    -- Route waypoints are generated server-side via the route generator
+    local cached_fms_json = ""
 
     ---------------- CONSTRUCT JSON ----------------
     -- NOTE: Score calculation is done entirely on the frontend (FlightTracker).
