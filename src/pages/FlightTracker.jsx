@@ -1767,7 +1767,11 @@ export default function FlightTracker() {
               <>
                 <FlightRating 
                   flight={(() => {
-                    const fuelUsed = (100 - flightData.fuel) * 10;
+                    const xpd = (flight || existingFlight)?.xplane_data || {};
+                    const initFuel = xpd.initial_fuel_kg || 0;
+                    const curFuel = flightData.fuelKg || 0;
+                    const fuelUsedKg = Math.max(0, initFuel - curFuel);
+                    const fuelUsed = fuelUsedKg * 1.25;
                     const fuelCost = fuelUsed * 1.2;
                     const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
                     const crewCost = flightHours * 250;
