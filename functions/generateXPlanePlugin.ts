@@ -103,6 +103,10 @@ class PythonInterface:
         
         # DataRefs
         self.datarefs = {}
+        # FMS waypoint cache (don't send every frame)
+        self.last_fms_send = 0
+        self.fms_send_interval = 30.0  # send FMS data every 30 sec
+        self.cached_fms_waypoints = []
         
     def XPluginStart(self):
         # Cache failure dataref handles
@@ -135,6 +139,20 @@ class PythonInterface:
         self.datarefs['override_alpha'] = xp.findDataRef("sim/flightmodel/failures/over_alpha")
         self.datarefs['overspeed'] = xp.findDataRef("sim/cockpit2/annunciators/overspeed")
         self.datarefs['flap_speed_overflow'] = xp.findDataRef("sim/flightmodel/failures/over_vfe")
+        
+        # Environment & weight datarefs for calculator auto-fill
+        self.datarefs['total_weight'] = xp.findDataRef("sim/flightmodel/weight/m_total")
+        self.datarefs['oat'] = xp.findDataRef("sim/cockpit2/temperature/outside_air_temp_degc")
+        self.datarefs['ground_elevation'] = xp.findDataRef("sim/flightmodel/position/y_agl")  # meters AGL
+        self.datarefs['elev_msl'] = xp.findDataRef("sim/flightmodel/position/elevation")  # meters MSL (same as altitude)
+        self.datarefs['baro_setting'] = xp.findDataRef("sim/cockpit2/gauges/actuators/barometer_setting_in_hg_pilot")
+        self.datarefs['wind_speed'] = xp.findDataRef("sim/cockpit2/gauges/indicators/wind_speed_kts")
+        self.datarefs['wind_direction'] = xp.findDataRef("sim/cockpit2/gauges/indicators/wind_heading_deg_mag")
+        self.datarefs['acf_icao'] = xp.findDataRef("sim/aircraft/view/acf_ICAO")
+        
+        # FMS/GPS datarefs
+        self.datarefs['fms_count'] = xp.findDataRef("sim/cockpit2/radios/indicators/fms_fplan_count")
+        # Individual waypoint access via XPLMGetFMSEntryInfo
         
         # Create flight loop
         xp.createFlightLoop(self.FlightLoopCallback, 1)
