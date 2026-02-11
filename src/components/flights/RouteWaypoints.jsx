@@ -93,6 +93,28 @@ export default function RouteWaypoints({ contract, aircraftType }) {
         </div>
       </div>
 
+      {/* Runway Info */}
+      {(routeData.departure_runway || routeData.arrival_runway) && (
+        <div className="mb-3 flex gap-2">
+          {routeData.departure_runway && (
+            <div className="flex-1 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+              <span className="text-[10px] text-slate-500 uppercase">DEP RWY</span>
+              <p className="text-sm font-mono font-bold text-emerald-400">
+                {contract?.departure_airport} / {routeData.departure_runway}
+              </p>
+            </div>
+          )}
+          {routeData.arrival_runway && (
+            <div className="flex-1 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <span className="text-[10px] text-slate-500 uppercase">ARR RWY</span>
+              <p className="text-sm font-mono font-bold text-amber-400">
+                {contract?.arrival_airport} / {routeData.arrival_runway}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Route String */}
       <div className="mb-3 p-2 bg-slate-900 rounded-lg">
         <div className="flex items-center justify-between mb-1">
