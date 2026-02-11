@@ -1425,6 +1425,7 @@ export default function FlightTracker() {
               <TakeoffLandingCalculator
                 aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
                 contract={contract}
+                xplaneData={xplaneLog?.raw_data}
               />
 
               {/* Main Instruments */}
