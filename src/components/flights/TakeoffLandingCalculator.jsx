@@ -202,9 +202,18 @@ function ResultRow({ label, value, status, unit }) {
   );
 }
 
+function getFlapRecommendation(xplaneData, profile) {
+  const icao = xplaneData?.aircraft_icao?.toUpperCase()?.trim();
+  if (icao && ICAO_FLAP_DATA[icao]) {
+    return { takeoff: ICAO_FLAP_DATA[icao].takeoff, landing: ICAO_FLAP_DATA[icao].landing, source: icao };
+  }
+  return { takeoff: profile.takeoffFlaps, landing: profile.landingFlaps, source: null };
+}
+
 export default function TakeoffLandingCalculator({ aircraft, contract, xplaneData }) {
   const acType = aircraft?.type || 'narrow_body';
   const profile = AIRCRAFT_PROFILES[acType] || AIRCRAFT_PROFILES.narrow_body;
+  const flapRec = getFlapRecommendation(xplaneData, profile);
 
   const [tab, setTab] = useState('takeoff');
   const [weight, setWeight] = useState('');
