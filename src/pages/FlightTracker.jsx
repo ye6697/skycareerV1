@@ -1889,7 +1889,7 @@ export default function FlightTracker() {
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
               routeWaypoints={routeData?.waypoints || []}
             />
-            <RouteWaypoints contract={contract} />
+            <RouteWaypoints contract={contract} aircraftType={assignedAircraft?.type} />
             <TakeoffLandingCalculator
               aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
               contract={contract}
