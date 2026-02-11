@@ -321,6 +321,21 @@ export default function FlightTracker() {
     staleTime: 300000, // Settings rarely change
   });
 
+  // Generate route waypoints based on contract
+  const { data: routeData } = useQuery({
+    queryKey: ['route-waypoints', contract?.departure_airport, contract?.arrival_airport],
+    queryFn: async () => {
+      const response = await base44.functions.invoke('generateRouteWaypoints', {
+        departure_icao: contract.departure_airport,
+        arrival_icao: contract.arrival_airport
+      });
+      return response.data;
+    },
+    enabled: !!contract?.departure_airport && !!contract?.arrival_airport,
+    staleTime: Infinity,
+    retry: 1,
+  });
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Verwende den existierenden Flight oder erstelle einen neuen (sollte nicht passieren)
