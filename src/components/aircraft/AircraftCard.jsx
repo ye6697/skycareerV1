@@ -51,7 +51,10 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const repairCost = (aircraft.purchase_price || 0) * 0.30;
   const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
-  const currentValue = aircraft.current_value || aircraft.purchase_price || 0;
+  const rawCurrentValue = aircraft.current_value || aircraft.purchase_price || 0;
+  const accumulatedMaintCost = aircraft.accumulated_maintenance_cost || 0;
+  // Temporär Wartungskosten vom Wert abziehen (bis gewartet)
+  const currentValue = Math.max(0, rawCurrentValue - accumulatedMaintCost);
   
   // New category-based maintenance check
   const cats = aircraft.maintenance_categories || {};
