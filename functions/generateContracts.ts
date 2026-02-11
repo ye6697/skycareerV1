@@ -180,30 +180,30 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Flugzeuge vorhanden' }, { status: 400 });
     }
 
-    // Delete old available contracts for this company (parallel for speed)
+    // Delete old available contracts in batches of 5 for speed
     const oldContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id, status: 'available' });
-    if (oldContracts.length > 0) {
-      await Promise.all(oldContracts.map(old => base44.asServiceRole.entities.Contract.delete(old.id)));
+    // Delete in parallel batches
+    const batchSize = 5;
+    for (let i = 0; i < oldContracts.length; i += batchSize) {
+      const batch = oldContracts.slice(i, i + batchSize);
+      await Promise.all(batch.map(old => base44.asServiceRole.entities.Contract.delete(old.id)));
     }
 
     // Get the types the user owns
     const ownedTypes = [...new Set(availableAircraft.map(a => a.type))];
     const ownedTypeSpecs = allAircraftTypes.filter(t => ownedTypes.includes(t.type));
-    
-    // Types the user does NOT own
     const notOwnedTypeSpecs = allAircraftTypes.filter(t => !ownedTypes.includes(t.type));
 
     const compatibleContracts = [];
     const incompatibleContracts = [];
 
-    // Generate 5 compatible contracts (matching owned aircraft types)
+    // Generate 4 compatible contracts
     let attempts = 0;
-    while (compatibleContracts.length < 5 && attempts < 100) {
+    while (compatibleContracts.length < 4 && attempts < 50) {
       attempts++;
       const acType = randomItem(ownedTypeSpecs);
       const contract = generateContract(company.id, acType, company.level || 1);
       if (contract) {
-        // Verify an owned aircraft can actually fulfill it
         const canFulfill = availableAircraft.some(plane => {
           const typeMatch = contract.required_aircraft_type.includes(plane.type);
           const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
@@ -211,43 +211,29 @@ Deno.serve(async (req) => {
           const passengerMatch = !contract.passenger_count || (plane.passenger_capacity && plane.passenger_capacity >= contract.passenger_count);
           return typeMatch && cargoMatch && rangeMatch && passengerMatch;
         });
-        if (canFulfill) {
-          compatibleContracts.push(contract);
-        }
+        if (canFulfill) compatibleContracts.push(contract);
       }
     }
 
-    // Generate 5 incompatible contracts
+    // Generate 3 incompatible contracts
     attempts = 0;
-    while (incompatibleContracts.length < 5 && attempts < 100) {
+    while (incompatibleContracts.length < 3 && attempts < 30) {
       attempts++;
-      
       if (notOwnedTypeSpecs.length > 0) {
-        // Use a type the user doesn't own
         const acType = randomItem(notOwnedTypeSpecs);
         const contract = generateContract(company.id, acType, company.level || 1);
-        if (contract) {
-          incompatibleContracts.push(contract);
-        }
+        if (contract) incompatibleContracts.push(contract);
       } else {
-        // All types owned - generate contracts that exceed capacity/range
         const acType = randomItem(ownedTypeSpecs);
         const contract = generateContract(company.id, acType, company.level || 1);
         if (contract) {
-          // Make it incompatible by increasing requirements beyond what user has
           const maxRange = Math.max(...availableAircraft.map(a => a.range_nm || 0));
           const maxCargo = Math.max(...availableAircraft.map(a => a.cargo_capacity_kg || 0));
           const maxPax = Math.max(...availableAircraft.map(a => a.passenger_capacity || 0));
-          
-          // Randomly exceed one requirement
           const exceedType = Math.floor(Math.random() * 3);
-          if (exceedType === 0) {
-            contract.distance_nm = maxRange + 500 + Math.floor(Math.random() * 1000);
-          } else if (exceedType === 1 && contract.cargo_weight_kg > 0) {
-            contract.cargo_weight_kg = maxCargo + 1000 + Math.floor(Math.random() * 5000);
-          } else {
-            contract.passenger_count = maxPax + 50 + Math.floor(Math.random() * 100);
-          }
+          if (exceedType === 0) contract.distance_nm = maxRange + 500 + Math.floor(Math.random() * 1000);
+          else if (exceedType === 1 && contract.cargo_weight_kg > 0) contract.cargo_weight_kg = maxCargo + 1000;
+          else contract.passenger_count = maxPax + 50;
           contract.title = contract.title + " (Spezial)";
           incompatibleContracts.push(contract);
         }
@@ -255,7 +241,6 @@ Deno.serve(async (req) => {
     }
 
     const allContracts = [...compatibleContracts, ...incompatibleContracts];
-    
     if (allContracts.length > 0) {
       await base44.asServiceRole.entities.Contract.bulkCreate(allContracts);
     }
