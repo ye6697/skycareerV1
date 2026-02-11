@@ -63,7 +63,6 @@ function MapController({ center, bounds }) {
   const hasSetBounds = useRef(false);
 
   useEffect(() => {
-    // On mount: invalidate size multiple times to fix grey tiles
     const t1 = setTimeout(() => map.invalidateSize(), 50);
     const t2 = setTimeout(() => map.invalidateSize(), 200);
     const t3 = setTimeout(() => map.invalidateSize(), 600);
@@ -71,7 +70,6 @@ function MapController({ center, bounds }) {
   }, [map]);
 
   useEffect(() => {
-    // Fit bounds on first data (departure + arrival)
     if (bounds && !hasSetBounds.current) {
       hasSetBounds.current = true;
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
@@ -79,6 +77,7 @@ function MapController({ center, bounds }) {
   }, [bounds, map]);
 
   useEffect(() => {
+    // Only pan for live tracking (center is null in static mode)
     if (center && (center[0] !== prevCenter.current?.[0] || center[1] !== prevCenter.current?.[1])) {
       map.panTo(center, { animate: true, duration: 1 });
       prevCenter.current = center;
