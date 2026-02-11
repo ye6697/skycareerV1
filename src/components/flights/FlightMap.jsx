@@ -101,14 +101,15 @@ function AircraftMarker({ position, heading }) {
   return <Marker ref={markerRef} position={position} icon={icon} />;
 }
 
-export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [] }) {
-  const hasPosition = flightData.latitude !== 0 || flightData.longitude !== 0;
-  const hasDep = flightData.departure_lat !== 0 || flightData.departure_lon !== 0;
-  const hasArr = flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0;
+export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title }) {
+  const fd = flightData || {};
+  const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
+  const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
+  const hasArr = fd.arrival_lat !== 0 || fd.arrival_lon !== 0;
 
-  const depPos = hasDep ? [flightData.departure_lat, flightData.departure_lon] : null;
-  const arrPos = hasArr ? [flightData.arrival_lat, flightData.arrival_lon] : null;
-  const curPos = hasPosition ? [flightData.latitude, flightData.longitude] : null;
+  const depPos = hasDep ? [fd.departure_lat, fd.departure_lon] : null;
+  const arrPos = hasArr ? [fd.arrival_lat, fd.arrival_lon] : null;
+  const curPos = hasPosition ? [fd.latitude, fd.longitude] : null;
 
   const activeWaypoints = waypoints.length > 0 ? waypoints : routeWaypoints;
 
@@ -121,13 +122,23 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   }
   if (arrPos) routePoints.push(arrPos);
 
+  // For static mode, the "flown" line is dep → arr (completed)
   const flownPoints = [];
-  if (depPos) flownPoints.push(depPos);
-  if (curPos) flownPoints.push(curPos);
+  if (staticMode) {
+    if (depPos) flownPoints.push(depPos);
+    if (activeWaypoints.length > 0) {
+      activeWaypoints.forEach(wp => {
+        if (wp.lat && wp.lon) flownPoints.push([wp.lat, wp.lon]);
+      });
+    }
+    if (arrPos) flownPoints.push(arrPos);
+  } else {
+    if (depPos) flownPoints.push(depPos);
+    if (curPos) flownPoints.push(curPos);
+  }
 
   const center = curPos || depPos || [50, 10];
 
-  // Calculate bounds from all points
   let bounds = null;
   const allPoints = [...routePoints];
   if (curPos) allPoints.push(curPos);
@@ -140,10 +151,10 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
       <Card className="p-6 bg-slate-800/50 border-slate-700">
         <div className="flex items-center gap-2 mb-3">
           <Navigation className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Live-Karte</h3>
+          <h3 className="text-lg font-semibold text-white">{title || 'Karte'}</h3>
         </div>
         <div className="h-48 bg-slate-900 rounded-lg flex items-center justify-center">
-          <p className="text-slate-500 text-sm">Warte auf Positionsdaten von X-Plane...</p>
+          <p className="text-slate-500 text-sm">Keine Positionsdaten verfügbar</p>
         </div>
       </Card>
     );
@@ -154,7 +165,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
       <div className="p-3 pb-0 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Navigation className="w-4 h-4 text-blue-400" />
-          <h3 className="text-sm font-semibold text-white">Live-Karte</h3>
+          <h3 className="text-sm font-semibold text-white">{title || (staticMode ? 'Flugroute' : 'Live-Karte')}</h3>
         </div>
         <div className="flex items-center gap-2">
           {contract && (
@@ -180,7 +191,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           attributionControl={false}
         >
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-          <MapController center={curPos || null} bounds={bounds} />
+          <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />
 
           {routePoints.length >= 2 && (
             <Polyline positions={routePoints} pathOptions={{ color: '#6366f1', weight: 2, dashArray: '8, 8', opacity: 0.5 }} />
@@ -231,21 +242,27 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           ))}
 
-          {curPos && <AircraftMarker position={curPos} heading={flightData.heading} />}
+          {curPos && !staticMode && <AircraftMarker position={curPos} heading={fd.heading} />}
         </MapContainer>
       </div>
 
-      <div className="p-2 bg-slate-900/80 flex items-center justify-between text-xs font-mono">
-        <span className="text-slate-400">HDG {Math.round(flightData.heading || 0)}°</span>
-        <span className="text-slate-400">ALT {Math.round(flightData.altitude || 0).toLocaleString()} ft</span>
-        <span className="text-slate-400">GS {Math.round(flightData.speed || 0)} kts</span>
-        {activeWaypoints.length > 0 && (
-          <span className="text-purple-400">
-            {activeWaypoints.length} WPTs
-            {waypoints.length === 0 && routeWaypoints.length > 0 && ' (Route)'}
-          </span>
-        )}
-      </div>
+      {!staticMode && (
+        <div className="p-2 bg-slate-900/80 flex items-center justify-between text-xs font-mono">
+          <span className="text-slate-400">HDG {Math.round(fd.heading || 0)}°</span>
+          <span className="text-slate-400">ALT {Math.round(fd.altitude || 0).toLocaleString()} ft</span>
+          <span className="text-slate-400">GS {Math.round(fd.speed || 0)} kts</span>
+          {activeWaypoints.length > 0 && (
+            <span className="text-purple-400">
+              {activeWaypoints.length} WPTs
+            </span>
+          )}
+        </div>
+      )}
+      {staticMode && activeWaypoints.length > 0 && (
+        <div className="p-2 bg-slate-900/80 flex items-center justify-center text-xs font-mono">
+          <span className="text-purple-400">{activeWaypoints.length} Wegpunkte</span>
+        </div>
+      )}
     </Card>
   );
 }
