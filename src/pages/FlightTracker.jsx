@@ -1414,22 +1414,18 @@ export default function FlightTracker() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Flight Instruments */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Live Map */}
-              {flightPhase !== 'preflight' && (
-                <FlightMap
-                  flightData={flightData}
-                  contract={contract}
-                  waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
-                />
-              )}
+              {/* Live Map - shown during and after flight */}
+              <FlightMap
+                flightData={flightData}
+                contract={contract}
+                waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
+              />
 
-              {/* Takeoff/Landing Calculator - shown in preflight */}
-              {flightPhase === 'preflight' && (
-                <TakeoffLandingCalculator
-                  aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
-                  contract={contract}
-                />
-              )}
+              {/* Takeoff/Landing Calculator - always available */}
+              <TakeoffLandingCalculator
+                aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
+                contract={contract}
+              />
 
               {/* Main Instruments */}
               <Card className="p-6 bg-slate-800/50 border-slate-700">
