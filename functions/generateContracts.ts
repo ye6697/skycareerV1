@@ -121,6 +121,19 @@ function generateContract(companyId, aircraftType, companyLevel) {
 
   const difficulty = distance < 500 ? "easy" : distance < 1500 ? "medium" : distance < 3000 ? "hard" : "extreme";
 
+  // Realistic cruise speeds per aircraft type (in knots)
+  const cruiseSpeeds = {
+    small_prop: 120,
+    turboprop: 280,
+    regional_jet: 420,
+    narrow_body: 460,
+    wide_body: 490,
+    cargo: 450
+  };
+  const cruiseSpeed = cruiseSpeeds[aircraftType.type] || 250;
+  // Flight time = distance/speed, plus 20min taxi/climb/descent overhead, plus 15min buffer
+  const flightTimeMinutes = Math.round((distance / cruiseSpeed) * 60 + 20 + 15);
+
   return {
     company_id: companyId,
     title: `${depAirport.city} → ${arrAirport.city}`,
@@ -145,7 +158,7 @@ function generateContract(companyId, aircraftType, companyLevel) {
     status: "available",
     difficulty,
     level_requirement: 1,
-    deadline_minutes: Math.round((distance / 250) * 60 * 1.5 + 15)
+    deadline_minutes: flightTimeMinutes
   };
 }
 
