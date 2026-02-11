@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMap } from 'react-leaflet';
+import { Navigation } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Fix leaflet default icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -52,27 +53,34 @@ const routeWaypointIcon = new L.DivIcon({
   iconAnchor: [5, 5],
 });
 
-function MapUpdater({ center }) {
+function MapController({ center, bounds }) {
   const map = useMap();
   const prevCenter = useRef(center);
-  const initialized = useRef(false);
-  
+  const hasSetBounds = useRef(false);
+
   useEffect(() => {
-    // Force invalidate size on first render and after a short delay
-    // This fixes the "grey tiles" / partial render bug in Leaflet
-    if (!initialized.current) {
-      initialized.current = true;
-      setTimeout(() => map.invalidateSize(), 100);
-      setTimeout(() => map.invalidateSize(), 500);
-    }
+    // On mount: invalidate size multiple times to fix grey tiles
+    const t1 = setTimeout(() => map.invalidateSize(), 50);
+    const t2 = setTimeout(() => map.invalidateSize(), 200);
+    const t3 = setTimeout(() => map.invalidateSize(), 600);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [map]);
-  
+
+  useEffect(() => {
+    // Fit bounds on first data (departure + arrival)
+    if (bounds && !hasSetBounds.current) {
+      hasSetBounds.current = true;
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+    }
+  }, [bounds, map]);
+
   useEffect(() => {
     if (center && (center[0] !== prevCenter.current?.[0] || center[1] !== prevCenter.current?.[1])) {
       map.panTo(center, { animate: true, duration: 1 });
       prevCenter.current = center;
     }
   }, [center, map]);
+
   return null;
 }
 
@@ -99,10 +107,8 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   const arrPos = hasArr ? [flightData.arrival_lat, flightData.arrival_lon] : null;
   const curPos = hasPosition ? [flightData.latitude, flightData.longitude] : null;
 
-  // Determine which waypoints to use: live FMS waypoints take priority, then generated route waypoints
   const activeWaypoints = waypoints.length > 0 ? waypoints : routeWaypoints;
 
-  // Build route line: departure -> waypoints -> arrival
   const routePoints = [];
   if (depPos) routePoints.push(depPos);
   if (activeWaypoints.length > 0) {
@@ -112,15 +118,21 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   }
   if (arrPos) routePoints.push(arrPos);
 
-  // Flown path: departure -> current pos
   const flownPoints = [];
   if (depPos) flownPoints.push(depPos);
   if (curPos) flownPoints.push(curPos);
 
-  // Default center
   const center = curPos || depPos || [50, 10];
 
-  if (!hasPosition && !hasDep && !hasArr) {
+  // Calculate bounds from all points
+  let bounds = null;
+  const allPoints = [...routePoints];
+  if (curPos) allPoints.push(curPos);
+  if (allPoints.length >= 2) {
+    bounds = L.latLngBounds(allPoints);
+  }
+
+  if (!hasPosition && !hasDep && !hasArr && routeWaypoints.length === 0) {
     return (
       <Card className="p-6 bg-slate-800/50 border-slate-700">
         <div className="flex items-center gap-2 mb-3">
@@ -135,7 +147,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   }
 
   return (
-    <Card className="p-0 bg-slate-800/50 border-slate-700 overflow-hidden rounded-lg">
+    <Card className="bg-slate-800/50 border-slate-700 overflow-hidden rounded-lg">
       <div className="p-3 pb-0 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Navigation className="w-4 h-4 text-blue-400" />
@@ -154,54 +166,46 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           )}
         </div>
       </div>
-      <div style={{ height: '350px', width: '100%' }} className="mt-2 relative">
+
+      <div className="mt-2" style={{ height: 350 }}>
         <MapContainer
+          key="flight-map"
           center={center}
           zoom={7}
-          style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          style={{ height: '100%', width: '100%' }}
           zoomControl={false}
           attributionControl={false}
         >
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          />
-          <MapUpdater center={center} />
+          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          <MapController center={curPos || null} bounds={bounds} />
 
-          {/* Planned route (dashed) */}
           {routePoints.length >= 2 && (
-            <Polyline
-              positions={routePoints}
-              pathOptions={{ color: '#6366f1', weight: 2, dashArray: '8, 8', opacity: 0.5 }}
-            />
+            <Polyline positions={routePoints} pathOptions={{ color: '#6366f1', weight: 2, dashArray: '8, 8', opacity: 0.5 }} />
           )}
-
-          {/* Flown path (solid) */}
           {flownPoints.length >= 2 && (
-            <Polyline
-              positions={flownPoints}
-              pathOptions={{ color: '#3b82f6', weight: 3, opacity: 0.9 }}
-            />
+            <Polyline positions={flownPoints} pathOptions={{ color: '#3b82f6', weight: 3, opacity: 0.9 }} />
           )}
 
-          {/* Departure */}
           {depPos && (
             <Marker position={depPos} icon={depIcon}>
-              <Popup className="dark-popup">
-                <span className="text-xs font-bold">{contract?.departure_airport || 'DEP'}</span>
-              </Popup>
+              <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
+                <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#10b981',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #064e3b'}}>
+                  {contract?.departure_airport || 'DEP'}
+                </span>
+              </Tooltip>
             </Marker>
           )}
 
-          {/* Arrival */}
           {arrPos && (
             <Marker position={arrPos} icon={arrIcon}>
-              <Popup className="dark-popup">
-                <span className="text-xs font-bold">{contract?.arrival_airport || 'ARR'}</span>
-              </Popup>
+              <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
+                <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#f59e0b',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #78350f'}}>
+                  {contract?.arrival_airport || 'ARR'}
+                </span>
+              </Tooltip>
             </Marker>
           )}
 
-          {/* Live FMS Waypoints */}
           {waypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
             <Marker key={`fms-${i}`} position={[wp.lat, wp.lon]} icon={waypointIcon}>
               <Tooltip permanent direction="top" offset={[0, -8]} className="waypoint-label">
@@ -213,7 +217,6 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           ))}
 
-          {/* Generated Route Waypoints (shown only when no live FMS waypoints) */}
           {waypoints.length === 0 && routeWaypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
             <Marker key={`route-${i}`} position={[wp.lat, wp.lon]} icon={routeWaypointIcon}>
               <Tooltip permanent direction="top" offset={[0, -8]} className="waypoint-label">
@@ -225,14 +228,10 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           ))}
 
-          {/* Aircraft position */}
-          {curPos && (
-            <AircraftMarker position={curPos} heading={flightData.heading} />
-          )}
+          {curPos && <AircraftMarker position={curPos} heading={flightData.heading} />}
         </MapContainer>
       </div>
 
-      {/* Info bar */}
       <div className="p-2 bg-slate-900/80 flex items-center justify-between text-xs font-mono">
         <span className="text-slate-400">HDG {Math.round(flightData.heading || 0)}°</span>
         <span className="text-slate-400">ALT {Math.round(flightData.altitude || 0).toLocaleString()} ft</span>
