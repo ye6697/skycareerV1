@@ -146,11 +146,11 @@ export default function Finances() {
     });
 
     // Convert to array, sorted by date (most recent last), max 14 entries
-    return Object.entries(grouped)
+    // Sort by date ascending (oldest left, newest right)
+    const sorted = Object.entries(grouped)
       .map(([name, data]) => ({ name, ...data }))
-      .reverse()
-      .slice(0, 14)
-      .reverse();
+      .slice(0, 14);
+    return sorted;
   }, [transactions]);
 
   return (

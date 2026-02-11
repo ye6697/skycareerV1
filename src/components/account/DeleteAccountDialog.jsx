@@ -29,7 +29,6 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
         base44.entities.XPlaneLog.filter({ company_id: company.id }),
       ]);
 
-      // Delete all in parallel batches
       const deleteAll = async (items, entity) => {
         for (const item of items) {
           await entity.delete(item.id);
@@ -48,11 +47,11 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
       // Delete company
       await base44.entities.Company.delete(company.id);
 
-      // Clear user company_id
-      await base44.auth.updateMe({ company_id: null });
+      // Logout the user completely (this removes their session)
+      await base44.auth.logout();
     },
     onSuccess: () => {
-      window.location.reload();
+      // logout already redirects
     }
   });
 
@@ -60,13 +59,13 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-slate-800 border-slate-700 text-white">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-500">
             <AlertTriangle className="w-5 h-5" />
-            Account löschen
+            Account endgültig löschen
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-slate-400">
             Diese Aktion kann nicht rückgängig gemacht werden!
           </DialogDescription>
         </DialogHeader>
@@ -76,10 +75,10 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
             <p><strong>Folgendes wird unwiderruflich gelöscht:</strong></p>
             <ul className="list-disc list-inside space-y-1 text-red-400">
               <li>Deine Firma "{company?.name}"</li>
-              <li>Alle Flugzeuge und Mitarbeiter</li>
-              <li>Alle Flüge und Aufträge</li>
+              <li>Alle Flugzeuge, Mitarbeiter, Flüge, Aufträge</li>
               <li>Alle Finanzdaten und Transaktionen</li>
               <li>Dein gesamter Fortschritt</li>
+              <li>Du wirst ausgeloggt</li>
             </ul>
           </div>
 
@@ -91,14 +90,14 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="LÖSCHEN"
-              className="bg-slate-800 border-slate-700"
+              className="bg-slate-900 border-slate-600"
             />
           </div>
 
           <div className="flex gap-3">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 border-slate-600 text-slate-300 hover:text-white"
               onClick={() => onOpenChange(false)}
             >
               Abbrechen
