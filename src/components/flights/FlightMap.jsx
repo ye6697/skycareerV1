@@ -142,11 +142,11 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           )}
         </div>
       </div>
-      <div className="h-[300px] sm:h-[350px] mt-2">
+      <div style={{ height: '350px', width: '100%' }} className="mt-2 relative">
         <MapContainer
           center={center}
-          zoom={6}
-          style={{ height: '100%', width: '100%' }}
+          zoom={7}
+          style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           zoomControl={false}
           attributionControl={false}
         >
