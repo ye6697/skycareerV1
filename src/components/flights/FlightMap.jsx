@@ -256,6 +256,11 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           ))}
 
+          {/* Nearby airports within 100nm - live mode only */}
+          {!staticMode && hasPosition && (
+            <NearbyAirports latitude={fd.latitude} longitude={fd.longitude} radiusNm={100} />
+          )}
+
           {curPos && !staticMode && <AircraftMarker position={curPos} heading={fd.heading} />}
         </MapContainer>
       </div>
