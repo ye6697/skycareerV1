@@ -74,18 +74,23 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const company = companies[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
-      // Repair cost is 30% of original purchase price
-      const repairPrice = (aircraft.purchase_price || 0) * 0.30;
-      // After repair, reduce the current value by 10% of repair cost permanently
-      const valueReduction = repairPrice * 0.10;
-      const newValue = Math.max(0, currentValue - valueReduction);
+      const repairPrice = accumulatedMaintCost;
+      if (repairPrice <= 0) return;
       
-      // If value reaches 0, it's a total loss
+      // 5% permanent value reduction
+      const valueReduction = repairPrice * 0.05;
+      const newValue = Math.max(0, rawCurrentValue - valueReduction);
+      
       const newStatus = newValue <= 0 ? 'total_loss' : 'available';
+      
+      // Reset all maintenance categories
+      const newCats = {};
+      ['engine','hydraulics','avionics','airframe','landing_gear','electrical','flight_controls','pressurization'].forEach(c => { newCats[c] = 0; });
       
       await base44.entities.Aircraft.update(aircraft.id, { 
         status: newStatus,
         accumulated_maintenance_cost: 0,
+        maintenance_categories: newCats,
         current_value: newValue
       });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - repairPrice });
