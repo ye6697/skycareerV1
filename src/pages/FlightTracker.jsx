@@ -515,7 +515,12 @@ export default function FlightTracker() {
      }
      
      // Realistic cost calculations based on aviation industry
-     const fuelUsed = (100 - finalFlightData.fuel) * 10; // kg -> convert to liters (1kg ≈ 1.3L for Jet-A)
+     // Use actual X-Plane fuel data: initial_fuel_kg - current fuel_kg
+     const xpData = activeFlight?.xplane_data || {};
+     const initialFuelKg = xpData.initial_fuel_kg || 0;
+     const currentFuelKg = finalFlightData.fuelKg || xpData.fuel_kg || 0;
+     const fuelUsedKg = Math.max(0, initialFuelKg - currentFuelKg);
+     const fuelUsed = fuelUsedKg * 1.25; // kg -> liters (Jet-A density ~0.8 kg/L, so 1kg ≈ 1.25L)
      const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
      const fuelCost = fuelUsed * fuelCostPerLiter;
 
