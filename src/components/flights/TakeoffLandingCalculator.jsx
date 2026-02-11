@@ -3,21 +3,20 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { base44 } from "@/api/base44Client";
-import { Loader2, PlaneTakeoff, PlaneLanding, Wind, Thermometer, AlertCircle, CheckCircle, Mountain, ChevronRight, RefreshCw } from 'lucide-react';
+import { Loader2, PlaneTakeoff, PlaneLanding, Wind, Thermometer, AlertCircle, CheckCircle, Mountain, ChevronRight, Download } from 'lucide-react';
 
-// ─── ICAO Performance Database (dynamically fetched via LLM) ───
-// Cache fetched profiles so we don't re-fetch for the same ICAO type
+// Cache fetched profiles
 const profileCache = {};
 
-// ─── Fallback generic profile if LLM fails ───
 const FALLBACK_PROFILE = {
   label: 'Generic', short: 'GEN',
   vStallClean: 120, vStallFull: 100,
   typicalMTOW: 70000, typicalMLW: 60000,
-  refSpeed: { v1: 135, vr: 145, v2: 152 },
-  vref: 130, vapp: 135,
+  v1_mtow: 135, vr_mtow: 148, v2_mtow: 157,
+  vref_mlw: 130, vapp_mlw: 140,
   todr_sea: 2000, ldr_sea: 1400,
   takeoffFlaps: 'Flaps 5', landingFlaps: 'Flaps FULL',
 };
@@ -32,11 +31,6 @@ function calcPressureCorrection(qnh) {
   return (1013 - qnh) * 30;
 }
 
-function calcWeightFactor(actualWeight, refWeight) {
-  if (!refWeight || !actualWeight) return 1;
-  return actualWeight / refWeight;
-}
-
 function calcRunwayCorrection(slopePct, headwindKts) {
   let factor = 1;
   factor += (slopePct || 0) * 0.05;
@@ -45,15 +39,39 @@ function calcRunwayCorrection(slopePct, headwindKts) {
   return Math.max(0.5, factor);
 }
 
-function calcVSpeedsAdjusted(profile, weightFactor) {
-  const wf = Math.sqrt(weightFactor);
-  return {
-    v1: Math.round(profile.refSpeed.v1 * wf),
-    vr: Math.round(profile.refSpeed.vr * wf),
-    v2: Math.round(profile.refSpeed.v2 * wf),
-    vref: Math.round(profile.vref * wf),
-    vapp: Math.round(profile.vapp * wf),
-  };
+/**
+ * V-Speed calculation: V1, VR, V2 scale with sqrt(weight ratio) from MTOW reference.
+ * The LLM provides V1/VR/V2 at MTOW. We adjust for actual weight.
+ * V1 < VR < V2 must always hold. We enforce separation.
+ */
+function calcTakeoffSpeeds(profile, actualWeightKg) {
+  const mtow = profile.typicalMTOW || 70000;
+  const w = actualWeightKg || mtow;
+  const ratio = Math.sqrt(w / mtow);
+  
+  let v1 = Math.round(profile.v1_mtow * ratio);
+  let vr = Math.round(profile.vr_mtow * ratio);
+  let v2 = Math.round(profile.v2_mtow * ratio);
+  
+  // Enforce V1 < VR < V2 with minimum 3kt separation
+  if (vr <= v1) vr = v1 + 3;
+  if (v2 <= vr) v2 = vr + 5;
+  
+  return { v1, vr, v2 };
+}
+
+function calcLandingSpeeds(profile, actualWeightKg) {
+  const mlw = profile.typicalMLW || profile.typicalMTOW * 0.85;
+  const w = actualWeightKg || mlw;
+  const ratio = Math.sqrt(w / mlw);
+  
+  let vref = Math.round(profile.vref_mlw * ratio);
+  let vapp = Math.round(profile.vapp_mlw * ratio);
+  
+  // Enforce VAPP > VREF
+  if (vapp <= vref) vapp = vref + 5;
+  
+  return { vref, vapp };
 }
 
 // ─── EFB sub-components ───
@@ -156,31 +174,57 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
 
   // Input state
   const [weight, setWeight] = useState('');
-  const [tempC, setTempC] = useState('15');
-  const [elevFt, setElevFt] = useState('0');
-  const [qnh, setQnh] = useState('1013');
-  const [wind, setWind] = useState('0');
+  const [tempC, setTempC] = useState('');
+  const [elevFt, setElevFt] = useState('');
+  const [qnh, setQnh] = useState('');
+  const [wind, setWind] = useState('');
   const [rwyLength, setRwyLength] = useState('');
   const [slopePct, setSlopePct] = useState('0');
   const [rwyCondition, setRwyCondition] = useState('dry');
 
   const [ldgWeight, setLdgWeight] = useState('');
-  const [ldgElevFt, setLdgElevFt] = useState('0');
-  const [ldgTempC, setLdgTempC] = useState('15');
-  const [ldgQnh, setLdgQnh] = useState('1013');
-  const [ldgWind, setLdgWind] = useState('0');
+  const [ldgElevFt, setLdgElevFt] = useState('');
+  const [ldgTempC, setLdgTempC] = useState('');
+  const [ldgQnh, setLdgQnh] = useState('');
+  const [ldgWind, setLdgWind] = useState('');
   const [ldgRwyLength, setLdgRwyLength] = useState('');
   const [ldgSlopePct, setLdgSlopePct] = useState('0');
   const [ldgRwyCondition, setLdgRwyCondition] = useState('dry');
 
   const [autoFilled, setAutoFilled] = useState(false);
 
+  // ─── Autofill: only on button click, one-time ───
+  const handleAutoFill = useCallback(() => {
+    if (!xplaneData) return;
+    const xp = xplaneData;
+    if (xp.total_weight_kg && xp.total_weight_kg > 0) {
+      setWeight(String(Math.round(xp.total_weight_kg)));
+      setLdgWeight(String(Math.round(xp.total_weight_kg * 0.92)));
+    }
+    if (xp.oat_c !== null && xp.oat_c !== undefined) {
+      setTempC(String(Math.round(xp.oat_c)));
+      setLdgTempC(String(Math.round(xp.oat_c)));
+    }
+    if (xp.ground_elevation_ft && xp.ground_elevation_ft > -1000) {
+      setElevFt(String(Math.round(xp.ground_elevation_ft)));
+      setLdgElevFt(String(Math.round(xp.ground_elevation_ft)));
+    }
+    if (xp.baro_setting && xp.baro_setting > 900) {
+      setQnh(String(Math.round(xp.baro_setting)));
+      setLdgQnh(String(Math.round(xp.baro_setting)));
+    }
+    if (xp.wind_speed_kts !== null && xp.wind_speed_kts !== undefined) {
+      setWind(String(Math.round(xp.wind_speed_kts)));
+      setLdgWind(String(Math.round(xp.wind_speed_kts)));
+    }
+    setAutoFilled(true);
+  }, [xplaneData]);
+
   // ─── Fetch realistic profile from LLM based on X-Plane ICAO type ───
   const fetchProfileForICAO = useCallback(async (icaoCode) => {
     if (!icaoCode || icaoCode.length < 2) return;
     const key = icaoCode.toUpperCase().trim();
     
-    // Check cache
     if (profileCache[key]) {
       setProfile(profileCache[key]);
       setProfileSource(key);
@@ -189,60 +233,73 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
 
     setProfileLoading(true);
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an aviation performance engineer. Given the X-Plane 12 aircraft ICAO type code "${key}", provide REALISTIC performance data for this EXACT aircraft type.
+      prompt: `You are an aviation performance engineer with access to aircraft performance manuals. Given the X-Plane 12 aircraft ICAO type designator "${key}", provide REALISTIC performance data.
 
-If you recognize the ICAO code, use real-world published performance data. Examples:
-- B738 = Boeing 737-800
-- A320 = Airbus A320
-- C172 = Cessna 172 Skyhawk
-- TBM9 = Daher TBM 930
-- B789 = Boeing 787-9
-- AT76 = ATR 72-600
-- E195 = Embraer E195
-- ZLIN = Zlin aircraft
-- SR22 = Cirrus SR22
+CRITICAL RULES:
+1. V1, VR, V2 MUST be DIFFERENT values. V1 < VR < V2 always. Typical gaps: V1 is ~5-15kt below VR, V2 is ~7-15kt above VR.
+2. VREF and VAPP must be different. VAPP = VREF + 5 to 10kt.
+3. Use REAL published values from the aircraft's FCOM/POH/AFM. Not estimates.
+4. All speeds in KIAS, distances in meters, weights in kg.
 
-Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. All weights in kg.
-- typicalMTOW: Maximum Takeoff Weight
-- typicalMLW: Maximum Landing Weight
-- v1: Decision speed at MTOW sea level
-- vr: Rotation speed at MTOW sea level
-- v2: Takeoff safety speed at MTOW sea level
-- vref: Reference landing speed at typical landing weight
-- vapp: Approach speed (vref + 5-10 kts wind correction)
-- vStallClean: Stall speed clean config
-- vStallFull: Stall speed full flaps
-- todr_sea: Takeoff distance required at MTOW, sea level, ISA, dry
-- ldr_sea: Landing distance required at MLW, sea level, ISA, dry
-- takeoffFlaps: Recommended takeoff flap setting string
-- landingFlaps: Recommended landing flap setting string
-- label: Full aircraft name (e.g. "Boeing 737-800")
-- short: Short code (e.g. "B738")`,
+Examples of CORRECT V-speed relationships:
+- B738 MTOW: V1=142, VR=150, V2=157
+- A320 MTOW: V1=143, VR=148, V2=157  
+- C172 MTOW: V1=N/A, VR=55, V2=65 (for single engine: V1=VR-5)
+- B789 MTOW: V1=155, VR=168, V2=176
+- AT76 MTOW: V1=107, VR=113, V2=120
+
+Return these fields:
+- label: Full aircraft name
+- short: ICAO code
+- vStallClean: VS1 clean stall speed KIAS
+- vStallFull: VS0 full flap stall speed KIAS
+- typicalMTOW: Maximum Takeoff Weight kg
+- typicalMLW: Maximum Landing Weight kg
+- v1_mtow: V1 decision speed at MTOW sea level ISA (MUST be less than vr_mtow)
+- vr_mtow: VR rotation speed at MTOW sea level ISA (MUST be between v1 and v2)
+- v2_mtow: V2 takeoff safety speed at MTOW sea level ISA (MUST be greater than vr_mtow)
+- vref_mlw: VREF at MLW (approach reference speed)
+- vapp_mlw: VAPP at MLW (VREF + additive, MUST be > vref_mlw)
+- todr_sea: Takeoff Distance Required at MTOW, sea level, ISA, dry runway (meters)
+- ldr_sea: Landing Distance Required at MLW, sea level, ISA, dry runway (meters)
+- takeoffFlaps: Recommended takeoff flap setting (e.g. "CONF 1+F", "Flaps 5", "Flaps 10°")
+- landingFlaps: Recommended landing flap setting (e.g. "CONF FULL", "Flaps 30", "Flaps FULL")`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
           label: { type: "string" },
           short: { type: "string" },
-          vStallClean: { type: "number", description: "Stall speed clean KIAS" },
-          vStallFull: { type: "number", description: "Stall speed full flaps KIAS" },
-          typicalMTOW: { type: "number", description: "MTOW in kg" },
-          typicalMLW: { type: "number", description: "MLW in kg" },
-          v1: { type: "number", description: "V1 decision speed KIAS at MTOW" },
-          vr: { type: "number", description: "Rotation speed KIAS at MTOW" },
-          v2: { type: "number", description: "Takeoff safety speed KIAS" },
-          vref: { type: "number", description: "Reference landing speed KIAS" },
-          vapp: { type: "number", description: "Approach speed KIAS" },
-          todr_sea: { type: "number", description: "TODR at MTOW sea level ISA dry in meters" },
-          ldr_sea: { type: "number", description: "LDR at MLW sea level ISA dry in meters" },
-          takeoffFlaps: { type: "string", description: "Recommended takeoff flap setting" },
-          landingFlaps: { type: "string", description: "Recommended landing flap setting" }
+          vStallClean: { type: "number" },
+          vStallFull: { type: "number" },
+          typicalMTOW: { type: "number" },
+          typicalMLW: { type: "number" },
+          v1_mtow: { type: "number", description: "V1 at MTOW, MUST be less than vr_mtow" },
+          vr_mtow: { type: "number", description: "VR at MTOW, MUST be between v1 and v2" },
+          v2_mtow: { type: "number", description: "V2 at MTOW, MUST be greater than vr_mtow" },
+          vref_mlw: { type: "number", description: "VREF at MLW" },
+          vapp_mlw: { type: "number", description: "VAPP at MLW, must be > vref_mlw" },
+          todr_sea: { type: "number" },
+          ldr_sea: { type: "number" },
+          takeoffFlaps: { type: "string" },
+          landingFlaps: { type: "string" }
         },
-        required: ["label", "short", "vStallClean", "vStallFull", "typicalMTOW", "typicalMLW", "v1", "vr", "v2", "vref", "vapp", "todr_sea", "ldr_sea", "takeoffFlaps", "landingFlaps"]
+        required: ["label", "short", "vStallClean", "vStallFull", "typicalMTOW", "typicalMLW", "v1_mtow", "vr_mtow", "v2_mtow", "vref_mlw", "vapp_mlw", "todr_sea", "ldr_sea", "takeoffFlaps", "landingFlaps"]
       }
     });
 
-    if (result && result.v1 && result.vr) {
+    if (result && result.vr_mtow) {
+      // Enforce correct ordering even if LLM messes up
+      let v1 = result.v1_mtow;
+      let vr = result.vr_mtow;
+      let v2 = result.v2_mtow;
+      if (v1 >= vr) v1 = vr - 6;
+      if (v2 <= vr) v2 = vr + 7;
+      
+      let vref = result.vref_mlw;
+      let vapp = result.vapp_mlw;
+      if (vapp <= vref) vapp = vref + 5;
+
       const newProfile = {
         label: result.label || key,
         short: result.short || key,
@@ -250,9 +307,11 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
         vStallFull: result.vStallFull,
         typicalMTOW: result.typicalMTOW,
         typicalMLW: result.typicalMLW || result.typicalMTOW * 0.85,
-        refSpeed: { v1: result.v1, vr: result.vr, v2: result.v2 },
-        vref: result.vref,
-        vapp: result.vapp,
+        v1_mtow: v1,
+        vr_mtow: vr,
+        v2_mtow: v2,
+        vref_mlw: vref,
+        vapp_mlw: vapp,
         todr_sea: result.todr_sea,
         ldr_sea: result.ldr_sea,
         takeoffFlaps: result.takeoffFlaps,
@@ -275,32 +334,6 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
     }
   }, [xplaneData?.aircraft_icao, fetchProfileForICAO]);
 
-  // ─── Auto-fill from X-Plane live data ───
-  useEffect(() => {
-    if (!xplaneData) return;
-    const xp = xplaneData;
-    if (xp.total_weight_kg && xp.total_weight_kg > 0) {
-      setWeight(String(Math.round(xp.total_weight_kg)));
-      setLdgWeight(String(Math.round(xp.total_weight_kg * 0.92)));
-    }
-    if (xp.oat_c !== null && xp.oat_c !== undefined) {
-      setTempC(String(Math.round(xp.oat_c)));
-      setLdgTempC(String(Math.round(xp.oat_c)));
-    }
-    if (xp.ground_elevation_ft && xp.ground_elevation_ft > -1000) {
-      setElevFt(String(Math.round(xp.ground_elevation_ft)));
-    }
-    if (xp.baro_setting && xp.baro_setting > 900) {
-      setQnh(String(Math.round(xp.baro_setting)));
-      setLdgQnh(String(Math.round(xp.baro_setting)));
-    }
-    if (xp.wind_speed_kts !== null && xp.wind_speed_kts !== undefined) {
-      setWind(String(Math.round(xp.wind_speed_kts)));
-      setLdgWind(String(Math.round(xp.wind_speed_kts)));
-    }
-    if (!autoFilled) setAutoFilled(true);
-  }, [xplaneData]);
-
   // ─── Calculations ───
   const conditionFactor = { dry: 1.0, wet: 1.15, contaminated: 1.4 };
 
@@ -314,21 +347,22 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
     const sl = parseFloat(slopePct) || 0;
 
     const da = calcDensityAltitude(e + calcPressureCorrection(q), t);
-    const wf = calcWeightFactor(w, profile.typicalMTOW);
+    const wf = w / (profile.typicalMTOW || 70000);
     const rwCorr = calcRunwayCorrection(sl, hw);
     const cndFactor = conditionFactor[rwyCondition] || 1;
     const daFactor = 1 + (Math.max(0, da) / 1000) * 0.07;
     const todr = Math.round(profile.todr_sea * wf * daFactor * rwCorr * cndFactor);
 
-    const speeds = calcVSpeedsAdjusted(profile, wf);
+    const speeds = calcTakeoffSpeeds(profile, w);
     const margin = rwy - todr;
     const adequate = margin > 0;
     const marginPct = ((margin / rwy) * 100).toFixed(0);
-    return { todr, da: Math.round(da), speeds, margin, adequate, marginPct, rwy, wf };
+    return { todr, da: Math.round(da), speeds, margin, adequate, marginPct, rwy };
   }, [weight, tempC, elevFt, qnh, wind, rwyLength, slopePct, rwyCondition, profile]);
 
   const landingCalc = useMemo(() => {
-    const w = parseFloat(ldgWeight) || (profile.typicalMLW || profile.typicalMTOW * 0.85);
+    const mlw = profile.typicalMLW || profile.typicalMTOW * 0.85;
+    const w = parseFloat(ldgWeight) || mlw;
     const t = parseFloat(ldgTempC) || 15;
     const e = parseFloat(ldgElevFt) || 0;
     const q = parseFloat(ldgQnh) || 1013;
@@ -337,18 +371,20 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
     const sl = parseFloat(ldgSlopePct) || 0;
 
     const da = calcDensityAltitude(e + calcPressureCorrection(q), t);
-    const wf = calcWeightFactor(w, profile.typicalMLW || profile.typicalMTOW * 0.85);
+    const wf = w / mlw;
     const rwCorr = calcRunwayCorrection(-sl, hw);
     const cndFactor = conditionFactor[ldgRwyCondition] || 1;
     const daFactor = 1 + (Math.max(0, da) / 1000) * 0.05;
     const ldr = Math.round(profile.ldr_sea * wf * daFactor * rwCorr * cndFactor);
 
-    const speeds = calcVSpeedsAdjusted(profile, wf);
+    const speeds = calcLandingSpeeds(profile, w);
     const margin = rwy - ldr;
     const adequate = margin > 0;
     const marginPct = ((margin / rwy) * 100).toFixed(0);
-    return { ldr, da: Math.round(da), speeds, margin, adequate, marginPct, rwy, wf };
+    return { ldr, da: Math.round(da), speeds, margin, adequate, marginPct, rwy };
   }, [ldgWeight, ldgTempC, ldgElevFt, ldgQnh, ldgWind, ldgRwyLength, ldgSlopePct, ldgRwyCondition, profile]);
+
+  const hasXPlaneData = xplaneData && (xplaneData.total_weight_kg > 0 || xplaneData.oat_c !== undefined);
 
   return (
     <Card className="bg-slate-950 border-slate-800 overflow-hidden shadow-2xl">
@@ -361,7 +397,7 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {profileLoading && (
             <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px] px-2 py-0.5">
-              <Loader2 className="w-3 h-3 animate-spin mr-1" /> LOADING PERF...
+              <Loader2 className="w-3 h-3 animate-spin mr-1" /> LOADING...
             </Badge>
           )}
           {profileSource !== 'fallback' && !profileLoading && (
@@ -369,15 +405,9 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
               {profile.label}
             </Badge>
           )}
-          {aircraft?.name && (
+          {aircraft?.registration && (
             <Badge className="bg-slate-800 text-slate-300 border-slate-700 text-[10px] px-2 py-0.5">
-              {aircraft.registration || aircraft.name}
-            </Badge>
-          )}
-          {autoFilled && (
-            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] px-2 py-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
-              LIVE
+              {aircraft.registration}
             </Badge>
           )}
         </div>
@@ -390,8 +420,21 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
           <span>MLW <span className="text-slate-300">{(profile.typicalMLW || 0).toLocaleString()} KG</span></span>
           <span>VS0 <span className="text-slate-300">{profile.vStallFull} KT</span></span>
           <span>VS1 <span className="text-slate-300">{profile.vStallClean} KT</span></span>
-          <span>TODR <span className="text-slate-300">{(profile.todr_sea || 0).toLocaleString()} M</span></span>
-          <span>LDR <span className="text-slate-300">{(profile.ldr_sea || 0).toLocaleString()} M</span></span>
+        </div>
+      )}
+
+      {/* Autofill Button */}
+      {hasXPlaneData && (
+        <div className="px-4 py-2 border-b border-slate-800/50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAutoFill}
+            className="w-full bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 text-[11px] font-bold tracking-wider h-8"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" />
+            {autoFilled ? 'ERNEUT AUTOFILL VON X-PLANE' : 'AUTOFILL VON X-PLANE'}
+          </Button>
         </div>
       )}
 
@@ -462,7 +505,7 @@ Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. 
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <ParamInput label="LDG WT" value={ldgWeight} onChange={setLdgWeight} placeholder={String(Math.round((profile.typicalMLW || profile.typicalMTOW * 0.85)))} unit="KG" />
+            <ParamInput label="LDG WT" value={ldgWeight} onChange={setLdgWeight} placeholder={String(Math.round(profile.typicalMLW || profile.typicalMTOW * 0.85))} unit="KG" />
             <ParamInput label="OAT" value={ldgTempC} onChange={setLdgTempC} placeholder="15" unit="°C" icon={Thermometer} />
             <ParamInput label="ELEV" value={ldgElevFt} onChange={setLdgElevFt} placeholder="0" unit="FT" icon={Mountain} />
             <ParamInput label="QNH" value={ldgQnh} onChange={setLdgQnh} placeholder="1013" unit="HPA" />
