@@ -538,7 +538,12 @@ export default function FlightTracker() {
      }
 
      // Time efficiency bonus/penalty based on contract deadline
-     const deadlineMinutes = contract?.deadline_minutes || Math.round((contract?.distance_nm || 500) / 250 * 60 * 1.5 + 15);
+     // Dynamic deadline: use X-Plane aircraft ICAO if available, fallback to fleet aircraft type
+     const xplaneIcao = xpData.aircraft_icao || activeFlight?.xplane_data?.aircraft_icao || null;
+     const fleetType = assignedAircraft?.type || null;
+     const deadlineMinutes = (contract?.distance_nm)
+       ? calculateDeadlineMinutes(contract.distance_nm, xplaneIcao, fleetType)
+       : (contract?.deadline_minutes || 120);
      const deadlineHours = deadlineMinutes / 60;
      let timeBonus = 0;
      let timeScoreChange = 0;
