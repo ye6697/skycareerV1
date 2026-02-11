@@ -64,6 +64,11 @@ local crash_detected = false
 -- Track last sent failure count to only send when changed
 local last_sent_failure_count = 0
 
+-- FMS waypoint cache
+local last_fms_send = 0
+local fms_send_interval = 30.0
+local cached_fms_json = ""
+
 ----------------------------
 -- FAILURE SYSTEM
 ----------------------------
