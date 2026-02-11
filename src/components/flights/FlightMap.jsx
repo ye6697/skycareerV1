@@ -87,11 +87,14 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   const arrPos = hasArr ? [flightData.arrival_lat, flightData.arrival_lon] : null;
   const curPos = hasPosition ? [flightData.latitude, flightData.longitude] : null;
 
+  // Determine which waypoints to use: live FMS waypoints take priority, then generated route waypoints
+  const activeWaypoints = waypoints.length > 0 ? waypoints : routeWaypoints;
+
   // Build route line: departure -> waypoints -> arrival
   const routePoints = [];
   if (depPos) routePoints.push(depPos);
-  if (waypoints.length > 0) {
-    waypoints.forEach(wp => {
+  if (activeWaypoints.length > 0) {
+    activeWaypoints.forEach(wp => {
       if (wp.lat && wp.lon) routePoints.push([wp.lat, wp.lon]);
     });
   }
