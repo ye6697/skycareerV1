@@ -393,6 +393,15 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
             <ConditionSelector value={rwyCondition} onChange={setRwyCondition} />
           </div>
 
+          {/* Flap Setting */}
+          <div className="flex items-center gap-2 p-2.5 bg-blue-500/10 border border-blue-700/30 rounded-lg">
+            <PlaneTakeoff className="w-5 h-5 text-blue-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-blue-400">Takeoff Flaps: <span className="font-bold">{flapRec.takeoff}</span></p>
+              <p className="text-[10px] text-blue-300/60">{flapRec.source ? `Basierend auf ${flapRec.source}` : `Empfehlung für ${profile.label}`}</p>
+            </div>
+          </div>
+
           {/* V-Speeds */}
           <div>
             <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-semibold">V-Speeds</h4>
