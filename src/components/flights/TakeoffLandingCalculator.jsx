@@ -130,7 +130,7 @@ function ResultRow({ label, value, status, unit }) {
   );
 }
 
-export default function TakeoffLandingCalculator({ aircraft, contract }) {
+export default function TakeoffLandingCalculator({ aircraft, contract, xplaneData }) {
   const acType = aircraft?.type || 'narrow_body';
   const profile = AIRCRAFT_PROFILES[acType] || AIRCRAFT_PROFILES.narrow_body;
 
@@ -153,6 +153,43 @@ export default function TakeoffLandingCalculator({ aircraft, contract }) {
   const [ldgRwyLength, setLdgRwyLength] = useState('');
   const [ldgSlopePct, setLdgSlopePct] = useState('0');
   const [ldgRwyCondition, setLdgRwyCondition] = useState('dry');
+  
+  // Track whether auto-fill has been applied
+  const [autoFilled, setAutoFilled] = useState(false);
+  
+  // Auto-fill from X-Plane live data
+  React.useEffect(() => {
+    if (!xplaneData || autoFilled) return;
+    const xp = xplaneData;
+    let didFill = false;
+    
+    if (xp.total_weight_kg && xp.total_weight_kg > 0) {
+      setWeight(String(Math.round(xp.total_weight_kg)));
+      setLdgWeight(String(Math.round(xp.total_weight_kg * 0.85)));
+      didFill = true;
+    }
+    if (xp.oat_c !== null && xp.oat_c !== undefined) {
+      setTempC(String(Math.round(xp.oat_c)));
+      setLdgTempC(String(Math.round(xp.oat_c)));
+      didFill = true;
+    }
+    if (xp.ground_elevation_ft && xp.ground_elevation_ft > -1000) {
+      setElevFt(String(Math.round(xp.ground_elevation_ft)));
+      didFill = true;
+    }
+    if (xp.baro_setting && xp.baro_setting > 900) {
+      setQnh(String(Math.round(xp.baro_setting)));
+      setLdgQnh(String(Math.round(xp.baro_setting)));
+      didFill = true;
+    }
+    if (xp.wind_speed_kts !== null && xp.wind_speed_kts !== undefined) {
+      // Approximate headwind component (positive = headwind assumed)
+      setWind(String(Math.round(xp.wind_speed_kts)));
+      setLdgWind(String(Math.round(xp.wind_speed_kts)));
+      didFill = true;
+    }
+    if (didFill) setAutoFilled(true);
+  }, [xplaneData, autoFilled]);
 
   const conditionFactor = { dry: 1.0, wet: 1.15, contaminated: 1.4 };
 
