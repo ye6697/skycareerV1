@@ -119,6 +119,16 @@ Deno.serve(async (req) => {
     
     // Active flight exists - skip XPlaneLog write entirely to maximize speed
 
+    // Extract new aircraft/env fields from plugin
+    const total_weight_kg = data.total_weight_kg;
+    const oat_c = data.oat_c;
+    const ground_elevation_ft = data.ground_elevation_ft;
+    const baro_setting = data.baro_setting;
+    const wind_speed_kts = data.wind_speed_kts;
+    const wind_direction = data.wind_direction;
+    const aircraft_icao = data.aircraft_icao;
+    const fms_waypoints = data.fms_waypoints; // array of {name, lat, lon, alt}
+
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
     const wasAirborne = flight.xplane_data?.was_airborne || false;
     const isNowAirborne = !on_ground && altitude > 50;
@@ -167,6 +177,16 @@ Deno.serve(async (req) => {
       departure_lon: data.departure_lon || (flight.xplane_data?.departure_lon || 0),
       arrival_lat: data.arrival_lat || (flight.xplane_data?.arrival_lat || 0),
       arrival_lon: data.arrival_lon || (flight.xplane_data?.arrival_lon || 0),
+      // Aircraft environment data for calculator
+      total_weight_kg: total_weight_kg || (flight.xplane_data?.total_weight_kg || null),
+      oat_c: oat_c !== undefined ? oat_c : (flight.xplane_data?.oat_c ?? null),
+      ground_elevation_ft: ground_elevation_ft || (flight.xplane_data?.ground_elevation_ft || null),
+      baro_setting: baro_setting || (flight.xplane_data?.baro_setting || null),
+      wind_speed_kts: wind_speed_kts !== undefined ? wind_speed_kts : (flight.xplane_data?.wind_speed_kts ?? null),
+      wind_direction: wind_direction !== undefined ? wind_direction : (flight.xplane_data?.wind_direction ?? null),
+      aircraft_icao: aircraft_icao || (flight.xplane_data?.aircraft_icao || null),
+      // FMS waypoints - only update if plugin sends them (they don't change often)
+      fms_waypoints: fms_waypoints || (flight.xplane_data?.fms_waypoints || []),
       timestamp: new Date().toISOString()
     };
 
