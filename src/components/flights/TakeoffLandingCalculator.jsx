@@ -351,9 +351,11 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
 
         {/* ═══ LANDING TAB ═══ */}
         <TabsContent value="landing" className="p-4 space-y-4 mt-0">
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
             <Badge className="bg-slate-700 text-slate-300">{profile.label}</Badge>
+            {xplaneData?.aircraft_icao && <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">{xplaneData.aircraft_icao}</Badge>}
             {contract && <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">{contract.arrival_airport}</Badge>}
+            {autoFilled && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Live-Daten</Badge>}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
