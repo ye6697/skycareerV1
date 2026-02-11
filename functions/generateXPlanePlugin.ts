@@ -203,6 +203,23 @@ class PythonInterface:
             overspeed = xp.getDatai(self.datarefs['overspeed']) == 1
             flaps_overspeed = xp.getDatai(self.datarefs['flap_speed_overflow']) == 1
 
+            # Environment & weight data for calculator
+            total_weight_kg = round(xp.getDataf(self.datarefs['total_weight']), 0)
+            oat_c = round(xp.getDataf(self.datarefs['oat']), 1)
+            # Ground elevation: altitude MSL - altitude AGL
+            agl_m = xp.getDataf(self.datarefs['ground_elevation'])
+            elev_msl_m = xp.getDataf(self.datarefs['elev_msl'])
+            ground_elevation_ft = round((elev_msl_m - agl_m) * 3.28084, 0)
+            baro_inhg = xp.getDataf(self.datarefs['baro_setting'])
+            baro_hpa = round(baro_inhg * 33.8639, 1)
+            wind_speed_kts = round(xp.getDataf(self.datarefs['wind_speed']), 0)
+            wind_direction = round(xp.getDataf(self.datarefs['wind_direction']), 0)
+            
+            # Aircraft ICAO type
+            acf_icao_bytes = []
+            xp.getDatab(self.datarefs['acf_icao'], acf_icao_bytes, 0, 40)
+            aircraft_icao = ''.join(chr(b) for b in acf_icao_bytes if b > 0).strip()
+
             # Event detection
             tailstrike = pitch > 10 and on_ground
             stall = stall_warning or override_alpha
@@ -216,6 +233,27 @@ class PythonInterface:
                     engines_running = True
                     break
             
+            # Read FMS/flight plan waypoints (only every N seconds to save CPU)
+            send_fms = False
+            if current_time - self.last_fms_send >= self.fms_send_interval:
+                self.last_fms_send = current_time
+                send_fms = True
+                fms_waypoints = []
+                try:
+                    fms_count = xp.getDatai(self.datarefs['fms_count'])
+                    for i in range(min(fms_count, 50)):
+                        info = xp.getFMSEntryInfo(i)
+                        if info and info.navType != xp.Nav_Unknown:
+                            fms_waypoints.append({
+                                'name': info.navAidID if hasattr(info, 'navAidID') else f'WPT{i}',
+                                'lat': round(info.lat, 5),
+                                'lon': round(info.lon, 5),
+                                'alt': round(info.alt * 3.28084, 0) if info.alt else 0
+                            })
+                except Exception:
+                    fms_waypoints = []
+                self.cached_fms_waypoints = fms_waypoints
+
             # Detect takeoff (was on ground, now airborne)
             if self.last_on_ground and not on_ground:
                 self.flight_started = True
@@ -233,6 +271,7 @@ class PythonInterface:
                 'vertical_speed': round(vs, 1),
                 'heading': round(heading, 1),
                 'fuel_percentage': round(fuel_percentage, 1),
+                'fuel_kg': round(fuel_current, 1),
                 'g_force': round(g_force, 2),
                 'latitude': latitude,
                 'longitude': longitude,
@@ -246,7 +285,18 @@ class PythonInterface:
                 'override_alpha': override_alpha,
                 'overspeed': overspeed,
                 'flaps_overspeed': flaps_overspeed,
+                'total_weight_kg': total_weight_kg,
+                'oat_c': oat_c,
+                'ground_elevation_ft': ground_elevation_ft,
+                'baro_setting': baro_hpa,
+                'wind_speed_kts': wind_speed_kts,
+                'wind_direction': wind_direction,
+                'aircraft_icao': aircraft_icao,
             }
+            
+            # Include FMS waypoints only when freshly read
+            if send_fms and self.cached_fms_waypoints:
+                payload['fms_waypoints'] = self.cached_fms_waypoints
             
             # Only include touchdown data when actually landing
             if not self.last_on_ground and on_ground:
