@@ -17,7 +17,6 @@ import {
   Star,
   ChevronRight,
   AlertCircle,
-  Trash2
 } from "lucide-react";
 
 import StatCard from "@/components/dashboard/StatCard";
