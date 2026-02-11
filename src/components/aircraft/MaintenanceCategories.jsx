@@ -77,17 +77,15 @@ export default function MaintenanceCategories({ aircraft }) {
       const cost = getCategoryCost(categoryKey);
       if (cost <= 0) return;
 
-      const valueReduction = cost * 0.05; // 5% of repair cost as permanent value loss
+      const valueReduction = cost * 0.05;
       const newValue = Math.max(0, currentValue - valueReduction);
 
       const newCats = { ...(aircraft.maintenance_categories || {}) };
       newCats[categoryKey] = 0;
 
-      // Recalculate accumulated_maintenance_cost from remaining categories
-      const remaining = categories.reduce((sum, c) => sum + (newCats[c.key] || 0), 0);
-      const newAccum = remaining > 0 ? (purchasePrice * (remaining / 800) * 0.02) : 0;
+      // Subtract this category's cost from accumulated total
+      const newAccum = Math.max(0, accumulatedCost - cost);
 
-      // Determine new status
       const newMaxWear = Math.max(...categories.map(c => newCats[c.key] || 0));
       const newAvgWear = categories.map(c => newCats[c.key] || 0).reduce((a, b) => a + b, 0) / categories.length;
       const stillNeedsMaint = newMaxWear > 75 || newAvgWear > 50;
