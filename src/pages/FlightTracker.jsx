@@ -1858,6 +1858,20 @@ export default function FlightTracker() {
             )}
           </div>
         </div>
+
+        {/* Map & Calculator at bottom, full width */}
+        <div className="space-y-6 mt-6">
+          <FlightMap
+            flightData={flightData}
+            contract={contract}
+            waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
+          />
+          <TakeoffLandingCalculator
+            aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
+            contract={contract}
+            xplaneData={xplaneLog?.raw_data}
+          />
+        </div>
         )}
       </div>
     </div>
