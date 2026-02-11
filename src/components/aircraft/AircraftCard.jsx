@@ -248,6 +248,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                 ${Math.round(currentValue).toLocaleString()}
               </span>
             </div>
+            {accumulatedMaintCost > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-amber-400">Wartungskosten (temp. Abzug):</span>
+                <span className="text-amber-400">-${Math.round(accumulatedMaintCost).toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-400">Neuwert:</span>
               <span className="font-semibold text-slate-300">
