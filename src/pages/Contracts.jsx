@@ -51,10 +51,18 @@ export default function Contracts() {
       return res.data;
     },
     onSuccess: () => {
+      // Refetch page data immediately
       queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
     }
   });
+
+  // Auto-generate on first load if no contracts exist
+  React.useEffect(() => {
+    if (!isLoading && pageData && allContracts.length === 0 && !generateMutation.isPending) {
+      generateMutation.mutate();
+    }
+  }, [isLoading, pageData]);
 
   // Filter available aircraft (not in flight, not sold, not damaged)
   const availableAircraft = ownedAircraft.filter(ac => ac.status === 'available');

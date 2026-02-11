@@ -180,10 +180,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Flugzeuge vorhanden' }, { status: 400 });
     }
 
-    // Delete old available contracts for this company
+    // Delete old available contracts for this company (parallel for speed)
     const oldContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id, status: 'available' });
-    for (const old of oldContracts) {
-      await base44.asServiceRole.entities.Contract.delete(old.id);
+    if (oldContracts.length > 0) {
+      await Promise.all(oldContracts.map(old => base44.asServiceRole.entities.Contract.delete(old.id)));
     }
 
     // Get the types the user owns
