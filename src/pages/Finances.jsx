@@ -33,7 +33,7 @@ import CreditInfoCard from "@/components/finance/CreditInfoCard";
 import LevelBonusInfo from "@/components/finance/LevelBonusInfo";
 
 export default function Finances() {
-  const [period, setPeriod] = useState('week');
+  
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
@@ -198,16 +198,7 @@ export default function Finances() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Chart */}
           <Card className="lg:col-span-2 p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">Einnahmen vs. Ausgaben</h3>
-              <Tabs value={period} onValueChange={setPeriod}>
-                <TabsList>
-                  <TabsTrigger value="week">Woche</TabsTrigger>
-                  <TabsTrigger value="month">Monat</TabsTrigger>
-                  <TabsTrigger value="year">Jahr</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+            <h3 className="text-lg font-semibold text-white mb-6">Einnahmen vs. Ausgaben</h3>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={chartData}>
