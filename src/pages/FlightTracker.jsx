@@ -29,6 +29,7 @@ import FlightRating from "@/components/flights/FlightRating";
 import FlightMap from "@/components/flights/FlightMap";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import RouteWaypoints from "@/components/flights/RouteWaypoints";
+import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 
 export default function FlightTracker() {
   const navigate = useNavigate();
