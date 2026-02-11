@@ -15,17 +15,17 @@ L.Icon.Default.mergeOptions({
 });
 
 function createAircraftIcon(heading) {
-  // The SVG airplane points RIGHT (90°). We subtract 90° so heading 0° = North.
-  const rotation = (heading || 0) - 90;
+  const rotation = heading || 0;
   return new L.DivIcon({
-    html: `<div style="transform:rotate(${rotation}deg);display:flex;align-items:center;justify-content:center;width:36px;height:36px;">
-      <svg width="32" height="32" viewBox="0 0 512 512" fill="#3b82f6" xmlns="http://www.w3.org/2000/svg">
-        <path d="M482 196L336 184 224 16h-48l56 168-151 8L40 128H0l32 128-32 128h40l41-64 151 8-56 168h48l112-168 146-12c18 0 30-14 30-32s-12-32-30-32z"/>
+    html: `<div style="transform:rotate(${rotation}deg);display:flex;align-items:center;justify-content:center;width:44px;height:44px;filter:drop-shadow(0 2px 6px rgba(59,130,246,0.6));">
+      <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#3b82f6" stroke="#1e40af" stroke-width="1.5"/>
+        <circle cx="50" cy="20" r="3" fill="#60a5fa"/>
       </svg>
     </div>`,
     className: '',
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 
@@ -57,6 +57,16 @@ const routeWaypointIcon = new L.DivIcon({
   iconAnchor: [5, 5],
 });
 
+function createRunwayIcon(heading) {
+  const rot = heading || 0;
+  return new L.DivIcon({
+    html: `<div style="transform:rotate(${rot}deg);width:4px;height:28px;background:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.3);border-radius:2px;"></div>`,
+    className: '',
+    iconSize: [4, 28],
+    iconAnchor: [2, 14],
+  });
+}
+
 function MapController({ center, bounds }) {
   const map = useMap();
   const prevCenter = useRef(center);
@@ -77,7 +87,6 @@ function MapController({ center, bounds }) {
   }, [bounds, map]);
 
   useEffect(() => {
-    // Only pan for live tracking (center is null in static mode)
     if (center && (center[0] !== prevCenter.current?.[0] || center[1] !== prevCenter.current?.[1])) {
       map.panTo(center, { animate: true, duration: 1 });
       prevCenter.current = center;
@@ -100,7 +109,7 @@ function AircraftMarker({ position, heading }) {
   return <Marker ref={markerRef} position={position} icon={icon} />;
 }
 
-export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title }) {
+export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title, flightPath = [] }) {
   const fd = flightData || {};
   const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
   const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
@@ -112,6 +121,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
 
   const activeWaypoints = waypoints.length > 0 ? waypoints : routeWaypoints;
 
+  // Planned route (dashed line)
   const routePoints = [];
   if (depPos) routePoints.push(depPos);
   if (activeWaypoints.length > 0) {
@@ -121,17 +131,15 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   }
   if (arrPos) routePoints.push(arrPos);
 
-  // For static mode, the "flown" line is dep → arr (completed)
-  const flownPoints = [];
-  if (staticMode) {
-    if (depPos) flownPoints.push(depPos);
-    if (activeWaypoints.length > 0) {
-      activeWaypoints.forEach(wp => {
-        if (wp.lat && wp.lon) flownPoints.push([wp.lat, wp.lon]);
-      });
-    }
-    if (arrPos) flownPoints.push(arrPos);
+  // Actual flown path (solid line) - prefer recorded flight_path
+  let flownPoints = [];
+  if (flightPath && flightPath.length > 1) {
+    flownPoints = flightPath;
+  } else if (staticMode) {
+    // In static mode without flight_path, use route as fallback
+    flownPoints = routePoints;
   } else {
+    // Live mode: dep -> current position
     if (depPos) flownPoints.push(depPos);
     if (curPos) flownPoints.push(curPos);
   }
@@ -139,11 +147,14 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   const center = curPos || depPos || [50, 10];
 
   let bounds = null;
-  const allPoints = [...routePoints];
+  const allPoints = [...routePoints, ...flownPoints];
   if (curPos) allPoints.push(curPos);
   if (allPoints.length >= 2) {
     bounds = L.latLngBounds(allPoints);
   }
+
+  // Parse runway headings from route data for visualization
+  const depRunway = routeWaypoints.length > 0 ? null : null; // handled via props if needed
 
   if (!hasPosition && !hasDep && !hasArr && routeWaypoints.length === 0) {
     return (
@@ -192,9 +203,12 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
           <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />
 
+          {/* Planned route - dashed */}
           {routePoints.length >= 2 && (
-            <Polyline positions={routePoints} pathOptions={{ color: '#6366f1', weight: 2, dashArray: '8, 8', opacity: 0.5 }} />
+            <Polyline positions={routePoints} pathOptions={{ color: '#6366f1', weight: 2, dashArray: '8, 8', opacity: 0.4 }} />
           )}
+          
+          {/* Actually flown path - solid */}
           {flownPoints.length >= 2 && (
             <Polyline positions={flownPoints} pathOptions={{ color: '#3b82f6', weight: 3, opacity: 0.9 }} />
           )}
@@ -260,6 +274,9 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
       {staticMode && activeWaypoints.length > 0 && (
         <div className="p-2 bg-slate-900/80 flex items-center justify-center text-xs font-mono">
           <span className="text-purple-400">{activeWaypoints.length} Wegpunkte</span>
+          {flightPath && flightPath.length > 1 && (
+            <span className="text-blue-400 ml-4">{flightPath.length} GPS-Punkte</span>
+          )}
         </div>
       )}
     </Card>
