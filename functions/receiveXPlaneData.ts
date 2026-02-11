@@ -204,6 +204,8 @@ Deno.serve(async (req) => {
       aircraft_icao: aircraft_icao || (flight.xplane_data?.aircraft_icao || null),
       // FMS waypoints - only update if plugin sends them (they don't change often)
       fms_waypoints: fms_waypoints || (flight.xplane_data?.fms_waypoints || []),
+      // Flight path for map visualization
+      flight_path: newPath,
       timestamp: new Date().toISOString()
     };
 
