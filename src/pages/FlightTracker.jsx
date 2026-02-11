@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
+import FlightMap from "@/components/flights/FlightMap";
+import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 
 export default function FlightTracker() {
   const navigate = useNavigate();
