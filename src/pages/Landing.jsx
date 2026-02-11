@@ -13,6 +13,7 @@ import {
 
 import LangToggle from '@/components/landing/LangToggle';
 import AppScreenshot from '@/components/landing/AppScreenshot';
+import ComparisonSection from '@/components/landing/ComparisonSection';
 import { t } from '@/components/landing/translations';
 
 const fadeUp = {
@@ -170,6 +171,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ═══════ COMPARISON TABLE ═══════ */}
+      <ComparisonSection L={L} lang={lang} />
 
       {/* ═══════ APP SCREENSHOTS ═══════ */}
       <section id="screens" className="py-16 sm:py-28 px-4 sm:px-6 bg-slate-900/30">
@@ -522,45 +526,6 @@ export default function Landing() {
                 </Card>
               </motion.div>
             ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ═══════ COMPARISON TABLE ═══════ */}
-      <section className="py-16 sm:py-28 px-4 sm:px-6 bg-slate-900/30">
-        <div className="max-w-5xl mx-auto">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-12">
-            <motion.div variants={fadeUp}><Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30 mb-4">{lang === 'en' ? 'Comparison' : 'Vergleich'}</Badge></motion.div>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-5xl font-black mb-3">{L.compare_title}</motion.h2>
-            <motion.p variants={fadeUp} className="text-lg text-slate-400 max-w-2xl mx-auto">{L.compare_sub}</motion.p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-            <Card className="bg-slate-800/40 border-slate-700/50 overflow-hidden">
-              {/* Header */}
-              <div className="grid grid-cols-4 gap-0 bg-slate-800/80 border-b border-slate-700/50">
-                {L.compare_cols.map((col, i) => (
-                  <div key={i} className={`p-3 sm:p-4 text-xs sm:text-sm font-bold ${i === 3 ? 'text-blue-400 bg-blue-500/10' : 'text-slate-400'} ${i === 0 ? 'text-left' : 'text-center'}`}>
-                    {i === 3 && <Sparkles className="w-3.5 h-3.5 inline mr-1 mb-0.5" />}
-                    {col}
-                  </div>
-                ))}
-              </div>
-              {/* Rows */}
-              {L.compare_rows.map((row, i) => (
-                <div key={i} className={`grid grid-cols-4 gap-0 border-b border-slate-800/50 last:border-0 ${i % 2 === 0 ? '' : 'bg-slate-900/20'}`}>
-                  <div className="p-3 sm:p-4 text-xs sm:text-sm text-white font-medium">{row.feature}</div>
-                  <div className="p-3 sm:p-4 text-xs sm:text-sm text-slate-500 text-center">{row.basic}</div>
-                  <div className="p-3 sm:p-4 text-xs sm:text-sm text-slate-500 text-center">{row.advanced}</div>
-                  <div className="p-3 sm:p-4 text-xs sm:text-sm text-center bg-blue-500/5 font-semibold">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                      <span className="text-emerald-400">{row.sky}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </Card>
           </motion.div>
         </div>
       </section>
