@@ -44,7 +44,7 @@ export default function XPlaneDebug() {
       return await base44.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 20);
     },
     enabled: !!company?.id,
-    refetchInterval: activeFlight ? 5000 : 2000 // Slower when flight active (data comes from Flight entity)
+    refetchInterval: 3000
   });
 
   const activeFlight = flights.find(f => f.status === 'in_flight');
