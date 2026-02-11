@@ -189,12 +189,25 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           )}
 
-          {/* Waypoints */}
+          {/* Live FMS Waypoints */}
           {waypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
-            <Marker key={i} position={[wp.lat, wp.lon]} icon={waypointIcon}>
-              <Popup>
+            <Marker key={`fms-${i}`} position={[wp.lat, wp.lon]} icon={waypointIcon}>
+              <Popup className="dark-popup">
                 <span className="text-xs font-bold">{wp.name || `WPT ${i + 1}`}</span>
                 {wp.alt > 0 && <span className="text-xs ml-1 text-slate-400">FL{Math.round(wp.alt / 100)}</span>}
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* Generated Route Waypoints (shown only when no live FMS waypoints) */}
+          {waypoints.length === 0 && routeWaypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
+            <Marker key={`route-${i}`} position={[wp.lat, wp.lon]} icon={routeWaypointIcon}>
+              <Popup className="dark-popup">
+                <div>
+                  <span className="text-xs font-bold">{wp.name}</span>
+                  {wp.alt > 0 && <span className="text-xs ml-1 text-slate-400"> FL{Math.round(wp.alt / 100)}</span>}
+                  {wp.type && <div className="text-[10px] text-slate-400 mt-0.5">{wp.type.toUpperCase()}</div>}
+                </div>
               </Popup>
             </Marker>
           ))}
