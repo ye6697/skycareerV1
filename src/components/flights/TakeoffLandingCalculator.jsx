@@ -389,15 +389,22 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
           <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
           <span className="text-[11px] font-bold text-cyan-400 tracking-widest">PERF CALCULATOR</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge className="bg-slate-800 text-slate-400 border-slate-700 text-[10px] font-mono px-2 py-0.5">{profile.short}</Badge>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {xplaneData?.aircraft_icao && (
             <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px] font-mono px-2 py-0.5">
               {xplaneData.aircraft_icao}
             </Badge>
           )}
+          {aircraft?.name && (
+            <Badge className="bg-slate-800 text-slate-300 border-slate-700 text-[10px] px-2 py-0.5">
+              {aircraft.name} ({aircraft.registration || profile.short})
+            </Badge>
+          )}
           {autoFilled && (
-            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] px-2 py-0.5">LIVE</Badge>
+            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] px-2 py-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
+              LIVE DATA
+            </Badge>
           )}
         </div>
       </div>
