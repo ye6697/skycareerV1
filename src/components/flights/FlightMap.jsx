@@ -204,23 +204,24 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           {/* Live FMS Waypoints */}
           {waypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
             <Marker key={`fms-${i}`} position={[wp.lat, wp.lon]} icon={waypointIcon}>
-              <Popup className="dark-popup">
-                <span className="text-xs font-bold">{wp.name || `WPT ${i + 1}`}</span>
-                {wp.alt > 0 && <span className="text-xs ml-1 text-slate-400">FL{Math.round(wp.alt / 100)}</span>}
-              </Popup>
+              <Tooltip permanent direction="top" offset={[0, -8]} className="waypoint-label">
+                <span style={{fontSize:'10px',fontFamily:'monospace',color:'#a78bfa',background:'rgba(15,23,42,0.85)',padding:'1px 4px',borderRadius:'3px',border:'1px solid #4c1d95'}}>
+                  {wp.name || `WPT ${i+1}`}
+                  {wp.alt > 0 && ` FL${Math.round(wp.alt/100)}`}
+                </span>
+              </Tooltip>
             </Marker>
           ))}
 
           {/* Generated Route Waypoints (shown only when no live FMS waypoints) */}
           {waypoints.length === 0 && routeWaypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
             <Marker key={`route-${i}`} position={[wp.lat, wp.lon]} icon={routeWaypointIcon}>
-              <Popup className="dark-popup">
-                <div>
-                  <span className="text-xs font-bold">{wp.name}</span>
-                  {wp.alt > 0 && <span className="text-xs ml-1 text-slate-400"> FL{Math.round(wp.alt / 100)}</span>}
-                  {wp.type && <div className="text-[10px] text-slate-400 mt-0.5">{wp.type.toUpperCase()}</div>}
-                </div>
-              </Popup>
+              <Tooltip permanent direction="top" offset={[0, -8]} className="waypoint-label">
+                <span style={{fontSize:'10px',fontFamily:'monospace',color:'#c4b5fd',background:'rgba(15,23,42,0.85)',padding:'1px 4px',borderRadius:'3px',border:'1px solid #6d28d9'}}>
+                  {wp.name}
+                  {wp.alt > 0 && ` FL${Math.round(wp.alt/100)}`}
+                </span>
+              </Tooltip>
             </Marker>
           ))}
 
