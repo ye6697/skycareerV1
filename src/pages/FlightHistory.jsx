@@ -72,6 +72,18 @@ export default function FlightHistory() {
     enabled: !!company?.id
   });
 
+  const { data: allAircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'all', company?.id],
+    queryFn: async () => {
+      return await base44.entities.Aircraft.filter({ company_id: company.id });
+    },
+    enabled: !!company?.id
+  });
+
+  const getAircraftForFlight = (flight) => {
+    return allAircraft.find(a => a.id === flight.aircraft_id);
+  };
+
   const getContractForFlight = (flight) => {
     return contracts.find(c => c.id === flight.contract_id);
   };
@@ -192,12 +204,16 @@ export default function FlightHistory() {
               <span className="text-amber-400 font-mono text-xs sm:text-sm font-bold tracking-widest uppercase">Flughistorie – Abflüge</span>
             </div>
             {/* Column Headers */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[120px_1fr_80px_80px_60px_100px] gap-1 px-3 sm:px-5 py-2 bg-[#111318] border-b border-slate-700/50 text-[10px] sm:text-xs font-mono font-bold text-amber-400/70 uppercase tracking-wider">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[100px_1fr_100px_70px_65px_55px_55px_70px_60px_90px] gap-1 px-3 sm:px-5 py-2 bg-[#111318] border-b border-slate-700/50 text-[10px] sm:text-xs font-mono font-bold text-amber-400/70 uppercase tracking-wider">
               <span>Datum</span>
               <span>Route</span>
+              <span className="hidden sm:block">Flugzeug</span>
               <span className="text-center hidden sm:block">Score</span>
               <span className="text-center">Landung</span>
-              <span className="text-center hidden sm:block">G-Force</span>
+              <span className="text-center hidden sm:block">Land-G</span>
+              <span className="text-center hidden sm:block">Max-G</span>
+              <span className="text-center hidden sm:block">Wartung</span>
+              <span className="text-center hidden sm:block">Deadline</span>
               <span className="text-right">Gewinn</span>
             </div>
             {/* Rows */}
@@ -211,14 +227,17 @@ export default function FlightHistory() {
                        formatDate(f.departure_time).includes(search);
               }).map((flight, index) => {
                 const contract = getContractForFlight(flight);
+                const ac = getAircraftForFlight(flight);
                 const isFailed = flight.status === 'failed';
+                const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? 0;
+                const madeDeadline = flight.xplane_data?.madeDeadline;
                 return (
                   <motion.div
                     key={flight.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
-                    className={`grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[120px_1fr_80px_80px_60px_100px] gap-1 items-center px-3 sm:px-5 py-2.5 cursor-pointer transition-colors font-mono text-sm ${isFailed ? 'bg-red-950/20 hover:bg-red-950/40' : 'hover:bg-slate-800/60'}`}
+                    className={`grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[100px_1fr_100px_70px_65px_55px_55px_70px_60px_90px] gap-1 items-center px-3 sm:px-5 py-2.5 cursor-pointer transition-colors font-mono text-sm ${isFailed ? 'bg-red-950/20 hover:bg-red-950/40' : 'hover:bg-slate-800/60'}`}
                     onClick={() => setSelectedFlight(flight)}
                   >
                     {/* Date */}
@@ -234,12 +253,16 @@ export default function FlightHistory() {
                         <Badge className="bg-red-600 text-white border-0 text-[9px] px-1.5 py-0 font-bold animate-pulse">CRASH</Badge>
                       )}
                     </div>
+                    {/* Aircraft */}
+                    <div className="hidden sm:block text-[10px] text-slate-400 truncate">
+                      {ac?.name || '-'}
+                    </div>
                     {/* Score */}
                     <div className="text-center hidden sm:flex items-center justify-center gap-1">
                       <Star className={`w-3 h-3 ${flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}`} />
                       <span className="text-white text-xs font-bold">{flight.overall_rating?.toFixed(1) || '-'}</span>
                     </div>
-                    {/* Landing */}
+                    {/* Landing V/S */}
                     <div className="flex justify-center">
                       <span className={`text-[11px] sm:text-xs font-bold px-1.5 py-0.5 rounded ${
                         Math.abs(flight.landing_vs || 0) < 150
@@ -251,7 +274,17 @@ export default function FlightHistory() {
                         {flight.landing_vs || 0} ft/m
                       </span>
                     </div>
-                    {/* G-Force */}
+                    {/* Landing G */}
+                    <div className="text-center hidden sm:block">
+                      <span className={`text-[11px] font-bold ${
+                        landingG < 1.0 ? 'text-emerald-400' :
+                        landingG < 1.6 ? 'text-amber-400' :
+                        'text-red-400'
+                      }`}>
+                        {landingG > 0 ? `${landingG.toFixed(1)}G` : '-'}
+                      </span>
+                    </div>
+                    {/* Max G-Force */}
                     <div className="text-center hidden sm:block">
                       <span className={`text-[11px] font-bold ${
                         (flight.max_g_force || 0) <= 1.3 ? 'text-emerald-400' :
@@ -260,6 +293,18 @@ export default function FlightHistory() {
                       }`}>
                         {flight.max_g_force ? `${flight.max_g_force.toFixed(1)}G` : '-'}
                       </span>
+                    </div>
+                    {/* Maintenance */}
+                    <div className="text-center hidden sm:block">
+                      <span className={`text-[11px] font-bold ${(flight.maintenance_cost || 0) > 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                        {flight.maintenance_cost ? `$${Math.round(flight.maintenance_cost).toLocaleString()}` : '-'}
+                      </span>
+                    </div>
+                    {/* Deadline */}
+                    <div className="text-center hidden sm:block">
+                      {madeDeadline === true && <span className="text-[11px] font-bold text-emerald-400">✓</span>}
+                      {madeDeadline === false && <span className="text-[11px] font-bold text-red-400">✗</span>}
+                      {madeDeadline === undefined && <span className="text-[11px] text-slate-500">-</span>}
                     </div>
                     {/* Profit */}
                     <div className={`text-right text-xs sm:text-sm font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
