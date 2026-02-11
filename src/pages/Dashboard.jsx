@@ -23,6 +23,7 @@ import {
 import StatCard from "@/components/dashboard/StatCard";
 import ReputationGauge from "@/components/dashboard/ReputationGauge";
 import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
+import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
 import ContractCard from "@/components/contracts/ContractCard";
 import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
 
@@ -91,9 +92,11 @@ export default function Dashboard() {
 
   const { data: allAircraft = [] } = useQuery({
     queryKey: ['aircraft', 'all', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: { $ne: 'sold' } }),
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId }),
     enabled: !!companyId
   });
+
+  const fleetValue = allAircraft.filter(a => a.status !== 'sold').reduce((sum, a) => sum + (a.current_value || 0), 0);
 
   const { data: recentFlights = [] } = useQuery({
     queryKey: ['flights', 'recent', companyId],
@@ -238,8 +241,9 @@ export default function Dashboard() {
         </div>
 
         {/* Middle Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <ReputationGauge reputation={company.reputation} level={company.level} />
+          <CreditScoreBadge company={company} fleetValue={fleetValue} />
           <XPlaneStatus status={company.xplane_connection_status} />
           
           {/* Quick Actions */}
@@ -330,32 +334,6 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Flights */}
-         {/* Delete Account */}
-         <div className="mt-8 mb-4">
-           <Card className="p-4 bg-slate-800/50 border border-slate-700">
-             <div className="flex items-center justify-between">
-               <div>
-                 <p className="text-sm text-slate-400">Account & Daten</p>
-                 <p className="text-xs text-slate-500">Lösche deinen gesamten Fortschritt unwiderruflich</p>
-               </div>
-               <Button
-                 variant="destructive"
-                 size="sm"
-                 onClick={() => setShowDeleteDialog(true)}
-               >
-                 <Trash2 className="w-4 h-4 mr-2" />
-                 Account löschen
-               </Button>
-             </div>
-           </Card>
-         </div>
-
-         <DeleteAccountDialog 
-           open={showDeleteDialog} 
-           onOpenChange={setShowDeleteDialog} 
-           company={company} 
-         />
-
          {recentFlights.length > 0 && (
            <div>
              <div className="flex items-center justify-between mb-4">
@@ -409,6 +387,22 @@ export default function Dashboard() {
              </Card>
            </div>
          )}
+
+         {/* Delete Account – subtle at very bottom */}
+         <div className="mt-16 pt-6 border-t border-slate-800">
+           <button
+             onClick={() => setShowDeleteDialog(true)}
+             className="text-xs text-slate-600 hover:text-red-400 transition-colors"
+           >
+             Account löschen
+           </button>
+         </div>
+
+         <DeleteAccountDialog 
+           open={showDeleteDialog} 
+           onOpenChange={setShowDeleteDialog} 
+           company={company} 
+         />
       </div>
     </div>
   );
