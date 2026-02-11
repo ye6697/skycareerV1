@@ -1,133 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  PlaneTakeoff, PlaneLanding, Gauge, Wind, Thermometer,
-  AlertCircle, CheckCircle, Mountain, ChevronRight
-} from 'lucide-react';
+import { base44 } from "@/api/base44Client";
+import { Loader2, PlaneTakeoff, PlaneLanding, Wind, Thermometer, AlertCircle, CheckCircle, Mountain, ChevronRight, RefreshCw } from 'lucide-react';
 
-// ─── Aircraft Performance Database (real-world approximations) ───
-const AIRCRAFT_PROFILES = {
-  small_prop: {
-    label: 'Cessna 172 class', short: 'SEP',
-    vStallClean: 48, vStallFull: 40, flapSettings: ['0°', '10°', '20°', '30°', 'FULL'],
-    typicalMTOW: 1111,
-    refSpeed: { v1: 55, vr: 60, v2: 65 },
-    vref: 65, vapp: 70,
-    todr_sea: 450, ldr_sea: 380, ceilingFt: 14000,
-    takeoffFlaps: '10°', landingFlaps: 'FULL',
-  },
-  turboprop: {
-    label: 'ATR 72 class', short: 'TP',
-    vStallClean: 105, vStallFull: 89, flapSettings: ['0°', '15°', '25°', '35°'],
-    typicalMTOW: 22800,
-    refSpeed: { v1: 110, vr: 118, v2: 125 },
-    vref: 115, vapp: 120,
-    todr_sea: 1300, ldr_sea: 1050, ceilingFt: 25000,
-    takeoffFlaps: '15°', landingFlaps: '35°',
-  },
-  regional_jet: {
-    label: 'CRJ/E-Jet class', short: 'RJ',
-    vStallClean: 125, vStallFull: 108, flapSettings: ['0°', '1°', '5°', '20°', '30°', '45°'],
-    typicalMTOW: 38790,
-    refSpeed: { v1: 130, vr: 140, v2: 148 },
-    vref: 132, vapp: 137,
-    todr_sea: 1700, ldr_sea: 1350, ceilingFt: 41000,
-    takeoffFlaps: '5°', landingFlaps: '45°',
-  },
-  narrow_body: {
-    label: 'A320/B737 class', short: 'NB',
-    vStallClean: 135, vStallFull: 110, flapSettings: ['0°', '1', '5', '15', '25', '30', 'FULL'],
-    typicalMTOW: 79000,
-    refSpeed: { v1: 140, vr: 148, v2: 155 },
-    vref: 137, vapp: 142,
-    todr_sea: 2100, ldr_sea: 1500, ceilingFt: 39800,
-    takeoffFlaps: '1+F', landingFlaps: 'FULL',
-  },
-  wide_body: {
-    label: 'A330/B777 class', short: 'WB',
-    vStallClean: 150, vStallFull: 125, flapSettings: ['0°', '1', '5', '15', '20', '25', '30'],
-    typicalMTOW: 242000,
-    refSpeed: { v1: 155, vr: 165, v2: 175 },
-    vref: 145, vapp: 150,
-    todr_sea: 2700, ldr_sea: 1900, ceilingFt: 43100,
-    takeoffFlaps: '1+F', landingFlaps: 'FULL (30°)',
-  },
-  cargo: {
-    label: 'B747F/C-17 class', short: 'CARGO',
-    vStallClean: 155, vStallFull: 130, flapSettings: ['0°', '5', '10', '20', '25', '30'],
-    typicalMTOW: 412775,
-    refSpeed: { v1: 160, vr: 170, v2: 180 },
-    vref: 152, vapp: 157,
-    todr_sea: 3100, ldr_sea: 2200, ceilingFt: 43100,
-    takeoffFlaps: '10°', landingFlaps: '30°',
-  },
-};
+// ─── ICAO Performance Database (dynamically fetched via LLM) ───
+// Cache fetched profiles so we don't re-fetch for the same ICAO type
+const profileCache = {};
 
-const ICAO_FLAP_DATA = {
-  'A320': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A319': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A321': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A20N': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A21N': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A318': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A330': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A332': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A333': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A340': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A350': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A359': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A380': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'A388': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
-  'B737': { takeoff: 'Flaps 5', landing: 'Flaps 30/40' },
-  'B738': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
-  'B739': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
-  'B38M': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
-  'B39M': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
-  'B736': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
-  'B744': { takeoff: 'Flaps 10', landing: 'Flaps 25/30' },
-  'B748': { takeoff: 'Flaps 10', landing: 'Flaps 25/30' },
-  'B74S': { takeoff: 'Flaps 10', landing: 'Flaps 25' },
-  'B752': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
-  'B753': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
-  'B762': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
-  'B763': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
-  'B772': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
-  'B77W': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
-  'B77L': { takeoff: 'Flaps 15', landing: 'Flaps 30' },
-  'B788': { takeoff: 'Flaps 5/15', landing: 'Flaps 25/30' },
-  'B789': { takeoff: 'Flaps 5/15', landing: 'Flaps 25/30' },
-  'B78X': { takeoff: 'Flaps 5/15', landing: 'Flaps 25/30' },
-  'E170': { takeoff: 'Flaps 5', landing: 'Flaps 5/FULL' },
-  'E190': { takeoff: 'Flaps 5', landing: 'Flaps 5/FULL' },
-  'E195': { takeoff: 'Flaps 5', landing: 'Flaps 5/FULL' },
-  'E290': { takeoff: 'Flaps 2', landing: 'Flaps FULL' },
-  'CRJ2': { takeoff: 'Flaps 8', landing: 'Flaps 30/45' },
-  'CRJ7': { takeoff: 'Flaps 8', landing: 'Flaps 30/45' },
-  'CRJ9': { takeoff: 'Flaps 8', landing: 'Flaps 30/45' },
-  'AT72': { takeoff: 'Flaps 15', landing: 'Flaps 35' },
-  'AT76': { takeoff: 'Flaps 15', landing: 'Flaps 35' },
-  'DH8D': { takeoff: 'Flaps 5/10', landing: 'Flaps 15/35' },
-  'DH8C': { takeoff: 'Flaps 5/10', landing: 'Flaps 15/35' },
-  'C172': { takeoff: 'Flaps 10°', landing: 'Flaps FULL' },
-  'C208': { takeoff: 'Flaps 10°/20°', landing: 'Flaps FULL' },
-  'BE9L': { takeoff: 'Flaps APP', landing: 'Flaps DOWN' },
-  'TBM9': { takeoff: 'Flaps T/O', landing: 'Flaps LDG' },
-  'PC12': { takeoff: 'Flaps 15°', landing: 'Flaps 40°' },
-  'PC24': { takeoff: 'Flaps 2', landing: 'Flaps FULL' },
-  'MD11': { takeoff: 'Slats/Flaps 15', landing: 'Flaps 35/50' },
-  'MD82': { takeoff: 'Flaps 11', landing: 'Flaps 28/40' },
+// ─── Fallback generic profile if LLM fails ───
+const FALLBACK_PROFILE = {
+  label: 'Generic', short: 'GEN',
+  vStallClean: 120, vStallFull: 100,
+  typicalMTOW: 70000, typicalMLW: 60000,
+  refSpeed: { v1: 135, vr: 145, v2: 152 },
+  vref: 130, vapp: 135,
+  todr_sea: 2000, ldr_sea: 1400,
+  takeoffFlaps: 'Flaps 5', landingFlaps: 'Flaps FULL',
 };
 
 // ─── Calculation helpers ───
 function calcDensityAltitude(elevationFt, tempC) {
   const isaTemp = 15 - (elevationFt / 1000) * 2;
-  const tempDev = tempC - isaTemp;
-  return elevationFt + (tempDev * 120);
+  return elevationFt + ((tempC - isaTemp) * 120);
 }
 
 function calcPressureCorrection(qnh) {
@@ -158,16 +56,7 @@ function calcVSpeedsAdjusted(profile, weightFactor) {
   };
 }
 
-function getFlapRecommendation(xplaneData, profile) {
-  const icao = xplaneData?.aircraft_icao?.toUpperCase()?.trim();
-  if (icao && ICAO_FLAP_DATA[icao]) {
-    return { takeoff: ICAO_FLAP_DATA[icao].takeoff, landing: ICAO_FLAP_DATA[icao].landing, source: icao };
-  }
-  return { takeoff: profile.takeoffFlaps, landing: profile.landingFlaps, source: null };
-}
-
-// ─── EFB-style sub-components ───
-
+// ─── EFB sub-components ───
 function VSpeedTape({ label, value, color }) {
   return (
     <div className="flex items-center gap-2">
@@ -184,19 +73,12 @@ function VSpeedTape({ label, value, color }) {
 }
 
 function DataRow({ label, value, unit, status }) {
-  const colors = {
-    ok: 'text-emerald-400',
-    warn: 'text-amber-400',
-    danger: 'text-red-400',
-    neutral: 'text-slate-200',
-  };
+  const colors = { ok: 'text-emerald-400', warn: 'text-amber-400', danger: 'text-red-400', neutral: 'text-slate-200' };
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60 last:border-0">
       <span className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">{label}</span>
       <div className="flex items-baseline gap-1">
-        <span className={`font-mono text-sm font-bold tabular-nums ${colors[status] || colors.neutral}`}>
-          {value}
-        </span>
+        <span className={`font-mono text-sm font-bold tabular-nums ${colors[status] || colors.neutral}`}>{value}</span>
         {unit && <span className="text-[10px] text-slate-600">{unit}</span>}
       </div>
     </div>
@@ -210,13 +92,8 @@ function ParamInput({ label, value, onChange, placeholder, unit, icon: Icon }) {
         {Icon && <Icon className="w-3 h-3 text-slate-600" />} {label}
       </Label>
       <div className="relative">
-        <Input
-          type="number"
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="bg-slate-950 border-slate-700/50 text-white text-sm font-mono h-8 pr-10 focus:border-cyan-500/50 focus:ring-cyan-500/20"
-        />
+        <Input type="number" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+          className="bg-slate-950 border-slate-700/50 text-white text-sm font-mono h-8 pr-10 focus:border-cyan-500/50 focus:ring-cyan-500/20" />
         {unit && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-600 font-mono">{unit}</span>}
       </div>
     </div>
@@ -250,14 +127,10 @@ function StatusBar({ adequate, margin, marginPct, type }) {
   if (adequate) {
     const isGood = parseInt(marginPct) > 20;
     return (
-      <div className={`flex items-center gap-2 p-2.5 rounded border ${
-        isGood ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-amber-500/5 border-amber-500/20'
-      }`}>
+      <div className={`flex items-center gap-2 p-2.5 rounded border ${isGood ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
         <CheckCircle className={`w-4 h-4 flex-shrink-0 ${isGood ? 'text-emerald-400' : 'text-amber-400'}`} />
         <div>
-          <p className={`text-xs font-bold ${isGood ? 'text-emerald-400' : 'text-amber-400'}`}>
-            {type === 'takeoff' ? 'T/O' : 'LDG'} ADEQUATE
-          </p>
+          <p className={`text-xs font-bold ${isGood ? 'text-emerald-400' : 'text-amber-400'}`}>{type === 'takeoff' ? 'T/O' : 'LDG'} ADEQUATE</p>
           <p className="text-[10px] text-slate-500">+{margin.toLocaleString()} M MARGIN ({marginPct}%)</p>
         </div>
       </div>
@@ -274,12 +147,14 @@ function StatusBar({ adequate, margin, marginPct, type }) {
   );
 }
 
-export default function TakeoffLandingCalculator({ aircraft, contract, xplaneData }) {
-  const acType = aircraft?.type || 'narrow_body';
-  const profile = AIRCRAFT_PROFILES[acType] || AIRCRAFT_PROFILES.narrow_body;
-  const flapRec = getFlapRecommendation(xplaneData, profile);
 
+export default function TakeoffLandingCalculator({ aircraft, contract, xplaneData }) {
   const [tab, setTab] = useState('takeoff');
+  const [profile, setProfile] = useState(FALLBACK_PROFILE);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSource, setProfileSource] = useState('fallback');
+
+  // Input state
   const [weight, setWeight] = useState('');
   const [tempC, setTempC] = useState('15');
   const [elevFt, setElevFt] = useState('0');
@@ -297,18 +172,115 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
   const [ldgRwyLength, setLdgRwyLength] = useState('');
   const [ldgSlopePct, setLdgSlopePct] = useState('0');
   const [ldgRwyCondition, setLdgRwyCondition] = useState('dry');
-  
+
   const [autoFilled, setAutoFilled] = useState(false);
-  
-  // Continuously update from X-Plane live data
-  React.useEffect(() => {
+
+  // ─── Fetch realistic profile from LLM based on X-Plane ICAO type ───
+  const fetchProfileForICAO = useCallback(async (icaoCode) => {
+    if (!icaoCode || icaoCode.length < 2) return;
+    const key = icaoCode.toUpperCase().trim();
+    
+    // Check cache
+    if (profileCache[key]) {
+      setProfile(profileCache[key]);
+      setProfileSource(key);
+      return;
+    }
+
+    setProfileLoading(true);
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are an aviation performance engineer. Given the X-Plane 12 aircraft ICAO type code "${key}", provide REALISTIC performance data for this EXACT aircraft type.
+
+If you recognize the ICAO code, use real-world published performance data. Examples:
+- B738 = Boeing 737-800
+- A320 = Airbus A320
+- C172 = Cessna 172 Skyhawk
+- TBM9 = Daher TBM 930
+- B789 = Boeing 787-9
+- AT76 = ATR 72-600
+- E195 = Embraer E195
+- ZLIN = Zlin aircraft
+- SR22 = Cirrus SR22
+
+Return ACCURATE real-world values. All speeds in KIAS. All distances in meters. All weights in kg.
+- typicalMTOW: Maximum Takeoff Weight
+- typicalMLW: Maximum Landing Weight
+- v1: Decision speed at MTOW sea level
+- vr: Rotation speed at MTOW sea level
+- v2: Takeoff safety speed at MTOW sea level
+- vref: Reference landing speed at typical landing weight
+- vapp: Approach speed (vref + 5-10 kts wind correction)
+- vStallClean: Stall speed clean config
+- vStallFull: Stall speed full flaps
+- todr_sea: Takeoff distance required at MTOW, sea level, ISA, dry
+- ldr_sea: Landing distance required at MLW, sea level, ISA, dry
+- takeoffFlaps: Recommended takeoff flap setting string
+- landingFlaps: Recommended landing flap setting string
+- label: Full aircraft name (e.g. "Boeing 737-800")
+- short: Short code (e.g. "B738")`,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          label: { type: "string" },
+          short: { type: "string" },
+          vStallClean: { type: "number", description: "Stall speed clean KIAS" },
+          vStallFull: { type: "number", description: "Stall speed full flaps KIAS" },
+          typicalMTOW: { type: "number", description: "MTOW in kg" },
+          typicalMLW: { type: "number", description: "MLW in kg" },
+          v1: { type: "number", description: "V1 decision speed KIAS at MTOW" },
+          vr: { type: "number", description: "Rotation speed KIAS at MTOW" },
+          v2: { type: "number", description: "Takeoff safety speed KIAS" },
+          vref: { type: "number", description: "Reference landing speed KIAS" },
+          vapp: { type: "number", description: "Approach speed KIAS" },
+          todr_sea: { type: "number", description: "TODR at MTOW sea level ISA dry in meters" },
+          ldr_sea: { type: "number", description: "LDR at MLW sea level ISA dry in meters" },
+          takeoffFlaps: { type: "string", description: "Recommended takeoff flap setting" },
+          landingFlaps: { type: "string", description: "Recommended landing flap setting" }
+        },
+        required: ["label", "short", "vStallClean", "vStallFull", "typicalMTOW", "typicalMLW", "v1", "vr", "v2", "vref", "vapp", "todr_sea", "ldr_sea", "takeoffFlaps", "landingFlaps"]
+      }
+    });
+
+    if (result && result.v1 && result.vr) {
+      const newProfile = {
+        label: result.label || key,
+        short: result.short || key,
+        vStallClean: result.vStallClean,
+        vStallFull: result.vStallFull,
+        typicalMTOW: result.typicalMTOW,
+        typicalMLW: result.typicalMLW || result.typicalMTOW * 0.85,
+        refSpeed: { v1: result.v1, vr: result.vr, v2: result.v2 },
+        vref: result.vref,
+        vapp: result.vapp,
+        todr_sea: result.todr_sea,
+        ldr_sea: result.ldr_sea,
+        takeoffFlaps: result.takeoffFlaps,
+        landingFlaps: result.landingFlaps,
+      };
+      profileCache[key] = newProfile;
+      setProfile(newProfile);
+      setProfileSource(key);
+    }
+    setProfileLoading(false);
+  }, []);
+
+  // Auto-fetch profile when ICAO code arrives from X-Plane
+  const lastFetchedIcao = React.useRef('');
+  useEffect(() => {
+    const icao = xplaneData?.aircraft_icao?.toUpperCase()?.trim();
+    if (icao && icao.length >= 2 && icao !== lastFetchedIcao.current) {
+      lastFetchedIcao.current = icao;
+      fetchProfileForICAO(icao);
+    }
+  }, [xplaneData?.aircraft_icao, fetchProfileForICAO]);
+
+  // ─── Auto-fill from X-Plane live data ───
+  useEffect(() => {
     if (!xplaneData) return;
     const xp = xplaneData;
-    
-    // Always update live values (weight, temp, wind, qnh, elevation)
     if (xp.total_weight_kg && xp.total_weight_kg > 0) {
       setWeight(String(Math.round(xp.total_weight_kg)));
-      // Estimate landing weight: current weight minus ~15% for fuel burn
       setLdgWeight(String(Math.round(xp.total_weight_kg * 0.92)));
     }
     if (xp.oat_c !== null && xp.oat_c !== undefined) {
@@ -329,6 +301,7 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
     if (!autoFilled) setAutoFilled(true);
   }, [xplaneData]);
 
+  // ─── Calculations ───
   const conditionFactor = { dry: 1.0, wet: 1.15, contaminated: 1.4 };
 
   const takeoffCalc = useMemo(() => {
@@ -344,7 +317,6 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
     const wf = calcWeightFactor(w, profile.typicalMTOW);
     const rwCorr = calcRunwayCorrection(sl, hw);
     const cndFactor = conditionFactor[rwyCondition] || 1;
-
     const daFactor = 1 + (Math.max(0, da) / 1000) * 0.07;
     const todr = Math.round(profile.todr_sea * wf * daFactor * rwCorr * cndFactor);
 
@@ -352,12 +324,11 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
     const margin = rwy - todr;
     const adequate = margin > 0;
     const marginPct = ((margin / rwy) * 100).toFixed(0);
-
     return { todr, da: Math.round(da), speeds, margin, adequate, marginPct, rwy, wf };
   }, [weight, tempC, elevFt, qnh, wind, rwyLength, slopePct, rwyCondition, profile]);
 
   const landingCalc = useMemo(() => {
-    const w = parseFloat(ldgWeight) || profile.typicalMTOW * 0.85;
+    const w = parseFloat(ldgWeight) || (profile.typicalMLW || profile.typicalMTOW * 0.85);
     const t = parseFloat(ldgTempC) || 15;
     const e = parseFloat(ldgElevFt) || 0;
     const q = parseFloat(ldgQnh) || 1013;
@@ -366,10 +337,9 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
     const sl = parseFloat(ldgSlopePct) || 0;
 
     const da = calcDensityAltitude(e + calcPressureCorrection(q), t);
-    const wf = calcWeightFactor(w, profile.typicalMTOW);
+    const wf = calcWeightFactor(w, profile.typicalMLW || profile.typicalMTOW * 0.85);
     const rwCorr = calcRunwayCorrection(-sl, hw);
     const cndFactor = conditionFactor[ldgRwyCondition] || 1;
-
     const daFactor = 1 + (Math.max(0, da) / 1000) * 0.05;
     const ldr = Math.round(profile.ldr_sea * wf * daFactor * rwCorr * cndFactor);
 
@@ -377,7 +347,6 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
     const margin = rwy - ldr;
     const adequate = margin > 0;
     const marginPct = ((margin / rwy) * 100).toFixed(0);
-
     return { ldr, da: Math.round(da), speeds, margin, adequate, marginPct, rwy, wf };
   }, [ldgWeight, ldgTempC, ldgElevFt, ldgQnh, ldgWind, ldgRwyLength, ldgSlopePct, ldgRwyCondition, profile]);
 
@@ -390,24 +359,41 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
           <span className="text-[11px] font-bold text-cyan-400 tracking-widest">PERF CALCULATOR</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {xplaneData?.aircraft_icao && (
+          {profileLoading && (
+            <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px] px-2 py-0.5">
+              <Loader2 className="w-3 h-3 animate-spin mr-1" /> LOADING PERF...
+            </Badge>
+          )}
+          {profileSource !== 'fallback' && !profileLoading && (
             <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px] font-mono px-2 py-0.5">
-              {xplaneData.aircraft_icao}
+              {profile.label}
             </Badge>
           )}
           {aircraft?.name && (
             <Badge className="bg-slate-800 text-slate-300 border-slate-700 text-[10px] px-2 py-0.5">
-              {aircraft.name} ({aircraft.registration || profile.short})
+              {aircraft.registration || aircraft.name}
             </Badge>
           )}
           {autoFilled && (
             <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] px-2 py-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
-              LIVE DATA
+              LIVE
             </Badge>
           )}
         </div>
       </div>
+
+      {/* Profile Info Strip */}
+      {profileSource !== 'fallback' && (
+        <div className="px-4 py-1.5 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-4 text-[10px] text-slate-500 font-mono overflow-x-auto">
+          <span>MTOW <span className="text-slate-300">{(profile.typicalMTOW || 0).toLocaleString()} KG</span></span>
+          <span>MLW <span className="text-slate-300">{(profile.typicalMLW || 0).toLocaleString()} KG</span></span>
+          <span>VS0 <span className="text-slate-300">{profile.vStallFull} KT</span></span>
+          <span>VS1 <span className="text-slate-300">{profile.vStallClean} KT</span></span>
+          <span>TODR <span className="text-slate-300">{(profile.todr_sea || 0).toLocaleString()} M</span></span>
+          <span>LDR <span className="text-slate-300">{(profile.ldr_sea || 0).toLocaleString()} M</span></span>
+        </div>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full bg-slate-900/50 rounded-none border-b border-slate-800 p-0 h-auto">
@@ -421,7 +407,6 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
 
         {/* ═══ TAKEOFF TAB ═══ */}
         <TabsContent value="takeoff" className="p-4 space-y-4 mt-0">
-          {/* Airport Info */}
           {contract && (
             <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/80 rounded border border-slate-800">
               <span className="text-lg font-mono font-black text-white">{contract.departure_airport}</span>
@@ -430,7 +415,6 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
             </div>
           )}
 
-          {/* Input Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <ParamInput label="TOW" value={weight} onChange={setWeight} placeholder={String(profile.typicalMTOW)} unit="KG" />
             <ParamInput label="OAT" value={tempC} onChange={setTempC} placeholder="15" unit="°C" icon={Thermometer} />
@@ -442,14 +426,11 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
             <RwyConditionPicker value={rwyCondition} onChange={setRwyCondition} />
           </div>
 
-          {/* Flap Config */}
           <div className="flex items-center gap-3 px-3 py-2 bg-cyan-500/5 border border-cyan-500/10 rounded">
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">FLAPS T/O</span>
-            <span className="text-sm font-mono font-black text-cyan-400">{flapRec.takeoff}</span>
-            {flapRec.source && <span className="text-[10px] text-slate-600 ml-auto">SRC: {flapRec.source}</span>}
+            <span className="text-sm font-mono font-black text-cyan-400">{profile.takeoffFlaps}</span>
           </div>
 
-          {/* V-Speeds */}
           <div className="bg-slate-900/60 rounded border border-slate-800 p-3">
             <div className="text-[10px] text-slate-600 uppercase tracking-wider font-bold mb-2">V-SPEEDS</div>
             <div className="grid grid-cols-3 gap-4">
@@ -459,7 +440,6 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
             </div>
           </div>
 
-          {/* Results */}
           <div className="bg-slate-900/60 rounded border border-slate-800 p-3">
             <div className="text-[10px] text-slate-600 uppercase tracking-wider font-bold mb-2">PERFORMANCE</div>
             <DataRow label="Density Alt" value={takeoffCalc.da.toLocaleString()} unit="FT" status={takeoffCalc.da > 8000 ? 'danger' : takeoffCalc.da > 5000 ? 'warn' : 'ok'} />
@@ -482,7 +462,7 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <ParamInput label="LDG WT" value={ldgWeight} onChange={setLdgWeight} placeholder={String(Math.round(profile.typicalMTOW * 0.85))} unit="KG" />
+            <ParamInput label="LDG WT" value={ldgWeight} onChange={setLdgWeight} placeholder={String(Math.round((profile.typicalMLW || profile.typicalMTOW * 0.85)))} unit="KG" />
             <ParamInput label="OAT" value={ldgTempC} onChange={setLdgTempC} placeholder="15" unit="°C" icon={Thermometer} />
             <ParamInput label="ELEV" value={ldgElevFt} onChange={setLdgElevFt} placeholder="0" unit="FT" icon={Mountain} />
             <ParamInput label="QNH" value={ldgQnh} onChange={setLdgQnh} placeholder="1013" unit="HPA" />
@@ -494,8 +474,7 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
 
           <div className="flex items-center gap-3 px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded">
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">FLAPS LDG</span>
-            <span className="text-sm font-mono font-black text-amber-400">{flapRec.landing}</span>
-            {flapRec.source && <span className="text-[10px] text-slate-600 ml-auto">SRC: {flapRec.source}</span>}
+            <span className="text-sm font-mono font-black text-amber-400">{profile.landingFlaps}</span>
           </div>
 
           <div className="bg-slate-900/60 rounded border border-slate-800 p-3">
