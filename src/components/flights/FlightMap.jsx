@@ -224,8 +224,11 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
         <span className="text-slate-400">HDG {Math.round(flightData.heading || 0)}°</span>
         <span className="text-slate-400">ALT {Math.round(flightData.altitude || 0).toLocaleString()} ft</span>
         <span className="text-slate-400">GS {Math.round(flightData.speed || 0)} kts</span>
-        {waypoints.length > 0 && (
-          <span className="text-purple-400">{waypoints.length} WPTs</span>
+        {activeWaypoints.length > 0 && (
+          <span className="text-purple-400">
+            {activeWaypoints.length} WPTs
+            {waypoints.length === 0 && routeWaypoints.length > 0 && ' (Route)'}
+          </span>
         )}
       </div>
     </Card>
