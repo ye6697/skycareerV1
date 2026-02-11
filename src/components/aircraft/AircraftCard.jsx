@@ -308,8 +308,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                   <div className="space-y-4">
                     <div className="p-4 bg-slate-800 rounded-lg space-y-3">
                       <div>
-                        <p className="text-sm text-slate-400 mb-2">Reparaturkosten (30% des Neuwertes):</p>
-                        <p className="text-2xl font-bold text-amber-400">${repairCost.toLocaleString()}</p>
+                        <p className="text-sm text-slate-400 mb-2">Reparaturkosten (Gesamtwartung):</p>
+                        <p className="text-2xl font-bold text-amber-400">${Math.round(repairCost).toLocaleString()}</p>
                       </div>
                       <div className="border-t border-slate-700 pt-3">
                         <p className="text-sm text-slate-400 mb-2">Verschrottungswert (10% des aktuellen Wertes):</p>
