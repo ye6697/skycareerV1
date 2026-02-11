@@ -21,6 +21,7 @@ const AIRCRAFT_PROFILES = {
     todr_sea: 450, // meters at sea level, MTOW
     ldr_sea: 380,
     ceilingFt: 14000,
+    takeoffFlaps: '10°', landingFlaps: 'FULL',
   },
   turboprop: {
     label: 'Turboprop (ATR 72 class)',
@@ -31,6 +32,7 @@ const AIRCRAFT_PROFILES = {
     todr_sea: 1300,
     ldr_sea: 1050,
     ceilingFt: 25000,
+    takeoffFlaps: '15°', landingFlaps: '35°',
   },
   regional_jet: {
     label: 'Regional Jet (CRJ/E-Jet class)',
@@ -41,6 +43,7 @@ const AIRCRAFT_PROFILES = {
     todr_sea: 1700,
     ldr_sea: 1350,
     ceilingFt: 41000,
+    takeoffFlaps: '5°', landingFlaps: '45°',
   },
   narrow_body: {
     label: 'Narrow Body (A320/B737 class)',
@@ -51,6 +54,7 @@ const AIRCRAFT_PROFILES = {
     todr_sea: 2100,
     ldr_sea: 1500,
     ceilingFt: 39800,
+    takeoffFlaps: '1+F', landingFlaps: 'FULL',
   },
   wide_body: {
     label: 'Wide Body (A330/B777 class)',
@@ -61,6 +65,7 @@ const AIRCRAFT_PROFILES = {
     todr_sea: 2700,
     ldr_sea: 1900,
     ceilingFt: 43100,
+    takeoffFlaps: '1+F', landingFlaps: 'FULL (30°)',
   },
   cargo: {
     label: 'Cargo (B747F/C-17 class)',
@@ -71,7 +76,74 @@ const AIRCRAFT_PROFILES = {
     todr_sea: 3100,
     ldr_sea: 2200,
     ceilingFt: 43100,
+    takeoffFlaps: '10°', landingFlaps: '30°',
   },
+};
+
+// ICAO-based flap recommendations for specific aircraft types
+const ICAO_FLAP_DATA = {
+  // Airbus
+  'A320': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A319': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A321': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A20N': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A21N': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A318': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A330': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A332': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A333': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A340': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A350': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A359': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A380': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  'A388': { takeoff: 'CONF 1+F', landing: 'CONF FULL' },
+  // Boeing 737
+  'B737': { takeoff: 'Flaps 5', landing: 'Flaps 30/40' },
+  'B738': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
+  'B739': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
+  'B38M': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
+  'B39M': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
+  'B736': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
+  // Boeing 747
+  'B744': { takeoff: 'Flaps 10', landing: 'Flaps 25/30' },
+  'B748': { takeoff: 'Flaps 10', landing: 'Flaps 25/30' },
+  'B74S': { takeoff: 'Flaps 10', landing: 'Flaps 25' },
+  // Boeing 757/767
+  'B752': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
+  'B753': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
+  'B762': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
+  'B763': { takeoff: 'Flaps 5', landing: 'Flaps 30' },
+  // Boeing 777/787
+  'B772': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
+  'B77W': { takeoff: 'Flaps 5/15', landing: 'Flaps 30' },
+  'B77L': { takeoff: 'Flaps 15', landing: 'Flaps 30' },
+  'B788': { takeoff: 'Flaps 5/15', landing: 'Flaps 25/30' },
+  'B789': { takeoff: 'Flaps 5/15', landing: 'Flaps 25/30' },
+  'B78X': { takeoff: 'Flaps 5/15', landing: 'Flaps 25/30' },
+  // Embraer
+  'E170': { takeoff: 'Flaps 5', landing: 'Flaps 5/FULL' },
+  'E190': { takeoff: 'Flaps 5', landing: 'Flaps 5/FULL' },
+  'E195': { takeoff: 'Flaps 5', landing: 'Flaps 5/FULL' },
+  'E290': { takeoff: 'Flaps 2', landing: 'Flaps FULL' },
+  // CRJ
+  'CRJ2': { takeoff: 'Flaps 8', landing: 'Flaps 30/45' },
+  'CRJ7': { takeoff: 'Flaps 8', landing: 'Flaps 30/45' },
+  'CRJ9': { takeoff: 'Flaps 8', landing: 'Flaps 30/45' },
+  // Turboprops
+  'AT72': { takeoff: 'Flaps 15', landing: 'Flaps 35' },
+  'AT76': { takeoff: 'Flaps 15', landing: 'Flaps 35' },
+  'DH8D': { takeoff: 'Flaps 5/10', landing: 'Flaps 15/35' },
+  'DH8C': { takeoff: 'Flaps 5/10', landing: 'Flaps 15/35' },
+  // GA / Small
+  'C172': { takeoff: 'Flaps 10°', landing: 'Flaps FULL' },
+  'C208': { takeoff: 'Flaps 10°/20°', landing: 'Flaps FULL' },
+  'BE9L': { takeoff: 'Flaps APP', landing: 'Flaps DOWN' },
+  'TBM9': { takeoff: 'Flaps T/O', landing: 'Flaps LDG' },
+  'PC12': { takeoff: 'Flaps 15°', landing: 'Flaps 40°' },
+  'PC24': { takeoff: 'Flaps 2', landing: 'Flaps FULL' },
+  // MD
+  'MD11': { takeoff: 'Slats/Flaps 15', landing: 'Flaps 35/50' },
+  'MD82': { takeoff: 'Flaps 11', landing: 'Flaps 28/40' },
 };
 
 // ─── Calculation helpers ───
