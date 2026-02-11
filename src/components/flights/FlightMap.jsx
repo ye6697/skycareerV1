@@ -71,7 +71,7 @@ function AircraftMarker({ position, heading }) {
   return <Marker ref={markerRef} position={position} icon={aircraftIcon} />;
 }
 
-export default function FlightMap({ flightData, contract, waypoints = [] }) {
+export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [] }) {
   const hasPosition = flightData.latitude !== 0 || flightData.longitude !== 0;
   const hasDep = flightData.departure_lat !== 0 || flightData.departure_lon !== 0;
   const hasArr = flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0;
