@@ -52,9 +52,21 @@ const routeWaypointIcon = new L.DivIcon({
   iconAnchor: [5, 5],
 });
 
-function MapUpdater({ center, zoom }) {
+function MapUpdater({ center }) {
   const map = useMap();
   const prevCenter = useRef(center);
+  const initialized = useRef(false);
+  
+  useEffect(() => {
+    // Force invalidate size on first render and after a short delay
+    // This fixes the "grey tiles" / partial render bug in Leaflet
+    if (!initialized.current) {
+      initialized.current = true;
+      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => map.invalidateSize(), 500);
+    }
+  }, [map]);
+  
   useEffect(() => {
     if (center && (center[0] !== prevCenter.current?.[0] || center[1] !== prevCenter.current?.[1])) {
       map.panTo(center, { animate: true, duration: 1 });
