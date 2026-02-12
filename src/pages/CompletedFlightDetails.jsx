@@ -87,7 +87,7 @@ export default function CompletedFlightDetails() {
       return response.data;
     },
     enabled: !!finalContract?.departure_airport && !!finalContract?.arrival_airport,
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
   });
 
   // If we don't have all required data, auto-refresh
