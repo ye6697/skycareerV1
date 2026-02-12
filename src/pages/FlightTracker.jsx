@@ -35,6 +35,19 @@ export default function FlightTracker() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // iOS Safari fix: Adding an empty ontouchstart handler to the page container
+  // forces Safari to treat taps as immediate click events instead of
+  // first triggering :hover and requiring a second tap for :active/click.
+  const touchRef = React.useRef(null);
+  useEffect(() => {
+    const el = touchRef.current;
+    if (!el) return;
+    // This empty listener is the key - it tells iOS Safari this element handles touch
+    const noop = () => {};
+    el.addEventListener('touchstart', noop, { passive: true });
+    return () => el.removeEventListener('touchstart', noop);
+  }, []);
+
   const [flightPhase, setFlightPhase] = useState('preflight');
   const [flight, setFlight] = useState(null);
   const [flightStartTime, setFlightStartTime] = useState(null);
