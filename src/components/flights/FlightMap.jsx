@@ -110,6 +110,17 @@ function AircraftMarker({ position, heading }) {
   return <Marker ref={markerRef} position={position} icon={icon} />;
 }
 
+// Haversine distance in NM
+function distanceNm(lat1, lon1, lat2, lon2) {
+  const R = 3440.065;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title, flightPath = [] }) {
   const fd = flightData || {};
   const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
@@ -122,7 +133,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
 
   const activeWaypoints = waypoints.length > 0 ? waypoints : routeWaypoints;
 
-  // Planned route (dashed line)
+  // Planned route (dashed line) - ALWAYS connect dep -> waypoints -> arrival
   const routePoints = [];
   if (depPos) routePoints.push(depPos);
   if (activeWaypoints.length > 0) {
@@ -154,8 +165,42 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
     bounds = L.latLngBounds(allPoints);
   }
 
-  // Parse runway headings from route data for visualization
-  const depRunway = routeWaypoints.length > 0 ? null : null; // handled via props if needed
+  // Calculate distance to next waypoint and to arrival (live mode)
+  let distToNextWp = null;
+  let nextWpName = null;
+  let distToArrival = null;
+  if (!staticMode && curPos) {
+    // Find the next waypoint ahead by picking the closest unvisited one
+    if (activeWaypoints.length > 0) {
+      // Find the next waypoint: the one closest to current position that is roughly ahead
+      let minDist = Infinity;
+      for (const wp of activeWaypoints) {
+        if (!wp.lat || !wp.lon) continue;
+        const d = distanceNm(curPos[0], curPos[1], wp.lat, wp.lon);
+        if (d < minDist) {
+          minDist = d;
+          nextWpName = wp.name || 'WPT';
+          distToNextWp = d;
+        }
+      }
+      // If closest wp is very close (<2nm), try the next further one
+      if (distToNextWp < 2 && activeWaypoints.length > 1) {
+        let secondMin = Infinity;
+        for (const wp of activeWaypoints) {
+          if (!wp.lat || !wp.lon) continue;
+          const d = distanceNm(curPos[0], curPos[1], wp.lat, wp.lon);
+          if (d > distToNextWp && d < secondMin) {
+            secondMin = d;
+            nextWpName = wp.name || 'WPT';
+            distToNextWp = d;
+          }
+        }
+      }
+    }
+    if (arrPos) {
+      distToArrival = distanceNm(curPos[0], curPos[1], arrPos[0], arrPos[1]);
+    }
+  }
 
   if (!hasPosition && !hasDep && !hasArr && routeWaypoints.length === 0) {
     return (
