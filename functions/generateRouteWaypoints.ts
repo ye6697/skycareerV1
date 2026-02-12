@@ -39,24 +39,49 @@ Deno.serve(async (req) => {
     else if (dist < 600) wpCount = 7;
     else wpCount = 10;
 
-    // Single LLM call - ask for route with coordinates, using web search
+    // Look up airport coordinates first
+    const airportInfo = await base44.integrations.Core.InvokeLLM({
+      prompt: `What are the exact coordinates of ${departure_icao} and ${arrival_icao} airports? Search online for their precise coordinates.`,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          departure: {
+            type: "object",
+            properties: { lat: { type: "number" }, lon: { type: "number" } },
+            required: ["lat", "lon"]
+          },
+          arrival: {
+            type: "object",
+            properties: { lat: { type: "number" }, lon: { type: "number" } },
+            required: ["lat", "lon"]
+          }
+        },
+        required: ["departure", "arrival"]
+      }
+    });
+
+    const depLat = airportInfo?.departure?.lat || 0;
+    const depLon = airportInfo?.departure?.lon || 0;
+    const arrLat = airportInfo?.arrival?.lat || 0;
+    const arrLon = airportInfo?.arrival?.lon || 0;
+
+    // Generate route with explicit airport coordinates context
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `I need a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft type: ${acType}. Cruise: FL${cruiseFL}.
+      prompt: `Generate IFR route from ${departure_icao} (${depLat.toFixed(4)}°N, ${depLon.toFixed(4)}°E) to ${arrival_icao} (${arrLat.toFixed(4)}°N, ${arrLon.toFixed(4)}°E).
+Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
 
-Please search for the actual coordinates of each waypoint on sites like opennav.com, skyvector.com, or similar aviation databases.
+I need ${wpCount} waypoints using real navigation fixes from AIRAC data. Search opennav.com or skyvector.com for real fixes and their coordinates along this route.
 
-For example, to find ASKIK's coordinates, search "ASKIK waypoint coordinates" and you'll find it's at N50°02.0 E008°34.0 = lat 50.0333, lon 8.5667.
+CRITICAL COORDINATE RULES:
+- Waypoint 1 should be near ${departure_icao} (within ~20nm of ${depLat.toFixed(2)}°N, ${depLon.toFixed(2)}°E)
+- Middle waypoints should have coordinates that gradually transition from departure to arrival
+- Last waypoint should be near ${arrival_icao} (within ~20nm of ${arrLat.toFixed(2)}°N, ${arrLon.toFixed(2)}°E)
+- Each waypoint MUST have UNIQUE coordinates that are DIFFERENT from all others
+- Latitude must transition from ~${depLat.toFixed(1)} to ~${arrLat.toFixed(1)}
+- Longitude must transition from ~${depLon.toFixed(1)} to ~${arrLon.toFixed(1)}
 
-I need ${wpCount} waypoints with:
-- Real published 5-letter ICAO fix names or VOR identifiers
-- Their EXACT coordinates from aviation databases (NOT rounded to whole degrees)
-- Connected by real airways
-- A real SID from ${departure_icao} and STAR into ${arrival_icao}
-- Evenly distributed geographically between the two airports
-
-Altitudes: SID fixes 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.
-
-IMPORTANT: Each waypoint MUST have DIFFERENT coordinates from every other waypoint. If two waypoints share the same coordinates, something is wrong.`,
+Use real SIDs, airways, STARs. Altitudes: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -88,20 +113,30 @@ IMPORTANT: Each waypoint MUST have DIFFERENT coordinates from every other waypoi
 
     // Post-process
     if (result && result.waypoints && Array.isArray(result.waypoints)) {
-      // Remove duplicates and airport names
       const seen = new Set();
       result.waypoints = result.waypoints.filter(wp => {
         if (!wp.name || !wp.lat || !wp.lon) return false;
         if (wp.name === departure_icao || wp.name === arrival_icao) return false;
         if (wp.name.startsWith(departure_icao) || wp.name.startsWith(arrival_icao)) return false;
-        // Remove waypoints with duplicate coordinates (sign of LLM hallucination)
-        const coordKey = `${wp.lat.toFixed(4)}_${wp.lon.toFixed(4)}`;
+        const coordKey = `${wp.lat.toFixed(3)}_${wp.lon.toFixed(3)}`;
         const nameKey = wp.name;
         if (seen.has(nameKey) || seen.has(coordKey)) return false;
         seen.add(nameKey);
         seen.add(coordKey);
         return true;
       });
+
+      // Validate distribution: check that waypoints span the route
+      if (result.waypoints.length >= 2 && depLat && arrLat) {
+        const lats = result.waypoints.map(w => w.lat);
+        const latRange = Math.max(...lats) - Math.min(...lats);
+        const expectedLatRange = Math.abs(arrLat - depLat);
+        
+        // If waypoints span less than 30% of the expected range, coordinates are likely wrong
+        if (expectedLatRange > 0.5 && latRange < expectedLatRange * 0.3) {
+          result._coordinate_warning = "Waypoint coordinates may be inaccurate - limited geographic spread detected";
+        }
+      }
     }
 
     return Response.json(result);
