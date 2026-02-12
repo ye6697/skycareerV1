@@ -242,12 +242,11 @@ export default function Layout({ children, currentPageName }) {
                   <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
                   <span className="font-medium">{item.name}</span>
                   {isActive && (
-                    <motion.div
-                      layoutId="activeIndicator"
+                    <div
                       className="ml-auto w-1.5 h-1.5 bg-blue-400 rounded-full"
                     />
                   )}
-                </motion.div>
+                  </div>
               </Link>
             );
           })}
