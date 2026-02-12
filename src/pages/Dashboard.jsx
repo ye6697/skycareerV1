@@ -37,6 +37,21 @@ export default function Dashboard() {
   const [simbriefPilotId, setSimbriefPilotId] = useState('');
   const [simbriefSaved, setSimbriefSaved] = useState(false);
 
+  const { data: user, isLoading: userLoading } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      const isAuth = await base44.auth.isAuthenticated();
+      if (!isAuth) return null;
+      return base44.auth.me();
+    }
+  });
+
+  useEffect(() => {
+    if (!userLoading && user === null) {
+      navigate(createPageUrl('Landing'));
+    }
+  }, [user, userLoading, navigate]);
+
   // Load saved SimBrief credentials
   useEffect(() => {
     if (user) {
@@ -54,21 +69,6 @@ export default function Dashboard() {
     setTimeout(() => setSimbriefSaved(false), 2000);
     queryClient.invalidateQueries({ queryKey: ['simbrief-credentials'] });
   };
-
-  const { data: user, isLoading: userLoading } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: async () => {
-      const isAuth = await base44.auth.isAuthenticated();
-      if (!isAuth) return null;
-      return base44.auth.me();
-    }
-  });
-
-  useEffect(() => {
-    if (!userLoading && user === null) {
-      navigate(createPageUrl('Landing'));
-    }
-  }, [user, userLoading, navigate]);
 
   const userCompanyId = user?.company_id || user?.data?.company_id;
 
