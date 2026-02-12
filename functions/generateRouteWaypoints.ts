@@ -32,23 +32,12 @@ Deno.serve(async (req) => {
     const cruiseFL = Math.round((flRangeMin + flRangeMax) / 2 / 10) * 10;
     const cruiseAlt = cruiseFL * 100;
 
-    let wpMin, wpMax, routeType;
-    if (dist < 60) {
-      wpMin = 2; wpMax = 3;
-      routeType = "VERY SHORT hop. Only 2-3 waypoints.";
-    } else if (dist < 120) {
-      wpMin = 3; wpMax = 4;
-      routeType = "SHORT route. 3-4 waypoints.";
-    } else if (dist < 250) {
-      wpMin = 4; wpMax = 6;
-      routeType = "MEDIUM route. 4-6 waypoints.";
-    } else if (dist < 600) {
-      wpMin = 5; wpMax = 8;
-      routeType = "MEDIUM-LONG route. 5-8 waypoints.";
-    } else {
-      wpMin = 7; wpMax = 14;
-      routeType = "LONG route. 7-14 waypoints.";
-    }
+    let wpMin, wpMax;
+    if (dist < 60) { wpMin = 2; wpMax = 3; }
+    else if (dist < 120) { wpMin = 3; wpMax = 4; }
+    else if (dist < 250) { wpMin = 4; wpMax = 6; }
+    else if (dist < 600) { wpMin = 5; wpMax = 8; }
+    else { wpMin = 7; wpMax = 14; }
 
     let altitudeProfile;
     if (dist < 60) {
@@ -60,36 +49,30 @@ Deno.serve(async (req) => {
     }
 
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an IFR flight planning expert with access to current AIRAC navigation data. Generate a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
+      prompt: `You are an expert IFR flight planner. Generate a realistic IFR route from ${departure_icao} to ${arrival_icao}. Distance: ~${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
 
-CRITICAL - USE REAL AIRAC DATA:
-- You MUST use REAL published navigation fixes from the current AIRAC cycle.
-- Every waypoint MUST have its REAL, CORRECT coordinates from the AIRAC database - NOT estimated or interpolated positions!
-- Use real SIDs from ${departure_icao} and real STARs into ${arrival_icao}.
-- Use real published airways (e.g. L607, UL607, T180, UN872, Y163 etc.) connecting the fixes.
-- VERIFY each fix's coordinates are correct. For example: ASKIK is at N50°02.0'/E008°34.0', not somewhere else.
-- If you're unsure about a fix's exact coordinates, look them up. Wrong coordinates will cause the route to display incorrectly on the map.
+ABSOLUTE REQUIREMENT - CORRECT COORDINATES:
+Each waypoint MUST have its REAL, PUBLISHED coordinates from official aviation databases (AIRAC data).
+DO NOT guess, estimate, or interpolate coordinates! 
+DO NOT place waypoints at round numbers like 51.0, 52.0, 53.0 etc. - real fixes have precise coordinates like 50.8547, 9.2631.
+Search the internet for "ICAO fix name coordinates" for each fix to verify.
 
-GEOGRAPHIC DISTRIBUTION:
-- The waypoints MUST be evenly spread along the ENTIRE route from departure to arrival.
-- The FIRST SID waypoint should be close to ${departure_icao} (within 10-30nm).
-- The LAST STAR waypoint should be close to ${arrival_icao} (within 10-30nm).
-- Enroute waypoints should fill the middle portion evenly.
-- NEVER cluster all waypoints near one end!
+For example, if you use the fix "ASKIK", search for its actual published coordinates and use those EXACT numbers.
+If you cannot find the exact coordinates for a fix, DO NOT include that fix. Only use fixes whose coordinates you can verify.
 
-RULES:
-1. Return ${wpMin}-${wpMax} waypoints. Each MUST be UNIQUE.
-2. Use ONLY real published 5-letter ICAO fixes or VOR identifiers with their EXACT real-world coordinates.
-3. Use real airways connecting the fixes.
-4. ${altitudeProfile}
+ROUTE REQUIREMENTS:
+1. Use ${wpMin}-${wpMax} REAL published waypoints (5-letter ICAO fixes or VOR/NDB identifiers).
+2. Use real published airways connecting the fixes.
+3. Include a real SID from ${departure_icao} and a real STAR into ${arrival_icao}.
+4. Waypoints must be geographically distributed along the route, NOT clustered.
+5. ${altitudeProfile}
 
-ALTITUDE PROFILE (each waypoint needs altitude in feet):
+ALTITUDE PROFILE:
 - SID waypoints: climbing (3000-15000ft)
 - Enroute waypoints: cruise at ${cruiseAlt}ft
-- STAR waypoints: descending (FL150, FL080, 4000-5000ft)
+- STAR waypoints: descending (FL150, FL080, 4000ft)
 
-ROUTE STRING format: "${departure_icao}/RWY waypoints-and-airways ${arrival_icao}/RWY"
-Pick commonly used runways for both airports.`,
+ROUTE STRING format: "${departure_icao}/RWY xx waypoints-and-airways ${arrival_icao}/RWY xx"`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -99,9 +82,9 @@ Pick commonly used runways for both airports.`,
             items: {
               type: "object",
               properties: {
-                name: { type: "string", description: "Real ICAO fix name from AIRAC data" },
-                lat: { type: "number", description: "EXACT latitude from AIRAC database" },
-                lon: { type: "number", description: "EXACT longitude from AIRAC database" },
+                name: { type: "string", description: "Real ICAO fix name" },
+                lat: { type: "number", description: "EXACT published latitude - must be precise, not rounded" },
+                lon: { type: "number", description: "EXACT published longitude - must be precise, not rounded" },
                 alt: { type: "number", description: "Altitude in feet" },
                 type: { type: "string", enum: ["sid", "enroute", "star"] }
               },
