@@ -150,9 +150,9 @@ class PythonInterface:
         self.datarefs['wind_direction'] = xp.findDataRef("sim/cockpit2/gauges/indicators/wind_heading_deg_mag")
         self.datarefs['acf_icao'] = xp.findDataRef("sim/aircraft/view/acf_ICAO")
         
-        # FMS/GPS datarefs
-        self.datarefs['fms_count'] = xp.findDataRef("sim/cockpit2/radios/indicators/fms_fplan_count")
-        # Individual waypoint access via XPLMGetFMSEntryInfo
+        # FMS/GPS datarefs - XPLMCountFMSEntries gives total waypoints in FMS
+        # Individual waypoint access via xp.getFMSEntryInfo(index)
+        # Returns: outType, outID, outRef, outAltitude, outLat, outLon
         
         # Create flight loop
         xp.createFlightLoop(self.FlightLoopCallback, 1)
