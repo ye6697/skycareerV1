@@ -210,6 +210,8 @@ export default function CompletedFlightDetails() {
                   staticMode={true}
                   title="Flugroute"
                   flightPath={flight?.xplane_data?.flight_path || []}
+                  departureRunway={routeData?.departure_runway}
+                  arrivalRunway={routeData?.arrival_runway}
                 />
               )}
 
