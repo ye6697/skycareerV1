@@ -107,6 +107,23 @@ Pick commonly used runways for each airport.`,
       }
     });
 
+    // Post-process: remove duplicate waypoints and airport names appearing as waypoints
+    if (result && result.waypoints && Array.isArray(result.waypoints)) {
+      const seen = new Set();
+      result.waypoints = result.waypoints.filter(wp => {
+        if (!wp.name || !wp.lat || !wp.lon) return false;
+        // Skip if waypoint name is an airport ICAO
+        if (wp.name === departure_icao || wp.name === arrival_icao) return false;
+        // Skip if name starts with airport ICAO (e.g. "EDDF/25C")
+        if (wp.name.startsWith(departure_icao) || wp.name.startsWith(arrival_icao)) return false;
+        // Skip duplicates
+        const key = wp.name;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
     return Response.json(result);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
