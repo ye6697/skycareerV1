@@ -8,12 +8,16 @@ export default function FlightMapIframe({ flightData, contract, waypoints = [], 
   const iframeRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
+  const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
 
-  // Listen for ready message from iframe
+  // Listen for messages from iframe
   useEffect(() => {
     const handler = (e) => {
       if (e.data?.type === 'flightmap-ready') {
         setIframeReady(true);
+      }
+      if (e.data?.type === 'flightmap-distances') {
+        setMapDistances(e.data.payload);
       }
     };
     window.addEventListener('message', handler);
@@ -102,6 +106,18 @@ export default function FlightMapIframe({ flightData, contract, waypoints = [], 
             <span className="text-slate-400">HDG {Math.round(fd.heading || 0)}°</span>
             <span className="text-slate-400">ALT {Math.round(fd.altitude || 0).toLocaleString()} ft</span>
             <span className="text-slate-400">GS {Math.round(fd.speed || 0)} kts</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-slate-800 pt-1">
+            <span className="text-purple-400">
+              {mapDistances.nextWpDist !== null 
+                ? `▸ ${mapDistances.nextWpName}: ${mapDistances.nextWpDist} NM` 
+                : '—'}
+            </span>
+            <span className="text-amber-400">
+              {mapDistances.arrDist !== null 
+                ? `ARR: ${mapDistances.arrDist} NM` 
+                : '—'}
+            </span>
           </div>
         </div>
       )}
@@ -271,6 +287,44 @@ function update(d) {
   } else if (curPos && !staticMode && !userInteracting) {
     map.panTo(curPos, { animate:true, duration:1 });
   }
+
+  // Calculate distances for bottom bar
+  var distInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
+  if (curPos) {
+    // Distance to arrival
+    if (arrPos) {
+      distInfo.arrDist = haversineNm(curPos[0], curPos[1], arrPos[0], arrPos[1]);
+    }
+    // Distance to next (active or nearest upcoming) waypoint
+    var wps = waypoints.length > 0 ? waypoints : routeWaypoints;
+    if (wps.length > 0) {
+      // Find active waypoint or nearest ahead
+      var activeWp = wps.find(function(w) { return w.is_active; });
+      if (!activeWp) {
+        // Find nearest waypoint ahead (closest that is further than 1nm)
+        var minD = Infinity;
+        wps.forEach(function(w) {
+          var d = haversineNm(curPos[0], curPos[1], w.lat, w.lon);
+          if (d < minD && d > 1) { minD = d; activeWp = w; }
+        });
+      }
+      if (activeWp) {
+        distInfo.nextWpDist = haversineNm(curPos[0], curPos[1], activeWp.lat, activeWp.lon);
+        distInfo.nextWpName = activeWp.name || 'WPT';
+      }
+    }
+  }
+  // Send distance info back to parent
+  parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
+}
+
+function haversineNm(lat1, lon1, lat2, lon2) {
+  var R = 3440.065;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLon = (lon2 - lon1) * Math.PI / 180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c);
 }
 
 window.addEventListener('message', function(e) {
