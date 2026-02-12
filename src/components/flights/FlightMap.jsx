@@ -348,8 +348,8 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
                 </span>
               )}
               {distToArrival !== null && (
-                <span className="text-purple-400 font-bold ml-auto">
-                  {contract?.arrival_airport || 'ARR'}: {Math.round(distToArrival)} NM
+                <span className="text-amber-400 font-bold ml-auto">
+                  {contract?.arrival_airport || 'ARR'}: <span className="font-bold">{Math.round(distToArrival)} NM</span> <span className="text-slate-500 font-normal">Luftlinie</span>
                 </span>
               )}
             </div>
