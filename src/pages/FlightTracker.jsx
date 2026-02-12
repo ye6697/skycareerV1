@@ -1425,14 +1425,14 @@ export default function FlightTracker() {
               <span>{distanceInfo.totalNm} NM total</span>
             </div>
           </div>
-        </motion.div>
+        </div>
         )}
 
         {!contract && (
           <div className="text-center py-12">
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
+            <div className="animate-spin">
               <Plane className="w-12 h-12 text-blue-400 mx-auto" />
-            </motion.div>
+            </div>
             <p className="text-slate-400 mt-4">Verbinde mit X-Plane...</p>
           </div>
         )}
