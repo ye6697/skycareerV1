@@ -46,16 +46,16 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     }
   }, [savedCredentials]);
 
-  // Auto-fetch when saved credentials are loaded
+  // Auto-fetch when saved credentials are loaded or after contract reset
   useEffect(() => {
     if (autoFetchedRef.current) return;
     if (!savedCredentials) return;
     const hasCredential = savedCredentials.username || savedCredentials.pilotId;
-    if (hasCredential && !importedData) {
+    if (hasCredential && !importedData && !loading) {
       autoFetchedRef.current = true;
       fetchPlanWithCredentials(savedCredentials.username, savedCredentials.pilotId);
     }
-  }, [savedCredentials]);
+  }, [savedCredentials, importedData]);
 
   const fetchPlanWithCredentials = async (uname, pid) => {
     if (!uname && !pid) return;
