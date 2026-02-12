@@ -213,6 +213,9 @@ export default function CompletedFlightDetails() {
                 />
               )}
 
+              {/* Detailed Route Waypoints */}
+              <RouteWaypoints contract={finalContract} aircraftType="narrow_body" />
+
               {/* Flight Rating */}
               <FlightRating flight={flight} />
 
