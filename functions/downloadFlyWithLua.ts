@@ -369,9 +369,45 @@ function monitor_flight()
         if type(aircraft_icao) ~= "string" then aircraft_icao = "" end
     end)
 
-    -- FMS waypoints: not available in FlyWithLua (XPLM FMS API not exposed)
-    -- Route waypoints are generated server-side via the route generator
+    -- FMS waypoint reading (every 30 seconds to save CPU)
+    local current_time_fms = os.clock()
+    if current_time_fms - last_fms_read >= FMS_READ_INTERVAL then
+        last_fms_read = current_time_fms
+        cached_fms_waypoints = {}
+        local ok_fms, _ = pcall(function()
+            local fms_count = XPLMCountFMSEntries()
+            local dest_idx = XPLMGetDestinationFMSEntry()
+            if fms_count and fms_count > 0 then
+                for i = 0, math.min(fms_count - 1, 99) do
+                    local outType, outID, outRef, outAltitude, outLat, outLon = XPLMGetFMSEntryInfo(i)
+                    if outLat and outLon and (outLat ~= 0 or outLon ~= 0) then
+                        table.insert(cached_fms_waypoints, {
+                            name = outID or ("WPT" .. i),
+                            lat = outLat,
+                            lon = outLon,
+                            alt = outAltitude or 0,
+                            is_active = (i == dest_idx),
+                            nav_type = outType or 0
+                        })
+                    end
+                end
+            end
+        end)
+    end
+
+    -- Build FMS JSON
     local cached_fms_json = ""
+    if #cached_fms_waypoints > 0 then
+        local fms_parts = {}
+        for _, wp in ipairs(cached_fms_waypoints) do
+            table.insert(fms_parts, string.format(
+                '{"name":"%s","lat":%.5f,"lon":%.5f,"alt":%.0f,"is_active":%s,"type":%d}',
+                wp.name, wp.lat, wp.lon, wp.alt,
+                tostring(wp.is_active), wp.nav_type
+            ))
+        end
+        cached_fms_json = ',"fms_waypoints":[' .. table.concat(fms_parts, ",") .. ']'
+    end
 
     ---------------- CONSTRUCT JSON ----------------
     -- NOTE: Score calculation is done entirely on the frontend (FlightTracker).
