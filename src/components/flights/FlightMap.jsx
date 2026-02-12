@@ -58,15 +58,7 @@ const routeWaypointIcon = new L.DivIcon({
   iconAnchor: [5, 5],
 });
 
-function createRunwayIcon(heading) {
-  const rot = heading || 0;
-  return new L.DivIcon({
-    html: `<div style="transform:rotate(${rot}deg);width:4px;height:28px;background:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.3);border-radius:2px;"></div>`,
-    className: '',
-    iconSize: [4, 28],
-    iconAnchor: [2, 14],
-  });
-}
+
 
 function MapController({ center, bounds }) {
   const map = useMap();
