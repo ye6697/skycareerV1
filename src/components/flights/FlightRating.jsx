@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card } from "@/components/ui/card";
+import { motion } from "framer-motion";
 import { 
   Star, 
   Plane, 
@@ -229,12 +230,15 @@ export default function FlightRating({ flight }) {
           </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {flight.passenger_comments.map((comment, index) => (
-              <div
+              <motion.div
                 key={index}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
                 className="p-3 bg-slate-900 rounded-lg text-sm text-slate-300 italic"
               >
                 "{comment}"
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

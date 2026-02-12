@@ -7,18 +7,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import RouteCorridorAirports from './RouteCorridorAirports';
 
-// CRITICAL: Completely disable Leaflet's tap simulation.
-L.Browser.tap = false;
-if (L.Map && L.Map.Tap) {
-  L.Map.mergeOptions({ tap: false });
-}
-if (L.Map.Tap) {
-  L.Map.Tap = L.Handler.extend({
-    addHooks: function() {},
-    removeHooks: function() {}
-  });
-}
-
 // Fix leaflet default icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -81,18 +69,6 @@ function MapController({ center, bounds }) {
   const map = useMap();
   const prevCenter = useRef(center);
   const hasSetBounds = useRef(false);
-
-  // Disable the tap handler that causes double-click issues on touch devices
-  useEffect(() => {
-    if (map.tap) {
-      map.tap.disable();
-    }
-    // Also remove any lingering touchstart/touchend listeners Leaflet added to document
-    const container = map.getContainer();
-    if (container) {
-      container.style.touchAction = 'manipulation';
-    }
-  }, [map]);
 
   useEffect(() => {
     const t1 = setTimeout(() => map.invalidateSize(), 50);
@@ -293,9 +269,6 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           style={{ height: '100%', width: '100%' }}
           zoomControl={false}
           attributionControl={false}
-          tap={false}
-          doubleClickZoom={false}
-          touchZoom="center"
         >
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
           <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />

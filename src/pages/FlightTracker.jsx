@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
-import FlightMapIframe from "@/components/flights/FlightMapIframe";
+import FlightMap from "@/components/flights/FlightMap";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import RouteWaypoints from "@/components/flights/RouteWaypoints";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
@@ -34,19 +34,6 @@ import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLook
 export default function FlightTracker() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
-  // iOS Safari fix: Adding an empty ontouchstart handler to the page container
-  // forces Safari to treat taps as immediate click events instead of
-  // first triggering :hover and requiring a second tap for :active/click.
-  const touchRef = React.useRef(null);
-  useEffect(() => {
-    const el = touchRef.current;
-    if (!el) return;
-    // This empty listener is the key - it tells iOS Safari this element handles touch
-    const noop = () => {};
-    el.addEventListener('touchstart', noop, { passive: true });
-    return () => el.removeEventListener('touchstart', noop);
-  }, []);
 
   const [flightPhase, setFlightPhase] = useState('preflight');
   const [flight, setFlight] = useState(null);
@@ -1365,23 +1352,28 @@ export default function FlightTracker() {
   }
 
   return (
-    <div ref={touchRef} className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white" style={{ cursor: 'pointer' }}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Flight Header */}
         {/* Tab Warning */}
         {flightPhase !== 'preflight' && flightPhase !== 'completed' && (
-          <div
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
             className="mb-4 p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-center gap-3"
           >
             <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
             <p className="text-sm text-amber-300">
               <strong>Wichtig:</strong> Schließe diesen Tab nicht während des Fluges! Die Flugdaten werden hier live verarbeitet und der Flug kann sonst nicht korrekt abgeschlossen werden.
             </p>
-          </div>
+          </motion.div>
         )}
 
         {contract && (
-        <div className="mb-8"
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -1438,14 +1430,14 @@ export default function FlightTracker() {
               <span>{distanceInfo.totalNm} NM total</span>
             </div>
           </div>
-        </div>
+        </motion.div>
         )}
 
         {!contract && (
           <div className="text-center py-12">
-            <div className="animate-spin">
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
               <Plane className="w-12 h-12 text-blue-400 mx-auto" />
-            </div>
+            </motion.div>
             <p className="text-slate-400 mt-4">Verbinde mit X-Plane...</p>
           </div>
         )}
@@ -1730,9 +1722,12 @@ export default function FlightTracker() {
                   <div className="p-4 bg-amber-900/20 border border-amber-700/50 rounded-lg">
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <div className="animate-pulse">
+                        <motion.div
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
                           <Plane className="w-6 h-6 text-amber-400" />
-                        </div>
+                        </motion.div>
                       </div>
                       <div>
                         <p className="font-medium text-amber-200 mb-1">Warte auf X-Plane...</p>
@@ -1908,7 +1903,7 @@ export default function FlightTracker() {
 
         {contract && (
           <div className="space-y-6 mt-6">
-            <FlightMapIframe
+            <FlightMap
               flightData={flightData}
               contract={contract}
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
