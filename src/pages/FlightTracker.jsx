@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
-import FlightMap from "@/components/flights/FlightMap";
+import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import RouteWaypoints from "@/components/flights/RouteWaypoints";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
@@ -1903,7 +1903,7 @@ export default function FlightTracker() {
 
         {contract && (
           <div className="space-y-6 mt-6">
-            <FlightMap
+            <FlightMapIframe
               flightData={flightData}
               contract={contract}
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
