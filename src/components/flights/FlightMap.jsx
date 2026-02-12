@@ -216,7 +216,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
     }
   }
 
-  if (!hasPosition && !hasDep && !hasArr && routeWaypoints.length === 0) {
+  if (!hasPosition && !depPos && !arrPos && routeWaypoints.length === 0) {
     return (
       <Card className="p-6 bg-slate-800/50 border-slate-700">
         <div className="flex items-center gap-2 mb-3">
