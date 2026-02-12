@@ -20,7 +20,7 @@ import {
 "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Plane,
@@ -37,7 +37,6 @@ import {
 
 export default function ActiveFlights() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [selectedContract, setSelectedContract] = useState(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState('');
@@ -48,60 +47,37 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const u = await base44.auth.me();
-      const cid = u?.company_id || u?.data?.company_id;
-      if (cid) {
-        const companies = await base44.entities.Company.filter({ id: cid });
-        if (companies[0]) return companies[0];
-      }
-      const companies = await base44.entities.Company.filter({ created_by: u.email });
-      if (companies[0]) {
-        await base44.auth.updateMe({ company_id: companies[0].id });
-        return companies[0];
-      }
-      return null;
-    }
-  });
-
-  const companyId = company?.id;
-
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'accepted'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
   });
 
   const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'in_progress'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
   });
 
   const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
-    enabled: !!companyId
-  });
-
-  const { data: failedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'failed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'failed', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'completed'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', companyId],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    }
   });
 
   const startFlightMutation = useMutation({
@@ -123,7 +99,6 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
-        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
@@ -148,19 +123,14 @@ export default function ActiveFlights() {
 
       return flight;
     },
-    onSuccess: (flight) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       setIsAssignDialogOpen(false);
-      const contractIdForNav = selectedContract?.id;
       setSelectedContract(null);
       setSelectedAircraft('');
       setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
-      // Navigate to FlightTracker
-      if (contractIdForNav) {
-        navigate(createPageUrl(`FlightTracker?contractId=${contractIdForNav}`));
-      }
     }
   });
 
@@ -168,8 +138,30 @@ export default function ActiveFlights() {
     mutationFn: async (contractToCancel) => {
       const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
 
+      // If contract was in_progress, release aircraft and crew from the flight
+      if (contractToCancel.status === 'in_progress') {
+        const flights = await base44.entities.Flight.filter({ contract_id: contractToCancel.id });
+        const activeFlight = flights.find(f => f.status === 'in_flight' || f.status === 'scheduled' || f.status === 'boarding');
+        if (activeFlight) {
+          // Release aircraft
+          if (activeFlight.aircraft_id) {
+            await base44.entities.Aircraft.update(activeFlight.aircraft_id, { status: 'available' });
+          }
+          // Release crew
+          if (activeFlight.crew?.length) {
+            for (const member of activeFlight.crew) {
+              if (member.employee_id) {
+                await base44.entities.Employee.update(member.employee_id, { status: 'available' });
+              }
+            }
+          }
+          // Cancel flight record
+          await base44.entities.Flight.update(activeFlight.id, { status: 'cancelled' });
+        }
+      }
+
       // Update contract status
-      await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
+      await base44.entities.Contract.update(contractToCancel.id, { status: 'available', company_id: null });
 
       // Deduct penalty from company
       if (company) {
@@ -179,6 +171,7 @@ export default function ActiveFlights() {
 
         // Create transaction for penalty
         await base44.entities.Transaction.create({
+          company_id: company.id,
           type: 'expense',
           category: 'other',
           amount: penalty,
@@ -192,6 +185,8 @@ export default function ActiveFlights() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
     }
   });
 
@@ -278,16 +273,8 @@ export default function ActiveFlights() {
             'border-b-2 border-emerald-500 text-emerald-400' :
             'text-slate-400 hover:text-white'}`
             }>
+
             Abgeschlossene Flüge ({completedContracts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('failed')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'failed' ?
-            'border-b-2 border-red-500 text-red-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-            Fehlgeschlagen ({failedContracts.length})
           </button>
         </div>
 
@@ -431,27 +418,46 @@ export default function ActiveFlights() {
         {activeTab === 'completed' && completedContracts.length > 0 ?
         <div className="space-y-4">
             <AnimatePresence>
-              {completedContracts.map((c) =>
-            <motion.div key={c.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${c.id}`)}>
+              {completedContracts.map((contract) =>
+            <motion.div
+              key={contract.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}>
+
+                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${contract.id}`)}>
                     <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
                       <div className="h-1 bg-emerald-500" />
                       <div className="p-6">
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between mb-4">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-xl font-semibold text-white">{c.title}</h3>
-                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Abgeschlossen</Badge>
+                              <h3 className="text-xl font-semibold text-white">
+                                {contract.title}
+                              </h3>
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                Abgeschlossen
+                              </Badge>
                             </div>
                             <div className="flex items-center gap-3 text-slate-400">
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{c.departure_airport}</span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.departure_airport}
+                              </span>
                               <ArrowRight className="w-4 h-4" />
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{c.arrival_airport}</span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {contract.arrival_airport}
+                              </span>
                               <span className="text-slate-600">|</span>
-                              <span>{c.distance_nm} NM</span>
+                              <span>{contract.distance_nm} NM</span>
                             </div>
                           </div>
-                          <p className="text-2xl font-bold text-emerald-400">${c.payout?.toLocaleString()}</p>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-emerald-600">
+                              ${contract.payout?.toLocaleString()}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -464,54 +470,15 @@ export default function ActiveFlights() {
         <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <CheckCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">Keine abgeschlossenen Flüge</h3>
-            <p className="text-slate-400">Alle abgeschlossenen Flüge werden hier angezeigt</p>
-          </Card> :
-        null}
-
-        {/* Failed Contracts */}
-        {activeTab === 'failed' && failedContracts.length > 0 ?
-        <div className="space-y-4">
-            <AnimatePresence>
-              {failedContracts.map((c) =>
-            <motion.div key={c.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                  <Link to={createPageUrl(`CompletedFlightDetails?contractId=${c.id}`)}>
-                    <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-red-500 transition-colors cursor-pointer">
-                      <div className="h-1 bg-red-500" />
-                      <div className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-xl font-semibold text-white">{c.title}</h3>
-                              <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Fehlgeschlagen</Badge>
-                            </div>
-                            <div className="flex items-center gap-3 text-slate-400">
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{c.departure_airport}</span>
-                              <ArrowRight className="w-4 h-4" />
-                              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{c.arrival_airport}</span>
-                              <span className="text-slate-600">|</span>
-                              <span>{c.distance_nm} NM</span>
-                            </div>
-                          </div>
-                          <p className="text-2xl font-bold text-red-400">${c.payout?.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
-                </motion.div>
-            )}
-            </AnimatePresence>
-          </div> :
-        activeTab === 'failed' ?
-        <Card className="p-12 text-center bg-slate-800 border border-slate-700">
-            <AlertCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine fehlgeschlagenen Flüge</h3>
-            <p className="text-slate-400">Fehlgeschlagene Aufträge werden hier angezeigt</p>
+            <p className="text-slate-400">
+              Alle abgeschlossenen Flüge werden hier angezeigt
+            </p>
           </Card> :
         null}
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl bg-slate-800 border-slate-700 text-white">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
@@ -564,7 +531,7 @@ export default function ActiveFlights() {
                       <div className="w-40">
                         <span className="text-sm font-medium">
                           {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-400 ml-1">*</span>}
+                          {required > 0 && <span className="text-red-100 ml-1">*</span>}
                         </span>
                       </div>
                       <Select
@@ -584,10 +551,10 @@ export default function ActiveFlights() {
                         </SelectContent>
                       </Select>
                       {required > 0 && !selectedCrew[role] &&
-                      <AlertCircle className="w-5 h-5 text-amber-400" />
+                      <AlertCircle className="w-5 h-5 text-amber-100" />
                       }
                       {selectedCrew[role] &&
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
+                      <CheckCircle className="w-5 h-5 text-emerald-100" />
                       }
                     </div>);
 
@@ -596,11 +563,11 @@ export default function ActiveFlights() {
 
               {/* Warning */}
               {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-300">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-400/80">
+                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-700">
                       Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
                     </p>
                   </div>
@@ -609,7 +576,7 @@ export default function ActiveFlights() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)} className="bg-white text-black hover:bg-slate-200 border-0">
+              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
                 Abbrechen
               </Button>
               <Button
