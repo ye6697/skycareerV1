@@ -231,9 +231,19 @@ Requirements:
           star_name: { type: "string" },
           cruise_altitude: { type: "number" },
           departure_runway: { type: "string" },
-          arrival_runway: { type: "string" }
+          arrival_runway: { type: "string" },
+          departure_coords: {
+            type: "object",
+            properties: { lat: { type: "number" }, lon: { type: "number" } },
+            description: "Exact coordinates of the departure airport"
+          },
+          arrival_coords: {
+            type: "object",
+            properties: { lat: { type: "number" }, lon: { type: "number" } },
+            description: "Exact coordinates of the arrival airport"
+          }
         },
-        required: ["waypoints", "route_string", "cruise_altitude"]
+        required: ["waypoints", "route_string", "cruise_altitude", "departure_coords", "arrival_coords"]
       }
     });
 
