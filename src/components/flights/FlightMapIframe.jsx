@@ -138,6 +138,15 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { m
 
 var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), corridorGroup: L.layerGroup().addTo(map) };
 var boundsSet = false;
+var userInteracting = false;
+var interactionTimeout = null;
+var INTERACTION_COOLDOWN = 15000; // 15 seconds before auto-pan resumes
+
+map.on('dragstart zoomstart', function() {
+  userInteracting = true;
+  if (interactionTimeout) clearTimeout(interactionTimeout);
+  interactionTimeout = setTimeout(function() { userInteracting = false; }, INTERACTION_COOLDOWN);
+});
 
 function makeIcon(bg, size, border, glow) {
   var shadow = glow ? 'box-shadow:0 0 12px '+bg+', 0 0 4px '+bg+';' : '';
@@ -259,7 +268,7 @@ function update(d) {
   if (!boundsSet && allPts.length >= 2) {
     boundsSet = true;
     map.fitBounds(L.latLngBounds(allPts), { padding:[40,40], maxZoom:10 });
-  } else if (curPos && !staticMode) {
+  } else if (curPos && !staticMode && !userInteracting) {
     map.panTo(curPos, { animate:true, duration:1 });
   }
 }
