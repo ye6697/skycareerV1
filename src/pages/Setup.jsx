@@ -25,7 +25,9 @@ export default function Setup() {
   const [formData, setFormData] = useState({
     name: '',
     callsign: '',
-    hub_airport: ''
+    hub_airport: '',
+    simbrief_username: '',
+    simbrief_pilot_id: ''
   });
 
   const createCompanyMutation = useMutation({
@@ -146,8 +148,11 @@ export default function Setup() {
         }
       ]);
 
-      // Save company_id on the user
-      await base44.auth.updateMe({ company_id: company.id });
+      // Save company_id and optional SimBrief credentials on the user
+      const userData = { company_id: company.id };
+      if (data.simbrief_username) userData.simbrief_username = data.simbrief_username;
+      if (data.simbrief_pilot_id) userData.simbrief_pilot_id = data.simbrief_pilot_id;
+      await base44.auth.updateMe(userData);
 
       return company;
     },
@@ -246,6 +251,35 @@ export default function Setup() {
                   />
                   <p className="text-xs text-blue-200/60">
                     Der ICAO-Code deines Heimatflughafens (4 Buchstaben)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-100 flex items-center gap-2">
+                    <Plane className="w-4 h-4" />
+                    SimBrief Username <span className="text-blue-300/50 text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    value={formData.simbrief_username}
+                    onChange={(e) => setFormData({ ...formData, simbrief_username: e.target.value })}
+                    placeholder="Dein SimBrief Username"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-blue-400"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-100 flex items-center gap-2">
+                    <Radio className="w-4 h-4" />
+                    SimBrief Pilot ID <span className="text-blue-300/50 text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    value={formData.simbrief_pilot_id}
+                    onChange={(e) => setFormData({ ...formData, simbrief_pilot_id: e.target.value })}
+                    placeholder="z.B. 123456"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-blue-400 font-mono"
+                  />
+                  <p className="text-xs text-blue-200/60">
+                    Findest du auf simbrief.com unter deinem Profil. Kann auch später eingerichtet werden.
                   </p>
                 </div>
 
