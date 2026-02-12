@@ -294,23 +294,14 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           )}
 
           {arrPos && (
-            <>
-              <Marker position={arrPos} icon={arrIcon}>
-                <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
-                  <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#f59e0b',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #78350f'}}>
-                    {contract?.arrival_airport || 'ARR'}
-                    {arrivalRunway ? ` RWY ${arrivalRunway}` : ''}
-                  </span>
-                </Tooltip>
-              </Marker>
-              {arrivalRunway && (
-                <Marker
-                  position={arrPos}
-                  icon={createRunwayIcon(parseInt(arrivalRunway) * 10 || 0)}
-                  interactive={false}
-                />
-              )}
-            </>
+            <Marker position={arrPos} icon={arrIcon}>
+              <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
+                <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#f59e0b',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #78350f'}}>
+                  {contract?.arrival_airport || 'ARR'}
+                  {arrivalRunway ? ` RWY ${arrivalRunway}` : ''}
+                </span>
+              </Tooltip>
+            </Marker>
           )}
 
           {validWaypoints.map((wp, i) => (
