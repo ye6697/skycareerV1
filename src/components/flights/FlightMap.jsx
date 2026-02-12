@@ -282,7 +282,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           )}
 
-          {waypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
+          {validWaypoints.map((wp, i) => (
             <Marker key={`fms-${i}`} position={[wp.lat, wp.lon]} icon={waypointIcon}>
               <Tooltip permanent direction="top" offset={[0, -8]} className="waypoint-label">
                 <span style={{fontSize:'10px',fontFamily:'monospace',color:'#a78bfa',background:'rgba(15,23,42,0.85)',padding:'1px 4px',borderRadius:'3px',border:'1px solid #4c1d95'}}>
@@ -293,7 +293,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           ))}
 
-          {waypoints.length === 0 && routeWaypoints.filter(wp => wp.lat && wp.lon).map((wp, i) => (
+          {validWaypoints.length === 0 && validRouteWaypoints.map((wp, i) => (
             <Marker key={`route-${i}`} position={[wp.lat, wp.lon]} icon={routeWaypointIcon}>
               <Tooltip permanent direction="top" offset={[0, -8]} className="waypoint-label">
                 <span style={{fontSize:'10px',fontFamily:'monospace',color:'#c4b5fd',background:'rgba(15,23,42,0.85)',padding:'1px 4px',borderRadius:'3px',border:'1px solid #6d28d9'}}>
