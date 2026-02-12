@@ -240,6 +240,26 @@ Requirements:
         seen.add(coordKey);
         return true;
       });
+
+      // Apply altitude profile to LLM results (often returns alt=0)
+      const total = result.waypoints.length;
+      if (total > 0) {
+        for (let i = 0; i < total; i++) {
+          const progress = total === 1 ? 0.5 : i / (total - 1);
+          if (progress < 0.2) {
+            result.waypoints[i].alt = Math.round(3000 + progress * 5 * cruiseAlt * 0.8);
+            if (result.waypoints[i].type === 'enroute') result.waypoints[i].type = 'sid';
+          } else if (progress > 0.8) {
+            const descProgress = (progress - 0.8) / 0.2;
+            result.waypoints[i].alt = Math.round(cruiseAlt * (1 - descProgress * 0.85));
+            if (result.waypoints[i].type === 'enroute') result.waypoints[i].type = 'star';
+          } else {
+            result.waypoints[i].alt = cruiseAlt;
+          }
+        }
+      }
+
+      if (!result.cruise_altitude) result.cruise_altitude = cruiseAlt;
     }
 
     return Response.json(result);
