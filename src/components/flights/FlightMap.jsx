@@ -269,6 +269,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           style={{ height: '100%', width: '100%' }}
           zoomControl={false}
           attributionControl={false}
+          tap={false}
         >
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
           <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />
