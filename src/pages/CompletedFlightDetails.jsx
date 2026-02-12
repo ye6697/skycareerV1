@@ -22,8 +22,7 @@ import {
 import FlightRating from "@/components/flights/FlightRating";
 import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
-import FlightMap from "@/components/flights/FlightMap";
-import RouteWaypoints from "@/components/flights/RouteWaypoints";
+import FlightMapIframe from "@/components/flights/FlightMapIframe";
 
 export default function CompletedFlightDetails() {
   const navigate = useNavigate();
@@ -74,21 +73,7 @@ export default function CompletedFlightDetails() {
   const flight = passedFlight || flights[0];
   const finalContract = passedContract || contract;
 
-  // Fetch route waypoints for the map
-  const { data: routeData } = useQuery({
-    queryKey: ['completed-route', finalContract?.departure_airport, finalContract?.arrival_airport],
-    queryFn: async () => {
-      const response = await base44.functions.invoke('generateRouteWaypoints', {
-        departure_icao: finalContract.departure_airport,
-        arrival_icao: finalContract.arrival_airport,
-        aircraft_type: 'narrow_body',
-        distance_nm: finalContract.distance_nm || 300
-      });
-      return response.data;
-    },
-    enabled: !!finalContract?.departure_airport && !!finalContract?.arrival_airport,
-    staleTime: 5 * 60 * 1000,
-  });
+  // No route generation needed - map will use flight path data
 
   // If we don't have all required data, auto-refresh
   React.useEffect(() => {
@@ -193,7 +178,7 @@ export default function CompletedFlightDetails() {
             <div className="lg:col-span-2 space-y-6">
               {/* Flight Route Map */}
               {finalContract && (
-                <FlightMap
+                <FlightMapIframe
                   flightData={{
                     latitude: 0,
                     longitude: 0,
@@ -206,19 +191,11 @@ export default function CompletedFlightDetails() {
                     speed: 0,
                   }}
                   contract={finalContract}
-                  routeWaypoints={routeData?.waypoints || []}
                   staticMode={true}
                   title="Flugroute"
                   flightPath={flight?.xplane_data?.flight_path || []}
-                  departureRunway={routeData?.departure_runway}
-                  arrivalRunway={routeData?.arrival_runway}
-                  departureCoords={routeData?.departure_coords}
-                  arrivalCoords={routeData?.arrival_coords}
                 />
               )}
-
-              {/* Detailed Route Waypoints */}
-              <RouteWaypoints contract={finalContract} aircraftType="narrow_body" />
 
               {/* Flight Rating */}
               <FlightRating flight={flight} />
