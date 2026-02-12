@@ -139,11 +139,9 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   // Planned route (dashed line) - ALWAYS connect dep -> waypoints -> arrival
   const routePoints = [];
   if (depPos) routePoints.push(depPos);
-  if (activeWaypoints.length > 0) {
-    activeWaypoints.forEach(wp => {
-      if (wp.lat && wp.lon) routePoints.push([wp.lat, wp.lon]);
-    });
-  }
+  activeWaypoints.forEach(wp => {
+    routePoints.push([wp.lat, wp.lon]);
+  });
   if (arrPos) routePoints.push(arrPos);
 
   // Actual flown path (solid line) - prefer recorded flight_path
