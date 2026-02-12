@@ -306,10 +306,10 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           )}
 
           {validWaypoints.map((wp, i) => (
-            <Marker key={`fms-${i}`} position={[wp.lat, wp.lon]} icon={waypointIcon}>
+            <Marker key={`fms-${i}`} position={[wp.lat, wp.lon]} icon={wp.is_active ? activeWaypointIcon : waypointIcon}>
               <Tooltip permanent direction="top" offset={[0, -8]} className="waypoint-label">
-                <span style={{fontSize:'10px',fontFamily:'monospace',color:'#a78bfa',background:'rgba(15,23,42,0.85)',padding:'1px 4px',borderRadius:'3px',border:'1px solid #4c1d95'}}>
-                  {wp.name || `WPT ${i+1}`}
+                <span style={{fontSize:'10px',fontFamily:'monospace',color: wp.is_active ? '#f472b6' : '#a78bfa',background:'rgba(15,23,42,0.85)',padding:'1px 4px',borderRadius:'3px',border: wp.is_active ? '1px solid #be185d' : '1px solid #4c1d95', boxShadow: wp.is_active ? '0 0 6px rgba(244,114,182,0.4)' : 'none'}}>
+                  {wp.is_active ? '▸ ' : ''}{wp.name || `WPT ${i+1}`}
                   {wp.alt > 0 && ` FL${Math.round(wp.alt/100)}`}
                 </span>
               </Tooltip>
