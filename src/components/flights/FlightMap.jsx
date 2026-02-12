@@ -8,9 +8,13 @@ import 'leaflet/dist/leaflet.css';
 import RouteCorridorAirports from './RouteCorridorAirports';
 
 // CRITICAL: Disable Leaflet's tap handler globally to prevent it from
-// intercepting ALL touch events on the page (causes double-click issue)
-if (L.Browser.touch) {
-  L.Browser.tap = false;
+// intercepting ALL touch events on the page (causes double-click issue on touch devices).
+// The tap handler creates event listeners on document.body that intercept ALL touches.
+L.Browser.tap = false;
+
+// Also patch the Map.Tap handler if it exists to prevent it from ever being added
+if (L.Map && L.Map.Tap) {
+  L.Map.mergeOptions({ tap: false });
 }
 
 // Fix leaflet default icons
