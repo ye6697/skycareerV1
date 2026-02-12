@@ -631,7 +631,15 @@ export default function CompletedFlightDetails() {
                    </div>
                    )}
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Treibstoff ({Math.round(flight.fuel_used_liters || 0).toLocaleString()} L)</span>
+                     <span className="text-slate-400">Treibstoff ({(() => {
+                       if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters).toLocaleString();
+                       const xpd = flight.xplane_data || {};
+                       const initKg = xpd.initial_fuel_kg || 0;
+                       const curKg = xpd.fuelKg || xpd.fuel_kg || 0;
+                       if (initKg > 0) return Math.round(Math.max(0, initKg - curKg) * 1.25).toLocaleString();
+                       if (flight.flight_duration_hours > 0) return Math.round(flight.flight_duration_hours * 2500).toLocaleString();
+                       return '0';
+                     })()} L)</span>
                     <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
