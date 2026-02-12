@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Download, Copy, Check, RefreshCw } from 'lucide-react';
+import { Loader2, Download, Copy, Check, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
 
 export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [username, setUsername] = useState('');
@@ -14,8 +14,10 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [loading, setLoading] = useState(false);
   const [importedData, setImportedData] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [mismatchWarning, setMismatchWarning] = useState(null);
+  const [mismatch, setMismatch] = useState(false);
+  const [waitingForPlan, setWaitingForPlan] = useState(false);
   const autoFetchedRef = useRef(false);
+  const pollIntervalRef = useRef(null);
 
   // Load saved SimBrief credentials from user profile
   const { data: savedCredentials } = useQuery({
@@ -36,21 +38,38 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     }
   }, [savedCredentials]);
 
-  // Auto-fetch when saved credentials are loaded or after contract reset
+  // Auto-fetch when credentials are loaded
   useEffect(() => {
     if (autoFetchedRef.current) return;
     if (!savedCredentials) return;
     const hasCredential = savedCredentials.username || savedCredentials.pilotId;
     if (hasCredential && !importedData && !loading) {
       autoFetchedRef.current = true;
-      fetchPlanWithCredentials(savedCredentials.username, savedCredentials.pilotId);
+      fetchAndCheckPlan(savedCredentials.username, savedCredentials.pilotId);
     }
   }, [savedCredentials, importedData]);
 
-  const fetchPlanWithCredentials = async (uname, pid) => {
+  // Cleanup poll on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
+
+  const checkPlanMatchesContract = (data) => {
+    if (!contract || !data) return true;
+    const depMatch = !contract.departure_airport ||
+      data.departure_airport?.toUpperCase() === contract.departure_airport?.toUpperCase();
+    const arrMatch = !contract.arrival_airport ||
+      data.arrival_airport?.toUpperCase() === contract.arrival_airport?.toUpperCase();
+    return depMatch && arrMatch;
+  };
+
+  const fetchAndCheckPlan = async (uname, pid) => {
     if (!uname && !pid) return;
     setLoading(true);
     setError(null);
+    setMismatch(false);
 
     const response = await base44.functions.invoke('fetchSimBrief', {
       simbrief_username: uname || undefined,
@@ -65,22 +84,16 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     }
 
     const data = response.data;
-    setImportedData(data);
-    
-    // Check if the loaded plan matches the current contract
-    if (contract && data) {
-      const depMatch = !contract.departure_airport || 
-        data.departure_airport?.toUpperCase() === contract.departure_airport?.toUpperCase();
-      const arrMatch = !contract.arrival_airport || 
-        data.arrival_airport?.toUpperCase() === contract.arrival_airport?.toUpperCase();
-      if (!depMatch || !arrMatch) {
-        setMismatchWarning(`Flugplan (${data.departure_airport}→${data.arrival_airport}) passt nicht zum Auftrag (${contract.departure_airport}→${contract.arrival_airport}). Erstelle einen neuen Flugplan auf SimBrief!`);
-      } else {
-        setMismatchWarning(null);
-      }
+
+    if (checkPlanMatchesContract(data)) {
+      setImportedData(data);
+      setMismatch(false);
+      if (onRouteLoaded) onRouteLoaded(data);
+    } else {
+      // Plan doesn't match current contract
+      setMismatch(true);
+      setImportedData(null);
     }
-    
-    if (onRouteLoaded) onRouteLoaded(data);
   };
 
   const fetchPlan = async () => {
@@ -89,38 +102,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
-    const response = await base44.functions.invoke('fetchSimBrief', {
-      simbrief_username: username || undefined,
-      simbrief_userid: pilotId || undefined
-    });
-
-    setLoading(false);
-
-    if (response.data?.error) {
-      setError(response.data.error);
-      return;
-    }
-
-    const data = response.data;
-    setImportedData(data);
-
-    // Check if the loaded plan matches the current contract
-    if (contract && data) {
-      const depMatch = !contract.departure_airport || 
-        data.departure_airport?.toUpperCase() === contract.departure_airport?.toUpperCase();
-      const arrMatch = !contract.arrival_airport || 
-        data.arrival_airport?.toUpperCase() === contract.arrival_airport?.toUpperCase();
-      if (!depMatch || !arrMatch) {
-        setMismatchWarning(`Flugplan (${data.departure_airport}→${data.arrival_airport}) passt nicht zum Auftrag (${contract.departure_airport}→${contract.arrival_airport}). Erstelle einen neuen Flugplan auf SimBrief!`);
-      } else {
-        setMismatchWarning(null);
-      }
-    }
-
-    // Save credentials for future use
+    // Save credentials
     const updateData = {};
     if (username) updateData.simbrief_username = username;
     if (pilotId) updateData.simbrief_pilot_id = pilotId;
@@ -128,7 +110,55 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
       base44.auth.updateMe(updateData);
     }
 
-    if (onRouteLoaded) onRouteLoaded(data);
+    await fetchAndCheckPlan(username, pilotId);
+  };
+
+  // Open SimBrief dispatch with contract data pre-filled
+  const openSimBriefDispatch = () => {
+    if (!contract) return;
+    const params = new URLSearchParams();
+    params.set('orig', contract.departure_airport || '');
+    params.set('dest', contract.arrival_airport || '');
+    if (contract.passenger_count) params.set('pax', String(contract.passenger_count));
+    
+    const url = `https://dispatch.simbrief.com/options/custom?${params.toString()}`;
+    window.open(url, '_blank');
+
+    // Start polling for the new plan
+    setWaitingForPlan(true);
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    
+    let attempts = 0;
+    pollIntervalRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > 60) { // Stop after 5 minutes
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        setWaitingForPlan(false);
+        return;
+      }
+
+      const uname = username || savedCredentials?.username;
+      const pid = pilotId || savedCredentials?.pilotId;
+      if (!uname && !pid) return;
+
+      const response = await base44.functions.invoke('fetchSimBrief', {
+        simbrief_username: uname || undefined,
+        simbrief_userid: pid || undefined
+      });
+
+      if (response.data?.error) return;
+      const data = response.data;
+
+      if (checkPlanMatchesContract(data)) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        setWaitingForPlan(false);
+        setMismatch(false);
+        setImportedData(data);
+        if (onRouteLoaded) onRouteLoaded(data);
+      }
+    }, 5000); // Poll every 5 seconds
   };
 
   const copyRoute = () => {
@@ -138,6 +168,9 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  // Show: credentials needed
+  const hasCredentials = username || pilotId || savedCredentials?.username || savedCredentials?.pilotId;
 
   return (
     <Card className="p-4 bg-slate-800/50 border-slate-700">
@@ -151,9 +184,16 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             Geladen
           </Badge>
         )}
+        {waitingForPlan && (
+          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Warte auf Plan...
+          </Badge>
+        )}
       </div>
 
-      {!importedData ? (
+      {/* No credentials yet */}
+      {!hasCredentials && !importedData && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -176,9 +216,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             </div>
           </div>
 
-          {error && (
-            <p className="text-xs text-red-400">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-400">{error}</p>}
 
           <Button
             onClick={fetchPlan}
@@ -188,17 +226,72 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             {loading ? (
               <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Lade Flugplan...</>
             ) : (
-              <><Download className="w-3 h-3 mr-1" /> Letzten Flugplan laden</>
+              <><Download className="w-3 h-3 mr-1" /> Verbinden</>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Loading state */}
+      {hasCredentials && !importedData && loading && !mismatch && (
+        <div className="flex items-center justify-center gap-2 py-4 text-slate-400 text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Lade Flugplan...
+        </div>
+      )}
+
+      {/* Mismatch: Plan doesn't match contract -> offer to create new one */}
+      {hasCredentials && !importedData && !loading && (mismatch || (!autoFetchedRef.current === false && !importedData)) && (
+        <div className="space-y-3">
+          <div className="p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs text-amber-300 font-medium mb-1">
+                  {mismatch 
+                    ? `Dein letzter SimBrief-Plan passt nicht zu diesem Auftrag (${contract?.departure_airport} → ${contract?.arrival_airport}).`
+                    : `Kein passender Flugplan gefunden.`
+                  }
+                </p>
+                <p className="text-[10px] text-amber-300/70">
+                  Erstelle einen neuen Flugplan – die Route wird automatisch vorausgefüllt.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={openSimBriefDispatch}
+            disabled={waitingForPlan}
+            className="w-full h-9 text-xs bg-blue-600 hover:bg-blue-700 gap-2"
+          >
+            {waitingForPlan ? (
+              <><Loader2 className="w-3 h-3 animate-spin" /> Warte auf neuen Flugplan...</>
+            ) : (
+              <><ExternalLink className="w-3 h-3" /> Flugplan auf SimBrief erstellen</>
             )}
           </Button>
 
-          <p className="text-[10px] text-slate-500 text-center">
-            Erstelle deinen Flugplan auf <a href="https://dispatch.simbrief.com" target="_blank" rel="noopener" className="text-blue-400 underline">dispatch.simbrief.com</a> und importiere ihn hier.
-          </p>
+          {waitingForPlan && (
+            <p className="text-[10px] text-blue-400 text-center">
+              SimBrief wurde geöffnet. Erstelle dort den Flugplan und klicke auf "Generate OFP". 
+              Der Plan wird automatisch hier geladen.
+            </p>
+          )}
+
+          <Button
+            onClick={() => fetchAndCheckPlan(username || savedCredentials?.username, pilotId || savedCredentials?.pilotId)}
+            variant="outline"
+            className="w-full h-7 text-xs border-slate-600"
+          >
+            <RefreshCw className="w-3 h-3 mr-1" /> Manuell neu laden
+          </Button>
         </div>
-      ) : (
+      )}
+
+      {/* Plan loaded and matches */}
+      {importedData && (
         <div className="space-y-3">
-          {/* Flight info */}
           <div className="grid grid-cols-2 gap-2">
             <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
               <span className="text-[10px] text-slate-500 uppercase">DEP</span>
@@ -229,7 +322,6 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             </div>
           </div>
 
-          {/* Route string */}
           <div className="p-2 bg-slate-900 rounded-lg">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-slate-500">Route</span>
@@ -242,21 +334,17 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             </p>
           </div>
 
-          {mismatchWarning && (
-            <div className="p-2 bg-amber-900/30 border border-amber-700/50 rounded-lg">
-              <p className="text-[10px] text-amber-300 flex items-start gap-1">
-                <span className="shrink-0 mt-0.5">⚠️</span>
-                {mismatchWarning}
-              </p>
-            </div>
-          )}
-
           <Button
-            onClick={() => { setImportedData(null); setError(null); setMismatchWarning(null); autoFetchedRef.current = false; }}
+            onClick={() => { 
+              setImportedData(null); 
+              setError(null); 
+              setMismatch(true);
+              autoFetchedRef.current = true; // Don't auto-fetch old plan again
+            }}
             variant="outline"
             className="w-full h-7 text-xs border-slate-600"
           >
-            <RefreshCw className="w-3 h-3 mr-1" /> Neuen Flugplan laden
+            <RefreshCw className="w-3 h-3 mr-1" /> Neuen Flugplan erstellen
           </Button>
         </div>
       )}
