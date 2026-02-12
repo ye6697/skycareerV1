@@ -35,21 +35,9 @@ html, body, #root {
   display: none !important;
 }
 
-/* Fix Leaflet tap handler creating a fullscreen overlay that steals touch events */
-.leaflet-container::after {
-  display: none !important;
-}
-/* The Leaflet tap handler creates a transparent overlay div that covers the ENTIRE page
-   and intercepts all touch events. This prevents that. */
-body > .leaflet-container,
-.leaflet-container .leaflet-proxy.leaflet-zoom-animated {
-  /* don't let leaflet proxy escape the container */
-}
-/* Nuclear option: ensure nothing from leaflet captures events outside its container */
+/* Fix Leaflet touch interactions stealing events from the rest of the page */
 .leaflet-container {
-  overflow: hidden;
-  isolation: isolate;
-  contain: layout style;
+  touch-action: manipulation;
 }
 
 /* Input fields always white text */
