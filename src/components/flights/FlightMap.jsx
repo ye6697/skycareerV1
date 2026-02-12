@@ -289,10 +289,10 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
 
           {arrPos && (
             <Marker position={arrPos} icon={arrIcon}>
-              <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
-                <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#f59e0b',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #78350f'}}>
+              <Tooltip permanent direction="bottom" offset={[0, 10]} className="waypoint-label">
+                <span style={{fontSize:'12px',fontFamily:'monospace',fontWeight:'bold',color:'#f59e0b',background:'rgba(15,23,42,0.95)',padding:'3px 7px',borderRadius:'4px',border:'1px solid #78350f',boxShadow:'0 0 8px rgba(245,158,11,0.3)'}}>
                   {contract?.arrival_airport || 'ARR'}
-                  {arrivalRunway ? ` RWY ${arrivalRunway}` : ''}
+                  {arrivalRunway ? ` / ${arrivalRunway}` : ''}
                 </span>
               </Tooltip>
             </Marker>
