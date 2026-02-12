@@ -210,45 +210,48 @@ Deno.serve(async (req) => {
 
     // Fallback: Use LLM with detailed aviation prompt
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an expert IFR flight planner with access to current AIRAC navigation data. Generate a COMPLETE and REALISTIC IFR flight plan from ${departure_icao} to ${arrival_icao}.
+      prompt: `You are an expert IFR flight planner. Generate a COMPLETE and REALISTIC IFR flight plan from ${departure_icao} to ${arrival_icao}.
 
 Flight parameters:
 - Distance: ~${dist} NM
 - Aircraft type: ${acType}
 - Cruise altitude: FL${cruiseFL} (${cruiseAlt} ft)
 
-CRITICAL REQUIREMENTS - follow these exactly:
+CRITICAL: Search the internet for REAL current procedures at BOTH airports. Do NOT guess or reuse generic data.
 
-1. SID (Standard Instrument Departure):
-   - Pick a REAL published SID procedure for ${departure_icao}
-   - Provide the SID name (e.g. "TOBAK7F", "OBOKA1S", "MARUN6G")
-   - Include 1-2 waypoints that belong to this SID with type "sid"
-   - Pick a real runway for departure
+1. SID (Standard Instrument Departure) at ${departure_icao}:
+   - Search for REAL published SID procedures at ${departure_icao}
+   - The SID must be a real procedure published for ${departure_icao}, NOT for any other airport
+   - Include the SID name with transition (e.g. "TOBAK7F" for EDDF, "GIVMI4P" for EDDM, "MODRU2A" for LEMD)
+   - Include 1-2 SID waypoints with their exact coordinates
+   - Pick a real active runway at ${departure_icao}
 
 2. AIRWAY ROUTING (enroute):
-   - Use REAL published airways (e.g. L620, T180, UL607, UN850, Z850, Y163)
-   - The route_string MUST contain airways between fixes, like: "TOBAK L620 KERAX T180 PIROT"
-   - NOT just a list of waypoint names
-   - Include 3-6 enroute waypoints with type "enroute"
+   - Use REAL published airways connecting the departure area to the arrival area
+   - The route_string MUST include airways between fixes: "FIX AIRWAY FIX AIRWAY FIX"
+   - Use airways like L620, T180, UL607, UN850, Z850, Y163, UM748, UP975, etc.
+   - Include 3-6 enroute waypoints spaced along the actual great-circle path
+   - Each waypoint must have accurate coordinates (search for them!)
 
-3. STAR (Standard Terminal Arrival Route):
-   - Pick a REAL published STAR procedure for ${arrival_icao}
-   - Provide the STAR name (e.g. "ANEK2D", "OSBIT1B", "DEBHI1A")
-   - Include 1-2 waypoints that belong to this STAR with type "star"
-   - Pick a real runway for arrival
+3. STAR (Standard Terminal Arrival Route) at ${arrival_icao}:
+   - Search for REAL published STAR procedures at ${arrival_icao}
+   - The STAR must be a real procedure published for ${arrival_icao}, NOT for any other airport
+   - Include the STAR name with transition (e.g. "DEBHI1A" for EDDH, "OSBIT1B" for EDDV, "CCS2A" for LEMD)
+   - Include 1-2 STAR waypoints with their exact coordinates
+   - Pick a real active runway at ${arrival_icao}
 
 4. COORDINATES:
-   - All lat/lon MUST be accurate to at least 4 decimal places
-   - Use internet search to verify real waypoint positions
-   - departure_coords = exact airport coordinates of ${departure_icao}
-   - arrival_coords = exact airport coordinates of ${arrival_icao}
+   - All lat/lon MUST be accurate to 4+ decimal places
+   - departure_coords = exact ARP (Airport Reference Point) of ${departure_icao}
+   - arrival_coords = exact ARP (Airport Reference Point) of ${arrival_icao}
+   - Waypoint coordinates must match real published positions
 
-5. ROUTE STRING FORMAT:
-   - Must follow real ATC format: "SID_TRANSITION AIRWAY FIX AIRWAY FIX ... STAR_TRANSITION"
-   - Example: "TOBAK7F TOBAK L620 KERAX T180 PIROT UL607 ERSEN DEBHI1A"
-   - DO NOT include departure/arrival ICAO codes in the route_string
+5. ROUTE STRING FORMAT (NO ICAO codes):
+   - "SID_NAME FIX AIRWAY FIX AIRWAY FIX STAR_NAME"
+   - Example for EDDF-EDDH: "TOBAK7F TOBAK L620 KERAX T180 PIROT DEBHI1A"
+   - Example for EDDM-LEMD: "GIVMI4P GIVMI UN869 TEDGO UL607 LORES CCS2A"
 
-6. Do NOT use "DCT" as a waypoint name. Only use it in route_string if direct routing is needed between fixes.`,
+6. Do NOT use "DCT" as a waypoint name.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
