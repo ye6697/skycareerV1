@@ -76,6 +76,18 @@ function MapController({ center, bounds }) {
   const prevCenter = useRef(center);
   const hasSetBounds = useRef(false);
 
+  // Disable the tap handler that causes double-click issues on touch devices
+  useEffect(() => {
+    if (map.tap) {
+      map.tap.disable();
+    }
+    // Also remove any lingering touchstart/touchend listeners Leaflet added to document
+    const container = map.getContainer();
+    if (container) {
+      container.style.touchAction = 'manipulation';
+    }
+  }, [map]);
+
   useEffect(() => {
     const t1 = setTimeout(() => map.invalidateSize(), 50);
     const t2 = setTimeout(() => map.invalidateSize(), 200);
