@@ -332,20 +332,22 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             <span className="text-slate-400">HDG {Math.round(fd.heading || 0)}°</span>
             <span className="text-slate-400">ALT {Math.round(fd.altitude || 0).toLocaleString()} ft</span>
             <span className="text-slate-400">GS {Math.round(fd.speed || 0)} kts</span>
-            {distToArrival !== null && (
-              <span className="text-purple-400 font-bold">
-                {contract?.arrival_airport || 'ARR'}: {Math.round(distToArrival)} NM
+            {activeWaypoints.length > 0 && (
+              <span className="text-slate-500">
+                {activeWaypoints.length} WPTs
               </span>
             )}
           </div>
-          {distToNextWp !== null && (
+          {(distToNextWp !== null || distToArrival !== null) && (
             <div className="flex items-center justify-between border-t border-slate-700/50 pt-1">
-              <span className="text-purple-400">
-                → {nextWpName}: <span className="font-bold">{Math.round(distToNextWp)} NM</span>
-              </span>
-              {activeWaypoints.length > 0 && (
-                <span className="text-slate-500">
-                  {activeWaypoints.length} WPTs
+              {distToNextWp !== null && (
+                <span className="text-purple-400">
+                  → {nextWpName}: <span className="font-bold">{Math.round(distToNextWp)} NM</span>
+                </span>
+              )}
+              {distToArrival !== null && (
+                <span className="text-purple-400 font-bold ml-auto">
+                  {contract?.arrival_airport || 'ARR'}: {Math.round(distToArrival)} NM
                 </span>
               )}
             </div>
