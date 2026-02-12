@@ -31,17 +31,17 @@ function createAircraftIcon(heading) {
 }
 
 const depIcon = new L.DivIcon({
-  html: `<div style="background:#10b981;width:14px;height:14px;border-radius:50%;border:3px solid #064e3b;box-shadow:0 0 8px #10b981;"></div>`,
+  html: `<div style="background:#10b981;width:18px;height:18px;border-radius:50%;border:3px solid #064e3b;box-shadow:0 0 12px #10b981, 0 0 4px #10b981;"></div>`,
   className: '',
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
 });
 
 const arrIcon = new L.DivIcon({
-  html: `<div style="background:#f59e0b;width:14px;height:14px;border-radius:50%;border:3px solid #78350f;box-shadow:0 0 8px #f59e0b;"></div>`,
+  html: `<div style="background:#f59e0b;width:18px;height:18px;border-radius:50%;border:3px solid #78350f;box-shadow:0 0 12px #f59e0b, 0 0 4px #f59e0b;"></div>`,
   className: '',
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
 });
 
 const waypointIcon = new L.DivIcon({
