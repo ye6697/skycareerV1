@@ -19,21 +19,25 @@ if (L.Map.Tap) {
   });
 }
 
-// AGGRESSIVE FIX: Remove any document-level touchstart/touchend listeners that Leaflet may have added.
-// Leaflet's Map.Tap handler registers listeners on `document` that intercept ALL touch events,
-// causing the double-click bug on iOS Safari. We monkey-patch document.addEventListener to block them.
-const _origAddEventListener = document.addEventListener.bind(document);
-const _blockedLeafletEvents = new Set(['touchstart', 'touchend']);
-let _leafletListenerCleanups = [];
-document.addEventListener = function(type, fn, opts) {
-  // Detect Leaflet's tap handler listeners by checking the function source
-  if (_blockedLeafletEvents.has(type) && fn && fn.toString && fn.toString().includes('_simulateEvent')) {
-    // Block this listener entirely - it's Leaflet's tap handler
-    _leafletListenerCleanups.push({ type, fn, opts });
-    return;
-  }
-  return _origAddEventListener(type, fn, opts);
-};
+// AGGRESSIVE FIX: Intercept document.addEventListener to prevent Leaflet from
+// registering document-level touchstart/touchend listeners that steal ALL touch events.
+// This is the root cause of the iOS double-tap bug.
+if (!window.__leafletTouchPatched) {
+  window.__leafletTouchPatched = true;
+  const _origDocAddEventListener = Document.prototype.addEventListener;
+  Document.prototype.addEventListener = function(type, fn, opts) {
+    // Block Leaflet's tap handler document-level touch listeners
+    if ((type === 'touchstart' || type === 'touchend' || type === 'touchmove') && 
+        fn && typeof fn === 'function') {
+      const src = fn.toString();
+      if (src.includes('_simulateEvent') || src.includes('_onMove') || src.includes('_fireClick')) {
+        // This is Leaflet's Map.Tap handler - block it
+        return;
+      }
+    }
+    return _origDocAddEventListener.call(this, type, fn, opts);
+  };
+}
 
 // Fix leaflet default icons
 delete L.Icon.Default.prototype._getIconUrl;
