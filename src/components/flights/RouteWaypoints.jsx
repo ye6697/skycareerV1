@@ -124,7 +124,15 @@ export default function RouteWaypoints({ contract, aircraftType }) {
           </Button>
         </div>
         <p className="text-xs font-mono text-purple-300 leading-relaxed break-all">
+          {routeData.departure_runway && !routeData.route_string?.startsWith(depIcao) 
+            ? `${depIcao}/${routeData.departure_runway} ` 
+            : ''
+          }
           {routeData.route_string}
+          {routeData.arrival_runway && !routeData.route_string?.endsWith(routeData.arrival_runway) 
+            ? ` ${arrIcao}/${routeData.arrival_runway}` 
+            : ''
+          }
         </p>
       </div>
 
