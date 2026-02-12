@@ -37,9 +37,26 @@ html, body, #root {
 
 /* Fix Leaflet tap handler stealing touch events globally */
 .leaflet-fake-icon,
-.leaflet-proxy {
+.leaflet-proxy,
+.leaflet-tap-disabled {
   pointer-events: none !important;
   display: none !important;
+}
+
+/* Prevent Leaflet overlay panes from capturing events outside the map */
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane {
+  pointer-events: none;
+}
+.leaflet-marker-pane > *,
+.leaflet-popup-pane > *,
+.leaflet-interactive {
+  pointer-events: auto;
 }
 
 /* Input fields always white text */
