@@ -232,15 +232,13 @@ export default function Layout({ children, currentPageName }) {
             const isActive = currentPageName === item.path;
             return (
               <Link key={item.path} to={createPageUrl(item.path)}>
-                <motion.div 
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    isActive 
-                      ? 'bg-blue-500/20 text-blue-400' 
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                  whileHover={{ x: 4 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
+                <div 
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                      isActive 
+                        ? 'bg-blue-500/20 text-blue-400' 
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
                   <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
                   <span className="font-medium">{item.name}</span>
                   {isActive && (
