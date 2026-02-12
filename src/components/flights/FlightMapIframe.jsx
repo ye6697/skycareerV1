@@ -152,7 +152,7 @@ function buildIframeHtml() {
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true }).setView([50, 10], 5);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 
-var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), corridorGroup: L.layerGroup().addTo(map) };
+var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), corridorGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
 var boundsSet = false;
 var userInteracting = false;
 var interactionTimeout = null;
@@ -185,6 +185,26 @@ function wpIcon(active) {
 }
 
 var routeWpIcon = L.divIcon({ html: '<div style="background:#a78bfa;width:10px;height:10px;border-radius:2px;border:2px solid #6d28d9;transform:rotate(45deg);"></div>', className:'', iconSize:[10,10], iconAnchor:[5,5] });
+
+// Parse runway heading from runway name (e.g. "09L" -> 90, "27R" -> 270, "36" -> 360)
+function rwyHeading(rwyName) {
+  if (!rwyName) return null;
+  var num = parseInt(rwyName.replace(/[^0-9]/g, ''), 10);
+  if (isNaN(num) || num < 1 || num > 36) return null;
+  return num * 10;
+}
+
+// Calculate a point at a given distance (nm) and heading from a lat/lon
+function destPoint(lat, lon, hdg, distNm) {
+  var R = 3440.065; // Earth radius in NM
+  var d = distNm / R;
+  var brng = hdg * Math.PI / 180;
+  var lat1 = lat * Math.PI / 180;
+  var lon1 = lon * Math.PI / 180;
+  var lat2 = Math.asin(Math.sin(lat1)*Math.cos(d) + Math.cos(lat1)*Math.sin(d)*Math.cos(brng));
+  var lon2 = lon1 + Math.atan2(Math.sin(brng)*Math.sin(d)*Math.cos(lat1), Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
+  return [lat2 * 180 / Math.PI, lon2 * 180 / Math.PI];
+}
 
 function update(d) {
   var fd = d.flightData || {};
@@ -258,6 +278,29 @@ function update(d) {
     layers.arr = L.marker(arrPos, { icon: arrIcon }).addTo(map);
     var arrLabel = (contract?.arrival_airport||'ARR') + (arrRwy ? ' / '+arrRwy : '');
     layers.arr.bindTooltip('<span class="wpl wpl-arr">'+arrLabel+'</span>', { permanent:true, direction:'bottom', offset:[0,10], className:'clean-tooltip' });
+  }
+
+  // Runway centerlines
+  if (layers.depRwyLine) { map.removeLayer(layers.depRwyLine); layers.depRwyLine = null; }
+  if (layers.arrRwyLine) { map.removeLayer(layers.arrRwyLine); layers.arrRwyLine = null; }
+
+  if (depPos && depRwy) {
+    var dh = rwyHeading(depRwy);
+    if (dh !== null) {
+      // Draw runway line: 1nm behind threshold, 5nm ahead (takeoff direction)
+      var behind = destPoint(depPos[0], depPos[1], (dh + 180) % 360, 1);
+      var ahead = destPoint(depPos[0], depPos[1], dh, 5);
+      layers.depRwyLine = L.polyline([behind, depPos, ahead], { color:'#10b981', weight:2, opacity:0.6, dashArray:'6,4' }).addTo(map);
+    }
+  }
+  if (arrPos && arrRwy) {
+    var ah = rwyHeading(arrRwy);
+    if (ah !== null) {
+      // Draw approach line: 10nm before threshold (approach direction), 1nm past
+      var approachStart = destPoint(arrPos[0], arrPos[1], (ah + 180) % 360, 10);
+      var past = destPoint(arrPos[0], arrPos[1], ah, 1);
+      layers.arrRwyLine = L.polyline([approachStart, arrPos, past], { color:'#f59e0b', weight:2, opacity:0.6, dashArray:'6,4' }).addTo(map);
+    }
   }
 
   // Waypoints
