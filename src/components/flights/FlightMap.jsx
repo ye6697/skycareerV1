@@ -131,7 +131,10 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   const arrPos = hasArr ? [fd.arrival_lat, fd.arrival_lon] : null;
   const curPos = hasPosition ? [fd.latitude, fd.longitude] : null;
 
-  const activeWaypoints = waypoints.length > 0 ? waypoints : routeWaypoints;
+  // Use FMS waypoints from X-Plane only if they have valid coordinates
+  const validWaypoints = waypoints.filter(wp => wp.lat && wp.lon);
+  const validRouteWaypoints = routeWaypoints.filter(wp => wp.lat && wp.lon);
+  const activeWaypoints = validWaypoints.length > 0 ? validWaypoints : validRouteWaypoints;
 
   // Planned route (dashed line) - ALWAYS connect dep -> waypoints -> arrival
   const routePoints = [];
