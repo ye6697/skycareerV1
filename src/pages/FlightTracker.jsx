@@ -1364,14 +1364,11 @@ export default function FlightTracker() {
             <p className="text-sm text-amber-300">
               <strong>Wichtig:</strong> Schließe diesen Tab nicht während des Fluges! Die Flugdaten werden hier live verarbeitet und der Flug kann sonst nicht korrekt abgeschlossen werden.
             </p>
-          </motion.div>
+          </div>
         )}
 
         {contract && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+        <div className="mb-8"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
