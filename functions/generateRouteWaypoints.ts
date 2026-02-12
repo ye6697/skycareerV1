@@ -185,7 +185,9 @@ Deno.serve(async (req) => {
           star_name: nodes.find(n => n.via?.type === 'STAR')?.via?.ident || '',
           cruise_altitude: cruiseAlt,
           departure_runway: depRunway,
-          arrival_runway: arrRunway
+          arrival_runway: arrRunway,
+          departure_coords: depLat != null ? { lat: depLat, lon: depLon } : null,
+          arrival_coords: arrLat != null ? { lat: arrLat, lon: arrLon } : null
         });
       }
 
