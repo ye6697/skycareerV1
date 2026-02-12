@@ -278,10 +278,10 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
 
           {depPos && (
             <Marker position={depPos} icon={depIcon}>
-              <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
-                <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#10b981',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #064e3b'}}>
+              <Tooltip permanent direction="bottom" offset={[0, 10]} className="waypoint-label">
+                <span style={{fontSize:'12px',fontFamily:'monospace',fontWeight:'bold',color:'#10b981',background:'rgba(15,23,42,0.95)',padding:'3px 7px',borderRadius:'4px',border:'1px solid #064e3b',boxShadow:'0 0 8px rgba(16,185,129,0.3)'}}>
                   {contract?.departure_airport || 'DEP'}
-                  {departureRunway ? ` RWY ${departureRunway}` : ''}
+                  {departureRunway ? ` / ${departureRunway}` : ''}
                 </span>
               </Tooltip>
             </Marker>
