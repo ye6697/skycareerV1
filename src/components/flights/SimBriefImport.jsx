@@ -242,8 +242,17 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             </p>
           </div>
 
+          {mismatchWarning && (
+            <div className="p-2 bg-amber-900/30 border border-amber-700/50 rounded-lg">
+              <p className="text-[10px] text-amber-300 flex items-start gap-1">
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                {mismatchWarning}
+              </p>
+            </div>
+          )}
+
           <Button
-            onClick={() => { setImportedData(null); setError(null); }}
+            onClick={() => { setImportedData(null); setError(null); setMismatchWarning(null); autoFetchedRef.current = false; }}
             variant="outline"
             className="w-full h-7 text-xs border-slate-600"
           >
