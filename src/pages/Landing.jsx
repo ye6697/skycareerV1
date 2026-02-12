@@ -8,7 +8,8 @@ import {
   Plane, DollarSign, Users, TrendingUp, Award, Activity,
   ArrowRight, CheckCircle2, Wrench, Shield, BarChart3, Zap, Globe,
   Star, ChevronDown, Gauge, CreditCard, FileText, Fuel, AlertTriangle,
-  Target, Timer, Sparkles, Download, Copy, Monitor, Cloud, RefreshCw
+  Target, Timer, Sparkles, Download, Copy, Monitor, Cloud, RefreshCw,
+  MessageSquare, Navigation, Calculator, Route
 } from 'lucide-react';
 
 import LangToggle from '@/components/landing/LangToggle';
@@ -343,6 +344,135 @@ export default function Landing() {
                       <div className="text-xs text-emerald-400 mt-1">{e.salary}/mo</div>
                     </div>
                   ))}
+                </div>
+              </AppScreenshot>
+            </div>
+
+            {/* NEW: Passenger Comments */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <AppScreenshot title={L.screen_comments}>
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm font-bold text-white">{lang === 'en' ? 'Passenger Feedback' : 'Passagier-Feedback'}</span>
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs ml-auto">Score: 94</Badge>
+                  </div>
+                  {[
+                    { text: lang === 'en' ? "Butter-smooth landing! That was professional!" : "Butterweiche Landung! Das war professionell!", sentiment: "positive" },
+                    { text: lang === 'en' ? "I barely noticed we landed – perfect!" : "Ich habe kaum bemerkt, dass wir gelandet sind - perfekt!", sentiment: "positive" },
+                    { text: lang === 'en' ? "Very pleasant, smooth flight. Like flying on clouds!" : "Sehr angenehmer, sanfter Flug. Wie auf Wolken!", sentiment: "positive" },
+                    { text: lang === 'en' ? "5 stars! Can't get better than this." : "5 Sterne! Besser geht es nicht.", sentiment: "positive" },
+                    { text: lang === 'en' ? "Will definitely recommend this airline!" : "Werde diese Airline weiterempfehlen!", sentiment: "positive" },
+                  ].map((c, i) => (
+                    <div key={i} className="bg-slate-900/50 rounded-lg p-2.5 flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Star className="w-3 h-3 text-emerald-400" />
+                      </div>
+                      <p className="text-xs text-slate-300 italic">"{c.text}"</p>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-slate-600 text-center mt-2">{lang === 'en' ? '150+ unique comments based on landing, G-force, events & score' : '150+ einzigartige Kommentare basierend auf Landung, G-Kraft, Events & Score'}</p>
+                </div>
+              </AppScreenshot>
+
+              {/* NEW: SimBrief Integration */}
+              <AppScreenshot title={L.screen_simbrief}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Route className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-bold text-white">SimBrief</span>
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs ml-auto">{lang === 'en' ? 'Auto-loaded' : 'Automatisch geladen'}</Badge>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div><div className="text-[10px] text-slate-500">{lang === 'en' ? 'Departure' : 'Abflug'}</div><div className="text-sm font-bold text-emerald-400">EDDF / RWY 07C</div></div>
+                      <div><div className="text-[10px] text-slate-500">{lang === 'en' ? 'Arrival' : 'Ankunft'}</div><div className="text-sm font-bold text-amber-400">LIRF / RWY 16R</div></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-slate-800 rounded p-2 text-center"><div className="text-[10px] text-slate-500">FL</div><div className="text-xs font-mono font-bold text-blue-400">380</div></div>
+                      <div className="bg-slate-800 rounded p-2 text-center"><div className="text-[10px] text-slate-500">{lang === 'en' ? 'Distance' : 'Distanz'}</div><div className="text-xs font-mono font-bold text-white">520 NM</div></div>
+                      <div className="bg-slate-800 rounded p-2 text-center"><div className="text-[10px] text-slate-500">ZFW</div><div className="text-xs font-mono font-bold text-white">62.4t</div></div>
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="text-[10px] text-slate-500 mb-1.5">Route</div>
+                    <p className="text-xs font-mono text-purple-400 break-all">ANEKI Y163 ASKIK T161 ROTAR UL608 RIVRA</p>
+                  </div>
+                  <p className="text-[10px] text-slate-600 text-center">{lang === 'en' ? 'Credentials saved at signup – flight plans auto-load per contract' : 'Zugangsdaten bei Registrierung gespeichert – Flugpläne laden automatisch pro Auftrag'}</p>
+                </div>
+              </AppScreenshot>
+            </div>
+
+            {/* NEW: Live Map + Performance Calculator */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <AppScreenshot title={L.screen_livemap}>
+                <div className="space-y-3">
+                  <div className="bg-slate-950 rounded-lg p-3 relative overflow-hidden" style={{ minHeight: 180 }}>
+                    {/* Simulated dark map */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 opacity-90" />
+                    <div className="relative">
+                      {/* Route line simulation */}
+                      <svg viewBox="0 0 300 140" className="w-full h-auto">
+                        <line x1="40" y1="100" x2="260" y2="30" stroke="#818cf8" strokeWidth="2" strokeDasharray="6,4" opacity="0.7" />
+                        <line x1="40" y1="100" x2="160" y2="65" stroke="#3b82f6" strokeWidth="2.5" />
+                        {/* Dep */}
+                        <circle cx="40" cy="100" r="6" fill="#10b981" stroke="#064e3b" strokeWidth="2" />
+                        <text x="40" y="120" textAnchor="middle" fill="#10b981" fontSize="9" fontFamily="monospace" fontWeight="bold">EDDF</text>
+                        {/* Arr */}
+                        <circle cx="260" cy="30" r="6" fill="#f59e0b" stroke="#78350f" strokeWidth="2" />
+                        <text x="260" y="22" textAnchor="middle" fill="#f59e0b" fontSize="9" fontFamily="monospace" fontWeight="bold">LIRF</text>
+                        {/* Aircraft */}
+                        <polygon points="160,57 155,68 165,68" fill="#3b82f6" stroke="#1e40af" strokeWidth="1" />
+                        {/* Waypoints */}
+                        <rect x="96" y="78" width="6" height="6" fill="#a78bfa" stroke="#6d28d9" strokeWidth="1" transform="rotate(45,99,81)" />
+                        <text x="99" y="95" textAnchor="middle" fill="#a78bfa" fontSize="7" fontFamily="monospace">ASKIK</text>
+                        <rect x="197" y="48" width="6" height="6" fill="#a78bfa" stroke="#6d28d9" strokeWidth="1" transform="rotate(45,200,51)" />
+                        <text x="200" y="45" textAnchor="middle" fill="#a78bfa" fontSize="7" fontFamily="monospace">RIVRA</text>
+                        {/* Runway centerline */}
+                        <line x1="260" y1="5" x2="260" y2="42" stroke="#f59e0b" strokeWidth="1" strokeDasharray="3,3" opacity="0.5" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/60 rounded-lg p-2 grid grid-cols-3 gap-2 text-center font-mono text-xs">
+                    <div><span className="text-slate-500">HDG</span> <span className="text-white">142°</span></div>
+                    <div><span className="text-slate-500">ALT</span> <span className="text-white">38,000 ft</span></div>
+                    <div><span className="text-slate-500">GS</span> <span className="text-white">478 kts</span></div>
+                  </div>
+                  <div className="bg-slate-900/60 rounded-lg p-2 flex justify-between text-xs font-mono">
+                    <span className="text-purple-400">▸ ASKIK: 48 NM</span>
+                    <span className="text-amber-400">ARR: 248 NM</span>
+                  </div>
+                  <p className="text-[10px] text-slate-600 text-center">{lang === 'en' ? 'FMS waypoints from X-Plane + SimBrief route + runway centerlines' : 'FMS-Wegpunkte aus X-Plane + SimBrief-Route + Runway-Centerlines'}</p>
+                </div>
+              </AppScreenshot>
+
+              <AppScreenshot title={L.screen_perf}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calculator className="w-4 h-4 text-cyan-400" />
+                    <span className="text-sm font-bold text-white">{lang === 'en' ? 'Takeoff & Landing Calc' : 'Takeoff & Landing Kalkulator'}</span>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="text-xs text-emerald-400 font-semibold mb-2">{lang === 'en' ? 'Takeoff Performance' : 'Takeoff Performance'} – RWY 07C</div>
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      <div className="bg-blue-500/10 rounded p-2 text-center"><div className="text-[10px] text-slate-500">V1</div><div className="text-sm font-mono font-bold text-blue-400">142</div></div>
+                      <div className="bg-blue-500/10 rounded p-2 text-center"><div className="text-[10px] text-slate-500">VR</div><div className="text-sm font-mono font-bold text-blue-400">148</div></div>
+                      <div className="bg-blue-500/10 rounded p-2 text-center"><div className="text-[10px] text-slate-500">V2</div><div className="text-sm font-mono font-bold text-blue-400">155</div></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-slate-800 rounded p-1.5"><div className="flex justify-between text-[10px]"><span className="text-slate-500">{lang === 'en' ? 'Rwy Required' : 'Bahn benötigt'}</span><span className="text-white">2,140 m</span></div></div>
+                      <div className="bg-slate-800 rounded p-1.5"><div className="flex justify-between text-[10px]"><span className="text-slate-500">{lang === 'en' ? 'Density Alt' : 'Dichtehöhe'}</span><span className="text-white">1,240 ft</span></div></div>
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="text-xs text-amber-400 font-semibold mb-2">{lang === 'en' ? 'Landing Performance' : 'Landing Performance'} – RWY 16R</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-amber-500/10 rounded p-2 text-center"><div className="text-[10px] text-slate-500">Vref</div><div className="text-sm font-mono font-bold text-amber-400">138</div></div>
+                      <div className="bg-amber-500/10 rounded p-2 text-center"><div className="text-[10px] text-slate-500">Vapp</div><div className="text-sm font-mono font-bold text-amber-400">143</div></div>
+                      <div className="bg-amber-500/10 rounded p-2 text-center"><div className="text-[10px] text-slate-500">{lang === 'en' ? 'Dist' : 'Dist'}</div><div className="text-sm font-mono font-bold text-amber-400">1,820m</div></div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-600 text-center">{lang === 'en' ? 'AI-powered V-speeds per aircraft type • Weather & weight adjustments' : 'KI-basierte V-Speeds pro Flugzeugtyp • Wetter- & Gewichtsanpassungen'}</p>
                 </div>
               </AppScreenshot>
             </div>
