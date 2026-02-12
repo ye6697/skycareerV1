@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AnimatePresence } from "framer-motion";
+
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
