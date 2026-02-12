@@ -51,6 +51,13 @@ const waypointIcon = new L.DivIcon({
   iconAnchor: [4, 4],
 });
 
+const activeWaypointIcon = new L.DivIcon({
+  html: `<div style="background:#f472b6;width:12px;height:12px;border-radius:50%;border:2px solid #be185d;box-shadow:0 0 8px #f472b6, 0 0 4px #f472b6;"></div>`,
+  className: '',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+});
+
 const routeWaypointIcon = new L.DivIcon({
   html: `<div style="background:#a78bfa;width:10px;height:10px;border-radius:2px;border:2px solid #6d28d9;transform:rotate(45deg);"></div>`,
   className: '',
