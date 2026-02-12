@@ -22,7 +22,7 @@ export default function RouteWaypoints({ contract, aircraftType }) {
       return response.data;
     },
     enabled: !!depIcao && !!arrIcao,
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
