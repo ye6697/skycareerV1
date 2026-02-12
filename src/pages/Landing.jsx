@@ -62,6 +62,10 @@ export default function Landing() {
     { icon: AlertTriangle, title: L.f10_title, description: L.f10_desc, color: "bg-rose-600" },
     { icon: CreditCard, title: L.f11_title, description: L.f11_desc, color: "bg-teal-600" },
     { icon: Monitor, title: L.f12_title, description: L.f12_desc, color: "bg-violet-600" },
+    { icon: Route, title: L.f13_title, description: L.f13_desc, color: "bg-sky-600" },
+    { icon: Navigation, title: L.f14_title, description: L.f14_desc, color: "bg-indigo-600" },
+    { icon: Calculator, title: L.f15_title, description: L.f15_desc, color: "bg-cyan-600" },
+    { icon: MessageSquare, title: L.f16_title, description: L.f16_desc, color: "bg-pink-600" },
   ];
 
   const installSteps = [
