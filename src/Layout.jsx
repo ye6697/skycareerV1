@@ -233,20 +233,18 @@ export default function Layout({ children, currentPageName }) {
             return (
               <Link key={item.path} to={createPageUrl(item.path)}>
                 <div 
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                      isActive 
-                        ? 'bg-blue-500/20 text-blue-400' 
-                        : 'text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                    isActive 
+                      ? 'bg-blue-500/20 text-blue-400' 
+                      : 'text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
                   <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
                   <span className="font-medium">{item.name}</span>
                   {isActive && (
-                    <div
-                      className="ml-auto w-1.5 h-1.5 bg-blue-400 rounded-full"
-                    />
+                    <div className="ml-auto w-1.5 h-1.5 bg-blue-400 rounded-full" />
                   )}
-                  </div>
+                </div>
               </Link>
             );
           })}
