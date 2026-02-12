@@ -15,6 +15,17 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [importedData, setImportedData] = useState(null);
   const [copied, setCopied] = useState(false);
   const autoFetchedRef = useRef(false);
+  const prevContractRef = useRef(contract?.id);
+
+  // Reset when contract changes
+  useEffect(() => {
+    if (contract?.id && contract.id !== prevContractRef.current) {
+      prevContractRef.current = contract.id;
+      setImportedData(null);
+      setError(null);
+      autoFetchedRef.current = false;
+    }
+  }, [contract?.id]);
 
   // Load saved SimBrief credentials from user profile
   const { data: savedCredentials } = useQuery({
