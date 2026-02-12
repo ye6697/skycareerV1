@@ -308,7 +308,18 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             </Marker>
           ))}
 
-          {/* Nearby airports within 100nm - live mode only */}
+          {/* Nearby airports along route corridor (100nm wide) */}
+          {depPos && arrPos && (
+            <RouteCorridorAirports
+              depLat={depPos[0]} depLon={depPos[1]}
+              arrLat={arrPos[0]} arrLon={arrPos[1]}
+              corridorWidthNm={100}
+              depIcao={contract?.departure_airport}
+              arrIcao={contract?.arrival_airport}
+            />
+          )}
+
+          {/* Nearby airports around aircraft - live mode only */}
           {!staticMode && hasPosition && (
             <NearbyAirports latitude={fd.latitude} longitude={fd.longitude} radiusNm={100} />
           )}
