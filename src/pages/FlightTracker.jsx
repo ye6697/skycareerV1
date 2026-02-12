@@ -227,7 +227,6 @@ export default function FlightTracker() {
   // Live data - direct polling only (subscriptions add overhead and latency)
   const [xplaneLog, setXplaneLog] = useState(null);
   const pollActiveRef = React.useRef(false);
-  const xplaneLogRef = React.useRef(null);
   
   useEffect(() => {
     if (flightPhase === 'completed') return;
@@ -242,20 +241,14 @@ export default function FlightTracker() {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
         const currentFlight = flights[0];
         if (currentFlight?.xplane_data && isMounted) {
-          const newLog = { raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date };
-          // Only update state if data actually changed (prevents unnecessary re-renders)
-          const prevData = xplaneLogRef.current;
-          if (!prevData || prevData.created_date !== newLog.created_date) {
-            xplaneLogRef.current = newLog;
-            setXplaneLog(newLog);
-          }
+          setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
         }
       } catch (e) { /* ignore */ }
       pollActiveRef.current = false;
     };
     
     fetchData();
-    const interval = setInterval(fetchData, 2000);
+    const interval = setInterval(fetchData, 1500);
     
     return () => { isMounted = false; clearInterval(interval); };
   }, [activeFlightId, flightPhase]);
