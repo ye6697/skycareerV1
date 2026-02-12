@@ -14,6 +14,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [loading, setLoading] = useState(false);
   const [importedData, setImportedData] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [mismatchWarning, setMismatchWarning] = useState(null);
   const autoFetchedRef = useRef(false);
 
   // Load saved SimBrief credentials from user profile
