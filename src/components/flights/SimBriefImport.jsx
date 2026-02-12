@@ -65,6 +65,20 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
 
     const data = response.data;
     setImportedData(data);
+    
+    // Check if the loaded plan matches the current contract
+    if (contract && data) {
+      const depMatch = !contract.departure_airport || 
+        data.departure_airport?.toUpperCase() === contract.departure_airport?.toUpperCase();
+      const arrMatch = !contract.arrival_airport || 
+        data.arrival_airport?.toUpperCase() === contract.arrival_airport?.toUpperCase();
+      if (!depMatch || !arrMatch) {
+        setMismatchWarning(`Flugplan (${data.departure_airport}→${data.arrival_airport}) passt nicht zum Auftrag (${contract.departure_airport}→${contract.arrival_airport}). Erstelle einen neuen Flugplan auf SimBrief!`);
+      } else {
+        setMismatchWarning(null);
+      }
+    }
+    
     if (onRouteLoaded) onRouteLoaded(data);
   };
 
