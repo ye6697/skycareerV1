@@ -58,8 +58,6 @@ const routeWaypointIcon = new L.DivIcon({
   iconAnchor: [5, 5],
 });
 
-
-
 function MapController({ center, bounds }) {
   const map = useMap();
   const prevCenter = useRef(center);
