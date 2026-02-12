@@ -45,6 +45,31 @@ html, body, #root {
   touch-action: manipulation;
 }
 
+/* 
+ * iOS Safari double-tap fix:
+ * Safari treats the first tap on an element with :hover styles as a "hover" event,
+ * requiring a second tap to actually "click". 
+ * touch-action: manipulation removes the 300ms delay and double-tap-to-zoom,
+ * which fixes the "first tap ignored" behavior.
+ */
+@supports (-webkit-touch-callout: none) {
+  /* iOS-only styles */
+  button, a, [role="button"], .cursor-pointer,
+  [class*="hover:"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Universal touch fix for all touch devices */
+@media (pointer: coarse) {
+  button, a, [role="button"], [tabindex],
+  input, select, textarea, label {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* Input fields always white text */
 input, textarea, select {
   @apply text-white;
