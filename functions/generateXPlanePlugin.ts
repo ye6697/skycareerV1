@@ -234,23 +234,32 @@ class PythonInterface:
                     break
             
             # Read FMS/flight plan waypoints (only every N seconds to save CPU)
+            # Uses XPLMCountFMSEntries + XPLMGetFMSEntryInfo from X-Plane SDK
+            # getFMSEntryInfo returns: (outType, outID, outRef, outAltitude, outLat, outLon)
             send_fms = False
             if current_time - self.last_fms_send >= self.fms_send_interval:
                 self.last_fms_send = current_time
                 send_fms = True
                 fms_waypoints = []
                 try:
-                    fms_count = xp.getDatai(self.datarefs['fms_count'])
-                    for i in range(min(fms_count, 50)):
-                        info = xp.getFMSEntryInfo(i)
-                        if info and info.navType != xp.Nav_Unknown:
-                            fms_waypoints.append({
-                                'name': info.navAidID if hasattr(info, 'navAidID') else f'WPT{i}',
-                                'lat': round(info.lat, 5),
-                                'lon': round(info.lon, 5),
-                                'alt': round(info.alt * 3.28084, 0) if info.alt else 0
-                            })
-                except Exception:
+                    fms_count = xp.countFMSEntries()
+                    dest_idx = xp.getDestinationFMSEntry()
+                    for i in range(min(fms_count, 100)):
+                        outType, outID, outRef, outAlt, outLat, outLon = xp.getFMSEntryInfo(i)
+                        # Skip unknown/empty entries
+                        if outLat == 0.0 and outLon == 0.0:
+                            continue
+                        wp_name = outID if outID else f'WPT{i}'
+                        fms_waypoints.append({
+                            'name': wp_name,
+                            'lat': round(outLat, 5),
+                            'lon': round(outLon, 5),
+                            'alt': round(outAlt, 0),  # altitude already in feet
+                            'is_active': i == dest_idx,
+                            'type': outType  # 1=airport, 2=NDB, 4=VOR, 512=fix, 2048=latlon
+                        })
+                except Exception as e:
+                    xp.log(f"SkyCareer FMS read error: {str(e)}")
                     fms_waypoints = []
                 self.cached_fms_waypoints = fms_waypoints
 
