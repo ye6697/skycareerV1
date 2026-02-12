@@ -739,7 +739,27 @@ export default function FlightTracker() {
      let revenue = 0;
      let landingBonusUsed = 0;
      let landingPenaltyUsed = 0;
+     // Calculate crew bonus based on attributes
+     let crewBonusAmount = 0;
      if (!hasCrashed) {
+       const activeFl = flight || existingFlight;
+       if (activeFl?.crew && Array.isArray(activeFl.crew)) {
+         // Fetch crew member details for attribute bonuses
+         for (const member of activeFl.crew) {
+           const emps = await base44.entities.Employee.filter({ id: member.employee_id });
+           const emp = emps[0];
+           if (emp?.attributes) {
+             const passengerHandling = emp.attributes.passenger_handling || 50;
+             const efficiency = emp.attributes.efficiency || 50;
+             // Each crew member adds up to 2% of payout per attribute above 50
+             const handlingBonus = ((passengerHandling - 50) / 50) * 0.02 * (contract?.payout || 0);
+             const efficiencyBonus = ((efficiency - 50) / 50) * 0.01 * (contract?.payout || 0);
+             crewBonusAmount += Math.max(0, handlingBonus + efficiencyBonus);
+           }
+         }
+       }
+       crewBonusAmount = Math.round(crewBonusAmount);
+
        revenue = contract?.payout || 0;
        // Bonus/Penalty based on landing quality (G-force based)
        const landingBonus = finalFlightData.landingBonus || 0;
@@ -752,8 +772,8 @@ export default function FlightTracker() {
          landingPenaltyUsed = landingMaintenanceCost;
          revenue -= landingMaintenanceCost;
        }
-       // Add time bonus
-       revenue += timeBonus;
+       // Add time bonus + crew bonus
+       revenue += timeBonus + crewBonusAmount;
      }
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
@@ -863,6 +883,7 @@ export default function FlightTracker() {
                 levelBonus: levelBonus,
                 levelBonusPercent: levelBonusPercent * 100,
                 companyLevel: company?.level || 1,
+                crewBonus: crewBonusAmount,
                 events: finalFlightData.events,
                 crashMaintenanceCost: crashMaintenanceCost
               }
@@ -956,9 +977,21 @@ export default function FlightTracker() {
                 const currentEmployee = employees[0];
                 
                 if (currentEmployee) {
+                  // Slowly improve skill_rating based on flight hours (+0.1 per hour, max 100)
+                  const newSkill = Math.min(100, (currentEmployee.skill_rating || 50) + flightHours * 0.1);
+                  // Slowly improve attributes based on flight hours (+0.05 per hour)
+                  const attrs = currentEmployee.attributes || {};
+                  const improvedAttrs = {
+                    nerve: Math.min(100, (attrs.nerve || 50) + flightHours * 0.05),
+                    passenger_handling: Math.min(100, (attrs.passenger_handling || 50) + flightHours * 0.05),
+                    precision: Math.min(100, (attrs.precision || 50) + flightHours * 0.05),
+                    efficiency: Math.min(100, (attrs.efficiency || 50) + flightHours * 0.05),
+                  };
                   const employeeUpdate = {
                     status: 'available',
-                    total_flight_hours: (currentEmployee.total_flight_hours || 0) + flightHours
+                    total_flight_hours: (currentEmployee.total_flight_hours || 0) + flightHours,
+                    skill_rating: Math.round(newSkill * 10) / 10,
+                    attributes: improvedAttrs,
                   };
                   console.log('✅ Update Employee:', member.employee_id, employeeUpdate);
                   await base44.entities.Employee.update(member.employee_id, employeeUpdate);
