@@ -17,7 +17,9 @@ import {
   Star,
   ChevronRight,
   AlertCircle,
+  Save,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 import StatCard from "@/components/dashboard/StatCard";
 import ReputationGauge from "@/components/dashboard/ReputationGauge";
@@ -25,11 +27,33 @@ import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
 import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
 import ContractCard from "@/components/contracts/ContractCard";
 import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
+import { Check } from "lucide-react";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [simbriefUsername, setSimbriefUsername] = useState('');
+  const [simbriefPilotId, setSimbriefPilotId] = useState('');
+  const [simbriefSaved, setSimbriefSaved] = useState(false);
+
+  // Load saved SimBrief credentials
+  useEffect(() => {
+    if (user) {
+      setSimbriefUsername(user.simbrief_username || '');
+      setSimbriefPilotId(user.simbrief_pilot_id || '');
+    }
+  }, [user]);
+
+  const saveSimBriefCredentials = async () => {
+    const updateData = {};
+    updateData.simbrief_username = simbriefUsername || '';
+    updateData.simbrief_pilot_id = simbriefPilotId || '';
+    await base44.auth.updateMe(updateData);
+    setSimbriefSaved(true);
+    setTimeout(() => setSimbriefSaved(false), 2000);
+    queryClient.invalidateQueries({ queryKey: ['simbrief-credentials'] });
+  };
 
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['currentUser'],
@@ -206,6 +230,34 @@ export default function Dashboard() {
                   </code>
                 </div>
               )}
+              {/* SimBrief Credentials */}
+              <div className="mt-3 flex items-end gap-2 flex-wrap">
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase mb-1">SimBrief Username</p>
+                  <Input
+                    value={simbriefUsername}
+                    onChange={(e) => setSimbriefUsername(e.target.value)}
+                    placeholder="Username"
+                    className="h-7 text-xs bg-slate-800 border-slate-700 w-36"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase mb-1">oder Pilot ID</p>
+                  <Input
+                    value={simbriefPilotId}
+                    onChange={(e) => setSimbriefPilotId(e.target.value)}
+                    placeholder="z.B. 123456"
+                    className="h-7 text-xs bg-slate-800 border-slate-700 w-28"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={saveSimBriefCredentials}
+                  className={`h-7 text-xs ${simbriefSaved ? 'bg-emerald-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  {simbriefSaved ? <><Check className="w-3 h-3 mr-1" /> Gespeichert</> : <><Save className="w-3 h-3 mr-1" /> Speichern</>}
+                </Button>
+              </div>
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-400">Kontostand</p>

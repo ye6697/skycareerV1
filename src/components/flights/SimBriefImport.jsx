@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from '@/api/base44Client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Download, Plane, Copy, Check, RefreshCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, Download, Copy, Check, RefreshCw } from 'lucide-react';
 
 export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [username, setUsername] = useState('');
@@ -14,19 +14,59 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [loading, setLoading] = useState(false);
   const [importedData, setImportedData] = useState(null);
   const [copied, setCopied] = useState(false);
+  const autoFetchedRef = useRef(false);
 
-  // Load saved SimBrief username from user profile
-  const { data: savedUsername } = useQuery({
-    queryKey: ['simbrief-username'],
+  // Load saved SimBrief credentials from user profile
+  const { data: savedCredentials } = useQuery({
+    queryKey: ['simbrief-credentials'],
     queryFn: async () => {
       const user = await base44.auth.me();
-      return user?.simbrief_username || '';
+      return {
+        username: user?.simbrief_username || '',
+        pilotId: user?.simbrief_pilot_id || ''
+      };
     },
   });
 
-  React.useEffect(() => {
-    if (savedUsername && !username) setUsername(savedUsername);
-  }, [savedUsername]);
+  useEffect(() => {
+    if (savedCredentials) {
+      if (savedCredentials.username && !username) setUsername(savedCredentials.username);
+      if (savedCredentials.pilotId && !pilotId) setPilotId(savedCredentials.pilotId);
+    }
+  }, [savedCredentials]);
+
+  // Auto-fetch when saved credentials are loaded
+  useEffect(() => {
+    if (autoFetchedRef.current) return;
+    if (!savedCredentials) return;
+    const hasCredential = savedCredentials.username || savedCredentials.pilotId;
+    if (hasCredential && !importedData) {
+      autoFetchedRef.current = true;
+      fetchPlanWithCredentials(savedCredentials.username, savedCredentials.pilotId);
+    }
+  }, [savedCredentials]);
+
+  const fetchPlanWithCredentials = async (uname, pid) => {
+    if (!uname && !pid) return;
+    setLoading(true);
+    setError(null);
+
+    const response = await base44.functions.invoke('fetchSimBrief', {
+      simbrief_username: uname || undefined,
+      simbrief_userid: pid || undefined
+    });
+
+    setLoading(false);
+
+    if (response.data?.error) {
+      setError(response.data.error);
+      return;
+    }
+
+    const data = response.data;
+    setImportedData(data);
+    if (onRouteLoaded) onRouteLoaded(data);
+  };
 
   const fetchPlan = async () => {
     if (!username && !pilotId) {
@@ -52,15 +92,15 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     const data = response.data;
     setImportedData(data);
 
-    // Save username for future use
-    if (username) {
-      base44.auth.updateMe({ simbrief_username: username });
+    // Save credentials for future use
+    const updateData = {};
+    if (username) updateData.simbrief_username = username;
+    if (pilotId) updateData.simbrief_pilot_id = pilotId;
+    if (Object.keys(updateData).length > 0) {
+      base44.auth.updateMe(updateData);
     }
 
-    // Notify parent with the route data
-    if (onRouteLoaded) {
-      onRouteLoaded(data);
-    }
+    if (onRouteLoaded) onRouteLoaded(data);
   };
 
   const copyRoute = () => {
