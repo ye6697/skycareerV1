@@ -261,13 +261,23 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           )}
 
           {depPos && (
-            <Marker position={depPos} icon={depIcon}>
-              <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
-                <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#10b981',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #064e3b'}}>
-                  {contract?.departure_airport || 'DEP'}
-                </span>
-              </Tooltip>
-            </Marker>
+            <>
+              <Marker position={depPos} icon={depIcon}>
+                <Tooltip permanent direction="bottom" offset={[0, 8]} className="waypoint-label">
+                  <span style={{fontSize:'11px',fontFamily:'monospace',fontWeight:'bold',color:'#10b981',background:'rgba(15,23,42,0.9)',padding:'2px 5px',borderRadius:'3px',border:'1px solid #064e3b'}}>
+                    {contract?.departure_airport || 'DEP'}
+                    {departureRunway ? ` RWY ${departureRunway}` : ''}
+                  </span>
+                </Tooltip>
+              </Marker>
+              {departureRunway && (
+                <Marker
+                  position={depPos}
+                  icon={createRunwayIcon(parseInt(departureRunway) * 10 || 0)}
+                  interactive={false}
+                />
+              )}
+            </>
           )}
 
           {arrPos && (
