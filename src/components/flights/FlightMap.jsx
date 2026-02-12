@@ -7,14 +7,22 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import RouteCorridorAirports from './RouteCorridorAirports';
 
-// CRITICAL: Disable Leaflet's tap handler globally to prevent it from
-// intercepting ALL touch events on the page (causes double-click issue on touch devices).
-// The tap handler creates event listeners on document.body that intercept ALL touches.
+// CRITICAL: Completely disable Leaflet's tap simulation to prevent it from
+// intercepting ALL touch events on the page (causes double-click requirement on touch devices).
 L.Browser.tap = false;
 
-// Also patch the Map.Tap handler if it exists to prevent it from ever being added
+// Patch Map.Tap handler to never be added
 if (L.Map && L.Map.Tap) {
   L.Map.mergeOptions({ tap: false });
+}
+
+// NUCLEAR FIX: Remove Leaflet's Map.Tap handler entirely if it exists
+// This handler adds document-level touchstart/touchend listeners that intercept ALL touches
+if (L.Map.Tap) {
+  L.Map.Tap = L.Handler.extend({
+    addHooks: function() {},
+    removeHooks: function() {}
+  });
 }
 
 // Fix leaflet default icons
