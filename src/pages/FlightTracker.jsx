@@ -338,7 +338,7 @@ export default function FlightTracker() {
       return response.data;
     },
     enabled: !!contract?.departure_airport && !!contract?.arrival_airport,
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
