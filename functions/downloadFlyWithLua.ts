@@ -64,8 +64,10 @@ local crash_detected = false
 -- Track last sent failure count to only send when changed
 local last_sent_failure_count = 0
 
--- FMS waypoints not available in FlyWithLua (no XPLM FMS API access)
--- Route waypoints are generated server-side instead
+-- FMS waypoint reading (uses XPLMCountFMSEntries + XPLMGetFMSEntryInfo)
+local cached_fms_waypoints = {}
+local last_fms_read = 0
+local FMS_READ_INTERVAL = 30.0  -- read FMS every 30 seconds
 
 ----------------------------
 -- FAILURE SYSTEM
