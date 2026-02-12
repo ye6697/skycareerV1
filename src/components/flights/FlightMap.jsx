@@ -19,33 +19,6 @@ if (L.Map.Tap) {
   });
 }
 
-// NUCLEAR FIX: Intercept document.addEventListener AND document.body.addEventListener
-// to block ALL Leaflet document-level touch listeners that steal touch events from buttons.
-// This is the ROOT CAUSE of the iOS double-tap bug.
-if (!window.__leafletTouchPatched) {
-  window.__leafletTouchPatched = true;
-  
-  // Track all document-level touch listeners so we can remove them
-  window.__leafletTouchListeners = [];
-  
-  const patchTarget = (target, name) => {
-    const orig = target.addEventListener;
-    target.addEventListener = function(type, fn, opts) {
-      if ((type === 'touchstart' || type === 'touchend' || type === 'touchmove' || type === 'touchcancel') && 
-          fn && typeof fn === 'function') {
-        // Block it and track it for removal
-        window.__leafletTouchListeners.push({ target: this, type, fn, opts });
-        return;
-      }
-      return orig.call(this, type, fn, opts);
-    };
-  };
-  
-  patchTarget(document);
-  if (document.body) patchTarget(document.body);
-  if (document.documentElement) patchTarget(document.documentElement);
-}
-
 // Fix leaflet default icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
