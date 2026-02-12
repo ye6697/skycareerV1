@@ -166,7 +166,7 @@ function StatusBar({ adequate, margin, marginPct, type }) {
 }
 
 
-export default function TakeoffLandingCalculator({ aircraft, contract, xplaneData }) {
+export default function TakeoffLandingCalculator({ aircraft, contract, xplaneData, simbriefData }) {
   const [tab, setTab] = useState('takeoff');
   const [profile, setProfile] = useState(FALLBACK_PROFILE);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -192,6 +192,34 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
   const [ldgRwyCondition, setLdgRwyCondition] = useState('dry');
 
   const [autoFilled, setAutoFilled] = useState(false);
+  const [simbriefFilled, setSimbriefFilled] = useState(false);
+
+  // Auto-fill from SimBrief data if available (runway info etc.)
+  useEffect(() => {
+    if (!simbriefData || simbriefFilled) return;
+    setSimbriefFilled(true);
+    
+    // SimBrief provides planned weights and runway info
+    if (simbriefData.fuel_plan?.trip_fuel_kg) {
+      // Estimate TOW from SimBrief if available
+      const tripFuel = simbriefData.fuel_plan.trip_fuel_kg || 0;
+      const reserveFuel = simbriefData.fuel_plan.reserve_fuel_kg || 0;
+      // We don't have exact ZFW from SimBrief basic API, but can use as hint
+    }
+    
+    // Set departure runway label if available
+    if (simbriefData.departure_runway) {
+      // Could be used to look up runway length in future
+    }
+    if (simbriefData.arrival_runway) {
+      // Could be used to look up runway length in future
+    }
+
+    // Set cruise altitude info
+    if (simbriefData.cruise_altitude) {
+      // Info available for display
+    }
+  }, [simbriefData, simbriefFilled]);
 
   // ─── Autofill: only on button click, one-time ───
   const handleAutoFill = useCallback(() => {
@@ -453,6 +481,9 @@ Return these fields:
           {contract && (
             <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/80 rounded border border-slate-800">
               <span className="text-lg font-mono font-black text-white">{contract.departure_airport}</span>
+              {simbriefData?.departure_runway && (
+                <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px] font-mono">RWY {simbriefData.departure_runway}</Badge>
+              )}
               <ChevronRight className="w-3 h-3 text-slate-600" />
               <span className="text-[10px] text-slate-500 uppercase">{contract.departure_city || 'DEPARTURE'}</span>
             </div>
@@ -499,6 +530,9 @@ Return these fields:
           {contract && (
             <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/80 rounded border border-slate-800">
               <span className="text-lg font-mono font-black text-white">{contract.arrival_airport}</span>
+              {simbriefData?.arrival_runway && (
+                <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px] font-mono">RWY {simbriefData.arrival_runway}</Badge>
+              )}
               <ChevronRight className="w-3 h-3 text-slate-600" />
               <span className="text-[10px] text-slate-500 uppercase">{contract.arrival_city || 'ARRIVAL'}</span>
             </div>
