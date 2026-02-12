@@ -32,47 +32,19 @@ Deno.serve(async (req) => {
     const cruiseFL = Math.round((flRangeMin + flRangeMax) / 2 / 10) * 10;
     const cruiseAlt = cruiseFL * 100;
 
-    let wpMin, wpMax;
-    if (dist < 60) { wpMin = 2; wpMax = 3; }
-    else if (dist < 120) { wpMin = 3; wpMax = 4; }
-    else if (dist < 250) { wpMin = 4; wpMax = 6; }
-    else if (dist < 600) { wpMin = 5; wpMax = 8; }
-    else { wpMin = 7; wpMax = 14; }
-
-    let altitudeProfile;
-    if (dist < 60) {
-      altitudeProfile = `Very short flight. May only reach ${Math.min(cruiseAlt, 10000)}ft.`;
-    } else if (dist < 120) {
-      altitudeProfile = `Short flight. Brief cruise at FL${cruiseFL}.`;
-    } else {
-      altitudeProfile = `Climb-cruise-descent: SID fixes climbing to FL150+. Enroute at FL${cruiseFL}. STAR descending.`;
-    }
+    let wpCount;
+    if (dist < 60) wpCount = 3;
+    else if (dist < 120) wpCount = 4;
+    else if (dist < 250) wpCount = 5;
+    else if (dist < 600) wpCount = 7;
+    else wpCount = 10;
 
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an expert IFR flight planner. Generate a realistic IFR route from ${departure_icao} to ${arrival_icao}. Distance: ~${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
+      prompt: `Generate IFR route: ${departure_icao} to ${arrival_icao}, ${dist}NM, ${acType}, FL${cruiseFL}.
 
-ABSOLUTE REQUIREMENT - CORRECT COORDINATES:
-Each waypoint MUST have its REAL, PUBLISHED coordinates from official aviation databases (AIRAC data).
-DO NOT guess, estimate, or interpolate coordinates! 
-DO NOT place waypoints at round numbers like 51.0, 52.0, 53.0 etc. - real fixes have precise coordinates like 50.8547, 9.2631.
-Search the internet for "ICAO fix name coordinates" for each fix to verify.
+Return ${wpCount} waypoints using REAL AIRAC navigation fixes with their CORRECT published coordinates. Use real SIDs, airways, and STARs. Each fix must have precise coordinates (NOT rounded to whole degrees). Distribute waypoints evenly along the route.
 
-For example, if you use the fix "ASKIK", search for its actual published coordinates and use those EXACT numbers.
-If you cannot find the exact coordinates for a fix, DO NOT include that fix. Only use fixes whose coordinates you can verify.
-
-ROUTE REQUIREMENTS:
-1. Use ${wpMin}-${wpMax} REAL published waypoints (5-letter ICAO fixes or VOR/NDB identifiers).
-2. Use real published airways connecting the fixes.
-3. Include a real SID from ${departure_icao} and a real STAR into ${arrival_icao}.
-4. Waypoints must be geographically distributed along the route, NOT clustered.
-5. ${altitudeProfile}
-
-ALTITUDE PROFILE:
-- SID waypoints: climbing (3000-15000ft)
-- Enroute waypoints: cruise at ${cruiseAlt}ft
-- STAR waypoints: descending (FL150, FL080, 4000ft)
-
-ROUTE STRING format: "${departure_icao}/RWY xx waypoints-and-airways ${arrival_icao}/RWY xx"`,
+Altitude profile: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -82,18 +54,18 @@ ROUTE STRING format: "${departure_icao}/RWY xx waypoints-and-airways ${arrival_i
             items: {
               type: "object",
               properties: {
-                name: { type: "string", description: "Real ICAO fix name" },
-                lat: { type: "number", description: "EXACT published latitude - must be precise, not rounded" },
-                lon: { type: "number", description: "EXACT published longitude - must be precise, not rounded" },
-                alt: { type: "number", description: "Altitude in feet" },
+                name: { type: "string" },
+                lat: { type: "number" },
+                lon: { type: "number" },
+                alt: { type: "number" },
                 type: { type: "string", enum: ["sid", "enroute", "star"] }
               },
               required: ["name", "lat", "lon", "alt", "type"]
             }
           },
-          route_string: { type: "string", description: "Full route string with airways" },
-          sid_name: { type: "string", description: "Published SID name" },
-          star_name: { type: "string", description: "Published STAR name" },
+          route_string: { type: "string" },
+          sid_name: { type: "string" },
+          star_name: { type: "string" },
           cruise_altitude: { type: "number" },
           departure_runway: { type: "string" },
           arrival_runway: { type: "string" }
@@ -102,7 +74,7 @@ ROUTE STRING format: "${departure_icao}/RWY xx waypoints-and-airways ${arrival_i
       }
     });
 
-    // Post-process: remove duplicate waypoints and airport names appearing as waypoints
+    // Post-process: remove duplicate waypoints and airport names
     if (result && result.waypoints && Array.isArray(result.waypoints)) {
       const seen = new Set();
       result.waypoints = result.waypoints.filter(wp => {
