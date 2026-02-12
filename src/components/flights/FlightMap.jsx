@@ -127,8 +127,21 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
   const hasArr = fd.arrival_lat !== 0 || fd.arrival_lon !== 0;
 
-  const depPos = hasDep ? [fd.departure_lat, fd.departure_lon] : null;
-  const arrPos = hasArr ? [fd.arrival_lat, fd.arrival_lon] : null;
+  // Derive departure position: prefer X-Plane data, fallback to first routeWaypoint
+  let depPos = hasDep ? [fd.departure_lat, fd.departure_lon] : null;
+  if (!depPos && routeWaypoints.length > 0 && routeWaypoints[0].lat && routeWaypoints[0].lon) {
+    depPos = [routeWaypoints[0].lat, routeWaypoints[0].lon];
+  }
+
+  // Derive arrival position: prefer X-Plane data, fallback to last routeWaypoint
+  let arrPos = hasArr ? [fd.arrival_lat, fd.arrival_lon] : null;
+  if (!arrPos && routeWaypoints.length > 0) {
+    const lastWp = routeWaypoints[routeWaypoints.length - 1];
+    if (lastWp.lat && lastWp.lon) {
+      arrPos = [lastWp.lat, lastWp.lon];
+    }
+  }
+
   const curPos = hasPosition ? [fd.latitude, fd.longitude] : null;
 
   // Use FMS waypoints from X-Plane only if they have valid coordinates
