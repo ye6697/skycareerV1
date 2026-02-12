@@ -1425,7 +1425,7 @@ export default function FlightTracker() {
             <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
               <span>{Math.round(distanceInfo.totalNm - distanceInfo.remainingNm)} NM geflogen</span>
               <span className="font-mono font-semibold text-blue-400">
-                {distanceInfo.remainingNm} NM Luftlinie
+                {distanceInfo.remainingNm} NM
               </span>
               <span>{distanceInfo.totalNm} NM total</span>
             </div>
