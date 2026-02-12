@@ -500,8 +500,16 @@ export default function FlightTracker() {
   // Find the assigned aircraft for this flight
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
 
-  // SimBrief route data
+  // SimBrief route data - reset when contractId changes
   const [simbriefRoute, setSimbriefRoute] = useState(null);
+  const prevContractIdRef = React.useRef(contractIdFromUrl);
+  useEffect(() => {
+    if (contractIdFromUrl !== prevContractIdRef.current) {
+      prevContractIdRef.current = contractIdFromUrl;
+      setSimbriefRoute(null);
+      setXplaneLog(null);
+    }
+  }, [contractIdFromUrl]);
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
@@ -2119,6 +2127,7 @@ export default function FlightTracker() {
         {contract && (
           <div className="space-y-6 mt-6">
             <FlightMapIframe
+              key={`map-${contractIdFromUrl}`}
               flightData={flightData}
               contract={contract}
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
@@ -2130,6 +2139,7 @@ export default function FlightTracker() {
               arrivalCoords={simbriefRoute?.arrival_coords}
             />
             <SimBriefImport
+              key={`simbrief-${contractIdFromUrl}`}
               contract={contract}
               onRouteLoaded={(data) => setSimbriefRoute(data)}
             />
