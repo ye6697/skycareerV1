@@ -253,9 +253,14 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
           <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />
 
-          {/* Planned route - dashed */}
+          {/* Planned route - dashed, more visible */}
           {routePoints.length >= 2 && (
-            <Polyline positions={routePoints} pathOptions={{ color: '#6366f1', weight: 2, dashArray: '8, 8', opacity: 0.4 }} />
+            <>
+              {/* Glow effect */}
+              <Polyline positions={routePoints} pathOptions={{ color: '#818cf8', weight: 6, dashArray: '8, 8', opacity: 0.15 }} />
+              {/* Main line */}
+              <Polyline positions={routePoints} pathOptions={{ color: '#818cf8', weight: 3, dashArray: '10, 8', opacity: 0.7 }} />
+            </>
           )}
           
           {/* Actually flown path - solid */}
