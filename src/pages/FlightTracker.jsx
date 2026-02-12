@@ -1357,9 +1357,7 @@ export default function FlightTracker() {
         {/* Flight Header */}
         {/* Tab Warning */}
         {flightPhase !== 'preflight' && flightPhase !== 'completed' && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div
             className="mb-4 p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-center gap-3"
           >
             <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
