@@ -1908,6 +1908,7 @@ export default function FlightTracker() {
               aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
               contract={contract}
               xplaneData={xplaneLog?.raw_data}
+              simbriefData={simbriefRoute}
             />
           </div>
         )}
