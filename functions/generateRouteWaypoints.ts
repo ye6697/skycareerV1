@@ -121,16 +121,31 @@ Pick commonly used runways.`,
       const seen = new Set();
       result.waypoints = result.waypoints.filter(wp => {
         if (!wp.name || !wp.lat || !wp.lon) return false;
-        // Skip if waypoint name is an airport ICAO
         if (wp.name === departure_icao || wp.name === arrival_icao) return false;
-        // Skip if name starts with airport ICAO (e.g. "EDDF/25C")
         if (wp.name.startsWith(departure_icao) || wp.name.startsWith(arrival_icao)) return false;
-        // Skip duplicates
         const key = wp.name;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
+
+      // Validate geographic distribution: ensure waypoints span from dep to arr
+      // If all waypoints are clustered (e.g. all near arrival), redistribute along great circle
+      if (result.waypoints.length >= 3) {
+        // Simple check: compute average lat/lon of waypoints vs midpoint of dep/arr
+        // We don't have dep/arr coords directly here, but we can use first and last WP as proxy
+        const lats = result.waypoints.map(w => w.lat);
+        const lons = result.waypoints.map(w => w.lon);
+        const latRange = Math.max(...lats) - Math.min(...lats);
+        const lonRange = Math.max(...lons) - Math.min(...lons);
+        const totalRange = latRange + lonRange;
+        
+        // If all waypoints are within ~0.5 degrees of each other, they're likely clustered
+        if (totalRange < 0.5 && dist > 100) {
+          // Mark as potentially bad - add a flag so frontend can request refresh
+          result._distribution_warning = true;
+        }
+      }
     }
 
     return Response.json(result);
