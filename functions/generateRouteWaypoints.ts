@@ -101,23 +101,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Set altitude profile
+      // Set altitude profile for all waypoints (FPD often returns alt=0)
       if (waypoints.length > 0) {
         const total = waypoints.length;
         for (let i = 0; i < total; i++) {
-          const progress = i / (total - 1);
+          const progress = total === 1 ? 0.5 : i / (total - 1);
           if (progress < 0.2) {
-            // Climbing
             waypoints[i].alt = Math.round(3000 + progress * 5 * cruiseAlt * 0.8);
-            waypoints[i].type = waypoints[i].type || 'sid';
+            if (!waypoints[i].type || waypoints[i].type === 'enroute') waypoints[i].type = 'sid';
           } else if (progress > 0.8) {
-            // Descending
             const descProgress = (progress - 0.8) / 0.2;
             waypoints[i].alt = Math.round(cruiseAlt * (1 - descProgress * 0.85));
-            waypoints[i].type = waypoints[i].type || 'star';
+            if (!waypoints[i].type || waypoints[i].type === 'enroute') waypoints[i].type = 'star';
           } else {
             waypoints[i].alt = cruiseAlt;
-            waypoints[i].type = waypoints[i].type || 'enroute';
+            if (!waypoints[i].type) waypoints[i].type = 'enroute';
           }
         }
       }
