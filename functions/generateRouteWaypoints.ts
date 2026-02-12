@@ -176,13 +176,26 @@ Deno.serve(async (req) => {
 
       // If FPD returned a valid route with real waypoints, use it
       if (finalWaypoints.length > 0) {
-        const routeString = `${departure_icao} ${routeStringParts.join(' ')} ${arrival_icao}`;
+        // Build proper route string with airways
+        const routeString = routeStringParts.join(' ');
+
+        // Extract SID and STAR names properly
+        let sidName = '';
+        let starName = '';
+        for (const node of nodes) {
+          if (node.via?.type === 'SID' && node.via?.ident) {
+            sidName = node.via.ident;
+          }
+          if (node.via?.type === 'STAR' && node.via?.ident) {
+            starName = node.via.ident;
+          }
+        }
 
         return Response.json({
           waypoints: finalWaypoints,
           route_string: routeString,
-          sid_name: nodes.find(n => n.via?.type === 'SID')?.via?.ident || '',
-          star_name: nodes.find(n => n.via?.type === 'STAR')?.via?.ident || '',
+          sid_name: sidName,
+          star_name: starName,
           cruise_altitude: cruiseAlt,
           departure_runway: depRunway,
           arrival_runway: arrRunway,
