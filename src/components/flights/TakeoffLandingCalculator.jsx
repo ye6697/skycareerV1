@@ -245,8 +245,15 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
       setWind(String(Math.round(xp.wind_speed_kts)));
       setLdgWind(String(Math.round(xp.wind_speed_kts)));
     }
+    // Autofill runway lengths from SimBrief data
+    if (simbriefData?.departure_rwy_length_m) {
+      setRwyLength(String(simbriefData.departure_rwy_length_m));
+    }
+    if (simbriefData?.arrival_rwy_length_m) {
+      setLdgRwyLength(String(simbriefData.arrival_rwy_length_m));
+    }
     setAutoFilled(true);
-  }, [xplaneData]);
+  }, [xplaneData, simbriefData]);
 
   // ─── Fetch realistic profile from LLM based on X-Plane ICAO type ───
   const fetchProfileForICAO = useCallback(async (icaoCode) => {

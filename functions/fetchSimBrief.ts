@@ -90,6 +90,8 @@ Deno.serve(async (req) => {
       arrival_airport: destination.icao_code || '',
       departure_runway: origin.plan_rwy || null,
       arrival_runway: destination.plan_rwy || null,
+      departure_rwy_length_m: origin.plan_rwy_length ? Math.round(parseInt(origin.plan_rwy_length, 10) * 0.3048) : null,
+      arrival_rwy_length_m: destination.plan_rwy_length ? Math.round(parseInt(destination.plan_rwy_length, 10) * 0.3048) : null,
       departure_coords: (!isNaN(depLat) && !isNaN(depLon)) ? { lat: depLat, lon: depLon } : null,
       arrival_coords: (!isNaN(arrLat) && !isNaN(arrLon)) ? { lat: arrLat, lon: arrLon } : null,
       cruise_altitude: parseInt(general.initial_altitude || '0', 10),
