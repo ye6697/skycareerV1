@@ -78,6 +78,13 @@ ABSOLUTE RULES FOR WAYPOINTS:
 9. Return ${wpMin} to ${wpMax} waypoints.
 10. ${altitudeProfile}
 
+CRITICAL ALTITUDE RULES - Each waypoint MUST have a REALISTIC altitude:
+- SID waypoints: Climbing! First SID fix ~3000-5000ft, subsequent SID fixes increasing to ~8000-15000ft.
+- Enroute waypoints: At or near cruise altitude FL${cruiseFL} (=${cruiseAlt}ft). ALL enroute waypoints should be at ${cruiseAlt}ft.
+- STAR waypoints: Descending! First STAR fix ~FL180-FL250, then stepping down: FL150, FL120, FL080, ~4000-6000ft for the last fix.
+- The altitudes MUST form a realistic climb-cruise-descent profile. They should NOT all be the same value.
+- Example for a FL350 cruise: SID fixes at 5000, 12000. Enroute at 35000, 35000, 35000. STAR at 24000, 15000, 8000, 5000.
+
 RUNWAY SELECTION:
 - For ${departure_icao}: pick the most commonly used runway. Return just the designator (e.g. "08L", "26R", "09").
 - For ${arrival_icao}: same.
