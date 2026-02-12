@@ -1717,12 +1717,9 @@ export default function FlightTracker() {
                   <div className="p-4 bg-amber-900/20 border border-amber-700/50 rounded-lg">
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
+                        <div className="animate-pulse">
                           <Plane className="w-6 h-6 text-amber-400" />
-                        </motion.div>
+                        </div>
                       </div>
                       <div>
                         <p className="font-medium text-amber-200 mb-1">Warte auf X-Plane...</p>
