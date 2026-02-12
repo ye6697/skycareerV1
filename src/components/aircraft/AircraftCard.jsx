@@ -77,8 +77,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const repairPrice = accumulatedMaintCost;
       if (repairPrice <= 0) return;
       
-      // 5% permanent value reduction
-      const valueReduction = repairPrice * 0.05;
+      // 20% permanent value reduction
+      const valueReduction = repairPrice * 0.20;
       const newValue = Math.max(0, rawCurrentValue - valueReduction);
       
       const newStatus = newValue <= 0 ? 'total_loss' : 'available';
