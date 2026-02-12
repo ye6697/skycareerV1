@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'reac
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import NearbyAirports from './NearbyAirports';
+import RouteCorridorAirports from './RouteCorridorAirports';
 
 // Fix leaflet default icons
 delete L.Icon.Default.prototype._getIconUrl;
