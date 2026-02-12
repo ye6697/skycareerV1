@@ -282,6 +282,14 @@ Requirements:
       if (!result.cruise_altitude) result.cruise_altitude = cruiseAlt;
     }
 
+    // Ensure departure/arrival coords are present
+    if (!result.departure_coords || !result.departure_coords.lat) {
+      result.departure_coords = null;
+    }
+    if (!result.arrival_coords || !result.arrival_coords.lat) {
+      result.arrival_coords = null;
+    }
+
     return Response.json(result);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
