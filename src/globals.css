@@ -37,12 +37,46 @@ html, body, #root {
 
 /* Fix Leaflet touch interactions stealing events from the rest of the page */
 .leaflet-container {
-  touch-action: manipulation;
+  touch-action: manipulation !important;
 }
 
 /* Prevent Leaflet from capturing touch events outside its own container */
 .leaflet-container * {
-  touch-action: manipulation;
+  touch-action: manipulation !important;
+}
+
+/* 
+ * Leaflet's CSS sets touch-action: none on various elements.
+ * Override ALL leaflet touch-action rules aggressively.
+ */
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane,
+.leaflet-control {
+  touch-action: manipulation !important;
+}
+
+/* Leaflet sets these globally via JS - override */
+.leaflet-grab {
+  touch-action: manipulation !important;
+}
+.leaflet-touch-drag {
+  touch-action: manipulation !important;
+}
+.leaflet-touch-zoom {
+  touch-action: manipulation !important;
 }
 
 /* 
