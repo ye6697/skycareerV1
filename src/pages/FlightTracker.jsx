@@ -708,12 +708,18 @@ export default function FlightTracker() {
      const deadlineHours = deadlineMinutes / 60;
      let timeBonus = 0;
      let timeScoreChange = 0;
+     // 3-tier deadline: on time = +20, buffer (up to 5 min over) = 0, over buffer = -20
+     const bufferHours = 5 / 60; // 5 minutes buffer
      const madeDeadline = flightHours <= deadlineHours;
+     const inBuffer = !madeDeadline && flightHours <= (deadlineHours + bufferHours);
+     const overBuffer = flightHours > (deadlineHours + bufferHours);
 
      if (madeDeadline) {
        timeScoreChange = 20; // +20 score for making the deadline
+     } else if (inBuffer) {
+       timeScoreChange = 0; // Within 5-min buffer: no bonus, no penalty
      } else {
-       timeScoreChange = -20; // -20 score for missing the deadline
+       timeScoreChange = -20; // Over buffer: -20 score
      }
 
      const crewCostPerHour = 250; // $250 per flight hour (captain + first officer)
@@ -1667,32 +1673,47 @@ export default function FlightTracker() {
                     ? calculateDeadlineMinutes(contract.distance_nm, xpIcao, flType)
                     : (contract?.deadline_minutes || 120);
                   const deadlineSec = deadlineMin * 60;
+                  const bufferSec = 5 * 60; // 5 minutes buffer
                   const elapsed = flightDurationSeconds;
                   const remaining = deadlineSec - elapsed;
                   const isOver = remaining <= 0;
-                  const absRemaining = Math.abs(remaining);
+                  const inBuffer = isOver && elapsed <= (deadlineSec + bufferSec);
+                  const overBuffer = elapsed > (deadlineSec + bufferSec);
+                  const bufferRemaining = (deadlineSec + bufferSec) - elapsed;
+                  
+                  // Display: if in buffer, show buffer countdown; else show normal
+                  const displayRemaining = isOver ? bufferRemaining : remaining;
+                  const absRemaining = Math.abs(displayRemaining);
                   const mins = Math.floor(absRemaining / 60);
-                  const secs = absRemaining % 60;
+                  const secs = Math.floor(absRemaining % 60);
                   const progress = Math.min((elapsed / deadlineSec) * 100, 100);
                   return (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-slate-400">Verbleibend</span>
+                        <span className="text-sm text-slate-400">
+                          {inBuffer ? 'Puffer' : overBuffer ? 'Überschritten' : 'Verbleibend'}
+                        </span>
                         <span className={`text-2xl font-mono font-bold ${
-                          isOver ? 'text-red-400' : remaining < 300 ? 'text-amber-400' : 'text-emerald-400'
+                          overBuffer ? 'text-red-400' : inBuffer ? 'text-amber-400' : remaining < 300 ? 'text-amber-400' : 'text-emerald-400'
                         }`}>
-                          {isOver ? '-' : ''}{mins}:{secs.toString().padStart(2, '0')}
+                          {overBuffer ? '-' : ''}{mins}:{secs.toString().padStart(2, '0')}
                         </span>
                       </div>
                       <Progress value={progress} className="h-2 bg-slate-700" />
                       <div className="flex justify-between mt-2 text-xs text-slate-500">
                         <span>0 min</span>
-                        <span>{deadlineMin} min</span>
+                        <span>{deadlineMin} min {inBuffer ? '+ 5 min Puffer' : ''}</span>
                       </div>
-                      {isOver && (
+                      {inBuffer && (
+                        <p className="text-xs text-amber-400 mt-2 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Deadline überschritten – 5 Min. Puffer läuft (±0 Punkte)
+                        </p>
+                      )}
+                      {overBuffer && (
                         <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
-                          Deadline überschritten! (-20 Punkte)
+                          Puffer abgelaufen! (-20 Punkte)
                         </p>
                       )}
                       {!isOver && remaining < 300 && (
