@@ -1365,7 +1365,7 @@ export default function FlightTracker() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div ref={touchRef} className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white" style={{ cursor: 'pointer' }}>
       <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Flight Header */}
         {/* Tab Warning */}
