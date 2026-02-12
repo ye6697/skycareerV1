@@ -350,22 +350,20 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
             <span className="text-slate-400">HDG {Math.round(fd.heading || 0)}°</span>
             <span className="text-slate-400">ALT {Math.round(fd.altitude || 0).toLocaleString()} ft</span>
             <span className="text-slate-400">GS {Math.round(fd.speed || 0)} kts</span>
-            {activeWaypoints.length > 0 && (
-              <span className="text-purple-400">
-                {activeWaypoints.length} WPTs
+            {distToArrival !== null && (
+              <span className="text-purple-400 font-bold">
+                {contract?.arrival_airport || 'ARR'}: {Math.round(distToArrival)} NM
               </span>
             )}
           </div>
-          {(distToNextWp !== null || distToArrival !== null) && (
+          {distToNextWp !== null && (
             <div className="flex items-center justify-between border-t border-slate-700/50 pt-1">
-              {distToNextWp !== null && (
-                <span className="text-purple-400">
-                  → {nextWpName}: <span className="font-bold">{Math.round(distToNextWp)} NM</span>
-                </span>
-              )}
-              {distToArrival !== null && (
-                <span className="text-amber-400">
-                  → {contract?.arrival_airport || 'ARR'}: <span className="font-bold">{Math.round(distToArrival)} NM</span>
+              <span className="text-purple-400">
+                → {nextWpName}: <span className="font-bold">{Math.round(distToNextWp)} NM</span>
+              </span>
+              {activeWaypoints.length > 0 && (
+                <span className="text-slate-500">
+                  {activeWaypoints.length} WPTs
                 </span>
               )}
             </div>
