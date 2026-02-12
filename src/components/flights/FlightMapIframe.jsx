@@ -215,11 +215,16 @@ function update(d) {
   var curPos = hasPos ? [fd.latitude, fd.longitude] : null;
   var activeWps = waypoints.length > 0 ? waypoints : routeWaypoints;
 
-  // Route line
+  // Route line - always draw from dep to arr, through waypoints if available
   var rp = [];
   if (depPos) rp.push(depPos);
   activeWps.forEach(function(w){ rp.push([w.lat, w.lon]); });
   if (arrPos) rp.push(arrPos);
+
+  // If no waypoints but we have both dep and arr, ensure direct line
+  if (rp.length < 2 && depPos && arrPos) {
+    rp = [depPos, arrPos];
+  }
 
   if (layers.routeGlow) map.removeLayer(layers.routeGlow);
   if (layers.route) map.removeLayer(layers.route);
