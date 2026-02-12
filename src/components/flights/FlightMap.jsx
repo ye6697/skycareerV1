@@ -113,7 +113,7 @@ function distanceNm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title, flightPath = [], departureRunway, arrivalRunway }) {
+export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title, flightPath = [], departureRunway = null, arrivalRunway = null }) {
   const fd = flightData || {};
   const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
   const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
