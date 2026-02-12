@@ -32,32 +32,136 @@ Deno.serve(async (req) => {
     const cruiseFL = Math.round((flRangeMin + flRangeMax) / 2 / 10) * 10;
     const cruiseAlt = cruiseFL * 100;
 
-    let wpCount;
-    if (dist < 60) wpCount = 3;
-    else if (dist < 120) wpCount = 4;
-    else if (dist < 250) wpCount = 5;
-    else if (dist < 600) wpCount = 7;
-    else wpCount = 10;
+    // Try Flight Plan Database API first (real AIRAC data)
+    let fpdRoute = null;
+    try {
+      const fpdResponse = await fetch(
+        `https://api.flightplandatabase.com/auto/generate?fromICAO=${departure_icao}&toICAO=${arrival_icao}&cruiseAlt=${cruiseAlt}&useNAT=true&usePACOT=true&useAWYHI=true&useAWYLO=true`,
+        {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      if (fpdResponse.ok) {
+        fpdRoute = await fpdResponse.json();
+      }
+    } catch (e) {
+      console.log('FPD API failed, falling back to LLM:', e.message);
+    }
 
-    // Single call: ask for route with coordinates, and explicitly tell LLM to search for each fix
+    // Parse FPD route into our format
+    if (fpdRoute && fpdRoute.route && fpdRoute.route.nodes && fpdRoute.route.nodes.length > 0) {
+      const nodes = fpdRoute.route.nodes;
+      const waypoints = [];
+      let routeStringParts = [];
+      let depRunway = '';
+      let arrRunway = '';
+
+      for (const node of nodes) {
+        const ident = node.ident;
+        const lat = node.lat;
+        const lon = node.lon;
+        const nodeAlt = node.alt || 0;
+        const nodeType = node.type; // e.g. "SID", "STAR", "AWY", "FIX", "APT"
+        const via = node.via; // airway info
+
+        if (nodeType === 'APT') {
+          // Airport node - extract runway if present
+          if (ident === departure_icao && node.name) {
+            // Check for runway info
+          } else if (ident === arrival_icao && node.name) {
+            // Check for runway info
+          }
+          continue;
+        }
+
+        // Determine our waypoint type
+        let wpType = 'enroute';
+        if (node.type === 'SID' || (via && via.type === 'SID')) wpType = 'sid';
+        else if (node.type === 'STAR' || (via && via.type === 'STAR')) wpType = 'star';
+
+        if (lat && lon && ident) {
+          waypoints.push({
+            name: ident,
+            lat: lat,
+            lon: lon,
+            alt: nodeAlt || cruiseAlt,
+            type: wpType
+          });
+        }
+
+        // Build route string
+        if (via && via.ident) {
+          routeStringParts.push(via.ident);
+        }
+        if (ident) {
+          routeStringParts.push(ident);
+        }
+      }
+
+      // Set altitude profile
+      if (waypoints.length > 0) {
+        const total = waypoints.length;
+        for (let i = 0; i < total; i++) {
+          const progress = i / (total - 1);
+          if (progress < 0.2) {
+            // Climbing
+            waypoints[i].alt = Math.round(3000 + progress * 5 * cruiseAlt * 0.8);
+            waypoints[i].type = waypoints[i].type || 'sid';
+          } else if (progress > 0.8) {
+            // Descending
+            const descProgress = (progress - 0.8) / 0.2;
+            waypoints[i].alt = Math.round(cruiseAlt * (1 - descProgress * 0.85));
+            waypoints[i].type = waypoints[i].type || 'star';
+          } else {
+            waypoints[i].alt = cruiseAlt;
+            waypoints[i].type = waypoints[i].type || 'enroute';
+          }
+        }
+      }
+
+      // Remove duplicate waypoints
+      const seen = new Set();
+      const filteredWaypoints = waypoints.filter(wp => {
+        if (!wp.name || !wp.lat || !wp.lon) return false;
+        if (wp.name === departure_icao || wp.name === arrival_icao) return false;
+        const key = wp.name;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // Limit to reasonable count
+      let finalWaypoints = filteredWaypoints;
+      if (finalWaypoints.length > 14) {
+        // Keep every Nth waypoint to get ~10
+        const step = Math.ceil(finalWaypoints.length / 10);
+        const sampled = [finalWaypoints[0]];
+        for (let i = step; i < finalWaypoints.length - 1; i += step) {
+          sampled.push(finalWaypoints[i]);
+        }
+        sampled.push(finalWaypoints[finalWaypoints.length - 1]);
+        finalWaypoints = sampled;
+      }
+
+      const routeString = `${departure_icao} ${routeStringParts.join(' ')} ${arrival_icao}`;
+
+      return Response.json({
+        waypoints: finalWaypoints,
+        route_string: routeString,
+        sid_name: fpdRoute.route.nodes.find(n => n.via?.type === 'SID')?.via?.ident || '',
+        star_name: fpdRoute.route.nodes.find(n => n.via?.type === 'STAR')?.via?.ident || '',
+        cruise_altitude: cruiseAlt,
+        departure_runway: depRunway,
+        arrival_runway: arrRunway
+      });
+    }
+
+    // Fallback: Use LLM
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ~${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
-
-TASK: Create an IFR route with ${wpCount} waypoints. For each waypoint, search for its real coordinates on aviation databases.
-
-SEARCH INSTRUCTIONS: For each waypoint you choose, search for it on opennav.com. For example:
-- Search "site:opennav.com ASKIK" to find the fix ASKIK and its coordinates
-- Search "site:opennav.com TOBAK" for the fix TOBAK
-- Do this for EVERY fix in your route
-
-The coordinates MUST come from actual search results, not from your memory. Real aviation fixes have precise coordinates like 50.0333, 8.5667 - NOT round numbers like 50.0, 9.0 or incrementing patterns like 50.1, 50.2, 50.3.
-
-GEOGRAPHIC REQUIREMENT: ${departure_icao} to ${arrival_icao} means waypoints must geographically transition from the departure area to the arrival area. If departure is in southern Germany and arrival is in northern Germany, waypoint latitudes must increase from south to north.
-
-ROUTE RULES:
-- Use real SIDs, airways (L607, T180, Y163, UN872, etc.), and STARs
-- Altitudes: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft
-- Route string format: "${departure_icao}/RWY waypoints ${arrival_icao}/RWY"`,
+      prompt: `Generate IFR route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}. Use real AIRAC navigation fixes with correct coordinates. Distribute waypoints evenly along the route.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -87,13 +191,11 @@ ROUTE RULES:
       }
     });
 
-    // Post-process
     if (result && result.waypoints && Array.isArray(result.waypoints)) {
       const seen = new Set();
       result.waypoints = result.waypoints.filter(wp => {
         if (!wp.name || !wp.lat || !wp.lon) return false;
         if (wp.name === departure_icao || wp.name === arrival_icao) return false;
-        if (wp.name.startsWith(departure_icao) || wp.name.startsWith(arrival_icao)) return false;
         const coordKey = `${wp.lat.toFixed(3)}_${wp.lon.toFixed(3)}`;
         const nameKey = wp.name;
         if (seen.has(nameKey) || seen.has(coordKey)) return false;
