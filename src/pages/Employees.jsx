@@ -94,6 +94,10 @@ export default function Employees() {
 
   const hireMutation = useMutation({
     mutationFn: async (candidate) => {
+      // Generate random attributes for new hire based on experience
+      const baseAttr = candidate.experience === 'expert' ? 75 : candidate.experience === 'senior' ? 60 : candidate.experience === 'intermediate' ? 45 : 30;
+      const rnd = () => Math.min(100, Math.max(10, baseAttr + Math.round((Math.random() - 0.5) * 20)));
+      
       await base44.entities.Employee.create({
         company_id: company.id,
         name: candidate.name,
@@ -106,7 +110,13 @@ export default function Employees() {
         total_flight_hours: candidate.hours,
         licenses: selectedRole === 'captain' || selectedRole === 'first_officer' 
           ? ["small_prop", "turboprop"] 
-          : []
+          : [],
+        attributes: {
+          nerve: rnd(),
+          passenger_handling: rnd(),
+          precision: rnd(),
+          efficiency: rnd(),
+        }
       });
 
       // Deduct hiring bonus from balance

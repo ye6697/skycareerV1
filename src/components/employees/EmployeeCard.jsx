@@ -9,7 +9,10 @@ import {
   Star,
   Clock,
   DollarSign,
-  Plane
+  Plane,
+  Brain,
+  Heart,
+  GraduationCap
 } from "lucide-react";
 
 export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
@@ -109,10 +112,28 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
                 <span className="font-medium">${employee.salary_per_month?.toLocaleString()}</span>
               </div>
             </div>
+
+            {/* Mini Attributes */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-400 flex items-center gap-1"><Brain className="w-3 h-3 text-purple-400" />Nerv.</span>
+              <span className="text-slate-300 font-mono text-xs">{Math.round(employee.attributes?.nerve || 50)}</span>
+              <span className="text-slate-400 flex items-center gap-1"><Heart className="w-3 h-3 text-pink-400" />PAX</span>
+              <span className="text-slate-300 font-mono text-xs">{Math.round(employee.attributes?.passenger_handling || 50)}</span>
+            </div>
+
+            {employee.training?.active && (
+              <div className="flex items-center gap-1 text-xs text-blue-400">
+                <GraduationCap className="w-3 h-3" />
+                <span>Training läuft...</span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 pt-3 border-t border-slate-700">
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => onView?.(employee)}>
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+              if (onView) onView(employee);
+              else window.location.href = `${window.location.pathname}?page=EmployeeDetails&id=${employee.id}`;
+            }}>
               Details
             </Button>
             {employee.status === "available" && (

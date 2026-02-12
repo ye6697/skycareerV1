@@ -17,6 +17,8 @@ import {
   Award,
   Plane
 } from "lucide-react";
+import CrewAttributes from "@/components/employees/CrewAttributes";
+import CrewTraining from "@/components/employees/CrewTraining";
 
 export default function EmployeeDetails() {
   const navigate = useNavigate();
@@ -31,7 +33,22 @@ export default function EmployeeDetails() {
       return employees?.[0] || null;
     },
     enabled: !!employeeId,
-    retry: false
+    retry: false,
+    refetchInterval: 5000
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const u = await base44.auth.me();
+      const cid = u?.company_id || u?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: u.email });
+      return companies[0] || null;
+    }
   });
 
   if (isLoading) {
@@ -179,6 +196,12 @@ export default function EmployeeDetails() {
                 </div>
               </div>
             </Card>
+
+            {/* Crew Attributes */}
+            <CrewAttributes attributes={employee.attributes} />
+
+            {/* Training */}
+            <CrewTraining employee={employee} company={company} />
 
             {/* Licenses */}
             {employee.licenses && employee.licenses.length > 0 && (
