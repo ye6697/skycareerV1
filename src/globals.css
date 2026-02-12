@@ -35,6 +35,14 @@ html, body, #root {
   display: none !important;
 }
 
+/* Fix Leaflet stealing touch events on the whole page */
+.leaflet-container {
+  touch-action: none;
+}
+.leaflet-container * {
+  touch-action: none;
+}
+
 /* Input fields always white text */
 input, textarea, select {
   @apply text-white;
