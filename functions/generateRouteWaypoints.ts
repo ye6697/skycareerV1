@@ -39,49 +39,25 @@ Deno.serve(async (req) => {
     else if (dist < 600) wpCount = 7;
     else wpCount = 10;
 
-    // Look up airport coordinates first
-    const airportInfo = await base44.integrations.Core.InvokeLLM({
-      prompt: `What are the exact coordinates of ${departure_icao} and ${arrival_icao} airports? Search online for their precise coordinates.`,
-      add_context_from_internet: true,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          departure: {
-            type: "object",
-            properties: { lat: { type: "number" }, lon: { type: "number" } },
-            required: ["lat", "lon"]
-          },
-          arrival: {
-            type: "object",
-            properties: { lat: { type: "number" }, lon: { type: "number" } },
-            required: ["lat", "lon"]
-          }
-        },
-        required: ["departure", "arrival"]
-      }
-    });
-
-    const depLat = airportInfo?.departure?.lat || 0;
-    const depLon = airportInfo?.departure?.lon || 0;
-    const arrLat = airportInfo?.arrival?.lat || 0;
-    const arrLon = airportInfo?.arrival?.lon || 0;
-
-    // Generate route with explicit airport coordinates context
+    // Single call: ask for route with coordinates, and explicitly tell LLM to search for each fix
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate IFR route from ${departure_icao} (${depLat.toFixed(4)}°N, ${depLon.toFixed(4)}°E) to ${arrival_icao} (${arrLat.toFixed(4)}°N, ${arrLon.toFixed(4)}°E).
-Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
+      prompt: `Generate a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ~${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
 
-I need ${wpCount} waypoints using real navigation fixes from AIRAC data. Search opennav.com or skyvector.com for real fixes and their coordinates along this route.
+TASK: Create an IFR route with ${wpCount} waypoints. For each waypoint, search for its real coordinates on aviation databases.
 
-CRITICAL COORDINATE RULES:
-- Waypoint 1 should be near ${departure_icao} (within ~20nm of ${depLat.toFixed(2)}°N, ${depLon.toFixed(2)}°E)
-- Middle waypoints should have coordinates that gradually transition from departure to arrival
-- Last waypoint should be near ${arrival_icao} (within ~20nm of ${arrLat.toFixed(2)}°N, ${arrLon.toFixed(2)}°E)
-- Each waypoint MUST have UNIQUE coordinates that are DIFFERENT from all others
-- Latitude must transition from ~${depLat.toFixed(1)} to ~${arrLat.toFixed(1)}
-- Longitude must transition from ~${depLon.toFixed(1)} to ~${arrLon.toFixed(1)}
+SEARCH INSTRUCTIONS: For each waypoint you choose, search for it on opennav.com. For example:
+- Search "site:opennav.com ASKIK" to find the fix ASKIK and its coordinates
+- Search "site:opennav.com TOBAK" for the fix TOBAK
+- Do this for EVERY fix in your route
 
-Use real SIDs, airways, STARs. Altitudes: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.`,
+The coordinates MUST come from actual search results, not from your memory. Real aviation fixes have precise coordinates like 50.0333, 8.5667 - NOT round numbers like 50.0, 9.0 or incrementing patterns like 50.1, 50.2, 50.3.
+
+GEOGRAPHIC REQUIREMENT: ${departure_icao} to ${arrival_icao} means waypoints must geographically transition from the departure area to the arrival area. If departure is in southern Germany and arrival is in northern Germany, waypoint latitudes must increase from south to north.
+
+ROUTE RULES:
+- Use real SIDs, airways (L607, T180, Y163, UN872, etc.), and STARs
+- Altitudes: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft
+- Route string format: "${departure_icao}/RWY waypoints ${arrival_icao}/RWY"`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -125,18 +101,6 @@ Use real SIDs, airways, STARs. Altitudes: SID 3000-15000ft, enroute ${cruiseAlt}
         seen.add(coordKey);
         return true;
       });
-
-      // Validate distribution: check that waypoints span the route
-      if (result.waypoints.length >= 2 && depLat && arrLat) {
-        const lats = result.waypoints.map(w => w.lat);
-        const latRange = Math.max(...lats) - Math.min(...lats);
-        const expectedLatRange = Math.abs(arrLat - depLat);
-        
-        // If waypoints span less than 30% of the expected range, coordinates are likely wrong
-        if (expectedLatRange > 0.5 && latRange < expectedLatRange * 0.3) {
-          result._coordinate_warning = "Waypoint coordinates may be inaccurate - limited geographic spread detected";
-        }
-      }
     }
 
     return Response.json(result);
