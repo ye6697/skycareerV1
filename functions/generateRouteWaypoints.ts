@@ -39,13 +39,24 @@ Deno.serve(async (req) => {
     else if (dist < 600) wpCount = 7;
     else wpCount = 10;
 
-    // Step 1: Get waypoint names and route string
-    const routeResult = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate a realistic IFR route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft: ${acType}. Cruise altitude: FL${cruiseFL}.
+    // Single LLM call - ask for route with coordinates, using web search
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `I need a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft type: ${acType}. Cruise: FL${cruiseFL}.
 
-Return ${wpCount} waypoints using real published navigation fixes from AIRAC data. Use real SIDs from ${departure_icao}, real airways, and real STARs into ${arrival_icao}. Distribute waypoints evenly along the route.
+Please search for the actual coordinates of each waypoint on sites like opennav.com, skyvector.com, or similar aviation databases.
 
-Altitude: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.`,
+For example, to find ASKIK's coordinates, search "ASKIK waypoint coordinates" and you'll find it's at N50°02.0 E008°34.0 = lat 50.0333, lon 8.5667.
+
+I need ${wpCount} waypoints with:
+- Real published 5-letter ICAO fix names or VOR identifiers
+- Their EXACT coordinates from aviation databases (NOT rounded to whole degrees)
+- Connected by real airways
+- A real SID from ${departure_icao} and STAR into ${arrival_icao}
+- Evenly distributed geographically between the two airports
+
+Altitudes: SID fixes 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.
+
+IMPORTANT: Each waypoint MUST have DIFFERENT coordinates from every other waypoint. If two waypoints share the same coordinates, something is wrong.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -56,10 +67,12 @@ Altitude: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.`,
               type: "object",
               properties: {
                 name: { type: "string" },
+                lat: { type: "number" },
+                lon: { type: "number" },
                 alt: { type: "number" },
                 type: { type: "string", enum: ["sid", "enroute", "star"] }
               },
-              required: ["name", "alt", "type"]
+              required: ["name", "lat", "lon", "alt", "type"]
             }
           },
           route_string: { type: "string" },
@@ -73,82 +86,25 @@ Altitude: SID 3000-15000ft, enroute ${cruiseAlt}ft, STAR descending to 4000ft.`,
       }
     });
 
-    if (!routeResult || !routeResult.waypoints || routeResult.waypoints.length === 0) {
-      return Response.json({ error: 'Failed to generate route' }, { status: 500 });
+    // Post-process
+    if (result && result.waypoints && Array.isArray(result.waypoints)) {
+      // Remove duplicates and airport names
+      const seen = new Set();
+      result.waypoints = result.waypoints.filter(wp => {
+        if (!wp.name || !wp.lat || !wp.lon) return false;
+        if (wp.name === departure_icao || wp.name === arrival_icao) return false;
+        if (wp.name.startsWith(departure_icao) || wp.name.startsWith(arrival_icao)) return false;
+        // Remove waypoints with duplicate coordinates (sign of LLM hallucination)
+        const coordKey = `${wp.lat.toFixed(4)}_${wp.lon.toFixed(4)}`;
+        const nameKey = wp.name;
+        if (seen.has(nameKey) || seen.has(coordKey)) return false;
+        seen.add(nameKey);
+        seen.add(coordKey);
+        return true;
+      });
     }
 
-    // Step 2: Look up exact coordinates for each waypoint
-    const wpNames = routeResult.waypoints.map(wp => wp.name).join(', ');
-    const coordResult = await base44.integrations.Core.InvokeLLM({
-      prompt: `Look up the EXACT published coordinates for these aviation navigation fixes/waypoints: ${wpNames}
-
-These are ICAO navigation fixes used in IFR flight routes in the area between ${departure_icao} and ${arrival_icao}. 
-
-For each fix, provide the precise latitude and longitude as published in aviation databases. The coordinates must be accurate to at least 4 decimal places. Do NOT round to whole numbers. For example, a fix might be at 50.0333, 8.5667 - NOT at 50.0, 9.0.
-
-Search online aviation databases like OpenNav, SkyVector, or similar sources for the exact coordinates.`,
-      add_context_from_internet: true,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          fixes: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                lat: { type: "number" },
-                lon: { type: "number" }
-              },
-              required: ["name", "lat", "lon"]
-            }
-          }
-        },
-        required: ["fixes"]
-      }
-    });
-
-    // Merge coordinates into waypoints
-    const coordMap = {};
-    if (coordResult?.fixes) {
-      for (const fix of coordResult.fixes) {
-        if (fix.name && fix.lat && fix.lon) {
-          coordMap[fix.name.toUpperCase()] = { lat: fix.lat, lon: fix.lon };
-        }
-      }
-    }
-
-    const waypoints = routeResult.waypoints.map(wp => {
-      const coords = coordMap[wp.name.toUpperCase()];
-      return {
-        name: wp.name,
-        lat: coords?.lat || 0,
-        lon: coords?.lon || 0,
-        alt: wp.alt,
-        type: wp.type
-      };
-    }).filter(wp => wp.lat !== 0 && wp.lon !== 0);
-
-    // Remove duplicates and airport names
-    const seen = new Set();
-    const filteredWaypoints = waypoints.filter(wp => {
-      if (wp.name === departure_icao || wp.name === arrival_icao) return false;
-      if (wp.name.startsWith(departure_icao) || wp.name.startsWith(arrival_icao)) return false;
-      const key = wp.name;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    return Response.json({
-      waypoints: filteredWaypoints,
-      route_string: routeResult.route_string,
-      sid_name: routeResult.sid_name,
-      star_name: routeResult.star_name,
-      cruise_altitude: routeResult.cruise_altitude,
-      departure_runway: routeResult.departure_runway,
-      arrival_runway: routeResult.arrival_runway
-    });
+    return Response.json(result);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
