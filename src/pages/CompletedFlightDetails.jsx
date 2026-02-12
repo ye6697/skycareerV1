@@ -269,7 +269,23 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-900 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Treibstoff verbraucht</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
-                      {Math.round(flight.fuel_used_liters || 0).toLocaleString()} L
+                      {(() => {
+                        // Try stored fuel_used_liters first
+                        if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters).toLocaleString();
+                        // Fallback: compute from xplane_data
+                        const xpd = flight.xplane_data || {};
+                        const initKg = xpd.initial_fuel_kg || 0;
+                        const curKg = xpd.fuelKg || xpd.fuel_kg || 0;
+                        if (initKg > 0 && curKg >= 0) {
+                          const usedKg = Math.max(0, initKg - curKg);
+                          return Math.round(usedKg * 1.25).toLocaleString();
+                        }
+                        // Final fallback: estimate from flight hours and a typical burn rate
+                        if (flight.flight_duration_hours > 0) {
+                          return Math.round(flight.flight_duration_hours * 2500).toLocaleString();
+                        }
+                        return '0';
+                      })()} L
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
