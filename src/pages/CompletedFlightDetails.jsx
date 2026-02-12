@@ -197,10 +197,10 @@ export default function CompletedFlightDetails() {
                   flightData={{
                     latitude: 0,
                     longitude: 0,
-                    departure_lat: flight?.xplane_data?.departure_lat || routeData?.waypoints?.[0]?.lat || 0,
-                    departure_lon: flight?.xplane_data?.departure_lon || routeData?.waypoints?.[0]?.lon || 0,
-                    arrival_lat: flight?.xplane_data?.arrival_lat || routeData?.waypoints?.[routeData?.waypoints?.length - 1]?.lat || 0,
-                    arrival_lon: flight?.xplane_data?.arrival_lon || routeData?.waypoints?.[routeData?.waypoints?.length - 1]?.lon || 0,
+                    departure_lat: flight?.xplane_data?.departure_lat || 0,
+                    departure_lon: flight?.xplane_data?.departure_lon || 0,
+                    arrival_lat: flight?.xplane_data?.arrival_lat || 0,
+                    arrival_lon: flight?.xplane_data?.arrival_lon || 0,
                     heading: 0,
                     altitude: 0,
                     speed: 0,
@@ -212,6 +212,8 @@ export default function CompletedFlightDetails() {
                   flightPath={flight?.xplane_data?.flight_path || []}
                   departureRunway={routeData?.departure_runway}
                   arrivalRunway={routeData?.arrival_runway}
+                  departureCoords={routeData?.departure_coords}
+                  arrivalCoords={routeData?.arrival_coords}
                 />
               )}
 
