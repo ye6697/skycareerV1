@@ -124,15 +124,20 @@ export default function RouteWaypoints({ contract, aircraftType }) {
           </Button>
         </div>
         <p className="text-xs font-mono text-purple-300 leading-relaxed break-all">
-          {routeData.departure_runway && !routeData.route_string?.startsWith(depIcao) 
-            ? `${depIcao}/${routeData.departure_runway} ` 
-            : ''
-          }
-          {routeData.route_string}
-          {routeData.arrival_runway && !routeData.route_string?.endsWith(routeData.arrival_runway) 
-            ? ` ${arrIcao}/${routeData.arrival_runway}` 
-            : ''
-          }
+          {(() => {
+            let rs = routeData.route_string || '';
+            // Ensure dep airport/rwy is at the start
+            const hasDep = rs.includes(depIcao);
+            if (!hasDep && routeData.departure_runway) {
+              rs = `${depIcao}/${routeData.departure_runway} ${rs}`;
+            }
+            // Ensure arr airport/rwy is at the end
+            const hasArr = rs.includes(arrIcao);
+            if (!hasArr && routeData.arrival_runway) {
+              rs = `${rs} ${arrIcao}/${routeData.arrival_runway}`;
+            }
+            return rs;
+          })()}
         </p>
       </div>
 
