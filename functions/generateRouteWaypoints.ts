@@ -118,9 +118,17 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Also try to extract runway from the FPD route metadata
-      if (!depRunway && fpdRoute.fromICAO) {
-        // Some FPD responses have runway info at top level
+      // Extract airport coordinates from FPD route nodes
+      let depLat = null, depLon = null, arrLat = null, arrLon = null;
+      for (const node of nodes) {
+        if (node.ident === departure_icao && node.lat != null && node.lon != null) {
+          depLat = node.lat;
+          depLon = node.lon;
+        }
+        if (node.ident === arrival_icao && node.lat != null && node.lon != null) {
+          arrLat = node.lat;
+          arrLon = node.lon;
+        }
       }
 
       console.log('Parsed', waypoints.length, 'waypoints from FPD');
