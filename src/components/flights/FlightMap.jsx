@@ -248,6 +248,11 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
               {contract.departure_airport} → {contract.arrival_airport}
             </Badge>
           )}
+          {validWaypoints.length > 0 && (
+            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
+              FMS Route ({validWaypoints.length} WPTs)
+            </Badge>
+          )}
           {hasPosition && (
             <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
               {flightData.latitude.toFixed(3)}° / {flightData.longitude.toFixed(3)}°
