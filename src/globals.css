@@ -23,6 +23,14 @@ html, body, #root {
 }
 .dark-popup .leaflet-popup-tip { background: #1e293b; }
 
+/* Prevent double-tap-to-zoom on Leaflet map for touch devices */
+.leaflet-container {
+  touch-action: manipulation !important;
+}
+.leaflet-container * {
+  touch-action: manipulation !important;
+}
+
 /* Waypoint label tooltips - remove leaflet default styling */
 .waypoint-label.leaflet-tooltip {
   background: transparent !important;
