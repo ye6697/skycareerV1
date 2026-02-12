@@ -29,6 +29,7 @@ import FlightRating from "@/components/flights/FlightRating";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import RouteWaypoints from "@/components/flights/RouteWaypoints";
+import SimBriefImport from "@/components/flights/SimBriefImport";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 
 export default function FlightTracker() {
@@ -325,7 +326,10 @@ export default function FlightTracker() {
   // Find the assigned aircraft for this flight
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
 
-  // Generate route waypoints based on contract
+  // SimBrief route override state
+  const [simbriefRoute, setSimbriefRoute] = useState(null);
+
+  // Generate route waypoints based on contract (fallback when no SimBrief)
   const { data: routeData } = useQuery({
     queryKey: ['route-waypoints', contract?.departure_airport, contract?.arrival_airport, assignedAircraft?.type],
     queryFn: async () => {
@@ -337,10 +341,13 @@ export default function FlightTracker() {
       });
       return response.data;
     },
-    enabled: !!contract?.departure_airport && !!contract?.arrival_airport,
+    enabled: !!contract?.departure_airport && !!contract?.arrival_airport && !simbriefRoute,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
+
+  // Use SimBrief data if available, otherwise fallback to generated route
+  const activeRouteData = simbriefRoute || routeData;
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
@@ -1907,14 +1914,20 @@ export default function FlightTracker() {
               flightData={flightData}
               contract={contract}
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
-              routeWaypoints={routeData?.waypoints || []}
+              routeWaypoints={activeRouteData?.waypoints || []}
               flightPath={xplaneLog?.raw_data?.flight_path || []}
-              departureRunway={routeData?.departure_runway}
-              arrivalRunway={routeData?.arrival_runway}
-              departureCoords={routeData?.departure_coords}
-              arrivalCoords={routeData?.arrival_coords}
+              departureRunway={activeRouteData?.departure_runway}
+              arrivalRunway={activeRouteData?.arrival_runway}
+              departureCoords={activeRouteData?.departure_coords}
+              arrivalCoords={activeRouteData?.arrival_coords}
             />
-            <RouteWaypoints contract={contract} aircraftType={assignedAircraft?.type} />
+            <SimBriefImport
+              contract={contract}
+              onRouteLoaded={(data) => setSimbriefRoute(data)}
+            />
+            {!simbriefRoute && (
+              <RouteWaypoints contract={contract} aircraftType={assignedAircraft?.type} />
+            )}
             <TakeoffLandingCalculator
               aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
               contract={contract}
