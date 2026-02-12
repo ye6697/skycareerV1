@@ -60,33 +60,36 @@ Deno.serve(async (req) => {
     }
 
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
+      prompt: `You are an IFR flight planning expert with access to current AIRAC navigation data. Generate a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
 
-CRITICAL GEOGRAPHIC DISTRIBUTION:
-- The waypoints MUST be EVENLY SPREAD along the ENTIRE route from departure to arrival.
-- Imagine drawing a line from ${departure_icao} to ${arrival_icao}: waypoints should be distributed at roughly equal intervals along this line.
-- The FIRST SID waypoint should be CLOSE to the departure airport (within 10-30nm), NOT halfway or near the arrival.
-- The LAST STAR waypoint should be CLOSE to the arrival airport (within 10-30nm).
+CRITICAL - USE REAL AIRAC DATA:
+- You MUST use REAL published navigation fixes from the current AIRAC cycle.
+- Every waypoint MUST have its REAL, CORRECT coordinates from the AIRAC database - NOT estimated or interpolated positions!
+- Use real SIDs from ${departure_icao} and real STARs into ${arrival_icao}.
+- Use real published airways (e.g. L607, UL607, T180, UN872, Y163 etc.) connecting the fixes.
+- VERIFY each fix's coordinates are correct. For example: ASKIK is at N50°02.0'/E008°34.0', not somewhere else.
+- If you're unsure about a fix's exact coordinates, look them up. Wrong coordinates will cause the route to display incorrectly on the map.
+
+GEOGRAPHIC DISTRIBUTION:
+- The waypoints MUST be evenly spread along the ENTIRE route from departure to arrival.
+- The FIRST SID waypoint should be close to ${departure_icao} (within 10-30nm).
+- The LAST STAR waypoint should be close to ${arrival_icao} (within 10-30nm).
 - Enroute waypoints should fill the middle portion evenly.
-- NEVER cluster all waypoints near one airport!
-
-DEPARTURE TRANSITION:
-- The first SID waypoint must be in the DEPARTURE DIRECTION from the runway heading, providing a smooth transition from takeoff.
-- It should NOT be at a sharp angle from the departure airport.
+- NEVER cluster all waypoints near one end!
 
 RULES:
 1. Return ${wpMin}-${wpMax} waypoints. Each MUST be UNIQUE.
-2. Use REAL published navigation fixes (5-letter ICAO names or VOR/DME identifiers). Look up their ACTUAL coordinates.
-3. Use real airways (L607, T180, Y163, UN872, etc).
+2. Use ONLY real published 5-letter ICAO fixes or VOR identifiers with their EXACT real-world coordinates.
+3. Use real airways connecting the fixes.
 4. ${altitudeProfile}
 
 ALTITUDE PROFILE (each waypoint needs altitude in feet):
-- SID waypoints: climbing (3000ft, 8000-15000ft)
+- SID waypoints: climbing (3000-15000ft)
 - Enroute waypoints: cruise at ${cruiseAlt}ft
 - STAR waypoints: descending (FL150, FL080, 4000-5000ft)
 
 ROUTE STRING format: "${departure_icao}/RWY waypoints-and-airways ${arrival_icao}/RWY"
-Pick commonly used runways.`,
+Pick commonly used runways for both airports.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -96,9 +99,9 @@ Pick commonly used runways.`,
             items: {
               type: "object",
               properties: {
-                name: { type: "string", description: "MUST be a real ICAO fix name" },
-                lat: { type: "number", description: "Accurate latitude of the fix" },
-                lon: { type: "number", description: "Accurate longitude of the fix" },
+                name: { type: "string", description: "Real ICAO fix name from AIRAC data" },
+                lat: { type: "number", description: "EXACT latitude from AIRAC database" },
+                lon: { type: "number", description: "EXACT longitude from AIRAC database" },
                 alt: { type: "number", description: "Altitude in feet" },
                 type: { type: "string", enum: ["sid", "enroute", "star"] }
               },
@@ -128,24 +131,6 @@ Pick commonly used runways.`,
         seen.add(key);
         return true;
       });
-
-      // Validate geographic distribution: ensure waypoints span from dep to arr
-      // If all waypoints are clustered (e.g. all near arrival), redistribute along great circle
-      if (result.waypoints.length >= 3) {
-        // Simple check: compute average lat/lon of waypoints vs midpoint of dep/arr
-        // We don't have dep/arr coords directly here, but we can use first and last WP as proxy
-        const lats = result.waypoints.map(w => w.lat);
-        const lons = result.waypoints.map(w => w.lon);
-        const latRange = Math.max(...lats) - Math.min(...lats);
-        const lonRange = Math.max(...lons) - Math.min(...lons);
-        const totalRange = latRange + lonRange;
-        
-        // If all waypoints are within ~0.5 degrees of each other, they're likely clustered
-        if (totalRange < 0.5 && dist > 100) {
-          // Mark as potentially bad - add a flag so frontend can request refresh
-          result._distribution_warning = true;
-        }
-      }
     }
 
     return Response.json(result);
