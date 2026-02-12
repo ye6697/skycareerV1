@@ -60,24 +60,33 @@ Deno.serve(async (req) => {
     }
 
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Generate an IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
+      prompt: `Generate a realistic IFR flight route from ${departure_icao} to ${arrival_icao}. Distance: ${dist}NM. Aircraft: ${acType}. Cruise: FL${cruiseFL}.
+
+CRITICAL GEOGRAPHIC DISTRIBUTION:
+- The waypoints MUST be EVENLY SPREAD along the ENTIRE route from departure to arrival.
+- Imagine drawing a line from ${departure_icao} to ${arrival_icao}: waypoints should be distributed at roughly equal intervals along this line.
+- The FIRST SID waypoint should be CLOSE to the departure airport (within 10-30nm), NOT halfway or near the arrival.
+- The LAST STAR waypoint should be CLOSE to the arrival airport (within 10-30nm).
+- Enroute waypoints should fill the middle portion evenly.
+- NEVER cluster all waypoints near one airport!
+
+DEPARTURE TRANSITION:
+- The first SID waypoint must be in the DEPARTURE DIRECTION from the runway heading, providing a smooth transition from takeoff.
+- It should NOT be at a sharp angle from the departure airport.
 
 RULES:
-1. Return ${wpMin}-${wpMax} waypoints. Each waypoint MUST be UNIQUE - no duplicates!
-2. Use REAL navigation fixes (5-letter ICAO names like KERAX, SPESA or VOR/DME like FFM, WRB).
-3. CRITICAL: Coordinates must be ACCURATE and waypoints must be GEOGRAPHICALLY SPREAD along the route from departure to arrival. NOT clustered together!
-4. Use real airways between waypoints (L607, T180, Y163, UN872, etc).
-5. ${altitudeProfile}
+1. Return ${wpMin}-${wpMax} waypoints. Each MUST be UNIQUE.
+2. Use REAL published navigation fixes (5-letter ICAO names or VOR/DME identifiers). Look up their ACTUAL coordinates.
+3. Use real airways (L607, T180, Y163, UN872, etc).
+4. ${altitudeProfile}
 
-ALTITUDE PROFILE (each waypoint needs a realistic altitude in feet):
-- 1-2 SID waypoints: climbing (3000ft, then 8000-15000ft)
-- Enroute waypoints: at cruise altitude ${cruiseAlt}ft
-- 1-2 STAR waypoints: descending (FL150, FL080, then 4000-5000ft)
-- The altitudes MUST increase then decrease - never all the same!
+ALTITUDE PROFILE (each waypoint needs altitude in feet):
+- SID waypoints: climbing (3000ft, 8000-15000ft)
+- Enroute waypoints: cruise at ${cruiseAlt}ft
+- STAR waypoints: descending (FL150, FL080, 4000-5000ft)
 
-ROUTE STRING: Include airports and runways. Format: "${departure_icao}/RWY waypoints-and-airways ${arrival_icao}/RWY"
-
-Pick commonly used runways for each airport.`,
+ROUTE STRING format: "${departure_icao}/RWY waypoints-and-airways ${arrival_icao}/RWY"
+Pick commonly used runways.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
