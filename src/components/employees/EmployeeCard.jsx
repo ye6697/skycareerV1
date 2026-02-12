@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { 
   User, 
   Star,
@@ -130,11 +132,10 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
           </div>
 
           <div className="flex gap-2 pt-3 border-t border-slate-700">
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => {
-              if (onView) onView(employee);
-              else window.location.href = `${window.location.pathname}?page=EmployeeDetails&id=${employee.id}`;
-            }}>
-              Details
+            <Button variant="outline" size="sm" className="flex-1" asChild>
+              <Link to={createPageUrl(`EmployeeDetails?id=${employee.id}`)}>
+                Details
+              </Link>
             </Button>
             {employee.status === "available" && (
               <Button 
