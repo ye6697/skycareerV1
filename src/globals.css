@@ -40,6 +40,11 @@ html, body, #root {
   touch-action: manipulation;
 }
 
+/* Prevent Leaflet from capturing touch events outside its own container */
+.leaflet-container * {
+  touch-action: manipulation;
+}
+
 /* Input fields always white text */
 input, textarea, select {
   @apply text-white;
