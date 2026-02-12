@@ -274,8 +274,10 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
     );
   }
 
+  const fullscreenOverlay = isFullscreen ? "fixed inset-0 z-[9999] bg-slate-900 flex flex-col" : "";
+
   return (
-    <Card className="bg-slate-800/50 border-slate-700 overflow-hidden rounded-lg">
+    <Card ref={mapContainerRef} className={`bg-slate-800/50 border-slate-700 overflow-hidden rounded-lg ${isFullscreen ? fullscreenOverlay : ''}`} style={isFullscreen ? { borderRadius: 0 } : {}}>
       <div className="p-3 pb-0 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Navigation className="w-4 h-4 text-blue-400" />
@@ -292,15 +294,23 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
               FMS Route ({validWaypoints.length} WPTs)
             </Badge>
           )}
-          {hasPosition && (
+          {hasPosition && !isFullscreen && (
             <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
               {flightData.latitude.toFixed(3)}° / {flightData.longitude.toFixed(3)}°
             </Badge>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-700"
+            onClick={toggleFullscreen}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </Button>
         </div>
       </div>
 
-      <div className="mt-2" style={{ height: 350 }}>
+      <div className="mt-2" style={{ height: isFullscreen ? 'calc(100vh - 100px)' : 350, touchAction: 'manipulation' }}>
         <MapContainer
           key="flight-map"
           center={center}
@@ -310,6 +320,7 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           attributionControl={false}
         >
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          <MapRefSetter mapRef={mapInstanceRef} />
           <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />
 
           {/* Planned route - dashed, more visible */}
