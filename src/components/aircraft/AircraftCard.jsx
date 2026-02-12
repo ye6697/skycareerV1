@@ -100,7 +100,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         type: 'expense',
         category: 'maintenance',
         amount: repairPrice,
-        description: `Reparatur: ${aircraft.name} (Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
+        description: `Reparatur: ${aircraft.name} (20% Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
         date: new Date().toISOString()
       });
     },
