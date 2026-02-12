@@ -111,21 +111,29 @@ function distanceNm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title, flightPath = [], departureRunway = null, arrivalRunway = null }) {
+export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title, flightPath = [], departureRunway = null, arrivalRunway = null, departureCoords = null, arrivalCoords = null }) {
   const fd = flightData || {};
   const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
   const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
   const hasArr = fd.arrival_lat !== 0 || fd.arrival_lon !== 0;
 
-  // Derive departure position: prefer X-Plane data, fallback to first routeWaypoint
-  let depPos = hasDep ? [fd.departure_lat, fd.departure_lon] : null;
-  if (!depPos && routeWaypoints.length > 0 && routeWaypoints[0].lat && routeWaypoints[0].lon) {
+  // Derive departure position: prefer explicit coords from route API, then X-Plane data, then first waypoint
+  let depPos = null;
+  if (departureCoords && departureCoords.lat && departureCoords.lon) {
+    depPos = [departureCoords.lat, departureCoords.lon];
+  } else if (hasDep) {
+    depPos = [fd.departure_lat, fd.departure_lon];
+  } else if (routeWaypoints.length > 0 && routeWaypoints[0].lat && routeWaypoints[0].lon) {
     depPos = [routeWaypoints[0].lat, routeWaypoints[0].lon];
   }
 
-  // Derive arrival position: prefer X-Plane data, fallback to last routeWaypoint
-  let arrPos = hasArr ? [fd.arrival_lat, fd.arrival_lon] : null;
-  if (!arrPos && routeWaypoints.length > 0) {
+  // Derive arrival position: prefer explicit coords from route API, then X-Plane data, then last waypoint
+  let arrPos = null;
+  if (arrivalCoords && arrivalCoords.lat && arrivalCoords.lon) {
+    arrPos = [arrivalCoords.lat, arrivalCoords.lon];
+  } else if (hasArr) {
+    arrPos = [fd.arrival_lat, fd.arrival_lon];
+  } else if (routeWaypoints.length > 0) {
     const lastWp = routeWaypoints[routeWaypoints.length - 1];
     if (lastWp.lat && lastWp.lon) {
       arrPos = [lastWp.lat, lastWp.lon];
