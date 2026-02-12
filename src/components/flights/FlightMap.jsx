@@ -7,23 +7,33 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import RouteCorridorAirports from './RouteCorridorAirports';
 
-// CRITICAL: Completely disable Leaflet's tap simulation to prevent it from
-// intercepting ALL touch events on the page (causes double-click requirement on touch devices).
+// CRITICAL: Completely disable Leaflet's tap simulation.
 L.Browser.tap = false;
-
-// Patch Map.Tap handler to never be added
 if (L.Map && L.Map.Tap) {
   L.Map.mergeOptions({ tap: false });
 }
-
-// NUCLEAR FIX: Remove Leaflet's Map.Tap handler entirely if it exists
-// This handler adds document-level touchstart/touchend listeners that intercept ALL touches
 if (L.Map.Tap) {
   L.Map.Tap = L.Handler.extend({
     addHooks: function() {},
     removeHooks: function() {}
   });
 }
+
+// AGGRESSIVE FIX: Remove any document-level touchstart/touchend listeners that Leaflet may have added.
+// Leaflet's Map.Tap handler registers listeners on `document` that intercept ALL touch events,
+// causing the double-click bug on iOS Safari. We monkey-patch document.addEventListener to block them.
+const _origAddEventListener = document.addEventListener.bind(document);
+const _blockedLeafletEvents = new Set(['touchstart', 'touchend']);
+let _leafletListenerCleanups = [];
+document.addEventListener = function(type, fn, opts) {
+  // Detect Leaflet's tap handler listeners by checking the function source
+  if (_blockedLeafletEvents.has(type) && fn && fn.toString && fn.toString().includes('_simulateEvent')) {
+    // Block this listener entirely - it's Leaflet's tap handler
+    _leafletListenerCleanups.push({ type, fn, opts });
+    return;
+  }
+  return _origAddEventListener(type, fn, opts);
+};
 
 // Fix leaflet default icons
 delete L.Icon.Default.prototype._getIconUrl;
