@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Navigation } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Navigation, Maximize2, Minimize2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -65,6 +66,12 @@ const routeWaypointIcon = new L.DivIcon({
   iconAnchor: [5, 5],
 });
 
+function MapRefSetter({ mapRef }) {
+  const map = useMap();
+  useEffect(() => { mapRef.current = map; }, [map, mapRef]);
+  return null;
+}
+
 function MapController({ center, bounds }) {
   const map = useMap();
   const prevCenter = useRef(center);
@@ -119,6 +126,38 @@ function distanceNm(lat1, lon1, lat2, lon2) {
 }
 
 export default function FlightMap({ flightData, contract, waypoints = [], routeWaypoints = [], staticMode = false, title, flightPath = [], departureRunway = null, arrivalRunway = null, departureCoords = null, arrivalCoords = null }) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+    // Invalidate map size after transition
+    setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 100);
+  }, []);
+
+  // Close fullscreen on Escape key
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKey = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isFullscreen]);
+
+  // Invalidate map when fullscreen changes
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 50),
+      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 200),
+      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 500),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [isFullscreen]);
+
   const fd = flightData || {};
   const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
   const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
