@@ -368,6 +368,19 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
                   → {nextWpName}: <span className="font-bold">{Math.round(distToNextWp)} NM</span>
                 </span>
               )}
+              {/* Show active FMS waypoint if available */}
+              {validWaypoints.length > 0 && (() => {
+                const active = validWaypoints.find(wp => wp.is_active);
+                if (active && curPos) {
+                  const d = distanceNm(curPos[0], curPos[1], active.lat, active.lon);
+                  return (
+                    <span className="text-pink-400">
+                      FMS▸ {active.name}: <span className="font-bold">{Math.round(d)} NM</span>
+                    </span>
+                  );
+                }
+                return null;
+              })()}
               {distToArrival !== null && (
                 <span className="text-amber-400 font-bold ml-auto">
                   {contract?.arrival_airport || 'ARR'}: {Math.round(distToArrival)} NM
