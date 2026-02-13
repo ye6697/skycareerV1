@@ -29,22 +29,12 @@ export default function FlightMapIframe({
     return () => window.removeEventListener('message', handler);
   }, [onViewModeChange]);
 
-  // Full data update - in ARC mode, throttle layer rebuilds but ALWAYS send on mode switch
-  const lastFullUpdateRef = useRef(0);
+  // Full data update - always send all data to iframe (no throttling)
   const prevViewModeRef = useRef('fplan');
   useEffect(() => {
     if (!iframeReady || !iframeRef.current?.contentWindow) return;
     
-    const modeJustSwitched = viewMode !== prevViewModeRef.current;
     prevViewModeRef.current = viewMode;
-    
-    // In ARC mode, throttle layer rebuilds to max 1 every 2 seconds
-    // BUT always send immediately on mode switch so layers get built
-    if (viewModeRef.current === 'arc' && !modeJustSwitched) {
-      const now = Date.now();
-      if (now - lastFullUpdateRef.current < 2000) return;
-      lastFullUpdateRef.current = now;
-    }
     
     iframeRef.current.contentWindow.postMessage({
       type: 'flightmap-update',
