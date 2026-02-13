@@ -23,11 +23,20 @@ Deno.serve(async (req) => {
     }
 
     const response = await fetch(url);
+    const responseText = await response.text();
+    
     if (!response.ok) {
-      return Response.json({ error: 'SimBrief API Fehler', status: response.status }, { status: 400 });
+      console.log('SimBrief API response status:', response.status, 'body:', responseText.substring(0, 500));
+      return Response.json({ error: 'SimBrief API Fehler: ' + response.status }, { status: 400 });
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.log('SimBrief response is not JSON:', responseText.substring(0, 500));
+      return Response.json({ error: 'SimBrief Antwort konnte nicht verarbeitet werden' }, { status: 400 });
+    }
 
     if (data.fetch?.status === 'Error') {
       return Response.json({ error: data.fetch.result || 'SimBrief Fehler' }, { status: 400 });
