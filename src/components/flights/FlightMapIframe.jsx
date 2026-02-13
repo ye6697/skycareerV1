@@ -772,6 +772,7 @@ function angleDiff(a, b) {
 
 var arcMapEl = null;
 var arcLastMarkerUpdate = 0;
+var arcLastRecenter = 0;
 
 function arcSmoothTick(now) {
   if (currentViewMode !== 'arc' || !arcInitialized) {
@@ -791,7 +792,7 @@ function arcSmoothTick(now) {
   
   if (!frozen) {
     // Simple smooth lerp toward target – no dead-reckoning, no velocity
-    var lerpSpeed = 4; // per second – higher = snappier
+    var lerpSpeed = 4;
     var t = Math.min(1, dt * lerpSpeed);
     arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
     arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
@@ -805,11 +806,16 @@ function arcSmoothTick(now) {
   
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
-  // Update Leaflet marker at ~10fps
+  // Recenter map at ~5fps (every 200ms) to keep aircraft centered, not every frame
+  if (!frozen && (now - arcLastRecenter > 200)) {
+    arcLastRecenter = now;
+    centerAircraftArc(curPos);
+  }
+  
+  // Update Leaflet marker at ~10fps – always set to REAL interpolated position
   if (layers.aircraft && (now - arcLastMarkerUpdate > 100)) {
     arcLastMarkerUpdate = now;
-    var markerPos = arcBaseLatLng ? arcBaseLatLng : curPos;
-    layers.aircraft.setLatLng(markerPos);
+    layers.aircraft.setLatLng(curPos);
     var hdgRounded = Math.round(arcCurrent.hdg);
     if (Math.abs(hdgRounded - arcLastIconHdg) >= 2) {
       layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
@@ -823,13 +829,15 @@ function arcSmoothTick(now) {
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // --- CSS transform: translate + rotate ---
+  // --- CSS transform: only rotation, no translate ---
   if (!arcMapEl) arcMapEl = document.getElementById('map');
-  
-  centerAircraftArc(curPos);
-  
-  arcMapEl.style.transformOrigin = arcOriginX + '% ' + arcOriginY + '%';
-  arcMapEl.style.transform = 'translate(' + arcTranslateX + 'px,' + arcTranslateY + 'px) rotate(' + (-arcCurrent.hdg) + 'deg)';
+  // Rotate around aircraft's pixel position
+  var acPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
+  var mapSize = map.getSize();
+  var ox = (acPx.x / mapSize.x) * 100;
+  var oy = (acPx.y / mapSize.y) * 100;
+  arcMapEl.style.transformOrigin = ox + '% ' + oy + '%';
+  arcMapEl.style.transform = 'rotate(' + (-arcCurrent.hdg) + 'deg)';
   
   arcAnimFrame = requestAnimationFrame(arcSmoothTick);
 }
