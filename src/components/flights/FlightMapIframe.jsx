@@ -269,56 +269,70 @@ function setArcDragLock(locked) {
   }
 }
 
-// Throttled setView – Leaflet's setView is expensive (triggers internal recalc + tile loads).
-// We call it at most ~4 times/sec; between calls we use CSS translate to fake the movement.
+// === ARC centering: PURE MATH pixel offsets, zero Leaflet calls per frame ===
+// We call map.setView() only ~1/sec to keep tiles loaded. Between calls,
+// we compute pixel deltas with cached zoom/projection values and apply
+// them as CSS translate – this is a pure arithmetic operation (no DOM/layout).
 var arcLastSetViewTime = 0;
-var arcSetViewInterval = 250; // ms between real setView calls
+var arcSetViewInterval = 1000; // ms between real setView calls (1/sec)
 var arcCachedContainerSize = null;
-var arcCachedViewportH = 0;
 var arcCachedShiftPx = 0;
-var arcBaseLatLng = null; // the latLng from last setView
-var arcBasePx = null;     // pixel position of that latLng at last setView
+// Projection cache: at the zoom level from last setView, how many pixels per degree?
+var arcPxPerDegLat = 0;
+var arcPxPerDegLon = 0;
+var arcBaseLatLng = null; // the latLng we centered Leaflet on
+var arcBasePx = null;     // pixel coords of aircraft at that moment
 
 function centerAircraftArc(curPos) {
   var now = performance.now();
-  var mapEl = document.getElementById('map');
   var needsFullUpdate = (now - arcLastSetViewTime > arcSetViewInterval) || !arcBaseLatLng;
-  
+
   if (needsFullUpdate) {
     arcLastSetViewTime = now;
-    
-    // Full Leaflet setView (expensive, but only ~4x/sec)
+
+    // --- Expensive Leaflet call (only ~1/sec) ---
     map.setView(curPos, map.getZoom(), { animate: false });
-    
+
     arcCachedContainerSize = map.getSize();
-    arcCachedViewportH = arcCachedContainerSize.y / 3;
-    arcCachedShiftPx = arcCachedViewportH * (isFullscreen ? 0.45 : 0.40);
-    
+    var viewportH = arcCachedContainerSize.y / 3;
+    arcCachedShiftPx = viewportH * (isFullscreen ? 0.45 : 0.40);
+
+    // Shift center north so aircraft appears lower in viewport
     var centerPx = map.latLngToContainerPoint(map.getCenter());
     var newCenterPx = L.point(centerPx.x, centerPx.y - arcCachedShiftPx);
     var newCenter = map.containerPointToLatLng(newCenterPx);
     map.setView(newCenter, map.getZoom(), { animate: false });
-    
-    // Cache the base position for CSS offset calculations
-    arcBaseLatLng = [curPos[0], curPos[1]];
+
+    // Cache pixel position of aircraft
     arcBasePx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
-    
-    // Store transform origin
+    arcBaseLatLng = [curPos[0], curPos[1]];
+
+    // Cache projection scale: pixels per degree at this zoom + latitude
+    // We compute this once and reuse for all inter-frame offsets.
+    var testOffsetDeg = 0.01;
+    var pxA = arcBasePx;
+    var pxB = map.latLngToContainerPoint(L.latLng(curPos[0] + testOffsetDeg, curPos[1]));
+    var pxC = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1] + testOffsetDeg));
+    arcPxPerDegLat = (pxA.y - pxB.y) / testOffsetDeg; // lat increases = y decreases
+    arcPxPerDegLon = (pxC.x - pxA.x) / testOffsetDeg;
+
+    // Transform origin = aircraft position as % of #map container
     centerAircraftArc._originX = (arcBasePx.x / arcCachedContainerSize.x) * 100;
     centerAircraftArc._originY = (arcBasePx.y / arcCachedContainerSize.y) * 100;
-    
-    // Reset CSS translate (map is now correctly positioned via Leaflet)
     centerAircraftArc._translateX = 0;
     centerAircraftArc._translateY = 0;
   } else {
-    // Cheap CSS-only update: compute pixel delta from base position
-    // and apply as CSS translate. No Leaflet calls at all.
-    var currentPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
-    var dx = arcBasePx.x - currentPx.x;
-    var dy = arcBasePx.y - currentPx.y;
-    centerAircraftArc._translateX = dx;
-    centerAircraftArc._translateY = dy;
-    // Origin stays the same as last full update
+    // --- Cheap math-only offset (every other frame) ---
+    // No Leaflet calls at all. Pure arithmetic.
+    var dLat = curPos[0] - arcBaseLatLng[0];
+    var dLon = curPos[1] - arcBaseLatLng[1];
+    // Convert degree delta to pixel delta using cached scale
+    var dxPx = dLon * arcPxPerDegLon;
+    var dyPx = -(dLat * arcPxPerDegLat); // lat up = negative y
+    // We need to shift the map so the new position lands on the same screen spot
+    centerAircraftArc._translateX = -dxPx;
+    centerAircraftArc._translateY = -dyPx;
+    // Origin stays the same
   }
 }
 
