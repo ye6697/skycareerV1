@@ -56,7 +56,6 @@ export default function AdminAircraftImages() {
     { name: "Airbus A300", type: "wide_body", level_requirement: 21 },
     { name: "Airbus A330-200F", type: "cargo", level_requirement: 22 },
     { name: "Airbus A330-300", type: "wide_body", level_requirement: 23 },
-    { name: "Airbus A330-300", type: "wide_body", level_requirement: 23 },
     { name: "Boeing 777-200ER", type: "wide_body", level_requirement: 25 },
     { name: "Boeing 777-300ER", type: "wide_body", level_requirement: 26 },
     { name: "Airbus A350-900", type: "wide_body", level_requirement: 27 },

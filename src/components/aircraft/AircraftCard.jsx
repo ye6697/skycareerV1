@@ -199,7 +199,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           <div className="mb-4">
             <h3 className="font-semibold text-lg text-white">{aircraft.name}</h3>
             <div className="flex items-center gap-2 mt-1">
-              <span className="font-mono text-sm text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+              <span className="font-mono text-sm text-slate-500 bg-slate-100 px-2 py-0.5 rounded" title={aircraft.registration}>
                 {aircraft.registration}
               </span>
               <span className="text-sm text-slate-400">{type.label}</span>
