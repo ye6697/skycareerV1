@@ -586,37 +586,33 @@ function update(d) {
   
   if (currentViewMode === 'arc' && curPos && !staticMode) {
     arcEl.style.display = 'block';
-    mapEl.classList.add('arc-mode');
     setArcDragLock(true);
+    drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     var hdg = fd.heading || 0;
-    mapEl.style.transformOrigin = '50% 50%';
-    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg)';
+    mapEl.style.transformOrigin = '50% 90%';
+    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.8)';
     
-    // On switch to ARC, reset zoom level and invalidate size
+    // On switch to ARC, reset zoom level
     if (switchedToArc) {
-      map.invalidateSize();
       map.setZoom(arcZoomLevel, { animate: false });
     }
     
     // Always center aircraft at bottom
     centerAircraftArc(curPos);
     
-    drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
+    // Force Leaflet to load tiles for the rotated view
+    map.invalidateSize();
+    map._resetView(map.getCenter(), map.getZoom(), true);
     
     boundsSet = false;
   } else {
     arcEl.style.display = 'none';
-    mapEl.classList.remove('arc-mode');
     setArcDragLock(false);
     // Reset map rotation
     if (mapEl) {
       mapEl.style.transform = 'none';
       mapEl.style.transformOrigin = '';
-    }
-    // On switch from ARC, invalidate and re-fit
-    if (switchedFromArc) {
-      map.invalidateSize();
     }
     // On switch from ARC, re-fit bounds
     if (switchedFromArc) {
