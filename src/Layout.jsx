@@ -195,29 +195,39 @@ function LayoutInner({ children, currentPageName }) {
                 <div className="p-3 bg-slate-900 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs text-slate-400 font-medium">Kontostand</span>
-                  </div>
-                  <p className="text-lg font-bold text-emerald-400">
+                    <span className="text-xs text-slate-400 font-medium">{t('balance', lang)}</span>
+                    </div>
+                    <p className="text-lg font-bold text-emerald-400">
                     ${(company?.balance || 0).toLocaleString()}
-                  </p>
-                </div>
-                <div className="p-3 bg-slate-900 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
+                    </p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
                     <div className={`w-2 h-2 rounded-full ${
                       xplaneStatus === 'connected' ? 'bg-emerald-500' : 
                       xplaneStatus === 'connecting' ? 'bg-amber-500' : 
                       'bg-slate-500'
                     }`} />
-                    <span className="text-xs text-slate-400 font-medium">X-Plane Status</span>
-                  </div>
-                  <p className="text-sm text-slate-300">
-                    {xplaneStatus === 'connected' ? 'Verbunden' : 
-                     xplaneStatus === 'connecting' ? 'Verbinde...' : 
-                     'Getrennt'}
-                  </p>
-                </div>
-              </div>
-            </motion.aside>
+                    <span className="text-xs text-slate-400 font-medium">{t('xplane_status', lang)}</span>
+                    </div>
+                    <p className="text-sm text-slate-300">
+                    {xplaneStatus === 'connected' ? t('connected', lang) : 
+                     xplaneStatus === 'connecting' ? t('connecting', lang) : 
+                     t('disconnected', lang)}
+                    </p>
+                    </div>
+                    {/* Language Toggle */}
+                    <button
+                    onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
+                    className="w-full p-3 bg-slate-900 rounded-lg flex items-center justify-between hover:bg-slate-800 transition-colors"
+                    >
+                    <span className="text-xs text-slate-400 font-medium flex items-center gap-2">
+                    <Globe className="w-4 h-4" /> Language
+                    </span>
+                    <span className="text-sm font-bold text-blue-400">{lang === 'en' ? '🇬🇧 EN' : '🇩🇪 DE'}</span>
+                    </button>
+                    </div>
+                    </motion.aside>
           </>
         )}
       </AnimatePresence>
