@@ -510,18 +510,37 @@ function updateHUD(fd, live, evts) {
     '<div class="hud-cell"><span class="hud-label">SCORE</span><span class="hud-val '+sCol+'">'+Math.round(sc)+'</span></div>';
 }
 
-function updateEvents(evts) {
+function updateEvents(evts, live) {
   var el = document.getElementById('events-overlay');
   if (!el) return;
   if (!evts) { el.style.display = 'none'; return; }
-  var labels = {tailstrike:'TAIL STRIKE',stall:'STALL',overstress:'OVERSTRESS',overspeed:'OVERSPEED',flaps_overspeed:'FLAP OVSPD',crash:'CRASH',gear_up_landing:'GEAR UP LDG',harsh_controls:'HARSH CTRL',high_g_force:'HIGH G',hard_landing:'HARD LDG',fuel_emergency:'FUEL EMER'};
-  var active = [];
-  for (var k in evts) { if (evts[k] === true && labels[k]) active.push(labels[k]); }
-  if (active.length === 0) { el.style.display = 'none'; return; }
+  
+  // Position: top-left in ARC mode, bottom-left in F-PLN mode
+  if (currentViewMode === 'arc') { el.classList.add('arc-pos'); } else { el.classList.remove('arc-pos'); }
+  
+  var items = [];
+  if (evts.crash)           items.push({name:'CRASH',           score:'-100', cost:'70% Neuwert'});
+  if (evts.tailstrike)      items.push({name:'Heckaufsetzer',   score:'-20',  cost:'2% Neuwert'});
+  if (evts.stall)           items.push({name:'Strömungsabriss', score:'-50',  cost:null});
+  if (evts.overstress)      items.push({name:'Strukturschaden', score:'-30',  cost:'4% Neuwert'});
+  if (evts.overspeed)       items.push({name:'Overspeed',       score:'-15',  cost:null});
+  if (evts.flaps_overspeed) items.push({name:'Klappen-Overspeed', score:'-15', cost:'2.5% Neuwert'});
+  if (evts.gear_up_landing) items.push({name:'Fahrwerk eingef.', score:'-35', cost:'15% Neuwert'});
+  if (evts.high_g_force)    items.push({name:'Hohe G-Kräfte',   score:'-10+', cost:'1%+ Neuwert'});
+  if (evts.hard_landing)    items.push({name:'Harte Landung',   score:'-30',  cost:'25% Einnahmen'});
+  if (evts.harsh_controls)  items.push({name:'Ruppige Steuerung', score:'—',  cost:null});
+  if (evts.fuel_emergency)  items.push({name:'Treibstoff-Not',  score:'—',    cost:null});
+  
+  if (items.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  var html = '<div class="ev-card"><div class="ev-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>CAUTION</div>';
-  for (var i = 0; i < active.length; i++) {
-    html += '<div class="ev-item"><div class="ev-dot"></div>' + active[i] + '</div>';
+  var html = '<div class="ev-card"><div class="ev-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>VORFÄLLE</div>';
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    html += '<div class="ev-item"><div class="ev-dot"></div>' + it.name + '</div>';
+    var details = '';
+    if (it.score && it.score !== '—') details += '<span style="color:#f87171;">Score: ' + it.score + '</span>';
+    if (it.cost) details += (details ? ' · ' : '') + '<span style="color:#fbbf24;">Kosten: ' + it.cost + '</span>';
+    if (details) html += '<div class="ev-detail">' + details + '</div>';
   }
   html += '</div>';
   el.innerHTML = html;
