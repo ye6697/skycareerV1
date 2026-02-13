@@ -269,38 +269,57 @@ function setArcDragLock(locked) {
   }
 }
 
+// Throttled setView – Leaflet's setView is expensive (triggers internal recalc + tile loads).
+// We call it at most ~4 times/sec; between calls we use CSS translate to fake the movement.
+var arcLastSetViewTime = 0;
+var arcSetViewInterval = 250; // ms between real setView calls
+var arcCachedContainerSize = null;
+var arcCachedViewportH = 0;
+var arcCachedShiftPx = 0;
+var arcBaseLatLng = null; // the latLng from last setView
+var arcBasePx = null;     // pixel position of that latLng at last setView
+
 function centerAircraftArc(curPos) {
-  // The #map div is 300% x 300%, positioned at top:-100%, left:-100%.
-  // The visible viewport (#map-wrapper) clips to show the center 1/3.
-  // 
-  // Key insight: Leaflet's center corresponds to the CENTER of the #map div,
-  // which is also the CENTER of the visible viewport (because of the -100% offset).
-  //
-  // We want the aircraft at the HORIZONTAL CENTER, 85% down the visible viewport.
-  // Currently if we setView(curPos), aircraft = center of viewport (50% down).
-  // We need to shift the Leaflet center NORTH so aircraft moves down by 35% of viewport.
-  //
-  // The Leaflet container is 3x the viewport size.
-  // Leaflet's getSize() returns the full 3x container size.
-  // To shift by 35% of VIEWPORT height, that's 35% * (containerHeight / 3).
+  var now = performance.now();
+  var mapEl = document.getElementById('map');
+  var needsFullUpdate = (now - arcLastSetViewTime > arcSetViewInterval) || !arcBaseLatLng;
   
-  map.setView(curPos, map.getZoom(), { animate: false });
-  
-  var containerSize = map.getSize(); // full 3x size
-  var viewportH = containerSize.y / 3;
-  var shiftPx = viewportH * (isFullscreen ? 0.45 : 0.40);
-  
-  // Shift center north: in pixel space, move the center point UP by shiftPx
-  var centerPx = map.latLngToContainerPoint(map.getCenter());
-  var newCenterPx = L.point(centerPx.x, centerPx.y - shiftPx);
-  var newCenter = map.containerPointToLatLng(newCenterPx);
-  map.setView(newCenter, map.getZoom(), { animate: false });
-  
-  // Now compute where the aircraft is in the #map div as a CSS percentage
-  // so we can rotate around that exact point
-  var acPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
-  centerAircraftArc._originX = (acPx.x / containerSize.x) * 100;
-  centerAircraftArc._originY = (acPx.y / containerSize.y) * 100;
+  if (needsFullUpdate) {
+    arcLastSetViewTime = now;
+    
+    // Full Leaflet setView (expensive, but only ~4x/sec)
+    map.setView(curPos, map.getZoom(), { animate: false });
+    
+    arcCachedContainerSize = map.getSize();
+    arcCachedViewportH = arcCachedContainerSize.y / 3;
+    arcCachedShiftPx = arcCachedViewportH * (isFullscreen ? 0.45 : 0.40);
+    
+    var centerPx = map.latLngToContainerPoint(map.getCenter());
+    var newCenterPx = L.point(centerPx.x, centerPx.y - arcCachedShiftPx);
+    var newCenter = map.containerPointToLatLng(newCenterPx);
+    map.setView(newCenter, map.getZoom(), { animate: false });
+    
+    // Cache the base position for CSS offset calculations
+    arcBaseLatLng = [curPos[0], curPos[1]];
+    arcBasePx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
+    
+    // Store transform origin
+    centerAircraftArc._originX = (arcBasePx.x / arcCachedContainerSize.x) * 100;
+    centerAircraftArc._originY = (arcBasePx.y / arcCachedContainerSize.y) * 100;
+    
+    // Reset CSS translate (map is now correctly positioned via Leaflet)
+    centerAircraftArc._translateX = 0;
+    centerAircraftArc._translateY = 0;
+  } else {
+    // Cheap CSS-only update: compute pixel delta from base position
+    // and apply as CSS translate. No Leaflet calls at all.
+    var currentPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
+    var dx = arcBasePx.x - currentPx.x;
+    var dy = arcBasePx.y - currentPx.y;
+    centerAircraftArc._translateX = dx;
+    centerAircraftArc._translateY = dy;
+    // Origin stays the same as last full update
+  }
 }
 
 function makeIcon(bg, size, border, glow) {
