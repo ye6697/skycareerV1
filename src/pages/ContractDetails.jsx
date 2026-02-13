@@ -19,9 +19,12 @@ import {
   AlertTriangle,
   User
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function ContractDetails() {
   const navigate = useNavigate();
+  const { lang } = useLanguage();
   
   const urlParams = new URLSearchParams(window.location.search);
   const contractId = urlParams.get('id');
@@ -39,23 +42,23 @@ export default function ContractDetails() {
   });
 
   const typeConfig = {
-    passenger: { icon: Users, color: "blue", label: "Passagiere" },
-    cargo: { icon: Package, color: "orange", label: "Fracht" },
-    charter: { icon: Star, color: "purple", label: "Charter" },
-    emergency: { icon: Clock, color: "red", label: "Notfall" }
+    passenger: { icon: Users, color: "blue", label: t('passenger', lang) },
+    cargo: { icon: Package, color: "orange", label: t('cargo', lang) },
+    charter: { icon: Star, color: "purple", label: t('charter', lang) },
+    emergency: { icon: Clock, color: "red", label: t('emergency', lang) }
   };
 
   const difficultyConfig = {
-    easy: { color: "bg-emerald-100 text-emerald-700", label: "Einfach" },
-    medium: { color: "bg-blue-100 text-blue-700", label: "Mittel" },
-    hard: { color: "bg-orange-100 text-orange-700", label: "Schwer" },
-    extreme: { color: "bg-red-100 text-red-700", label: "Extrem" }
+    easy: { color: "bg-emerald-100 text-emerald-700", label: t('easy', lang) },
+    medium: { color: "bg-blue-100 text-blue-700", label: t('medium', lang) },
+    hard: { color: "bg-orange-100 text-orange-700", label: t('hard', lang) },
+    extreme: { color: "bg-red-100 text-red-700", label: t('extreme', lang) }
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-white">Lädt...</div>
+        <div className="text-white">{t('loading', lang)}</div>
       </div>
     );
   }
@@ -65,12 +68,12 @@ export default function ContractDetails() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-          <p className="text-white mb-4">Auftrag nicht gefunden</p>
+          <p className="text-white mb-4">{t('contract_not_found', lang)}</p>
           <Button 
             onClick={() => navigate(createPageUrl("Contracts"))}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Zurück zu Aufträgen
+            {t('back_to_contracts', lang)}
           </Button>
         </div>
       </div>
@@ -96,7 +99,7 @@ export default function ContractDetails() {
             className="mb-4 text-slate-400 hover:text-white"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zu Aufträgen
+            {t('back_to_contracts', lang)}
           </Button>
 
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -125,7 +128,7 @@ export default function ContractDetails() {
               </p>
               {contract.bonus_potential > 0 && (
                 <p className="text-sm text-amber-400">
-                  +${Math.round(contract.bonus_potential).toLocaleString()} Bonus möglich
+                  +${Math.round(contract.bonus_potential).toLocaleString()} {t('bonus_possible', lang)}
                 </p>
               )}
             </div>
@@ -163,18 +166,18 @@ export default function ContractDetails() {
             <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Plane className="w-5 h-5 text-blue-400" />
-                Flugdetails
+                {t('flight_details', lang)}
               </h3>
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                  <p className="text-slate-400 text-xs sm:text-sm mb-1">Entfernung</p>
+                  <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('distance', lang)}</p>
                   <p className="text-xl sm:text-2xl font-bold text-blue-400">
                     {contract.distance_nm?.toLocaleString()} NM
                   </p>
                 </div>
                 {contract.passenger_count > 0 && (
                   <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-xs sm:text-sm mb-1">Passagiere</p>
+                    <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('passengers', lang)}</p>
                     <p className="text-xl sm:text-2xl font-bold text-emerald-400">
                       {contract.passenger_count}
                     </p>
@@ -182,7 +185,7 @@ export default function ContractDetails() {
                 )}
                 {contract.cargo_weight_kg > 0 && (
                   <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-xs sm:text-sm mb-1">Fracht</p>
+                    <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('cargo', lang)}</p>
                     <p className="text-xl sm:text-2xl font-bold text-orange-400">
                       {contract.cargo_weight_kg?.toLocaleString()} kg
                     </p>
@@ -195,7 +198,7 @@ export default function ContractDetails() {
                   </p>
                 </div>
                 <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                  <p className="text-slate-400 text-xs sm:text-sm mb-1">Auftragstyp</p>
+                  <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('contract_type', lang)}</p>
                   <p className="text-lg sm:text-xl font-bold text-purple-400">
                     {config.label}
                   </p>
@@ -215,25 +218,25 @@ export default function ContractDetails() {
             <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-emerald-400" />
-                Vergütung
+                {t('payout', lang)}
               </h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center p-3 bg-slate-900 rounded-lg">
-                  <span className="text-slate-400">Grundvergütung</span>
+                  <span className="text-slate-400">{t('base_payout', lang)}</span>
                   <span className="text-emerald-400 font-bold text-lg">${Math.round(contract.payout || 0).toLocaleString()}</span>
                 </div>
                 {contract.bonus_potential > 0 && (
                   <div className="flex justify-between items-center p-3 bg-slate-900 rounded-lg">
-                    <span className="text-slate-400">Max. Bonus (perfekte Landung)</span>
+                    <span className="text-slate-400">{t('max_bonus', lang)}</span>
                     <span className="text-amber-400 font-bold">+${Math.round(contract.bonus_potential).toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center p-3 bg-emerald-900/20 border border-emerald-700/30 rounded-lg">
-                  <span className="text-emerald-300 font-medium">Max. Gesamterlös</span>
+                  <span className="text-emerald-300 font-medium">{t('max_total_revenue', lang)}</span>
                   <span className="text-emerald-400 font-bold text-xl">${Math.round((contract.payout || 0) + (contract.bonus_potential || 0)).toLocaleString()}</span>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Abzüglich Treibstoff-, Crew- und Wartungskosten. Der tatsächliche Gewinn hängt von Flugdauer, Landequalität und Events ab.
+                  {t('costs_disclaimer', lang)}
                 </p>
               </div>
             </Card>
@@ -241,17 +244,17 @@ export default function ContractDetails() {
             {/* Required Aircraft */}
             {contract.required_aircraft_type && contract.required_aircraft_type.length > 0 && (
               <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">Benötigtes Flugzeug</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('required_aircraft', lang)}</h3>
                 <div className="flex flex-wrap gap-2">
                   {contract.required_aircraft_type.map((type) => (
                     <Badge key={type} className="bg-blue-500/20 text-blue-400 border-blue-400/50 px-3 sm:px-4 py-2">
                       <Plane className="w-4 h-4 mr-2" />
-                      {type === 'small_prop' ? 'Propeller (Klein)' :
-                       type === 'turboprop' ? 'Turboprop' :
-                       type === 'regional_jet' ? 'Regionaljet' :
-                       type === 'narrow_body' ? 'Narrow-Body' :
-                       type === 'wide_body' ? 'Wide-Body' :
-                       type === 'cargo' ? 'Fracht' : type}
+                      {type === 'small_prop' ? t('small_prop_label', lang) :
+                      type === 'turboprop' ? t('turboprop_label', lang) :
+                      type === 'regional_jet' ? t('regional_jet_label', lang) :
+                      type === 'narrow_body' ? t('narrow_body_label', lang) :
+                      type === 'wide_body' ? t('wide_body_label', lang) :
+                      type === 'cargo' ? t('cargo_label', lang) : type}
                     </Badge>
                   ))}
                 </div>
@@ -266,16 +269,16 @@ export default function ContractDetails() {
               <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Users className="w-5 h-5 text-purple-400" />
-                  Benötigte Crew
+                  {t('required_crew', lang)}
                 </h3>
                 <div className="space-y-3">
                   {Object.entries(contract.required_crew).map(([role, count]) => {
                     if (count === 0) return null;
                     const roleLabels = {
-                      captain: 'Kapitän',
-                      first_officer: 'Erster Offizier',
-                      flight_attendant: 'Flugbegleiter/in',
-                      loadmaster: 'Lademeister'
+                     captain: t('captain', lang),
+                     first_officer: t('first_officer', lang),
+                     flight_attendant: t('flight_attendant', lang),
+                     loadmaster: t('loadmaster', lang)
                     };
                     return (
                       <div key={role} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
@@ -304,11 +307,11 @@ export default function ContractDetails() {
                 contract.status === 'failed' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
                 'bg-slate-500/20 text-slate-400'
               } px-4 py-2`}>
-                {contract.status === 'available' ? 'Verfügbar' :
-                 contract.status === 'accepted' ? 'Angenommen' :
-                 contract.status === 'in_progress' ? 'Im Flug' :
-                 contract.status === 'completed' ? 'Abgeschlossen' :
-                 contract.status === 'failed' ? 'Fehlgeschlagen' :
+                {contract.status === 'available' ? t('available', lang) :
+                 contract.status === 'accepted' ? t('accepted', lang) :
+                 contract.status === 'in_progress' ? t('in_flight', lang) :
+                 contract.status === 'completed' ? t('completed', lang) :
+                 contract.status === 'failed' ? t('failed_status', lang) :
                  contract.status}
               </Badge>
             </Card>
