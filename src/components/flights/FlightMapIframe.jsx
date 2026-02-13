@@ -188,14 +188,56 @@ var userInteracting = false;
 var interactionTimeout = null;
 var INTERACTION_COOLDOWN = 15000;
 var currentViewMode = 'fplan';
+var prevViewMode = 'fplan';
 var isFullscreen = false;
 var lastFd = {};
+var lastCurPos = null;
+var arcZoomLevel = 10;
 
-map.on('dragstart zoomstart', function() {
+map.on('dragstart', function() {
+  if (currentViewMode === 'arc') return; // no drag interaction tracking in ARC
   userInteracting = true;
   if (interactionTimeout) clearTimeout(interactionTimeout);
   interactionTimeout = setTimeout(function() { userInteracting = false; }, INTERACTION_COOLDOWN);
 });
+map.on('zoomend', function() {
+  if (currentViewMode === 'arc') {
+    arcZoomLevel = map.getZoom();
+    // Re-center aircraft after zoom
+    if (lastCurPos) {
+      centerAircraftArc(lastCurPos);
+    }
+  }
+});
+
+function setArcDragLock(locked) {
+  if (locked) {
+    map.dragging.disable();
+    map.touchZoom.enable();
+    map.scrollWheelZoom.enable();
+    map.doubleClickZoom.enable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+  } else {
+    map.dragging.enable();
+    map.touchZoom.enable();
+    map.scrollWheelZoom.enable();
+    map.doubleClickZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+  }
+}
+
+function centerAircraftArc(curPos) {
+  var mapSize = map.getSize();
+  var acPixel = map.latLngToContainerPoint(curPos);
+  var targetPixel = L.point(mapSize.x / 2, mapSize.y * 0.9);
+  var dx = acPixel.x - targetPixel.x;
+  var dy = acPixel.y - targetPixel.y;
+  var centerPixel = L.point(mapSize.x / 2, mapSize.y / 2);
+  var newCenter = map.containerPointToLatLng(L.point(centerPixel.x + dx, centerPixel.y + dy));
+  map.setView(newCenter, map.getZoom(), { animate: false });
+}
 
 function makeIcon(bg, size, border, glow) {
   var shadow = glow ? 'box-shadow:0 0 10px '+bg+';' : '';
