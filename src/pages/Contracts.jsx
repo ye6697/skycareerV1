@@ -30,6 +30,8 @@ export default function Contracts() {
   const [activeTab, setActiveTab] = useState('all');
   const [rangeFilter, setRangeFilter] = useState('all');
   const [selectedAircraftId, setSelectedAircraftId] = useState('all');
+  const [minNm, setMinNm] = useState('');
+  const [maxNm, setMaxNm] = useState('');
 
   // Single backend call that fetches everything with service role
   const { data: pageData, isLoading } = useQuery({
