@@ -692,9 +692,17 @@ window.addEventListener('message', function(e) {
   if (e.data?.type === 'flightmap-resize') {
     isFullscreen = e.data.isFullscreen || false;
     setTimeout(function(){ 
-      map.invalidateSize(); 
-      if (currentViewMode === 'arc' && lastCurPos) {
-        setTimeout(function(){ centerAircraftArc(lastCurPos); }, 50);
+      var mapEl = document.getElementById('map');
+      if (currentViewMode === 'arc' && mapEl) {
+        var savedTransform = mapEl.style.transform;
+        mapEl.style.transform = 'none';
+        map.invalidateSize();
+        if (lastCurPos) {
+          centerAircraftArc(lastCurPos);
+        }
+        mapEl.style.transform = savedTransform;
+      } else {
+        map.invalidateSize();
       }
     }, 150);
   }
