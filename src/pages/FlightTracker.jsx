@@ -428,13 +428,22 @@ export default function FlightTracker() {
     if (flightPhase === 'completed') return;
     if (!activeFlightId) return;
     
+    const updateData = (xpData, updDate) => {
+      const ts = xpData.timestamp || updDate;
+      if (ts !== lastXplaneTimestampRef.current) {
+        lastXplaneTimestampRef.current = ts;
+        const now = Date.now();
+        if (lastDataReceivedRef.current) {
+          setDataLatency(now - lastDataReceivedRef.current);
+        }
+        lastDataReceivedRef.current = now;
+        setXplaneLog({ raw_data: xpData, created_date: updDate });
+      }
+    };
+    
     const unsubscribe = base44.entities.Flight.subscribe((event) => {
       if (event.type === 'update' && event.id === activeFlightId && event.data?.xplane_data) {
-        const ts = event.data.xplane_data.timestamp || event.data.updated_date;
-        if (ts !== lastXplaneTimestampRef.current) {
-          lastXplaneTimestampRef.current = ts;
-          setXplaneLog({ raw_data: event.data.xplane_data, created_date: event.data.updated_date });
-        }
+        updateData(event.data.xplane_data, event.data.updated_date);
       }
     });
     
@@ -443,11 +452,7 @@ export default function FlightTracker() {
       const flights = await base44.entities.Flight.filter({ id: activeFlightId });
       const f = flights[0];
       if (f?.xplane_data) {
-        const ts = f.xplane_data.timestamp || f.updated_date;
-        if (ts !== lastXplaneTimestampRef.current) {
-          lastXplaneTimestampRef.current = ts;
-          setXplaneLog({ raw_data: f.xplane_data, created_date: f.updated_date });
-        }
+        updateData(f.xplane_data, f.updated_date);
       }
     }, 1000);
     
