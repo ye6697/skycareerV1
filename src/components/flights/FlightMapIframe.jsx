@@ -733,7 +733,7 @@ function update(d) {
       mapEl.className = 'arc-mode';
       map.invalidateSize();
       map.setZoom(arcZoomLevel, { animate: false });
-      // Initialize smooth interpolation targets
+      // Initialize – snap instantly to current position
       arcTarget.lat = curPos[0];
       arcTarget.lon = curPos[1];
       arcTarget.hdg = fd.heading || 0;
@@ -744,19 +744,34 @@ function update(d) {
       arcCurrent.hdg = fd.heading || 0;
       arcCurrent.alt = fd.altitude || 0;
       arcCurrent.spd = fd.speed || 0;
+      arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 };
+      arcCorrectionRemaining = 0;
+      arcPrevTarget.lat = curPos[0];
+      arcPrevTarget.lon = curPos[1];
+      arcPrevTarget.hdg = fd.heading || 0;
+      arcPrevTarget.alt = fd.altitude || 0;
+      arcLastTargetTime = performance.now();
+      // Reset projection cache so first frame does a setView
+      arcBaseLatLng = null;
       arcInitialized = true;
       parent.postMessage({ type: 'flightmap-viewmode', viewMode: 'arc' }, '*');
     }
     
-    // The animation loop (arcSmoothTick) handles centering + rotation per frame.
-    // Here we just update targets from the full data update.
-    arcTarget.lat = curPos[0];
-    arcTarget.lon = curPos[1];
-    arcTarget.hdg = fd.heading || 0;
-    arcTarget.alt = fd.altitude || 0;
-    arcTarget.spd = fd.speed || 0;
+    // Update targets from full data update (don't override velocity/correction)
+    if (!switchedToArc) {
+      arcTarget.lat = curPos[0];
+      arcTarget.lon = curPos[1];
+      arcTarget.hdg = fd.heading || 0;
+      arcTarget.alt = fd.altitude || 0;
+      arcTarget.spd = fd.speed || 0;
+    }
     if (!arcInitialized) {
-      arcCurrent = { ...arcTarget };
+      arcCurrent.lat = curPos[0]; arcCurrent.lon = curPos[1];
+      arcCurrent.hdg = fd.heading || 0; arcCurrent.alt = fd.altitude || 0;
+      arcCurrent.spd = fd.speed || 0;
+      arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 };
+      arcCorrectionRemaining = 0;
+      arcBaseLatLng = null;
       arcInitialized = true;
     }
     
