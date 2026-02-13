@@ -713,8 +713,73 @@ function update(d) {
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
 
+// Smooth ARC interpolation state
+var arcTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
+var arcCurrent = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
+var arcInitialized = false;
+
+function lerpAngle(a, b, t) {
+  var diff = ((b - a + 540) % 360) - 180;
+  return a + diff * t;
+}
+
+function arcSmoothTick() {
+  if (currentViewMode !== 'arc' || !arcInitialized) {
+    arcAnimFrame = requestAnimationFrame(arcSmoothTick);
+    return;
+  }
+  
+  var t = 0.15; // interpolation factor per frame (~smooth at 60fps)
+  arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
+  arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
+  arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t);
+  arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * t;
+  arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * t;
+  
+  var curPos = [arcCurrent.lat, arcCurrent.lon];
+  
+  // Update aircraft marker position smoothly
+  if (layers.aircraft) {
+    layers.aircraft.setLatLng(curPos);
+    layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
+  }
+  
+  // Re-center and rotate map around aircraft
+  var mapEl = document.getElementById('map');
+  mapEl.style.transition = 'none'; // disable CSS transition for per-frame updates
+  mapEl.style.transform = 'none';
+  
+  centerAircraftArc(curPos);
+  
+  var ox = centerAircraftArc._originX != null ? centerAircraftArc._originX : 50;
+  var oy = centerAircraftArc._originY != null ? centerAircraftArc._originY : 50;
+  mapEl.style.transformOrigin = ox + '% ' + oy + '%';
+  mapEl.style.transform = 'rotate(' + (-arcCurrent.hdg) + 'deg)';
+  
+  arcAnimFrame = requestAnimationFrame(arcSmoothTick);
+}
+// Start the animation loop
+arcAnimFrame = requestAnimationFrame(arcSmoothTick);
+
 window.addEventListener('message', function(e) {
   if (e.data?.type === 'flightmap-update') update(e.data.payload);
+  if (e.data?.type === 'flightmap-arc-position') {
+    var p = e.data.payload;
+    arcTarget.lat = p.latitude;
+    arcTarget.lon = p.longitude;
+    arcTarget.hdg = p.heading || 0;
+    arcTarget.alt = p.altitude || 0;
+    arcTarget.spd = p.speed || 0;
+    if (!arcInitialized && p.latitude) {
+      arcCurrent.lat = p.latitude;
+      arcCurrent.lon = p.longitude;
+      arcCurrent.hdg = p.heading || 0;
+      arcCurrent.alt = p.altitude || 0;
+      arcCurrent.spd = p.speed || 0;
+      arcInitialized = true;
+    }
+    isFullscreen = p.isFullscreen || false;
+  }
   if (e.data?.type === 'flightmap-resize') {
     isFullscreen = e.data.isFullscreen || false;
     setTimeout(function(){ 
@@ -723,6 +788,7 @@ window.addEventListener('message', function(e) {
   }
 });
 parent.postMessage({ type: 'flightmap-ready' }, '*');
+parent.postMessage({ type: 'flightmap-viewmode', viewMode: currentViewMode }, '*');
 <\/script>
 </body></html>`;
 }
