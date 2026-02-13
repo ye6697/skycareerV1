@@ -210,7 +210,7 @@ function buildIframeHtml() {
   #arc-overlay canvas { width:100%; height:100%; }
 
   /* Fixed aircraft icon for ARC mode - stays at bottom-center of viewport */
-  #arc-aircraft { position:absolute; z-index:1001; pointer-events:none; display:none; bottom:15%; left:50%; transform:translateX(-50%); }
+  #arc-aircraft { position:absolute; z-index:1001; pointer-events:none; display:none; left:50%; transform:translateX(-50%); }
   #arc-aircraft svg { filter:drop-shadow(0 0 12px rgba(34,211,238,0.7)); }
 </style>
 </head><body>
