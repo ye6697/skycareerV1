@@ -29,9 +29,19 @@ export default function FlightMapIframe({
     return () => window.removeEventListener('message', handler);
   }, [onViewModeChange]);
 
-  // Full data update (normal rate)
+  // Full data update - in ARC mode, throttle heavy updates to reduce jank
+  const lastFullUpdateRef = useRef(0);
   useEffect(() => {
     if (!iframeReady || !iframeRef.current?.contentWindow) return;
+    
+    // In ARC mode, throttle full updates (routes/waypoints/layers) to max 1/sec
+    // Position updates go via the fast arc-position channel instead
+    if (viewModeRef.current === 'arc') {
+      const now = Date.now();
+      if (now - lastFullUpdateRef.current < 1000) return;
+      lastFullUpdateRef.current = now;
+    }
+    
     iframeRef.current.contentWindow.postMessage({
       type: 'flightmap-update',
       payload: {
