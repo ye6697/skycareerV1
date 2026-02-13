@@ -531,8 +531,8 @@ function update(d) {
   if (layers.routeGlow) map.removeLayer(layers.routeGlow);
   if (layers.route) map.removeLayer(layers.route);
   if (rp.length >= 2) {
-    layers.routeGlow = L.polyline(rp, { color:'#818cf8', weight:5, dashArray:'8,8', opacity:0.12 }).addTo(map);
-    layers.route = L.polyline(rp, { color: currentViewMode==='arc' ? '#22d3ee' : '#818cf8', weight: currentViewMode==='arc' ? 2 : 2.5, dashArray: currentViewMode==='arc' ? '6,6' : '10,8', opacity: currentViewMode==='arc' ? 0.5 : 0.65 }).addTo(map);
+    layers.routeGlow = L.polyline(rp, { color:'#818cf8', weight:8, dashArray:'8,8', opacity:0.18 }).addTo(map);
+    layers.route = L.polyline(rp, { color: currentViewMode==='arc' ? '#22d3ee' : '#818cf8', weight: currentViewMode==='arc' ? 3.5 : 3.5, dashArray: currentViewMode==='arc' ? '6,6' : '10,8', opacity: currentViewMode==='arc' ? 0.7 : 0.75 }).addTo(map);
   }
 
   var fp = [];
