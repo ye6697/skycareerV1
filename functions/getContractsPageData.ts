@@ -32,7 +32,11 @@ Deno.serve(async (req) => {
     const allContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });
     const contracts = allContracts.filter(c => c.status === 'available' || c.status === 'accepted');
 
-    return Response.json({ company, aircraft, contracts });
+    // Get employees for this company
+    const allEmployees = await base44.asServiceRole.entities.Employee.filter({ company_id: company.id });
+    const employees = allEmployees.filter(e => e.status !== 'terminated');
+
+    return Response.json({ company, aircraft, contracts, employees });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
