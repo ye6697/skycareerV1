@@ -264,40 +264,35 @@ function setArcDragLock(locked) {
   }
 }
 
-// === ARC centering: single setView, no jitter ===
-// We offset the aircraft position so it appears in the bottom-center of the viewport.
-// Instead of calling setView twice, we compute the offset center in one step.
-var arcLastSetViewPos = null; // last position we centered on (to avoid redundant calls)
-var arcSetViewThreshold = 0.00001; // ~1m – don't re-center if movement is smaller
+// === ARC centering: smooth CSS-transform based, no setView jitter ===
+var arcLastSetViewPos = null;
 
-function centerAircraftArc(curPos) {
-  // Skip if position hasn't meaningfully changed since last setView
-  if (arcLastSetViewPos) {
-    var dLat = Math.abs(curPos[0] - arcLastSetViewPos[0]);
-    var dLon = Math.abs(curPos[1] - arcLastSetViewPos[1]);
-    if (dLat < arcSetViewThreshold && dLon < arcSetViewThreshold) return;
-  }
-  
-  // Calculate where the map center should be so that curPos appears
-  // in the bottom-center of the visible viewport (which is 1/3 of the 300% map)
-  var size = map.getSize(); // this is the 300% size
+function centerAircraftArc(curPos, forceImmediate) {
+  var zoom = map.getZoom();
+  var size = map.getSize();
   var viewportH = size.y / 3;
   var shiftFraction = isFullscreen ? 0.45 : 0.40;
   var shiftPx = viewportH * shiftFraction;
-  
-  // Convert shift from pixels to lat degrees (approximate but stable)
-  // At the current zoom, how many degrees per pixel?
-  var zoom = map.getZoom();
   var metersPerPx = 40075016.686 * Math.cos(curPos[0] * Math.PI / 180) / Math.pow(2, zoom + 8);
   var degreesPerPxLat = metersPerPx / 111320;
   var offsetLat = shiftPx * degreesPerPxLat;
-  
-  // The map center should be NORTH of the aircraft by offsetLat
   var centerLat = curPos[0] + offsetLat;
   var centerLon = curPos[1];
   
-  map.setView([centerLat, centerLon], zoom, { animate: false });
-  arcLastSetViewPos = [curPos[0], curPos[1]];
+  // Only call setView when needed (large jumps or forced)
+  if (forceImmediate || !arcLastSetViewPos) {
+    map.setView([centerLat, centerLon], zoom, { animate: false });
+    arcLastSetViewPos = [curPos[0], curPos[1]];
+    return;
+  }
+  
+  var dLat = Math.abs(curPos[0] - arcLastSetViewPos[0]);
+  var dLon = Math.abs(curPos[1] - arcLastSetViewPos[1]);
+  // Only recenter via setView if moved more than ~200m to avoid jitter
+  if (dLat > 0.002 || dLon > 0.002) {
+    map.setView([centerLat, centerLon], zoom, { animate: false });
+    arcLastSetViewPos = [curPos[0], curPos[1]];
+  }
 }
 
 function makeIcon(bg, size, border, glow) {
