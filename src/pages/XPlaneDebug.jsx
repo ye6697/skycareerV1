@@ -16,7 +16,9 @@ export default function XPlaneDebug() {
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me()
+    queryFn: () => base44.auth.me(),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: company, refetch: refetchCompany } = useQuery({
@@ -30,7 +32,9 @@ export default function XPlaneDebug() {
       return companies[0];
     },
     enabled: !!currentUser,
-    refetchInterval: 2000
+    staleTime: 5000,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: flights = [], refetch: refetchFlights } = useQuery({
@@ -39,7 +43,9 @@ export default function XPlaneDebug() {
       return await base44.entities.Flight.filter({ company_id: company.id }, '-updated_date', 5);
     },
     enabled: !!company?.id,
-    refetchInterval: 2000
+    staleTime: 5000,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: xplaneLogs = [], refetch: refetchLogs } = useQuery({
@@ -48,7 +54,9 @@ export default function XPlaneDebug() {
       return await base44.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 20);
     },
     enabled: !!company?.id,
-    refetchInterval: 3000
+    staleTime: 5000,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: false,
   });
 
   const activeFlight = flights.find(f => f.status === 'in_flight');

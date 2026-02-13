@@ -47,50 +47,49 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const u = await base44.auth.me();
-      const cid = u?.company_id || u?.data?.company_id;
-      if (cid) {
-        const companies = await base44.entities.Company.filter({ id: cid });
-        if (companies[0]) return companies[0];
-      }
-      const companies = await base44.entities.Company.filter({ created_by: u.email });
-      return companies[0] || null;
-    }
-  });
-
-  const companyId = company?.id;
-
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'accepted'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' }),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'in_progress'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' }),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed', companyId],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['contracts', 'completed'],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' }),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['aircraft', 'available'],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' }),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', companyId],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: companyId }),
-    enabled: !!companyId
+    queryKey: ['employees', 'available'],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' }),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const companies = await base44.entities.Company.list();
+      return companies[0];
+    },
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const startFlightMutation = useMutation({
@@ -112,7 +111,6 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
-        company_id: companyId,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
