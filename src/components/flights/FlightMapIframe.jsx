@@ -452,45 +452,7 @@ function drawArcOverlay(hdg, alt, spd, nextWpName, nextWpDist, arrDist) {
   ctx.textAlign = 'center';
   ctx.fillText(String(Math.round(heading)).padStart(3, '0') + '°', cx, topY - 10 - hboxH/2 - 2);
 
-  // Static aircraft icon at bottom-center of viewport (always points UP)
-  var acY = cy - radius * 0.05;
-  var acSize = isFullscreen ? 52 : 40;
-  ctx.save();
-  ctx.translate(cx, acY);
-  ctx.fillStyle = '#22d3ee';
-  ctx.strokeStyle = '#67e8f9';
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = 'rgba(34,211,238,0.7)';
-  ctx.shadowBlur = 12;
-  // Draw aircraft shape scaled to acSize (original viewBox 0 0 100 100)
-  var s = acSize / 100;
-  ctx.beginPath();
-  ctx.moveTo(0*s, -42*s);       // nose (50,8 -> 0,-42)
-  ctx.lineTo(4*s, -15*s);       // (54,35 -> 4,-15)
-  ctx.lineTo(30*s, 5*s);        // (80,55 -> 30,5)
-  ctx.lineTo(30*s, 10*s);       // (80,60 -> 30,10)
-  ctx.lineTo(4*s, -2*s);        // (54,48 -> 4,-2)
-  ctx.lineTo(4*s, 22*s);        // (54,72 -> 4,22)
-  ctx.lineTo(15*s, 30*s);       // (65,80 -> 15,30)
-  ctx.lineTo(15*s, 34*s);       // (65,84 -> 15,34)
-  ctx.lineTo(0*s, 28*s);        // (50,78 -> 0,28)
-  ctx.lineTo(-15*s, 34*s);      // (35,84 -> -15,34)
-  ctx.lineTo(-15*s, 30*s);      // (35,80 -> -15,30)
-  ctx.lineTo(-4*s, 22*s);       // (46,72 -> -4,22)
-  ctx.lineTo(-4*s, -2*s);       // (46,48 -> -4,-2)
-  ctx.lineTo(-30*s, 10*s);      // (20,60 -> -30,10)
-  ctx.lineTo(-30*s, 5*s);       // (20,55 -> -30,5)
-  ctx.lineTo(-4*s, -15*s);      // (46,35 -> -4,-15)
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // Cockpit dot
-  ctx.shadowBlur = 0;
-  ctx.beginPath();
-  ctx.arc(0, -30*s, 3*s, 0, Math.PI*2);
-  ctx.fillStyle = '#a5f3fc';
-  ctx.fill();
-  ctx.restore();
+  // Aircraft is rendered as a Leaflet marker at real lat/lon (no canvas icon needed)
 
   // Bottom info bar - larger text for fullscreen
   var barH = 44;
