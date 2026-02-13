@@ -742,7 +742,7 @@ function update(d) {
 
   // HUD + Events
   updateHUD(fd, live, live?.events);
-  updateEvents(live?.events);
+  updateEvents(live?.events, live);
 
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
