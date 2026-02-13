@@ -66,7 +66,8 @@ export default function FlightMapIframe({
         heading: flightData.heading,
         altitude: flightData.altitude,
         speed: flightData.speed,
-        isFullscreen
+        isFullscreen,
+        timestamp: Date.now()
       }
     }, '*');
   }, [iframeReady, flightData.latitude, flightData.longitude, flightData.heading, flightData.altitude, flightData.speed, isFullscreen]);
