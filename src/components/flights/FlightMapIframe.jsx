@@ -252,6 +252,9 @@ map.on('dragstart', function() {
 map.on('zoomend', function() {
   if (currentViewMode === 'arc') {
     arcZoomLevel = map.getZoom();
+    // Zoom changed the projection scale – force recalc so aircraft recenters
+    arcBaseLatLng = null;
+    arcMapEl = null;
   }
 });
 
