@@ -424,8 +424,8 @@ export default function FlightTracker() {
     };
     
     fetchData();
-    // Poll faster in ARC mode for smoother map updates (750ms vs 1500ms)
-    const pollRate = viewMode === 'arc' ? 750 : 1500;
+    // Poll faster in ARC mode for smoother map updates (500ms vs 1500ms)
+    const pollRate = viewMode === 'arc' ? 500 : 1500;
     const interval = setInterval(fetchData, pollRate);
     
     return () => { isMounted = false; clearInterval(interval); };

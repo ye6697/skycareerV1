@@ -42,16 +42,11 @@ export default function FlightMapIframe({
     }, '*');
   }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData]);
 
-  // Fast ARC position stream - sends lat/lon/heading at high frequency for smooth movement
-  const lastArcSendRef = useRef(0);
+  // Fast ARC position stream - sends lat/lon/heading immediately on any change
   useEffect(() => {
     if (!iframeReady || !iframeRef.current?.contentWindow) return;
     if (viewModeRef.current !== 'arc') return;
     if (!flightData.latitude && !flightData.longitude) return;
-    
-    const now = Date.now();
-    if (now - lastArcSendRef.current < 200) return; // Max 5 times/sec
-    lastArcSendRef.current = now;
     
     iframeRef.current.contentWindow.postMessage({
       type: 'flightmap-arc-position',
@@ -64,7 +59,7 @@ export default function FlightMapIframe({
         isFullscreen
       }
     }, '*');
-  }, [iframeReady, flightData.latitude, flightData.longitude, flightData.heading, isFullscreen]);
+  }, [iframeReady, flightData.latitude, flightData.longitude, flightData.heading, flightData.altitude, flightData.speed, isFullscreen]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -763,7 +758,7 @@ function arcSmoothTick() {
     return;
   }
   
-  var t = 0.15; // interpolation factor per frame (~smooth at 60fps)
+  var t = 0.22; // higher interpolation factor for snappier response
   arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
   arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
   arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t);
