@@ -699,18 +699,13 @@ function update(d) {
   if (curPos && !staticMode && currentViewMode !== 'arc') {
     layers.aircraft = L.marker(curPos, { icon: makeAircraftIcon(fd.heading), zIndexOffset: 1000 }).addTo(map);
   }
-  // ARC mode: create/update a dedicated Leaflet marker at the REAL lat/lon
-  if (curPos && !staticMode && currentViewMode === 'arc') {
-    if (!arcMarker) {
-      arcMarker = L.marker(curPos, { icon: makeAircraftIcon(arcCurrent.hdg || fd.heading), zIndexOffset: 1000 }).addTo(map);
-      arcLastIconHdg = arcCurrent.hdg || fd.heading;
-    } else {
-      arcMarker.setLatLng(curPos);
-    }
-  }
-  if (currentViewMode !== 'arc' && arcMarker) {
-    map.removeLayer(arcMarker);
-    arcMarker = null;
+  // ARC mode: remove Leaflet marker – aircraft is a fixed HTML element
+  if (currentViewMode === 'arc') {
+    if (arcMarker) { map.removeLayer(arcMarker); arcMarker = null; }
+    document.getElementById('arc-aircraft').style.display = 'block';
+  } else {
+    if (arcMarker) { map.removeLayer(arcMarker); arcMarker = null; }
+    document.getElementById('arc-aircraft').style.display = 'none';
   }
 
   // ARC overlay + map rotation for Boeing ND style
