@@ -881,16 +881,11 @@ function arcSmoothTick(now) {
     centerAircraftArc(curPos);
   }
   
-  // Update Leaflet marker at ~5fps - update position AND icon rotation
-  if (layers.aircraft && (now - arcLastMarkerUpdate > 200)) {
-    arcLastMarkerUpdate = now;
-    layers.aircraft.setLatLng(curPos);
-    // In ARC mode, icon must counter-rotate by +heading so it always points UP in viewport
-    var hdgDiff = Math.abs(angleDiff(arcLastIconHdg, arcCurrent.hdg));
-    if (arcLastIconHdg === -999 || hdgDiff > 1) {
-      layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
-      arcLastIconHdg = arcCurrent.hdg;
-    }
+  // ARC mode: aircraft icon is drawn on the canvas overlay, not as a Leaflet marker
+  // Hide Leaflet marker if it exists
+  if (layers.aircraft) {
+    map.removeLayer(layers.aircraft);
+    layers.aircraft = null;
   }
   
   // Redraw compass overlay at ~10fps
