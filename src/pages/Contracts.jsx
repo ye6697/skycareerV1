@@ -21,10 +21,13 @@ import {
 
 import ContractCard from "@/components/contracts/ContractCard";
 import { AlertCircle, Loader2, Wrench, UserX } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function Contracts() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { lang } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [selectedAircraftId, setSelectedAircraftId] = useState('all');
@@ -155,13 +158,13 @@ export default function Contracts() {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Aufträge</h1>
-              <p className="text-slate-400">Finde und akzeptiere lukrative Flugaufträge</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('contracts', lang)}</h1>
+              <p className="text-slate-400">{t('find_contracts', lang)}</p>
             </div>
             <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  placeholder="Suche nach Route, Flughafen..."
+                  placeholder={t('search_route_airport', lang)}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
@@ -171,10 +174,10 @@ export default function Contracts() {
 
           {/* Distance Range Filter + Generate Button */}
           <div className="mt-4 p-4 bg-slate-800/60 border border-slate-700 rounded-lg">
-            <p className="text-xs text-slate-400 mb-3 font-medium">Entfernungsfilter für Generierung (NM)</p>
+            <p className="text-xs text-slate-400 mb-3 font-medium">{t('distance_filter', lang)}</p>
             <div className="flex flex-wrap items-end gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Von</span>
+                <span className="text-xs text-slate-400">{t('from', lang)}</span>
                 <Input
                   type="number"
                   placeholder="0"
@@ -184,7 +187,7 @@ export default function Contracts() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Bis</span>
+                <span className="text-xs text-slate-400">{t('to', lang)}</span>
                 <Input
                   type="number"
                   placeholder="∞"
@@ -200,9 +203,9 @@ export default function Contracts() {
                 className="bg-emerald-600 hover:bg-emerald-700 h-8 ml-auto"
               >
                 {generateMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generiere...</>
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {t('generating', lang)}</>
                 ) : (
-                  <><RefreshCw className="w-4 h-4 mr-2" /> Aufträge generieren</>
+                  <><RefreshCw className="w-4 h-4 mr-2" /> {t('generate_contracts', lang)}</>
                 )}
               </Button>
             </div>
@@ -213,7 +216,7 @@ export default function Contracts() {
         {availableAircraft.length > 0 && (
           <div className="mb-4 sm:mb-6">
             <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
-              <Plane className="w-3 h-3" /> Flugzeug auswählen
+              <Plane className="w-3 h-3" /> {t('select_aircraft', lang)}
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -224,7 +227,7 @@ export default function Contracts() {
                     : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
                 }`}
               >
-                Alle Flugzeuge
+                {t('all_aircraft', lang)}
               </button>
               {availableAircraft.map(ac => (
                 <button
@@ -248,8 +251,8 @@ export default function Contracts() {
          <div className="mb-6 p-4 bg-blue-900/40 border border-blue-700 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-blue-100">Wichtig:</p>
-            <p className="text-sm text-blue-200">Um die Flugwerte in einem Auftrag zurückzusetzen, musst du einen neuen Flug in X-Plane 12 starten.</p>
+            <p className="font-medium text-blue-100">{t('important', lang)}:</p>
+            <p className="text-sm text-blue-200">{t('important_msg', lang)}</p>
           </div>
         </div>
 
@@ -259,29 +262,29 @@ export default function Contracts() {
             <TabsList className="bg-slate-800 border border-slate-700 inline-flex w-auto min-w-max">
               <TabsTrigger value="all" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                 <Plane className="w-3 h-3 sm:w-4 sm:h-4" />
-                Alle
+                {t('all', lang)}
                 <Badge variant="secondary" className="ml-1 text-xs">
                   {compatibleContracts.filter(c => c.status === 'available').length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="accepted" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                 <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                Angenommen
+                {t('accepted', lang)}
                 <Badge variant="secondary" className="ml-1 bg-amber-100 text-amber-700 text-xs">
                   {contracts.filter(c => c.status === 'accepted').length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="passenger" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                 <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-                Passagiere
+                {t('passenger', lang)}
               </TabsTrigger>
               <TabsTrigger value="cargo" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                 <Package className="w-3 h-3 sm:w-4 sm:h-4" />
-                Fracht
+                {t('cargo', lang)}
               </TabsTrigger>
               <TabsTrigger value="charter" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                 <Star className="w-3 h-3 sm:w-4 sm:h-4" />
-                Charter
+                {t('charter', lang)}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -298,27 +301,27 @@ export default function Contracts() {
           <Card className="p-8 sm:p-12 bg-slate-800 border border-slate-700">
             <div className="text-center mb-6">
               <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Kein Flugzeug zur Verfügung</h3>
-              <p className="text-slate-400">Alle deine Flugzeuge sind derzeit nicht verfügbar.</p>
+              <h3 className="text-xl font-semibold text-white mb-2">{t('no_aircraft_available', lang)}</h3>
+              <p className="text-slate-400">{t('all_aircraft_unavailable', lang)}</p>
             </div>
             <div className="space-y-3 max-w-md mx-auto mb-6">
               {ownedAircraft.some(ac => ac.status === 'in_flight') && (
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
                   <Plane className="w-5 h-5 text-amber-400" />
-                  <p className="text-sm text-slate-300">Flugzeuge im Flug – warte bis ein Flug abgeschlossen ist.</p>
+                  <p className="text-sm text-slate-300">{t('aircraft_in_flight', lang)}</p>
                 </div>
               )}
               {ownedAircraft.some(ac => ac.status === 'maintenance' || ac.status === 'damaged') && (
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
                   <Wrench className="w-5 h-5 text-amber-400" />
-                  <p className="text-sm text-slate-300">Flugzeuge in Wartung oder beschädigt – repariere sie in der Flotte.</p>
+                  <p className="text-sm text-slate-300">{t('aircraft_in_maintenance', lang)}</p>
                 </div>
               )}
             </div>
           </Card>
         ) : filteredContracts.length > 0 ? (
            <>
-             <h2 className="text-xl font-bold text-white mb-4">Kompatible Aufträge ({compatibleContracts.length})</h2>
+             <h2 className="text-xl font-bold text-white mb-4">{t('compatible_contracts', lang)} ({compatibleContracts.length})</h2>
              <motion.div 
                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
                layout
@@ -339,7 +342,7 @@ export default function Contracts() {
 
              {incompatibleShow.length > 0 && (
                <>
-                 <h2 className="text-xl font-bold text-white mb-4">Nicht kompatible Aufträge ({incompatibleContracts.length})</h2>
+                 <h2 className="text-xl font-bold text-white mb-4">{t('incompatible_contracts', lang)} ({incompatibleContracts.length})</h2>
                  <motion.div 
                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-50"
                    layout
@@ -356,11 +359,11 @@ export default function Contracts() {
                          />
                          <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center">
                            <div className="text-center px-4">
-                             <p className="text-white font-semibold">Keine passenden Flugzeuge</p>
+                             <p className="text-white font-semibold">{t('no_matching_aircraft', lang)}</p>
                              <p className="text-slate-400 text-sm mt-1">
-                               Erforderlich: Typ {contract.required_aircraft_type?.join(', ') || 'Beliebig'}<br />
-                               {contract.distance_nm && `Reichweite: ${contract.distance_nm} NM`}
-                               {contract.cargo_weight_kg && ` • Cargo: ${contract.cargo_weight_kg} kg`}
+                               {t('required_type', lang)}: {contract.required_aircraft_type?.join(', ') || t('all', lang)}<br />
+                               {contract.distance_nm && `${t('range_label', lang)}: ${contract.distance_nm} NM`}
+                               {contract.cargo_weight_kg && ` • ${t('cargo', lang)}: ${contract.cargo_weight_kg} kg`}
                              </p>
                            </div>
                          </div>
@@ -376,33 +379,33 @@ export default function Contracts() {
             <div className="text-center mb-6">
               <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">
-                {ownedAircraft.length === 0 ? 'Kein Flugzeug vorhanden' : 'Keine Aufträge verfügbar'}
+                {ownedAircraft.length === 0 ? t('no_aircraft_owned', lang) : t('no_contracts_available', lang)}
               </h3>
             </div>
             <div className="space-y-3 max-w-md mx-auto mb-6">
               {ownedAircraft.length === 0 && (
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
                   <Plane className="w-5 h-5 text-red-400" />
-                  <p className="text-sm text-slate-300">Du besitzt keine Flugzeuge. Kaufe zuerst ein Flugzeug in der Flotte.</p>
+                  <p className="text-sm text-slate-300">{t('no_aircraft_buy_first', lang)}</p>
                 </div>
               )}
               {searchTerm && (
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
                   <Search className="w-5 h-5 text-blue-400" />
-                  <p className="text-sm text-slate-300">Die Suche liefert keine Ergebnisse. Versuche einen anderen Suchbegriff.</p>
+                  <p className="text-sm text-slate-300">{t('no_search_results', lang)}</p>
                 </div>
               )}
               {ownedAircraft.length > 0 && !searchTerm && (
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
                   <RefreshCw className="w-5 h-5 text-slate-400" />
-                  <p className="text-sm text-slate-300">Klicke auf "Aufträge generieren" um neue Aufträge zu erhalten.</p>
+                  <p className="text-sm text-slate-300">{t('click_generate', lang)}</p>
                 </div>
               )}
             </div>
             <div className="flex gap-3 justify-center">
               {searchTerm && (
                 <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
-                  Filter zurücksetzen
+                   {t('reset_filters', lang)}
                 </Button>
               )}
               <Button 
@@ -411,9 +414,9 @@ export default function Contracts() {
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
                 {generateMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generiere...</>
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {t('generating', lang)}</>
                 ) : (
-                  <><RefreshCw className="w-4 h-4 mr-2" /> Aufträge generieren</>
+                  <><RefreshCw className="w-4 h-4 mr-2" /> {t('generate_contracts', lang)}</>
                 )}
               </Button>
             </div>
