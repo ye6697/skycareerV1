@@ -228,20 +228,32 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
-  // Simple approach: center on aircraft, then pan so aircraft is at 85% down.
-  // Map is normal size (100%), no oversized tricks.
+  // Step 1: Center the aircraft in the map
   map.setView(curPos, map.getZoom(), { animate: false });
   
-  // Aircraft is now at center (50% down). We want it at 85% down.
-  // So we need to pan the map so the center moves DOWN by 35% of viewport height.
-  // That means: new center pixel = old center pixel + 35% of height
+  // Step 2: Pan the map so the aircraft sits at 85% down the viewport.
+  // Aircraft is currently at 50% (center). We want 85%.
+  // So shift the map center UP by 35% of the viewport height in pixels.
   var mapSize = map.getSize();
   var shiftPx = mapSize.y * 0.35;
   
-  var centerPx = map.latLngToContainerPoint(map.getCenter());
-  var newCenterPx = L.point(centerPx.x, centerPx.y - shiftPx);
+  // Get aircraft pixel position (currently at center)
+  var acPx = map.latLngToContainerPoint(curPos);
+  // We want to move the map so aircraft appears shiftPx lower
+  // That means new center = current center shifted north (up in pixels)
+  var newCenterPx = L.point(acPx.x, acPx.y - shiftPx);
   var newCenter = map.containerPointToLatLng(newCenterPx);
   map.setView(newCenter, map.getZoom(), { animate: false });
+  
+  // Step 3: Calculate where the aircraft is now in CSS % of the map div
+  // so we can set transformOrigin to that point (rotation + scale around aircraft)
+  var acPxFinal = map.latLngToContainerPoint(curPos);
+  var originX = (acPxFinal.x / mapSize.x) * 100;
+  var originY = (acPxFinal.y / mapSize.y) * 100;
+  
+  // Store for use when applying transform
+  centerAircraftArc._originX = originX;
+  centerAircraftArc._originY = originY;
 }
 
 function makeIcon(bg, size, border, glow) {
