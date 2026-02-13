@@ -664,7 +664,12 @@ window.addEventListener('message', function(e) {
   if (e.data?.type === 'flightmap-update') update(e.data.payload);
   if (e.data?.type === 'flightmap-resize') {
     isFullscreen = e.data.isFullscreen || false;
-    setTimeout(function(){ map.invalidateSize(); }, 100);
+    setTimeout(function(){ 
+      map.invalidateSize(); 
+      if (currentViewMode === 'arc' && lastCurPos) {
+        setTimeout(function(){ centerAircraftArc(lastCurPos); }, 50);
+      }
+    }, 150);
   }
 });
 parent.postMessage({ type: 'flightmap-ready' }, '*');
