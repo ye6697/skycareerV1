@@ -16,6 +16,7 @@ export default function FlightMapIframe({
   const [iframeReady, setIframeReady] = useState(false);
   const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
   const [viewMode, setViewMode] = useState('fplan');
+  const viewModeRef = useRef('fplan');
 
   useEffect(() => {
     const handler = (e) => {
