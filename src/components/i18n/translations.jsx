@@ -481,6 +481,19 @@ const translations = {
   min_level: { en: "Min. Level", de: "Min. Level" },
   status_label: { en: "Status", de: "Status" },
   score_and_effects: { en: "Score & Effects", de: "Score & Auswirkungen" },
+
+  // === COMPLETED FLIGHT DETAILS ===
+  landing_g_touch: { en: "G-Force at Touchdown", de: "G-Kraft beim Aufsetzen" },
+  landing_vs_label: { en: "Sink Rate at Landing", de: "Sinkrate beim Landen" },
+  landing_speed: { en: "Landing Speed", de: "Landegeschwindigkeit" },
+  fuel_used: { en: "Fuel Used", de: "Treibstoff verbraucht" },
+  flight_duration: { en: "Flight Duration", de: "Flugdauer" },
+  landing_penalty: { en: "Landing Quality Penalty", de: "Landequalitäts-Abzug" },
+  total_revenue: { en: "Total Revenue", de: "Gesamt-Einnahmen" },
+  profit_loss: { en: "Profit/Loss", de: "Gewinn/Verlust" },
+  passenger_comments: { en: "Passenger Comments", de: "Passagier-Kommentare" },
+  no_flight_data: { en: "No Flight Data", de: "Keine Flugdaten" },
+  no_flight_data_desc: { en: "No flight data found for this contract", de: "Für diesen Auftrag wurden keine Flugdaten gefunden" },
 };
 
 export function t(key, lang) {

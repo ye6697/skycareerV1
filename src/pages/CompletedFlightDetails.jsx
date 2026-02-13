@@ -23,9 +23,12 @@ import FlightRating from "@/components/flights/FlightRating";
 import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function CompletedFlightDetails() {
   const navigate = useNavigate();
+  const { lang } = useLanguage();
   const location = useLocation();
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -96,12 +99,12 @@ export default function CompletedFlightDetails() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-          <p className="text-white mb-4">Auftrag nicht gefunden</p>
+          <p className="text-white mb-4">{t('contract_not_found', lang)}</p>
           <Button 
             onClick={() => navigate(createPageUrl("ActiveFlights"))}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Zurück zu Aktiven Flügen
+            {t('go_to_active_flights', lang)}
           </Button>
         </div>
       </div>
@@ -116,7 +119,7 @@ export default function CompletedFlightDetails() {
           <div className="animate-spin mb-4">
             <Plane className="w-12 h-12 text-blue-400 mx-auto" />
           </div>
-          <p className="text-white mb-4">Flugdaten werden geladen...</p>
+          <p className="text-white mb-4">{t('loading', lang)}</p>
         </div>
       </div>
     );
@@ -137,7 +140,7 @@ export default function CompletedFlightDetails() {
             className="mb-4 text-slate-400 hover:text-white"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück
+            {t('back', lang)}
           </Button>
 
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -147,12 +150,12 @@ export default function CompletedFlightDetails() {
                 {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
                   <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4" />
-                    CRASH - Fehlgeschlagen
+                    CRASH - {t('failed_status', lang)}
                   </Badge>
                 ) : (
                   <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                     <CheckCircle2 className="w-4 h-4 mr-1" />
-                    Abgeschlossen
+                    {t('completed', lang)}
                   </Badge>
                 )}
               </div>
@@ -220,16 +223,15 @@ export default function CompletedFlightDetails() {
               <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Plane className="w-5 h-5 text-blue-400" />
-                  Flugdetails
-                </h3>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  {t('flight_details', lang)}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(() => {
                     const isCrash = flight?.xplane_data?.events?.crash || flight?.status === 'failed';
-                    // Use actual landing G-force, NOT max_g_force from the entire flight
                     const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? 0;
                     return (
                       <div className="p-4 bg-slate-900 rounded-lg">
-                        <p className="text-slate-400 text-sm mb-1">G-Kraft beim Aufsetzen</p>
+                        <p className="text-slate-400 text-sm mb-1">{t('landing_g_touch', lang)}</p>
                         {isCrash ? (
                           <p className="text-2xl font-mono font-bold text-red-500">CRASH</p>
                         ) : (
@@ -245,7 +247,7 @@ export default function CompletedFlightDetails() {
                     );
                   })()}
                   <div className="p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">Sinkrate beim Landen</p>
+                    <p className="text-slate-400 text-sm mb-1">{t('landing_vs_label', lang)}</p>
                     <p className={`text-2xl font-mono font-bold ${
                       Math.abs(flight.landing_vs || 0) < 150 ? 'text-emerald-400' :
                       Math.abs(flight.landing_vs || 0) < 300 ? 'text-amber-400' :
@@ -255,13 +257,13 @@ export default function CompletedFlightDetails() {
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">Landegeschwindigkeit</p>
+                    <p className="text-slate-400 text-sm mb-1">{t('landing_speed', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
                       {Math.round(flight?.xplane_data?.speed || 0)} kts
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">Treibstoff verbraucht</p>
+                    <p className="text-slate-400 text-sm mb-1">{t('fuel_used', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
                       {(() => {
                         // Try stored fuel_used_liters first
@@ -283,7 +285,7 @@ export default function CompletedFlightDetails() {
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">Flugdauer</p>
+                    <p className="text-slate-400 text-sm mb-1">{t('flight_duration', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-slate-300">
                       {flight.flight_duration_hours?.toFixed(1)} h
                     </p>
@@ -599,22 +601,22 @@ export default function CompletedFlightDetails() {
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-amber-400" />
-                  Finanzübersicht
-                </h3>
+                  {t('financial_overview', lang)}
+                  </h3>
                 <div className="space-y-3">
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Auftrag-Payout</span>
+                     <span className="text-slate-400">{t('payout', lang)}</span>
                      <span className="text-emerald-400 font-mono">${Math.round(finalContract?.payout || 0).toLocaleString()}</span>
                    </div>
                    {flight?.xplane_data?.landingBonus > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Landequalitäts-Bonus</span>
+                     <span className="text-slate-400">{t('landing_bonus', lang)}</span>
                      <span className="text-emerald-400 font-mono">+${Math.round(flight.xplane_data.landingBonus).toLocaleString()}</span>
                    </div>
                    )}
                    {flight?.xplane_data?.landingPenalty > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Landequalitäts-Abzug</span>
+                     <span className="text-slate-400">{t('landing_penalty', lang)}</span>
                      <span className="text-red-400 font-mono">-${Math.round(flight.xplane_data.landingPenalty).toLocaleString()}</span>
                    </div>
                    )}
@@ -649,13 +651,13 @@ export default function CompletedFlightDetails() {
                     <span className="text-red-400 font-mono">-$150</span>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-700">
-                    <span className="font-semibold">Gesamt-Einnahmen</span>
+                    <span className="font-semibold">{t('total_revenue', lang)}</span>
                     <span className="text-xl font-bold font-mono text-emerald-400">
                       ${Math.round(flight.revenue || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-3">
-                    <span className="font-semibold">Gewinn/Verlust</span>
+                    <span className="font-semibold">{t('profit_loss', lang)}</span>
                     <span className={`text-xl font-bold font-mono ${
                       flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
@@ -668,7 +670,7 @@ export default function CompletedFlightDetails() {
               {/* Passenger Comments */}
               {flight.passenger_comments && flight.passenger_comments.length > 0 && (
                 <Card className="p-6 bg-slate-800/50 border-slate-700">
-                  <h3 className="text-lg font-semibold mb-4">Passagier-Kommentare</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t('passenger_comments', lang)}</h3>
                   <div className="space-y-2">
                     {flight.passenger_comments.map((comment, idx) => (
                       <p key={idx} className="text-slate-300 text-sm">
@@ -683,9 +685,9 @@ export default function CompletedFlightDetails() {
         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <AlertTriangle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine Flugdaten</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">{t('no_flight_data', lang)}</h3>
             <p className="text-slate-400">
-              Für diesen Auftrag wurden keine Flugdaten gefunden
+              {t('no_flight_data_desc', lang)}
             </p>
           </Card>
         )}

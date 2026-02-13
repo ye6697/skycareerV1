@@ -192,9 +192,9 @@ export default function ContractDetails() {
                   </div>
                 )}
                 <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                  <p className="text-slate-400 text-xs sm:text-sm mb-1">Deadline</p>
+                  <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('deadline', lang)}</p>
                   <p className="text-lg sm:text-xl font-bold text-amber-400">
-                    {contract.deadline_minutes ? `${contract.deadline_minutes} min` : contract.deadline ? new Date(contract.deadline).toLocaleDateString('de-DE') : 'Keine'}
+                  {contract.deadline_minutes ? `${contract.deadline_minutes} min` : contract.deadline ? new Date(contract.deadline).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US') : t('none', lang)}
                   </p>
                 </div>
                 <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
@@ -320,7 +320,7 @@ export default function ContractDetails() {
             <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Star className="w-5 h-5 text-amber-400" />
-                Score & Auswirkungen
+                {t('score_and_effects', lang)}
               </h3>
               
               {/* Landing Quality - G-force based */}
