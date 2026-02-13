@@ -53,7 +53,7 @@ class PythonInterface:
         self.api_endpoint = "${apiEndpoint}"
         self.api_key = "${apiKey}"
         self.update_interval = 1.0  # seconds between FULL data sends
-        self.fast_interval = 1.0 / 30.0  # ~30Hz for position-only sends
+        self.fast_interval = 999.0  # disabled - full updates at 1s are sufficient
         self.last_update = 0
         self.last_fast_update = 0
         self.last_on_ground = True
