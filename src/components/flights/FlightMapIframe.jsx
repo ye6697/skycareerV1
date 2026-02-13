@@ -234,26 +234,30 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
-  // The #map div is 300% x 300% of #map-wrapper, offset by top:-100%, left:-100%.
-  // So the VISIBLE area (map-wrapper) corresponds to the CENTER third of #map.
-  // map.getSize() returns the full #map size (3x wrapper).
-  // The wrapper (visible) size is map.getSize() / 3.
-  // The visible area starts at pixel (mapW/3, mapH/3) in map container coords.
-  // We want the aircraft at horizontal center and 85% down in the visible area.
-  var mapSize = map.getSize(); // full oversized map
-  var wrapW = mapSize.x / 3;
-  var wrapH = mapSize.y / 3;
-  // Target position in map container coordinates:
-  var targetX = mapSize.x / 3 + wrapW / 2;     // horizontal center of visible area
-  var targetY = mapSize.y / 3 + wrapH * 0.85;   // 85% down in visible area
-  // Current aircraft position in map container coordinates:
-  var acPixel = map.latLngToContainerPoint(curPos);
-  // Offset needed:
-  var dx = acPixel.x - targetX;
-  var dy = acPixel.y - targetY;
-  // Shift the map center by this offset:
-  var center = map.getSize().divideBy(2);
-  var newCenter = map.containerPointToLatLng(L.point(center.x + dx, center.y + dy));
+  // Strategy: We want the aircraft to appear at horizontal center, 85% down
+  // in the VISIBLE viewport (map-wrapper). The #map is 3x the wrapper size.
+  // The visible area is the center 1/3 of #map.
+  // 
+  // Instead of complex coordinate math, we:
+  // 1. First center the map exactly on the aircraft position
+  // 2. Then pan by a pixel offset to move aircraft to desired screen position
+  
+  // Step 1: Center map on aircraft
+  map.setView(curPos, map.getZoom(), { animate: false });
+  
+  // Step 2: Calculate how far we need to shift.
+  // The visible viewport is mapSize/3 in each dimension.
+  // Currently the aircraft is at the center of the map (50%, 50% of visible).
+  // We want it at (50%, 85%) of visible area.
+  // So we need to shift the map UP by (85% - 50%) = 35% of visible height.
+  var mapSize = map.getSize();
+  var visibleH = mapSize.y / 3;
+  var shiftY = visibleH * 0.35; // shift map up so aircraft moves down
+  
+  // Get current center in pixels, shift it, convert back to latlng
+  var centerPx = map.latLngToContainerPoint(map.getCenter());
+  var newCenterPx = L.point(centerPx.x, centerPx.y - shiftY);
+  var newCenter = map.containerPointToLatLng(newCenterPx);
   map.setView(newCenter, map.getZoom(), { animate: false });
 }
 
