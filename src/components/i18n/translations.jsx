@@ -465,6 +465,22 @@ const translations = {
   deadline_exceeded_buffer: { en: "Deadline exceeded – 5 min buffer running (±0 points)", de: "Deadline überschritten – 5 Min. Puffer läuft (±0 Punkte)" },
   deadline_buffer_expired: { en: "Buffer expired! (-20 points)", de: "Puffer abgelaufen! (-20 Punkte)" },
   less_than_5_min: { en: "Less than 5 minutes!", de: "Weniger als 5 Minuten!" },
+
+  // === CONTRACT DETAILS (additional) ===
+  loading: { en: "Loading...", de: "Lädt..." },
+  back_to_contracts: { en: "Back to Contracts", de: "Zurück zu Aufträgen" },
+  distance: { en: "Distance", de: "Entfernung" },
+  contract_type: { en: "Contract Type", de: "Auftragstyp" },
+  base_payout: { en: "Base Payout", de: "Grundvergütung" },
+  max_bonus: { en: "Max. Bonus (perfect landing)", de: "Max. Bonus (perfekte Landung)" },
+  max_total_revenue: { en: "Max. Total Revenue", de: "Max. Gesamterlös" },
+  costs_disclaimer: { en: "Minus fuel, crew and maintenance costs. Actual profit depends on flight duration, landing quality and events.", de: "Abzüglich Treibstoff-, Crew- und Wartungskosten. Der tatsächliche Gewinn hängt von Flugdauer, Landequalität und Events ab." },
+  required_aircraft: { en: "Required Aircraft", de: "Benötigtes Flugzeug" },
+  failed_status: { en: "Failed", de: "Fehlgeschlagen" },
+  none: { en: "None", de: "Keine" },
+  min_level: { en: "Min. Level", de: "Min. Level" },
+  status_label: { en: "Status", de: "Status" },
+  score_and_effects: { en: "Score & Effects", de: "Score & Auswirkungen" },
 };
 
 export function t(key, lang) {
