@@ -932,6 +932,14 @@ window.addEventListener('message', function(e) {
       map.invalidateSize();
       if (currentViewMode === 'arc' && arcInitialized) {
         arcLastSetViewPos = null;
+        // Reposition aircraft icon
+        var acEl = document.getElementById('arc-aircraft');
+        if (acEl) {
+          var wrapperRect = document.getElementById('map-wrapper').getBoundingClientRect();
+          var acY = wrapperRect.height * (isFullscreen ? 0.93 : 0.90);
+          acEl.style.bottom = 'auto';
+          acEl.style.top = (acY - 26) + 'px';
+        }
       }
     }, 150);
   }
