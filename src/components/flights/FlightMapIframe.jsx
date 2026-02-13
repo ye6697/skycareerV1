@@ -274,20 +274,40 @@ function setArcDragLock(locked) {
   }
 }
 
-// === ARC centering: setView only, no CSS translate. Marker always at real pos. ===
-var arcBaseLatLng = null; // kept for compatibility checks
+// === ARC centering: single setView, no jitter ===
+// We offset the aircraft position so it appears in the bottom-center of the viewport.
+// Instead of calling setView twice, we compute the offset center in one step.
+var arcLastSetViewPos = null; // last position we centered on (to avoid redundant calls)
+var arcSetViewThreshold = 0.00001; // ~1m – don't re-center if movement is smaller
 
 function centerAircraftArc(curPos) {
-  // Center map so aircraft appears in bottom-center of viewport
-  map.setView(curPos, map.getZoom(), { animate: false });
-  var size = map.getSize();
-  var viewportH = size.y / 3; // map is 300%, viewport = 1/3
-  var shiftPx = viewportH * (isFullscreen ? 0.45 : 0.40);
-  var centerPx = map.latLngToContainerPoint(map.getCenter());
-  var newCenterPx = L.point(centerPx.x, centerPx.y - shiftPx);
-  var newCenter = map.containerPointToLatLng(newCenterPx);
-  map.setView(newCenter, map.getZoom(), { animate: false });
-  arcBaseLatLng = [curPos[0], curPos[1]];
+  // Skip if position hasn't meaningfully changed since last setView
+  if (arcLastSetViewPos) {
+    var dLat = Math.abs(curPos[0] - arcLastSetViewPos[0]);
+    var dLon = Math.abs(curPos[1] - arcLastSetViewPos[1]);
+    if (dLat < arcSetViewThreshold && dLon < arcSetViewThreshold) return;
+  }
+  
+  // Calculate where the map center should be so that curPos appears
+  // in the bottom-center of the visible viewport (which is 1/3 of the 300% map)
+  var size = map.getSize(); // this is the 300% size
+  var viewportH = size.y / 3;
+  var shiftFraction = isFullscreen ? 0.45 : 0.40;
+  var shiftPx = viewportH * shiftFraction;
+  
+  // Convert shift from pixels to lat degrees (approximate but stable)
+  // At the current zoom, how many degrees per pixel?
+  var zoom = map.getZoom();
+  var metersPerPx = 40075016.686 * Math.cos(curPos[0] * Math.PI / 180) / Math.pow(2, zoom + 8);
+  var degreesPerPxLat = metersPerPx / 111320;
+  var offsetLat = shiftPx * degreesPerPxLat;
+  
+  // The map center should be NORTH of the aircraft by offsetLat
+  var centerLat = curPos[0] + offsetLat;
+  var centerLon = curPos[1];
+  
+  map.setView([centerLat, centerLon], zoom, { animate: false });
+  arcLastSetViewPos = [curPos[0], curPos[1]];
 }
 
 function makeIcon(bg, size, border, glow) {
