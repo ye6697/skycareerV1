@@ -181,24 +181,9 @@ function buildIframeHtml() {
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true }).setView([50, 10], 5);
 
-// Use a large keepBuffer so tiles stay loaded when the map rotates via CSS
-// and load extra tiles around the viewport to fill rotated corners
-var tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
-  maxZoom: 18, keepBuffer: 16, updateWhenZooming: true, updateWhenIdle: false 
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+  maxZoom: 18, keepBuffer: 10, updateWhenZooming: true, updateWhenIdle: false 
 }).addTo(map);
-
-// Override getSize to report a larger viewport so Leaflet fetches tiles for the rotated area
-var _origGetSize = map.getSize.bind(map);
-map._arcPadding = false;
-map.getSize = function() {
-  var s = _origGetSize();
-  if (map._arcPadding) {
-    // Expand by factor to cover corners after rotation + scale(1.8)
-    var pad = Math.round(Math.max(s.x, s.y) * 0.8);
-    return L.point(s.x + pad, s.y + pad);
-  }
-  return s;
-};
 
 var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
 var boundsSet = false;
