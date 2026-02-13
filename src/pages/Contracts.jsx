@@ -399,7 +399,7 @@ export default function Contracts() {
               return (
                 <div className="space-y-3 max-w-md mx-auto mb-6">
                   {hints.map((hint, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: `rgba(var(--${hint.color}), 0.1)` }}>
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
                       {hint.icon}
                       <p className="text-sm text-slate-300">{hint.text}</p>
                     </div>
