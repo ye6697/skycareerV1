@@ -632,7 +632,7 @@ function update(d) {
   else if (!staticMode) { if(depPos) fp.push(depPos); if(curPos) fp.push(curPos); }
 
   if (layers.flown) map.removeLayer(layers.flown);
-  if (fp.length >= 2 && currentViewMode !== 'arc') {
+  if (fp.length >= 2) {
     layers.flown = L.polyline(fp, { color: '#3b82f6', weight:3.5, opacity:0.9 }).addTo(map);
   }
 
