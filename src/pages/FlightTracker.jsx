@@ -436,7 +436,7 @@ export default function FlightTracker() {
       }
     });
     
-    // Polling fallback every 3s in case subscription misses updates
+    // Polling fallback every 1s for fast data updates
     const pollInterval = setInterval(async () => {
       const flights = await base44.entities.Flight.filter({ id: activeFlightId });
       const f = flights[0];
@@ -447,7 +447,7 @@ export default function FlightTracker() {
           setXplaneLog({ raw_data: f.xplane_data, created_date: f.updated_date });
         }
       }
-    }, 3000);
+    }, 1000);
     
     return () => {
       unsubscribe();
