@@ -735,6 +735,7 @@ function update(d) {
       arcInitialized = true;
     }
     
+    arcLastDistInfo = distInfo;
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     boundsSet = false;
@@ -783,6 +784,8 @@ var arcLastFrameTime = 0;
 var arcPrevTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second
 var arcLastIconHdg = -999; // cache to avoid icon recreation every frame
+var arcLastOverlayDraw = 0; // throttle canvas overlay redraws
+var arcLastDistInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
 
 function lerpAngle(a, b, t) {
   var diff = ((b - a + 540) % 360) - 180;
@@ -823,14 +826,20 @@ function arcSmoothTick(now) {
   
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
-  // Update aircraft marker – only recreate icon if heading changed >1°
+  // Update aircraft marker – only recreate icon if heading changed >2°
   if (layers.aircraft) {
     layers.aircraft.setLatLng(curPos);
     var hdgRounded = Math.round(arcCurrent.hdg);
-    if (Math.abs(hdgRounded - arcLastIconHdg) >= 1) {
+    if (Math.abs(hdgRounded - arcLastIconHdg) >= 2) {
       layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
       arcLastIconHdg = hdgRounded;
     }
+  }
+  
+  // Redraw compass overlay at ~10fps (every 100ms) – canvas draw is expensive
+  if (now - arcLastOverlayDraw > 100) {
+    arcLastOverlayDraw = now;
+    drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
   // Re-center and rotate map around aircraft
