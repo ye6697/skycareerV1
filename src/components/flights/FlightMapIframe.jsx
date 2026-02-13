@@ -141,8 +141,8 @@ function buildIframeHtml() {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
   #map-wrapper { width: 100%; height: 100%; overflow: hidden; position: relative; }
-  #map { width: 300%; height: 300%; position: absolute; top: -100%; left: -100%; transition: transform 0.8s ease; }
-  #map.arc-mode { }
+  #map { width: 100%; height: 100%; position: relative; transition: transform 0.8s ease; }
+  #map.arc-mode { width: 300%; height: 300%; position: absolute; top: -100%; left: -100%; }
   #map.normal-mode { width: 100% !important; height: 100% !important; position: relative !important; top: 0 !important; left: 0 !important; }
   .leaflet-container { background: #0f172a !important; }
   .wpl { font-size:10px; font-family:'Courier New',monospace; padding:1px 4px; border-radius:3px; background:rgba(15,23,42,0.85); white-space:nowrap; }
