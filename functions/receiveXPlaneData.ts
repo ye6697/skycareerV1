@@ -51,11 +51,11 @@ Deno.serve(async (req) => {
         });
       }
       
-      // Throttle DB writes: only update if last write was >200ms ago
+      // Throttle DB writes: only update if last write was >500ms ago
       const existingXpData = flight.xplane_data || {};
       const lastTs = existingXpData.timestamp ? new Date(existingXpData.timestamp).getTime() : 0;
       const now = Date.now();
-      if (now - lastTs < 200) {
+      if (now - lastTs < 500) {
         // Skip this write – too recent
         return Response.json({ 
           status: 'fast_throttled',
