@@ -525,21 +525,26 @@ function update(d) {
     arcEl.style.display = 'block';
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
-    // Boeing ND: rotate the entire map so heading is UP, aircraft at bottom center
+    // Boeing ND: rotate the entire map so heading is UP
+    // The aircraft sits at the bottom-center: transformOrigin at 50% 80%
+    // so the rotation pivot IS the aircraft position visually
     var hdg = fd.heading || 0;
-    // CSS rotate around the bottom-center of the map container
-    // We scale up a bit to avoid seeing edges after rotation
-    mapEl.style.transformOrigin = '50% 75%';
-    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.6)';
+    mapEl.style.transformOrigin = '50% 80%';
+    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.8)';
     
     if (!userInteracting) {
-      // Position aircraft at 75% down the view (bottom-center feel)
+      // Use Leaflet's containerPointToLatLng to place aircraft at 80% down the viewport
       var mapSize = map.getSize();
-      var targetPoint = map.project(curPos, map.getZoom());
-      // Offset so aircraft appears at 75% height
-      var offsetY = mapSize.y * 0.25;
-      var targetLatLng = map.unproject(L.point(targetPoint.x, targetPoint.y + offsetY), map.getZoom());
-      map.setView(targetLatLng, 10, { animate: true, duration: 0.8 });
+      // We want the aircraft at pixel (center_x, 80% height)
+      var acPixel = map.latLngToContainerPoint(curPos);
+      var targetPixel = L.point(mapSize.x / 2, mapSize.y * 0.8);
+      // Difference to shift
+      var dx = acPixel.x - targetPixel.x;
+      var dy = acPixel.y - targetPixel.y;
+      // Current center in pixels
+      var centerPixel = L.point(mapSize.x / 2, mapSize.y / 2);
+      var newCenter = map.containerPointToLatLng(L.point(centerPixel.x + dx, centerPixel.y + dy));
+      map.setView(newCenter, map.getZoom() || 10, { animate: true, duration: 0.8 });
     }
     boundsSet = false;
   } else {
