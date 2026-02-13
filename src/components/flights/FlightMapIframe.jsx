@@ -79,7 +79,11 @@ export default function FlightMapIframe({
               variant="ghost"
               size="sm"
               className={`h-7 px-2 text-xs font-mono ${viewMode === 'arc' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-slate-600'}`}
-              onClick={() => setViewMode(prev => prev === 'fplan' ? 'arc' : 'fplan')}
+              onClick={() => {
+                const next = viewMode === 'fplan' ? 'arc' : 'fplan';
+                setViewMode(next);
+                viewModeRef.current = next;
+              }}
             >
               {viewMode === 'arc' ? <Compass className="w-3.5 h-3.5 mr-1" /> : <Map className="w-3.5 h-3.5 mr-1" />}
               {viewMode === 'arc' ? 'ARC' : 'F-PLN'}
