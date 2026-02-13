@@ -93,49 +93,42 @@ export default function Dashboard() {
 
   const companyId = company?.id;
 
-  const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'available'],
+  const { data: allContracts = [] } = useQuery({
+    queryKey: ['contracts', 'available', companyId],
     queryFn: async () => {
       const res = await base44.functions.invoke('getAvailableContracts', {});
       return res.data.contracts || [];
     },
-    enabled: !!companyId
+    enabled: !!companyId,
+    staleTime: 30000,
   });
 
-  const { data: acceptedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted', companyId],
-    queryFn: async () => {
-      const res = await base44.functions.invoke('getAvailableContracts', {});
-      const allContracts = res.data.contracts || [];
-      return allContracts.filter(c => c.status === 'accepted' && c.company_id === companyId);
-    },
-    enabled: !!companyId
-  });
+  const contracts = allContracts.filter(c => c.status === 'available' || !c.company_id);
+  const acceptedContracts = allContracts.filter(c => c.status === 'accepted' && c.company_id === companyId);
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', companyId],
     queryFn: () => base44.entities.Employee.filter({ company_id: companyId, status: 'available' }),
-    enabled: !!companyId
-  });
-
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', companyId],
-    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: 'available' }),
-    enabled: !!companyId
+    enabled: !!companyId,
+    staleTime: 30000,
   });
 
   const { data: allAircraft = [] } = useQuery({
     queryKey: ['aircraft', 'all', companyId],
     queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId }),
-    enabled: !!companyId
+    enabled: !!companyId,
+    staleTime: 30000,
   });
+
+  const aircraft = allAircraft.filter(a => a.status === 'available');
 
   const fleetValue = allAircraft.filter(a => a.status !== 'sold').reduce((sum, a) => sum + (a.current_value || 0), 0);
 
   const { data: recentFlights = [] } = useQuery({
     queryKey: ['flights', 'recent', companyId],
     queryFn: () => base44.entities.Flight.filter({ company_id: companyId, status: 'completed' }, '-created_date', 5),
-    enabled: !!companyId
+    enabled: !!companyId,
+    staleTime: 60000,
   });
 
   // Filter contracts based on available aircraft capabilities

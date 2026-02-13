@@ -55,7 +55,8 @@ export default function Layout({ children, currentPageName }) {
         }
         return null;
       },
-    refetchInterval: 15000,
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 
   const { data: gameSettings } = useQuery({
