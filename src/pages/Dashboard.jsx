@@ -28,10 +28,13 @@ import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
 import ContractCard from "@/components/contracts/ContractCard";
 import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
 import { Check } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { lang } = useLanguage();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [simbriefUsername, setSimbriefUsername] = useState('');
   const [simbriefPilotId, setSimbriefPilotId] = useState('');
@@ -198,11 +201,11 @@ export default function Dashboard() {
           >
             <Plane className="w-12 h-12 text-white" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-4">Willkommen bei SkyCareer</h1>
-          <p className="text-slate-600 mb-8">Starte deine virtuelle Airline-Karriere mit X-Plane 12</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-4">{t('welcome_skycareer', lang)}</h1>
+          <p className="text-slate-600 mb-8">{t('start_career', lang)}</p>
           <Link to={createPageUrl("Setup")}>
             <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-              Unternehmen gründen
+              {t('create_company', lang)}
             </Button>
           </Link>
         </div>
@@ -222,7 +225,7 @@ export default function Dashboard() {
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">{company.name}</h1>
-              <p className="text-slate-400">{company.callsign} • Hub: {company.hub_airport || "Nicht festgelegt"}</p>
+              <p className="text-slate-400">{company.callsign} • Hub: {company.hub_airport || t('not_set', lang)}</p>
               {company.xplane_api_key && (
                 <div className="mt-2 flex items-center gap-2 min-w-0">
                   <p className="text-xs text-slate-500 flex-shrink-0">API-Key:</p>
@@ -256,12 +259,12 @@ export default function Dashboard() {
                   onClick={saveSimBriefCredentials}
                   className={`h-7 text-xs ${simbriefSaved ? 'bg-emerald-600' : 'bg-blue-600 hover:bg-blue-700'}`}
                 >
-                  {simbriefSaved ? <><Check className="w-3 h-3 mr-1" /> Gespeichert</> : <><Save className="w-3 h-3 mr-1" /> Speichern</>}
+                  {simbriefSaved ? <><Check className="w-3 h-3 mr-1" /> {t('saved', lang)}</> : <><Save className="w-3 h-3 mr-1" /> {t('save', lang)}</>}
                 </Button>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm text-slate-400">Kontostand</p>
+              <p className="text-sm text-slate-400">{t('balance', lang)}</p>
               <p className="text-xl sm:text-3xl font-bold text-emerald-600">{formatCurrency(company.balance)}</p>
             </div>
           </div>
@@ -270,34 +273,34 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <StatCard
-            title="Flüge Gesamt"
+            title={t('total_flights', lang)}
             value={company.total_flights?.toLocaleString() || 0}
             icon={Plane}
             color="blue"
           />
           <StatCard
-            title="Passagiere"
+            title={t('passengers', lang)}
             value={company.total_passengers?.toLocaleString() || 0}
             icon={Users}
             color="purple"
           />
           <StatCard
-            title="Fracht (kg)"
+            title={t('cargo_kg', lang)}
             value={company.total_cargo_kg?.toLocaleString() || 0}
             icon={Package}
             color="orange"
           />
           <StatCard
-            title="Level"
+            title={t('level', lang)}
             value={company.level || 1}
-            subtitle="+10% Bonusgewinn/Level"
+            subtitle={t('bonus_profit_per_level', lang)}
             icon={TrendingUp}
             color="amber"
           />
           <StatCard
-            title="Mitarbeiter"
+            title={t('employees_label', lang)}
             value={employees.length}
-            subtitle={`${employees.filter(e => e.role === 'captain' || e.role === 'first_officer').length} Piloten`}
+            subtitle={`${employees.filter(e => e.role === 'captain' || e.role === 'first_officer').length} ${t('pilots', lang)}`}
             icon={Users}
             color="green"
           />
@@ -311,13 +314,13 @@ export default function Dashboard() {
           
           {/* Quick Actions */}
           <Card className="p-6 bg-slate-800 border border-slate-700">
-          <h3 className="font-semibold text-white mb-4">Schnellzugriff</h3>
+          <h3 className="font-semibold text-white mb-4">{t('quick_actions', lang)}</h3>
             <div className="space-y-2">
               <Link to={createPageUrl("Contracts")} className="block">
                 <Button variant="outline" className="w-full justify-between">
                   <span className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
-                    Aufträge durchsuchen
+                    {t('browse_contracts', lang)}
                   </span>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -326,7 +329,7 @@ export default function Dashboard() {
                 <Button variant="outline" className="w-full justify-between">
                   <span className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    Mitarbeiter einstellen
+                    {t('hire_employees', lang)}
                   </span>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -335,7 +338,7 @@ export default function Dashboard() {
                 <Button variant="outline" className="w-full justify-between">
                   <span className="flex items-center gap-2">
                     <Plane className="w-4 h-4" />
-                    Flotte verwalten
+                    {t('manage_fleet', lang)}
                   </span>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -356,15 +359,15 @@ export default function Dashboard() {
                 <AlertCircle className="w-5 h-5 text-amber-400" />
                 <div className="flex-1">
                   <p className="font-medium text-amber-100">
-                    {acceptedContracts.length} aktive{acceptedContracts.length === 1 ? 'r' : ''} Auftrag wartet auf Durchführung
+                    {acceptedContracts.length} {t('active_contract_waiting', lang)}
                   </p>
                   <p className="text-sm text-amber-300">
-                    Verbinde X-Plane 12 und führe den Flug durch
+                    {t('connect_xplane_fly', lang)}
                   </p>
                 </div>
                 <Link to={createPageUrl("ActiveFlights")}>
                   <Button size="sm" className="bg-amber-600 hover:bg-amber-700">
-                    Zu aktiven Flügen
+                    {t('go_to_active_flights', lang)}
                   </Button>
                 </Link>
               </div>
@@ -375,10 +378,10 @@ export default function Dashboard() {
         {/* Available Contracts */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Verfügbare Aufträge</h2>
+            <h2 className="text-xl font-semibold text-white">{t('available_contracts', lang)}</h2>
             <Link to={createPageUrl("Contracts")}>
               <Button variant="ghost" className="text-blue-600">
-                Alle anzeigen <ChevronRight className="w-4 h-4 ml-1" />
+                {t('show_all', lang)} <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </div>
@@ -391,7 +394,7 @@ export default function Dashboard() {
           ) : (
             <Card className="p-8 text-center bg-slate-800 border border-slate-700">
               <FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">Keine verfügbaren Aufträge</p>
+              <p className="text-slate-400">{t('no_available_contracts', lang)}</p>
             </Card>
           )}
         </div>
@@ -401,47 +404,47 @@ export default function Dashboard() {
            <div>
              <div className="flex items-center justify-between mb-4">
                <div>
-                 <h2 className="text-xl font-semibold text-white">Letzter Flug</h2>
+                 <h2 className="text-xl font-semibold text-white">{t('last_flight', lang)}</h2>
                  {recentFlights[0] && (
                    <p className="text-sm text-slate-400">
-                     {recentFlights[0].departure_time ? new Date(recentFlights[0].departure_time).toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                     {recentFlights[0].departure_time ? new Date(recentFlights[0].departure_time).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                    </p>
                  )}
                </div>
                <Link to={createPageUrl("FlightHistory")}>
                  <Button variant="ghost" className="text-blue-600">
-                   Alle anzeigen <ChevronRight className="w-4 h-4 ml-1" />
-                 </Button>
-               </Link>
-             </div>
-             <Card className="p-6 bg-slate-800 border border-slate-700">
-               {recentFlights[0] && (
-                 <div className="space-y-4">
-                   <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-                       <Plane className="w-6 h-6 text-blue-600" />
-                     </div>
-                     <div>
-                       <p className="font-medium text-white">Flug #{recentFlights[0].id?.slice(-6)}</p>
-                       <p className="text-sm text-slate-400">Status: Abgeschlossen</p>
-                     </div>
+                   {t('show_all', lang)} <ChevronRight className="w-4 h-4 ml-1" />
+                   </Button>
+                   </Link>
                    </div>
-                   <div className="grid grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-4 bg-slate-900 rounded-lg">
-                     <div className="text-center">
-                       <p className="text-sm text-slate-400 mb-1">Bewertung</p>
+                   <Card className="p-6 bg-slate-800 border border-slate-700">
+                   {recentFlights[0] && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <Plane className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{t('flight', lang)} #{recentFlights[0].id?.slice(-6)}</p>
+                          <p className="text-sm text-slate-400">{t('status', lang)}: {t('status_completed', lang)}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-4 bg-slate-900 rounded-lg">
+                        <div className="text-center">
+                          <p className="text-sm text-slate-400 mb-1">{t('rating', lang)}</p>
                        <div className="flex items-center justify-center gap-1">
                          <Star className={`w-5 h-5 ${recentFlights[0].overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
                          <span className="text-lg font-semibold text-white">{recentFlights[0].overall_rating?.toFixed(1) || '-'}</span>
                        </div>
                      </div>
                      <div className="text-center">
-                       <p className="text-sm text-slate-400 mb-1">Gewinn</p>
+                       <p className="text-sm text-slate-400 mb-1">{t('profit', lang)}</p>
                        <p className={`text-lg font-semibold ${recentFlights[0].profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                          {formatCurrency(recentFlights[0].profit)}
                        </p>
                      </div>
                      <div className="text-center">
-                       <p className="text-sm text-slate-400 mb-1">Flugstunden</p>
+                       <p className="text-sm text-slate-400 mb-1">{t('flight_hours', lang)}</p>
                        <p className="text-lg font-semibold text-white">{(recentFlights[0].flight_duration_hours || 0).toFixed(1)}h</p>
                      </div>
                    </div>
@@ -457,7 +460,7 @@ export default function Dashboard() {
              onClick={() => setShowDeleteDialog(true)}
              className="text-xs text-slate-600 hover:text-red-400 transition-colors"
            >
-             Account löschen
+             {t('delete_account', lang)}
            </button>
          </div>
 
