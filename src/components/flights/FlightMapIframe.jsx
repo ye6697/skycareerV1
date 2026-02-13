@@ -894,14 +894,9 @@ function arcSmoothTick(now) {
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
   // Update Leaflet marker at ~10fps
-  // In ARC mode, keep marker at arcBaseLatLng (the CSS transform handles centering).
-  // Only update the icon for heading rotation.
   if (layers.aircraft && (now - arcLastMarkerUpdate > 100)) {
     arcLastMarkerUpdate = now;
-    // Keep marker at the base position – CSS transform moves the map instead
-    if (arcBaseLatLng) {
-      layers.aircraft.setLatLng(arcBaseLatLng);
-    }
+    layers.aircraft.setLatLng(curPos);
     var hdgRounded = Math.round(arcCurrent.hdg);
     if (Math.abs(hdgRounded - arcLastIconHdg) >= 2) {
       layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
