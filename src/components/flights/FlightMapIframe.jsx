@@ -614,10 +614,17 @@ function update(d) {
     arcEl.style.display = 'none';
     setArcDragLock(false);
     
-    // Reset map rotation
+    // Reset map size and rotation
     if (mapEl) {
-      mapEl.style.transform = 'none';
-      mapEl.style.transformOrigin = '';
+      if (mapEl.classList.contains('arc-mode')) {
+        mapEl.classList.remove('arc-mode');
+        mapEl.style.transform = 'none';
+        mapEl.style.transformOrigin = '';
+        map.invalidateSize({ pan: false });
+      } else {
+        mapEl.style.transform = 'none';
+        mapEl.style.transformOrigin = '';
+      }
     }
     // On switch from ARC, re-fit bounds
     if (switchedFromArc) {
