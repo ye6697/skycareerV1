@@ -559,6 +559,7 @@ function update(d) {
   }
 
   layers.wpGroup.clearLayers();
+  // Show FMS waypoints if available
   if (waypoints.length > 0) {
     waypoints.forEach(function(wp, i) {
       var passed = false;
@@ -572,7 +573,9 @@ function update(d) {
       var txt = (wp.is_active ? '▸ ' : '') + (wp.name || 'WPT '+(i+1)) + (wp.alt > 0 ? ' FL'+Math.round(wp.alt/100) : '');
       m.bindTooltip('<span class="'+cls+'">'+txt+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
     });
-  } else {
+  }
+  // ALWAYS show SimBrief route waypoints (even if FMS waypoints exist)
+  if (routeWaypoints.length > 0) {
     routeWaypoints.forEach(function(wp, i) {
       var m = L.marker([wp.lat, wp.lon], { icon: routeWpIcon }).addTo(layers.wpGroup);
       m.bindTooltip('<span class="wpl wpl-route">'+wp.name+(wp.alt>0?' FL'+Math.round(wp.alt/100):'')+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
