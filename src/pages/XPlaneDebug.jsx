@@ -51,6 +51,19 @@ export default function XPlaneDebug() {
 
   const activeFlight = flights.find(f => f.status === 'in_flight');
 
+  // Track latency from xplane_data timestamp
+  useEffect(() => {
+    const liveData = activeFlight?.xplane_data || (xplaneLogs.length > 0 ? xplaneLogs[0]?.raw_data : null);
+    if (!liveData?.timestamp) return;
+    const ts = liveData.timestamp;
+    if (ts === lastTimestampRef.current) return;
+    lastTimestampRef.current = ts;
+    const serverTime = new Date(ts).getTime();
+    if (!isNaN(serverTime)) {
+      setDataLatency(Date.now() - serverTime);
+    }
+  }, [activeFlight, xplaneLogs]);
+
   useEffect(() => {
     setLastUpdate(new Date().toLocaleTimeString());
   }, [company, flights]);
@@ -133,6 +146,15 @@ export default function XPlaneDebug() {
                   Live X-Plane Daten
                 </h2>
                 <div className="flex items-center gap-2">
+                  {dataLatency !== null && (
+                    <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+                      dataLatency < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
+                      dataLatency < 5000 ? 'bg-amber-500/20 text-amber-400' :
+                      'bg-red-500/20 text-red-400'
+                    }`}>
+                      Latenz: {(dataLatency / 1000).toFixed(1)}s
+                    </span>
+                  )}
                   {activeFlight && (
                     <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
                       Flug: {activeFlight.id?.substring(0, 8)}…
