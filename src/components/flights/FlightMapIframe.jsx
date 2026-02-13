@@ -864,14 +864,21 @@ function arcSmoothTick(now) {
   arcCurrent.hdg += arcVelocity.hdg * dt;
   arcCurrent.alt += arcVelocity.alt * dt;
   
-  // --- Linear error correction (NOT exponential spring) ---
-  // This spreads any position jump evenly over ~0.8 sec = no stutter
-  if (arcCorrectionRemaining > 0) {
+  // --- Smooth error correction with ease-in-out curve ---
+  // Uses a cosine blend so correction starts and ends gently
+  if (arcCorrectionRemaining > 0 && arcCorrectionTotal > 0) {
     var corrDt = Math.min(dt, arcCorrectionRemaining);
-    arcCurrent.lat += arcCorrectionRate.lat * corrDt;
-    arcCurrent.lon += arcCorrectionRate.lon * corrDt;
-    arcCurrent.hdg += arcCorrectionRate.hdg * corrDt;
-    arcCurrent.alt += arcCorrectionRate.alt * corrDt;
+    // Progress through correction: 0 = start, 1 = end
+    var progressBefore = 1 - (arcCorrectionRemaining / arcCorrectionTotal);
+    var progressAfter = 1 - ((arcCorrectionRemaining - corrDt) / arcCorrectionTotal);
+    // Smooth step using cosine: maps [0,1] -> [0,1] with ease-in-out
+    var sBefore = 0.5 - 0.5 * Math.cos(progressBefore * Math.PI);
+    var sAfter = 0.5 - 0.5 * Math.cos(progressAfter * Math.PI);
+    var blend = sAfter - sBefore; // fraction of total error to apply this frame
+    arcCurrent.lat += arcCorrectionRate.lat * arcCorrectionTotal * blend;
+    arcCurrent.lon += arcCorrectionRate.lon * arcCorrectionTotal * blend;
+    arcCurrent.hdg += arcCorrectionRate.hdg * arcCorrectionTotal * blend;
+    arcCurrent.alt += arcCorrectionRate.alt * arcCorrectionTotal * blend;
     arcCorrectionRemaining -= corrDt;
   }
   
