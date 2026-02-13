@@ -208,9 +208,9 @@ map.on('dragstart', function() {
 map.on('zoomend', function() {
   if (currentViewMode === 'arc') {
     arcZoomLevel = map.getZoom();
-    // Re-center aircraft after zoom
+    // Re-center aircraft after zoom with small delay to let tiles load
     if (lastCurPos) {
-      centerAircraftArc(lastCurPos);
+      setTimeout(function(){ centerAircraftArc(lastCurPos); }, 50);
     }
   }
 });
