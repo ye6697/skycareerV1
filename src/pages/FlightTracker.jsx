@@ -436,7 +436,23 @@ export default function FlightTracker() {
       }
     });
     
-    return () => unsubscribe();
+    // Polling fallback every 3s in case subscription misses updates
+    const pollInterval = setInterval(async () => {
+      const flights = await base44.entities.Flight.filter({ id: activeFlightId });
+      const f = flights[0];
+      if (f?.xplane_data) {
+        const ts = f.xplane_data.timestamp || f.updated_date;
+        if (ts !== lastXplaneTimestampRef.current) {
+          lastXplaneTimestampRef.current = ts;
+          setXplaneLog({ raw_data: f.xplane_data, created_date: f.updated_date });
+        }
+      }
+    }, 3000);
+    
+    return () => {
+      unsubscribe();
+      clearInterval(pollInterval);
+    };
   }, [activeFlightId, flightPhase]);
 
   // Restore flight data and phase from existing flight
