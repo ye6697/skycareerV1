@@ -51,7 +51,7 @@ export default function Setup() {
       await base44.entities.Aircraft.create({
         company_id: company.id,
         name: "Cessna 172 Skyhawk",
-        registration: `${data.callsign?.slice(0, 2) || 'N'}001`,
+        registration: `${data.callsign || 'N'}-001`,
         type: "small_prop",
         passenger_capacity: 3,
         cargo_capacity_kg: 100,
