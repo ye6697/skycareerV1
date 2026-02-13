@@ -111,7 +111,9 @@ export default function Fleet() {
 
   const purchaseMutation = useMutation({
     mutationFn: async (aircraftData) => {
-      const registration = `${company?.callsign?.slice(0, 2) || 'N'}${String(aircraft.length + 1).padStart(3, '0')}`;
+      const callsignPrefix = company?.callsign || 'N';
+      const aircraftCount = aircraft.filter(a => a.status !== 'sold').length;
+      const registration = `${callsignPrefix}-${String(aircraftCount + 1).padStart(3, '0')}`;
       
       const specs = AIRCRAFT_MARKET_SPECS.find(a => a.name === aircraftData.name) || aircraftData;
       const template = templates.find(t => t.name === aircraftData.name);
