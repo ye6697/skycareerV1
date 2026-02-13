@@ -182,7 +182,7 @@ function buildIframeHtml() {
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true }).setView([50, 10], 5);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
-  maxZoom: 18, keepBuffer: 10, updateWhenZooming: true, updateWhenIdle: false 
+  maxZoom: 18, keepBuffer: 6, updateWhenZooming: true, updateWhenIdle: false 
 }).addTo(map);
 
 var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
