@@ -589,6 +589,12 @@ function update(d) {
     arcEl.style.display = 'block';
     setArcDragLock(true);
     
+    // Expand map div so Leaflet loads tiles for the full rotated area
+    if (!mapEl.classList.contains('arc-mode')) {
+      mapEl.classList.add('arc-mode');
+      map.invalidateSize({ pan: false });
+    }
+    
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     var hdg = fd.heading || 0;
