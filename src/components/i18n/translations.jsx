@@ -636,6 +636,40 @@ const translations = {
   // === LIVE MAP ===
   flight_route: { en: "Flight Route", de: "Flugroute" },
   live_map: { en: "Live Map", de: "Live-Karte" },
+
+  // === MAP EVENTS OVERLAY ===
+  ev_crash: { en: "CRASH", de: "CRASH" },
+  ev_tailstrike: { en: "Tailstrike", de: "Heckaufsetzer" },
+  ev_stall: { en: "Stall", de: "Strömungsabriss" },
+  ev_overstress: { en: "Structural damage", de: "Strukturschaden" },
+  ev_overspeed: { en: "Overspeed", de: "Overspeed" },
+  ev_flaps_overspeed: { en: "Flaps overspeed", de: "Klappen-Overspeed" },
+  ev_gear_up: { en: "Gear retracted", de: "Fahrwerk eingef." },
+  ev_high_g: { en: "High G-forces", de: "Hohe G-Kräfte" },
+  ev_hard_landing: { en: "Hard landing", de: "Harte Landung" },
+  ev_harsh_controls: { en: "Harsh controls", de: "Ruppige Steuerung" },
+  ev_fuel_emergency: { en: "Fuel emergency", de: "Treibstoff-Not" },
+  ev_incidents: { en: "INCIDENTS", de: "VORFÄLLE" },
+  ev_cost: { en: "Cost", de: "Kosten" },
+  ev_new_value: { en: "new value", de: "Neuwert" },
+  ev_revenue: { en: "revenue", de: "Einnahmen" },
+
+  // === ACTIVE FAILURES ===
+  af_engine: { en: "Engine", de: "Triebwerk" },
+  af_hydraulics: { en: "Hydraulics", de: "Hydraulik" },
+  af_avionics: { en: "Avionics", de: "Avionik" },
+  af_airframe: { en: "Structure", de: "Struktur" },
+  af_landing_gear: { en: "Landing Gear", de: "Fahrwerk" },
+  af_electrical: { en: "Electrical", de: "Elektrik" },
+  af_flight_controls: { en: "Controls", de: "Steuerung" },
+  af_pressurization: { en: "Pressurization", de: "Druckkabine" },
+  af_minor: { en: "Minor", de: "Leicht" },
+  af_moderate: { en: "Moderate", de: "Mittel" },
+  af_severe: { en: "Severe", de: "Schwer" },
+  af_active_failures: { en: "Active Failures", de: "Aktive Ausfälle" },
+
+  // === FUEL (FlightTracker) ===
+  fuel_title: { en: "Fuel", de: "Treibstoff" },
 };
 
 export function t(key, lang) {

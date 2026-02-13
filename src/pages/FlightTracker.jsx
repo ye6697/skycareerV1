@@ -1835,7 +1835,7 @@ export default function FlightTracker() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Fuel className="w-5 h-5 text-amber-400" />
-                  Treibstoff
+                  {t('fuel_title', lang)}
                 </h3>
                 <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
               </div>
