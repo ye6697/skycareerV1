@@ -220,7 +220,6 @@ export default function Contracts() {
               <span className="text-xs text-slate-500">NM</span>
             </div>
           </div>
-            </div>
         </motion.div>
 
         {/* Aircraft Selector */}
