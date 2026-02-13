@@ -505,11 +505,16 @@ function update(d) {
   else if (routeWaypoints.length > 0) { var lw = routeWaypoints[routeWaypoints.length-1]; if(lw.lat&&lw.lon) arrPos=[lw.lat,lw.lon]; }
 
   var curPos = hasPos ? [fd.latitude, fd.longitude] : null;
+
+  // Build route points: PREFER routeWaypoints (SimBrief) for the route line
+  // because they define the full planned route. FMS waypoints from X-Plane
+  // may only have a few entries and would make the route incomplete.
+  var routeSource = routeWaypoints.length > 0 ? routeWaypoints : waypoints;
   var activeWps = waypoints.length > 0 ? waypoints : routeWaypoints;
 
   var rp = [];
   if (depPos) rp.push(depPos);
-  activeWps.forEach(function(w){ rp.push([w.lat, w.lon]); });
+  routeSource.forEach(function(w){ rp.push([w.lat, w.lon]); });
   if (arrPos) rp.push(arrPos);
   if (rp.length < 2 && depPos && arrPos) rp = [depPos, arrPos];
 
