@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { LanguageProvider, useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 import {
         LayoutDashboard,
         FileText,
@@ -18,22 +20,25 @@ import {
         Settings,
         ChevronRight,
         Activity,
-        Star
+        Star,
+        Globe
       } from "lucide-react";
 
-const navItems = [
-  { name: "Dashboard", icon: LayoutDashboard, path: "Dashboard" },
-  { name: "Aufträge", icon: FileText, path: "Contracts" },
-  { name: "Aktive Flüge", icon: PlayCircle, path: "ActiveFlights" },
-  { name: "Mitarbeiter", icon: Users, path: "Employees" },
-  { name: "Flotte", icon: Plane, path: "Fleet" },
-  { name: "Finanzen", icon: DollarSign, path: "Finances" },
-  { name: "Flughistorie", icon: History, path: "FlightHistory" },
-  { name: "X-Plane Setup", icon: Settings, path: "XPlaneSetup" },
-  { name: "X-Plane Debug", icon: Activity, path: "XPlaneDebug" },
-  { name: "Spiel-Einstellungen", icon: Settings, path: "GameSettingsAdmin", adminOnly: true },
-  { name: "Flugzeug-Bilder", icon: Plane, path: "AdminAircraftImages", adminOnly: true },
-];
+function getNavItems(lang) {
+  return [
+    { name: t('nav_dashboard', lang), icon: LayoutDashboard, path: "Dashboard" },
+    { name: t('nav_contracts', lang), icon: FileText, path: "Contracts" },
+    { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights" },
+    { name: t('nav_employees', lang), icon: Users, path: "Employees" },
+    { name: t('nav_fleet', lang), icon: Plane, path: "Fleet" },
+    { name: t('nav_finances', lang), icon: DollarSign, path: "Finances" },
+    { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory" },
+    { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup" },
+    { name: t('nav_xplane_debug', lang), icon: Activity, path: "XPlaneDebug" },
+    { name: t('nav_game_settings', lang), icon: Settings, path: "GameSettingsAdmin", adminOnly: true },
+    { name: t('nav_aircraft_images', lang), icon: Plane, path: "AdminAircraftImages", adminOnly: true },
+  ];
+}
 
 export default function Layout({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
