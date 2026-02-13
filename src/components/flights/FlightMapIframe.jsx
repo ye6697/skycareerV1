@@ -258,8 +258,8 @@ function drawArcOverlay(hdg, alt, spd, nextWpName, nextWpDist, arrDist) {
   ctx.clearRect(0, 0, rect.width, rect.height);
 
   var cx = rect.width / 2;
-  var cy = rect.height * 0.58;
-  var radius = Math.min(rect.width, rect.height) * 0.42;
+  var cy = rect.height * 0.72;
+  var radius = Math.min(rect.width, rect.height) * 0.38;
 
   // ARC sector (120 degrees)
   ctx.strokeStyle = 'rgba(34,211,238,0.25)';
