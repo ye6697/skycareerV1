@@ -71,13 +71,17 @@ export default function Fleet() {
     queryKey: ['aircraftTemplates'],
     queryFn: async () => {
       return await base44.entities.AircraftTemplate.list();
-    }
+    },
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me()
+    queryFn: () => base44.auth.me(),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: company } = useQuery({
@@ -90,7 +94,9 @@ export default function Fleet() {
       const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
     },
-    enabled: !!currentUser
+    enabled: !!currentUser,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: aircraft = [], isLoading } = useQuery({
@@ -99,9 +105,8 @@ export default function Fleet() {
       return await base44.entities.Aircraft.filter({ company_id: company.id }, '-created_date');
     },
     enabled: !!company?.id,
-    refetchInterval: 3000,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const purchaseMutation = useMutation({

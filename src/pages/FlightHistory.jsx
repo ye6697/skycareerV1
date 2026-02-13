@@ -38,7 +38,9 @@ export default function FlightHistory() {
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me()
+    queryFn: () => base44.auth.me(),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: company } = useQuery({
@@ -51,7 +53,9 @@ export default function FlightHistory() {
       const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
     },
-    enabled: !!currentUser
+    enabled: !!currentUser,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: flights = [], isLoading } = useQuery({
@@ -61,7 +65,9 @@ export default function FlightHistory() {
       const failed = await base44.entities.Flight.filter({ company_id: company.id, status: 'failed' }, '-created_date');
       return [...completed, ...failed].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
-    enabled: !!company?.id
+    enabled: !!company?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: contracts = [] } = useQuery({
@@ -69,7 +75,9 @@ export default function FlightHistory() {
     queryFn: async () => {
       return await base44.entities.Contract.filter({ company_id: company.id });
     },
-    enabled: !!company?.id
+    enabled: !!company?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: allAircraft = [] } = useQuery({
@@ -77,7 +85,9 @@ export default function FlightHistory() {
     queryFn: async () => {
       return await base44.entities.Aircraft.filter({ company_id: company.id });
     },
-    enabled: !!company?.id
+    enabled: !!company?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const getAircraftForFlight = (flight) => {

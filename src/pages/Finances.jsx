@@ -37,7 +37,9 @@ export default function Finances() {
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me()
+    queryFn: () => base44.auth.me(),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: company } = useQuery({
@@ -50,7 +52,9 @@ export default function Finances() {
       const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
     },
-    enabled: !!currentUser
+    enabled: !!currentUser,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: transactions = [] } = useQuery({
@@ -58,7 +62,9 @@ export default function Finances() {
     queryFn: async () => {
       return await base44.entities.Transaction.filter({ company_id: company.id }, '-date');
     },
-    enabled: !!company?.id
+    enabled: !!company?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: employees = [] } = useQuery({
@@ -66,7 +72,9 @@ export default function Finances() {
     queryFn: async () => {
       return await base44.entities.Employee.filter({ company_id: company.id, status: 'available' });
     },
-    enabled: !!company?.id
+    enabled: !!company?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: aircraft = [] } = useQuery({
@@ -74,7 +82,9 @@ export default function Finances() {
     queryFn: async () => {
       return await base44.entities.Aircraft.filter({ company_id: company.id });
     },
-    enabled: !!company?.id
+    enabled: !!company?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const fleetValue = aircraft.filter(a => a.status !== 'sold').reduce((sum, a) => sum + (a.current_value || 0), 0);

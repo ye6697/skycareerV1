@@ -66,7 +66,9 @@ export default function Employees() {
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me()
+    queryFn: () => base44.auth.me(),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: company } = useQuery({
@@ -79,7 +81,9 @@ export default function Employees() {
       const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
       return companies[0];
     },
-    enabled: !!currentUser
+    enabled: !!currentUser,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: employees = [], isLoading } = useQuery({
@@ -88,8 +92,8 @@ export default function Employees() {
       return await base44.entities.Employee.filter({ company_id: company.id }, '-created_date');
     },
     enabled: !!company?.id,
-    staleTime: 0,
-    refetchOnMount: 'always'
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const hireMutation = useMutation({

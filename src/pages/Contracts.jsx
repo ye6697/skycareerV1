@@ -37,7 +37,9 @@ export default function Contracts() {
     queryFn: async () => {
       const res = await base44.functions.invoke('getContractsPageData', {});
       return res.data;
-    }
+    },
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const company = pageData?.company || null;
