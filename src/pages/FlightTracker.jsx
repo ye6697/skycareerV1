@@ -36,6 +36,7 @@ export default function FlightTracker() {
   const queryClient = useQueryClient();
 
   const [flightPhase, setFlightPhase] = useState('preflight');
+  const [viewMode, setViewMode] = useState('fplan');
   const [flight, setFlight] = useState(null);
   const [flightStartTime, setFlightStartTime] = useState(null);
   const [flightDurationSeconds, setFlightDurationSeconds] = useState(0);
