@@ -215,7 +215,7 @@ map.on('zoomend', function() {
     arcZoomLevel = map.getZoom();
     // Re-center aircraft after zoom
     if (lastCurPos) {
-      centerAircraftArc(lastCurPos);
+      setTimeout(function() { centerAircraftArc(lastCurPos); }, 50);
     }
   }
 });
