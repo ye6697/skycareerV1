@@ -168,7 +168,7 @@ export default function ActiveFlights() {
       // Deduct penalty from company
       if (company) {
         await base44.entities.Company.update(company.id, {
-          balance: Math.max(0, (company.balance || 0) - penalty)
+          balance: (company.balance || 0) - penalty
         });
 
         // Create transaction for penalty
