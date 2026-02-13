@@ -174,7 +174,9 @@ function buildIframeHtml() {
   #arc-overlay canvas { width:100%; height:100%; }
 </style>
 </head><body>
-<div id="map"></div>
+<div id="map-wrapper">
+  <div id="map"></div>
+</div>
 <div id="hud-top" style="display:none;"></div>
 <div id="events-overlay" style="display:none;"></div>
 <div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
