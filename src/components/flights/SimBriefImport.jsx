@@ -236,8 +236,8 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
         </div>
       )}
 
-      {/* Loading state - only show for a reasonable time */}
-      {hasCredentials && !importedData && loading && !mismatch && (
+      {/* Loading state */}
+      {hasCredentials && !importedData && loading && !mismatch && !error && (
         <div className="flex items-center justify-center gap-2 py-4 text-slate-400 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
           Lade Flugplan...
