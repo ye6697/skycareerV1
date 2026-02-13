@@ -247,7 +247,7 @@ function centerAircraftArc(curPos) {
   
   var containerSize = map.getSize(); // full 3x size
   var viewportH = containerSize.y / 3;
-  var shiftPx = viewportH * 0.35;
+  var shiftPx = viewportH * 0.40;
   
   // Shift center north: in pixel space, move the center point UP by shiftPx
   var centerPx = map.latLngToContainerPoint(map.getCenter());
