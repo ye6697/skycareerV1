@@ -403,6 +403,7 @@ export default function FlightTracker() {
   // Live data - direct polling only (subscriptions add overhead and latency)
   const [xplaneLog, setXplaneLog] = useState(null);
   const pollActiveRef = React.useRef(false);
+  const lastXplaneTimestampRef = React.useRef(null);
   
   useEffect(() => {
     if (flightPhase === 'completed') return;
@@ -417,17 +418,21 @@ export default function FlightTracker() {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
         const currentFlight = flights[0];
         if (currentFlight?.xplane_data && isMounted) {
-          setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
+          // Only update state if data actually changed (skip redundant re-renders)
+          const ts = currentFlight.xplane_data.timestamp || currentFlight.updated_date;
+          if (ts !== lastXplaneTimestampRef.current) {
+            lastXplaneTimestampRef.current = ts;
+            setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
+          }
         }
       } catch (e) { /* ignore */ }
       pollActiveRef.current = false;
     };
     
     fetchData();
-    // Poll faster in ARC mode – 5Hz (200ms) feeds fresh positions to the iframe,
-    // which then interpolates at 60fps via dead-reckoning between updates.
-    // Going faster than 200ms would overload the DB with requests.
-    const pollRate = viewMode === 'arc' ? 200 : 1500;
+    // Poll rate: ARC mode 500ms (2Hz) – the iframe interpolates at 60fps via dead-reckoning.
+    // 2Hz is enough anchor points for smooth motion. Normal mode 1.5s.
+    const pollRate = viewMode === 'arc' ? 500 : 1500;
     const interval = setInterval(fetchData, pollRate);
     
     return () => { isMounted = false; clearInterval(interval); };
