@@ -235,7 +235,17 @@ function setArcDragLock(locked) {
 function centerAircraftArc(curPos) {
   var mapSize = map.getSize();
   var acPixel = map.latLngToContainerPoint(curPos);
-  var targetPixel = L.point(mapSize.x / 2, mapSize.y * 0.9);
+  // The map div is 250% of viewport, so the visual center of the viewport 
+  // is at 50% of the map div, and visual bottom is at ~70% (75%+offset from top=-75%)
+  // Visual viewport within the expanded map: center is at mapSize/2, 
+  // visual bottom-90% is at mapSize.y * 0.5 + (mapSize.y/2.5)*0.4
+  // Simpler: the viewport center within the large map is exactly at mapSize/2
+  // The viewport height is mapSize.y/2.5, so 90% down the viewport from top:
+  var vpH = mapSize.y / 2.5;
+  var vpW = mapSize.x / 2.5;
+  var vpTop = (mapSize.y - vpH) / 2;
+  var vpLeft = (mapSize.x - vpW) / 2;
+  var targetPixel = L.point(vpLeft + vpW / 2, vpTop + vpH * 0.9);
   var dx = acPixel.x - targetPixel.x;
   var dy = acPixel.y - targetPixel.y;
   var centerPixel = L.point(mapSize.x / 2, mapSize.y / 2);
