@@ -234,21 +234,26 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
-  // The map is 3x oversized, so the visible viewport is the center third.
-  // The visible center is at mapSize/2, and visible area spans from mapSize/3 to 2*mapSize/3.
-  // We want the aircraft at 85% down in the VISIBLE viewport.
-  var mapSize = map.getSize();
+  // The #map div is 300% x 300% of #map-wrapper, offset by top:-100%, left:-100%.
+  // So the VISIBLE area (map-wrapper) corresponds to the CENTER third of #map.
+  // map.getSize() returns the full #map size (3x wrapper).
+  // The wrapper (visible) size is map.getSize() / 3.
+  // The visible area starts at pixel (mapW/3, mapH/3) in map container coords.
+  // We want the aircraft at horizontal center and 85% down in the visible area.
+  var mapSize = map.getSize(); // full oversized map
+  var wrapW = mapSize.x / 3;
+  var wrapH = mapSize.y / 3;
+  // Target position in map container coordinates:
+  var targetX = mapSize.x / 3 + wrapW / 2;     // horizontal center of visible area
+  var targetY = mapSize.y / 3 + wrapH * 0.85;   // 85% down in visible area
+  // Current aircraft position in map container coordinates:
   var acPixel = map.latLngToContainerPoint(curPos);
-  // Visible viewport offset: starts at 1/3 of map size
-  var visibleTop = mapSize.y / 3;
-  var visibleHeight = mapSize.y / 3;
-  var visibleLeft = mapSize.x / 3;
-  var visibleWidth = mapSize.x / 3;
-  var targetPixel = L.point(visibleLeft + visibleWidth / 2, visibleTop + visibleHeight * 0.85);
-  var dx = acPixel.x - targetPixel.x;
-  var dy = acPixel.y - targetPixel.y;
-  var centerPixel = L.point(mapSize.x / 2, mapSize.y / 2);
-  var newCenter = map.containerPointToLatLng(L.point(centerPixel.x + dx, centerPixel.y + dy));
+  // Offset needed:
+  var dx = acPixel.x - targetX;
+  var dy = acPixel.y - targetY;
+  // Shift the map center by this offset:
+  var center = map.getSize().divideBy(2);
+  var newCenter = map.containerPointToLatLng(L.point(center.x + dx, center.y + dy));
   map.setView(newCenter, map.getZoom(), { animate: false });
 }
 
