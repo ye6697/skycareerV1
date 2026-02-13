@@ -832,13 +832,15 @@ function arcSmoothTick(now) {
     centerAircraftArc(curPos);
   }
   
-  // Update Leaflet marker at ~5fps
+  // Update Leaflet marker at ~5fps - update position AND icon rotation
   if (layers.aircraft && (now - arcLastMarkerUpdate > 200)) {
     arcLastMarkerUpdate = now;
     layers.aircraft.setLatLng(curPos);
-    if (arcLastIconHdg === -999) {
-      layers.aircraft.setIcon(makeAircraftIcon(0));
-      arcLastIconHdg = 0;
+    // In ARC mode, icon must counter-rotate by +heading so it always points UP in viewport
+    var hdgDiff = Math.abs(angleDiff(arcLastIconHdg, arcCurrent.hdg));
+    if (arcLastIconHdg === -999 || hdgDiff > 1) {
+      layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
+      arcLastIconHdg = arcCurrent.hdg;
     }
   }
   
