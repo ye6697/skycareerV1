@@ -344,9 +344,17 @@ function LayoutInner({ children, currentPageName }) {
                   </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen overflow-x-hidden">
-        {children}
-      </main>
-    </div>
-  );
-}
+          <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen overflow-x-hidden">
+            {children}
+          </main>
+        </div>
+      );
+      }
+
+      export default function Layout({ children, currentPageName }) {
+      return (
+      <LanguageProvider>
+        <LayoutInner currentPageName={currentPageName}>{children}</LayoutInner>
+      </LanguageProvider>
+      );
+      }
