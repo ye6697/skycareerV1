@@ -408,28 +408,81 @@ export default function Contracts() {
              )}
            </>
          ) : (
-          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
-          <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Keine Aufträge gefunden</h3>
-          <p className="text-slate-400 mb-4">
-             {searchTerm ? 'Versuche eine andere Suche' : 'Klicke auf "Aufträge generieren" um neue Aufträge zu erhalten'}
-           </p>
-           <div className="flex gap-3 justify-center">
-             <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
-              Filter zurücksetzen
-             </Button>
-             <Button 
-               onClick={() => generateMutation.mutate()}
-               disabled={generateMutation.isPending}
-               className="bg-emerald-600 hover:bg-emerald-700"
-             >
-               {generateMutation.isPending ? (
-                 <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generiere...</>
-               ) : (
-                 <><RefreshCw className="w-4 h-4 mr-2" /> Aufträge generieren</>
-               )}
-             </Button>
-           </div>
+          <Card className="p-8 sm:p-12 bg-slate-800 border border-slate-700">
+            <div className="text-center mb-6">
+              <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Keine Aufträge verfügbar</h3>
+            </div>
+
+            {/* Diagnostic hints */}
+            {(() => {
+              const allAc = ownedAircraft || [];
+              const noAircraft = allAc.length === 0;
+              const allInFlight = !noAircraft && allAc.every(ac => ac.status === 'in_flight');
+              const hasDamaged = allAc.some(ac => ac.status === 'damaged' || ac.status === 'maintenance');
+              const noAvailable = !noAircraft && availableAircraft.length === 0;
+
+              // Check employees
+              const employees = pageData?.employees || [];
+              const activeEmployees = employees.filter(e => e.status !== 'terminated');
+              const noCaptains = !activeEmployees.some(e => e.role === 'captain' && e.status === 'available');
+
+              const hints = [];
+
+              if (noAircraft) {
+                hints.push({ icon: <Plane className="w-5 h-5 text-red-400" />, text: 'Du besitzt keine Flugzeuge. Kaufe zuerst ein Flugzeug in der Flotte.', color: 'red' });
+              } else if (noAvailable) {
+                if (allInFlight) {
+                  hints.push({ icon: <Plane className="w-5 h-5 text-amber-400" />, text: 'Alle Flugzeuge sind derzeit im Flug. Warte bis ein Flug abgeschlossen ist.', color: 'amber' });
+                }
+                if (hasDamaged) {
+                  hints.push({ icon: <Wrench className="w-5 h-5 text-amber-400" />, text: 'Einige Flugzeuge sind beschädigt oder in Wartung. Repariere sie in der Flotte.', color: 'amber' });
+                }
+                if (!allInFlight && !hasDamaged) {
+                  hints.push({ icon: <Plane className="w-5 h-5 text-amber-400" />, text: 'Keine verfügbaren Flugzeuge. Prüfe den Status deiner Flotte.', color: 'amber' });
+                }
+              }
+
+              if (noCaptains && !noAircraft) {
+                hints.push({ icon: <UserX className="w-5 h-5 text-amber-400" />, text: 'Kein Kapitän verfügbar. Stelle einen Kapitän auf der Mitarbeiter-Seite ein.', color: 'amber' });
+              }
+
+              if (searchTerm) {
+                hints.push({ icon: <Search className="w-5 h-5 text-blue-400" />, text: 'Die Suche liefert keine Ergebnisse. Versuche einen anderen Suchbegriff.', color: 'blue' });
+              }
+
+              if (hints.length === 0) {
+                hints.push({ icon: <RefreshCw className="w-5 h-5 text-slate-400" />, text: 'Klicke auf "Aufträge generieren" um neue Aufträge zu erhalten.', color: 'slate' });
+              }
+
+              return (
+                <div className="space-y-3 max-w-md mx-auto mb-6">
+                  {hints.map((hint, i) => (
+                    <div key={i} className={`flex items-start gap-3 p-3 rounded-lg bg-${hint.color}-900/20 border border-${hint.color}-700/30`}>
+                      {hint.icon}
+                      <p className="text-sm text-slate-300">{hint.text}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <div className="flex gap-3 justify-center">
+              <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); setRangeFilter('all'); }}>
+                Filter zurücksetzen
+              </Button>
+              <Button 
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {generateMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generiere...</>
+                ) : (
+                  <><RefreshCw className="w-4 h-4 mr-2" /> Aufträge generieren</>
+                )}
+              </Button>
+            </div>
           </Card>
         )}
       </div>
