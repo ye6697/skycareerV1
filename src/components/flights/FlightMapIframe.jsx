@@ -657,28 +657,40 @@ function update(d) {
     arcEl.style.display = 'block';
     setArcDragLock(true);
     
-    // Remove rotation before any Leaflet operations
-    mapEl.style.transform = 'none';
-    
     // Switch to oversized 300% map to prevent tile gaps on rotation
     if (switchedToArc) {
+      mapEl.style.transform = 'none';
       mapEl.className = 'arc-mode';
       map.invalidateSize();
       map.setZoom(arcZoomLevel, { animate: false });
+      // Initialize smooth interpolation targets
+      arcTarget.lat = curPos[0];
+      arcTarget.lon = curPos[1];
+      arcTarget.hdg = fd.heading || 0;
+      arcTarget.alt = fd.altitude || 0;
+      arcTarget.spd = fd.speed || 0;
+      arcCurrent.lat = curPos[0];
+      arcCurrent.lon = curPos[1];
+      arcCurrent.hdg = fd.heading || 0;
+      arcCurrent.alt = fd.altitude || 0;
+      arcCurrent.spd = fd.speed || 0;
+      arcInitialized = true;
+      parent.postMessage({ type: 'flightmap-viewmode', viewMode: 'arc' }, '*');
     }
     
-    // Center aircraft at 85% down the visible viewport
-    centerAircraftArc(curPos);
+    // The animation loop (arcSmoothTick) handles centering + rotation per frame.
+    // Here we just update targets from the full data update.
+    arcTarget.lat = curPos[0];
+    arcTarget.lon = curPos[1];
+    arcTarget.hdg = fd.heading || 0;
+    arcTarget.alt = fd.altitude || 0;
+    arcTarget.spd = fd.speed || 0;
+    if (!arcInitialized) {
+      arcCurrent = { ...arcTarget };
+      arcInitialized = true;
+    }
     
-    // Apply rotation around the AIRCRAFT POSITION within the 3x map div
-    // This keeps the aircraft pinned at its screen position while the map rotates
-    var hdg = fd.heading || 0;
-    var ox = centerAircraftArc._originX != null ? centerAircraftArc._originX : 50;
-    var oy = centerAircraftArc._originY != null ? centerAircraftArc._originY : 50;
-    mapEl.style.transformOrigin = ox + '% ' + oy + '%';
-    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg)';
-    
-    drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
+    drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     boundsSet = false;
   } else {
