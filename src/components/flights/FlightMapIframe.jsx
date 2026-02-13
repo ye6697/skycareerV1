@@ -38,11 +38,11 @@ export default function FlightMapIframe({
     const modeJustSwitched = viewMode !== prevViewModeRef.current;
     prevViewModeRef.current = viewMode;
     
-    // In ARC mode, throttle full updates to max 1 every 5 seconds
+    // In ARC mode, throttle layer rebuilds to max 1 every 2 seconds
     // BUT always send immediately on mode switch so layers get built
     if (viewModeRef.current === 'arc' && !modeJustSwitched) {
       const now = Date.now();
-      if (now - lastFullUpdateRef.current < 5000) return;
+      if (now - lastFullUpdateRef.current < 2000) return;
       lastFullUpdateRef.current = now;
     }
     
