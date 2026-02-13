@@ -830,7 +830,7 @@ var arcLastDistInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
 
 // Error correction: when a new target arrives, we compute the position error
 // and spread it linearly over CORRECTION_DURATION seconds.
-var arcCorrectionDuration = 0.8; // seconds to absorb a position error
+var arcCorrectionDuration = 1.2; // seconds to absorb a position error (longer = smoother)
 var arcCorrectionRemaining = 0;  // seconds left in current correction
 var arcCorrectionRate = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second
 
