@@ -29,16 +29,17 @@ export default function FlightMapIframe({
     return () => window.removeEventListener('message', handler);
   }, [onViewModeChange]);
 
-  // Full data update - in ARC mode, throttle heavy updates to reduce jank
+  // Full data update - in ARC mode, heavily throttle to avoid Leaflet layer rebuilds
   const lastFullUpdateRef = useRef(0);
   useEffect(() => {
     if (!iframeReady || !iframeRef.current?.contentWindow) return;
     
-    // In ARC mode, throttle full updates (routes/waypoints/layers) to max 1/sec
-    // Position updates go via the fast arc-position channel instead
+    // In ARC mode, throttle full updates to max 1 every 5 seconds.
+    // Position goes via the lightweight arc-position channel only.
+    // The full update rebuilds ALL Leaflet layers = expensive = causes stutter.
     if (viewModeRef.current === 'arc') {
       const now = Date.now();
-      if (now - lastFullUpdateRef.current < 1000) return;
+      if (now - lastFullUpdateRef.current < 5000) return;
       lastFullUpdateRef.current = now;
     }
     
