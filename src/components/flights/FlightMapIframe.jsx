@@ -30,6 +30,7 @@ export default function FlightMapIframe({
     return () => window.removeEventListener('message', handler);
   }, []);
 
+  // Full data update (normal rate)
   useEffect(() => {
     if (!iframeReady || !iframeRef.current?.contentWindow) return;
     iframeRef.current.contentWindow.postMessage({
@@ -41,6 +42,30 @@ export default function FlightMapIframe({
       }
     }, '*');
   }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData]);
+
+  // Fast ARC position stream - sends lat/lon/heading at high frequency for smooth movement
+  const lastArcSendRef = useRef(0);
+  useEffect(() => {
+    if (!iframeReady || !iframeRef.current?.contentWindow) return;
+    if (viewModeRef.current !== 'arc') return;
+    if (!flightData.latitude && !flightData.longitude) return;
+    
+    const now = Date.now();
+    if (now - lastArcSendRef.current < 200) return; // Max 5 times/sec
+    lastArcSendRef.current = now;
+    
+    iframeRef.current.contentWindow.postMessage({
+      type: 'flightmap-arc-position',
+      payload: {
+        latitude: flightData.latitude,
+        longitude: flightData.longitude,
+        heading: flightData.heading,
+        altitude: flightData.altitude,
+        speed: flightData.speed,
+        isFullscreen
+      }
+    }, '*');
+  }, [iframeReady, flightData.latitude, flightData.longitude, flightData.heading, isFullscreen]);
 
   useEffect(() => {
     if (!isFullscreen) return;
