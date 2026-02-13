@@ -703,6 +703,8 @@ function update(d) {
       mapEl.style.transformOrigin = '';
       map.invalidateSize();
       boundsSet = false;
+      arcInitialized = false;
+      parent.postMessage({ type: 'flightmap-viewmode', viewMode: 'fplan' }, '*');
     }
     mapEl.style.transform = 'none';
     mapEl.style.transformOrigin = '';
