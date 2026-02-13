@@ -593,6 +593,24 @@ const translations = {
   received_label: { en: "received", de: "erhalten" },
   current_label: { en: "Current", de: "Aktuell" },
   next_bonus_at_label: { en: "Next bonus at Level", de: "Nächster Bonus bei Level" },
+
+  // === LEVEL TITLES (fallbacks when GameSettings not loaded) ===
+  level_1_4: { en: "Casual Simmer", de: "Freizeit-Simmer" },
+  level_5_8: { en: "Hobby Pilot", de: "Hobby-Pilot" },
+  level_9_12: { en: "Regional Captain", de: "Regional-Kapitän" },
+  level_13_16: { en: "Airline Pro", de: "Airline-Profi" },
+  level_17_20: { en: "Flight Veteran", de: "Flug-Veteran" },
+  level_21_30: { en: "Charter Expert", de: "Charter-Experte" },
+  level_31_40: { en: "Long-Haul Ace", de: "Langstrecken-Ass" },
+  level_41_50: { en: "Line Captain", de: "Linien-Kapitän" },
+  level_51_60: { en: "Fleet Commander", de: "Flotten-Chef" },
+  level_61_70: { en: "Aviation Mogul", de: "Luftfahrt-Mogul" },
+  level_71_80: { en: "Aviation Tycoon", de: "Aviation-Tycoon" },
+  level_81_90: { en: "Sky Emperor", de: "Sky-Emperor" },
+  level_91_100: { en: "Aviation Legend", de: "Luftfahrt-Legende" },
+
+  // === EMPLOYEES HIRE DIALOG ===
+  per_month: { en: "/month", de: "/Monat" },
 };
 
 export function t(key, lang) {
