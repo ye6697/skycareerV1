@@ -9,8 +9,10 @@ import { motion } from "framer-motion";
 
 export default function XPlaneDebug() {
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [dataLatency, setDataLatency] = useState(null);
+  const [dataLatency, setDataLatency] = useState(null); // ms between updates
+  const [dataAge, setDataAge] = useState(null); // ms since last received
   const lastTimestampRef = React.useRef(null);
+  const lastDataReceivedRef = React.useRef(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
@@ -51,18 +53,29 @@ export default function XPlaneDebug() {
 
   const activeFlight = flights.find(f => f.status === 'in_flight');
 
-  // Track latency from xplane_data timestamp
+  // Track latency (time between updates) and data age (live ticker)
   useEffect(() => {
     const liveData = activeFlight?.xplane_data || (xplaneLogs.length > 0 ? xplaneLogs[0]?.raw_data : null);
     if (!liveData?.timestamp) return;
     const ts = liveData.timestamp;
     if (ts === lastTimestampRef.current) return;
     lastTimestampRef.current = ts;
-    const serverTime = new Date(ts).getTime();
-    if (!isNaN(serverTime)) {
-      setDataLatency(Date.now() - serverTime);
+    const now = Date.now();
+    if (lastDataReceivedRef.current) {
+      setDataLatency(now - lastDataReceivedRef.current);
     }
+    lastDataReceivedRef.current = now;
   }, [activeFlight, xplaneLogs]);
+
+  // Live ticker: how long since last data arrived
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      if (lastDataReceivedRef.current) {
+        setDataAge(Date.now() - lastDataReceivedRef.current);
+      }
+    }, 200);
+    return () => clearInterval(ticker);
+  }, []);
 
   useEffect(() => {
     setLastUpdate(new Date().toLocaleTimeString());
@@ -146,13 +159,13 @@ export default function XPlaneDebug() {
                   Live X-Plane Daten
                 </h2>
                 <div className="flex items-center gap-2">
-                  {dataLatency !== null && (
+                  {dataAge !== null && (
                     <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                      dataLatency < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
-                      dataLatency < 5000 ? 'bg-amber-500/20 text-amber-400' :
+                      dataAge < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
+                      dataAge < 5000 ? 'bg-amber-500/20 text-amber-400' :
                       'bg-red-500/20 text-red-400'
                     }`}>
-                      Latenz: {(dataLatency / 1000).toFixed(1)}s
+                      {dataLatency ? `Δ${(dataLatency / 1000).toFixed(1)}s` : ''} | {(dataAge / 1000).toFixed(1)}s ago
                     </span>
                   )}
                   {activeFlight && (
