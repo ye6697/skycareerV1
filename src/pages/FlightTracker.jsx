@@ -403,7 +403,8 @@ export default function FlightTracker() {
   // Live data - real-time subscription for instant updates from backend
   const [xplaneLog, setXplaneLog] = useState(null);
   const lastXplaneTimestampRef = React.useRef(null);
-  const [dataLatency, setDataLatency] = useState(null);
+  const [dataLatency, setDataLatency] = useState(null); // ms between two received updates
+  const [dataAge, setDataAge] = useState(null); // ms since last data received (live ticker)
   const lastDataReceivedRef = React.useRef(null);
   
   // Initial fetch to get current flight data immediately
@@ -433,14 +434,11 @@ export default function FlightTracker() {
       if (ts !== lastXplaneTimestampRef.current) {
         lastXplaneTimestampRef.current = ts;
         const now = Date.now();
-        lastDataReceivedRef.current = now;
-        // Calculate real latency: how old is this data (server timestamp vs now)
-        if (ts) {
-          const serverTime = new Date(ts).getTime();
-          if (!isNaN(serverTime)) {
-            setDataLatency(now - serverTime);
-          }
+        // Latency = time between this update and the previous one
+        if (lastDataReceivedRef.current) {
+          setDataLatency(now - lastDataReceivedRef.current);
         }
+        lastDataReceivedRef.current = now;
         setXplaneLog({ raw_data: xpData, created_date: updDate });
       }
     };
@@ -451,17 +449,16 @@ export default function FlightTracker() {
       }
     });
     
-    // Polling fallback every 3s – subscription is the primary channel
-    // Polling is only a safety net in case subscription misses an update
+    // Polling fallback every 2s – subscription is the primary channel
     const pollInterval = setInterval(async () => {
-      // Only poll if no data received in last 2s (subscription working = skip poll)
-      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 2000) return;
+      // Only skip poll if fresh data received in last 1.5s
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 1500) return;
       const flights = await base44.entities.Flight.filter({ id: activeFlightId });
       const f = flights[0];
       if (f?.xplane_data) {
         updateData(f.xplane_data, f.updated_date);
       }
-    }, 3000);
+    }, 2000);
     
     return () => {
       unsubscribe();
