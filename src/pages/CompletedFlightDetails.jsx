@@ -251,7 +251,7 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-900 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Landegeschwindigkeit</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
-                      {Math.round(flight?.xplane_data?.speed || passedFlightData?.speed || 0)} kts
+                      {Math.round(flight?.xplane_data?.speed || 0)} kts
                     </p>
                   </div>
                   <div className="p-4 bg-slate-900 rounded-lg">
