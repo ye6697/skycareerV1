@@ -574,38 +574,42 @@ function update(d) {
   // ARC overlay + map rotation for Boeing ND style
   var arcEl = document.getElementById('arc-overlay');
   var mapEl = document.getElementById('map');
+  lastCurPos = curPos;
+  
+  // Detect mode switch
+  var switchedToArc = (currentViewMode === 'arc' && prevViewMode !== 'arc');
+  var switchedFromArc = (currentViewMode !== 'arc' && prevViewMode === 'arc');
+  prevViewMode = currentViewMode;
+  
   if (currentViewMode === 'arc' && curPos && !staticMode) {
     arcEl.style.display = 'block';
+    setArcDragLock(true);
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
-    // Boeing ND: rotate the entire map so heading is UP
-    // The aircraft sits at the bottom-center: transformOrigin at 50% 80%
-    // so the rotation pivot IS the aircraft position visually
     var hdg = fd.heading || 0;
-    mapEl.style.transformOrigin = '50% 80%';
+    mapEl.style.transformOrigin = '50% 90%';
     mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.8)';
     
-    if (!userInteracting) {
-      // Use Leaflet's containerPointToLatLng to place aircraft at 80% down the viewport
-      var mapSize = map.getSize();
-      // We want the aircraft at pixel (center_x, 80% height)
-      var acPixel = map.latLngToContainerPoint(curPos);
-      var targetPixel = L.point(mapSize.x / 2, mapSize.y * 0.8);
-      // Difference to shift
-      var dx = acPixel.x - targetPixel.x;
-      var dy = acPixel.y - targetPixel.y;
-      // Current center in pixels
-      var centerPixel = L.point(mapSize.x / 2, mapSize.y / 2);
-      var newCenter = map.containerPointToLatLng(L.point(centerPixel.x + dx, centerPixel.y + dy));
-      map.setView(newCenter, map.getZoom() || 10, { animate: true, duration: 0.8 });
+    // On switch to ARC, reset zoom level
+    if (switchedToArc) {
+      map.setZoom(arcZoomLevel, { animate: false });
     }
+    
+    // Always center aircraft at bottom
+    centerAircraftArc(curPos);
+    
     boundsSet = false;
   } else {
     arcEl.style.display = 'none';
+    setArcDragLock(false);
     // Reset map rotation
     if (mapEl) {
       mapEl.style.transform = 'none';
       mapEl.style.transformOrigin = '';
+    }
+    // On switch from ARC, re-fit bounds
+    if (switchedFromArc) {
+      boundsSet = false;
     }
     var allPts = rp.concat(fp);
     if (curPos) allPts.push(curPos);
