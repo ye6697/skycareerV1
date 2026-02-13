@@ -214,13 +214,15 @@ Deno.serve(async (req) => {
     const compatibleContracts = [];
     const incompatibleContracts = [];
 
-    // Generate 4 compatible contracts
+    // Generate 4 compatible contracts (with optional distance filter)
     let attempts = 0;
-    while (compatibleContracts.length < 4 && attempts < 50) {
+    while (compatibleContracts.length < 4 && attempts < 80) {
       attempts++;
       const acType = randomItem(ownedTypeSpecs);
       const contract = generateContract(company.id, acType, company.level || 1);
       if (contract) {
+        // Apply distance filter
+        if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
         const canFulfill = availableAircraft.some(plane => {
           const typeMatch = contract.required_aircraft_type.includes(plane.type);
           const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
