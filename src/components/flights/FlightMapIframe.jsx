@@ -589,29 +589,48 @@ function update(d) {
   if (currentViewMode === 'arc' && curPos && !staticMode) {
     arcEl.style.display = 'block';
     setArcDragLock(true);
+    
+    // Switch to oversized map for ARC mode (prevents tile cutoff on rotation)
+    mapEl.className = 'arc-mode';
+    mapEl.style.width = '300%';
+    mapEl.style.height = '300%';
+    mapEl.style.position = 'absolute';
+    mapEl.style.top = '-100%';
+    mapEl.style.left = '-100%';
+    
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     var hdg = fd.heading || 0;
-    mapEl.style.transformOrigin = '50% 90%';
-    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.8)';
+    mapEl.style.transformOrigin = '50% 50%';
+    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg)';
+    
+    map.invalidateSize();
     
     // On switch to ARC, reset zoom level
     if (switchedToArc) {
       map.setZoom(arcZoomLevel, { animate: false });
     }
     
-    // Always center aircraft at bottom
+    // Always center aircraft at bottom of the visible viewport
     centerAircraftArc(curPos);
     
     boundsSet = false;
   } else {
     arcEl.style.display = 'none';
     setArcDragLock(false);
-    // Reset map rotation
-    if (mapEl) {
-      mapEl.style.transform = 'none';
-      mapEl.style.transformOrigin = '';
-    }
+    
+    // Switch back to normal map sizing for F-PLN
+    mapEl.className = 'normal-mode';
+    mapEl.style.width = '100%';
+    mapEl.style.height = '100%';
+    mapEl.style.position = 'relative';
+    mapEl.style.top = '0';
+    mapEl.style.left = '0';
+    mapEl.style.transform = 'none';
+    mapEl.style.transformOrigin = '';
+    
+    map.invalidateSize();
+    
     // On switch from ARC, re-fit bounds
     if (switchedFromArc) {
       boundsSet = false;
@@ -620,7 +639,7 @@ function update(d) {
     if (curPos) allPts.push(curPos);
     if (!boundsSet && allPts.length >= 2) {
       boundsSet = true;
-      map.fitBounds(L.latLngBounds(allPts), { padding:[40,40], maxZoom:10 });
+      setTimeout(function(){ map.fitBounds(L.latLngBounds(allPts), { padding:[40,40], maxZoom:10 }); }, 50);
     } else if (curPos && !staticMode && !userInteracting) {
       map.panTo(curPos, { animate:true, duration:1 });
     }
