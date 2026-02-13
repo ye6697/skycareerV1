@@ -240,38 +240,37 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
-  // The #map-wrapper is the visible viewport.
-  // The #map div is 300% x 300%, offset by top:-100%, left:-100%.
-  // We want the aircraft at horizontal center, 85% down in the VISIBLE area (wrapper).
+  // Simple geographic approach: no pixel math at all.
+  // We want the aircraft to appear at 85% down in the visible viewport.
+  // That means the map center should be NORTH of the aircraft.
+  // 
+  // The visible viewport is wrapper-sized. The wrapper shows the center 1/3 of the 3x map.
+  // But Leaflet's center is always the center of the full map container.
+  // Since visible area = center third, Leaflet center = center of visible area. Good.
+  //
+  // We need to shift the map center so aircraft is 85% down = 35% below center.
+  // 35% of visible height in lat degrees depends on zoom level.
   
-  // Get the wrapper (visible viewport) size
   var wrapper = document.getElementById('map-wrapper');
-  var wrapRect = wrapper.getBoundingClientRect();
-  var viewW = wrapRect.width;
-  var viewH = wrapRect.height;
+  var viewH = wrapper.getBoundingClientRect().height;
   
-  // The map element is 3x wrapper. Leaflet thinks the map is 3*viewW x 3*viewH.
-  // The visible area within the map starts at (viewW, viewH) and ends at (2*viewW, 2*viewH)
-  // because of top:-100%, left:-100%.
-  
-  // Target position for the aircraft in map-container pixel coords:
-  var targetX = viewW + viewW * 0.5;      // horizontal center of visible area
-  var targetY = viewH + viewH * 0.85;     // 85% down in visible area
-  
-  // Step 1: Center on aircraft first
+  // Calculate how many degrees of latitude correspond to 35% of visible height
+  // Use two points: the center of the current map view
   map.setView(curPos, map.getZoom(), { animate: false });
   
-  // Step 2: See where the aircraft currently is in container coords
-  var acPx = map.latLngToContainerPoint(curPos);
+  // Now aircraft is at center. Get the lat bounds of the visible area.
+  // The visible area in Leaflet coords is the middle third of the 3x container.
+  // Leaflet map size = 3*viewW x 3*viewH
+  var mapSize = map.getSize(); // this is the full 3x container
+  var topVisiblePx = L.point(mapSize.x / 2, mapSize.y / 2 - viewH / 2);
+  var botVisiblePx = L.point(mapSize.x / 2, mapSize.y / 2 + viewH / 2);
+  var topLL = map.containerPointToLatLng(topVisiblePx);
+  var botLL = map.containerPointToLatLng(botVisiblePx);
+  var visibleLatSpan = topLL.lat - botLL.lat; // positive (top has higher lat)
   
-  // Step 3: Calculate offset to move aircraft from current position to target
-  var dx = acPx.x - targetX;
-  var dy = acPx.y - targetY;
-  
-  // Step 4: Pan by that offset - shift the center of the map
-  var curCenterPx = map.latLngToContainerPoint(map.getCenter());
-  var newCenterPx = L.point(curCenterPx.x + dx, curCenterPx.y + dy);
-  var newCenter = map.containerPointToLatLng(newCenterPx);
+  // Shift map center north by 35% of visible lat span
+  var shiftLat = visibleLatSpan * 0.35;
+  var newCenter = L.latLng(curPos[0] + shiftLat, curPos[1]);
   map.setView(newCenter, map.getZoom(), { animate: false });
 }
 
