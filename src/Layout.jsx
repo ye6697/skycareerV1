@@ -165,69 +165,69 @@ function LayoutInner({ children, currentPageName }) {
                       <Star className="w-4 h-4 text-amber-400" />
                       <span className="text-xs text-slate-400 font-medium">
                         Level {company?.level || 1} - {
-                          (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || 'Freizeit-Simmer') :
-                          (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || 'Hobby-Pilot') :
-                          (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || 'Regional-Kapitän') :
-                          (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || 'Airline-Profi') :
-                          (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || 'Flug-Veteran') :
-                          (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || 'Charter-Experte') :
-                          (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || 'Langstrecken-Ass') :
-                          (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || 'Linien-Kapitän') :
-                          (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || 'Flotten-Chef') :
-                          (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || 'Luftfahrt-Mogul') :
-                          (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || 'Aviation-Tycoon') :
-                          (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || 'Sky-Emperor') :
-                          (gameSettings?.level_91_100_title || 'Luftfahrt-Legende')
-                        }
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-500 mb-2">
-                    {company?.experience_points || 0}/{Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))} XP
-                  </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div 
-                      className="bg-amber-400 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${((company?.experience_points || 0) / Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="p-3 bg-slate-900 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs text-slate-400 font-medium">{t('balance', lang)}</span>
-                    </div>
-                    <p className="text-lg font-bold text-emerald-400">
-                    ${(company?.balance || 0).toLocaleString()}
-                    </p>
-                    </div>
-                    <div className="p-3 bg-slate-900 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      xplaneStatus === 'connected' ? 'bg-emerald-500' : 
-                      xplaneStatus === 'connecting' ? 'bg-amber-500' : 
-                      'bg-slate-500'
-                    }`} />
-                    <span className="text-xs text-slate-400 font-medium">{t('xplane_status', lang)}</span>
-                    </div>
-                    <p className="text-sm text-slate-300">
-                    {xplaneStatus === 'connected' ? t('connected', lang) : 
-                     xplaneStatus === 'connecting' ? t('connecting', lang) : 
-                     t('disconnected', lang)}
-                    </p>
-                    </div>
-                    {/* Language Toggle */}
-                    <button
-                    onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
-                    className="w-full p-3 bg-slate-900 rounded-lg flex items-center justify-between hover:bg-slate-800 transition-colors"
-                    >
-                    <span className="text-xs text-slate-400 font-medium flex items-center gap-2">
-                    <Globe className="w-4 h-4" /> Language
-                    </span>
-                    <span className="text-sm font-bold text-blue-400">{lang === 'en' ? '🇬🇧 EN' : '🇩🇪 DE'}</span>
-                    </button>
-                    </div>
-                    </motion.aside>
+                          (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || t('level_1_4', lang)) :
+                          (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || t('level_5_8', lang)) :
+                          (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || t('level_9_12', lang)) :
+                          (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || t('level_13_16', lang)) :
+                          (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || t('level_17_20', lang)) :
+                          (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || t('level_21_30', lang)) :
+                          (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || t('level_31_40', lang)) :
+                          (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || t('level_41_50', lang)) :
+                          (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || t('level_51_60', lang)) :
+                          (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || t('level_61_70', lang)) :
+                          (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || t('level_71_80', lang)) :
+                          (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || t('level_81_90', lang)) :
+                          (gameSettings?.level_91_100_title || t('level_91_100', lang))
+                          }
+                          </span>
+                          </div>
+                          </div>
+                          <div className="text-xs text-slate-500 mb-2">
+                          {company?.experience_points || 0}/{Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))} XP
+                          </div>
+                          <div className="w-full bg-slate-700 rounded-full h-2">
+                          <div 
+                          className="bg-amber-400 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${((company?.experience_points || 0) / Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))) * 100}%` }}
+                          />
+                          </div>
+                          </div>
+                          <div className="p-3 bg-slate-900 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                          <DollarSign className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs text-slate-400 font-medium">{t('balance', lang)}</span>
+                          </div>
+                          <p className="text-lg font-bold text-emerald-400">
+                          ${(company?.balance || 0).toLocaleString()}
+                          </p>
+                          </div>
+                          <div className="p-3 bg-slate-900 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                          xplaneStatus === 'connected' ? 'bg-emerald-500' : 
+                          xplaneStatus === 'connecting' ? 'bg-amber-500' : 
+                          'bg-slate-500'
+                          }`} />
+                          <span className="text-xs text-slate-400 font-medium">{t('xplane_status', lang)}</span>
+                          </div>
+                          <p className="text-sm text-slate-300">
+                          {xplaneStatus === 'connected' ? t('connected', lang) : 
+                          xplaneStatus === 'connecting' ? t('connecting', lang) : 
+                          t('disconnected', lang)}
+                          </p>
+                          </div>
+                          {/* Language Toggle */}
+                          <button
+                          onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
+                          className="w-full p-3 bg-slate-900 rounded-lg flex items-center justify-between hover:bg-slate-800 transition-colors"
+                          >
+                          <span className="text-xs text-slate-400 font-medium flex items-center gap-2">
+                          <Globe className="w-4 h-4" /> Language
+                          </span>
+                          <span className="text-sm font-bold text-blue-400">{lang === 'en' ? '🇬🇧 EN' : '🇩🇪 DE'}</span>
+                          </button>
+                          </div>
+                          </motion.aside>
           </>
         )}
       </AnimatePresence>
@@ -279,19 +279,19 @@ function LayoutInner({ children, currentPageName }) {
                         <Star className="w-4 h-4 text-amber-400" />
                         <span className="text-xs text-slate-400 font-medium">
                           Level {company?.level || 1} - {
-                            (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || 'Freizeit-Simmer') :
-                            (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || 'Hobby-Pilot') :
-                            (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || 'Regional-Kapitän') :
-                            (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || 'Airline-Profi') :
-                            (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || 'Flug-Veteran') :
-                            (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || 'Charter-Experte') :
-                            (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || 'Langstrecken-Ass') :
-                            (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || 'Linien-Kapitän') :
-                            (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || 'Flotten-Chef') :
-                            (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || 'Luftfahrt-Mogul') :
-                            (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || 'Aviation-Tycoon') :
-                            (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || 'Sky-Emperor') :
-                            (gameSettings?.level_91_100_title || 'Luftfahrt-Legende')
+                            (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || t('level_1_4', lang)) :
+                            (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || t('level_5_8', lang)) :
+                            (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || t('level_9_12', lang)) :
+                            (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || t('level_13_16', lang)) :
+                            (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || t('level_17_20', lang)) :
+                            (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || t('level_21_30', lang)) :
+                            (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || t('level_31_40', lang)) :
+                            (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || t('level_41_50', lang)) :
+                            (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || t('level_51_60', lang)) :
+                            (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || t('level_61_70', lang)) :
+                            (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || t('level_71_80', lang)) :
+                            (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || t('level_81_90', lang)) :
+                            (gameSettings?.level_91_100_title || t('level_91_100', lang))
                           }
                         </span>
                       </div>
