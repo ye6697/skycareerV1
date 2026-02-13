@@ -180,7 +180,10 @@ function buildIframeHtml() {
 <div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true }).setView([50, 10], 5);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
+var tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
+
+// Force Leaflet to load tiles beyond the visible viewport to cover rotated areas
+map.getRenderer(map);
 
 var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
 var boundsSet = false;
