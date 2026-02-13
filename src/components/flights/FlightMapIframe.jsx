@@ -229,26 +229,37 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
-  // The map is 300% oversized. Leaflet center = center of the 3x container.
-  // The visible viewport (wrapper) shows the middle 1/3.
-  // Leaflet center corresponds to the center of the visible area.
-  // We want the aircraft at 85% down the visible viewport.
-  // That means the map center should be north of the aircraft by 35% of visible height.
+  // The #map div is 300% x 300%, positioned at top:-100%, left:-100%.
+  // The visible viewport (#map-wrapper) clips to show the center 1/3.
+  // 
+  // Key insight: Leaflet's center corresponds to the CENTER of the #map div,
+  // which is also the CENTER of the visible viewport (because of the -100% offset).
+  //
+  // We want the aircraft at the HORIZONTAL CENTER, 85% down the visible viewport.
+  // Currently if we setView(curPos), aircraft = center of viewport (50% down).
+  // We need to shift the Leaflet center NORTH so aircraft moves down by 35% of viewport.
+  //
+  // The Leaflet container is 3x the viewport size.
+  // Leaflet's getSize() returns the full 3x container size.
+  // To shift by 35% of VIEWPORT height, that's 35% * (containerHeight / 3).
   
-  var wrapper = document.getElementById('map-wrapper');
-  var viewH = wrapper.clientHeight;
-  
-  // First center on aircraft
   map.setView(curPos, map.getZoom(), { animate: false });
   
-  // Aircraft is now at Leaflet center = center of visible viewport (50% down).
-  // Shift north by 35% of visible height in pixels.
-  // In the 3x map, the visible height is viewH, but Leaflet container is 3*viewH.
-  // Leaflet's pixel coords are in the 3x space.
-  var acPx = map.latLngToContainerPoint(curPos);
-  var newCenterPx = L.point(acPx.x, acPx.y - viewH * 0.35);
+  var containerSize = map.getSize(); // full 3x size
+  var viewportH = containerSize.y / 3;
+  var shiftPx = viewportH * 0.35;
+  
+  // Shift center north: in pixel space, move the center point UP by shiftPx
+  var centerPx = map.latLngToContainerPoint(map.getCenter());
+  var newCenterPx = L.point(centerPx.x, centerPx.y - shiftPx);
   var newCenter = map.containerPointToLatLng(newCenterPx);
   map.setView(newCenter, map.getZoom(), { animate: false });
+  
+  // Now compute where the aircraft is in the #map div as a CSS percentage
+  // so we can rotate around that exact point
+  var acPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
+  centerAircraftArc._originX = (acPx.x / containerSize.x) * 100;
+  centerAircraftArc._originY = (acPx.y / containerSize.y) * 100;
 }
 
 function makeIcon(bg, size, border, glow) {
