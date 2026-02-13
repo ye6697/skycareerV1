@@ -469,9 +469,9 @@ function monitor_flight()
     end
 end
 
--- Send data every 3 seconds (curl runs async in background, no frame blocking)
+-- Send data every 1 second (curl runs async in background, no frame blocking)
 local last_send_time = 0
-local SEND_INTERVAL = 3.0
+local SEND_INTERVAL = 1.0
 function flight_loop_callback()
     local current_time = os.clock()
     if current_time - last_send_time >= SEND_INTERVAL then
