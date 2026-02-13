@@ -629,10 +629,12 @@ function update(d) {
     // Center aircraft at 85% down the visible viewport
     centerAircraftArc(curPos);
     
-    // Apply rotation around the CENTER of the 3x map (which = center of visible area)
-    // The aircraft was placed 35% below this center, so it stays at ~85% down
+    // Apply rotation around the AIRCRAFT POSITION within the 3x map div
+    // This keeps the aircraft pinned at its screen position while the map rotates
     var hdg = fd.heading || 0;
-    mapEl.style.transformOrigin = '50% 50%';
+    var ox = centerAircraftArc._originX != null ? centerAircraftArc._originX : 50;
+    var oy = centerAircraftArc._originY != null ? centerAircraftArc._originY : 50;
+    mapEl.style.transformOrigin = ox + '% ' + oy + '%';
     mapEl.style.transform = 'rotate(' + (-hdg) + 'deg)';
     
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
