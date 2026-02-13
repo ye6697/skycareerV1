@@ -862,17 +862,20 @@ function arcSmoothTick(now) {
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // --- CSS transform: translate + rotate (no Leaflet calls) ---
+  // --- Position map and rotate ---
   if (!arcMapEl) arcMapEl = document.getElementById('map');
   
   centerAircraftArc(curPos);
   
-  var ox = centerAircraftArc._originX != null ? centerAircraftArc._originX : 50;
-  var oy = centerAircraftArc._originY != null ? centerAircraftArc._originY : 50;
-  var tx = centerAircraftArc._translateX || 0;
-  var ty = centerAircraftArc._translateY || 0;
-  arcMapEl.style.transformOrigin = ox + '% ' + oy + '%';
-  arcMapEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) rotate(' + (-arcCurrent.hdg) + 'deg)';
+  // Rotate map around the aircraft's pixel position
+  if (arcBaseLatLng) {
+    var acPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
+    var mapSize = map.getSize();
+    var ox = (acPx.x / mapSize.x) * 100;
+    var oy = (acPx.y / mapSize.y) * 100;
+    arcMapEl.style.transformOrigin = ox + '% ' + oy + '%';
+    arcMapEl.style.transform = 'rotate(' + (-arcCurrent.hdg) + 'deg)';
+  }
   
   arcAnimFrame = requestAnimationFrame(arcSmoothTick);
 }
