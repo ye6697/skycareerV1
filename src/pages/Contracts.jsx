@@ -51,7 +51,10 @@ export default function Contracts() {
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      const res = await base44.functions.invoke('generateContracts', {});
+      const params = {};
+      if (minNm) params.minNm = parseInt(minNm);
+      if (maxNm) params.maxNm = parseInt(maxNm);
+      const res = await base44.functions.invoke('generateContracts', params);
       return res.data;
     },
     onSuccess: () => {
