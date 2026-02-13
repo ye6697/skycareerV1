@@ -817,12 +817,14 @@ function arcSmoothTick(now) {
   
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
-  // Recenter map – only every 500ms AND only if position moved enough
+  if (!arcMapEl) arcMapEl = document.getElementById('map');
+  var rotDeg = -arcCurrent.hdg;
+  
+  // Recenter map – every 500ms if position moved enough
+  // Do NOT reset transform to 'none' – that causes flicker.
+  // Instead, temporarily set current rotation, then setView, then rotation continues.
   if (!frozen && (now - arcLastRecenter > 500)) {
     arcLastRecenter = now;
-    // Temporarily remove rotation so setView isn't fighting with CSS transform
-    if (!arcMapEl) arcMapEl = document.getElementById('map');
-    arcMapEl.style.transform = 'none';
     centerAircraftArc(curPos);
   }
   
@@ -830,8 +832,6 @@ function arcSmoothTick(now) {
   if (layers.aircraft && (now - arcLastMarkerUpdate > 200)) {
     arcLastMarkerUpdate = now;
     layers.aircraft.setLatLng(curPos);
-    // In ARC mode the icon doesn't need heading updates (map rotates instead)
-    // But we still need to ensure it's an ARC-style icon
     if (arcLastIconHdg === -999) {
       layers.aircraft.setIcon(makeAircraftIcon(0));
       arcLastIconHdg = 0;
@@ -844,11 +844,8 @@ function arcSmoothTick(now) {
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // --- CSS rotation only, around the center of the 300% map element ---
-  if (!arcMapEl) arcMapEl = document.getElementById('map');
-  var rotDeg = -arcCurrent.hdg;
-  // Only update transform if heading changed by >= 0.5 degrees to reduce repaints
-  if (arcLastRotDeg === null || Math.abs(rotDeg - arcLastRotDeg) >= 0.5) {
+  // CSS rotation – always apply, never reset to 'none'
+  if (arcLastRotDeg === null || Math.abs(rotDeg - arcLastRotDeg) >= 0.3) {
     arcLastRotDeg = rotDeg;
     arcMapEl.style.transformOrigin = '50% 50%';
     arcMapEl.style.transform = 'rotate(' + rotDeg + 'deg)';
