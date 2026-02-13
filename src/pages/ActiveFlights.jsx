@@ -64,7 +64,7 @@ export default function ActiveFlights() {
   const { data: completedContracts = [] } = useQuery({
     queryKey: ['contracts', 'completed'],
     queryFn: () => base44.entities.Contract.filter({ status: 'completed' }),
-    staleTime: 60000,
+    staleTime: 30000,
     refetchOnWindowFocus: false,
   });
 
@@ -88,7 +88,7 @@ export default function ActiveFlights() {
       const companies = await base44.entities.Company.list();
       return companies[0];
     },
-    staleTime: 120000,
+    staleTime: 60000,
     refetchOnWindowFocus: false,
   });
 
