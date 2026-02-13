@@ -588,12 +588,6 @@ function update(d) {
     arcEl.style.display = 'block';
     setArcDragLock(true);
     
-    // Enable expanded tile loading for rotated view
-    if (!map._arcPadding) {
-      map._arcPadding = true;
-      map.invalidateSize({ pan: false });
-    }
-    
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     var hdg = fd.heading || 0;
@@ -608,19 +602,10 @@ function update(d) {
     // Always center aircraft at bottom
     centerAircraftArc(curPos);
     
-    // Nudge tile loading after pan/rotate
-    tileLayer.redraw();
-    
     boundsSet = false;
   } else {
     arcEl.style.display = 'none';
     setArcDragLock(false);
-    
-    // Disable expanded tile loading
-    if (map._arcPadding) {
-      map._arcPadding = false;
-      map.invalidateSize({ pan: false });
-    }
     
     // Reset map rotation
     if (mapEl) {
