@@ -795,19 +795,26 @@ function update(d) {
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
 
-// Smooth ARC interpolation with dead-reckoning for 60fps
-// The server sends data every ~500ms. Between updates, we extrapolate
-// the aircraft position using its velocity so it moves every single frame.
+// Smooth ARC interpolation – constant-speed movement between server updates.
+// The key insight: we DON'T use spring/exponential pull (that causes fast-snap-then-stop).
+// Instead we do pure dead-reckoning at the measured velocity, with a gentle
+// linear correction that spreads the error over ~1 second evenly.
 var arcTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcCurrent = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcInitialized = false;
 var arcLastTargetTime = 0;
 var arcLastFrameTime = 0;
 var arcPrevTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
-var arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second
-var arcLastIconHdg = -999; // cache to avoid icon recreation every frame
-var arcLastOverlayDraw = 0; // throttle canvas overlay redraws
+var arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second (smoothed)
+var arcLastIconHdg = -999;
+var arcLastOverlayDraw = 0;
 var arcLastDistInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
+
+// Error correction: when a new target arrives, we compute the position error
+// and spread it linearly over CORRECTION_DURATION seconds.
+var arcCorrectionDuration = 0.8; // seconds to absorb a position error
+var arcCorrectionRemaining = 0;  // seconds left in current correction
+var arcCorrectionRate = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second
 
 function lerpAngle(a, b, t) {
   var diff = ((b - a + 540) % 360) - 180;
@@ -817,8 +824,8 @@ function angleDiff(a, b) {
   return ((b - a + 540) % 360) - 180;
 }
 
-var arcMapEl = null; // cached DOM ref
-var arcLastMarkerUpdate = 0; // throttle setLatLng to ~10fps
+var arcMapEl = null;
+var arcLastMarkerUpdate = 0;
 
 function arcSmoothTick(now) {
   if (currentViewMode !== 'arc' || !arcInitialized) {
@@ -832,23 +839,32 @@ function arcSmoothTick(now) {
   if (dt > 0.25) dt = 0.016;
   arcLastFrameTime = now;
   
-  // --- Dead-reckoning ---
+  // --- Dead-reckoning: constant velocity movement ---
   arcCurrent.lat += arcVelocity.lat * dt;
   arcCurrent.lon += arcVelocity.lon * dt;
   arcCurrent.hdg += arcVelocity.hdg * dt;
   arcCurrent.alt += arcVelocity.alt * dt;
   
-  // --- Correction spring towards target ---
-  var pull = 1 - Math.pow(0.005, dt);
-  arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * pull;
-  arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * pull;
-  arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, pull);
-  arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * pull;
-  arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * pull;
+  // --- Linear error correction (NOT exponential spring) ---
+  // This spreads any position jump evenly over ~0.8 sec = no stutter
+  if (arcCorrectionRemaining > 0) {
+    var corrDt = Math.min(dt, arcCorrectionRemaining);
+    arcCurrent.lat += arcCorrectionRate.lat * corrDt;
+    arcCurrent.lon += arcCorrectionRate.lon * corrDt;
+    arcCurrent.hdg += arcCorrectionRate.hdg * corrDt;
+    arcCurrent.alt += arcCorrectionRate.alt * corrDt;
+    arcCorrectionRemaining -= corrDt;
+  }
+  
+  // Speed is display-only, simple lerp is fine
+  arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * Math.min(1, dt * 3);
+  
+  // Normalize heading to 0-360
+  arcCurrent.hdg = ((arcCurrent.hdg % 360) + 360) % 360;
   
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
-  // Update aircraft marker at ~10fps (setLatLng triggers Leaflet internals)
+  // Update Leaflet marker at ~10fps
   if (layers.aircraft && (now - arcLastMarkerUpdate > 100)) {
     arcLastMarkerUpdate = now;
     layers.aircraft.setLatLng(curPos);
@@ -865,7 +881,7 @@ function arcSmoothTick(now) {
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // --- Re-center + rotate: pure CSS, no Leaflet calls ---
+  // --- CSS transform: translate + rotate (no Leaflet calls) ---
   if (!arcMapEl) arcMapEl = document.getElementById('map');
   
   centerAircraftArc(curPos);
