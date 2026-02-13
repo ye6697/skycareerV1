@@ -105,7 +105,7 @@ export default function FlightMapIframe({
         />
       </div>
 
-      {!staticMode && (
+      {!staticMode && isFullscreen && (
         <div className="px-3 py-2 bg-slate-900/90 font-mono space-y-1.5">
           <div className="flex items-center justify-between text-sm">
             <span className="text-cyan-400 font-semibold">HDG <span className="text-white">{String(Math.round(fd.heading || 0)).padStart(3, '0')}°</span></span>
