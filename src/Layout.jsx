@@ -165,19 +165,19 @@ function LayoutInner({ children, currentPageName }) {
                       <Star className="w-4 h-4 text-amber-400" />
                       <span className="text-xs text-slate-400 font-medium">
                         Level {company?.level || 1} - {
-                          (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || t('level_1_4', lang)) :
-                          (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || t('level_5_8', lang)) :
-                          (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || t('level_9_12', lang)) :
-                          (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || t('level_13_16', lang)) :
-                          (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || t('level_17_20', lang)) :
-                          (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || t('level_21_30', lang)) :
-                          (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || t('level_31_40', lang)) :
-                          (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || t('level_41_50', lang)) :
-                          (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || t('level_51_60', lang)) :
-                          (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || t('level_61_70', lang)) :
-                          (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || t('level_71_80', lang)) :
-                          (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || t('level_81_90', lang)) :
-                          (gameSettings?.level_91_100_title || t('level_91_100', lang))
+                          (company?.level || 1) <= 4 ? t('level_1_4', lang) :
+                          (company?.level || 1) <= 8 ? t('level_5_8', lang) :
+                          (company?.level || 1) <= 12 ? t('level_9_12', lang) :
+                          (company?.level || 1) <= 16 ? t('level_13_16', lang) :
+                          (company?.level || 1) <= 20 ? t('level_17_20', lang) :
+                          (company?.level || 1) <= 30 ? t('level_21_30', lang) :
+                          (company?.level || 1) <= 40 ? t('level_31_40', lang) :
+                          (company?.level || 1) <= 50 ? t('level_41_50', lang) :
+                          (company?.level || 1) <= 60 ? t('level_51_60', lang) :
+                          (company?.level || 1) <= 70 ? t('level_61_70', lang) :
+                          (company?.level || 1) <= 80 ? t('level_71_80', lang) :
+                          (company?.level || 1) <= 90 ? t('level_81_90', lang) :
+                          t('level_91_100', lang)
                           }
                           </span>
                           </div>
@@ -279,19 +279,19 @@ function LayoutInner({ children, currentPageName }) {
                         <Star className="w-4 h-4 text-amber-400" />
                         <span className="text-xs text-slate-400 font-medium">
                           Level {company?.level || 1} - {
-                            (company?.level || 1) <= 4 ? (gameSettings?.level_1_4_title || t('level_1_4', lang)) :
-                            (company?.level || 1) <= 8 ? (gameSettings?.level_5_8_title || t('level_5_8', lang)) :
-                            (company?.level || 1) <= 12 ? (gameSettings?.level_9_12_title || t('level_9_12', lang)) :
-                            (company?.level || 1) <= 16 ? (gameSettings?.level_13_16_title || t('level_13_16', lang)) :
-                            (company?.level || 1) <= 20 ? (gameSettings?.level_17_20_title || t('level_17_20', lang)) :
-                            (company?.level || 1) <= 30 ? (gameSettings?.level_21_30_title || t('level_21_30', lang)) :
-                            (company?.level || 1) <= 40 ? (gameSettings?.level_31_40_title || t('level_31_40', lang)) :
-                            (company?.level || 1) <= 50 ? (gameSettings?.level_41_50_title || t('level_41_50', lang)) :
-                            (company?.level || 1) <= 60 ? (gameSettings?.level_51_60_title || t('level_51_60', lang)) :
-                            (company?.level || 1) <= 70 ? (gameSettings?.level_61_70_title || t('level_61_70', lang)) :
-                            (company?.level || 1) <= 80 ? (gameSettings?.level_71_80_title || t('level_71_80', lang)) :
-                            (company?.level || 1) <= 90 ? (gameSettings?.level_81_90_title || t('level_81_90', lang)) :
-                            (gameSettings?.level_91_100_title || t('level_91_100', lang))
+                            (company?.level || 1) <= 4 ? t('level_1_4', lang) :
+                            (company?.level || 1) <= 8 ? t('level_5_8', lang) :
+                            (company?.level || 1) <= 12 ? t('level_9_12', lang) :
+                            (company?.level || 1) <= 16 ? t('level_13_16', lang) :
+                            (company?.level || 1) <= 20 ? t('level_17_20', lang) :
+                            (company?.level || 1) <= 30 ? t('level_21_30', lang) :
+                            (company?.level || 1) <= 40 ? t('level_31_40', lang) :
+                            (company?.level || 1) <= 50 ? t('level_41_50', lang) :
+                            (company?.level || 1) <= 60 ? t('level_51_60', lang) :
+                            (company?.level || 1) <= 70 ? t('level_61_70', lang) :
+                            (company?.level || 1) <= 80 ? t('level_71_80', lang) :
+                            (company?.level || 1) <= 90 ? t('level_81_90', lang) :
+                            t('level_91_100', lang)
                           }
                         </span>
                       </div>
