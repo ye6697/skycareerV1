@@ -20,7 +20,7 @@ import {
 "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Plane,
@@ -37,6 +37,7 @@ import {
 
 export default function ActiveFlights() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedContract, setSelectedContract] = useState(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState('');
@@ -137,14 +138,19 @@ export default function ActiveFlights() {
 
       return flight;
     },
-    onSuccess: () => {
+    onSuccess: (flight) => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      const contractId = selectedContract?.id;
       setIsAssignDialogOpen(false);
       setSelectedContract(null);
       setSelectedAircraft('');
       setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
+      // Navigate to FlightTracker
+      if (contractId) {
+        navigate(createPageUrl(`FlightTracker?contractId=${contractId}`));
+      }
     }
   });
 
