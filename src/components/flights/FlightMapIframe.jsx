@@ -541,7 +541,7 @@ function update(d) {
 
   if (layers.flown) map.removeLayer(layers.flown);
   if (fp.length >= 2) {
-    layers.flown = L.polyline(fp, { color: currentViewMode==='arc' ? '#34d399' : '#3b82f6', weight:2.5, opacity:0.85 }).addTo(map);
+    layers.flown = L.polyline(fp, { color: currentViewMode==='arc' ? '#34d399' : '#3b82f6', weight:3.5, opacity:0.9 }).addTo(map);
   }
 
   if (layers.dep) map.removeLayer(layers.dep);
