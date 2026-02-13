@@ -274,27 +274,33 @@ var arcLastSetViewPos = null;
 
 function centerAircraftArc(curPos, forceImmediate) {
   var zoom = map.getZoom();
-  var size = map.getSize(); // FULL 300% map size
-  // The aircraft icon is positioned at the arc center: 90% (or 93% fullscreen) down the viewport.
-  // Viewport height = size.y / 3. The viewport top in full-map coords = size.y/3.
-  // Aircraft Y in full-map coords = size.y/3 + viewportH * arcFraction
-  var viewportH = size.y / 3;
+  // The map is 300% of the viewport. The viewport sees the center third.
+  // We want the aircraft at arcFraction (90%/93%) down the VIEWPORT.
+  // The map center appears at 50% of the full map = 50% of viewport vertically.
+  // We need to shift the map center UP so that curPos appears lower.
+  // 
+  // Approach: use Leaflet's pixel projection directly (unaffected by CSS rotation).
+  // Calculate how many pixels we need to offset, then convert to lat degrees.
   var arcFraction = isFullscreen ? 0.93 : 0.90;
-  var yAircraft = viewportH + viewportH * arcFraction;
-  var yCenter = size.y / 2;
-  var offsetPx = yAircraft - yCenter;
-  // Use Leaflet's projection to convert pixel offset to lat offset
-  var ctrPoint = map.latLngToContainerPoint(map.getCenter());
-  var aircraftPoint = L.point(ctrPoint.x, ctrPoint.y + offsetPx);
-  var aircraftLatLng = map.containerPointToLatLng(aircraftPoint);
-  var latDiff = map.getCenter().lat - aircraftLatLng.lat;
-  // Set center so aircraft lat/lon appears at the fixed icon position
-  var centerLat = curPos[0] + latDiff;
-  var centerLon = curPos[1];
+  // Viewport height in pixels (map-wrapper is the viewport)
+  var wrapperEl = document.getElementById('map-wrapper');
+  var viewportH = wrapperEl ? wrapperEl.getBoundingClientRect().height : (map.getSize().y / 3);
+  // Aircraft should be at arcFraction * viewportH from top of viewport
+  // Map center is at viewportH * 0.5 from top of viewport
+  // So offset in viewport pixels = (arcFraction - 0.5) * viewportH
+  var offsetViewportPx = (arcFraction - 0.5) * viewportH;
+  
+  // Convert pixel offset to lat degrees using the map's projection at current zoom
+  // At the current zoom, 1 pixel = X degrees latitude
+  // We use project/unproject which work in absolute pixel coordinates (not affected by CSS)
+  var centerPoint = map.project(L.latLng(curPos[0], curPos[1]), zoom);
+  // Move the center point UP by offsetViewportPx so the aircraft appears lower
+  var newCenterPoint = L.point(centerPoint.x, centerPoint.y - offsetViewportPx);
+  var newCenter = map.unproject(newCenterPoint, zoom);
   
   // Only call setView when needed (large jumps or forced)
   if (forceImmediate || !arcLastSetViewPos) {
-    map.setView([centerLat, centerLon], zoom, { animate: false });
+    map.setView(newCenter, zoom, { animate: false });
     arcLastSetViewPos = [curPos[0], curPos[1]];
     return;
   }
@@ -303,7 +309,7 @@ function centerAircraftArc(curPos, forceImmediate) {
   var dLon = Math.abs(curPos[1] - arcLastSetViewPos[1]);
   // Only recenter via setView if moved more than ~200m to avoid jitter
   if (dLat > 0.002 || dLon > 0.002) {
-    map.setView([centerLat, centerLon], zoom, { animate: false });
+    map.setView(newCenter, zoom, { animate: false });
     arcLastSetViewPos = [curPos[0], curPos[1]];
   }
 }
