@@ -232,7 +232,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
         </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading state - only show for a reasonable time */}
       {hasCredentials && !importedData && loading && !mismatch && (
         <div className="flex items-center justify-center gap-2 py-4 text-slate-400 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -240,8 +240,8 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
         </div>
       )}
 
-      {/* Mismatch: Plan doesn't match contract -> offer to create new one */}
-      {hasCredentials && !importedData && !loading && (mismatch || (!autoFetchedRef.current === false && !importedData)) && (
+      {/* No plan / mismatch / error - offer to create new one */}
+      {hasCredentials && !importedData && !loading && (
         <div className="space-y-3">
           <div className="p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
             <div className="flex items-start gap-2">
