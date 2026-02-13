@@ -229,32 +229,26 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
-  // Step 1: Center the aircraft in the map
+  // The map is 300% oversized. Leaflet center = center of the 3x container.
+  // The visible viewport (wrapper) shows the middle 1/3.
+  // Leaflet center corresponds to the center of the visible area.
+  // We want the aircraft at 85% down the visible viewport.
+  // That means the map center should be north of the aircraft by 35% of visible height.
+  
+  var wrapper = document.getElementById('map-wrapper');
+  var viewH = wrapper.clientHeight;
+  
+  // First center on aircraft
   map.setView(curPos, map.getZoom(), { animate: false });
   
-  // Step 2: Pan the map so the aircraft sits at 85% down the viewport.
-  // Aircraft is currently at 50% (center). We want 85%.
-  // So shift the map center UP by 35% of the viewport height in pixels.
-  var mapSize = map.getSize();
-  var shiftPx = mapSize.y * 0.35;
-  
-  // Get aircraft pixel position (currently at center)
+  // Aircraft is now at Leaflet center = center of visible viewport (50% down).
+  // Shift north by 35% of visible height in pixels.
+  // In the 3x map, the visible height is viewH, but Leaflet container is 3*viewH.
+  // Leaflet's pixel coords are in the 3x space.
   var acPx = map.latLngToContainerPoint(curPos);
-  // We want to move the map so aircraft appears shiftPx lower
-  // That means new center = current center shifted north (up in pixels)
-  var newCenterPx = L.point(acPx.x, acPx.y - shiftPx);
+  var newCenterPx = L.point(acPx.x, acPx.y - viewH * 0.35);
   var newCenter = map.containerPointToLatLng(newCenterPx);
   map.setView(newCenter, map.getZoom(), { animate: false });
-  
-  // Step 3: Calculate where the aircraft is now in CSS % of the map div
-  // so we can set transformOrigin to that point (rotation + scale around aircraft)
-  var acPxFinal = map.latLngToContainerPoint(curPos);
-  var originX = (acPxFinal.x / mapSize.x) * 100;
-  var originY = (acPxFinal.y / mapSize.y) * 100;
-  
-  // Store for use when applying transform
-  centerAircraftArc._originX = originX;
-  centerAircraftArc._originY = originY;
 }
 
 function makeIcon(bg, size, border, glow) {
