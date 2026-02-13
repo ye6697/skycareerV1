@@ -26,58 +26,10 @@ Deno.serve(async (req) => {
     // The frontend polls for these via the flight's xplane_data, but fast_position
     // packets are returned directly to the plugin without touching the Flight entity.
     if (data.fast_position) {
-      // fast_position packets come at ~30Hz from the plugin but the frontend only polls
-      // at 2Hz. Writing 30x/sec to the DB is wasteful. Instead, only write every ~200ms
-      // by checking the timestamp on the existing flight data.
-      
-      // Update company connection status if needed
-      if (company && company.xplane_connection_status !== 'connected') {
-        await base44.asServiceRole.entities.Company.update(company.id, { 
-          xplane_connection_status: 'connected' 
-        });
-      }
-      
-      // Get active flight to return status
-      const flights = await base44.asServiceRole.entities.Flight.filter({ 
-        company_id: company.id,
-        status: 'in_flight'
-      });
-      const flight = flights[0] || null;
-      
-      if (!flight) {
-        return Response.json({ 
-          message: 'fast_position - no active flight',
-          xplane_connection_status: 'connected'
-        });
-      }
-      
-      // Throttle DB writes: only update if last write was >500ms ago
-      const existingXpData = flight.xplane_data || {};
-      const lastTs = existingXpData.timestamp ? new Date(existingXpData.timestamp).getTime() : 0;
-      const now = Date.now();
-      if (now - lastTs < 500) {
-        // Skip this write – too recent
-        return Response.json({ 
-          status: 'fast_throttled',
-          xplane_connection_status: 'connected'
-        });
-      }
-      
-      const fastUpdate = {
-        xplane_data: {
-          ...existingXpData,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          heading: data.heading,
-          altitude: data.altitude,
-          speed: data.speed,
-          timestamp: new Date().toISOString()
-        }
-      };
-      await base44.asServiceRole.entities.Flight.update(flight.id, fastUpdate);
-      
+      // With full updates now at 1s interval, fast_position at 30Hz is redundant
+      // and wastes DB reads/writes. Simply acknowledge and return immediately.
       return Response.json({ 
-        status: 'fast_ok',
+        status: 'fast_skipped',
         xplane_connection_status: 'connected'
       });
     }
