@@ -182,8 +182,10 @@ function buildIframeHtml() {
 <div id="events-overlay" style="display:none;"></div>
 <div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
 <script>
-var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true }).setView([50, 10], 5);
+var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5 });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
+// Force map to fill its container properly
+setTimeout(function(){ map.invalidateSize(); }, 100);
 
 var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
 var boundsSet = false;
