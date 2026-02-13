@@ -10,6 +10,7 @@ export default function FlightMapIframe({
   departureRunway = null, arrivalRunway = null, 
   departureCoords = null, arrivalCoords = null,
   liveFlightData = null,
+  onViewModeChange = null,
 }) {
   const iframeRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
