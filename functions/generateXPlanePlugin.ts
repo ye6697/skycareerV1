@@ -452,37 +452,42 @@ class PythonInterface:
         self.active_failures = []
     
     def send_data(self, data):
-        try:
-            json_data = json.dumps(data).encode('utf-8')
-            api_url = f"{self.api_endpoint}?api_key={self.api_key}"
-            request = urllib.request.Request(
-                api_url,
-                data=json_data,
-                headers={'Content-Type': 'application/json'},
-                method='POST'
-            )
-            
-            response = urllib.request.urlopen(request, timeout=2)
-            result = json.loads(response.read().decode('utf-8'))
-            
-            # Update maintenance ratio from server (for failure system)
-            if 'maintenance_ratio' in result:
-                self.maintenance_ratio = float(result['maintenance_ratio'])
-            
-            # If flight was completed, reset failures and state
-            if result.get('status') == 'completed' or result.get('status') == 'ready_to_complete':
-                if result.get('status') == 'completed':
-                    xp.log(f"SkyCareer: Flight completed! Rating: {result.get('rating', 0):.1f}/5")
-                self.reset_all_failures()
-                self.current_flight_id = None
-                self.flight_started = False
-                self.maintenance_ratio = 0.0
+        # Send in a background thread to avoid blocking X-Plane's flight loop
+        import threading
+        def _do_send(payload):
+            try:
+                json_data = json.dumps(payload).encode('utf-8')
+                api_url = f"{self.api_endpoint}?api_key={self.api_key}"
+                request = urllib.request.Request(
+                    api_url,
+                    data=json_data,
+                    headers={'Content-Type': 'application/json'},
+                    method='POST'
+                )
                 
-        except urllib.error.URLError as e:
-            # Network error - don't spam logs
-            pass
-        except Exception as e:
-            xp.log(f"SkyCareer Send Error: {str(e)}")
+                response = urllib.request.urlopen(request, timeout=3)
+                result = json.loads(response.read().decode('utf-8'))
+                
+                # Update maintenance ratio from server (for failure system)
+                if 'maintenance_ratio' in result:
+                    self.maintenance_ratio = float(result['maintenance_ratio'])
+                
+                # If flight was completed, reset failures and state
+                if result.get('status') == 'completed' or result.get('status') == 'ready_to_complete':
+                    if result.get('status') == 'completed':
+                        xp.log(f"SkyCareer: Flight completed! Rating: {result.get('rating', 0):.1f}/5")
+                    self.reset_all_failures()
+                    self.current_flight_id = None
+                    self.flight_started = False
+                    self.maintenance_ratio = 0.0
+                    
+            except urllib.error.URLError as e:
+                pass
+            except Exception as e:
+                xp.log(f"SkyCareer Send Error: {str(e)}")
+        
+        t = threading.Thread(target=_do_send, args=(data,), daemon=True)
+        t.start()
 `;
 
     const readmeContent = `# SkyCareer X-Plane 12 Plugin
