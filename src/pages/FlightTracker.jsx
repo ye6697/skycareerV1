@@ -423,10 +423,12 @@ export default function FlightTracker() {
     };
     
     fetchData();
-    const interval = setInterval(fetchData, 1500);
+    // Poll faster in ARC mode for smoother map updates (750ms vs 1500ms)
+    const pollRate = viewMode === 'arc' ? 750 : 1500;
+    const interval = setInterval(fetchData, pollRate);
     
     return () => { isMounted = false; clearInterval(interval); };
-  }, [activeFlightId, flightPhase]);
+  }, [activeFlightId, flightPhase, viewMode]);
 
   // Restore flight data and phase from existing flight
   useEffect(() => {
