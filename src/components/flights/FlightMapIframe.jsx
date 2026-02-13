@@ -904,21 +904,59 @@ window.addEventListener('message', function(e) {
     var p = e.data.payload;
     var now = performance.now();
 
-    // Compute velocity from consecutive target updates for dead-reckoning
+    if (!arcInitialized && p.latitude) {
+      // First position ever – snap instantly, no correction needed
+      arcCurrent.lat = p.latitude;
+      arcCurrent.lon = p.longitude;
+      arcCurrent.hdg = p.heading || 0;
+      arcCurrent.alt = p.altitude || 0;
+      arcCurrent.spd = p.speed || 0;
+      arcTarget.lat = p.latitude;
+      arcTarget.lon = p.longitude;
+      arcTarget.hdg = p.heading || 0;
+      arcTarget.alt = p.altitude || 0;
+      arcTarget.spd = p.speed || 0;
+      arcPrevTarget.lat = p.latitude;
+      arcPrevTarget.lon = p.longitude;
+      arcPrevTarget.hdg = p.heading || 0;
+      arcPrevTarget.alt = p.altitude || 0;
+      arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 };
+      arcCorrectionRemaining = 0;
+      arcLastTargetTime = now;
+      arcInitialized = true;
+      isFullscreen = p.isFullscreen || false;
+      return;
+    }
+
+    // Compute new velocity from consecutive target positions
     if (arcLastTargetTime > 0 && arcInitialized) {
       var elapsed = (now - arcLastTargetTime) / 1000;
-      if (elapsed > 0.03 && elapsed < 5) {
+      if (elapsed > 0.05 && elapsed < 5) {
         var vLat = (p.latitude - arcPrevTarget.lat) / elapsed;
         var vLon = (p.longitude - arcPrevTarget.lon) / elapsed;
         var vHdg = angleDiff(arcPrevTarget.hdg, p.heading || 0) / elapsed;
         var vAlt = ((p.altitude || 0) - (arcPrevTarget.alt || 0)) / elapsed;
-        // EMA smoothing – 0.3 new, 0.7 old for stable velocity
-        arcVelocity.lat = arcVelocity.lat * 0.7 + vLat * 0.3;
-        arcVelocity.lon = arcVelocity.lon * 0.7 + vLon * 0.3;
-        arcVelocity.hdg = arcVelocity.hdg * 0.7 + vHdg * 0.3;
-        arcVelocity.alt = arcVelocity.alt * 0.7 + vAlt * 0.3;
+        // Heavy EMA smoothing for very stable velocity (0.2 new, 0.8 old)
+        arcVelocity.lat = arcVelocity.lat * 0.8 + vLat * 0.2;
+        arcVelocity.lon = arcVelocity.lon * 0.8 + vLon * 0.2;
+        arcVelocity.hdg = arcVelocity.hdg * 0.8 + vHdg * 0.2;
+        arcVelocity.alt = arcVelocity.alt * 0.8 + vAlt * 0.2;
       }
     }
+    
+    // Compute position error = where we currently are vs where we should be
+    // Then spread this error over arcCorrectionDuration as a constant rate
+    var errLat = p.latitude - arcCurrent.lat;
+    var errLon = p.longitude - arcCurrent.lon;
+    var errHdg = angleDiff(arcCurrent.hdg, p.heading || 0);
+    var errAlt = (p.altitude || 0) - arcCurrent.alt;
+    
+    arcCorrectionRate.lat = errLat / arcCorrectionDuration;
+    arcCorrectionRate.lon = errLon / arcCorrectionDuration;
+    arcCorrectionRate.hdg = errHdg / arcCorrectionDuration;
+    arcCorrectionRate.alt = errAlt / arcCorrectionDuration;
+    arcCorrectionRemaining = arcCorrectionDuration;
+
     arcPrevTarget.lat = p.latitude;
     arcPrevTarget.lon = p.longitude;
     arcPrevTarget.hdg = p.heading || 0;
@@ -930,15 +968,6 @@ window.addEventListener('message', function(e) {
     arcTarget.hdg = p.heading || 0;
     arcTarget.alt = p.altitude || 0;
     arcTarget.spd = p.speed || 0;
-    if (!arcInitialized && p.latitude) {
-      arcCurrent.lat = p.latitude;
-      arcCurrent.lon = p.longitude;
-      arcCurrent.hdg = p.heading || 0;
-      arcCurrent.alt = p.altitude || 0;
-      arcCurrent.spd = p.speed || 0;
-      arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 };
-      arcInitialized = true;
-    }
     isFullscreen = p.isFullscreen || false;
   }
   if (e.data?.type === 'flightmap-resize') {
