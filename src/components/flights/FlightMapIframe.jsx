@@ -276,28 +276,65 @@ function setArcDragLock(locked) {
   }
 }
 
-// === ARC centering: setView-based, aircraft always in viewport center-bottom ===
+// === ARC centering: CSS transform only, setView only on init/recenter ===
+var arcCachedContainerSize = null;
+var arcCachedShiftPx = 0;
+var arcPxPerDegLat = 0;
+var arcPxPerDegLon = 0;
 var arcBaseLatLng = null;
-var arcLastSetView = 0;
+var arcBasePx = null;
+var arcMaxDriftPx = 250;
+var arcTranslateX = 0;
+var arcTranslateY = 0;
+var arcOriginX = 50;
+var arcOriginY = 50;
+
+function arcRecalcProjection(curPos) {
+  arcCachedContainerSize = map.getSize();
+  var viewportH = arcCachedContainerSize.y / 3;
+  arcCachedShiftPx = viewportH * (isFullscreen ? 0.45 : 0.40);
+  arcBasePx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
+  arcBaseLatLng = [curPos[0], curPos[1]];
+  var testDeg = 0.01;
+  var pxB = map.latLngToContainerPoint(L.latLng(curPos[0] + testDeg, curPos[1]));
+  var pxC = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1] + testDeg));
+  arcPxPerDegLat = (arcBasePx.y - pxB.y) / testDeg;
+  arcPxPerDegLon = (pxC.x - arcBasePx.x) / testDeg;
+  arcOriginX = (arcBasePx.x / arcCachedContainerSize.x) * 100;
+  arcOriginY = (arcBasePx.y / arcCachedContainerSize.y) * 100;
+  arcTranslateX = 0;
+  arcTranslateY = 0;
+}
 
 function centerAircraftArc(curPos) {
-  // Always set view to position aircraft in center-bottom of viewport
-  var now = performance.now();
-  // Throttle setView to max ~10fps to avoid excessive Leaflet work
-  if (arcBaseLatLng && now - arcLastSetView < 100) return;
-  arcLastSetView = now;
-  
-  map.setView(curPos, map.getZoom(), { animate: false });
-  // Shift map center upward so aircraft appears in bottom portion
-  var size = map.getSize();
-  var viewportH = size.y / 3; // map is 300% so viewport = 1/3
-  var shiftPx = viewportH * (isFullscreen ? 0.45 : 0.40);
-  var centerPx = map.latLngToContainerPoint(map.getCenter());
-  var newCenterPx = L.point(centerPx.x, centerPx.y - shiftPx);
-  var newCenter = map.containerPointToLatLng(newCenterPx);
-  map.setView(newCenter, map.getZoom(), { animate: false });
-  
-  arcBaseLatLng = [curPos[0], curPos[1]];
+  if (!arcBaseLatLng) {
+    map.setView(curPos, map.getZoom(), { animate: false });
+    arcCachedContainerSize = map.getSize();
+    var viewportH = arcCachedContainerSize.y / 3;
+    var shiftPx = viewportH * (isFullscreen ? 0.45 : 0.40);
+    var centerPx = map.latLngToContainerPoint(map.getCenter());
+    var newCenterPx = L.point(centerPx.x, centerPx.y - shiftPx);
+    var newCenter = map.containerPointToLatLng(newCenterPx);
+    map.setView(newCenter, map.getZoom(), { animate: false });
+    arcRecalcProjection(curPos);
+    return;
+  }
+  var dLat = curPos[0] - arcBaseLatLng[0];
+  var dLon = curPos[1] - arcBaseLatLng[1];
+  var dxPx = dLon * arcPxPerDegLon;
+  var dyPx = -(dLat * arcPxPerDegLat);
+  var driftSq = dxPx * dxPx + dyPx * dyPx;
+  if (driftSq > arcMaxDriftPx * arcMaxDriftPx) {
+    map.setView(curPos, map.getZoom(), { animate: false });
+    var centerPx2 = map.latLngToContainerPoint(map.getCenter());
+    var newCenterPx2 = L.point(centerPx2.x, centerPx2.y - arcCachedShiftPx);
+    var newCenter2 = map.containerPointToLatLng(newCenterPx2);
+    map.setView(newCenter2, map.getZoom(), { animate: false });
+    arcRecalcProjection(curPos);
+    return;
+  }
+  arcTranslateX = -dxPx;
+  arcTranslateY = -dyPx;
 }
 
 function makeIcon(bg, size, border, glow) {
