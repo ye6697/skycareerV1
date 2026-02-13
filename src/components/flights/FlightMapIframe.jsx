@@ -140,8 +140,7 @@ function buildIframeHtml() {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
-  #map { width: 100%; height: 100%; }
-  #map.arc-mode { position:absolute; width:250%; height:250%; top:-75%; left:-75%; }
+  #map { width: 100%; height: 100%; transition: transform 0.8s ease; }
   .leaflet-container { background: #0f172a !important; }
   .wpl { font-size:10px; font-family:'Courier New',monospace; padding:1px 4px; border-radius:3px; background:rgba(15,23,42,0.85); white-space:nowrap; }
   .wpl-dep { font-size:11px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
@@ -181,10 +180,7 @@ function buildIframeHtml() {
 <div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true }).setView([50, 10], 5);
-
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
-  maxZoom: 18, keepBuffer: 6, updateWhenZooming: true, updateWhenIdle: false 
-}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 
 var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
 var boundsSet = false;
@@ -235,17 +231,7 @@ function setArcDragLock(locked) {
 function centerAircraftArc(curPos) {
   var mapSize = map.getSize();
   var acPixel = map.latLngToContainerPoint(curPos);
-  // The map div is 250% of viewport, so the visual center of the viewport 
-  // is at 50% of the map div, and visual bottom is at ~70% (75%+offset from top=-75%)
-  // Visual viewport within the expanded map: center is at mapSize/2, 
-  // visual bottom-90% is at mapSize.y * 0.5 + (mapSize.y/2.5)*0.4
-  // Simpler: the viewport center within the large map is exactly at mapSize/2
-  // The viewport height is mapSize.y/2.5, so 90% down the viewport from top:
-  var vpH = mapSize.y / 2.5;
-  var vpW = mapSize.x / 2.5;
-  var vpTop = (mapSize.y - vpH) / 2;
-  var vpLeft = (mapSize.x - vpW) / 2;
-  var targetPixel = L.point(vpLeft + vpW / 2, vpTop + vpH * 0.9);
+  var targetPixel = L.point(mapSize.x / 2, mapSize.y * 0.9);
   var dx = acPixel.x - targetPixel.x;
   var dy = acPixel.y - targetPixel.y;
   var centerPixel = L.point(mapSize.x / 2, mapSize.y / 2);
@@ -598,13 +584,6 @@ function update(d) {
   if (currentViewMode === 'arc' && curPos && !staticMode) {
     arcEl.style.display = 'block';
     setArcDragLock(true);
-    
-    // Expand map div so Leaflet loads tiles for the full rotated area
-    if (!mapEl.classList.contains('arc-mode')) {
-      mapEl.classList.add('arc-mode');
-      map.invalidateSize({ pan: false });
-    }
-    
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     var hdg = fd.heading || 0;
@@ -623,18 +602,10 @@ function update(d) {
   } else {
     arcEl.style.display = 'none';
     setArcDragLock(false);
-    
-    // Reset map size and rotation
+    // Reset map rotation
     if (mapEl) {
-      if (mapEl.classList.contains('arc-mode')) {
-        mapEl.classList.remove('arc-mode');
-        mapEl.style.transform = 'none';
-        mapEl.style.transformOrigin = '';
-        map.invalidateSize({ pan: false });
-      } else {
-        mapEl.style.transform = 'none';
-        mapEl.style.transformOrigin = '';
-      }
+      mapEl.style.transform = 'none';
+      mapEl.style.transformOrigin = '';
     }
     // On switch from ARC, re-fit bounds
     if (switchedFromArc) {
