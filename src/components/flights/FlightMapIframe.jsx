@@ -517,18 +517,37 @@ function update(d) {
     layers.aircraft = L.marker(curPos, { icon: makeAircraftIcon(fd.heading), zIndexOffset: 1000 }).addTo(map);
   }
 
-  // ARC overlay
+  // ARC overlay + map rotation for Boeing ND style
   var arcEl = document.getElementById('arc-overlay');
+  var mapEl = document.getElementById('map');
   if (currentViewMode === 'arc' && curPos && !staticMode) {
     arcEl.style.display = 'block';
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
+    
+    // Boeing ND: rotate the entire map so heading is UP, aircraft at bottom center
+    var hdg = fd.heading || 0;
+    // CSS rotate around the bottom-center of the map container
+    // We scale up a bit to avoid seeing edges after rotation
+    mapEl.style.transformOrigin = '50% 75%';
+    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.6)';
+    
     if (!userInteracting) {
-      map.setView(curPos, 10, { animate: true, duration: 0.8 });
+      // Position aircraft at 75% down the view (bottom-center feel)
+      var mapSize = map.getSize();
+      var targetPoint = map.project(curPos, map.getZoom());
+      // Offset so aircraft appears at 75% height
+      var offsetY = mapSize.y * 0.25;
+      var targetLatLng = map.unproject(L.point(targetPoint.x, targetPoint.y + offsetY), map.getZoom());
+      map.setView(targetLatLng, 10, { animate: true, duration: 0.8 });
     }
-    // Reset boundsSet so switching back to FPLAN re-fits
     boundsSet = false;
   } else {
     arcEl.style.display = 'none';
+    // Reset map rotation
+    if (mapEl) {
+      mapEl.style.transform = 'none';
+      mapEl.style.transformOrigin = '';
+    }
     var allPts = rp.concat(fp);
     if (curPos) allPts.push(curPos);
     if (!boundsSet && allPts.length >= 2) {
