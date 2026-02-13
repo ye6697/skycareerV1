@@ -309,7 +309,7 @@ function LayoutInner({ children, currentPageName }) {
                   <div className="p-3 bg-slate-900 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <DollarSign className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs text-slate-400 font-medium">Kontostand</span>
+                      <span className="text-xs text-slate-400 font-medium">{t('balance', lang)}</span>
                     </div>
                     <p className="text-lg font-bold text-emerald-400">
                       ${(company?.balance || 0).toLocaleString()}
@@ -322,16 +322,26 @@ function LayoutInner({ children, currentPageName }) {
                         xplaneStatus === 'connecting' ? 'bg-amber-500' : 
                         'bg-slate-500'
                       }`} />
-                      <span className="text-xs text-slate-400 font-medium">X-Plane Status</span>
+                      <span className="text-xs text-slate-400 font-medium">{t('xplane_status', lang)}</span>
                     </div>
                     <p className="text-sm text-slate-300">
-                      {xplaneStatus === 'connected' ? 'Verbunden' : 
-                       xplaneStatus === 'connecting' ? 'Verbinde...' : 
-                       'Getrennt'}
+                      {xplaneStatus === 'connected' ? t('connected', lang) : 
+                       xplaneStatus === 'connecting' ? t('connecting', lang) : 
+                       t('disconnected', lang)}
                     </p>
                   </div>
-                </div>
-      </aside>
+                  {/* Language Toggle */}
+                  <button
+                    onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
+                    className="w-full p-3 bg-slate-900 rounded-lg flex items-center justify-between hover:bg-slate-800 transition-colors"
+                  >
+                    <span className="text-xs text-slate-400 font-medium flex items-center gap-2">
+                      <Globe className="w-4 h-4" /> Language
+                    </span>
+                    <span className="text-sm font-bold text-blue-400">{lang === 'en' ? '🇬🇧 EN' : '🇩🇪 DE'}</span>
+                  </button>
+                  </div>
+                  </aside>
 
       {/* Main Content */}
       <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen overflow-x-hidden">
