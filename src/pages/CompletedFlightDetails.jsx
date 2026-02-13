@@ -194,6 +194,7 @@ export default function CompletedFlightDetails() {
                   staticMode={true}
                   title="Flugroute"
                   flightPath={flight?.xplane_data?.flight_path || []}
+                  routeWaypoints={flight?.xplane_data?.fms_waypoints || []}
                 />
               )}
 

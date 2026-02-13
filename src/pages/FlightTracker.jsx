@@ -2137,6 +2137,14 @@ export default function FlightTracker() {
               arrivalRunway={simbriefRoute?.arrival_runway}
               departureCoords={simbriefRoute?.departure_coords}
               arrivalCoords={simbriefRoute?.arrival_coords}
+              liveFlightData={{
+                gForce: flightData.gForce,
+                maxGForce: flightData.maxGForce,
+                fuelPercent: flightData.fuel,
+                fuelKg: flightData.fuelKg,
+                flightScore: flightData.flightScore,
+                events: flightData.events
+              }}
             />
             <SimBriefImport
               key={`simbrief-${contractIdFromUrl}`}
