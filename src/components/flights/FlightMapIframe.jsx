@@ -194,6 +194,7 @@ var INTERACTION_COOLDOWN = 15000;
 var currentViewMode = 'fplan';
 var prevViewMode = 'fplan';
 var isFullscreen = false;
+var arcAnimFrame = null;
 var lastFd = {};
 var lastCurPos = null;
 var arcZoomLevel = 10;
@@ -247,7 +248,7 @@ function centerAircraftArc(curPos) {
   
   var containerSize = map.getSize(); // full 3x size
   var viewportH = containerSize.y / 3;
-  var shiftPx = viewportH * 0.40;
+  var shiftPx = viewportH * (isFullscreen ? 0.45 : 0.40);
   
   // Shift center north: in pixel space, move the center point UP by shiftPx
   var centerPx = map.latLngToContainerPoint(map.getCenter());
