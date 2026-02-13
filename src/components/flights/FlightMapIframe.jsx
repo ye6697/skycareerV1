@@ -989,9 +989,17 @@ window.addEventListener('message', function(e) {
     isFullscreen = p.isFullscreen || false;
   }
   if (e.data?.type === 'flightmap-resize') {
+    var wasFullscreen = isFullscreen;
     isFullscreen = e.data.isFullscreen || false;
+    // Reset ARC projection cache so it recenters on the new viewport size
+    arcBaseLatLng = null;
+    arcMapEl = null;
     setTimeout(function(){ 
-      map.invalidateSize(); 
+      map.invalidateSize();
+      // Force immediate recenter if in ARC mode
+      if (currentViewMode === 'arc' && arcInitialized) {
+        arcBaseLatLng = null;
+      }
     }, 150);
   }
 });
