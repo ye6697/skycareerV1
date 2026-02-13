@@ -899,20 +899,13 @@ function arcSmoothTick(now) {
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // --- Position map and rotate ---
+  // --- CSS transform: translate + rotate (no Leaflet calls per frame) ---
   if (!arcMapEl) arcMapEl = document.getElementById('map');
   
   centerAircraftArc(curPos);
   
-  // Rotate map around the aircraft's pixel position
-  if (arcBaseLatLng) {
-    var acPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
-    var mapSize = map.getSize();
-    var ox = (acPx.x / mapSize.x) * 100;
-    var oy = (acPx.y / mapSize.y) * 100;
-    arcMapEl.style.transformOrigin = ox + '% ' + oy + '%';
-    arcMapEl.style.transform = 'rotate(' + (-arcCurrent.hdg) + 'deg)';
-  }
+  arcMapEl.style.transformOrigin = arcOriginX + '% ' + arcOriginY + '%';
+  arcMapEl.style.transform = 'translate(' + arcTranslateX + 'px,' + arcTranslateY + 'px) rotate(' + (-arcCurrent.hdg) + 'deg)';
   
   arcAnimFrame = requestAnimationFrame(arcSmoothTick);
 }
