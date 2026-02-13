@@ -30,10 +30,13 @@ import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import SimBriefImport from "@/components/flights/SimBriefImport";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function FlightTracker() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { lang } = useLanguage();
 
   const [flightPhase, setFlightPhase] = useState('preflight');
   const [viewMode, setViewMode] = useState('fplan');
@@ -1526,11 +1529,11 @@ export default function FlightTracker() {
   // No extra DB queries needed
 
   const phaseLabels = {
-    preflight: 'Vorbereitung',
-    takeoff: 'Start',
-    cruise: 'Reiseflug',
-    landing: 'Landeanflug',
-    completed: 'Abgeschlossen'
+    preflight: t('preflight', lang),
+    takeoff: t('takeoff', lang),
+    cruise: t('cruise', lang),
+    landing: t('approach', lang),
+    completed: t('completed', lang)
   };
 
   // Haversine formula to calculate distance between two coordinates
@@ -1608,12 +1611,12 @@ export default function FlightTracker() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-          <p className="text-white mb-4">Vertrag nicht gefunden</p>
+          <p className="text-white mb-4">{t('contract_not_found', lang)}</p>
           <Button 
             onClick={() => navigate(createPageUrl("ActiveFlights"))}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Zu Aktiven Flügen
+            {t('go_to_active_flights', lang)}
           </Button>
         </div>
       </div>
@@ -1633,7 +1636,7 @@ export default function FlightTracker() {
           >
             <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
             <p className="text-sm text-amber-300">
-              <strong>Wichtig:</strong> Schließe diesen Tab nicht während des Fluges! Die Flugdaten werden hier live verarbeitet und der Flug kann sonst nicht korrekt abgeschlossen werden.
+              {t('tab_warning', lang)}
             </p>
           </motion.div>
         )}
@@ -1692,11 +1695,11 @@ export default function FlightTracker() {
             </div>
             <Progress value={distanceProgress} className="h-2 bg-slate-700" />
             <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-              <span>{Math.round(distanceInfo.totalNm - distanceInfo.remainingNm)} NM geflogen</span>
+              <span>{Math.round(distanceInfo.totalNm - distanceInfo.remainingNm)} NM {t('flown', lang)}</span>
               <span className="font-mono font-semibold text-blue-400">
                 {distanceInfo.remainingNm} NM
               </span>
-              <span>{distanceInfo.totalNm} NM total</span>
+              <span>{distanceInfo.totalNm} NM {t('total', lang)}</span>
             </div>
           </div>
         </motion.div>
@@ -1707,7 +1710,7 @@ export default function FlightTracker() {
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
               <Plane className="w-12 h-12 text-blue-400 mx-auto" />
             </motion.div>
-            <p className="text-slate-400 mt-4">Verbinde mit X-Plane...</p>
+            <p className="text-slate-400 mt-4">{t('waiting_for_xplane', lang)}</p>
           </div>
         )}
 
@@ -1719,25 +1722,25 @@ export default function FlightTracker() {
               <Card className="p-6 bg-slate-800/50 border-slate-700">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Gauge className="w-5 h-5 text-blue-400" />
-                Flugdaten
+                {t('flight_data', lang)}
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <div className="p-4 bg-slate-900 rounded-lg text-center">
-                  <p className="text-slate-400 text-sm mb-1">Höhe</p>
+                  <p className="text-slate-400 text-sm mb-1">{t('altitude', lang)}</p>
                   <p className="text-2xl font-mono font-bold text-blue-400">
                     {Math.round(flightData.altitude).toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-500">ft</p>
                 </div>
                 <div className="p-4 bg-slate-900 rounded-lg text-center">
-                  <p className="text-slate-400 text-sm mb-1">Geschwindigkeit</p>
+                  <p className="text-slate-400 text-sm mb-1">{t('speed', lang)}</p>
                   <p className="text-2xl font-mono font-bold text-emerald-400">
                     {Math.round(flightData.speed)}
                   </p>
                   <p className="text-xs text-slate-500">kts TAS</p>
                 </div>
                 <div className="p-4 bg-slate-900 rounded-lg text-center">
-                  <p className="text-slate-400 text-sm mb-1">Vertikalgeschw.</p>
+                  <p className="text-slate-400 text-sm mb-1">{t('vertical_speed', lang)}</p>
                   <p className={`text-2xl font-mono font-bold ${
                     flightData.verticalSpeed > 0 ? 'text-emerald-400' : 'text-amber-400'
                   }`}>
@@ -1747,7 +1750,7 @@ export default function FlightTracker() {
                   <p className="text-xs text-slate-500">ft/min</p>
                 </div>
                 <div className="p-4 bg-slate-900 rounded-lg text-center">
-                  <p className="text-slate-400 text-sm mb-1">G-Kraft</p>
+                  <p className="text-slate-400 text-sm mb-1">{t('g_force', lang)}</p>
                   <p className={`text-2xl font-mono font-bold ${
                     flightData.gForce < 1.3 ? 'text-emerald-400' :
                     flightData.gForce < 1.8 ? 'text-amber-400' :
@@ -1793,7 +1796,7 @@ export default function FlightTracker() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-slate-400">
-                          {inBuffer ? 'Puffer' : overBuffer ? 'Überschritten' : 'Verbleibend'}
+                          {inBuffer ? t('deadline_buffer', lang) : overBuffer ? t('deadline_exceeded', lang) : t('deadline_remaining', lang)}
                         </span>
                         <span className={`text-2xl font-mono font-bold ${
                           overBuffer ? 'text-red-400' : inBuffer ? 'text-amber-400' : remaining < 300 ? 'text-amber-400' : 'text-emerald-400'
@@ -1809,17 +1812,17 @@ export default function FlightTracker() {
                       {inBuffer && (
                         <p className="text-xs text-amber-400 mt-2 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
-                          Deadline überschritten – 5 Min. Puffer läuft (±0 Punkte)
+                          {t('deadline_exceeded_buffer', lang)}
                         </p>
                       )}
                       {overBuffer && (
                         <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
-                          Puffer abgelaufen! (-20 Punkte)
+                          {t('deadline_buffer_expired', lang)}
                         </p>
                       )}
                       {!isOver && remaining < 300 && (
-                        <p className="text-xs text-amber-400 mt-2">Weniger als 5 Minuten!</p>
+                        <p className="text-xs text-amber-400 mt-2">{t('less_than_5_min', lang)}</p>
                       )}
                     </div>
                   );
@@ -1838,13 +1841,13 @@ export default function FlightTracker() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-2 bg-slate-900 rounded text-center">
-                  <p className="text-xs text-slate-400">Prozent</p>
+                  <p className="text-xs text-slate-400">{t('percent', lang)}</p>
                   <p className="text-lg font-mono font-bold text-amber-400">
                     {Math.round(flightData.fuel)}%
                   </p>
                 </div>
                 <div className="p-2 bg-slate-900 rounded text-center">
-                  <p className="text-xs text-slate-400">Verbleibend</p>
+                  <p className="text-xs text-slate-400">{t('remaining', lang)}</p>
                   <p className="text-lg font-mono font-bold text-amber-400">
                     {Math.round(flightData.fuelKg).toLocaleString()} kg
                   </p>
@@ -1853,7 +1856,7 @@ export default function FlightTracker() {
               {flightData.fuel < 3 && (
                 <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
                   <AlertTriangle className="w-4 h-4" />
-                  Treibstoff-Notstand!
+                  {t('fuel_emergency', lang)}
                 </div>
               )}
             </Card>
@@ -1863,7 +1866,7 @@ export default function FlightTracker() {
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Star className="w-5 h-5 text-amber-400" />
-                  Flug-Score
+                  {t('flight_score', lang)}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -1896,13 +1899,13 @@ export default function FlightTracker() {
                   </div>
                   {flightData.maintenanceCost > 0 && (
                     <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
-                      <span className="text-slate-400">Wartungskosten</span>
+                      <span className="text-slate-400">{t('maint_cost_label', lang)}</span>
                       <span className="text-red-400 font-mono">${Math.round(flightData.maintenanceCost).toLocaleString()}</span>
                     </div>
                   )}
                   {flightData.landingBonus > 0 && (
                     <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
-                      <span className="text-slate-400">Landequalitäts-Bonus</span>
+                      <span className="text-slate-400">{t('landing_bonus', lang)}</span>
                       <span className="text-emerald-400 font-mono">+${Math.round(flightData.landingBonus).toLocaleString()}</span>
                     </div>
                   )}
@@ -1910,66 +1913,66 @@ export default function FlightTracker() {
                   {/* Events */}
                   {Object.entries(flightData.events).some(([_, val]) => val === true) && (
                     <div className="pt-3 border-t border-slate-700">
-                      <p className="text-xs text-slate-500 mb-2">Vorfälle:</p>
+                      <p className="text-xs text-slate-500 mb-2">{t('incidents', lang)}:</p>
                       <div className="space-y-1">
                         {flightData.events.tailstrike === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Heckaufsetzer (-20 Punkte)
+                            {t('tailstrike', lang)} (-20)
                           </div>
                         )}
                         {flightData.events.stall === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Strömungsabriss (-50 Punkte)
+                            {t('stall', lang)} (-50)
                           </div>
                         )}
                         {flightData.events.overstress === true && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Strukturbelastung (-30 Punkte)
+                            {t('structural_stress', lang)} (-30)
                           </div>
                         )}
                         {flightData.events.overspeed === true && (
                          <div className="text-xs text-orange-400 flex items-center gap-1">
                            <AlertTriangle className="w-3 h-3" />
-                           Overspeed (-15 Punkte)
+                           {t('overspeed', lang)} (-15)
                          </div>
                         )}
                         {flightData.events.flaps_overspeed === true && (
                          <div className="text-xs text-orange-400 flex items-center gap-1">
                            <AlertTriangle className="w-3 h-3" />
-                           Klappen-Overspeed (-{settings?.flaps_overspeed_score_penalty || 15} Punkte)
+                           {t('flaps_overspeed', lang)} (-{settings?.flaps_overspeed_score_penalty || 15})
                          </div>
                         )}
                         {flightData.events.gear_up_landing === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Landung ohne Fahrwerk! (-35 Punkte, 15% Wartung)
+                            {t('gear_up_landing', lang)} (-35)
                           </div>
                         )}
                         {flightData.events.crash === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            CRASH ERKANNT! (-100 Punkte)
+                            {t('crash_detected', lang)} (-100)
                           </div>
                         )}
                         {flightData.events.harsh_controls === true && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Ruppige Steuerung
+                            {t('harsh_controls', lang)}
                           </div>
                         )}
                         {flightData.events.high_g_force === true && (
                           <div className="text-xs text-orange-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Hohe G-Kräfte (Wartung: {(flightData.maxGForce * 100).toFixed(1)}% Neuwert)
+                            {t('high_g_forces', lang)}
                           </div>
                         )}
                         {flightData.events.hard_landing === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            Harte Landung (Wartung: 1% Flugzeugwert)
+                            {t('hard_landing', lang)}
                           </div>
                         )}
                         </div>
@@ -1982,7 +1985,7 @@ export default function FlightTracker() {
             {/* Controls */}
             {flightPhase !== 'completed' && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">Flugsteuerung</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('flight_control', lang)}</h3>
                 
                 {flightPhase === 'preflight' && (
                   <div className="space-y-4">
@@ -1994,10 +1997,10 @@ export default function FlightTracker() {
                       className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
                     >
                       <PlaneTakeoff className="w-5 h-5 mr-2" />
-                      {startFlightMutation.isPending ? 'Starte...' : 'Flug starten'}
+                      {startFlightMutation.isPending ? t('starting', lang) : t('start_flight', lang)}
                     </Button>
                     <p className="text-sm text-slate-400 text-center">
-                      Klicke auf "Flug starten" und starte dann in X-Plane
+                      {t('click_start_then_xplane', lang)}
                     </p>
                   </div>
                 )}
@@ -2014,16 +2017,14 @@ export default function FlightTracker() {
                         </motion.div>
                       </div>
                       <div>
-                        <p className="font-medium text-amber-200 mb-1">Warte auf X-Plane...</p>
+                        <p className="font-medium text-amber-200 mb-1">{t('waiting_for_xplane', lang)}</p>
                         <p className="text-sm text-amber-300/70">
-                          Starte jetzt deinen Flug in X-Plane 12. Lade das richtige Flugzeug am Abflughafen 
-                          <span className="font-mono font-bold text-amber-200"> {contract?.departure_airport}</span> und 
-                          hebe ab. Der Flug wird automatisch erkannt, sobald du in der Luft bist.
+                          {t('start_in_xplane', lang)} <span className="font-mono font-bold text-amber-200">{contract?.departure_airport}</span>
                         </p>
                         {company?.xplane_connection_status !== 'connected' && (
                           <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
                             <AlertTriangle className="w-4 h-4" />
-                            X-Plane ist nicht verbunden. Stelle sicher, dass das Plugin aktiv ist.
+                            {t('xplane_not_connected', lang)}
                           </p>
                         )}
                       </div>
@@ -2034,13 +2035,13 @@ export default function FlightTracker() {
                 {flightPhase !== 'preflight' && (
                   <div className="space-y-4">
                     <p className="text-sm text-slate-400">
-                      {flightPhase === 'takeoff' && flightData.wasAirborne && "Steige auf Reiseflughöhe..."}
-                      {flightPhase === 'cruise' && "Flug wird von X-Plane gesteuert. Der Flug endet automatisch, wenn du parkst und die Parkbremse aktiviert ist."}
-                      {flightPhase === 'landing' && "Lande das Flugzeug und schalte die Parkbremse ein, um den Flug abzuschließen."}
+                      {flightPhase === 'takeoff' && flightData.wasAirborne && t('climbing_to_cruise', lang)}
+                      {flightPhase === 'cruise' && t('flight_controlled_xplane', lang)}
+                      {flightPhase === 'landing' && t('land_and_park', lang)}
                     </p>
                     <Button 
                       onClick={() => {
-                        if (confirm(`Flug stornieren? Stornierungsgebühr: $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) {
+                        if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) {
                           cancelFlightMutation.mutate();
                         }
                       }}
@@ -2048,7 +2049,7 @@ export default function FlightTracker() {
                       variant="destructive"
                       className="w-full"
                     >
-                      {cancelFlightMutation.isPending ? 'Storniere...' : 'Flug stornieren'}
+                      {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
                     </Button>
                   </div>
                 )}
@@ -2114,7 +2115,7 @@ export default function FlightTracker() {
                     disabled={completeFlightMutation.isPending}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
                   >
-                    {completeFlightMutation.isPending ? 'Speichere...' : 'Flug abschließen'}
+                    {completeFlightMutation.isPending ? t('saving', lang) : t('complete_flight', lang)}
                   </Button>
                 )}
 
@@ -2124,7 +2125,7 @@ export default function FlightTracker() {
                     onClick={() => navigate(createPageUrl("Dashboard"))}
                     className="w-full border-slate-600 text-white hover:bg-slate-700"
                   >
-                    Zurück zum Dashboard
+                    {t('back_to_dashboard', lang)}
                   </Button>
                 )}
               </>
@@ -2133,11 +2134,11 @@ export default function FlightTracker() {
               <Card className="p-6 bg-slate-800/50 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Star className="w-5 h-5 text-amber-400" />
-                  Passagier-Zufriedenheit
+                  {t('passenger_satisfaction', lang)}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Max G-Kraft bisher</span>
+                    <span className="text-slate-400">{t('max_g_so_far', lang)}</span>
                     <span className={`font-mono ${
                       flightData.maxGForce < 1.3 ? 'text-emerald-400' :
                       flightData.maxGForce < 1.8 ? 'text-amber-400' :
@@ -2147,8 +2148,7 @@ export default function FlightTracker() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-500">
-                    Halte die G-Kräfte unter 1.5 G für zufriedene Passagiere.
-                    Eine sanfte Landung unter 150 ft/min bringt Bonuspunkte!
+                    {t('keep_g_low', lang)}
                   </p>
                 </div>
               </Card>
@@ -2161,7 +2161,7 @@ export default function FlightTracker() {
                   <h3 className="text-sm font-semibold mb-3 flex items-center justify-between text-slate-400">
                     <span className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-blue-400" />
-                      X-Plane Rohdaten
+                      {t('xplane_raw_data', lang)}
                     </span>
                     {dataAge !== null && (
                       <span className={`text-xs font-mono px-2 py-0.5 rounded ${
