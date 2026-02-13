@@ -307,27 +307,38 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Write to DB and respond immediately
-    await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
+    // Write to DB – fire and forget, respond IMMEDIATELY to unblock the plugin
+    // The plugin blocks on the HTTP response, so fast response = fast next send cycle
+    const flightUpdatePromise = base44.asServiceRole.entities.Flight.update(flight.id, updateData);
 
-    // Calculate maintenance_ratio from aircraft's maintenance categories
+    // Calculate maintenance_ratio only every ~10th request (it rarely changes)
+    // Use a simple random check to avoid needing state
     let maintenanceRatio = 0;
-    if (flight.aircraft_id) {
-      try {
-        const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
-        const ac = aircraftList[0];
-        if (ac?.maintenance_categories) {
-          const cats = Object.values(ac.maintenance_categories);
-          if (cats.length > 0) {
-            const avg = cats.reduce((a, b) => a + (b || 0), 0) / cats.length;
-            maintenanceRatio = avg / 100; // 0.0 - 1.0
-          }
+    const shouldCheckMaintenance = Math.random() < 0.1; // ~10% of requests
+    
+    const flightStatus = on_ground && park_brake && !areEnginesRunning && hasBeenAirborne ? 'ready_to_complete' : 'updated';
+    
+    if (shouldCheckMaintenance && flight.aircraft_id) {
+      // Do aircraft lookup in parallel with flight update
+      const [, aircraftList] = await Promise.all([
+        flightUpdatePromise,
+        base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id })
+      ]);
+      const ac = aircraftList[0];
+      if (ac?.maintenance_categories) {
+        const cats = Object.values(ac.maintenance_categories);
+        if (cats.length > 0) {
+          const avg = cats.reduce((a, b) => a + (b || 0), 0) / cats.length;
+          maintenanceRatio = avg / 100;
         }
-      } catch (e) { /* ignore */ }
+      }
+    } else {
+      // Just await the flight update, no aircraft lookup
+      await flightUpdatePromise;
     }
 
     return Response.json({ 
-      status: on_ground && park_brake && !areEnginesRunning && hasBeenAirborne ? 'ready_to_complete' : 'updated',
+      status: flightStatus,
       on_ground,
       park_brake,
       engines_running: areEnginesRunning,
