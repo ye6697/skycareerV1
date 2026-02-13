@@ -400,43 +400,44 @@ export default function FlightTracker() {
   // This avoids the async state update delay problem
   const activeFlightId = flight?.id || existingFlight?.id;
 
-  // Live data - direct polling only (subscriptions add overhead and latency)
+  // Live data - real-time subscription for instant updates from backend
   const [xplaneLog, setXplaneLog] = useState(null);
-  const pollActiveRef = React.useRef(false);
   const lastXplaneTimestampRef = React.useRef(null);
   
+  // Initial fetch to get current flight data immediately
   useEffect(() => {
     if (flightPhase === 'completed') return;
     if (!activeFlightId) return;
     
-    let isMounted = true;
-    
-    const fetchData = async () => {
-      if (pollActiveRef.current || !isMounted) return;
-      pollActiveRef.current = true;
-      try {
-        const flights = await base44.entities.Flight.filter({ id: activeFlightId });
-        const currentFlight = flights[0];
-        if (currentFlight?.xplane_data && isMounted) {
-          // Only update state if data actually changed (skip redundant re-renders)
-          const ts = currentFlight.xplane_data.timestamp || currentFlight.updated_date;
-          if (ts !== lastXplaneTimestampRef.current) {
-            lastXplaneTimestampRef.current = ts;
-            setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
-          }
-        }
-      } catch (e) { /* ignore */ }
-      pollActiveRef.current = false;
+    const fetchInitial = async () => {
+      const flights = await base44.entities.Flight.filter({ id: activeFlightId });
+      const currentFlight = flights[0];
+      if (currentFlight?.xplane_data) {
+        const ts = currentFlight.xplane_data.timestamp || currentFlight.updated_date;
+        lastXplaneTimestampRef.current = ts;
+        setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
+      }
     };
+    fetchInitial();
+  }, [activeFlightId, flightPhase]);
+
+  // Real-time subscription – receives updates instantly when backend writes new xplane_data
+  useEffect(() => {
+    if (flightPhase === 'completed') return;
+    if (!activeFlightId) return;
     
-    fetchData();
-    // Poll rate: ARC mode 500ms (2Hz) – the iframe interpolates at 60fps via dead-reckoning.
-    // 2Hz is enough anchor points for smooth motion. Normal mode 1.5s.
-    const pollRate = viewMode === 'arc' ? 500 : 1500;
-    const interval = setInterval(fetchData, pollRate);
+    const unsubscribe = base44.entities.Flight.subscribe((event) => {
+      if (event.type === 'update' && event.id === activeFlightId && event.data?.xplane_data) {
+        const ts = event.data.xplane_data.timestamp || event.data.updated_date;
+        if (ts !== lastXplaneTimestampRef.current) {
+          lastXplaneTimestampRef.current = ts;
+          setXplaneLog({ raw_data: event.data.xplane_data, created_date: event.data.updated_date });
+        }
+      }
+    });
     
-    return () => { isMounted = false; clearInterval(interval); };
-  }, [activeFlightId, flightPhase, viewMode]);
+    return () => unsubscribe();
+  }, [activeFlightId, flightPhase]);
 
   // Restore flight data and phase from existing flight
   useEffect(() => {
