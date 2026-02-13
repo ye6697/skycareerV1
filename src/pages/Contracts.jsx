@@ -221,7 +221,6 @@ export default function Contracts() {
             </div>
           </div>
             </div>
-          </div>
         </motion.div>
 
         {/* Aircraft Selector */}
