@@ -175,7 +175,7 @@ function buildIframeHtml() {
   #arc-overlay canvas { width:100%; height:100%; }
 </style>
 </head><body>
-<div id="map-wrapper">
+<div id="map-container">
   <div id="map"></div>
 </div>
 <div id="hud-top" style="display:none;"></div>
