@@ -307,10 +307,14 @@ function makeIcon(bg, size, border, glow) {
 function makeAircraftIcon(hdg) {
   var rot = hdg||0;
   if (currentViewMode === 'arc') {
-    // ARC mode: NO rotation on the icon itself because the entire map is CSS-rotated by -heading.
-    // The icon should always point UP (north on the rotated map = forward).
+    // ARC mode: The map is CSS-rotated by -heading, so map-north points toward heading in viewport.
+    // The Leaflet icon is in MAP coordinates (not viewport), so the SVG pointing UP = north.
+    // After CSS rotation of -heading, north in viewport points toward heading direction.
+    // We want the aircraft to always point UP in the VIEWPORT (toward top of screen).
+    // So the icon needs to rotate by +heading to counter the map's -heading CSS rotation.
+    var arcRot = arcCurrent ? arcCurrent.hdg : (hdg || 0);
     return L.divIcon({
-      html: '<div style="display:flex;align-items:center;justify-content:center;width:120px;height:120px;filter:drop-shadow(0 0 18px rgba(34,211,238,0.8)) drop-shadow(0 0 40px rgba(34,211,238,0.35));"><svg width="108" height="108" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#67e8f9" stroke-width="1.5"/><circle cx="50" cy="20" r="4" fill="#a5f3fc"/></svg></div>',
+      html: '<div style="transform:rotate('+arcRot+'deg);display:flex;align-items:center;justify-content:center;width:120px;height:120px;filter:drop-shadow(0 0 18px rgba(34,211,238,0.8)) drop-shadow(0 0 40px rgba(34,211,238,0.35));"><svg width="108" height="108" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#67e8f9" stroke-width="1.5"/><circle cx="50" cy="20" r="4" fill="#a5f3fc"/></svg></div>',
       className: '', iconSize: [120, 120], iconAnchor: [60, 60]
     });
   }
