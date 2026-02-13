@@ -21,6 +21,54 @@ Deno.serve(async (req) => {
     
     const data = await req.json();
     
+    // --- FAST POSITION UPDATE: lightweight path for ~30Hz ARC mode data ---
+    // These packets only contain position/heading/altitude/speed and skip all DB writes.
+    // The frontend polls for these via the flight's xplane_data, but fast_position
+    // packets are returned directly to the plugin without touching the Flight entity.
+    if (data.fast_position) {
+      // Update company connection status if needed
+      if (company && company.xplane_connection_status !== 'connected') {
+        await base44.asServiceRole.entities.Company.update(company.id, { 
+          xplane_connection_status: 'connected' 
+        });
+      }
+      
+      // Get active flight to return status
+      const flights = await base44.asServiceRole.entities.Flight.filter({ 
+        company_id: company.id,
+        status: 'in_flight'
+      });
+      const flight = flights[0] || null;
+      
+      if (!flight) {
+        return Response.json({ 
+          message: 'fast_position - no active flight',
+          xplane_connection_status: 'connected'
+        });
+      }
+      
+      // Store only the fast position fields on the flight xplane_data
+      // We do a minimal update: only overwrite position fields, keep everything else
+      const existingXpData = flight.xplane_data || {};
+      const fastUpdate = {
+        xplane_data: {
+          ...existingXpData,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          heading: data.heading,
+          altitude: data.altitude,
+          speed: data.speed,
+          timestamp: new Date().toISOString()
+        }
+      };
+      await base44.asServiceRole.entities.Flight.update(flight.id, fastUpdate);
+      
+      return Response.json({ 
+        status: 'fast_ok',
+        xplane_connection_status: 'connected'
+      });
+    }
+    
     const altitude = data.altitude;
     const speed = data.speed;
     const vertical_speed = data.vertical_speed;
