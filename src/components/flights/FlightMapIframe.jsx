@@ -903,14 +903,13 @@ window.addEventListener('message', function(e) {
   if (e.data?.type === 'flightmap-resize') {
     var wasFullscreen = isFullscreen;
     isFullscreen = e.data.isFullscreen || false;
-    // Reset ARC projection cache so it recenters on the new viewport size
-    arcBaseLatLng = null;
+    arcLastSetViewPos = null;
     arcMapEl = null;
+    arcLastRotDeg = null;
     setTimeout(function(){ 
       map.invalidateSize();
-      // Force immediate recenter if in ARC mode
       if (currentViewMode === 'arc' && arcInitialized) {
-        arcBaseLatLng = null;
+        arcLastSetViewPos = null;
       }
     }, 150);
   }
