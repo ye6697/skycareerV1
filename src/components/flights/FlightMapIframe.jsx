@@ -710,8 +710,8 @@ function update(d) {
       arcCurrent.alt = fd.altitude || 0;
       arcCurrent.spd = fd.speed || 0;
       arcLastTargetTime = performance.now();
-      // Reset projection cache so first frame does a setView
-      arcBaseLatLng = null;
+      // Reset so first frame does a setView
+      arcLastSetViewPos = null;
       arcInitialized = true;
       parent.postMessage({ type: 'flightmap-viewmode', viewMode: 'arc' }, '*');
     }
