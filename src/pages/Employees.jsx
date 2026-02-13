@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 
 import EmployeeCard from "@/components/employees/EmployeeCard";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 const HIRE_OPTIONS = {
   captain: [
@@ -58,6 +60,7 @@ const HIRE_OPTIONS = {
 
 export default function Employees() {
   const queryClient = useQueryClient();
+  const { lang } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isHireDialogOpen, setIsHireDialogOpen] = useState(false);
@@ -164,10 +167,10 @@ export default function Employees() {
   });
 
   const roleLabels = {
-    captain: 'Kapitäne',
-    first_officer: 'Erste Offiziere',
-    flight_attendant: 'Flugbegleiter',
-    loadmaster: 'Lademeister'
+    captain: t('captains', lang),
+    first_officer: t('first_officers', lang),
+    flight_attendant: t('flight_attendants', lang),
+    loadmaster: t('loadmasters', lang)
   };
 
   const getEmployeeCount = (role) => {
@@ -185,14 +188,14 @@ export default function Employees() {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Mitarbeiter</h1>
-              <p className="text-slate-400">Verwalte dein Flugpersonal</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('employees_label', lang)}</h1>
+              <p className="text-slate-400">{t('manage_crew', lang)}</p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  placeholder="Mitarbeiter suchen..."
+                  placeholder={t('search_employees', lang)}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
@@ -202,32 +205,32 @@ export default function Employees() {
                 <DialogTrigger asChild>
                   <Button className="bg-blue-600 hover:bg-blue-700">
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Einstellen
+                    {t('hire', lang)}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
-                    <DialogTitle>Neuen Mitarbeiter einstellen</DialogTitle>
+                    <DialogTitle>{t('hire_new_employee', lang)}</DialogTitle>
                   </DialogHeader>
                   
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Position</Label>
+                      <Label>{t('position', lang)}</Label>
                       <Select value={selectedRole} onValueChange={setSelectedRole}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="captain">Kapitän</SelectItem>
-                          <SelectItem value="first_officer">Erster Offizier</SelectItem>
-                          <SelectItem value="flight_attendant">Flugbegleiter/in</SelectItem>
-                          <SelectItem value="loadmaster">Lademeister</SelectItem>
+                          <SelectItem value="captain">{t('captain', lang)}</SelectItem>
+                          <SelectItem value="first_officer">{t('first_officer', lang)}</SelectItem>
+                          <SelectItem value="flight_attendant">{t('flight_attendant', lang)}</SelectItem>
+                          <SelectItem value="loadmaster">{t('loadmaster', lang)}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-3">
-                      <Label>Verfügbare Kandidaten</Label>
+                      <Label>{t('available_candidates', lang)}</Label>
                       {HIRE_OPTIONS[selectedRole]?.map((candidate, index) => (
                         <Card 
                           key={index}
@@ -244,17 +247,17 @@ export default function Employees() {
                               <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
                                 <span className="flex items-center gap-1">
                                   <Star className="w-3 h-3" />
-                                  {candidate.experience === 'expert' ? 'Experte' :
-                                   candidate.experience === 'senior' ? 'Senior' :
-                                   candidate.experience === 'intermediate' ? 'Fortgeschritten' : 'Junior'}
+                                  {candidate.experience === 'expert' ? t('expert', lang) :
+                                   candidate.experience === 'senior' ? t('senior', lang) :
+                                   candidate.experience === 'intermediate' ? t('intermediate', lang) : t('junior', lang)}
                                 </span>
                                 <span>Skill: {candidate.skill}</span>
-                                <span>{candidate.hours}h Flugerfahrung</span>
+                                <span>{candidate.hours}h {t('flight_experience', lang)}</span>
                               </div>
                             </div>
                             <div className="text-right">
                               <p className="font-bold text-emerald-600">${candidate.salary}/Monat</p>
-                              <p className="text-xs text-slate-400">+ ${candidate.salary} Einstellungsbonus</p>
+                              <p className="text-xs text-slate-400">+ ${candidate.salary} {t('hiring_bonus', lang)}</p>
                             </div>
                           </div>
                         </Card>
@@ -263,7 +266,7 @@ export default function Employees() {
 
                     {company && (
                       <div className="p-3 bg-slate-50 rounded-lg flex items-center justify-between">
-                        <span className="text-sm text-slate-600">Dein Kontostand:</span>
+                        <span className="text-sm text-slate-600">{t('your_balance', lang)}:</span>
                         <span className="font-bold text-slate-900">${company.balance?.toLocaleString()}</span>
                       </div>
                     )}
@@ -271,14 +274,14 @@ export default function Employees() {
 
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsHireDialogOpen(false)}>
-                      Abbrechen
-                    </Button>
+                       {t('cancel', lang)}
+                     </Button>
                     <Button
                       onClick={() => hireMutation.mutate(selectedCandidate)}
                       disabled={!selectedCandidate || hireMutation.isPending}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
-                      {hireMutation.isPending ? 'Stelle ein...' : `Für $${selectedCandidate?.salary || 0} einstellen`}
+                      {hireMutation.isPending ? t('hiring', lang) : `${t('hire_for', lang)} $${selectedCandidate?.salary || 0}`}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -317,11 +320,11 @@ export default function Employees() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="bg-slate-800 border border-slate-700">
-            <TabsTrigger value="all">Alle</TabsTrigger>
-            <TabsTrigger value="captain">Kapitäne</TabsTrigger>
-            <TabsTrigger value="first_officer">Erste Offiziere</TabsTrigger>
-            <TabsTrigger value="flight_attendant">Flugbegleiter</TabsTrigger>
-            <TabsTrigger value="loadmaster">Lademeister</TabsTrigger>
+            <TabsTrigger value="all">{t('all', lang)}</TabsTrigger>
+            <TabsTrigger value="captain">{t('captains', lang)}</TabsTrigger>
+            <TabsTrigger value="first_officer">{t('first_officers', lang)}</TabsTrigger>
+            <TabsTrigger value="flight_attendant">{t('flight_attendants', lang)}</TabsTrigger>
+            <TabsTrigger value="loadmaster">{t('loadmasters', lang)}</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -347,11 +350,11 @@ export default function Employees() {
         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine Mitarbeiter gefunden</h3>
-            <p className="text-slate-400 mb-4">Stelle neue Mitarbeiter ein, um Flüge durchführen zu können</p>
+            <h3 className="text-xl font-semibold text-white mb-2">{t('no_employees_found', lang)}</h3>
+            <p className="text-slate-400 mb-4">{t('hire_to_fly', lang)}</p>
             <Button onClick={() => setIsHireDialogOpen(true)}>
               <UserPlus className="w-4 h-4 mr-2" />
-              Ersten Mitarbeiter einstellen
+              {t('hire_first_employee', lang)}
             </Button>
           </Card>
         )}

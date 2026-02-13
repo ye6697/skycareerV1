@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 const AIRCRAFT_MARKET_SPECS = [
   { name: "Piper PA-18 Super Cub", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 100, fuel_consumption_per_hour: 35, range_nm: 400, purchase_price: 180000, maintenance_cost_per_hour: 30, level_requirement: 1 },
@@ -63,6 +65,7 @@ const AIRCRAFT_MARKET_SPECS = [
 export default function Fleet() {
   const { state } = useLocation();
   const queryClient = useQueryClient();
+  const { lang } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
@@ -163,12 +166,12 @@ export default function Fleet() {
   });
 
   const typeLabels = {
-    small_prop: 'Propeller',
-    turboprop: 'Turboprop',
-    regional_jet: 'Regional',
-    narrow_body: 'Narrow-Body',
-    wide_body: 'Wide-Body',
-    cargo: 'Fracht'
+    small_prop: t('propeller', lang),
+    turboprop: t('turboprop', lang),
+    regional_jet: t('regional', lang),
+    narrow_body: t('narrow_body', lang),
+    wide_body: t('wide_body', lang),
+    cargo: t('cargo_type', lang)
   };
 
   const canAfford = (price) => (company?.balance || 0) >= price;
@@ -189,14 +192,14 @@ export default function Fleet() {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Flotte</h1>
-              <p className="text-slate-400">Verwalte und erweitere deine Flugzeugflotte</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('fleet', lang)}</h1>
+              <p className="text-slate-400">{t('manage_fleet_desc', lang)}</p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  placeholder="Flugzeug suchen..."
+                  placeholder={t('search_aircraft', lang)}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
@@ -206,13 +209,13 @@ export default function Fleet() {
                 <DialogTrigger asChild>
                   <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30">
                     <Plus className="w-4 h-4 mr-2" />
-                    Flugzeug kaufen
+                    {t('buy_aircraft', lang)}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700">
                    <DialogHeader>
-                     <DialogTitle className="text-xl font-semibold text-white">Flugzeugmarkt</DialogTitle>
-                     <p className="text-sm text-slate-400">Wähle dein nächstes Flugzeug</p>
+                     <DialogTitle className="text-xl font-semibold text-white">{t('aircraft_market', lang)}</DialogTitle>
+                     <p className="text-sm text-slate-400">{t('choose_next_aircraft', lang)}</p>
                    </DialogHeader>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -222,7 +225,7 @@ export default function Fleet() {
                         animate={{ opacity: 1, y: 0 }}
                         className="col-span-full p-4 bg-gradient-to-r from-emerald-900/30 to-emerald-800/30 border border-emerald-700/50 rounded-lg flex items-center justify-between sticky top-0 z-10"
                       >
-                        <span className="text-sm font-semibold text-emerald-300">💰 Verfügbares Budget:</span>
+                        <span className="text-sm font-semibold text-emerald-300">💰 {t('available_budget', lang)}:</span>
                         <span className="font-bold text-lg text-emerald-400">${company.balance?.toLocaleString()}</span>
                       </motion.div>
                     )}
@@ -273,34 +276,34 @@ export default function Fleet() {
                             </div>
                             <div className="grid grid-cols-2 gap-1.5 text-xs font-medium flex-grow">
                               <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Passagiere</p>
-                                <p className="text-white text-sm font-bold">{ac.passenger_capacity}</p>
-                              </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Fracht</p>
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('passengers', lang)}</p>
+                                 <p className="text-white text-sm font-bold">{ac.passenger_capacity}</p>
+                                </div>
+                                <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
+                                  <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('cargo', lang)}</p>
                                 <p className="text-white text-sm font-bold">{ac.cargo_capacity_kg?.toLocaleString()} kg</p>
                               </div>
                               <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Verbrauch</p>
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('consumption', lang)}</p>
                                 <p className="text-white text-sm font-bold">{ac.fuel_consumption_per_hour} L/h</p>
                               </div>
                               <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Reichweite</p>
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('range_label', lang)}</p>
                                 <p className="text-white text-sm font-bold">{ac.range_nm?.toLocaleString()} NM</p>
                               </div>
                             </div>
                             <div className="pt-2 border-t border-slate-700 space-y-2">
                               <div>
-                                <p className="text-xs text-slate-400">Kaufpreis</p>
+                                <p className="text-xs text-slate-400">{t('purchase_price', lang)}</p>
                                 <p className={`text-lg font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>
                                   ${(ac.purchase_price / 1000000).toFixed(1)}M
                                 </p>
                               </div>
                               {!hasLevel && (
-                                <p className="text-xs font-semibold text-amber-400 text-center">Level {ac.level_requirement} benötigt</p>
+                                <p className="text-xs font-semibold text-amber-400 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>
                               )}
                               {hasLevel && !hasBalance && (
-                                <p className="text-xs font-semibold text-red-400 text-center">Budget: ${(ac.purchase_price - (company?.balance || 0)).toLocaleString()}</p>
+                                <p className="text-xs font-semibold text-red-400 text-center">{t('budget_short', lang)}: ${(ac.purchase_price - (company?.balance || 0)).toLocaleString()}</p>
                               )}
                               <Button
                                 onClick={() => {
@@ -311,7 +314,7 @@ export default function Fleet() {
                                 size="sm"
                                 className={`w-full ${isPurchasable ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-600'}`}
                               >
-                                {purchaseMutation.isPending && selectedAircraft?.name === ac.name ? 'Kaufe...' : 'Kaufen'}
+                                {purchaseMutation.isPending && selectedAircraft?.name === ac.name ? t('buying', lang) : t('buy', lang)}
                               </Button>
                             </div>
                           </div>
@@ -326,7 +329,7 @@ export default function Fleet() {
                       onClick={() => setIsPurchaseDialogOpen(false)}
                       className="bg-white text-black hover:bg-gray-100"
                     >
-                      Schließen
+                      {t('close', lang)}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -338,7 +341,7 @@ export default function Fleet() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="bg-slate-800 border border-slate-700 flex-wrap h-auto p-1">
-            <TabsTrigger value="all">Alle</TabsTrigger>
+            <TabsTrigger value="all">{t('all', lang)}</TabsTrigger>
             {Object.entries(typeLabels).map(([type, label]) => (
               <TabsTrigger key={type} value={type}>{label}</TabsTrigger>
             ))}
@@ -363,11 +366,11 @@ export default function Fleet() {
         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine Flugzeuge</h3>
-            <p className="text-slate-400 mb-4">Kaufe dein erstes Flugzeug, um loszulegen</p>
+            <h3 className="text-xl font-semibold text-white mb-2">{t('no_aircraft', lang)}</h3>
+            <p className="text-slate-400 mb-4">{t('buy_first_aircraft', lang)}</p>
             <Button onClick={() => setIsPurchaseDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Flugzeug kaufen
+              {t('buy_aircraft', lang)}
             </Button>
           </Card>
         )}

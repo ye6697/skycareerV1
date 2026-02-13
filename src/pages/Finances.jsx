@@ -31,8 +31,11 @@ import {
 import StatCard from "@/components/dashboard/StatCard";
 import CreditInfoCard from "@/components/finance/CreditInfoCard";
 import LevelBonusInfo from "@/components/finance/LevelBonusInfo";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function Finances() {
+  const { lang } = useLanguage();
   
 
   const { data: currentUser } = useQuery({
@@ -117,13 +120,13 @@ export default function Finances() {
     }, {});
 
   const categoryLabels = {
-    fuel: 'Treibstoff',
-    salary: 'Gehälter',
-    maintenance: 'Wartung',
-    aircraft_purchase: 'Flugzeugkauf',
-    insurance: 'Versicherung',
-    airport_fees: 'Flughafengebühren',
-    other: 'Sonstiges'
+    fuel: t('fuel', lang),
+    salary: t('salaries', lang),
+    maintenance: t('maintenance', lang),
+    aircraft_purchase: t('aircraft_purchase', lang),
+    insurance: t('insurance', lang),
+    airport_fees: t('airport_fees', lang),
+    other: t('other', lang)
   };
 
   const categoryColors = {
@@ -172,34 +175,34 @@ export default function Finances() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Finanzen</h1>
-          <p className="text-slate-400">Übersicht deiner Einnahmen und Ausgaben</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('finances', lang)}</h1>
+          <p className="text-slate-400">{t('income_expenses_overview', lang)}</p>
         </motion.div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <StatCard
-            title="Kontostand"
+            title={t('balance', lang)}
             value={formatCurrency(company?.balance)}
             icon={Wallet}
             color="blue"
           />
           <StatCard
-            title="Gesamteinnahmen"
+            title={t('total_income', lang)}
             value={formatCurrency(totalIncome)}
             icon={TrendingUp}
             color="green"
           />
           <StatCard
-            title="Gesamtausgaben"
+            title={t('total_expenses', lang)}
             value={formatCurrency(totalExpenses)}
             icon={TrendingDown}
             color="red"
           />
           <StatCard
-            title="Monatl. Gehälter"
+            title={t('monthly_salaries', lang)}
             value={formatCurrency(monthlySalaries)}
-            subtitle={`${employees.length} Mitarbeiter`}
+            subtitle={`${employees.length} ${t('employees_label', lang)}`}
             icon={Users}
             color="purple"
           />
@@ -208,7 +211,7 @@ export default function Finances() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Chart */}
           <Card className="lg:col-span-2 p-6 bg-slate-800 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-6">Einnahmen vs. Ausgaben</h3>
+            <h3 className="text-lg font-semibold text-white mb-6">{t('income_vs_expenses', lang)}</h3>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={chartData}>
@@ -231,7 +234,7 @@ export default function Finances() {
                     stroke="#10b981" 
                     fill="#10b981" 
                     fillOpacity={0.3}
-                    name="Einnahmen"
+                    name={t('income', lang)}
                   />
                   <Area 
                     type="monotone" 
@@ -240,20 +243,20 @@ export default function Finances() {
                     stroke="#ef4444" 
                     fill="#ef4444" 
                     fillOpacity={0.3}
-                    name="Ausgaben"
+                    name={t('expenses', lang)}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-slate-500 text-sm">
-                Noch keine Transaktionsdaten vorhanden
+                {t('no_transaction_data', lang)}
               </div>
             )}
           </Card>
 
           {/* Expense Breakdown */}
           <Card className="p-6 bg-slate-800 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-6">Ausgabenverteilung</h3>
+            <h3 className="text-lg font-semibold text-white mb-6">{t('expense_breakdown', lang)}</h3>
             {pieData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={200}>
@@ -290,7 +293,7 @@ export default function Finances() {
               </>
             ) : (
               <div className="text-center text-slate-400 py-8">
-                Noch keine Ausgaben vorhanden
+                {t('no_expenses_yet', lang)}
               </div>
             )}
           </Card>
@@ -304,7 +307,7 @@ export default function Finances() {
 
         {/* Recent Transactions */}
         <Card className="p-6 bg-slate-800 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Letzte Transaktionen</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">{t('recent_transactions', lang)}</h3>
           {transactions.length > 0 ? (
             <div className="space-y-3">
               {transactions.slice(0, 10).map((transaction) => (
@@ -339,7 +342,7 @@ export default function Finances() {
             </div>
           ) : (
             <div className="text-center text-slate-400 py-8">
-              Noch keine Transaktionen vorhanden
+              {t('no_transactions_yet', lang)}
             </div>
           )}
         </Card>

@@ -13,20 +13,23 @@ import {
   ArrowRight,
   Star } from
 "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function ContractCard({ contract, onAccept, onView, isAccepting }) {
+  const { lang } = useLanguage();
   const typeConfig = {
-    passenger: { icon: Users, color: "blue", label: "Passagiere" },
-    cargo: { icon: Package, color: "orange", label: "Fracht" },
-    charter: { icon: Star, color: "purple", label: "Charter" },
-    emergency: { icon: Clock, color: "red", label: "Notfall" }
+    passenger: { icon: Users, color: "blue", label: t('passenger', lang) },
+    cargo: { icon: Package, color: "orange", label: t('cargo', lang) },
+    charter: { icon: Star, color: "purple", label: t('charter', lang) },
+    emergency: { icon: Clock, color: "red", label: t('emergency', lang) }
   };
 
   const difficultyConfig = {
-    easy: { color: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "Einfach" },
-    medium: { color: "bg-blue-100 text-blue-700 border-blue-200", label: "Mittel" },
-    hard: { color: "bg-orange-100 text-orange-700 border-orange-200", label: "Schwer" },
-    extreme: { color: "bg-red-100 text-red-700 border-red-200", label: "Extrem" }
+    easy: { color: "bg-emerald-100 text-emerald-700 border-emerald-200", label: t('easy', lang) },
+    medium: { color: "bg-blue-100 text-blue-700 border-blue-200", label: t('medium', lang) },
+    hard: { color: "bg-orange-100 text-orange-700 border-orange-200", label: t('hard', lang) },
+    extreme: { color: "bg-red-100 text-red-700 border-red-200", label: t('extreme', lang) }
   };
 
   const config = typeConfig[contract.type] || typeConfig.passenger;
@@ -72,15 +75,15 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             <Badge className={`${difficulty.color} border`}>{difficulty.label}</Badge>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
-            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-slate-900 rounded-lg">
-              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
-              <span className="text-slate-50 font-medium text-xs sm:text-sm">{contract.departure_airport}</span>
+          <div className="flex items-center gap-2 mb-4 text-sm">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
+              <MapPin className="w-4 h-4 text-slate-400" />
+              <span className="text-slate-50 font-medium">{contract.departure_airport}</span>
             </div>
-            <ArrowRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
-            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-slate-900 rounded-lg">
-              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
-              <span className="font-mono font-medium text-xs sm:text-sm">{contract.arrival_airport}</span>
+            <ArrowRight className="w-4 h-4 text-slate-400" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
+              <MapPin className="w-4 h-4 text-slate-400" />
+              <span className="font-mono font-medium">{contract.arrival_airport}</span>
             </div>
           </div>
 
@@ -92,7 +95,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             {contract.type === "passenger" &&
             <div className="flex items-center gap-2 text-slate-300">
                 <Users className="w-4 h-4 text-slate-400" />
-                <span>{contract.passenger_count} Passagiere</span>
+                <span>{contract.passenger_count} {t('passenger', lang)}</span>
               </div>
             }
             {contract.type === "cargo" &&
@@ -103,21 +106,21 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             }
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-slate-700 gap-2">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-slate-400">Vergütung</p>
-              <p className="text-lg sm:text-xl font-bold text-emerald-600">
+          <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+            <div>
+              <p className="text-sm text-slate-400">{t('payout', lang)}</p>
+              <p className="text-xl font-bold text-emerald-600">
                 ${contract.payout?.toLocaleString()}
               </p>
               {contract.bonus_potential > 0 &&
               <p className="text-xs text-amber-600">
-                  +${contract.bonus_potential?.toLocaleString()} Bonus möglich
+                  +${contract.bonus_potential?.toLocaleString()} {t('bonus_possible', lang)}
                 </p>
               }
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>
-                Details
+                {t('details', lang)}
               </Button>
               {contract.status === "available" &&
               <Button
@@ -126,7 +129,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                 onClick={() => onAccept?.(contract)}
                 disabled={isAccepting}>
 
-                  Annehmen
+                  {t('accept', lang)}
                 </Button>
               }
             </div>

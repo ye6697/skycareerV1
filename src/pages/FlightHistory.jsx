@@ -31,8 +31,11 @@ import {
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function FlightHistory() {
+  const { lang } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlight, setSelectedFlight] = useState(null);
 
@@ -130,8 +133,8 @@ export default function FlightHistory() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Flughistorie</h1>
-          <p className="text-slate-400">Übersicht aller abgeschlossenen Flüge</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('flight_history', lang)}</h1>
+          <p className="text-slate-400">{t('all_completed_overview', lang)}</p>
         </motion.div>
 
         {/* Stats */}
@@ -142,7 +145,7 @@ export default function FlightHistory() {
                 <Plane className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-slate-400 truncate">Flüge</p>
+                <p className="text-xs sm:text-sm text-slate-400 truncate">{t('flights', lang)}</p>
                 <p className="text-lg sm:text-2xl font-bold text-white">{flights.length}</p>
               </div>
             </div>
@@ -153,7 +156,7 @@ export default function FlightHistory() {
                 <Star className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-slate-400 truncate">Ø Bewertung</p>
+                <p className="text-xs sm:text-sm text-slate-400 truncate">{t('avg_rating', lang)}</p>
                 <p className="text-lg sm:text-2xl font-bold text-white">{avgRating.toFixed(1)}</p>
               </div>
             </div>
@@ -168,7 +171,7 @@ export default function FlightHistory() {
                 )}
               </div>
               <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-slate-400 truncate">Gewinn</p>
+                <p className="text-xs sm:text-sm text-slate-400 truncate">{t('profit', lang)}</p>
                 <p className={`text-lg sm:text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {formatCurrency(totalProfit)}
                 </p>
@@ -181,7 +184,7 @@ export default function FlightHistory() {
                 <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-slate-400 truncate">Ø/Flug</p>
+                <p className="text-xs sm:text-sm text-slate-400 truncate">{t('per_flight', lang)}</p>
                 <p className="text-lg sm:text-2xl font-bold text-white">
                   {formatCurrency(flights.length > 0 ? totalProfit / flights.length : 0)}
                 </p>
@@ -195,7 +198,7 @@ export default function FlightHistory() {
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder="Flug suchen..."
+              placeholder={t('search_flight', lang)}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-slate-800 text-white border-slate-700"
@@ -211,20 +214,20 @@ export default function FlightHistory() {
             {/* Board Header */}
             <div className="bg-[#111318] border-b border-slate-700/50 px-3 sm:px-5 py-3 flex items-center gap-3">
               <Plane className="w-4 h-4 text-amber-400" />
-              <span className="text-amber-400 font-mono text-xs sm:text-sm font-bold tracking-widest uppercase">Flughistorie – Abflüge</span>
+              <span className="text-amber-400 font-mono text-xs sm:text-sm font-bold tracking-widest uppercase">{t('flight_history', lang)} – {t('departures', lang)}</span>
             </div>
             {/* Column Headers */}
             <div className="grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[100px_1fr_100px_70px_65px_55px_55px_70px_60px_90px] gap-1 px-3 sm:px-5 py-2 bg-[#111318] border-b border-slate-700/50 text-[10px] sm:text-xs font-mono font-bold text-amber-400/70 uppercase tracking-wider">
-              <span>Datum</span>
-              <span>Route</span>
-              <span className="hidden sm:block">Flugzeug</span>
-              <span className="text-center hidden sm:block">Score</span>
-              <span className="text-center">Landung</span>
-              <span className="text-center hidden sm:block">Land-G</span>
-              <span className="text-center hidden sm:block">Max-G</span>
-              <span className="text-center hidden sm:block">Wartung</span>
-              <span className="text-center hidden sm:block">Deadline</span>
-              <span className="text-right">Gewinn</span>
+              <span>{t('date', lang)}</span>
+              <span>{t('route', lang)}</span>
+              <span className="hidden sm:block">{t('aircraft', lang)}</span>
+              <span className="text-center hidden sm:block">{t('score', lang)}</span>
+              <span className="text-center">{t('landing', lang)}</span>
+              <span className="text-center hidden sm:block">{t('landing_g', lang)}</span>
+              <span className="text-center hidden sm:block">{t('max_g', lang)}</span>
+              <span className="text-center hidden sm:block">{t('maintenance', lang)}</span>
+              <span className="text-center hidden sm:block">{t('deadline', lang)}</span>
+              <span className="text-right">{t('profit', lang)}</span>
             </div>
             {/* Rows */}
             <div className="divide-y divide-slate-800/80">
@@ -328,8 +331,8 @@ export default function FlightHistory() {
         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
             <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Keine Flüge</h3>
-            <p className="text-slate-400">Du hast noch keine Flüge abgeschlossen.</p>
+            <h3 className="text-xl font-semibold text-white mb-2">{t('no_flights', lang)}</h3>
+            <p className="text-slate-400">{t('no_flights_completed_yet', lang)}</p>
           </Card>
         )}
 
@@ -337,36 +340,36 @@ export default function FlightHistory() {
         <Dialog open={!!selectedFlight} onOpenChange={() => setSelectedFlight(null)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Flugdetails</DialogTitle>
+              <DialogTitle>{t('flight_details', lang)}</DialogTitle>
             </DialogHeader>
             {selectedFlight && (
               <div className="space-y-4">
                 <FlightRating flight={selectedFlight} />
                 
                 <Card className="p-4 bg-slate-800 border-slate-700">
-                  <h4 className="font-semibold mb-3 text-white">Finanzübersicht</h4>
+                  <h4 className="font-semibold mb-3 text-white">{t('financial_overview', lang)}</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between text-white">
-                      <span>Einnahmen</span>
+                      <span>{t('revenue', lang)}</span>
                       <span className="text-emerald-400 font-medium">
                         {formatCurrency(selectedFlight.revenue)}
                       </span>
                     </div>
                     <div className="flex justify-between text-white">
-                      <span>Treibstoffkosten</span>
+                      <span>{t('fuel_cost', lang)}</span>
                       <span className="text-red-400">-{formatCurrency(selectedFlight.fuel_cost)}</span>
                     </div>
                     <div className="flex justify-between text-white">
-                      <span>Crew-Kosten</span>
+                      <span>{t('crew_cost', lang)}</span>
                       <span className="text-red-400">-{formatCurrency(selectedFlight.crew_cost)}</span>
                     </div>
                     <div className="flex justify-between text-white">
-                      <span>Wartungskosten</span>
+                      <span>{t('maintenance_cost', lang)}</span>
                       <span className="text-red-400">-{formatCurrency(selectedFlight.maintenance_cost)}</span>
                     </div>
                     <hr className="border-slate-600" />
                     <div className="flex justify-between font-bold text-white">
-                      <span>Gewinn</span>
+                      <span>{t('profit', lang)}</span>
                       <span className={selectedFlight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                         {formatCurrency(selectedFlight.profit)}
                       </span>
