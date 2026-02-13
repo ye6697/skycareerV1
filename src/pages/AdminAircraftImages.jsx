@@ -30,32 +30,33 @@ export default function AdminAircraftImages() {
     { name: "Cessna 172 Skyhawk", type: "small_prop", level_requirement: 1 },
     { name: "Beechcraft Baron 58", type: "small_prop", level_requirement: 1 },
     { name: "Cirrus SR22", type: "small_prop", level_requirement: 1 },
-    { name: "Piper PA-28 Cherokee", type: "small_prop", level_requirement: 1 },
-    { name: "Piper PA-44 Seminole", type: "small_prop", level_requirement: 2 },
+
+
     { name: "Lancair Evolution", type: "turboprop", level_requirement: 2 },
-    { name: "Socata Tobago", type: "small_prop", level_requirement: 2 },
+
     { name: "Cirrus Vision SF50", type: "regional_jet", level_requirement: 2 },
-    { name: "Piper PA-46 Malibu", type: "turboprop", level_requirement: 3 },
+
     { name: "Beechcraft King Air C90B", type: "turboprop", level_requirement: 3 },
-    { name: "Cessna Caravan", type: "turboprop", level_requirement: 4 },
+
     { name: "Cessna Citation X", type: "regional_jet", level_requirement: 6 },
-    { name: "Beechcraft King Air 350", type: "turboprop", level_requirement: 8 },
+
     { name: "Bombardier Dash 8-100", type: "turboprop", level_requirement: 9 },
-    { name: "Bombardier Q400", type: "turboprop", level_requirement: 10 },
+
     { name: "ATR 72F", type: "cargo", level_requirement: 10 },
     { name: "Bombardier CRJ-200", type: "regional_jet", level_requirement: 11 },
-    { name: "Embraer E170", type: "regional_jet", level_requirement: 12 },
+
     { name: "Embraer E175", type: "regional_jet", level_requirement: 13 },
     { name: "Airbus A220", type: "regional_jet", level_requirement: 14 },
     { name: "Airbus A318", type: "narrow_body", level_requirement: 15 },
     { name: "Airbus A319", type: "narrow_body", level_requirement: 16 },
-    { name: "Boeing 737-700", type: "narrow_body", level_requirement: 16 },
+    { name: "Boeing 737-800", type: "narrow_body", level_requirement: 16 },
     { name: "Airbus A320neo", type: "narrow_body", level_requirement: 17 },
     { name: "Boeing 737 MAX 8", type: "narrow_body", level_requirement: 18 },
     { name: "Boeing 787-8", type: "narrow_body", level_requirement: 20 },
     { name: "Airbus A300", type: "wide_body", level_requirement: 21 },
     { name: "Airbus A330-200F", type: "cargo", level_requirement: 22 },
-    { name: "Airbus A330-200", type: "wide_body", level_requirement: 23 },
+    { name: "Airbus A330-300", type: "wide_body", level_requirement: 23 },
+    { name: "Airbus A330-300", type: "wide_body", level_requirement: 23 },
     { name: "Boeing 777-200ER", type: "wide_body", level_requirement: 25 },
     { name: "Boeing 777-300ER", type: "wide_body", level_requirement: 26 },
     { name: "Airbus A350-900", type: "wide_body", level_requirement: 27 },

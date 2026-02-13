@@ -32,31 +32,31 @@ const AIRCRAFT_MARKET_SPECS = [
   { name: "Cessna 172 Skyhawk", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 100, fuel_consumption_per_hour: 45, range_nm: 640, purchase_price: 425000, maintenance_cost_per_hour: 25, level_requirement: 1 },
   { name: "Beechcraft Baron 58", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 340, fuel_consumption_per_hour: 130, range_nm: 1480, purchase_price: 450000, maintenance_cost_per_hour: 80, level_requirement: 1 },
   { name: "Cirrus SR22", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 180, fuel_consumption_per_hour: 60, range_nm: 1050, purchase_price: 650000, maintenance_cost_per_hour: 50, level_requirement: 1 },
-  { name: "Piper PA-28 Cherokee", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 120, fuel_consumption_per_hour: 50, range_nm: 700, purchase_price: 650000, maintenance_cost_per_hour: 30, level_requirement: 1 },
-  { name: "Piper PA-44 Seminole", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 150, fuel_consumption_per_hour: 55, range_nm: 750, purchase_price: 750000, maintenance_cost_per_hour: 35, level_requirement: 2 },
+
+
   { name: "Lancair Evolution", type: "turboprop", passenger_capacity: 3, cargo_capacity_kg: 200, fuel_consumption_per_hour: 120, range_nm: 1400, purchase_price: 800000, maintenance_cost_per_hour: 100, level_requirement: 2 },
-  { name: "Socata Tobago", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 140, fuel_consumption_per_hour: 52, range_nm: 720, purchase_price: 700000, maintenance_cost_per_hour: 32, level_requirement: 2 },
+
   { name: "Cirrus Vision SF50", type: "regional_jet", passenger_capacity: 4, cargo_capacity_kg: 225, fuel_consumption_per_hour: 200, range_nm: 1200, purchase_price: 2900000, maintenance_cost_per_hour: 300, level_requirement: 2 },
-  { name: "Piper PA-46 Malibu", type: "turboprop", passenger_capacity: 6, cargo_capacity_kg: 300, fuel_consumption_per_hour: 150, range_nm: 1500, purchase_price: 1200000, maintenance_cost_per_hour: 85, level_requirement: 3 },
+
   { name: "Beechcraft King Air C90B", type: "turboprop", passenger_capacity: 7, cargo_capacity_kg: 600, fuel_consumption_per_hour: 250, range_nm: 1260, purchase_price: 1800000, maintenance_cost_per_hour: 250, level_requirement: 3 },
-  { name: "Cessna Caravan", type: "turboprop", passenger_capacity: 14, cargo_capacity_kg: 1500, fuel_consumption_per_hour: 280, range_nm: 1200, purchase_price: 1900000, maintenance_cost_per_hour: 90, level_requirement: 4 },
-  { name: "Beechcraft King Air 350", type: "turboprop", passenger_capacity: 8, cargo_capacity_kg: 350, fuel_consumption_per_hour: 350, range_nm: 1800, purchase_price: 18000000, maintenance_cost_per_hour: 120, level_requirement: 8 },
+
+
   { name: "ATR 72F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 6000, fuel_consumption_per_hour: 350, range_nm: 2400, purchase_price: 28000000, maintenance_cost_per_hour: 600, level_requirement: 10 },
   { name: "Bombardier Dash 8-100", type: "turboprop", passenger_capacity: 50, cargo_capacity_kg: 2000, fuel_consumption_per_hour: 600, range_nm: 1550, purchase_price: 25000000, maintenance_cost_per_hour: 200, level_requirement: 9 },
-  { name: "Bombardier Q400", type: "turboprop", passenger_capacity: 78, cargo_capacity_kg: 2700, fuel_consumption_per_hour: 850, range_nm: 1700, purchase_price: 30000000, maintenance_cost_per_hour: 280, level_requirement: 10 },
+
   { name: "Bombardier CRJ-200", type: "regional_jet", passenger_capacity: 50, cargo_capacity_kg: 1500, fuel_consumption_per_hour: 1600, range_nm: 2000, purchase_price: 35000000, maintenance_cost_per_hour: 350, level_requirement: 11 },
-  { name: "Embraer E170", type: "regional_jet", passenger_capacity: 70, cargo_capacity_kg: 1850, fuel_consumption_per_hour: 2200, range_nm: 2100, purchase_price: 45000000, maintenance_cost_per_hour: 420, level_requirement: 12 },
+
   { name: "Embraer E175", type: "regional_jet", passenger_capacity: 76, cargo_capacity_kg: 2000, fuel_consumption_per_hour: 2400, range_nm: 2200, purchase_price: 50000000, maintenance_cost_per_hour: 450, level_requirement: 13 },
   { name: "Airbus A220", type: "regional_jet", passenger_capacity: 130, cargo_capacity_kg: 3400, fuel_consumption_per_hour: 2800, range_nm: 2800, purchase_price: 65000000, maintenance_cost_per_hour: 650, level_requirement: 14 },
   { name: "Airbus A318", type: "narrow_body", passenger_capacity: 108, cargo_capacity_kg: 3200, fuel_consumption_per_hour: 2200, range_nm: 3100, purchase_price: 75000000, maintenance_cost_per_hour: 800, level_requirement: 15 },
-  { name: "Boeing 737-700", type: "narrow_body", passenger_capacity: 155, cargo_capacity_kg: 4700, fuel_consumption_per_hour: 3000, range_nm: 3300, purchase_price: 95000000, maintenance_cost_per_hour: 1050, level_requirement: 16 },
+  { name: "Boeing 737-800", type: "narrow_body", passenger_capacity: 189, cargo_capacity_kg: 5200, fuel_consumption_per_hour: 3200, range_nm: 3195, purchase_price: 98000000, maintenance_cost_per_hour: 1100, level_requirement: 16 },
   { name: "Airbus A319", type: "narrow_body", passenger_capacity: 140, cargo_capacity_kg: 3850, fuel_consumption_per_hour: 2600, range_nm: 3300, purchase_price: 85000000, maintenance_cost_per_hour: 950, level_requirement: 16 },
   { name: "Airbus A320neo", type: "narrow_body", passenger_capacity: 180, cargo_capacity_kg: 5000, fuel_consumption_per_hour: 3200, range_nm: 3500, purchase_price: 100000000, maintenance_cost_per_hour: 1200, level_requirement: 17 },
   { name: "Boeing 737 MAX 8", type: "narrow_body", passenger_capacity: 210, cargo_capacity_kg: 5300, fuel_consumption_per_hour: 3500, range_nm: 3500, purchase_price: 105000000, maintenance_cost_per_hour: 1350, level_requirement: 18 },
   { name: "Boeing 787-8", type: "narrow_body", passenger_capacity: 242, cargo_capacity_kg: 4500, fuel_consumption_per_hour: 3800, range_nm: 5000, purchase_price: 140000000, maintenance_cost_per_hour: 1600, level_requirement: 20 },
   { name: "Airbus A300", type: "wide_body", passenger_capacity: 266, cargo_capacity_kg: 11000, fuel_consumption_per_hour: 6500, range_nm: 4800, purchase_price: 150000000, maintenance_cost_per_hour: 2400, level_requirement: 21 },
   { name: "Airbus A330-200F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 70000, fuel_consumption_per_hour: 7000, range_nm: 5550, purchase_price: 185000000, maintenance_cost_per_hour: 2600, level_requirement: 22 },
-  { name: "Airbus A330-200", type: "wide_body", passenger_capacity: 295, cargo_capacity_kg: 13600, fuel_consumption_per_hour: 7200, range_nm: 5650, purchase_price: 200000000, maintenance_cost_per_hour: 2800, level_requirement: 23 },
+  { name: "Airbus A330-300", type: "wide_body", passenger_capacity: 440, cargo_capacity_kg: 15200, fuel_consumption_per_hour: 7500, range_nm: 6350, purchase_price: 220000000, maintenance_cost_per_hour: 3000, level_requirement: 23 },
   { name: "Boeing 777-200ER", type: "wide_body", passenger_capacity: 350, cargo_capacity_kg: 20000, fuel_consumption_per_hour: 9200, range_nm: 7065, purchase_price: 260000000, maintenance_cost_per_hour: 3200, level_requirement: 25 },
   { name: "Boeing 777-300ER", type: "wide_body", passenger_capacity: 396, cargo_capacity_kg: 22000, fuel_consumption_per_hour: 10000, range_nm: 7370, purchase_price: 285000000, maintenance_cost_per_hour: 3500, level_requirement: 26 },
   { name: "Airbus A350-900", type: "wide_body", passenger_capacity: 325, cargo_capacity_kg: 16600, fuel_consumption_per_hour: 8200, range_nm: 8000, purchase_price: 300000000, maintenance_cost_per_hour: 3800, level_requirement: 27 },
