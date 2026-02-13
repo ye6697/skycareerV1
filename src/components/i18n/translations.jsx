@@ -611,6 +611,31 @@ const translations = {
 
   // === EMPLOYEES HIRE DIALOG ===
   per_month: { en: "/month", de: "/Monat" },
+
+  // === SIMBRIEF ===
+  simbrief_flight_plan: { en: "SimBrief Flight Plan", de: "SimBrief Flugplan" },
+  loaded: { en: "Loaded", de: "Geladen" },
+  waiting_for_plan: { en: "Waiting for plan...", de: "Warte auf Plan..." },
+  enter_simbrief_creds: { en: "Please enter SimBrief Username or Pilot ID", de: "Bitte SimBrief Username oder Pilot ID eingeben" },
+  loading_flight_plan: { en: "Loading flight plan...", de: "Lade Flugplan..." },
+  connect_simbrief: { en: "Connect", de: "Verbinden" },
+  plan_mismatch: { en: "Your last SimBrief plan doesn't match this contract", de: "Dein letzter SimBrief-Plan passt nicht zu diesem Auftrag" },
+  no_matching_plan: { en: "No matching flight plan found.", de: "Kein passender Flugplan gefunden." },
+  create_new_plan_hint: { en: "Create a new flight plan – the route will be pre-filled automatically.", de: "Erstelle einen neuen Flugplan – die Route wird automatisch vorausgefüllt." },
+  create_plan_simbrief: { en: "Create Flight Plan on SimBrief", de: "Flugplan auf SimBrief erstellen" },
+  waiting_new_plan: { en: "Waiting for new flight plan...", de: "Warte auf neuen Flugplan..." },
+  simbrief_opened: { en: "SimBrief has been opened. Create the flight plan there and click \"Generate OFP\". The plan will be loaded here automatically.", de: "SimBrief wurde geöffnet. Erstelle dort den Flugplan und klicke auf \"Generate OFP\". Der Plan wird automatisch hier geladen." },
+  reload_manually: { en: "Reload manually", de: "Manuell neu laden" },
+  create_new_plan: { en: "Create new flight plan", de: "Neuen Flugplan erstellen" },
+
+  // === PERF CALCULATOR ===
+  perf_calculator: { en: "PERF CALCULATOR", de: "PERF KALKULATOR" },
+  autofill_xplane: { en: "AUTOFILL FROM X-PLANE", de: "AUTOFILL VON X-PLANE" },
+  autofill_again: { en: "AUTOFILL FROM X-PLANE AGAIN", de: "ERNEUT AUTOFILL VON X-PLANE" },
+
+  // === LIVE MAP ===
+  flight_route: { en: "Flight Route", de: "Flugroute" },
+  live_map: { en: "Live Map", de: "Live-Karte" },
 };
 
 export function t(key, lang) {

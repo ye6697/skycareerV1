@@ -88,7 +88,7 @@ export default function FlightMapIframe({
       <div className="p-3 pb-0 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Navigation className="w-4 h-4 text-blue-400" />
-          <h3 className="text-sm font-semibold text-white">{title || (staticMode ? 'Flugroute' : 'Live-Karte')}</h3>
+          <h3 className="text-sm font-semibold text-white">{title || (staticMode ? 'Flight Route' : 'Live Map')}</h3>
         </div>
         <div className="flex items-center gap-2">
           {contract && (
@@ -138,7 +138,7 @@ export default function FlightMapIframe({
       </div>
 
       {!staticMode && viewMode !== 'arc' && (
-        <div className="px-3 py-2 bg-slate-900/90 font-mono space-y-1.5">
+        <div className={`px-3 py-2 bg-slate-900/90 font-mono space-y-1.5 ${isFullscreen ? 'fixed bottom-0 left-0 right-0 z-[10000]' : ''}`}>
           <div className="flex items-center justify-between text-sm">
             <span className="text-cyan-400 font-semibold">HDG <span className="text-white">{String(Math.round(fd.heading || 0)).padStart(3, '0')}°</span></span>
             <span className="text-emerald-400 font-semibold">ALT <span className="text-white">{Math.round(fd.altitude || 0).toLocaleString()}</span> <span className="text-slate-500 text-xs">ft</span></span>

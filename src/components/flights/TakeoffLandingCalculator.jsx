@@ -166,7 +166,11 @@ function StatusBar({ adequate, margin, marginPct, type }) {
 }
 
 
+import { useLanguage } from "@/components/LanguageContext";
+import { t as tr } from "@/components/i18n/translations";
+
 export default function TakeoffLandingCalculator({ aircraft, contract, xplaneData, simbriefData }) {
+  const { lang } = useLanguage();
   const [tab, setTab] = useState('takeoff');
   const [profile, setProfile] = useState(FALLBACK_PROFILE);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -427,7 +431,7 @@ Return these fields:
       <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-[11px] font-bold text-cyan-400 tracking-widest">PERF CALCULATOR</span>
+          <span className="text-[11px] font-bold text-cyan-400 tracking-widest">{tr('perf_calculator', lang)}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {profileLoading && (
@@ -468,7 +472,7 @@ Return these fields:
             className="w-full bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 text-[11px] font-bold tracking-wider h-8"
           >
             <Download className="w-3.5 h-3.5 mr-1.5" />
-            {autoFilled ? 'ERNEUT AUTOFILL VON X-PLANE' : 'AUTOFILL VON X-PLANE'}
+            {autoFilled ? tr('autofill_again', lang) : tr('autofill_xplane', lang)}
           </Button>
         </div>
       )}

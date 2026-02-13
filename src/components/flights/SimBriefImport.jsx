@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Download, Copy, Check, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function SimBriefImport({ onRouteLoaded, contract }) {
+  const { lang } = useLanguage();
   const [username, setUsername] = useState('');
   const [pilotId, setPilotId] = useState('');
   const [error, setError] = useState(null);
@@ -106,7 +109,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
 
   const fetchPlan = async () => {
     if (!username && !pilotId) {
-      setError('Bitte SimBrief Username oder Pilot ID eingeben');
+      setError(t('enter_simbrief_creds', lang));
       return;
     }
 
@@ -185,17 +188,17 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold flex items-center gap-2 text-white">
           <img src="https://www.simbrief.com/images/simbrief_logo.png" alt="SimBrief" className="w-4 h-4 rounded" onError={(e) => e.target.style.display='none'} />
-          SimBrief Flugplan
+          {t('simbrief_flight_plan', lang)}
         </h3>
         {importedData && (
           <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
-            Geladen
+            {t('loaded', lang)}
           </Badge>
         )}
         {waitingForPlan && (
           <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs flex items-center gap-1">
             <Loader2 className="w-3 h-3 animate-spin" />
-            Warte auf Plan...
+            {t('waiting_for_plan', lang)}
           </Badge>
         )}
       </div>
@@ -232,7 +235,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700"
           >
             {loading ? (
-              <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Lade Flugplan...</>
+              <><Loader2 className="w-3 h-3 animate-spin mr-1" /> {t('loading_flight_plan', lang)}</>
             ) : (
               <><Download className="w-3 h-3 mr-1" /> Verbinden</>
             )}
@@ -244,7 +247,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
       {hasCredentials && !importedData && loading && !mismatch && !error && (
         <div className="flex items-center justify-center gap-2 py-4 text-slate-400 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Lade Flugplan...
+          {t('loading_flight_plan', lang)}
         </div>
       )}
 
@@ -257,12 +260,12 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
               <div>
                 <p className="text-xs text-amber-300 font-medium mb-1">
                   {mismatch 
-                    ? `Dein letzter SimBrief-Plan passt nicht zu diesem Auftrag (${contract?.departure_airport} → ${contract?.arrival_airport}).`
-                    : `Kein passender Flugplan gefunden.`
+                    ? `${t('plan_mismatch', lang)} (${contract?.departure_airport} → ${contract?.arrival_airport}).`
+                    : t('no_matching_plan', lang)
                   }
                 </p>
                 <p className="text-[10px] text-amber-300/70">
-                  Erstelle einen neuen Flugplan – die Route wird automatisch vorausgefüllt.
+                  {t('create_new_plan_hint', lang)}
                 </p>
               </div>
             </div>
@@ -274,16 +277,15 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             className="w-full h-9 text-xs bg-blue-600 hover:bg-blue-700 gap-2"
           >
             {waitingForPlan ? (
-              <><Loader2 className="w-3 h-3 animate-spin" /> Warte auf neuen Flugplan...</>
+              <><Loader2 className="w-3 h-3 animate-spin" /> {t('waiting_new_plan', lang)}</>
             ) : (
-              <><ExternalLink className="w-3 h-3" /> Flugplan auf SimBrief erstellen</>
+              <><ExternalLink className="w-3 h-3" /> {t('create_plan_simbrief', lang)}</>
             )}
           </Button>
 
           {waitingForPlan && (
             <p className="text-[10px] text-blue-400 text-center">
-              SimBrief wurde geöffnet. Erstelle dort den Flugplan und klicke auf "Generate OFP". 
-              Der Plan wird automatisch hier geladen.
+              {t('simbrief_opened', lang)}
             </p>
           )}
 
@@ -292,7 +294,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             variant="outline"
             className="w-full h-7 text-xs border-slate-600"
           >
-            <RefreshCw className="w-3 h-3 mr-1" /> Manuell neu laden
+            <RefreshCw className="w-3 h-3 mr-1" /> {t('reload_manually', lang)}
           </Button>
         </div>
       )}
@@ -352,7 +354,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             variant="outline"
             className="w-full h-7 text-xs border-slate-600"
           >
-            <RefreshCw className="w-3 h-3 mr-1" /> Neuen Flugplan erstellen
+            <RefreshCw className="w-3 h-3 mr-1" /> {t('create_new_plan', lang)}
           </Button>
         </div>
       )}

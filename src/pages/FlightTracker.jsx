@@ -1870,7 +1870,7 @@ export default function FlightTracker() {
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Score</span>
+                    <span className="text-slate-400">{t('score', lang)}</span>
                     <span className={`text-2xl font-bold ${
                       flightData.flightScore >= 95 ? 'text-emerald-400' :
                       flightData.flightScore >= 85 ? 'text-green-400' :
@@ -1882,7 +1882,7 @@ export default function FlightTracker() {
                   </div>
                   <Progress value={flightData.flightScore} className="h-2 bg-slate-700" />
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Status</span>
+                    <span className="text-slate-400">{t('status', lang)}</span>
                     <Badge className={`${
                       flightData.flightScore >= 95 ? 'bg-emerald-500/20 text-emerald-400' :
                       flightData.flightScore >= 85 ? 'bg-green-500/20 text-green-400' :
@@ -1890,11 +1890,11 @@ export default function FlightTracker() {
                       flightData.flightScore >= 50 ? 'bg-orange-500/20 text-orange-400' :
                       'bg-red-500/20 text-red-400'
                     }`}>
-                      {flightData.flightScore >= 95 ? 'EXCELLENT' :
-                       flightData.flightScore >= 85 ? 'VERY GOOD' :
-                       flightData.flightScore >= 70 ? 'ACCEPTABLE' :
-                       flightData.flightScore >= 50 ? 'POOR' :
-                       'CRITICAL'}
+                      {flightData.flightScore >= 95 ? t('excellent_rating', lang) :
+                      flightData.flightScore >= 85 ? t('very_good_rating', lang) :
+                      flightData.flightScore >= 70 ? t('acceptable_rating', lang) :
+                      flightData.flightScore >= 50 ? t('poor_rating', lang) :
+                      t('poor_rating', lang)}
                     </Badge>
                   </div>
                   {flightData.maintenanceCost > 0 && (
