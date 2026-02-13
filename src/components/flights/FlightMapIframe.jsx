@@ -753,8 +753,6 @@ function update(d) {
       arcCurrent.lat = curPos[0]; arcCurrent.lon = curPos[1];
       arcCurrent.hdg = fd.heading || 0; arcCurrent.alt = fd.altitude || 0;
       arcCurrent.spd = fd.speed || 0;
-      arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 };
-      arcCorrectionRemaining = 0;
       arcBaseLatLng = null;
       arcInitialized = true;
     }
