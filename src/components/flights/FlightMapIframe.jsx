@@ -793,6 +793,7 @@ function angleDiff(a, b) {
 var arcMapEl = null;
 var arcLastMarkerUpdate = 0;
 var arcLastRecenter = 0;
+var arcLastRotDeg = null;
 
 function arcSmoothTick(now) {
   if (currentViewMode !== 'arc' || !arcInitialized) {
@@ -811,8 +812,8 @@ function arcSmoothTick(now) {
   var frozen = dataAge > ARC_DATA_TIMEOUT;
   
   if (!frozen) {
-    // Simple smooth lerp toward target – no dead-reckoning, no velocity
-    var lerpSpeed = 4;
+    // Simple smooth lerp toward target
+    var lerpSpeed = 3;
     var t = Math.min(1, dt * lerpSpeed);
     arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
     arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
@@ -821,19 +822,21 @@ function arcSmoothTick(now) {
     arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * t;
   }
   
-  // Normalize heading to 0-360
   arcCurrent.hdg = ((arcCurrent.hdg % 360) + 360) % 360;
   
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
-  // Recenter map at ~5fps (every 200ms) to keep aircraft centered, not every frame
-  if (!frozen && (now - arcLastRecenter > 200)) {
+  // Recenter map – only every 500ms AND only if position moved enough
+  if (!frozen && (now - arcLastRecenter > 500)) {
     arcLastRecenter = now;
+    // Temporarily remove rotation so setView isn't fighting with CSS transform
+    if (!arcMapEl) arcMapEl = document.getElementById('map');
+    arcMapEl.style.transform = 'none';
     centerAircraftArc(curPos);
   }
   
-  // Update Leaflet marker at ~10fps – always set to REAL interpolated position
-  if (layers.aircraft && (now - arcLastMarkerUpdate > 100)) {
+  // Update Leaflet marker at ~5fps
+  if (layers.aircraft && (now - arcLastMarkerUpdate > 200)) {
     arcLastMarkerUpdate = now;
     layers.aircraft.setLatLng(curPos);
     var hdgRounded = Math.round(arcCurrent.hdg);
@@ -849,15 +852,15 @@ function arcSmoothTick(now) {
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // --- CSS transform: only rotation, no translate ---
+  // --- CSS rotation only, around the center of the 300% map element ---
   if (!arcMapEl) arcMapEl = document.getElementById('map');
-  // Rotate around aircraft's pixel position
-  var acPx = map.latLngToContainerPoint(L.latLng(curPos[0], curPos[1]));
-  var mapSize = map.getSize();
-  var ox = (acPx.x / mapSize.x) * 100;
-  var oy = (acPx.y / mapSize.y) * 100;
-  arcMapEl.style.transformOrigin = ox + '% ' + oy + '%';
-  arcMapEl.style.transform = 'rotate(' + (-arcCurrent.hdg) + 'deg)';
+  var rotDeg = -arcCurrent.hdg;
+  // Only update transform if heading changed by >= 0.5 degrees to reduce repaints
+  if (arcLastRotDeg === null || Math.abs(rotDeg - arcLastRotDeg) >= 0.5) {
+    arcLastRotDeg = rotDeg;
+    arcMapEl.style.transformOrigin = '50% 50%';
+    arcMapEl.style.transform = 'rotate(' + rotDeg + 'deg)';
+  }
   
   arcAnimFrame = requestAnimationFrame(arcSmoothTick);
 }
