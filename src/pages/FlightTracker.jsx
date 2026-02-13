@@ -447,14 +447,17 @@ export default function FlightTracker() {
       }
     });
     
-    // Polling fallback every 1s for fast data updates
+    // Polling fallback every 3s – subscription is the primary channel
+    // Polling is only a safety net in case subscription misses an update
     const pollInterval = setInterval(async () => {
+      // Only poll if no data received in last 2s (subscription working = skip poll)
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 2000) return;
       const flights = await base44.entities.Flight.filter({ id: activeFlightId });
       const f = flights[0];
       if (f?.xplane_data) {
         updateData(f.xplane_data, f.updated_date);
       }
-    }, 1000);
+    }, 3000);
     
     return () => {
       unsubscribe();
