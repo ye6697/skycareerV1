@@ -557,8 +557,8 @@ function update(d) {
 
   if (layers.depRwyLine) { map.removeLayer(layers.depRwyLine); layers.depRwyLine = null; }
   if (layers.arrRwyLine) { map.removeLayer(layers.arrRwyLine); layers.arrRwyLine = null; }
-  if (depPos && depRwy) { var dh=rwyHeading(depRwy); if(dh!==null){var bh=destPoint(depPos[0],depPos[1],(dh+180)%360,1);var ah=destPoint(depPos[0],depPos[1],dh,5);layers.depRwyLine=L.polyline([bh,depPos,ah],{color:'#10b981',weight:1.5,opacity:0.5,dashArray:'6,4'}).addTo(map);}}
-  if (arrPos && arrRwy) { var arh=rwyHeading(arrRwy); if(arh!==null){var as=destPoint(arrPos[0],arrPos[1],(arh+180)%360,10);var ap=destPoint(arrPos[0],arrPos[1],arh,1);layers.arrRwyLine=L.polyline([as,arrPos,ap],{color:'#f59e0b',weight:1.5,opacity:0.5,dashArray:'6,4'}).addTo(map);}}
+  if (depPos && depRwy) { var dh=rwyHeading(depRwy); if(dh!==null){var bh=destPoint(depPos[0],depPos[1],(dh+180)%360,1);var ah=destPoint(depPos[0],depPos[1],dh,5);layers.depRwyLine=L.polyline([bh,depPos,ah],{color:'#10b981',weight:2.5,opacity:0.7,dashArray:'6,4'}).addTo(map);}}
+  if (arrPos && arrRwy) { var arh=rwyHeading(arrRwy); if(arh!==null){var as=destPoint(arrPos[0],arrPos[1],(arh+180)%360,10);var ap=destPoint(arrPos[0],arrPos[1],arh,1);layers.arrRwyLine=L.polyline([as,arrPos,ap],{color:'#f59e0b',weight:2.5,opacity:0.7,dashArray:'6,4'}).addTo(map);}}
 
   var distInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
   var closestSegIdx = 0;
