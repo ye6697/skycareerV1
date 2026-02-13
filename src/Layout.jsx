@@ -38,6 +38,27 @@ const navItems = [
 export default function Layout({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // DEBUG: Monitor all network requests to find the 50s cycle
+  React.useEffect(() => {
+    const originalFetch = window.fetch;
+    let requestLog = [];
+    window.fetch = function(...args) {
+      const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      // Only log API calls, not static assets
+      if (url.includes('/api/') || url.includes('base44') || url.includes('supabase')) {
+        const shortUrl = url.length > 80 ? url.substring(0, 80) + '...' : url;
+        console.log(`[FETCH ${timeStr}] ${shortUrl}`);
+        requestLog.push({ time: timeStr, url: shortUrl });
+        // Keep only last 50
+        if (requestLog.length > 50) requestLog.shift();
+      }
+      return originalFetch.apply(this, args);
+    };
+    return () => { window.fetch = originalFetch; };
+  }, []);
+
   // Load all layout data ONCE and never refetch automatically
   const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, loaded: false });
 
