@@ -144,11 +144,11 @@ function buildIframeHtml() {
   #map { width: 100%; height: 100%; position: relative; }
   #map.arc-mode { width: 300%; height: 300%; position: absolute; top: -100%; left: -100%; transition: transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1), transform-origin 1.2s cubic-bezier(0.25, 0.1, 0.25, 1); }
   .leaflet-container { background: #0f172a !important; }
-  .wpl { font-size:10px; font-family:'Courier New',monospace; padding:1px 4px; border-radius:3px; background:rgba(15,23,42,0.85); white-space:nowrap; }
-  .wpl-dep { font-size:11px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
-  .wpl-arr { font-size:11px; font-weight:bold; color:#f59e0b; border:1px solid #78350f; }
+  .wpl { font-size:13px; font-family:'Courier New',monospace; padding:2px 6px; border-radius:4px; background:rgba(15,23,42,0.9); white-space:nowrap; letter-spacing:0.5px; }
+  .wpl-dep { font-size:14px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
+  .wpl-arr { font-size:14px; font-weight:bold; color:#f59e0b; border:1px solid #78350f; }
   .wpl-fms { color:#a78bfa; border:1px solid #4c1d95; }
-  .wpl-fms-active { color:#22d3ee; border:1px solid #0891b2; box-shadow:0 0 6px rgba(34,211,238,0.4); }
+  .wpl-fms-active { color:#22d3ee; border:1px solid #0891b2; box-shadow:0 0 8px rgba(34,211,238,0.5); font-weight:bold; }
   .wpl-fms-passed { color:#64748b; border:1px solid #334155; opacity:0.5; }
   .wpl-route { color:#c4b5fd; border:1px solid #6d28d9; }
   .leaflet-tooltip.clean-tooltip { background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; }
