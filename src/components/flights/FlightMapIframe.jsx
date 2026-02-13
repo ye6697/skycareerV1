@@ -18,10 +18,13 @@ export default function FlightMapIframe({
   const [viewMode, setViewMode] = useState('fplan');
   const viewModeRef = useRef('fplan');
 
+  const [iframeViewMode, setIframeViewMode] = useState('fplan');
+
   useEffect(() => {
     const handler = (e) => {
       if (e.data?.type === 'flightmap-ready') setIframeReady(true);
       if (e.data?.type === 'flightmap-distances') setMapDistances(e.data.payload);
+      if (e.data?.type === 'flightmap-viewmode') setIframeViewMode(e.data.viewMode);
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
