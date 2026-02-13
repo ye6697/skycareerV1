@@ -809,6 +809,9 @@ function angleDiff(a, b) {
   return ((b - a + 540) % 360) - 180;
 }
 
+var arcMapEl = null; // cached DOM ref
+var arcLastMarkerUpdate = 0; // throttle setLatLng to ~10fps
+
 function arcSmoothTick(now) {
   if (currentViewMode !== 'arc' || !arcInitialized) {
     arcLastFrameTime = 0;
@@ -818,20 +821,17 @@ function arcSmoothTick(now) {
   
   if (!now) now = performance.now();
   var dt = arcLastFrameTime ? (now - arcLastFrameTime) / 1000 : 0.016;
-  if (dt > 0.25) dt = 0.016; // skip huge gaps (tab was hidden etc)
+  if (dt > 0.25) dt = 0.016;
   arcLastFrameTime = now;
   
-  // --- Dead-reckoning: move at current velocity every frame ---
-  // This makes the aircraft glide smoothly between server updates.
+  // --- Dead-reckoning ---
   arcCurrent.lat += arcVelocity.lat * dt;
   arcCurrent.lon += arcVelocity.lon * dt;
   arcCurrent.hdg += arcVelocity.hdg * dt;
   arcCurrent.alt += arcVelocity.alt * dt;
   
-  // --- Correction pull towards target to prevent drift ---
-  // Gentle spring: the further we are from target, the stronger the pull.
-  // At 60fps with dt≈0.016, pull≈0.08 per frame – smooth but converges fast.
-  var pull = 1 - Math.pow(0.005, dt); // ≈0.08 at 60fps
+  // --- Correction spring towards target ---
+  var pull = 1 - Math.pow(0.005, dt);
   arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * pull;
   arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * pull;
   arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, pull);
@@ -840,8 +840,9 @@ function arcSmoothTick(now) {
   
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
-  // Update aircraft marker – only recreate icon if heading changed >2°
-  if (layers.aircraft) {
+  // Update aircraft marker at ~10fps (setLatLng triggers Leaflet internals)
+  if (layers.aircraft && (now - arcLastMarkerUpdate > 100)) {
+    arcLastMarkerUpdate = now;
     layers.aircraft.setLatLng(curPos);
     var hdgRounded = Math.round(arcCurrent.hdg);
     if (Math.abs(hdgRounded - arcLastIconHdg) >= 2) {
@@ -850,14 +851,14 @@ function arcSmoothTick(now) {
     }
   }
   
-  // Redraw compass overlay at ~10fps (every 100ms) – canvas draw is expensive
+  // Redraw compass overlay at ~10fps
   if (now - arcLastOverlayDraw > 100) {
     arcLastOverlayDraw = now;
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // Re-center and rotate map around aircraft
-  var mapEl = document.getElementById('map');
+  // --- Re-center + rotate: pure CSS, no Leaflet calls ---
+  if (!arcMapEl) arcMapEl = document.getElementById('map');
   
   centerAircraftArc(curPos);
   
@@ -865,8 +866,8 @@ function arcSmoothTick(now) {
   var oy = centerAircraftArc._originY != null ? centerAircraftArc._originY : 50;
   var tx = centerAircraftArc._translateX || 0;
   var ty = centerAircraftArc._translateY || 0;
-  mapEl.style.transformOrigin = ox + '% ' + oy + '%';
-  mapEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) rotate(' + (-arcCurrent.hdg) + 'deg)';
+  arcMapEl.style.transformOrigin = ox + '% ' + oy + '%';
+  arcMapEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) rotate(' + (-arcCurrent.hdg) + 'deg)';
   
   arcAnimFrame = requestAnimationFrame(arcSmoothTick);
 }
