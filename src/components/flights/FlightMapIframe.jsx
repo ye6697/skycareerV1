@@ -283,7 +283,7 @@ var arcPxPerDegLat = 0;
 var arcPxPerDegLon = 0;
 var arcBaseLatLng = null;
 var arcBasePx = null;
-var arcMaxDriftPx = 150; // recenter Leaflet when drift exceeds this many px
+var arcMaxDriftPx = 250; // recenter Leaflet when drift exceeds this many px (generous to avoid jumps)
 
 function arcRecalcProjection(curPos) {
   // Called after setView – caches all projection values
