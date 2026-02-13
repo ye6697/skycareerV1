@@ -39,7 +39,7 @@ export default function FlightTracker() {
   const { lang } = useLanguage();
 
   const [flightPhase, setFlightPhase] = useState('preflight');
-  const [viewMode, setViewMode] = useState('fplan');
+  const [viewMode, setViewMode] = useState('fplan'); // 'fplan' or 'follow'
   const [flight, setFlight] = useState(null);
   const [flightStartTime, setFlightStartTime] = useState(null);
   const [flightDurationSeconds, setFlightDurationSeconds] = useState(0);
@@ -2208,7 +2208,7 @@ export default function FlightTracker() {
               arrivalRunway={simbriefRoute?.arrival_runway}
               departureCoords={simbriefRoute?.departure_coords}
               arrivalCoords={simbriefRoute?.arrival_coords}
-              onViewModeChange={setViewMode}
+              onViewModeChange={null}
               liveFlightData={{
                 gForce: flightData.gForce,
                 maxGForce: flightData.maxGForce,
