@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Navigation, Maximize2, Minimize2, Compass, Map } from 'lucide-react';
 
+import { useLanguage } from "@/components/LanguageContext";
+
 export default function FlightMapIframe({ 
   flightData, contract, waypoints = [], routeWaypoints = [], 
   staticMode = false, title, flightPath = [], 
@@ -12,6 +14,7 @@ export default function FlightMapIframe({
   liveFlightData = null,
   onViewModeChange = null,
 }) {
+  const { lang } = useLanguage();
   const iframeRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
@@ -41,10 +44,10 @@ export default function FlightMapIframe({
       payload: {
         flightData, contract, waypoints, routeWaypoints, staticMode,
         flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords,
-        viewMode, liveFlightData
+        viewMode, liveFlightData, lang
       }
     }, '*');
-  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData]);
+  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang]);
 
   // Fast ARC position stream - sends lat/lon/heading immediately on any change
   useEffect(() => {
@@ -543,6 +546,7 @@ function updateHUD(fd, live, evts) {
     '<div class="hud-cell"><span class="hud-label">SCORE</span><span class="hud-val '+sCol+'">'+Math.round(sc)+'</span></div>';
 }
 
+var currentLang = 'en';
 function updateEvents(evts, live) {
   var el = document.getElementById('events-overlay');
   if (!el) return;
@@ -551,28 +555,34 @@ function updateEvents(evts, live) {
   // Position: top-left in ARC mode, bottom-left in F-PLN mode
   if (currentViewMode === 'arc') { el.classList.add('arc-pos'); } else { el.classList.remove('arc-pos'); }
   
+  var de = currentLang === 'de';
+  var nv = de ? 'Neuwert' : 'new value';
+  var rv = de ? 'Einnahmen' : 'revenue';
+  var costLabel = de ? 'Kosten' : 'Cost';
+  
   var items = [];
-  if (evts.crash)           items.push({name:'CRASH',           score:'-100', cost:'70% Neuwert'});
-  if (evts.tailstrike)      items.push({name:'Heckaufsetzer',   score:'-20',  cost:'2% Neuwert'});
-  if (evts.stall)           items.push({name:'Strömungsabriss', score:'-50',  cost:null});
-  if (evts.overstress)      items.push({name:'Strukturschaden', score:'-30',  cost:'4% Neuwert'});
-  if (evts.overspeed)       items.push({name:'Overspeed',       score:'-15',  cost:null});
-  if (evts.flaps_overspeed) items.push({name:'Klappen-Overspeed', score:'-15', cost:'2.5% Neuwert'});
-  if (evts.gear_up_landing) items.push({name:'Fahrwerk eingef.', score:'-35', cost:'15% Neuwert'});
-  if (evts.high_g_force)    items.push({name:'Hohe G-Kräfte',   score:'-10+', cost:'1%+ Neuwert'});
-  if (evts.hard_landing)    items.push({name:'Harte Landung',   score:'-30',  cost:'25% Einnahmen'});
-  if (evts.harsh_controls)  items.push({name:'Ruppige Steuerung', score:'—',  cost:null});
-  if (evts.fuel_emergency)  items.push({name:'Treibstoff-Not',  score:'—',    cost:null});
+  if (evts.crash)           items.push({name:'CRASH',                                    score:'-100', cost:'70% '+nv});
+  if (evts.tailstrike)      items.push({name:de?'Heckaufsetzer':'Tailstrike',            score:'-20',  cost:'2% '+nv});
+  if (evts.stall)           items.push({name:de?'Strömungsabriss':'Stall',               score:'-50',  cost:null});
+  if (evts.overstress)      items.push({name:de?'Strukturschaden':'Structural damage',   score:'-30',  cost:'4% '+nv});
+  if (evts.overspeed)       items.push({name:'Overspeed',                                score:'-15',  cost:null});
+  if (evts.flaps_overspeed) items.push({name:de?'Klappen-Overspeed':'Flaps overspeed',  score:'-15', cost:'2.5% '+nv});
+  if (evts.gear_up_landing) items.push({name:de?'Fahrwerk eingef.':'Gear retracted',    score:'-35', cost:'15% '+nv});
+  if (evts.high_g_force)    items.push({name:de?'Hohe G-Kräfte':'High G-forces',        score:'-10+', cost:'1%+ '+nv});
+  if (evts.hard_landing)    items.push({name:de?'Harte Landung':'Hard landing',          score:'-30',  cost:'25% '+rv});
+  if (evts.harsh_controls)  items.push({name:de?'Ruppige Steuerung':'Harsh controls',   score:'—',  cost:null});
+  if (evts.fuel_emergency)  items.push({name:de?'Treibstoff-Not':'Fuel emergency',      score:'—',    cost:null});
   
   if (items.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  var html = '<div class="ev-card"><div class="ev-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>VORFÄLLE</div>';
+  var title = de ? 'VORFÄLLE' : 'INCIDENTS';
+  var html = '<div class="ev-card"><div class="ev-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'+title+'</div>';
   for (var i = 0; i < items.length; i++) {
     var it = items[i];
     html += '<div class="ev-item"><div class="ev-dot"></div>' + it.name + '</div>';
     var details = '';
     if (it.score && it.score !== '—') details += '<span style="color:#f87171;">Score: ' + it.score + '</span>';
-    if (it.cost) details += (details ? ' · ' : '') + '<span style="color:#fbbf24;">Kosten: ' + it.cost + '</span>';
+    if (it.cost) details += (details ? ' · ' : '') + '<span style="color:#fbbf24;">'+costLabel+': ' + it.cost + '</span>';
     if (details) html += '<div class="ev-detail">' + details + '</div>';
   }
   html += '</div>';
@@ -595,6 +605,7 @@ function update(d) {
   var arrRwy = d.arrivalRunway;
   currentViewMode = d.viewMode || 'fplan';
   var live = d.liveFlightData;
+  if (d.lang) currentLang = d.lang;
 
   var hasPos = fd.latitude !== 0 || fd.longitude !== 0;
   var hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
