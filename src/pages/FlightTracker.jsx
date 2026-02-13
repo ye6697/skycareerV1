@@ -403,6 +403,8 @@ export default function FlightTracker() {
   // Live data - real-time subscription for instant updates from backend
   const [xplaneLog, setXplaneLog] = useState(null);
   const lastXplaneTimestampRef = React.useRef(null);
+  const [dataLatency, setDataLatency] = useState(null);
+  const lastDataReceivedRef = React.useRef(null);
   
   // Initial fetch to get current flight data immediately
   useEffect(() => {
