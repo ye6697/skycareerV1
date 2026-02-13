@@ -71,28 +71,32 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     setError(null);
     setMismatch(false);
 
-    const response = await base44.functions.invoke('fetchSimBrief', {
-      simbrief_username: uname || undefined,
-      simbrief_userid: pid || undefined
-    });
+    try {
+      const response = await base44.functions.invoke('fetchSimBrief', {
+        simbrief_username: uname || undefined,
+        simbrief_userid: pid || undefined
+      });
 
-    setLoading(false);
+      setLoading(false);
 
-    if (response.data?.error) {
-      setError(response.data.error);
-      return;
-    }
+      if (response.data?.error) {
+        setError(response.data.error);
+        return;
+      }
 
-    const data = response.data;
+      const data = response.data;
 
-    if (checkPlanMatchesContract(data)) {
-      setImportedData(data);
-      setMismatch(false);
-      if (onRouteLoaded) onRouteLoaded(data);
-    } else {
-      // Plan doesn't match current contract
-      setMismatch(true);
-      setImportedData(null);
+      if (checkPlanMatchesContract(data)) {
+        setImportedData(data);
+        setMismatch(false);
+        if (onRouteLoaded) onRouteLoaded(data);
+      } else {
+        setMismatch(true);
+        setImportedData(null);
+      }
+    } catch (e) {
+      setLoading(false);
+      setError('SimBrief konnte nicht geladen werden: ' + (e?.message || 'Unbekannter Fehler'));
     }
   };
 
