@@ -2,8 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Navigation, Maximize2, Minimize2, Compass, Map } from 'lucide-react';
-
+import { Navigation, Maximize2, Minimize2, Map, LocateFixed } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
 
 export default function FlightMapIframe({ 
@@ -20,25 +19,18 @@ export default function FlightMapIframe({
   const [iframeReady, setIframeReady] = useState(false);
   const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
   const [viewMode, setViewMode] = useState('fplan');
-  const viewModeRef = useRef('fplan');
 
   useEffect(() => {
     const handler = (e) => {
       if (e.data?.type === 'flightmap-ready') setIframeReady(true);
       if (e.data?.type === 'flightmap-distances') setMapDistances(e.data.payload);
-      if (e.data?.type === 'flightmap-viewmode' && onViewModeChange) onViewModeChange(e.data.viewMode);
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [onViewModeChange]);
+  }, []);
 
-  // Full data update - always send all data to iframe (no throttling)
-  const prevViewModeRef = useRef('fplan');
   useEffect(() => {
     if (!iframeReady || !iframeRef.current?.contentWindow) return;
-    
-    prevViewModeRef.current = viewMode;
-    
     iframeRef.current.contentWindow.postMessage({
       type: 'flightmap-update',
       payload: {
@@ -48,26 +40,6 @@ export default function FlightMapIframe({
       }
     }, '*');
   }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang]);
-
-  // Fast ARC position stream - sends lat/lon/heading immediately on any change
-  useEffect(() => {
-    if (!iframeReady || !iframeRef.current?.contentWindow) return;
-    if (viewModeRef.current !== 'arc') return;
-    if (!flightData.latitude && !flightData.longitude) return;
-    
-    iframeRef.current.contentWindow.postMessage({
-      type: 'flightmap-arc-position',
-      payload: {
-        latitude: flightData.latitude,
-        longitude: flightData.longitude,
-        heading: flightData.heading,
-        altitude: flightData.altitude,
-        speed: flightData.speed,
-        isFullscreen,
-        timestamp: Date.now()
-      }
-    }, '*');
-  }, [iframeReady, flightData.latitude, flightData.longitude, flightData.heading, flightData.altitude, flightData.speed, isFullscreen]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -83,8 +55,10 @@ export default function FlightMapIframe({
 
   const fd = flightData || {};
   const validWaypoints = (waypoints || []).filter(wp => wp.lat && wp.lon);
-
   const iframeSrc = buildIframeHtml();
+
+  // Bottom bar height for padding the events overlay
+  const bottomBarHeight = 72;
 
   return (
     <Card className={`bg-slate-800/50 border-slate-700 overflow-hidden rounded-lg ${isFullscreen ? 'fixed inset-0 z-[9999] bg-slate-900 flex flex-col' : ''}`} style={isFullscreen ? { borderRadius: 0 } : {}}>
@@ -108,15 +82,14 @@ export default function FlightMapIframe({
             <Button
               variant="ghost"
               size="sm"
-              className={`h-7 px-2 text-xs font-mono ${viewMode === 'arc' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-slate-600'}`}
+              className={`h-7 px-2 text-xs font-mono ${viewMode === 'follow' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-slate-600'}`}
               onClick={() => {
-                const next = viewMode === 'fplan' ? 'arc' : 'fplan';
+                const next = viewMode === 'fplan' ? 'follow' : 'fplan';
                 setViewMode(next);
-                viewModeRef.current = next;
               }}
             >
-              {viewMode === 'arc' ? <Compass className="w-3.5 h-3.5 mr-1" /> : <Map className="w-3.5 h-3.5 mr-1" />}
-              {viewMode === 'arc' ? 'ARC' : 'F-PLN'}
+              {viewMode === 'follow' ? <LocateFixed className="w-3.5 h-3.5 mr-1" /> : <Map className="w-3.5 h-3.5 mr-1" />}
+              {viewMode === 'follow' ? 'FOLLOW' : 'F-PLN'}
             </Button>
           )}
           <Button
@@ -140,7 +113,7 @@ export default function FlightMapIframe({
         />
       </div>
 
-      {!staticMode && viewMode !== 'arc' && (
+      {!staticMode && (
         <div className={`px-3 py-2 bg-slate-900/90 font-mono space-y-1.5 ${isFullscreen ? 'fixed bottom-0 left-0 right-0 z-[10000]' : ''}`}>
           <div className="flex items-center justify-between text-sm">
             <span className="text-cyan-400 font-semibold">HDG <span className="text-white">{String(Math.round(fd.heading || 0)).padStart(3, '0')}°</span></span>
@@ -175,9 +148,7 @@ function buildIframeHtml() {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
-  #map-wrapper { width: 100%; height: 100%; overflow: hidden; position: relative; }
-  #map { width: 100%; height: 100%; position: relative; }
-  #map.arc-mode { width: 300%; height: 300%; position: absolute; top: -100%; left: -100%; will-change: transform; transition: transform 0.15s linear; }
+  #map { width: 100%; height: 100%; }
   .leaflet-container { background: #0f172a !important; }
   .wpl { font-size:13px; font-family:'Courier New',monospace; padding:2px 6px; border-radius:4px; background:rgba(15,23,42,0.9); white-space:nowrap; letter-spacing:0.5px; }
   .wpl-dep { font-size:14px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
@@ -189,43 +160,34 @@ function buildIframeHtml() {
   .leaflet-tooltip.clean-tooltip { background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; }
   .leaflet-tooltip.clean-tooltip::before { display:none !important; }
 
-  /* PFD-style HUD overlay */
+  /* HUD overlay - top center, enlarged in fullscreen */
   #hud-top { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; gap:6px; pointer-events:none; }
   #hud-top .hud-cell { background:rgba(10,20,40,0.85); backdrop-filter:blur(8px); border:1px solid rgba(34,211,238,0.25); border-radius:6px; padding:4px 10px; display:flex; align-items:center; gap:6px; font-family:'Courier New',monospace; }
   #hud-top .hud-label { font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:1px; }
   #hud-top .hud-val { font-size:13px; font-weight:bold; }
+  #hud-top.fs .hud-cell { padding:8px 16px; gap:8px; border-radius:8px; }
+  #hud-top.fs .hud-label { font-size:11px; }
+  #hud-top.fs .hud-val { font-size:18px; }
   .hud-cyan { color:#22d3ee; }
   .hud-green { color:#34d399; }
   .hud-amber { color:#fbbf24; }
   .hud-red { color:#f87171; }
 
-  /* Events overlay - bottom left inside map, moves to top-left in ARC mode */
-  #events-overlay { position:absolute; bottom:12px; left:12px; z-index:1000; pointer-events:none; max-width:320px; }
-  #events-overlay.arc-pos { bottom:auto; top:12px; }
+  /* Events overlay - bottom left, pushed up when bottom bar visible */
+  #events-overlay { position:absolute; bottom:12px; left:12px; z-index:1000; pointer-events:none; max-width:320px; transition:bottom 0.2s; }
   #events-overlay .ev-card { background:rgba(10,20,40,0.88); backdrop-filter:blur(12px); border:1px solid rgba(248,113,113,0.35); border-radius:8px; padding:10px 14px; font-family:'Courier New',monospace; }
   #events-overlay .ev-title { font-size:12px; color:#f87171; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px; display:flex; align-items:center; gap:5px; font-weight:bold; }
   #events-overlay .ev-item { font-size:13px; color:#fca5a5; padding:2px 0; display:flex; align-items:center; gap:6px; }
   #events-overlay .ev-detail { font-size:11px; color:#94a3b8; margin-left:11px; padding:1px 0; }
   #events-overlay .ev-dot { width:6px; height:6px; border-radius:50%; background:#f87171; flex-shrink:0; }
-
-  /* ARC mode compass overlay */
-  #arc-overlay { position:absolute; top:0; left:0; right:0; bottom:0; z-index:999; pointer-events:none; display:none; }
-  #arc-overlay canvas { width:100%; height:100%; }
-
-  /* Fixed aircraft icon for ARC mode - stays at bottom-center of viewport */
-  #arc-aircraft { position:absolute; z-index:1001; pointer-events:none; display:none; left:50%; transform:translateX(-50%); }
-  #arc-aircraft svg { filter:drop-shadow(0 0 12px rgba(34,211,238,0.7)); }
 </style>
 </head><body>
-<div id="map-wrapper"><div id="map" class="normal-mode"></div></div>
+<div id="map"></div>
 <div id="hud-top" style="display:none;"></div>
 <div id="events-overlay" style="display:none;"></div>
-<div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
-<div id="arc-aircraft"><svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#67e8f9" stroke-width="1.5"/><circle cx="50" cy="20" r="3" fill="#a5f3fc"/></svg></div>
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5, fadeAnimation: false, markerZoomAnimation: false, zoomAnimation: false });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
-// Force map to fill its container properly
 setTimeout(function(){ map.invalidateSize(); }, 100);
 
 var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
@@ -234,88 +196,17 @@ var userInteracting = false;
 var interactionTimeout = null;
 var INTERACTION_COOLDOWN = 15000;
 var currentViewMode = 'fplan';
-var prevViewMode = 'fplan';
 var isFullscreen = false;
-var arcAnimFrame = null;
 var lastFd = {};
-var lastCurPos = null;
-var arcZoomLevel = 10;
+var followZoom = 11;
+var currentLang = 'en';
 
 map.on('dragstart', function() {
-  if (currentViewMode === 'arc') return; // no drag interaction tracking in ARC
+  if (currentViewMode === 'follow') return;
   userInteracting = true;
   if (interactionTimeout) clearTimeout(interactionTimeout);
   interactionTimeout = setTimeout(function() { userInteracting = false; }, INTERACTION_COOLDOWN);
 });
-map.on('zoomend', function() {
-  if (currentViewMode === 'arc') {
-    arcZoomLevel = map.getZoom();
-    arcLastSetViewPos = null; // force recenter after zoom
-  }
-});
-
-function setArcDragLock(locked) {
-  if (locked) {
-    map.dragging.disable();
-    map.touchZoom.enable();
-    map.scrollWheelZoom.enable();
-    map.doubleClickZoom.enable();
-    map.boxZoom.disable();
-    map.keyboard.disable();
-  } else {
-    map.dragging.enable();
-    map.touchZoom.enable();
-    map.scrollWheelZoom.enable();
-    map.doubleClickZoom.enable();
-    map.boxZoom.enable();
-    map.keyboard.enable();
-  }
-}
-
-// === ARC centering: smooth CSS-transform based, no setView jitter ===
-var arcLastSetViewPos = null;
-
-function centerAircraftArc(curPos, forceImmediate) {
-  var zoom = map.getZoom();
-  // The map is 300% of the viewport. The viewport sees the center third.
-  // We want the aircraft at arcFraction (90%/93%) down the VIEWPORT.
-  // The map center appears at 50% of the full map = 50% of viewport vertically.
-  // We need to shift the map center UP so that curPos appears lower.
-  // 
-  // Approach: use Leaflet's pixel projection directly (unaffected by CSS rotation).
-  // Calculate how many pixels we need to offset, then convert to lat degrees.
-  var arcFraction = isFullscreen ? 0.93 : 0.90;
-  // Viewport height in pixels (map-wrapper is the viewport)
-  var wrapperEl = document.getElementById('map-wrapper');
-  var viewportH = wrapperEl ? wrapperEl.getBoundingClientRect().height : (map.getSize().y / 3);
-  // Aircraft should be at arcFraction * viewportH from top of viewport
-  // Map center is at viewportH * 0.5 from top of viewport
-  // So offset in viewport pixels = (arcFraction - 0.5) * viewportH
-  var offsetViewportPx = (arcFraction - 0.5) * viewportH;
-  
-  // Convert pixel offset to lat degrees using the map's projection at current zoom
-  // At the current zoom, 1 pixel = X degrees latitude
-  // We use project/unproject which work in absolute pixel coordinates (not affected by CSS)
-  var centerPoint = map.project(L.latLng(curPos[0], curPos[1]), zoom);
-  // Move the center point UP by offsetViewportPx so the aircraft appears lower
-  var newCenterPoint = L.point(centerPoint.x, centerPoint.y - offsetViewportPx);
-  var newCenter = map.unproject(newCenterPoint, zoom);
-  
-  // Only call setView when needed (large jumps or forced)
-  if (forceImmediate || !arcLastSetViewPos) {
-    map.setView(newCenter, zoom, { animate: false });
-    arcLastSetViewPos = [curPos[0], curPos[1]];
-    return;
-  }
-  
-  var dLat = Math.abs(curPos[0] - arcLastSetViewPos[0]);
-  var dLon = Math.abs(curPos[1] - arcLastSetViewPos[1]);
-  // Only recenter via setView if moved more than ~200m to avoid jitter
-  if (dLat > 0.002 || dLon > 0.002) {
-    map.setView(newCenter, zoom, { animate: false });
-    arcLastSetViewPos = [curPos[0], curPos[1]];
-  }
-}
 
 function makeIcon(bg, size, border, glow) {
   var shadow = glow ? 'box-shadow:0 0 10px '+bg+';' : '';
@@ -323,28 +214,6 @@ function makeIcon(bg, size, border, glow) {
 }
 function makeAircraftIcon(hdg) {
   var rot = hdg||0;
-  if (currentViewMode === 'arc') {
-    // ARC mode: The entire #map div is CSS-rotated by -heading degrees.
-    // Leaflet markers are CHILDREN of #map, so they rotate along with it.
-    // A marker icon pointing UP (north in map coords) will, after -heading rotation,
-    // point toward heading in screen space. But we want it pointing UP on screen.
-    // Since the map rotates by -heading, the icon must NOT have any extra rotation.
-    // The SVG points UP = north. Map rotated by -heading => north on map points
-    // toward heading on screen. That means the plane icon (pointing north/up in map)
-    // will appear rotated by -heading on screen. To counter this, we rotate the icon
-    // by +heading. But since the icon is a child of the rotated map, we need the
-    // icon rotation to equal the current heading so: map(-hdg) + icon(+hdg) = 0 rotation on screen.
-    // HOWEVER: Leaflet DivIcon uses a separate pane that gets the SAME CSS transform.
-    // The icon div's transform is applied IN ADDITION to the parent's transform.
-    // So we set icon rotation = heading to cancel out map rotation = -heading.
-    // BUT: We must use the CURRENT interpolated heading, not a stale one.
-    var counterRot = arcCurrent.hdg || 0;
-    return L.divIcon({
-      html: '<div style="transform:rotate('+counterRot+'deg);transform-origin:center center;display:flex;align-items:center;justify-content:center;width:52px;height:52px;filter:drop-shadow(0 0 12px rgba(34,211,238,0.7));"><svg width="44" height="44" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#67e8f9" stroke-width="1.5"/><circle cx="50" cy="20" r="3" fill="#a5f3fc"/></svg></div>',
-      className: '', iconSize: [52, 52], iconAnchor: [26, 26]
-    });
-  }
-  // F-PLN mode: normal size (52px)
   return L.divIcon({
     html: '<div style="transform:rotate('+rot+'deg);display:flex;align-items:center;justify-content:center;width:52px;height:52px;filter:drop-shadow(0 2px 8px rgba(34,211,238,0.5));"><svg width="46" height="46" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#0891b2" stroke-width="1.5"/><circle cx="50" cy="20" r="3" fill="#67e8f9"/></svg></div>',
     className: '', iconSize: [52, 52], iconAnchor: [26, 26]
@@ -385,148 +254,12 @@ function findNextWp(rp,wps,lat,lon,csi){
   return null;
 }
 
-// Draw ARC overlay (Boeing ND style)
-function drawArcOverlay(hdg, alt, spd, nextWpName, nextWpDist, arrDist) {
-  var canvas = document.getElementById('arc-canvas');
-  if (!canvas) return;
-  var rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width * (window.devicePixelRatio || 1);
-  canvas.height = rect.height * (window.devicePixelRatio || 1);
-  canvas.style.width = rect.width + 'px';
-  canvas.style.height = rect.height + 'px';
-  var ctx = canvas.getContext('2d');
-  var dpr = window.devicePixelRatio || 1;
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, rect.width, rect.height);
-
-  var cx = rect.width / 2;
-  var cy = rect.height * (isFullscreen ? 0.93 : 0.90);
-  var radius = Math.min(rect.width, rect.height) * 0.38;
-
-  // ARC sector (120 degrees)
-  ctx.strokeStyle = 'rgba(34,211,238,0.25)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, -Math.PI*2/3 - Math.PI/2, -Math.PI/3 - Math.PI/2, false);
-  ctx.stroke();
-
-  // Range rings
-  for (var r = 1; r <= 2; r++) {
-    var rr = radius * r / 3;
-    ctx.strokeStyle = 'rgba(34,211,238,0.1)';
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.arc(cx, cy, rr, -Math.PI*2/3 - Math.PI/2, -Math.PI/3 - Math.PI/2, false);
-    ctx.stroke();
-  }
-
-  // Compass ticks around arc
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '10px "Courier New", monospace';
-  var heading = hdg || 0;
-  for (var deg = 0; deg < 360; deg += 10) {
-    var relDeg = ((deg - heading + 360) % 360);
-    if (relDeg > 180) relDeg -= 360;
-    if (relDeg < -60 || relDeg > 60) continue;
-    var angle = (relDeg * Math.PI / 180) - Math.PI / 2;
-    var isMajor = deg % 30 === 0;
-    var innerR = radius - (isMajor ? 14 : 8);
-    var outerR = radius;
-    ctx.strokeStyle = isMajor ? 'rgba(34,211,238,0.6)' : 'rgba(34,211,238,0.2)';
-    ctx.lineWidth = isMajor ? 1.5 : 0.8;
-    ctx.beginPath();
-    ctx.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
-    ctx.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
-    ctx.stroke();
-    if (isMajor) {
-      var labelR = radius + 14;
-      var label = String(Math.round(deg / 10)).padStart(2, '0');
-      if (deg === 0) label = 'N';
-      else if (deg === 90) label = 'E';
-      else if (deg === 180) label = 'S';
-      else if (deg === 270) label = 'W';
-      ctx.fillStyle = (deg === 0) ? '#22d3ee' : 'rgba(148,163,184,0.8)';
-      ctx.font = (deg % 90 === 0) ? 'bold 11px "Courier New", monospace' : '10px "Courier New", monospace';
-      ctx.fillText(label, cx + labelR * Math.cos(angle), cy + labelR * Math.sin(angle));
-    }
-  }
-
-  // Heading triangle at top
-  ctx.fillStyle = '#22d3ee';
-  ctx.beginPath();
-  var topY = cy - radius - 2;
-  ctx.moveTo(cx, topY);
-  ctx.lineTo(cx - 6, topY - 10);
-  ctx.lineTo(cx + 6, topY - 10);
-  ctx.closePath();
-  ctx.fill();
-
-  // Heading readout box
-  ctx.fillStyle = 'rgba(10,20,40,0.9)';
-  ctx.strokeStyle = 'rgba(34,211,238,0.4)';
-  ctx.lineWidth = 1;
-  var hboxW = 52, hboxH = 22;
-  ctx.fillRect(cx - hboxW/2, topY - 10 - hboxH - 4, hboxW, hboxH);
-  ctx.strokeRect(cx - hboxW/2, topY - 10 - hboxH - 4, hboxW, hboxH);
-  ctx.fillStyle = '#22d3ee';
-  ctx.font = 'bold 14px "Courier New", monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(String(Math.round(heading)).padStart(3, '0') + '°', cx, topY - 10 - hboxH/2 - 2);
-
-  // Aircraft is rendered as a Leaflet marker at real lat/lon (no canvas icon needed)
-
-  // Bottom info bar - larger text for fullscreen
-  var barH = 44;
-  var barY = rect.height - barH;
-  ctx.fillStyle = 'rgba(10,20,40,0.9)';
-  ctx.fillRect(0, barY, rect.width, barH);
-  ctx.strokeStyle = 'rgba(34,211,238,0.2)';
-  ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.moveTo(0, barY); ctx.lineTo(rect.width, barY); ctx.stroke();
-
-  var textY = barY + barH / 2 + 1;
-  var labelFont = 'bold 12px "Courier New", monospace';
-  var valueFont = 'bold 16px "Courier New", monospace';
-
-  ctx.textAlign = 'left';
-  ctx.font = labelFont;
-  ctx.fillStyle = '#64748b';
-  ctx.fillText('HDG', 16, textY);
-  ctx.font = valueFont;
-  ctx.fillStyle = '#22d3ee';
-  ctx.fillText(String(Math.round(heading)).padStart(3,'0')+'°', 52, textY);
-
-  ctx.font = labelFont;
-  ctx.fillStyle = '#64748b';
-  ctx.fillText('ALT', 120, textY);
-  ctx.font = valueFont;
-  ctx.fillStyle = '#34d399';
-  ctx.fillText(Math.round(alt||0).toLocaleString()+' ft', 156, textY);
-
-  ctx.font = labelFont;
-  ctx.fillStyle = '#64748b';
-  ctx.fillText('GS', 280, textY);
-  ctx.font = valueFont;
-  ctx.fillStyle = '#34d399';
-  ctx.fillText(Math.round(spd||0)+' kts', 306, textY);
-
-  ctx.textAlign = 'right';
-  ctx.font = valueFont;
-  if (nextWpDist !== null) {
-    ctx.fillStyle = '#a78bfa';
-    ctx.fillText('▸ ' + (nextWpName||'WPT') + ': ' + nextWpDist + ' NM', rect.width - 180, textY);
-  }
-  if (arrDist !== null) {
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillText('ARR: ' + arrDist + ' NM', rect.width - 16, textY);
-  }
-}
-
-function updateHUD(fd, live, evts) {
+function updateHUD(fd, live) {
   var el = document.getElementById('hud-top');
   if (!el || !isFullscreen || !live) { if(el) el.style.display='none'; return; }
   el.style.display = 'flex';
+  el.className = isFullscreen ? 'fs' : '';
+  el.id = 'hud-top';
   
   var g = live.gForce || 1;
   var mg = live.maxGForce || 1;
@@ -546,14 +279,13 @@ function updateHUD(fd, live, evts) {
     '<div class="hud-cell"><span class="hud-label">SCORE</span><span class="hud-val '+sCol+'">'+Math.round(sc)+'</span></div>';
 }
 
-var currentLang = 'en';
-function updateEvents(evts, live) {
+function updateEvents(evts) {
   var el = document.getElementById('events-overlay');
   if (!el) return;
   if (!evts) { el.style.display = 'none'; return; }
   
-  // Position: top-left in ARC mode, bottom-left in F-PLN mode
-  if (currentViewMode === 'arc') { el.classList.add('arc-pos'); } else { el.classList.remove('arc-pos'); }
+  // Push events overlay up when fullscreen to avoid bottom bar overlap (bar ~72px)
+  el.style.bottom = isFullscreen ? '80px' : '12px';
   
   var de = currentLang === 'de';
   var nv = de ? 'Neuwert' : 'new value';
@@ -575,8 +307,8 @@ function updateEvents(evts, live) {
   
   if (items.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  var title = de ? 'VORFÄLLE' : 'INCIDENTS';
-  var html = '<div class="ev-card"><div class="ev-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'+title+'</div>';
+  var ttl = de ? 'VORFÄLLE' : 'INCIDENTS';
+  var html = '<div class="ev-card"><div class="ev-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'+ttl+'</div>';
   for (var i = 0; i < items.length; i++) {
     var it = items[i];
     html += '<div class="ev-item"><div class="ev-dot"></div>' + it.name + '</div>';
@@ -588,8 +320,6 @@ function updateEvents(evts, live) {
   html += '</div>';
   el.innerHTML = html;
 }
-
-var arcLayersBuilt = false; // track if layers were already set up for ARC mode
 
 function update(d) {
   var fd = d.flightData || {};
@@ -603,6 +333,7 @@ function update(d) {
   var arrCoords = d.arrivalCoords;
   var depRwy = d.departureRunway;
   var arrRwy = d.arrivalRunway;
+  var prevMode = currentViewMode;
   currentViewMode = d.viewMode || 'fplan';
   var live = d.liveFlightData;
   if (d.lang) currentLang = d.lang;
@@ -623,11 +354,7 @@ function update(d) {
 
   var curPos = hasPos ? [fd.latitude, fd.longitude] : null;
 
-  // Build route points: PREFER routeWaypoints (SimBrief) for the route line
-  // because they define the full planned route. FMS waypoints from X-Plane
-  // may only have a few entries and would make the route incomplete.
   var routeSource = routeWaypoints.length > 0 ? routeWaypoints : waypoints;
-  var activeWps = waypoints.length > 0 ? waypoints : routeWaypoints;
 
   var rp = [];
   if (depPos) rp.push(depPos);
@@ -639,7 +366,7 @@ function update(d) {
   if (layers.route) map.removeLayer(layers.route);
   if (rp.length >= 2) {
     layers.routeGlow = L.polyline(rp, { color:'#818cf8', weight:8, dashArray:'8,8', opacity:0.18 }).addTo(map);
-    layers.route = L.polyline(rp, { color: currentViewMode==='arc' ? '#22d3ee' : '#818cf8', weight: currentViewMode==='arc' ? 3.5 : 3.5, dashArray: currentViewMode==='arc' ? '6,6' : '10,8', opacity: currentViewMode==='arc' ? 0.7 : 0.75 }).addTo(map);
+    layers.route = L.polyline(rp, { color:'#818cf8', weight:3.5, dashArray:'10,8', opacity:0.75 }).addTo(map);
   }
 
   var fp = [];
@@ -681,7 +408,6 @@ function update(d) {
   }
 
   layers.wpGroup.clearLayers();
-  // Show FMS waypoints if available
   if (waypoints.length > 0) {
     waypoints.forEach(function(wp, i) {
       var passed = false;
@@ -696,106 +422,46 @@ function update(d) {
       m.bindTooltip('<span class="'+cls+'">'+txt+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
     });
   }
-  // ALWAYS show SimBrief route waypoints (even if FMS waypoints exist)
   if (routeWaypoints.length > 0) {
-    routeWaypoints.forEach(function(wp, i) {
+    routeWaypoints.forEach(function(wp) {
       var m = L.marker([wp.lat, wp.lon], { icon: routeWpIcon }).addTo(layers.wpGroup);
       m.bindTooltip('<span class="wpl wpl-route">'+wp.name+(wp.alt>0?' FL'+Math.round(wp.alt/100):'')+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
     });
   }
 
+  // Aircraft marker
   if (layers.aircraft) map.removeLayer(layers.aircraft);
   layers.aircraft = null;
-  if (curPos && !staticMode && currentViewMode !== 'arc') {
+  if (curPos && !staticMode) {
     layers.aircraft = L.marker(curPos, { icon: makeAircraftIcon(fd.heading), zIndexOffset: 1000 }).addTo(map);
   }
-  // ARC mode: remove Leaflet marker – aircraft is a fixed HTML element
-  if (currentViewMode === 'arc') {
-    if (arcMarker) { map.removeLayer(arcMarker); arcMarker = null; }
-    var acEl = document.getElementById('arc-aircraft');
-    acEl.style.display = 'block';
-    // Position aircraft at the same Y as the arc center point (where compass arc originates)
-    var wrapperRect = document.getElementById('map-wrapper').getBoundingClientRect();
-    var acY = wrapperRect.height * (isFullscreen ? 0.93 : 0.90);
-    acEl.style.bottom = 'auto';
-    acEl.style.top = (acY - 26) + 'px'; // 26 = half icon size
-  } else {
-    if (arcMarker) { map.removeLayer(arcMarker); arcMarker = null; }
-    document.getElementById('arc-aircraft').style.display = 'none';
-  }
 
-  // ARC overlay + map rotation for Boeing ND style
-  var arcEl = document.getElementById('arc-overlay');
-  var mapEl = document.getElementById('map');
-  lastCurPos = curPos;
-  
-  // Detect mode switch
-  var switchedToArc = (currentViewMode === 'arc' && prevViewMode !== 'arc');
-  var switchedFromArc = (currentViewMode !== 'arc' && prevViewMode === 'arc');
-  prevViewMode = currentViewMode;
-  
-  if (currentViewMode === 'arc' && curPos && !staticMode) {
-    arcEl.style.display = 'block';
-    setArcDragLock(true);
+  // Camera behavior
+  if (currentViewMode === 'follow' && curPos && !staticMode) {
+    // Follow mode: center on aircraft, offset slightly behind heading direction, zoom in close
+    map.dragging.disable();
+    map.scrollWheelZoom.enable();
     
-    if (switchedToArc) {
-      mapEl.style.transform = 'none';
-      mapEl.className = 'arc-mode';
-      map.invalidateSize();
-      map.setZoom(arcZoomLevel, { animate: false });
-      arcTarget.lat = curPos[0];
-      arcTarget.lon = curPos[1];
-      arcTarget.hdg = fd.heading || 0;
-      arcTarget.alt = fd.altitude || 0;
-      arcTarget.spd = fd.speed || 0;
-      arcCurrent.lat = curPos[0];
-      arcCurrent.lon = curPos[1];
-      arcCurrent.hdg = fd.heading || 0;
-      arcCurrent.alt = fd.altitude || 0;
-      arcCurrent.spd = fd.speed || 0;
-      arcLastTargetTime = performance.now();
-      arcLastSetViewPos = null;
-      arcInitialized = true;
-      centerAircraftArc(curPos, true);
-      parent.postMessage({ type: 'flightmap-viewmode', viewMode: 'arc' }, '*');
-    }
+    // Calculate a point slightly behind the aircraft (opposite of heading)
+    // This gives a "navi from behind" perspective
+    var hdgRad = (fd.heading || 0) * Math.PI / 180;
+    var offsetNm = 2; // offset 2NM behind aircraft
+    var behindLat = curPos[0] - (offsetNm / 60) * Math.cos(hdgRad);
+    var behindLon = curPos[1] - (offsetNm / 60) * Math.sin(hdgRad) / Math.cos(curPos[0] * Math.PI / 180);
+    // Center between aircraft and behind point (so aircraft is in upper part of view)
+    var centerLat = (curPos[0] + behindLat) / 2;
+    var centerLon = (curPos[1] + behindLon) / 2;
     
-    if (!switchedToArc) {
-      arcTarget.lat = curPos[0];
-      arcTarget.lon = curPos[1];
-      arcTarget.hdg = fd.heading || 0;
-      arcTarget.alt = fd.altitude || 0;
-      arcTarget.spd = fd.speed || 0;
-      arcLastTargetTime = performance.now();
-    }
-    if (!arcInitialized) {
-      arcCurrent.lat = curPos[0]; arcCurrent.lon = curPos[1];
-      arcCurrent.hdg = fd.heading || 0; arcCurrent.alt = fd.altitude || 0;
-      arcCurrent.spd = fd.speed || 0;
-      arcLastSetViewPos = null;
-      arcInitialized = true;
-    }
+    map.setView([centerLat, centerLon], followZoom, { animate: true, duration: 0.8 });
     
-    arcLastDistInfo = distInfo;
-    drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
-    
-    boundsSet = false;
+    if (prevMode !== 'follow') boundsSet = false;
   } else {
-    arcEl.style.display = 'none';
-    setArcDragLock(false);
+    // F-PLN mode: normal overview behavior
+    map.dragging.enable();
     
-    // Switch back to normal map
-    if (switchedFromArc) {
-      mapEl.className = '';
-      mapEl.style.transform = 'none';
-      mapEl.style.transformOrigin = '';
-      map.invalidateSize();
+    if (prevMode === 'follow') {
       boundsSet = false;
-      arcInitialized = false;
-      parent.postMessage({ type: 'flightmap-viewmode', viewMode: 'fplan' }, '*');
     }
-    mapEl.style.transform = 'none';
-    mapEl.style.transformOrigin = '';
     
     var allPts = rp.concat(fp);
     if (curPos) allPts.push(curPos);
@@ -808,161 +474,26 @@ function update(d) {
   }
 
   // HUD + Events
-  updateHUD(fd, live, live?.events);
-  updateEvents(live?.events, live);
+  updateHUD(fd, live);
+  updateEvents(live?.events);
 
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
 
-// ARC interpolation – smooth lerp with dead-reckoning between updates
-var arcTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
-var arcCurrent = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
-var arcInitialized = false;
-var arcLastTargetTime = 0;
-var arcLastFrameTime = 0;
-var arcLastIconHdg = -999;
-var arcLastOverlayDraw = 0;
-var arcLastDistInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
-var ARC_DATA_TIMEOUT = 8000;
-
-function lerpAngle(a, b, t) {
-  var diff = ((b - a + 540) % 360) - 180;
-  return a + diff * t;
-}
-
-var arcMapEl = null;
-var arcLastRecenter = 0;
-var arcLastRotDeg = null;
-var arcMarker = null; // Leaflet marker for aircraft in ARC mode
-
-function arcSmoothTick(now) {
-  if (currentViewMode !== 'arc' || !arcInitialized) {
-    arcLastFrameTime = 0;
-    arcAnimFrame = requestAnimationFrame(arcSmoothTick);
-    return;
+map.on('zoomend', function() {
+  if (currentViewMode === 'follow') {
+    followZoom = map.getZoom();
   }
-  
-  if (!now) now = performance.now();
-  var dt = arcLastFrameTime ? (now - arcLastFrameTime) / 1000 : 0.016;
-  if (dt > 0.25) dt = 0.016;
-  arcLastFrameTime = now;
-  
-  var dataAge = now - arcLastTargetTime;
-  var frozen = dataAge > ARC_DATA_TIMEOUT;
-  
-  if (!frozen) {
-    // Smooth lerp – slower = smoother transitions between data points
-    var lerpSpeed = 1.8; // slower lerp for smoother movement
-    var t = Math.min(1, dt * lerpSpeed);
-    
-    // Dead-reckoning: predict position based on speed and heading between updates
-    if (dataAge > 1500 && arcCurrent.spd > 10) {
-      // Move aircraft forward along current heading at current speed
-      var spdNmPerSec = arcCurrent.spd / 3600; // knots to NM/s
-      var moveDist = spdNmPerSec * dt;
-      var hdgRad = arcCurrent.hdg * Math.PI / 180;
-      var dLatDeg = (moveDist / 60) * Math.cos(hdgRad);
-      var dLonDeg = (moveDist / 60) * Math.sin(hdgRad) / Math.cos(arcCurrent.lat * Math.PI / 180);
-      arcCurrent.lat += dLatDeg;
-      arcCurrent.lon += dLonDeg;
-      // Still lerp heading toward target
-      arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t * 0.5);
-    } else {
-      arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
-      arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
-      arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t);
-    }
-    arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * t;
-    arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * t;
-  }
-  
-  arcCurrent.hdg = ((arcCurrent.hdg % 360) + 360) % 360;
-  
-  var curPos = [arcCurrent.lat, arcCurrent.lon];
-  
-  if (!arcMapEl) arcMapEl = document.getElementById('map');
-  var rotDeg = -arcCurrent.hdg;
-  
-  // Recenter map smoothly – every 300ms
-  if (!frozen && (now - arcLastRecenter > 300)) {
-    arcLastRecenter = now;
-    centerAircraftArc(curPos);
-  }
-  
-  // Redraw compass overlay at ~15fps for smooth compass ticks
-  if (now - arcLastOverlayDraw > 66) {
-    arcLastOverlayDraw = now;
-    drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
-  }
-  
-  // CSS rotation – use CSS transition for ultra-smooth rotation
-  if (arcLastRotDeg === null || Math.abs(rotDeg - arcLastRotDeg) >= 0.1) {
-    arcLastRotDeg = rotDeg;
-    arcMapEl.style.transformOrigin = '50% 50%';
-    arcMapEl.style.transform = 'rotate(' + rotDeg + 'deg)';
-  }
-  
-  arcAnimFrame = requestAnimationFrame(arcSmoothTick);
-}
-arcAnimFrame = requestAnimationFrame(arcSmoothTick);
+});
 
 window.addEventListener('message', function(e) {
   if (e.data?.type === 'flightmap-update') update(e.data.payload);
-  if (e.data?.type === 'flightmap-arc-position') {
-    var p = e.data.payload;
-    var now = performance.now();
-
-    if (!arcInitialized && p.latitude) {
-      // First position ever – snap instantly
-      arcCurrent.lat = p.latitude;
-      arcCurrent.lon = p.longitude;
-      arcCurrent.hdg = p.heading || 0;
-      arcCurrent.alt = p.altitude || 0;
-      arcCurrent.spd = p.speed || 0;
-      arcTarget.lat = p.latitude;
-      arcTarget.lon = p.longitude;
-      arcTarget.hdg = p.heading || 0;
-      arcTarget.alt = p.altitude || 0;
-      arcTarget.spd = p.speed || 0;
-      arcLastTargetTime = now;
-      arcInitialized = true;
-      isFullscreen = p.isFullscreen || false;
-      return;
-    }
-
-    // Simply update target – the animation loop lerps toward it
-    arcTarget.lat = p.latitude;
-    arcTarget.lon = p.longitude;
-    arcTarget.hdg = p.heading || 0;
-    arcTarget.alt = p.altitude || 0;
-    arcTarget.spd = p.speed || 0;
-    arcLastTargetTime = now;
-    isFullscreen = p.isFullscreen || false;
-  }
   if (e.data?.type === 'flightmap-resize') {
-    var wasFullscreen = isFullscreen;
     isFullscreen = e.data.isFullscreen || false;
-    arcLastSetViewPos = null;
-    arcMapEl = null;
-    arcLastRotDeg = null;
-    setTimeout(function(){ 
-      map.invalidateSize();
-      if (currentViewMode === 'arc' && arcInitialized) {
-        arcLastSetViewPos = null;
-        // Reposition aircraft icon
-        var acEl = document.getElementById('arc-aircraft');
-        if (acEl) {
-          var wrapperRect = document.getElementById('map-wrapper').getBoundingClientRect();
-          var acY = wrapperRect.height * (isFullscreen ? 0.93 : 0.90);
-          acEl.style.bottom = 'auto';
-          acEl.style.top = (acY - 26) + 'px';
-        }
-      }
-    }, 150);
+    setTimeout(function(){ map.invalidateSize(); }, 150);
   }
 });
 parent.postMessage({ type: 'flightmap-ready' }, '*');
-parent.postMessage({ type: 'flightmap-viewmode', viewMode: currentViewMode }, '*');
 <\/script>
 </body></html>`;
 }
