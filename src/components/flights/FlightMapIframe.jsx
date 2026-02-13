@@ -954,11 +954,11 @@ window.addEventListener('message', function(e) {
         var vLon = (p.longitude - arcPrevTarget.lon) / elapsed;
         var vHdg = angleDiff(arcPrevTarget.hdg, p.heading || 0) / elapsed;
         var vAlt = ((p.altitude || 0) - (arcPrevTarget.alt || 0)) / elapsed;
-        // Heavy EMA smoothing for very stable velocity (0.2 new, 0.8 old)
-        arcVelocity.lat = arcVelocity.lat * 0.8 + vLat * 0.2;
-        arcVelocity.lon = arcVelocity.lon * 0.8 + vLon * 0.2;
-        arcVelocity.hdg = arcVelocity.hdg * 0.8 + vHdg * 0.2;
-        arcVelocity.alt = arcVelocity.alt * 0.8 + vAlt * 0.2;
+        // Very heavy EMA smoothing (0.15 new, 0.85 old) for butter-smooth velocity
+        arcVelocity.lat = arcVelocity.lat * 0.85 + vLat * 0.15;
+        arcVelocity.lon = arcVelocity.lon * 0.85 + vLon * 0.15;
+        arcVelocity.hdg = arcVelocity.hdg * 0.85 + vHdg * 0.15;
+        arcVelocity.alt = arcVelocity.alt * 0.85 + vAlt * 0.15;
       }
     }
     
