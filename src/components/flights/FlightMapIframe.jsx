@@ -622,9 +622,12 @@ function update(d) {
     // Center aircraft at bottom 85% of viewport
     centerAircraftArc(curPos);
     
-    // Now apply rotation around center of the map div
+    // Rotate + scale around the AIRCRAFT position (not center of map)
+    // This ensures the aircraft stays in place while the map rotates around it
     var hdg = fd.heading || 0;
-    mapEl.style.transformOrigin = '50% 50%';
+    var ox = centerAircraftArc._originX || 50;
+    var oy = centerAircraftArc._originY || 85;
+    mapEl.style.transformOrigin = ox + '% ' + oy + '%';
     mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.8)';
     
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
