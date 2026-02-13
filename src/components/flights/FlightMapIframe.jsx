@@ -713,8 +713,22 @@ function update(d) {
   }
 
   if (layers.aircraft) map.removeLayer(layers.aircraft);
+  layers.aircraft = null;
   if (curPos && !staticMode && currentViewMode !== 'arc') {
     layers.aircraft = L.marker(curPos, { icon: makeAircraftIcon(fd.heading), zIndexOffset: 1000 }).addTo(map);
+  }
+  // ARC mode: create/update a dedicated Leaflet marker at the REAL lat/lon
+  if (curPos && !staticMode && currentViewMode === 'arc') {
+    if (!arcMarker) {
+      arcMarker = L.marker(curPos, { icon: makeAircraftIcon(arcCurrent.hdg || fd.heading), zIndexOffset: 1000 }).addTo(map);
+      arcLastIconHdg = arcCurrent.hdg || fd.heading;
+    } else {
+      arcMarker.setLatLng(curPos);
+    }
+  }
+  if (currentViewMode !== 'arc' && arcMarker) {
+    map.removeLayer(arcMarker);
+    arcMarker = null;
   }
 
   // ARC overlay + map rotation for Boeing ND style
