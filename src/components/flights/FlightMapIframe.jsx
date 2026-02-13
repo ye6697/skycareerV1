@@ -208,6 +208,10 @@ function buildIframeHtml() {
   /* ARC mode compass overlay */
   #arc-overlay { position:absolute; top:0; left:0; right:0; bottom:0; z-index:999; pointer-events:none; display:none; }
   #arc-overlay canvas { width:100%; height:100%; }
+
+  /* Fixed aircraft icon for ARC mode - stays at bottom-center of viewport */
+  #arc-aircraft { position:absolute; z-index:1001; pointer-events:none; display:none; bottom:15%; left:50%; transform:translateX(-50%); }
+  #arc-aircraft svg { filter:drop-shadow(0 0 12px rgba(34,211,238,0.7)); }
 </style>
 </head><body>
 <div id="map-wrapper"><div id="map" class="normal-mode"></div></div>
