@@ -192,6 +192,36 @@ export default function Contracts() {
               </Button>
             </div>
           </div>
+
+          {/* Distance Range Filter for Generation */}
+          <div className="mt-4 p-3 bg-slate-800/60 border border-slate-700 rounded-lg">
+            <p className="text-xs text-slate-400 mb-2 font-medium">Entfernungsfilter für Generierung (NM)</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Von</span>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={minNm}
+                  onChange={(e) => setMinNm(e.target.value)}
+                  className="w-24 h-8 text-sm bg-slate-900 border-slate-600"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Bis</span>
+                <Input
+                  type="number"
+                  placeholder="∞"
+                  value={maxNm}
+                  onChange={(e) => setMaxNm(e.target.value)}
+                  className="w-24 h-8 text-sm bg-slate-900 border-slate-600"
+                />
+              </div>
+              <span className="text-xs text-slate-500">NM</span>
+            </div>
+          </div>
+            </div>
+          </div>
         </motion.div>
 
         {/* Aircraft Selector */}
