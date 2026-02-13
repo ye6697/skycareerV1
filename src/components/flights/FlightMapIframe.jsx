@@ -180,7 +180,7 @@ function buildIframeHtml() {
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
   #map-wrapper { width: 100%; height: 100%; overflow: hidden; position: relative; }
   #map { width: 100%; height: 100%; position: relative; }
-  #map.arc-mode { width: 300%; height: 300%; position: absolute; top: -100%; left: -100%; }
+  #map.arc-mode { width: 300%; height: 300%; position: absolute; top: -100%; left: -100%; will-change: transform; }
   .leaflet-container { background: #0f172a !important; }
   .wpl { font-size:13px; font-family:'Courier New',monospace; padding:2px 6px; border-radius:4px; background:rgba(15,23,42,0.9); white-space:nowrap; letter-spacing:0.5px; }
   .wpl-dep { font-size:14px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
@@ -221,7 +221,7 @@ function buildIframeHtml() {
 <div id="events-overlay" style="display:none;"></div>
 <div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
 <script>
-var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5 });
+var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5, fadeAnimation: false, markerZoomAnimation: false, zoomAnimation: false });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 // Force map to fill its container properly
 setTimeout(function(){ map.invalidateSize(); }, 100);
