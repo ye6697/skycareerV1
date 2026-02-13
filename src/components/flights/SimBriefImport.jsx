@@ -80,7 +80,9 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
       setLoading(false);
 
       if (response.data?.error) {
-        setError(response.data.error);
+        // If API returned an error, treat as "no plan found" instead of showing raw error
+        setMismatch(true);
+        setImportedData(null);
         return;
       }
 
@@ -96,7 +98,9 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
       }
     } catch (e) {
       setLoading(false);
-      setError('SimBrief konnte nicht geladen werden: ' + (e?.message || 'Unbekannter Fehler'));
+      // Network/server errors also just show the "create plan" UI
+      setMismatch(true);
+      setImportedData(null);
     }
   };
 
