@@ -294,6 +294,28 @@ export default function Contracts() {
               <Card key={i} className="h-64 animate-pulse bg-slate-100" />
             ))}
           </div>
+        ) : availableAircraft.length === 0 && ownedAircraft.length > 0 ? (
+          <Card className="p-8 sm:p-12 bg-slate-800 border border-slate-700">
+            <div className="text-center mb-6">
+              <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Kein Flugzeug zur Verfügung</h3>
+              <p className="text-slate-400">Alle deine Flugzeuge sind derzeit nicht verfügbar.</p>
+            </div>
+            <div className="space-y-3 max-w-md mx-auto mb-6">
+              {ownedAircraft.some(ac => ac.status === 'in_flight') && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
+                  <Plane className="w-5 h-5 text-amber-400" />
+                  <p className="text-sm text-slate-300">Flugzeuge im Flug – warte bis ein Flug abgeschlossen ist.</p>
+                </div>
+              )}
+              {ownedAircraft.some(ac => ac.status === 'maintenance' || ac.status === 'damaged') && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
+                  <Wrench className="w-5 h-5 text-amber-400" />
+                  <p className="text-sm text-slate-300">Flugzeuge in Wartung oder beschädigt – repariere sie in der Flotte.</p>
+                </div>
+              )}
+            </div>
+          </Card>
         ) : filteredContracts.length > 0 ? (
            <>
              <h2 className="text-xl font-bold text-white mb-4">Kompatible Aufträge ({compatibleContracts.length})</h2>
@@ -353,65 +375,36 @@ export default function Contracts() {
           <Card className="p-8 sm:p-12 bg-slate-800 border border-slate-700">
             <div className="text-center mb-6">
               <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Keine Aufträge verfügbar</h3>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {ownedAircraft.length === 0 ? 'Kein Flugzeug vorhanden' : 'Keine Aufträge verfügbar'}
+              </h3>
             </div>
-
-            {/* Diagnostic hints */}
-            {(() => {
-              const allAc = ownedAircraft || [];
-              const noAircraft = allAc.length === 0;
-              const allInFlight = !noAircraft && allAc.every(ac => ac.status === 'in_flight');
-              const hasDamaged = allAc.some(ac => ac.status === 'damaged' || ac.status === 'maintenance');
-              const noAvailable = !noAircraft && availableAircraft.length === 0;
-
-              // Check employees
-              const employees = pageData?.employees || [];
-
-              const hints = [];
-
-              if (noAircraft) {
-                hints.push({ icon: <Plane className="w-5 h-5 text-red-400" />, text: 'Du besitzt keine Flugzeuge. Kaufe zuerst ein Flugzeug in der Flotte.', color: 'red' });
-              } else if (noAvailable) {
-                if (allInFlight) {
-                  hints.push({ icon: <Plane className="w-5 h-5 text-amber-400" />, text: 'Alle Flugzeuge sind derzeit im Flug. Warte bis ein Flug abgeschlossen ist.', color: 'amber' });
-                }
-                if (hasDamaged) {
-                  hints.push({ icon: <Wrench className="w-5 h-5 text-amber-400" />, text: 'Einige Flugzeuge sind beschädigt oder in Wartung. Repariere sie in der Flotte.', color: 'amber' });
-                }
-                if (!allInFlight && !hasDamaged) {
-                  hints.push({ icon: <Plane className="w-5 h-5 text-amber-400" />, text: 'Keine verfügbaren Flugzeuge. Prüfe den Status deiner Flotte.', color: 'amber' });
-                }
-              }
-
-              const availCaptains = employees.filter(e => e.role === 'captain' && (e.status === 'available' || e.status === 'on_duty'));
-              if (availCaptains.length === 0 && !noAircraft) {
-                hints.push({ icon: <UserX className="w-5 h-5 text-amber-400" />, text: 'Kein Kapitän verfügbar. Stelle einen Kapitän auf der Mitarbeiter-Seite ein.', color: 'amber' });
-              }
-
-              if (searchTerm) {
-                hints.push({ icon: <Search className="w-5 h-5 text-blue-400" />, text: 'Die Suche liefert keine Ergebnisse. Versuche einen anderen Suchbegriff.', color: 'blue' });
-              }
-
-              if (hints.length === 0) {
-                hints.push({ icon: <RefreshCw className="w-5 h-5 text-slate-400" />, text: 'Klicke auf "Aufträge generieren" um neue Aufträge zu erhalten.', color: 'slate' });
-              }
-
-              return (
-                <div className="space-y-3 max-w-md mx-auto mb-6">
-                  {hints.map((hint, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
-                      {hint.icon}
-                      <p className="text-sm text-slate-300">{hint.text}</p>
-                    </div>
-                  ))}
+            <div className="space-y-3 max-w-md mx-auto mb-6">
+              {ownedAircraft.length === 0 && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
+                  <Plane className="w-5 h-5 text-red-400" />
+                  <p className="text-sm text-slate-300">Du besitzt keine Flugzeuge. Kaufe zuerst ein Flugzeug in der Flotte.</p>
                 </div>
-              );
-            })()}
-
+              )}
+              {searchTerm && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
+                  <Search className="w-5 h-5 text-blue-400" />
+                  <p className="text-sm text-slate-300">Die Suche liefert keine Ergebnisse. Versuche einen anderen Suchbegriff.</p>
+                </div>
+              )}
+              {ownedAircraft.length > 0 && !searchTerm && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
+                  <RefreshCw className="w-5 h-5 text-slate-400" />
+                  <p className="text-sm text-slate-300">Klicke auf "Aufträge generieren" um neue Aufträge zu erhalten.</p>
+                </div>
+              )}
+            </div>
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
-                Filter zurücksetzen
-              </Button>
+              {searchTerm && (
+                <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
+                  Filter zurücksetzen
+                </Button>
+              )}
               <Button 
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending}
