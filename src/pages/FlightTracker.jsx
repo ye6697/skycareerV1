@@ -2131,9 +2131,20 @@ export default function FlightTracker() {
               {/* Compact Raw X-Plane Data */}
               {xplaneLog?.raw_data && (
                 <Card className="p-4 bg-slate-800/50 border-slate-700">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-slate-400">
-                    <Activity className="w-4 h-4 text-blue-400" />
-                    X-Plane Rohdaten
+                  <h3 className="text-sm font-semibold mb-3 flex items-center justify-between text-slate-400">
+                    <span className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-blue-400" />
+                      X-Plane Rohdaten
+                    </span>
+                    {dataLatency !== null && (
+                      <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+                        dataLatency < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
+                        dataLatency < 4000 ? 'bg-amber-500/20 text-amber-400' :
+                        'bg-red-500/20 text-red-400'
+                      }`}>
+                        Δ {(dataLatency / 1000).toFixed(1)}s
+                      </span>
+                    )}
                   </h3>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-mono">
                     {Object.entries(xplaneLog.raw_data)
