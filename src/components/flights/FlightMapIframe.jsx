@@ -140,7 +140,7 @@ function buildIframeHtml() {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
-  #map { width: 100%; height: 100%; }
+  #map { width: 100%; height: 100%; transition: transform 0.8s ease; }
   .leaflet-container { background: #0f172a !important; }
   .wpl { font-size:10px; font-family:'Courier New',monospace; padding:1px 4px; border-radius:3px; background:rgba(15,23,42,0.85); white-space:nowrap; }
   .wpl-dep { font-size:11px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
