@@ -234,9 +234,17 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
+  // The map is 3x oversized, so the visible viewport is the center third.
+  // The visible center is at mapSize/2, and visible area spans from mapSize/3 to 2*mapSize/3.
+  // We want the aircraft at 85% down in the VISIBLE viewport.
   var mapSize = map.getSize();
   var acPixel = map.latLngToContainerPoint(curPos);
-  var targetPixel = L.point(mapSize.x / 2, mapSize.y * 0.9);
+  // Visible viewport offset: starts at 1/3 of map size
+  var visibleTop = mapSize.y / 3;
+  var visibleHeight = mapSize.y / 3;
+  var visibleLeft = mapSize.x / 3;
+  var visibleWidth = mapSize.x / 3;
+  var targetPixel = L.point(visibleLeft + visibleWidth / 2, visibleTop + visibleHeight * 0.85);
   var dx = acPixel.x - targetPixel.x;
   var dy = acPixel.y - targetPixel.y;
   var centerPixel = L.point(mapSize.x / 2, mapSize.y / 2);
