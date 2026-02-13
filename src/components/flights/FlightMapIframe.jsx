@@ -827,6 +827,26 @@ window.addEventListener('message', function(e) {
   if (e.data?.type === 'flightmap-update') update(e.data.payload);
   if (e.data?.type === 'flightmap-arc-position') {
     var p = e.data.payload;
+    var now = performance.now();
+
+    // Compute velocity from consecutive target updates for dead-reckoning
+    if (arcLastTargetTime > 0 && arcInitialized) {
+      var elapsed = (now - arcLastTargetTime) / 1000;
+      if (elapsed > 0.05 && elapsed < 5) { // reasonable interval
+        var vLat = (p.latitude - arcPrevTarget.lat) / elapsed;
+        var vLon = (p.longitude - arcPrevTarget.lon) / elapsed;
+        var vHdg = angleDiff(arcPrevTarget.hdg, p.heading || 0) / elapsed;
+        // Smooth velocity estimation
+        arcVelocity.lat = arcVelocity.lat * 0.5 + vLat * 0.5;
+        arcVelocity.lon = arcVelocity.lon * 0.5 + vLon * 0.5;
+        arcVelocity.hdg = arcVelocity.hdg * 0.5 + vHdg * 0.5;
+      }
+    }
+    arcPrevTarget.lat = p.latitude;
+    arcPrevTarget.lon = p.longitude;
+    arcPrevTarget.hdg = p.heading || 0;
+    arcLastTargetTime = now;
+
     arcTarget.lat = p.latitude;
     arcTarget.lon = p.longitude;
     arcTarget.hdg = p.heading || 0;
@@ -838,6 +858,7 @@ window.addEventListener('message', function(e) {
       arcCurrent.hdg = p.heading || 0;
       arcCurrent.alt = p.altitude || 0;
       arcCurrent.spd = p.speed || 0;
+      arcVelocity = { lat: 0, lon: 0, hdg: 0 };
       arcInitialized = true;
     }
     isFullscreen = p.isFullscreen || false;
