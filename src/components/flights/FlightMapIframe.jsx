@@ -333,39 +333,50 @@ function drawArcOverlay(hdg, alt, spd, nextWpName, nextWpDist, arrDist) {
   ctx.textAlign = 'center';
   ctx.fillText(String(Math.round(heading)).padStart(3, '0') + '°', cx, topY - 10 - hboxH/2 - 2);
 
-  // Bottom info bar
-  var barY = rect.height - 32;
-  ctx.fillStyle = 'rgba(10,20,40,0.85)';
-  ctx.fillRect(0, barY - 4, rect.width, 36);
-  ctx.strokeStyle = 'rgba(34,211,238,0.15)';
+  // Bottom info bar - larger text for fullscreen
+  var barH = 44;
+  var barY = rect.height - barH;
+  ctx.fillStyle = 'rgba(10,20,40,0.9)';
+  ctx.fillRect(0, barY, rect.width, barH);
+  ctx.strokeStyle = 'rgba(34,211,238,0.2)';
   ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.moveTo(0, barY - 4); ctx.lineTo(rect.width, barY - 4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, barY); ctx.lineTo(rect.width, barY); ctx.stroke();
 
-  ctx.font = '11px "Courier New", monospace';
+  var textY = barY + barH / 2 + 1;
+  var labelFont = 'bold 12px "Courier New", monospace';
+  var valueFont = 'bold 16px "Courier New", monospace';
+
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#94a3b8';
-  ctx.fillText('HDG', 12, barY + 10);
+  ctx.font = labelFont;
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('HDG', 16, textY);
+  ctx.font = valueFont;
   ctx.fillStyle = '#22d3ee';
-  ctx.fillText(String(Math.round(heading)).padStart(3,'0')+'°', 42, barY + 10);
+  ctx.fillText(String(Math.round(heading)).padStart(3,'0')+'°', 52, textY);
 
-  ctx.fillStyle = '#94a3b8';
-  ctx.fillText('ALT', 100, barY + 10);
+  ctx.font = labelFont;
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('ALT', 120, textY);
+  ctx.font = valueFont;
   ctx.fillStyle = '#34d399';
-  ctx.fillText(Math.round(alt||0).toLocaleString()+' ft', 130, barY + 10);
+  ctx.fillText(Math.round(alt||0).toLocaleString()+' ft', 156, textY);
 
-  ctx.fillStyle = '#94a3b8';
-  ctx.fillText('GS', 220, barY + 10);
+  ctx.font = labelFont;
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('GS', 280, textY);
+  ctx.font = valueFont;
   ctx.fillStyle = '#34d399';
-  ctx.fillText(Math.round(spd||0)+' kts', 242, barY + 10);
+  ctx.fillText(Math.round(spd||0)+' kts', 306, textY);
 
   ctx.textAlign = 'right';
+  ctx.font = valueFont;
   if (nextWpDist !== null) {
     ctx.fillStyle = '#a78bfa';
-    ctx.fillText('▸ ' + (nextWpName||'WPT') + ': ' + nextWpDist + ' NM', rect.width - 140, barY + 10);
+    ctx.fillText('▸ ' + (nextWpName||'WPT') + ': ' + nextWpDist + ' NM', rect.width - 180, textY);
   }
   if (arrDist !== null) {
     ctx.fillStyle = '#fbbf24';
-    ctx.fillText('ARR: ' + arrDist + ' NM', rect.width - 12, barY + 10);
+    ctx.fillText('ARR: ' + arrDist + ' NM', rect.width - 16, textY);
   }
 }
 
