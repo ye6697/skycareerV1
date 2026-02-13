@@ -43,7 +43,8 @@ export default function Dashboard() {
       const isAuth = await base44.auth.isAuthenticated();
       if (!isAuth) return null;
       return base44.auth.me();
-    }
+    },
+    staleTime: 300000,
   });
 
   useEffect(() => {
@@ -88,7 +89,8 @@ export default function Dashboard() {
       }
       return null;
     },
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 30000,
   });
 
   const companyId = company?.id;
