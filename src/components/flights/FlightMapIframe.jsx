@@ -142,6 +142,13 @@ function buildIframeHtml() {
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
   #map-wrapper { width: 100%; height: 100%; overflow: hidden; position: relative; background: #0f172a; }
   #map { width: 100%; height: 100%; }
+  #map-wrapper.arc-active #map {
+    width: 300%;
+    height: 300%;
+    position: absolute;
+    top: -100%;
+    left: -100%;
+  }
   .leaflet-container { background: #0f172a !important; }
   .wpl { font-size:10px; font-family:'Courier New',monospace; padding:1px 4px; border-radius:3px; background:rgba(15,23,42,0.85); white-space:nowrap; }
   .wpl-dep { font-size:11px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
