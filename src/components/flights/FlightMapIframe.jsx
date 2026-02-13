@@ -862,16 +862,6 @@ function arcSmoothTick(now) {
   if (!arcMapEl) arcMapEl = document.getElementById('map');
   var rotDeg = -arcCurrent.hdg;
   
-  // Update Leaflet marker position at real lat/lon on the rotated map
-  if (arcMarker) {
-    arcMarker.setLatLng(curPos);
-    var hdgDiff = Math.abs(arcCurrent.hdg - arcLastIconHdg);
-    if (hdgDiff > 0.5) {
-      arcLastIconHdg = arcCurrent.hdg;
-      arcMarker.setIcon(makeAircraftIcon(arcCurrent.hdg));
-    }
-  }
-  
   // Recenter map smoothly – every 300ms
   if (!frozen && (now - arcLastRecenter > 300)) {
     arcLastRecenter = now;
