@@ -176,25 +176,54 @@ class PythonInterface:
     def FlightLoopCallback(self, elapsedSinceLastCall, elapsedTimeSinceLastFlightLoop, counter, refcon):
         current_time = time.time()
         
-        # Check if it's time to update
-        if current_time - self.last_update < self.update_interval:
-            return -1  # Continue
+        # --- FAST position update (~30Hz) for smooth ARC mode ---
+        do_fast = current_time - self.last_fast_update >= self.fast_interval
+        do_full = current_time - self.last_update >= self.update_interval
         
-        self.last_update = current_time
+        if not do_fast and not do_full:
+            return -1  # Nothing to do this frame
         
         try:
-            # Read all datarefs
-            altitude = xp.getDataf(self.datarefs['altitude']) * 3.28084  # meters to feet
-            speed = xp.getDataf(self.datarefs['speed']) * 1.94384  # m/s to knots
-            vs = xp.getDataf(self.datarefs['vs']) * 196.85  # m/s to ft/min
+            # Always read core position datarefs (cheap)
+            altitude = xp.getDataf(self.datarefs['altitude']) * 3.28084
+            speed = xp.getDataf(self.datarefs['speed']) * 1.94384
             heading = xp.getDataf(self.datarefs['heading'])
+            latitude = xp.getDatad(self.datarefs['latitude'])
+            longitude = xp.getDatad(self.datarefs['longitude'])
+            on_ground = xp.getDatai(self.datarefs['on_ground']) == 1
+            
+            # Detect takeoff (was on ground, now airborne)
+            if self.last_on_ground and not on_ground:
+                self.flight_started = True
+            self.last_on_ground = on_ground
+            
+            # Only send data if flight has started
+            if not self.flight_started and on_ground:
+                return -1
+            
+            # --- FAST UPDATE: position-only packet at ~30Hz ---
+            if do_fast and not do_full:
+                self.last_fast_update = current_time
+                fast_payload = {
+                    'fast_position': True,
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'heading': round(heading, 1),
+                    'altitude': round(altitude, 1),
+                    'speed': round(speed, 1),
+                }
+                self.send_data(fast_payload)
+                return -1
+            
+            # --- FULL UPDATE: all data at normal interval ---
+            self.last_update = current_time
+            self.last_fast_update = current_time  # reset fast timer too
+            
+            vs = xp.getDataf(self.datarefs['vs']) * 196.85
             fuel_current = xp.getDataf(self.datarefs['fuel_ratio'])
             fuel_max = xp.getDataf(self.datarefs['fuel_max'])
             fuel_percentage = (fuel_current / fuel_max * 100) if fuel_max > 0 else 100
             g_force = xp.getDataf(self.datarefs['g_load'])
-            latitude = xp.getDatad(self.datarefs['latitude'])
-            longitude = xp.getDatad(self.datarefs['longitude'])
-            on_ground = xp.getDatai(self.datarefs['on_ground']) == 1
             parking_brake = xp.getDataf(self.datarefs['parking_brake']) > 0.5
             has_crashed = xp.getDatai(self.datarefs['has_crashed']) == 1
             ias = xp.getDataf(self.datarefs['indicated_airspeed']) or 0
@@ -208,7 +237,6 @@ class PythonInterface:
             # Environment & weight data for calculator
             total_weight_kg = round(xp.getDataf(self.datarefs['total_weight']), 0)
             oat_c = round(xp.getDataf(self.datarefs['oat']), 1)
-            # Ground elevation: altitude MSL - altitude AGL
             agl_m = xp.getDataf(self.datarefs['ground_elevation'])
             elev_msl_m = xp.getDataf(self.datarefs['elev_msl'])
             ground_elevation_ft = round((elev_msl_m - agl_m) * 3.28084, 0)
@@ -235,9 +263,7 @@ class PythonInterface:
                     engines_running = True
                     break
             
-            # Read FMS/flight plan waypoints (only every N seconds to save CPU)
-            # Uses XPLMCountFMSEntries + XPLMGetFMSEntryInfo from X-Plane SDK
-            # getFMSEntryInfo returns: (outType, outID, outRef, outAltitude, outLat, outLon)
+            # Read FMS/flight plan waypoints (only every N seconds)
             send_fms = False
             if current_time - self.last_fms_send >= self.fms_send_interval:
                 self.last_fms_send = current_time
@@ -248,7 +274,6 @@ class PythonInterface:
                     dest_idx = xp.getDestinationFMSEntry()
                     for i in range(min(fms_count, 100)):
                         outType, outID, outRef, outAlt, outLat, outLon = xp.getFMSEntryInfo(i)
-                        # Skip unknown/empty entries
                         if outLat == 0.0 and outLon == 0.0:
                             continue
                         wp_name = outID if outID else f'WPT{i}'
@@ -256,26 +281,16 @@ class PythonInterface:
                             'name': wp_name,
                             'lat': round(outLat, 5),
                             'lon': round(outLon, 5),
-                            'alt': round(outAlt, 0),  # altitude already in feet
+                            'alt': round(outAlt, 0),
                             'is_active': i == dest_idx,
-                            'type': outType  # 1=airport, 2=NDB, 4=VOR, 512=fix, 2048=latlon
+                            'type': outType
                         })
                 except Exception as e:
                     xp.log(f"SkyCareer FMS read error: {str(e)}")
                     fms_waypoints = []
                 self.cached_fms_waypoints = fms_waypoints
-
-            # Detect takeoff (was on ground, now airborne)
-            if self.last_on_ground and not on_ground:
-                self.flight_started = True
             
-            self.last_on_ground = on_ground
-            
-            # Only send data if flight has started
-            if not self.flight_started and on_ground:
-                return -1
-            
-            # Prepare payload - lean, only include what's needed
+            # Prepare full payload
             payload = {
                 'altitude': round(altitude, 1),
                 'speed': round(speed, 1),
@@ -314,7 +329,7 @@ class PythonInterface:
                 payload['touchdown_vspeed'] = round(vs, 1)
                 payload['landing_g_force'] = round(g_force, 2)
             
-            # Only include failures when count changes (avoid server overhead)
+            # Only include failures when count changes
             if not hasattr(self, '_last_failure_count'):
                 self._last_failure_count = 0
             if len(self.active_failures) != self._last_failure_count:
