@@ -128,7 +128,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
   const repayLoanMutation = useMutation({
     mutationFn: async () => {
       if (!hasActiveLoan) return;
-      const repayAmount = Math.min(activeLoan.remaining, Math.max(0, balance));
+      const repayAmount = activeLoan.remaining;
       if (repayAmount <= 0) return;
 
       const newRemaining = activeLoan.remaining - repayAmount;
@@ -262,10 +262,10 @@ export default function CreditInfoCard({ company, fleetValue }) {
               <Button
                 size="sm"
                 className="w-full mt-2 bg-blue-600 hover:bg-blue-700"
-                disabled={balance <= 0 || repayLoanMutation.isPending}
+                disabled={repayLoanMutation.isPending}
                 onClick={() => repayLoanMutation.mutate()}
               >
-                {repayLoanMutation.isPending ? 'Zahle...' : `Kredit tilgen (max $${Math.min(activeLoan.remaining, Math.max(0, balance)).toLocaleString()})`}
+                {repayLoanMutation.isPending ? 'Zahle...' : `Kredit vollständig tilgen ($${activeLoan.remaining?.toLocaleString()})`}
               </Button>
             </div>
           )}

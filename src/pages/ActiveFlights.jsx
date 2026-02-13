@@ -49,37 +49,27 @@ export default function ActiveFlights() {
 
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' }),
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
   });
 
   const { data: inProgressContracts = [] } = useQuery({
     queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' }),
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
   });
 
   const { data: completedContracts = [] } = useQuery({
     queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' }),
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
   });
 
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' }),
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' }),
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
   });
 
   const { data: company } = useQuery({
@@ -87,9 +77,7 @@ export default function ActiveFlights() {
     queryFn: async () => {
       const companies = await base44.entities.Company.list();
       return companies[0];
-    },
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
+    }
   });
 
   const startFlightMutation = useMutation({
@@ -156,7 +144,7 @@ export default function ActiveFlights() {
       // Deduct penalty from company
       if (company) {
         await base44.entities.Company.update(company.id, {
-          balance: Math.max(0, (company.balance || 0) - penalty)
+          balance: (company.balance || 0) - penalty
         });
 
         // Create transaction for penalty
