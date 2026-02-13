@@ -623,11 +623,9 @@ function update(d) {
     mapEl.style.top = '-100%';
     mapEl.style.left = '-100%';
     
-    drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
-    
-    var hdg = fd.heading || 0;
+    // Remove rotation BEFORE invalidateSize + centering so pixel math is correct
+    mapEl.style.transform = 'none';
     mapEl.style.transformOrigin = '50% 50%';
-    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg)';
     
     map.invalidateSize();
     
@@ -636,8 +634,14 @@ function update(d) {
       map.setZoom(arcZoomLevel, { animate: false });
     }
     
-    // Always center aircraft at bottom of the visible viewport
+    // Center aircraft at bottom of the visible viewport (no rotation yet)
     centerAircraftArc(curPos);
+    
+    // NOW apply the rotation after centering
+    var hdg = fd.heading || 0;
+    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg)';
+    
+    drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
     boundsSet = false;
   } else {
