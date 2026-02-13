@@ -40,8 +40,10 @@ function getNavItems(lang) {
   ];
 }
 
-export default function Layout({ children, currentPageName }) {
+function LayoutInner({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { lang, setLang } = useLanguage();
+  const navItems = getNavItems(lang);
 
   // Load all layout data ONCE and never refetch automatically
   const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, loaded: false });
