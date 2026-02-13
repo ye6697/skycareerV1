@@ -238,37 +238,19 @@ function setArcDragLock(locked) {
 }
 
 function centerAircraftArc(curPos) {
-  // Simple geographic approach: no pixel math at all.
-  // We want the aircraft to appear at 85% down in the visible viewport.
-  // That means the map center should be NORTH of the aircraft.
-  // 
-  // The visible viewport is wrapper-sized. The wrapper shows the center 1/3 of the 3x map.
-  // But Leaflet's center is always the center of the full map container.
-  // Since visible area = center third, Leaflet center = center of visible area. Good.
-  //
-  // We need to shift the map center so aircraft is 85% down = 35% below center.
-  // 35% of visible height in lat degrees depends on zoom level.
-  
-  var wrapper = document.getElementById('map-wrapper');
-  var viewH = wrapper.getBoundingClientRect().height;
-  
-  // Calculate how many degrees of latitude correspond to 35% of visible height
-  // Use two points: the center of the current map view
+  // Simple approach: center on aircraft, then pan so aircraft is at 85% down.
+  // Map is normal size (100%), no oversized tricks.
   map.setView(curPos, map.getZoom(), { animate: false });
   
-  // Now aircraft is at center. Get the lat bounds of the visible area.
-  // The visible area in Leaflet coords is the middle third of the 3x container.
-  // Leaflet map size = 3*viewW x 3*viewH
-  var mapSize = map.getSize(); // this is the full 3x container
-  var topVisiblePx = L.point(mapSize.x / 2, mapSize.y / 2 - viewH / 2);
-  var botVisiblePx = L.point(mapSize.x / 2, mapSize.y / 2 + viewH / 2);
-  var topLL = map.containerPointToLatLng(topVisiblePx);
-  var botLL = map.containerPointToLatLng(botVisiblePx);
-  var visibleLatSpan = topLL.lat - botLL.lat; // positive (top has higher lat)
+  // Aircraft is now at center (50% down). We want it at 85% down.
+  // So we need to pan the map so the center moves DOWN by 35% of viewport height.
+  // That means: new center pixel = old center pixel + 35% of height
+  var mapSize = map.getSize();
+  var shiftPx = mapSize.y * 0.35;
   
-  // Shift map center north by 35% of visible lat span
-  var shiftLat = visibleLatSpan * 0.35;
-  var newCenter = L.latLng(curPos[0] + shiftLat, curPos[1]);
+  var centerPx = map.latLngToContainerPoint(map.getCenter());
+  var newCenterPx = L.point(centerPx.x, centerPx.y - shiftPx);
+  var newCenter = map.containerPointToLatLng(newCenterPx);
   map.setView(newCenter, map.getZoom(), { animate: false });
 }
 
