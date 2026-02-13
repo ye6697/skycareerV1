@@ -678,7 +678,7 @@ function update(d) {
   }
 
   if (layers.aircraft) map.removeLayer(layers.aircraft);
-  if (curPos && !staticMode) {
+  if (curPos && !staticMode && currentViewMode !== 'arc') {
     layers.aircraft = L.marker(curPos, { icon: makeAircraftIcon(fd.heading), zIndexOffset: 1000 }).addTo(map);
   }
 
