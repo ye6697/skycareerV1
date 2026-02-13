@@ -140,8 +140,7 @@ function buildIframeHtml() {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; }
-  #map-container { width: 100%; height: 100%; overflow: hidden; position: relative; background: #0f172a; }
-  #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  #map { width: 100%; height: 100%; transition: transform 0.8s ease; }
   .leaflet-container { background: #0f172a !important; }
   .wpl { font-size:10px; font-family:'Courier New',monospace; padding:1px 4px; border-radius:3px; background:rgba(15,23,42,0.85); white-space:nowrap; }
   .wpl-dep { font-size:11px; font-weight:bold; color:#10b981; border:1px solid #064e3b; }
@@ -175,9 +174,7 @@ function buildIframeHtml() {
   #arc-overlay canvas { width:100%; height:100%; }
 </style>
 </head><body>
-<div id="map-container">
-  <div id="map"></div>
-</div>
+<div id="map"></div>
 <div id="hud-top" style="display:none;"></div>
 <div id="events-overlay" style="display:none;"></div>
 <div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
@@ -208,7 +205,7 @@ map.on('zoomend', function() {
     arcZoomLevel = map.getZoom();
     // Re-center aircraft after zoom
     if (lastCurPos) {
-      setTimeout(function() { centerAircraftArc(lastCurPos); }, 50);
+      centerAircraftArc(lastCurPos);
     }
   }
 });
@@ -600,10 +597,6 @@ function update(d) {
     
     // Always center aircraft at bottom
     centerAircraftArc(curPos);
-    
-    // Force Leaflet to load tiles for the rotated view
-    map.invalidateSize();
-    map._resetView(map.getCenter(), map.getZoom(), true);
     
     boundsSet = false;
   } else {
