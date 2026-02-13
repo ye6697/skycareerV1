@@ -697,7 +697,13 @@ function update(d) {
   // ARC mode: remove Leaflet marker – aircraft is a fixed HTML element
   if (currentViewMode === 'arc') {
     if (arcMarker) { map.removeLayer(arcMarker); arcMarker = null; }
-    document.getElementById('arc-aircraft').style.display = 'block';
+    var acEl = document.getElementById('arc-aircraft');
+    acEl.style.display = 'block';
+    // Position aircraft at the same Y as the arc center point (where compass arc originates)
+    var wrapperRect = document.getElementById('map-wrapper').getBoundingClientRect();
+    var acY = wrapperRect.height * (isFullscreen ? 0.93 : 0.90);
+    acEl.style.bottom = 'auto';
+    acEl.style.top = (acY - 26) + 'px'; // 26 = half icon size
   } else {
     if (arcMarker) { map.removeLayer(arcMarker); arcMarker = null; }
     document.getElementById('arc-aircraft').style.display = 'none';
