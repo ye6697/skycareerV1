@@ -206,16 +206,6 @@ map.on('dragstart', function() {
 map.on('zoomend', function() {
   if (currentViewMode === 'arc') {
     arcZoomLevel = map.getZoom();
-    // Re-center aircraft after zoom: remove rotation, center, re-apply rotation
-    if (lastCurPos) {
-      var mapEl = document.getElementById('map');
-      var savedTransform = mapEl.style.transform;
-      mapEl.style.transform = 'none';
-      setTimeout(function(){
-        centerAircraftArc(lastCurPos);
-        mapEl.style.transform = savedTransform;
-      }, 50);
-    }
   }
 });
 
