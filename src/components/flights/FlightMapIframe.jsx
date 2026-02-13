@@ -252,7 +252,7 @@ map.on('dragstart', function() {
 map.on('zoomend', function() {
   if (currentViewMode === 'arc') {
     arcZoomLevel = map.getZoom();
-    arcBaseLatLng = null;
+    arcLastSetViewPos = null; // force recenter after zoom
   }
 });
 
