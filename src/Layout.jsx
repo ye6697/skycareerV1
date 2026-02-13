@@ -38,44 +38,38 @@ const navItems = [
 export default function Layout({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
+  // Load all layout data ONCE and never refetch automatically
+  const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, loaded: false });
+
+  React.useEffect(() => {
+    if (layoutData.loaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
         const u = await base44.auth.me();
         const cid = u?.company_id || u?.data?.company_id;
+        let comp = null;
         if (cid) {
           const companies = await base44.entities.Company.filter({ id: cid });
-          if (companies[0]) return companies[0];
+          comp = companies[0] || null;
         }
-        // Fallback
-        const companies = await base44.entities.Company.filter({ created_by: u.email });
-        if (companies[0]) {
-          await base44.auth.updateMe({ company_id: companies[0].id });
-          return companies[0];
+        if (!comp) {
+          const companies = await base44.entities.Company.filter({ created_by: u.email });
+          comp = companies[0] || null;
+          if (comp) await base44.auth.updateMe({ company_id: comp.id });
         }
-        return null;
-      },
-    staleTime: 120000,
-    refetchInterval: false,
-    refetchOnWindowFocus: false,
-  });
+        const settings = await base44.entities.GameSettings.list();
+        if (!cancelled) {
+          setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, loaded: true });
+        }
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [layoutData.loaded]);
 
-  const { data: gameSettings } = useQuery({
-    queryKey: ['gameSettings'],
-    queryFn: async () => {
-      const settings = await base44.entities.GameSettings.list();
-      return settings[0] || null;
-    },
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
-
-  const { data: user } = useQuery({
-    queryKey: ['user'],
-    queryFn: () => base44.auth.me(),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+  const company = layoutData.company;
+  const gameSettings = layoutData.gameSettings;
+  const user = layoutData.user;
 
   const xplaneStatus = company?.xplane_connection_status || 'disconnected';
 
