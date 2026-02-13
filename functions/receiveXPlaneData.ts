@@ -85,11 +85,11 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // Update company connection status ONLY if needed (skip DB write if already connected)
+    // Update company connection status - fire and forget (don't block response)
     if (company && company.xplane_connection_status !== 'connected') {
-      await base44.asServiceRole.entities.Company.update(company.id, { 
+      base44.asServiceRole.entities.Company.update(company.id, { 
         xplane_connection_status: 'connected' 
-      });
+      }).catch(() => {});
     }
 
     // Get active flight for this company (single DB query)
@@ -259,36 +259,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Write to DB – fire and forget, respond IMMEDIATELY to unblock the plugin
-    // The plugin blocks on the HTTP response, so fast response = fast next send cycle
-    const flightUpdatePromise = base44.asServiceRole.entities.Flight.update(flight.id, updateData);
+    // CRITICAL: Fire-and-forget the DB write so X-Plane gets a response IMMEDIATELY.
+    // The plugin blocks on the HTTP response, so fast response = fast next send cycle.
+    base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch(() => {});
 
-    // Calculate maintenance_ratio only every ~10th request (it rarely changes)
-    // Use a simple random check to avoid needing state
-    let maintenanceRatio = 0;
-    const shouldCheckMaintenance = Math.random() < 0.1; // ~10% of requests
+    // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
+    const maintenanceRatio = company?.current_maintenance_ratio || 0;
     
     const flightStatus = on_ground && park_brake && !areEnginesRunning && hasBeenAirborne ? 'ready_to_complete' : 'updated';
     
-    if (shouldCheckMaintenance && flight.aircraft_id) {
-      // Do aircraft lookup in parallel with flight update
-      const [, aircraftList] = await Promise.all([
-        flightUpdatePromise,
-        base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id })
-      ]);
-      const ac = aircraftList[0];
-      if (ac?.maintenance_categories) {
-        const cats = Object.values(ac.maintenance_categories);
-        if (cats.length > 0) {
-          const avg = cats.reduce((a, b) => a + (b || 0), 0) / cats.length;
-          maintenanceRatio = avg / 100;
-        }
-      }
-    } else {
-      // Just await the flight update, no aircraft lookup
-      await flightUpdatePromise;
+    // Background maintenance ratio recalculation (~10% of requests, fully async)
+    if (Math.random() < 0.1 && flight.aircraft_id) {
+      (async () => {
+        try {
+          const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+          const ac = aircraftList[0];
+          if (ac?.maintenance_categories) {
+            const cats = Object.values(ac.maintenance_categories);
+            if (cats.length > 0) {
+              const avg = cats.reduce((a, b) => a + (b || 0), 0) / cats.length;
+              await base44.asServiceRole.entities.Company.update(company.id, { 
+                current_maintenance_ratio: avg / 100 
+              });
+            }
+          }
+        } catch (_) { /* ignore */ }
+      })();
     }
 
+    // Respond IMMEDIATELY - no awaiting any DB operations
     return Response.json({ 
       status: flightStatus,
       on_ground,
