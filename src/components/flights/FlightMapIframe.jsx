@@ -840,10 +840,11 @@ function arcSmoothTick(now) {
   if (layers.aircraft && (now - arcLastMarkerUpdate > 200)) {
     arcLastMarkerUpdate = now;
     layers.aircraft.setLatLng(curPos);
-    var hdgRounded = Math.round(arcCurrent.hdg);
-    if (Math.abs(hdgRounded - arcLastIconHdg) >= 2) {
-      layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
-      arcLastIconHdg = hdgRounded;
+    // In ARC mode the icon doesn't need heading updates (map rotates instead)
+    // But we still need to ensure it's an ARC-style icon
+    if (arcLastIconHdg === -999) {
+      layers.aircraft.setIcon(makeAircraftIcon(0));
+      arcLastIconHdg = 0;
     }
   }
   
