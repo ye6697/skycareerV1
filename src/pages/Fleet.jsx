@@ -27,7 +27,11 @@ import {
 import AircraftCard from "@/components/aircraft/AircraftCard";
 
 const AIRCRAFT_MARKET_SPECS = [
+  { name: "Piper PA-18 Super Cub", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 100, fuel_consumption_per_hour: 35, range_nm: 400, purchase_price: 180000, maintenance_cost_per_hour: 30, level_requirement: 1 },
+  { name: "Vans RV-10", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 180, fuel_consumption_per_hour: 48, range_nm: 900, purchase_price: 250000, maintenance_cost_per_hour: 35, level_requirement: 1 },
   { name: "Cessna 172 Skyhawk", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 100, fuel_consumption_per_hour: 45, range_nm: 640, purchase_price: 425000, maintenance_cost_per_hour: 25, level_requirement: 1 },
+  { name: "Beechcraft Baron 58", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 340, fuel_consumption_per_hour: 130, range_nm: 1480, purchase_price: 450000, maintenance_cost_per_hour: 80, level_requirement: 1 },
+  { name: "Cirrus SR22", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 180, fuel_consumption_per_hour: 60, range_nm: 1050, purchase_price: 650000, maintenance_cost_per_hour: 50, level_requirement: 1 },
   { name: "Piper PA-28 Cherokee", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 120, fuel_consumption_per_hour: 50, range_nm: 700, purchase_price: 650000, maintenance_cost_per_hour: 30, level_requirement: 1 },
   { name: "Piper PA-44 Seminole", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 150, fuel_consumption_per_hour: 55, range_nm: 750, purchase_price: 750000, maintenance_cost_per_hour: 35, level_requirement: 2 },
   { name: "Socata Tobago", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 140, fuel_consumption_per_hour: 52, range_nm: 720, purchase_price: 700000, maintenance_cost_per_hour: 32, level_requirement: 2 },
