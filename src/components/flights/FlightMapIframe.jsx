@@ -982,6 +982,7 @@ window.addEventListener('message', function(e) {
     arcCorrectionRate.hdg = errHdg / arcCorrectionDuration;
     arcCorrectionRate.alt = errAlt / arcCorrectionDuration;
     arcCorrectionRemaining = arcCorrectionDuration;
+    arcCorrectionTotal = arcCorrectionDuration;
 
     arcPrevTarget.lat = p.latitude;
     arcPrevTarget.lon = p.longitude;
