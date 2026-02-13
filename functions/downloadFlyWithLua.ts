@@ -64,6 +64,9 @@ local crash_detected = false
 -- Track last sent failure count to only send when changed
 local last_sent_failure_count = 0
 
+-- Sequence counter to ensure every packet is unique (even with identical data)
+local send_counter = 0
+
 -- FMS waypoint reading (uses XPLMCountFMSEntries + XPLMGetFMSEntryInfo)
 local cached_fms_waypoints = {}
 local last_fms_read = 0
@@ -473,7 +476,6 @@ end
 -- Send data every 1 second (curl runs async in background, no frame blocking)
 local last_send_time = 0
 local SEND_INTERVAL = 1.0
-local send_counter = 0
 function flight_loop_callback()
     local current_time = os.clock()
     if current_time - last_send_time >= SEND_INTERVAL then
