@@ -246,7 +246,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 uppercase mb-1">oder Pilot ID</p>
+                  <p className="text-[10px] text-slate-500 uppercase mb-1">{t('or_pilot_id', lang)}</p>
                   <Input
                     value={simbriefPilotId}
                     onChange={(e) => setSimbriefPilotId(e.target.value)}

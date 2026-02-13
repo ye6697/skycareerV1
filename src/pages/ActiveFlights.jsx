@@ -108,17 +108,17 @@ export default function ActiveFlights() {
     mutationFn: async () => {
       // Check if aircraft can handle contract requirements
       const ac = aircraft.find((a) => a.id === selectedAircraft);
-      if (!ac) throw new Error('Flugzeug nicht gefunden');
+      if (!ac) throw new Error('Aircraft not found');
 
       // Validate aircraft is suitable for contract
       if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
-        throw new Error('Flugzeug hat nicht genug Sitze');
+        throw new Error('Not enough seats');
       }
       if (ac.cargo_capacity_kg < (selectedContract?.cargo_weight_kg || 0)) {
-        throw new Error('Flugzeug hat nicht genug Frachtraum');
+        throw new Error('Not enough cargo space');
       }
       if (ac.range_nm < (selectedContract?.distance_nm || 0)) {
-        throw new Error('Flugzeug hat nicht genug Reichweite');
+        throw new Error('Not enough range');
       }
 
       // Create flight record with 'in_flight' status
@@ -176,7 +176,7 @@ export default function ActiveFlights() {
           type: 'expense',
           category: 'other',
           amount: penalty,
-          description: `Stornierungsgebühr: ${contractToCancel.title}`,
+          description: `Cancellation fee: ${contractToCancel.title}`,
           date: new Date().toISOString()
         });
       }
