@@ -16,7 +16,9 @@ export default function PageNotFound({}) {
             } catch (error) {
                 return { user: null, isAuthenticated: false };
             }
-        }
+        },
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
     });
     
     return (

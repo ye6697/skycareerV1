@@ -393,7 +393,9 @@ export default function FlightTracker() {
       });
       return flights[0] || null;
     },
-    enabled: !!contractIdFromUrl
+    enabled: !!contractIdFromUrl,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   // Derive the active flight ID - either from state (after startFlight) or from existingFlight query
@@ -525,7 +527,8 @@ export default function FlightTracker() {
       const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     },
-    staleTime: 10000, // Moderate cache - company data needed for connection status
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: aircraft } = useQuery({
@@ -541,7 +544,8 @@ export default function FlightTracker() {
       if (!companyId) return [];
       return await base44.entities.Aircraft.filter({ company_id: companyId });
     },
-    staleTime: 30000, // Aircraft data rarely changes during flight
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: settings } = useQuery({
@@ -550,7 +554,8 @@ export default function FlightTracker() {
       const allSettings = await base44.entities.GameSettings.list();
       return allSettings[0] || null;
     },
-    staleTime: 300000, // Settings rarely change
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   // Find the assigned aircraft for this flight

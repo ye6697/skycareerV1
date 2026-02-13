@@ -33,7 +33,9 @@ export default function ContractDetails() {
       const contracts = await base44.entities.Contract.filter({ id: contractId });
       return contracts[0];
     },
-    enabled: !!contractId
+    enabled: !!contractId,
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   const typeConfig = {

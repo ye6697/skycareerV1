@@ -40,7 +40,9 @@ export default function CompletedFlightDetails() {
     queryFn: async () => {
       const settings = await base44.entities.GameSettings.list();
       return settings[0] || null;
-    }
+    },
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: contract } = useQuery({
@@ -53,7 +55,9 @@ export default function CompletedFlightDetails() {
       const contracts = await base44.entities.Contract.filter({ id: contractId, company_id: companies[0].id });
       return contracts[0];
     },
-    enabled: !!contractId && !passedContract
+    enabled: !!contractId && !passedContract,
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: flights = [] } = useQuery({
@@ -66,7 +70,9 @@ export default function CompletedFlightDetails() {
       const result = await base44.entities.Flight.filter({ contract_id: contractId, company_id: companies[0].id });
       return result.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
-    enabled: !!contractId && !passedFlight
+    enabled: !!contractId && !passedFlight,
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   // Prefer passed flight from navigation state, fallback to latest from DB
