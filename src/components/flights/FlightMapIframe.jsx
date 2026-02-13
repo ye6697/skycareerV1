@@ -274,28 +274,23 @@ var arcLastSetViewPos = null;
 
 function centerAircraftArc(curPos, forceImmediate) {
   var zoom = map.getZoom();
-  var size = map.getSize(); // This is the FULL 300% map size in ARC mode
-  // The visible viewport (map-wrapper) is 1/3 of the full map size.
-  // The Leaflet map center corresponds to pixel (size.x/2, size.y/2) in the full map,
-  // which maps to the CENTER of the visible viewport.
-  // We want the aircraft to appear at ~80% down in the viewport (bottom-center, above the info bar).
-  // That means we need to offset the Leaflet center so the aircraft lat/lon
-  // ends up 30% of the viewport height BELOW the Leaflet center.
-  // In other words: shift the Leaflet center NORTH (higher lat) so the aircraft appears lower.
-  // The offset in pixels (in full map coordinates) = 0.30 * viewportH
-  // BUT: Leaflet pixel coords are in the full 300% map space, so we use size directly.
-  var viewportH = size.y / 3; // visible viewport height
-  var desiredOffsetPx = viewportH * (isFullscreen ? 0.35 : 0.30); // aircraft should be this many px below map center
-  // Convert pixels to lat degrees at current zoom
-  // At zoom z, 1 pixel = (earth circumference * cos(lat)) / 2^(z+8) meters
-  // But Leaflet's getSize() returns CSS pixels of the map div, and at any zoom
-  // the relationship between pixels and degrees is:
-  // degrees_per_pixel = (visible_lat_span) / (map_height_in_px)
-  // Simpler: use Leaflet's built-in conversion
-  var centerPoint = map.latLngToContainerPoint(map.getCenter());
-  var offsetPoint = L.point(centerPoint.x, centerPoint.y + desiredOffsetPx);
-  var offsetLatLng = map.containerPointToLatLng(offsetPoint);
-  var latDiff = map.getCenter().lat - offsetLatLng.lat; // positive = moving center north
+  var size = map.getSize(); // FULL 300% map size
+  // The fixed aircraft icon is at bottom:15% of the VIEWPORT (map-wrapper).
+  // Viewport height = size.y / 3. The aircraft screen position = 85% down from top of viewport.
+  // In the full 300% map coordinate space, the viewport top edge is at size.y/3 (since map is offset by -100% = -size.y/3).
+  // So the aircraft position in full-map pixel coords: y = size.y/3 + (size.y/3)*0.85 = size.y/3*(1+0.85) = size.y*1.85/3
+  // The Leaflet map center is at size.y/2 in full-map coords.
+  // We need the aircraft lat/lon to project to y_aircraft, so the map center must be shifted.
+  // Offset in full-map pixels from center to aircraft = y_aircraft - size.y/2
+  var yAircraft = size.y * 1.85 / 3;
+  var yCenter = size.y / 2;
+  var offsetPx = yAircraft - yCenter; // positive = aircraft is below center
+  // Use Leaflet's projection to convert pixel offset to lat offset
+  var ctrPoint = map.latLngToContainerPoint(map.getCenter());
+  var aircraftPoint = L.point(ctrPoint.x, ctrPoint.y + offsetPx);
+  var aircraftLatLng = map.containerPointToLatLng(aircraftPoint);
+  var latDiff = map.getCenter().lat - aircraftLatLng.lat;
+  // Set center so aircraft lat/lon appears at the fixed icon position
   var centerLat = curPos[0] + latDiff;
   var centerLon = curPos[1];
   
