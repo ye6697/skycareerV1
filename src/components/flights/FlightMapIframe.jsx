@@ -803,27 +803,17 @@ function update(d) {
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
 
-// Smooth ARC interpolation – constant-speed movement between server updates.
-// The key insight: we DON'T use spring/exponential pull (that causes fast-snap-then-stop).
-// Instead we do pure dead-reckoning at the measured velocity, with a gentle
-// linear correction that spreads the error over ~1 second evenly.
+// ARC interpolation – NO dead-reckoning, NO velocity extrapolation.
+// Simply smooth-lerp from current to target. If no data for >5s, freeze.
 var arcTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcCurrent = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcInitialized = false;
 var arcLastTargetTime = 0;
 var arcLastFrameTime = 0;
-var arcPrevTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
-var arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second (smoothed)
 var arcLastIconHdg = -999;
 var arcLastOverlayDraw = 0;
 var arcLastDistInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
-
-// Error correction: when a new target arrives, we compute the position error
-// and spread it linearly over CORRECTION_DURATION seconds.
-var arcCorrectionDuration = 1.5; // seconds to absorb a position error (longer = smoother)
-var arcCorrectionRemaining = 0;  // seconds left in current correction
-var arcCorrectionTotal = 0;      // total duration of current correction (for easing)
-var arcCorrectionRate = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second
+var ARC_DATA_TIMEOUT = 5000; // ms – freeze after 5s without data
 
 function lerpAngle(a, b, t) {
   var diff = ((b - a + 540) % 360) - 180;
@@ -848,32 +838,20 @@ function arcSmoothTick(now) {
   if (dt > 0.25) dt = 0.016;
   arcLastFrameTime = now;
   
-  // --- Dead-reckoning: constant velocity movement ---
-  arcCurrent.lat += arcVelocity.lat * dt;
-  arcCurrent.lon += arcVelocity.lon * dt;
-  arcCurrent.hdg += arcVelocity.hdg * dt;
-  arcCurrent.alt += arcVelocity.alt * dt;
+  // --- DATA TIMEOUT: if no data for >5s, freeze completely ---
+  var dataAge = now - arcLastTargetTime;
+  var frozen = dataAge > ARC_DATA_TIMEOUT;
   
-  // --- Smooth error correction with ease-in-out curve ---
-  // Uses a cosine blend so correction starts and ends gently
-  if (arcCorrectionRemaining > 0 && arcCorrectionTotal > 0) {
-    var corrDt = Math.min(dt, arcCorrectionRemaining);
-    // Progress through correction: 0 = start, 1 = end
-    var progressBefore = 1 - (arcCorrectionRemaining / arcCorrectionTotal);
-    var progressAfter = 1 - ((arcCorrectionRemaining - corrDt) / arcCorrectionTotal);
-    // Smooth step using cosine: maps [0,1] -> [0,1] with ease-in-out
-    var sBefore = 0.5 - 0.5 * Math.cos(progressBefore * Math.PI);
-    var sAfter = 0.5 - 0.5 * Math.cos(progressAfter * Math.PI);
-    var blend = sAfter - sBefore; // fraction of total error to apply this frame
-    arcCurrent.lat += arcCorrectionRate.lat * arcCorrectionTotal * blend;
-    arcCurrent.lon += arcCorrectionRate.lon * arcCorrectionTotal * blend;
-    arcCurrent.hdg += arcCorrectionRate.hdg * arcCorrectionTotal * blend;
-    arcCurrent.alt += arcCorrectionRate.alt * arcCorrectionTotal * blend;
-    arcCorrectionRemaining -= corrDt;
+  if (!frozen) {
+    // Simple smooth lerp toward target – no dead-reckoning, no velocity
+    var lerpSpeed = 4; // per second – higher = snappier
+    var t = Math.min(1, dt * lerpSpeed);
+    arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
+    arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
+    arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t);
+    arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * t;
+    arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * t;
   }
-  
-  // Speed is display-only, simple lerp is fine
-  arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * Math.min(1, dt * 3);
   
   // Normalize heading to 0-360
   arcCurrent.hdg = ((arcCurrent.hdg % 360) + 360) % 360;
@@ -883,8 +861,6 @@ function arcSmoothTick(now) {
   // Update Leaflet marker at ~10fps
   if (layers.aircraft && (now - arcLastMarkerUpdate > 100)) {
     arcLastMarkerUpdate = now;
-    // In ARC mode, pin marker to the base projection point (CSS transform moves the map).
-    // This prevents the marker from visually drifting between recenters.
     var markerPos = arcBaseLatLng ? arcBaseLatLng : curPos;
     layers.aircraft.setLatLng(markerPos);
     var hdgRounded = Math.round(arcCurrent.hdg);
@@ -900,7 +876,7 @@ function arcSmoothTick(now) {
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // --- CSS transform: translate + rotate (no Leaflet calls per frame) ---
+  // --- CSS transform: translate + rotate ---
   if (!arcMapEl) arcMapEl = document.getElementById('map');
   
   centerAircraftArc(curPos);
