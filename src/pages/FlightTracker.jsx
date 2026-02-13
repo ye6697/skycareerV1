@@ -424,8 +424,10 @@ export default function FlightTracker() {
     };
     
     fetchData();
-    // Poll faster in ARC mode for smoother map updates (~30fps vs 1500ms)
-    const pollRate = viewMode === 'arc' ? 33 : 1500;
+    // Poll faster in ARC mode – 5Hz (200ms) feeds fresh positions to the iframe,
+    // which then interpolates at 60fps via dead-reckoning between updates.
+    // Going faster than 200ms would overload the DB with requests.
+    const pollRate = viewMode === 'arc' ? 200 : 1500;
     const interval = setInterval(fetchData, pollRate);
     
     return () => { isMounted = false; clearInterval(interval); };
