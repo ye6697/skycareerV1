@@ -202,7 +202,8 @@ function makeIcon(bg, size, border, glow) {
   return L.divIcon({ html: '<div style="background:'+bg+';width:'+size+'px;height:'+size+'px;border-radius:50%;border:2px solid '+border+';'+shadow+'"></div>', className: '', iconSize: [size, size], iconAnchor: [size/2, size/2] });
 }
 function makeAircraftIcon(hdg) {
-  var rot = currentViewMode === 'arc' ? 0 : (hdg||0);
+  // In ARC mode, the MAP rotates, so aircraft icon must counter-rotate to stay upright
+  var rot = currentViewMode === 'arc' ? (hdg||0) : (hdg||0);
   return L.divIcon({
     html: '<div style="transform:rotate('+rot+'deg);display:flex;align-items:center;justify-content:center;width:44px;height:44px;filter:drop-shadow(0 2px 8px rgba(34,211,238,0.5));"><svg width="40" height="40" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#0891b2" stroke-width="1.5"/><circle cx="50" cy="20" r="3" fill="#67e8f9"/></svg></div>',
     className: '', iconSize: [44, 44], iconAnchor: [22, 22]
