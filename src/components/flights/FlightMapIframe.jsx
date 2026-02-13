@@ -753,62 +753,69 @@ function update(d) {
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
 
-// Smooth ARC interpolation state with dead-reckoning
+// Smooth ARC interpolation with dead-reckoning for 60fps
+// The server sends data every ~500ms. Between updates, we extrapolate
+// the aircraft position using its velocity so it moves every single frame.
 var arcTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcCurrent = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcInitialized = false;
 var arcLastTargetTime = 0;
 var arcLastFrameTime = 0;
 var arcPrevTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
-var arcVelocity = { lat: 0, lon: 0, hdg: 0 }; // estimated velocity per second
+var arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 }; // per second
+var arcLastIconHdg = -999; // cache to avoid icon recreation every frame
 
 function lerpAngle(a, b, t) {
   var diff = ((b - a + 540) % 360) - 180;
   return a + diff * t;
 }
-
 function angleDiff(a, b) {
   return ((b - a + 540) % 360) - 180;
 }
 
 function arcSmoothTick(now) {
   if (currentViewMode !== 'arc' || !arcInitialized) {
+    arcLastFrameTime = 0;
     arcAnimFrame = requestAnimationFrame(arcSmoothTick);
     return;
   }
   
   if (!now) now = performance.now();
   var dt = arcLastFrameTime ? (now - arcLastFrameTime) / 1000 : 0.016;
-  dt = Math.min(dt, 0.1); // cap at 100ms to prevent huge jumps
+  if (dt > 0.25) dt = 0.016; // skip huge gaps (tab was hidden etc)
   arcLastFrameTime = now;
   
-  // Dead-reckoning: predict position based on velocity when between data updates
-  // Use exponential smoothing to blend towards target
-  var t = 1 - Math.pow(0.001, dt); // ~0.12 per frame at 60fps, time-independent
+  // --- Dead-reckoning: move at current velocity every frame ---
+  // This makes the aircraft glide smoothly between server updates.
+  arcCurrent.lat += arcVelocity.lat * dt;
+  arcCurrent.lon += arcVelocity.lon * dt;
+  arcCurrent.hdg += arcVelocity.hdg * dt;
+  arcCurrent.alt += arcVelocity.alt * dt;
   
-  // Predict where we should be based on velocity
-  var predictLat = arcCurrent.lat + arcVelocity.lat * dt;
-  var predictLon = arcCurrent.lon + arcVelocity.lon * dt;
-  var predictHdg = arcCurrent.hdg + arcVelocity.hdg * dt;
-  
-  // Blend prediction with target (prediction for smoothness, target for accuracy)
-  arcCurrent.lat = predictLat + (arcTarget.lat - predictLat) * t;
-  arcCurrent.lon = predictLon + (arcTarget.lon - predictLon) * t;
-  arcCurrent.hdg = lerpAngle(predictHdg, arcTarget.hdg, t);
-  arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * t;
-  arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * t;
+  // --- Correction pull towards target to prevent drift ---
+  // Gentle spring: the further we are from target, the stronger the pull.
+  // At 60fps with dt≈0.016, pull≈0.08 per frame – smooth but converges fast.
+  var pull = 1 - Math.pow(0.005, dt); // ≈0.08 at 60fps
+  arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * pull;
+  arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * pull;
+  arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, pull);
+  arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * pull;
+  arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * pull;
   
   var curPos = [arcCurrent.lat, arcCurrent.lon];
   
-  // Update aircraft marker position smoothly
+  // Update aircraft marker – only recreate icon if heading changed >1°
   if (layers.aircraft) {
     layers.aircraft.setLatLng(curPos);
-    layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
+    var hdgRounded = Math.round(arcCurrent.hdg);
+    if (Math.abs(hdgRounded - arcLastIconHdg) >= 1) {
+      layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
+      arcLastIconHdg = hdgRounded;
+    }
   }
   
   // Re-center and rotate map around aircraft
   var mapEl = document.getElementById('map');
-  mapEl.style.transition = 'none';
   mapEl.style.transform = 'none';
   
   centerAircraftArc(curPos);
@@ -832,19 +839,22 @@ window.addEventListener('message', function(e) {
     // Compute velocity from consecutive target updates for dead-reckoning
     if (arcLastTargetTime > 0 && arcInitialized) {
       var elapsed = (now - arcLastTargetTime) / 1000;
-      if (elapsed > 0.05 && elapsed < 5) { // reasonable interval
+      if (elapsed > 0.03 && elapsed < 5) {
         var vLat = (p.latitude - arcPrevTarget.lat) / elapsed;
         var vLon = (p.longitude - arcPrevTarget.lon) / elapsed;
         var vHdg = angleDiff(arcPrevTarget.hdg, p.heading || 0) / elapsed;
-        // Smooth velocity estimation
-        arcVelocity.lat = arcVelocity.lat * 0.5 + vLat * 0.5;
-        arcVelocity.lon = arcVelocity.lon * 0.5 + vLon * 0.5;
-        arcVelocity.hdg = arcVelocity.hdg * 0.5 + vHdg * 0.5;
+        var vAlt = ((p.altitude || 0) - (arcPrevTarget.alt || 0)) / elapsed;
+        // EMA smoothing – 0.3 new, 0.7 old for stable velocity
+        arcVelocity.lat = arcVelocity.lat * 0.7 + vLat * 0.3;
+        arcVelocity.lon = arcVelocity.lon * 0.7 + vLon * 0.3;
+        arcVelocity.hdg = arcVelocity.hdg * 0.7 + vHdg * 0.3;
+        arcVelocity.alt = arcVelocity.alt * 0.7 + vAlt * 0.3;
       }
     }
     arcPrevTarget.lat = p.latitude;
     arcPrevTarget.lon = p.longitude;
     arcPrevTarget.hdg = p.heading || 0;
+    arcPrevTarget.alt = p.altitude || 0;
     arcLastTargetTime = now;
 
     arcTarget.lat = p.latitude;
@@ -858,7 +868,7 @@ window.addEventListener('message', function(e) {
       arcCurrent.hdg = p.heading || 0;
       arcCurrent.alt = p.altitude || 0;
       arcCurrent.spd = p.speed || 0;
-      arcVelocity = { lat: 0, lon: 0, hdg: 0 };
+      arcVelocity = { lat: 0, lon: 0, hdg: 0, alt: 0 };
       arcInitialized = true;
     }
     isFullscreen = p.isFullscreen || false;
