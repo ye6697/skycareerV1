@@ -270,8 +270,14 @@ var arcLastSetViewPos = null;
 function centerAircraftArc(curPos, forceImmediate) {
   var zoom = map.getZoom();
   var size = map.getSize();
+  // size is the FULL 300% map size. The visible viewport is the map-wrapper (1/3 of that).
+  // We want the aircraft to appear at ~85% down in the visible viewport (bottom center).
+  // The map center is at 50% of the full map = 50% of the viewport.
+  // To push the aircraft down to 85% of the viewport, we need to shift the map center UP
+  // by (85% - 50%) = 35% of the viewport height.
+  // viewportH = visible height = full map height / 3
   var viewportH = size.y / 3;
-  var shiftFraction = isFullscreen ? 0.45 : 0.40;
+  var shiftFraction = isFullscreen ? 0.38 : 0.35; // shift map center UP by this fraction of viewport
   var shiftPx = viewportH * shiftFraction;
   var metersPerPx = 40075016.686 * Math.cos(curPos[0] * Math.PI / 180) / Math.pow(2, zoom + 8);
   var degreesPerPxLat = metersPerPx / 111320;
