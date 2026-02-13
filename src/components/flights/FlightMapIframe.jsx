@@ -218,6 +218,7 @@ function buildIframeHtml() {
 <div id="hud-top" style="display:none;"></div>
 <div id="events-overlay" style="display:none;"></div>
 <div id="arc-overlay"><canvas id="arc-canvas"></canvas></div>
+<div id="arc-aircraft"><svg width="52" height="52" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#67e8f9" stroke-width="1.5"/><circle cx="50" cy="20" r="3" fill="#a5f3fc"/></svg></div>
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5, fadeAnimation: false, markerZoomAnimation: false, zoomAnimation: false });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
