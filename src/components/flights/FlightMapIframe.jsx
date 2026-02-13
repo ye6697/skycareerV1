@@ -753,26 +753,48 @@ function update(d) {
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
 
-// Smooth ARC interpolation state
+// Smooth ARC interpolation state with dead-reckoning
 var arcTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcCurrent = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcInitialized = false;
+var arcLastTargetTime = 0;
+var arcLastFrameTime = 0;
+var arcPrevTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
+var arcVelocity = { lat: 0, lon: 0, hdg: 0 }; // estimated velocity per second
 
 function lerpAngle(a, b, t) {
   var diff = ((b - a + 540) % 360) - 180;
   return a + diff * t;
 }
 
-function arcSmoothTick() {
+function angleDiff(a, b) {
+  return ((b - a + 540) % 360) - 180;
+}
+
+function arcSmoothTick(now) {
   if (currentViewMode !== 'arc' || !arcInitialized) {
     arcAnimFrame = requestAnimationFrame(arcSmoothTick);
     return;
   }
   
-  var t = 0.22; // higher interpolation factor for snappier response
-  arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
-  arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
-  arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t);
+  if (!now) now = performance.now();
+  var dt = arcLastFrameTime ? (now - arcLastFrameTime) / 1000 : 0.016;
+  dt = Math.min(dt, 0.1); // cap at 100ms to prevent huge jumps
+  arcLastFrameTime = now;
+  
+  // Dead-reckoning: predict position based on velocity when between data updates
+  // Use exponential smoothing to blend towards target
+  var t = 1 - Math.pow(0.001, dt); // ~0.12 per frame at 60fps, time-independent
+  
+  // Predict where we should be based on velocity
+  var predictLat = arcCurrent.lat + arcVelocity.lat * dt;
+  var predictLon = arcCurrent.lon + arcVelocity.lon * dt;
+  var predictHdg = arcCurrent.hdg + arcVelocity.hdg * dt;
+  
+  // Blend prediction with target (prediction for smoothness, target for accuracy)
+  arcCurrent.lat = predictLat + (arcTarget.lat - predictLat) * t;
+  arcCurrent.lon = predictLon + (arcTarget.lon - predictLon) * t;
+  arcCurrent.hdg = lerpAngle(predictHdg, arcTarget.hdg, t);
   arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * t;
   arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * t;
   
@@ -786,7 +808,7 @@ function arcSmoothTick() {
   
   // Re-center and rotate map around aircraft
   var mapEl = document.getElementById('map');
-  mapEl.style.transition = 'none'; // disable CSS transition for per-frame updates
+  mapEl.style.transition = 'none';
   mapEl.style.transform = 'none';
   
   centerAircraftArc(curPos);
