@@ -809,8 +809,7 @@ function update(d) {
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
 }
 
-// ARC interpolation – NO dead-reckoning, NO velocity extrapolation.
-// Simply smooth-lerp from current to target. If no data for >5s, freeze.
+// ARC interpolation – smooth lerp with dead-reckoning between updates
 var arcTarget = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcCurrent = { lat: 0, lon: 0, hdg: 0, alt: 0, spd: 0 };
 var arcInitialized = false;
@@ -819,20 +818,17 @@ var arcLastFrameTime = 0;
 var arcLastIconHdg = -999;
 var arcLastOverlayDraw = 0;
 var arcLastDistInfo = { nextWpDist: null, nextWpName: null, arrDist: null };
-var ARC_DATA_TIMEOUT = 5000; // ms – freeze after 5s without data
+var ARC_DATA_TIMEOUT = 8000;
 
 function lerpAngle(a, b, t) {
   var diff = ((b - a + 540) % 360) - 180;
   return a + diff * t;
 }
-function angleDiff(a, b) {
-  return ((b - a + 540) % 360) - 180;
-}
 
 var arcMapEl = null;
-var arcLastMarkerUpdate = 0;
 var arcLastRecenter = 0;
 var arcLastRotDeg = null;
+var arcMarker = null; // Leaflet marker for aircraft in ARC mode
 
 function arcSmoothTick(now) {
   if (currentViewMode !== 'arc' || !arcInitialized) {
@@ -846,17 +842,31 @@ function arcSmoothTick(now) {
   if (dt > 0.25) dt = 0.016;
   arcLastFrameTime = now;
   
-  // --- DATA TIMEOUT: if no data for >5s, freeze completely ---
   var dataAge = now - arcLastTargetTime;
   var frozen = dataAge > ARC_DATA_TIMEOUT;
   
   if (!frozen) {
-    // Simple smooth lerp toward target
-    var lerpSpeed = 3;
+    // Smooth lerp – slower = smoother transitions between data points
+    var lerpSpeed = 1.8; // slower lerp for smoother movement
     var t = Math.min(1, dt * lerpSpeed);
-    arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
-    arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
-    arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t);
+    
+    // Dead-reckoning: predict position based on speed and heading between updates
+    if (dataAge > 1500 && arcCurrent.spd > 10) {
+      // Move aircraft forward along current heading at current speed
+      var spdNmPerSec = arcCurrent.spd / 3600; // knots to NM/s
+      var moveDist = spdNmPerSec * dt;
+      var hdgRad = arcCurrent.hdg * Math.PI / 180;
+      var dLatDeg = (moveDist / 60) * Math.cos(hdgRad);
+      var dLonDeg = (moveDist / 60) * Math.sin(hdgRad) / Math.cos(arcCurrent.lat * Math.PI / 180);
+      arcCurrent.lat += dLatDeg;
+      arcCurrent.lon += dLonDeg;
+      // Still lerp heading toward target
+      arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t * 0.5);
+    } else {
+      arcCurrent.lat += (arcTarget.lat - arcCurrent.lat) * t;
+      arcCurrent.lon += (arcTarget.lon - arcCurrent.lon) * t;
+      arcCurrent.hdg = lerpAngle(arcCurrent.hdg, arcTarget.hdg, t);
+    }
     arcCurrent.alt += (arcTarget.alt - arcCurrent.alt) * t;
     arcCurrent.spd += (arcTarget.spd - arcCurrent.spd) * t;
   }
@@ -868,29 +878,31 @@ function arcSmoothTick(now) {
   if (!arcMapEl) arcMapEl = document.getElementById('map');
   var rotDeg = -arcCurrent.hdg;
   
-  // Recenter map – every 500ms if position moved enough
-  // Do NOT reset transform to 'none' – that causes flicker.
-  // Instead, temporarily set current rotation, then setView, then rotation continues.
-  if (!frozen && (now - arcLastRecenter > 500)) {
+  // Update Leaflet marker position (actual lat/lon on the map)
+  if (arcMarker) {
+    arcMarker.setLatLng(curPos);
+    // Update icon rotation if heading changed significantly
+    var hdgDiff = Math.abs(arcCurrent.hdg - arcLastIconHdg);
+    if (hdgDiff > 1 || hdgDiff > 0 && now % 500 < 20) {
+      arcLastIconHdg = arcCurrent.hdg;
+      arcMarker.setIcon(makeAircraftIcon(arcCurrent.hdg));
+    }
+  }
+  
+  // Recenter map smoothly – every 300ms
+  if (!frozen && (now - arcLastRecenter > 300)) {
     arcLastRecenter = now;
     centerAircraftArc(curPos);
   }
   
-  // ARC mode: aircraft icon is drawn on the canvas overlay, not as a Leaflet marker
-  // Hide Leaflet marker if it exists
-  if (layers.aircraft) {
-    map.removeLayer(layers.aircraft);
-    layers.aircraft = null;
-  }
-  
-  // Redraw compass overlay at ~10fps
-  if (now - arcLastOverlayDraw > 100) {
+  // Redraw compass overlay at ~15fps for smooth compass ticks
+  if (now - arcLastOverlayDraw > 66) {
     arcLastOverlayDraw = now;
     drawArcOverlay(arcCurrent.hdg, arcCurrent.alt, arcCurrent.spd, arcLastDistInfo.nextWpName, arcLastDistInfo.nextWpDist, arcLastDistInfo.arrDist);
   }
   
-  // CSS rotation – always apply, never reset to 'none'
-  if (arcLastRotDeg === null || Math.abs(rotDeg - arcLastRotDeg) >= 0.3) {
+  // CSS rotation – use CSS transition for ultra-smooth rotation
+  if (arcLastRotDeg === null || Math.abs(rotDeg - arcLastRotDeg) >= 0.1) {
     arcLastRotDeg = rotDeg;
     arcMapEl.style.transformOrigin = '50% 50%';
     arcMapEl.style.transform = 'rotate(' + rotDeg + 'deg)';
@@ -898,7 +910,6 @@ function arcSmoothTick(now) {
   
   arcAnimFrame = requestAnimationFrame(arcSmoothTick);
 }
-// Start the animation loop
 arcAnimFrame = requestAnimationFrame(arcSmoothTick);
 
 window.addEventListener('message', function(e) {
