@@ -236,12 +236,15 @@ Deno.serve(async (req) => {
 
     // Generate 3 incompatible contracts
     attempts = 0;
-    while (incompatibleContracts.length < 3 && attempts < 30) {
+    while (incompatibleContracts.length < 3 && attempts < 50) {
       attempts++;
       if (notOwnedTypeSpecs.length > 0) {
         const acType = randomItem(notOwnedTypeSpecs);
         const contract = generateContract(company.id, acType, company.level || 1);
-        if (contract) incompatibleContracts.push(contract);
+        if (contract) {
+          if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
+          incompatibleContracts.push(contract);
+        }
       } else {
         const acType = randomItem(ownedTypeSpecs);
         const contract = generateContract(company.id, acType, company.level || 1);
