@@ -460,21 +460,23 @@ export default function FlightTracker() {
       }
     });
     
-    // Polling fallback every 300ms – aggressive polling for minimal latency
+    // Polling fallback every 2s – only kicks in if subscription stops delivering
     let pollInFlight = false;
     const pollInterval = setInterval(async () => {
       // Skip if a poll request is already in flight
       if (pollInFlight) return;
-      // Skip poll if subscription delivered fresh data in last 250ms
-      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 250) return;
+      // Skip poll if subscription delivered fresh data in last 1.5s
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 1500) return;
       pollInFlight = true;
-      const flights = await base44.entities.Flight.filter({ id: activeFlightId });
+      try {
+        const flights = await base44.entities.Flight.filter({ id: activeFlightId });
+        const f = flights[0];
+        if (f?.xplane_data) {
+          updateData(f.xplane_data, f.updated_date);
+        }
+      } catch (_) { /* ignore poll errors */ }
       pollInFlight = false;
-      const f = flights[0];
-      if (f?.xplane_data) {
-        updateData(f.xplane_data, f.updated_date);
-      }
-    }, 300);
+    }, 2000);
     
     return () => {
       unsubscribe();
