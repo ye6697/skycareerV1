@@ -7,15 +7,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function ReputationGauge({ reputation = 50, level = 1 }) {
+  const { lang } = useLanguage();
   const getReputationLabel = (rep) => {
-    if (rep >= 90) return "Exzellent";
-    if (rep >= 75) return "Sehr Gut";
-    if (rep >= 60) return "Gut";
-    if (rep >= 40) return "Durchschnitt";
-    if (rep >= 20) return "Schlecht";
-    return "Kritisch";
+    if (rep >= 90) return t('rep_excellent', lang);
+    if (rep >= 75) return t('rep_very_good', lang);
+    if (rep >= 60) return t('rep_good', lang);
+    if (rep >= 40) return t('rep_average', lang);
+    if (rep >= 20) return t('rep_poor', lang);
+    return t('rep_critical', lang);
   };
 
   const getReputationColor = (rep) => {
@@ -29,7 +32,7 @@ export default function ReputationGauge({ reputation = 50, level = 1 }) {
     <Card className="p-6 bg-slate-800 border border-slate-700">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-white">Unternehmens-Reputation</h3>
+          <h3 className="font-semibold text-white">{t('company_reputation', lang)}</h3>
           <Popover>
             <PopoverTrigger asChild>
               <button className="text-slate-400 hover:text-white transition-colors">
@@ -37,34 +40,16 @@ export default function ReputationGauge({ reputation = 50, level = 1 }) {
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-72 bg-slate-800 border-slate-700 text-white p-4" side="bottom">
-              <h4 className="text-sm font-semibold mb-2 text-blue-400">Wie wird die Reputation berechnet?</h4>
+              <h4 className="text-sm font-semibold mb-2 text-blue-400">{t('rep_how_calculated', lang)}</h4>
               <ul className="text-xs text-slate-300 space-y-1.5">
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400">+</span>
-                  <span><strong>Gute Landungen</strong> – Weiche/butterweiche Landungen erhöhen die Reputation</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400">+</span>
-                  <span><strong>Erfolgreiche Flüge</strong> – Abgeschlossene Aufträge mit hohem Score</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400">+</span>
-                  <span><strong>Pünktlichkeit</strong> – Aufträge innerhalb der Deadline</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400">−</span>
-                  <span><strong>Harte Landungen</strong> & Crashes verringern die Reputation stark</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400">−</span>
-                  <span><strong>Abgebrochene Aufträge</strong> – Stornierungen kosten Reputation</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400">−</span>
-                  <span><strong>Schlechter Flug-Score</strong> – G-Kräfte, Overspeed, Stall</span>
-                </li>
+                <li className="flex items-start gap-2"><span className="text-emerald-400">+</span><span>{t('rep_good_landings', lang)}</span></li>
+                <li className="flex items-start gap-2"><span className="text-emerald-400">+</span><span>{t('rep_successful_flights', lang)}</span></li>
+                <li className="flex items-start gap-2"><span className="text-emerald-400">+</span><span>{t('rep_punctuality', lang)}</span></li>
+                <li className="flex items-start gap-2"><span className="text-red-400">−</span><span>{t('rep_hard_landings', lang)}</span></li>
+                <li className="flex items-start gap-2"><span className="text-red-400">−</span><span>{t('rep_cancelled', lang)}</span></li>
+                <li className="flex items-start gap-2"><span className="text-red-400">−</span><span>{t('rep_bad_score', lang)}</span></li>
               </ul>
-              <p className="text-[10px] text-slate-500 mt-3">Reputation beeinflusst deine Kreditwürdigkeit und freigeschaltete Aufträge.</p>
+              <p className="text-[10px] text-slate-500 mt-3">{t('rep_affects', lang)}</p>
             </PopoverContent>
           </Popover>
         </div>

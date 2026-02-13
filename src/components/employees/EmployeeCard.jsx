@@ -16,27 +16,30 @@ import {
   Heart,
   GraduationCap
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
+  const { lang } = useLanguage();
   const roleConfig = {
-    captain: { label: "Kapitän", color: "bg-amber-100 text-amber-700 border-amber-200" },
-    first_officer: { label: "Erster Offizier", color: "bg-blue-100 text-blue-700 border-blue-200" },
-    flight_attendant: { label: "Flugbegleiter/in", color: "bg-pink-100 text-pink-700 border-pink-200" },
-    loadmaster: { label: "Lademeister", color: "bg-orange-100 text-orange-700 border-orange-200" }
+    captain: { label: t('captain', lang), color: "bg-amber-100 text-amber-700 border-amber-200" },
+    first_officer: { label: t('first_officer', lang), color: "bg-blue-100 text-blue-700 border-blue-200" },
+    flight_attendant: { label: t('flight_attendant', lang), color: "bg-pink-100 text-pink-700 border-pink-200" },
+    loadmaster: { label: t('loadmaster', lang), color: "bg-orange-100 text-orange-700 border-orange-200" }
   };
 
   const experienceConfig = {
-    junior: { label: "Junior", stars: 1 },
-    intermediate: { label: "Fortgeschritten", stars: 2 },
-    senior: { label: "Senior", stars: 3 },
-    expert: { label: "Experte", stars: 4 }
+    junior: { label: t('junior', lang), stars: 1 },
+    intermediate: { label: t('intermediate', lang), stars: 2 },
+    senior: { label: t('senior', lang), stars: 3 },
+    expert: { label: t('expert', lang), stars: 4 }
   };
 
   const statusConfig = {
-    available: { label: "Verfügbar", color: "bg-emerald-500" },
-    on_duty: { label: "Im Einsatz", color: "bg-blue-500" },
-    on_leave: { label: "Urlaub", color: "bg-amber-500" },
-    terminated: { label: "Gekündigt", color: "bg-red-500" }
+    available: { label: t('available', lang), color: "bg-emerald-500" },
+    on_duty: { label: t('on_duty', lang), color: "bg-blue-500" },
+    on_leave: { label: t('on_leave', lang), color: "bg-amber-500" },
+    terminated: { label: t('terminated', lang), color: "bg-red-500" }
   };
 
   const role = roleConfig[employee.role] || roleConfig.flight_attendant;
@@ -74,7 +77,7 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
 
           <div className="space-y-2 mb-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Erfahrung</span>
+              <span className="text-slate-400">{t('experience', lang)}</span>
               <div className="flex items-center gap-1">
                 {[...Array(4)].map((_, i) => (
                   <Star 
@@ -100,7 +103,7 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Flugstunden</span>
+              <span className="text-slate-400">{t('flight_hours', lang)}</span>
               <div className="flex items-center gap-1 text-slate-700">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
                 <span className="font-medium text-slate-300">{employee.total_flight_hours?.toLocaleString() || 0}h</span>
@@ -108,7 +111,7 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Gehalt/Monat</span>
+              <span className="text-slate-400">{t('salary_month', lang)}</span>
               <div className="flex items-center gap-1 text-slate-300">
                 <DollarSign className="w-3.5 h-3.5 text-slate-400" />
                 <span className="font-medium">${employee.salary_per_month?.toLocaleString()}</span>
@@ -126,7 +129,7 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
             {employee.training?.active && (
               <div className="flex items-center gap-1 text-xs text-blue-400">
                 <GraduationCap className="w-3 h-3" />
-                <span>Training läuft...</span>
+                <span>{t('training_running', lang)}</span>
               </div>
             )}
           </div>
@@ -134,7 +137,7 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
           <div className="flex gap-2 pt-3 border-t border-slate-700">
             <Button variant="outline" size="sm" className="flex-1" asChild>
               <Link to={createPageUrl(`EmployeeDetails?id=${employee.id}`)}>
-                Details
+                {t('details', lang)}
               </Link>
             </Button>
             {employee.status === "available" && (
@@ -143,7 +146,7 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
                 onClick={() => onAssign?.(employee)}
               >
-                Zuweisen
+                {t('assign', lang)}
               </Button>
             )}
           </div>

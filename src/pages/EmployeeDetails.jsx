@@ -19,9 +19,12 @@ import {
 } from "lucide-react";
 import CrewAttributes from "@/components/employees/CrewAttributes";
 import CrewTraining from "@/components/employees/CrewTraining";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function EmployeeDetails() {
   const navigate = useNavigate();
+  const { lang } = useLanguage();
   const urlParams = new URLSearchParams(window.location.search);
   const employeeId = urlParams.get('id');
 
@@ -66,14 +69,14 @@ export default function EmployeeDetails() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <Card className="p-8 bg-slate-800 border border-slate-700 text-center max-w-md">
           <User className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Mitarbeiter nicht gefunden</h2>
-          <p className="text-slate-400 mb-4">Der angeforderte Mitarbeiter existiert nicht.</p>
+          <h2 className="text-xl font-bold text-white mb-2">{t('employee_not_found', lang)}</h2>
+          <p className="text-slate-400 mb-4">{t('employee_not_found_desc', lang)}</p>
           <Button 
             onClick={() => navigate(createPageUrl("Employees"))}
             className="w-full bg-blue-600 hover:bg-blue-700"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zu Mitarbeitern
+            {t('back_to_employees', lang)}
           </Button>
         </Card>
       </div>
@@ -81,24 +84,24 @@ export default function EmployeeDetails() {
   }
 
   const roleConfig = {
-    captain: { label: 'Kapitän', color: 'bg-purple-500', icon: '👨‍✈️' },
-    first_officer: { label: 'Erster Offizier', color: 'bg-blue-500', icon: '👨‍✈️' },
-    flight_attendant: { label: 'Flugbegleiter', color: 'bg-sky-500', icon: '🧑‍🦳' },
-    loadmaster: { label: 'Ladeoffizier', color: 'bg-amber-500', icon: '📦' }
+    captain: { label: t('captain', lang), color: 'bg-purple-500', icon: '👨‍✈️' },
+    first_officer: { label: t('first_officer', lang), color: 'bg-blue-500', icon: '👨‍✈️' },
+    flight_attendant: { label: t('flight_attendant', lang), color: 'bg-sky-500', icon: '🧑‍🦳' },
+    loadmaster: { label: t('loadmaster', lang), color: 'bg-amber-500', icon: '📦' }
   };
 
   const experienceConfig = {
-    junior: { label: 'Junior', color: 'text-blue-400 bg-blue-500/20 border-blue-500/30' },
-    intermediate: { label: 'Mittel', color: 'text-amber-400 bg-amber-500/20 border-amber-500/30' },
-    senior: { label: 'Senior', color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' },
-    expert: { label: 'Experte', color: 'text-purple-400 bg-purple-500/20 border-purple-500/30' }
+    junior: { label: t('junior', lang), color: 'text-blue-400 bg-blue-500/20 border-blue-500/30' },
+    intermediate: { label: t('intermediate', lang), color: 'text-amber-400 bg-amber-500/20 border-amber-500/30' },
+    senior: { label: t('senior', lang), color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' },
+    expert: { label: t('expert', lang), color: 'text-purple-400 bg-purple-500/20 border-purple-500/30' }
   };
 
   const statusConfig = {
-    available: { label: 'Verfügbar', color: 'bg-emerald-100 text-emerald-700' },
-    on_duty: { label: 'Im Dienst', color: 'bg-blue-100 text-blue-700' },
-    on_leave: { label: 'Im Urlaub', color: 'bg-amber-100 text-amber-700' },
-    terminated: { label: 'Entlassen', color: 'bg-red-100 text-red-700' }
+    available: { label: t('available', lang), color: 'bg-emerald-100 text-emerald-700' },
+    on_duty: { label: t('on_duty', lang), color: 'bg-blue-100 text-blue-700' },
+    on_leave: { label: t('on_leave', lang), color: 'bg-amber-100 text-amber-700' },
+    terminated: { label: t('terminated', lang), color: 'bg-red-100 text-red-700' }
   };
 
   const getRatingColor = (rating) => {
@@ -123,7 +126,7 @@ export default function EmployeeDetails() {
             className="mb-4 text-blue-400 hover:text-blue-300"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zu Mitarbeitern
+            {t('back_to_employees', lang)}
           </Button>
 
           <div className="flex items-start gap-4 mb-6">
@@ -155,7 +158,7 @@ export default function EmployeeDetails() {
             <Card className="p-6 bg-slate-800 border border-slate-700">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Award className="w-5 h-5 text-amber-400" />
-                Fähigkeiten & Leistung
+                {t('skills_performance', lang)}
               </h3>
               <div className="space-y-4">
                 <div>
@@ -184,15 +187,15 @@ export default function EmployeeDetails() {
             <Card className="p-6 bg-slate-800 border border-slate-700">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-blue-400" />
-                Erfahrung
+                {t('experience', lang)}
               </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400 flex items-center gap-2">
                     <Plane className="w-4 h-4" />
-                    Flugstunden insgesamt
+                    {t('total_flight_hours_label', lang)}
                   </span>
-                  <span className="text-white font-medium">{(employee.total_flight_hours || 0).toLocaleString()} Std.</span>
+                  <span className="text-white font-medium">{(employee.total_flight_hours || 0).toLocaleString()} {t('hours_unit', lang)}</span>
                 </div>
               </div>
             </Card>
@@ -206,7 +209,7 @@ export default function EmployeeDetails() {
             {/* Licenses */}
             {employee.licenses && employee.licenses.length > 0 && (
               <Card className="p-6 bg-slate-800 border border-slate-700">
-                <h3 className="text-lg font-semibold text-white mb-4">Lizenzen & Zertifikate</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">{t('licenses_certs', lang)}</h3>
                 <div className="flex flex-wrap gap-2">
                   {employee.licenses.map((license, index) => (
                     <Badge key={index} className="bg-blue-600 text-white">
@@ -224,11 +227,11 @@ export default function EmployeeDetails() {
             <Card className="p-6 bg-slate-800 border border-slate-700">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-emerald-400" />
-                Finanzielle Informationen
+                {t('financial_info', lang)}
               </h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-slate-400 mb-1">Monatliches Gehalt</p>
+                  <p className="text-sm text-slate-400 mb-1">{t('monthly_salary', lang)}</p>
                   <p className="text-2xl font-bold text-emerald-400">
                     ${(employee.salary_per_month || 0).toLocaleString()}
                   </p>
@@ -240,13 +243,13 @@ export default function EmployeeDetails() {
             <Card className="p-6 bg-slate-800 border border-slate-700">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <User className="w-5 h-5 text-slate-400" />
-                Persönliche Informationen
+                {t('personal_info', lang)}
               </h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">Anstellungsdatum</p>
+                  <p className="text-xs text-slate-400 mb-1">{t('hire_date', lang)}</p>
                   <p className="text-white font-medium">
-                    {employee.hired_date ? new Date(employee.hired_date).toLocaleDateString('de-DE') : 'N/A'}
+                    {employee.hired_date ? new Date(employee.hired_date).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US') : 'N/A'}
                   </p>
                 </div>
               </div>

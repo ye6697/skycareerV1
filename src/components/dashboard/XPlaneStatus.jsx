@@ -4,24 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plane, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function XPlaneStatus({ status = "disconnected", isLoading }) {
+  const { lang } = useLanguage();
   const statusConfig = {
     connected: {
       color: "bg-emerald-500",
-      text: "Verbunden",
+      text: t('connected', lang),
       icon: Wifi,
       badge: "bg-emerald-100 text-emerald-700 border-emerald-200"
     },
     connecting: {
       color: "bg-amber-500",
-      text: "Verbinde...",
+      text: t('connecting', lang),
       icon: RefreshCw,
       badge: "bg-amber-100 text-amber-700 border-amber-200"
     },
     disconnected: {
       color: "bg-slate-400",
-      text: "Getrennt",
+      text: t('disconnected', lang),
       icon: WifiOff,
       badge: "bg-slate-100 text-slate-600 border-slate-200"
     }
@@ -38,8 +41,8 @@ export default function XPlaneStatus({ status = "disconnected", isLoading }) {
             <Plane className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold">X-Plane 12</h3>
-            <p className="text-sm text-slate-400">Plugin Verbindung</p>
+            <h3 className="font-semibold">{t('xplane_12', lang)}</h3>
+            <p className="text-sm text-slate-400">{t('plugin_connection', lang)}</p>
           </div>
         </div>
         <Badge className={`${config.badge} border`}>
@@ -68,17 +71,17 @@ export default function XPlaneStatus({ status = "disconnected", isLoading }) {
           </AnimatePresence>
         </div>
         <span className="text-sm text-slate-300">
-          {status === "connected" ? "Flugdaten werden empfangen" : "Warte auf Verbindung"}
+          {status === "connected" ? t('receiving_data', lang) : t('waiting_connection', lang)}
         </span>
       </div>
 
       <div className="p-3 bg-white/5 rounded-lg overflow-hidden">
-        <p className="text-xs text-slate-300 mb-2">Plugin Endpoint:</p>
+        <p className="text-xs text-slate-300 mb-2">{t('plugin_endpoint', lang)}:</p>
         <code className="text-xs text-blue-400 break-all block overflow-wrap-anywhere">
           {window.location.origin}/api/receiveXPlaneData
         </code>
         <p className="text-xs text-slate-400 mt-2">
-          Konfiguriere diesen Endpoint in deinem X-Plane Plugin
+          {t('configure_endpoint', lang)}
         </p>
       </div>
     </Card>

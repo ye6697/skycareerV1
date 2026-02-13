@@ -8,8 +8,11 @@ import {
   PlaneLanding,
   MessageCircle
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function FlightRating({ flight }) {
+  const { lang } = useLanguage();
   const getRatingColor = (rating) => {
     if (rating >= 4.5) return "text-emerald-500";
     if (rating >= 3.5) return "text-blue-500";
@@ -18,11 +21,11 @@ export default function FlightRating({ flight }) {
   };
 
   const getRatingLabel = (rating) => {
-    if (rating >= 4.5) return "Ausgezeichnet";
-    if (rating >= 3.5) return "Gut";
-    if (rating >= 2.5) return "Akzeptabel";
-    if (rating >= 1.5) return "Schlecht";
-    return "Katastrophal";
+    if (rating >= 4.5) return t('excellent_rating', lang);
+    if (rating >= 3.5) return t('good_rating', lang);
+    if (rating >= 2.5) return t('acceptable_rating', lang);
+    if (rating >= 1.5) return t('poor_rating', lang);
+    return t('catastrophic_rating', lang);
   };
 
   const getStatusBgColor = (rating) => {
@@ -68,11 +71,11 @@ export default function FlightRating({ flight }) {
   };
 
   const getScoreLabel = (score) => {
-    if (score >= 95) return "Ausgezeichnet";
-    if (score >= 85) return "Sehr Gut";
-    if (score >= 70) return "Gut";
-    if (score >= 50) return "Akzeptabel";
-    return "Schlecht";
+    if (score >= 95) return t('excellent_rating', lang);
+    if (score >= 85) return t('very_good_rating', lang);
+    if (score >= 70) return t('good_rating', lang);
+    if (score >= 50) return t('acceptable_rating', lang);
+    return t('poor_rating', lang);
   };
 
   const getScoreBgColor = (score) => {
@@ -89,7 +92,7 @@ export default function FlightRating({ flight }) {
   return (
     <Card className="p-6 bg-slate-800 border border-slate-700">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-white">Flug-Bewertung</h3>
+        <h3 className="text-lg font-semibold text-white">{t('flight_rating', lang)}</h3>
         <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl border border-slate-600">
           <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
           <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
@@ -114,7 +117,7 @@ export default function FlightRating({ flight }) {
         <div className="grid grid-cols-2 gap-4 text-center">
           {flight?.landing_vs !== undefined && (
             <div>
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Landegeschw.</p>
+              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('landing_vs_short', lang)}</p>
               <p className={`text-xl font-mono font-bold ${
                 Math.abs(flight.landing_vs) < 100 ? 'text-emerald-400' :
                 Math.abs(flight.landing_vs) < 150 ? 'text-green-400' :
@@ -132,7 +135,7 @@ export default function FlightRating({ flight }) {
             const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? 0;
             return (
               <div>
-                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">G-Kraft beim Aufsetzen</p>
+                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('g_force_at_touch', lang)}</p>
                 {isCrash ? (
                   <p className="text-xl font-mono font-bold text-red-500">CRASH</p>
                 ) : (
@@ -157,7 +160,7 @@ export default function FlightRating({ flight }) {
           <div className="grid grid-cols-2 gap-4 text-center text-sm">
             {flight?.fuel_used_liters && (
               <div>
-                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Treibstoff</p>
+                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('fuel_label_short', lang)}</p>
                 <p className="text-lg font-mono font-bold text-blue-400">
                   {Math.round(flight.fuel_used_liters)} L
                 </p>
@@ -165,7 +168,7 @@ export default function FlightRating({ flight }) {
             )}
             {flight?.flight_duration_hours && (
               <div>
-                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Flugzeit</p>
+                <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('flight_time', lang)}</p>
                 <p className="text-lg font-mono font-bold text-purple-400">
                   {flight.flight_duration_hours.toFixed(1)}h
                 </p>
@@ -178,11 +181,11 @@ export default function FlightRating({ flight }) {
       {/* Financial Summary */}
       {(flight?.revenue || flight?.fuel_cost || flight?.crew_cost || flight?.maintenance_cost || flight?.profit) && (
         <div className="p-4 bg-slate-900 rounded-lg mb-4">
-          <h4 className="text-sm font-semibold text-slate-300 mb-3">Finanzen</h4>
+          <h4 className="text-sm font-semibold text-slate-300 mb-3">{t('finances_label', lang)}</h4>
           <div className="space-y-2">
             {flight?.revenue && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Einnahmen</span>
+                <span className="text-slate-400">{t('revenue_label', lang)}</span>
                 <span className="text-emerald-400 font-mono">${Math.round(flight.revenue).toLocaleString()}</span>
               </div>
             )}
@@ -194,25 +197,25 @@ export default function FlightRating({ flight }) {
             )}
             {flight?.fuel_cost && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Treibstoffkosten</span>
+                <span className="text-slate-400">{t('fuel_costs', lang)}</span>
                 <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost).toLocaleString()}</span>
               </div>
             )}
             {flight?.crew_cost && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Personalkosten</span>
+                <span className="text-slate-400">{t('crew_costs', lang)}</span>
                 <span className="text-red-400 font-mono">-${Math.round(flight.crew_cost).toLocaleString()}</span>
               </div>
             )}
             {flight?.maintenance_cost && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Wartungskosten</span>
+                <span className="text-slate-400">{t('maint_costs', lang)}</span>
                 <span className="text-red-400 font-mono">-${Math.round(flight.maintenance_cost).toLocaleString()}</span>
               </div>
             )}
             {flight?.profit !== undefined && (
               <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
-                <span className="text-slate-300 font-semibold">Gewinn</span>
+                <span className="text-slate-300 font-semibold">{t('profit_label', lang)}</span>
                 <span className={`font-mono font-bold ${flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   ${Math.round(flight.profit).toLocaleString()}
                 </span>
@@ -226,7 +229,7 @@ export default function FlightRating({ flight }) {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <MessageCircle className="w-4 h-4 text-slate-400" />
-            <h4 className="font-medium text-white">Passagier-Kommentare</h4>
+            <h4 className="font-medium text-white">{t('passenger_comments', lang)}</h4>
           </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {flight.passenger_comments.map((comment, index) => (
