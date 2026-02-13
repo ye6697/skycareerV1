@@ -55,8 +55,9 @@ export default function Layout({ children, currentPageName }) {
         }
         return null;
       },
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 120000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 
   const { data: gameSettings } = useQuery({
@@ -65,13 +66,15 @@ export default function Layout({ children, currentPageName }) {
       const settings = await base44.entities.GameSettings.list();
       return settings[0] || null;
     },
-    staleTime: 300000, // Settings rarely change - 5 min cache
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: user } = useQuery({
     queryKey: ['user'],
     queryFn: () => base44.auth.me(),
-    staleTime: 300000, // User data rarely changes - 5 min cache
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const xplaneStatus = company?.xplane_connection_status || 'disconnected';

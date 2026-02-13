@@ -44,7 +44,8 @@ export default function Dashboard() {
       if (!isAuth) return null;
       return base44.auth.me();
     },
-    staleTime: 300000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -90,7 +91,8 @@ export default function Dashboard() {
       return null;
     },
     enabled: !!user,
-    staleTime: 30000,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const companyId = company?.id;
@@ -102,7 +104,8 @@ export default function Dashboard() {
       return res.data.contracts || [];
     },
     enabled: !!companyId,
-    staleTime: 30000,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const contracts = allContracts.filter(c => c.status === 'available' || !c.company_id);
@@ -112,14 +115,16 @@ export default function Dashboard() {
     queryKey: ['employees', companyId],
     queryFn: () => base44.entities.Employee.filter({ company_id: companyId, status: 'available' }),
     enabled: !!companyId,
-    staleTime: 30000,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: allAircraft = [] } = useQuery({
     queryKey: ['aircraft', 'all', companyId],
     queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId }),
     enabled: !!companyId,
-    staleTime: 30000,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   const aircraft = allAircraft.filter(a => a.status === 'available');
@@ -130,7 +135,8 @@ export default function Dashboard() {
     queryKey: ['flights', 'recent', companyId],
     queryFn: () => base44.entities.Flight.filter({ company_id: companyId, status: 'completed' }, '-created_date', 5),
     enabled: !!companyId,
-    staleTime: 60000,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
   });
 
   // Filter contracts based on available aircraft capabilities
