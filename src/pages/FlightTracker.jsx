@@ -2140,6 +2140,7 @@ export default function FlightTracker() {
               arrivalRunway={simbriefRoute?.arrival_runway}
               departureCoords={simbriefRoute?.departure_coords}
               arrivalCoords={simbriefRoute?.arrival_coords}
+              onViewModeChange={setViewMode}
               liveFlightData={{
                 gForce: flightData.gForce,
                 maxGForce: flightData.maxGForce,
