@@ -707,13 +707,11 @@ function update(d) {
     arcEl.style.display = 'block';
     setArcDragLock(true);
     
-    // Switch to oversized 300% map to prevent tile gaps on rotation
     if (switchedToArc) {
       mapEl.style.transform = 'none';
       mapEl.className = 'arc-mode';
       map.invalidateSize();
       map.setZoom(arcZoomLevel, { animate: false });
-      // Initialize – snap instantly to current position
       arcTarget.lat = curPos[0];
       arcTarget.lon = curPos[1];
       arcTarget.hdg = fd.heading || 0;
@@ -725,19 +723,19 @@ function update(d) {
       arcCurrent.alt = fd.altitude || 0;
       arcCurrent.spd = fd.speed || 0;
       arcLastTargetTime = performance.now();
-      // Reset so first frame does a setView
       arcLastSetViewPos = null;
       arcInitialized = true;
+      centerAircraftArc(curPos, true);
       parent.postMessage({ type: 'flightmap-viewmode', viewMode: 'arc' }, '*');
     }
     
-    // Update targets from full data update (don't override velocity/correction)
     if (!switchedToArc) {
       arcTarget.lat = curPos[0];
       arcTarget.lon = curPos[1];
       arcTarget.hdg = fd.heading || 0;
       arcTarget.alt = fd.altitude || 0;
       arcTarget.spd = fd.speed || 0;
+      arcLastTargetTime = performance.now();
     }
     if (!arcInitialized) {
       arcCurrent.lat = curPos[0]; arcCurrent.lon = curPos[1];
