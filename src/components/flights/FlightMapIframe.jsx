@@ -586,6 +586,8 @@ function updateEvents(evts, live) {
   el.innerHTML = html;
 }
 
+var arcLayersBuilt = false; // track if layers were already set up for ARC mode
+
 function update(d) {
   var fd = d.flightData || {};
   lastFd = fd;
