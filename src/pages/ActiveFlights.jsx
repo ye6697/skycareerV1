@@ -163,6 +163,7 @@ export default function ActiveFlights() {
 
         // Create transaction for penalty
         await base44.entities.Transaction.create({
+          company_id: company.id,
           type: 'expense',
           category: 'other',
           amount: penalty,
