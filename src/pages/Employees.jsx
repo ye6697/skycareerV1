@@ -256,7 +256,7 @@ export default function Employees() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold text-emerald-600">${candidate.salary}/Monat</p>
+                              <p className="font-bold text-emerald-600">${candidate.salary}{t('per_month', lang)}</p>
                               <p className="text-xs text-slate-400">+ ${candidate.salary} {t('hiring_bonus', lang)}</p>
                             </div>
                           </div>
