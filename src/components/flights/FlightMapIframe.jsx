@@ -728,7 +728,7 @@ function update(d) {
       arcCurrent.lat = curPos[0]; arcCurrent.lon = curPos[1];
       arcCurrent.hdg = fd.heading || 0; arcCurrent.alt = fd.altitude || 0;
       arcCurrent.spd = fd.speed || 0;
-      arcBaseLatLng = null;
+      arcLastSetViewPos = null;
       arcInitialized = true;
     }
     
