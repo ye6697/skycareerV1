@@ -455,6 +455,7 @@ function monitor_flight()
         .. '"wind_speed_kts":' .. string.format("%.0f", wind_speed_kts) .. ","
         .. '"wind_direction":' .. string.format("%.0f", wind_direction) .. ","
         .. '"aircraft_icao":"' .. aircraft_icao .. '"'
+        .. ',"seq":' .. send_counter
         -- Only include touchdown data when actually landing
         .. (flight_landed and (',"touchdown_vspeed":' .. string.format("%.1f", touchdown_vspeed) .. ',"landing_g_force":' .. string.format("%.2f", landing_g_force)) or "")
         .. failures_json
@@ -472,10 +473,12 @@ end
 -- Send data every 1 second (curl runs async in background, no frame blocking)
 local last_send_time = 0
 local SEND_INTERVAL = 1.0
+local send_counter = 0
 function flight_loop_callback()
     local current_time = os.clock()
     if current_time - last_send_time >= SEND_INTERVAL then
         last_send_time = current_time
+        send_counter = send_counter + 1
         monitor_flight()
     end
 end
