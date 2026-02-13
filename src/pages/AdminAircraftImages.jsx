@@ -47,6 +47,7 @@ export default function AdminAircraftImages() {
 
     { name: "Embraer E175", type: "regional_jet", level_requirement: 13 },
     { name: "Airbus A220", type: "regional_jet", level_requirement: 14 },
+    { name: "McDonnell Douglas MD-82", type: "narrow_body", level_requirement: 14 },
     { name: "Airbus A318", type: "narrow_body", level_requirement: 15 },
     { name: "Airbus A319", type: "narrow_body", level_requirement: 16 },
     { name: "Boeing 737-800", type: "narrow_body", level_requirement: 16 },
