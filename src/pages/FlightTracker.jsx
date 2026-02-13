@@ -407,6 +407,17 @@ export default function FlightTracker() {
   const [dataAge, setDataAge] = useState(null); // ms since last data received (live ticker)
   const lastDataReceivedRef = React.useRef(null);
   
+  // Live ticker: shows how long ago the last data arrived (updates every 200ms)
+  useEffect(() => {
+    if (flightPhase === 'completed') return;
+    const ticker = setInterval(() => {
+      if (lastDataReceivedRef.current) {
+        setDataAge(Date.now() - lastDataReceivedRef.current);
+      }
+    }, 200);
+    return () => clearInterval(ticker);
+  }, [flightPhase]);
+
   // Initial fetch to get current flight data immediately
   useEffect(() => {
     if (flightPhase === 'completed') return;
@@ -2140,13 +2151,13 @@ export default function FlightTracker() {
                       <Activity className="w-4 h-4 text-blue-400" />
                       X-Plane Rohdaten
                     </span>
-                    {dataLatency !== null && (
+                    {dataAge !== null && (
                       <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                        dataLatency < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
-                        dataLatency < 4000 ? 'bg-amber-500/20 text-amber-400' :
+                        dataAge < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
+                        dataAge < 5000 ? 'bg-amber-500/20 text-amber-400' :
                         'bg-red-500/20 text-red-400'
                       }`}>
-                        Δ {(dataLatency / 1000).toFixed(1)}s
+                        {dataLatency ? `Δ${(dataLatency / 1000).toFixed(1)}s` : ''} | {(dataAge / 1000).toFixed(1)}s ago
                       </span>
                     )}
                   </h3>
