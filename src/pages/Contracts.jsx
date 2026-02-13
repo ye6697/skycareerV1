@@ -11,7 +11,6 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Search,
-  Filter,
   Users,
   Package,
   Star,
@@ -28,7 +27,6 @@ export default function Contracts() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [rangeFilter, setRangeFilter] = useState('all');
   const [selectedAircraftId, setSelectedAircraftId] = useState('all');
   const [minNm, setMinNm] = useState('');
   const [maxNm, setMaxNm] = useState('');
@@ -124,27 +122,18 @@ export default function Contracts() {
     }
   });
 
-  const getRangeCategory = (distanceNm) => {
-    if (distanceNm <= 500) return 'short';
-    if (distanceNm <= 1500) return 'medium';
-    return 'long';
-  };
-
   const filteredContracts = contracts.filter(contract => {
     const matchesSearch = 
       contract.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contract.departure_airport?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contract.arrival_airport?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const rangeCategory = getRangeCategory(contract.distance_nm || 0);
-    const matchesRange = rangeFilter === 'all' || rangeCategory === rangeFilter;
-    
-    if (activeTab === 'all') return matchesSearch && matchesRange && contract.status === 'available';
-    if (activeTab === 'accepted') return matchesSearch && matchesRange && contract.status === 'accepted';
-    if (activeTab === 'passenger') return matchesSearch && matchesRange && contract.type === 'passenger' && contract.status === 'available';
-    if (activeTab === 'cargo') return matchesSearch && matchesRange && contract.type === 'cargo' && contract.status === 'available';
-    if (activeTab === 'charter') return matchesSearch && matchesRange && contract.type === 'charter' && contract.status === 'available';
-    return matchesSearch && matchesRange;
+    if (activeTab === 'all') return matchesSearch && contract.status === 'available';
+    if (activeTab === 'accepted') return matchesSearch && contract.status === 'accepted';
+    if (activeTab === 'passenger') return matchesSearch && contract.type === 'passenger' && contract.status === 'available';
+    if (activeTab === 'cargo') return matchesSearch && contract.type === 'cargo' && contract.status === 'available';
+    if (activeTab === 'charter') return matchesSearch && contract.type === 'charter' && contract.status === 'available';
+    return matchesSearch;
   });
 
   const handleAccept = (contract) => {
@@ -169,8 +158,7 @@ export default function Contracts() {
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Aufträge</h1>
               <p className="text-slate-400">Finde und akzeptiere lukrative Flugaufträge</p>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-              <div className="relative">
+            <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   placeholder="Suche nach Route, Flughafen..."
@@ -179,10 +167,37 @@ export default function Contracts() {
                   className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
                 />
               </div>
+          </div>
+
+          {/* Distance Range Filter + Generate Button */}
+          <div className="mt-4 p-4 bg-slate-800/60 border border-slate-700 rounded-lg">
+            <p className="text-xs text-slate-400 mb-3 font-medium">Entfernungsfilter für Generierung (NM)</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Von</span>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={minNm}
+                  onChange={(e) => setMinNm(e.target.value)}
+                  className="w-24 h-8 text-sm bg-slate-900 border-slate-600 text-white"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Bis</span>
+                <Input
+                  type="number"
+                  placeholder="∞"
+                  value={maxNm}
+                  onChange={(e) => setMaxNm(e.target.value)}
+                  className="w-24 h-8 text-sm bg-slate-900 border-slate-600 text-white"
+                />
+              </div>
+              <span className="text-xs text-slate-400">NM</span>
               <Button 
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-emerald-600 hover:bg-emerald-700 h-8 ml-auto"
               >
                 {generateMutation.isPending ? (
                   <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generiere...</>
@@ -190,34 +205,6 @@ export default function Contracts() {
                   <><RefreshCw className="w-4 h-4 mr-2" /> Aufträge generieren</>
                 )}
               </Button>
-            </div>
-          </div>
-
-          {/* Distance Range Filter for Generation */}
-          <div className="mt-4 p-3 bg-slate-800/60 border border-slate-700 rounded-lg">
-            <p className="text-xs text-slate-400 mb-2 font-medium">Entfernungsfilter für Generierung (NM)</p>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Von</span>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={minNm}
-                  onChange={(e) => setMinNm(e.target.value)}
-                  className="w-24 h-8 text-sm bg-slate-900 border-slate-600"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Bis</span>
-                <Input
-                  type="number"
-                  placeholder="∞"
-                  value={maxNm}
-                  onChange={(e) => setMaxNm(e.target.value)}
-                  className="w-24 h-8 text-sm bg-slate-900 border-slate-600"
-                />
-              </div>
-              <span className="text-xs text-slate-500">NM</span>
             </div>
           </div>
         </motion.div>
@@ -256,51 +243,6 @@ export default function Contracts() {
             </div>
           </div>
         )}
-
-        {/* Range Filter */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <button
-            onClick={() => setRangeFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              rangeFilter === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Alle Entfernungen
-          </button>
-          <button
-            onClick={() => setRangeFilter('short')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              rangeFilter === 'short'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Kurzstrecke (≤500 NM)
-          </button>
-          <button
-            onClick={() => setRangeFilter('medium')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              rangeFilter === 'medium'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Mittelstrecke (500-1500 NM)
-          </button>
-          <button
-            onClick={() => setRangeFilter('long')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              rangeFilter === 'long'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Langstrecke (>1500 NM)
-          </button>
-        </div>
 
         {/* Info Alert */}
          <div className="mb-6 p-4 bg-blue-900/40 border border-blue-700 rounded-lg flex items-start gap-3">
@@ -424,8 +366,6 @@ export default function Contracts() {
 
               // Check employees
               const employees = pageData?.employees || [];
-              const activeEmployees = employees.filter(e => e.status !== 'terminated');
-              const noCaptains = !activeEmployees.some(e => e.role === 'captain' && e.status === 'available');
 
               const hints = [];
 
@@ -443,7 +383,8 @@ export default function Contracts() {
                 }
               }
 
-              if (noCaptains && !noAircraft) {
+              const availCaptains = employees.filter(e => e.role === 'captain' && (e.status === 'available' || e.status === 'on_duty'));
+              if (availCaptains.length === 0 && !noAircraft) {
                 hints.push({ icon: <UserX className="w-5 h-5 text-amber-400" />, text: 'Kein Kapitän verfügbar. Stelle einen Kapitän auf der Mitarbeiter-Seite ein.', color: 'amber' });
               }
 
@@ -458,7 +399,7 @@ export default function Contracts() {
               return (
                 <div className="space-y-3 max-w-md mx-auto mb-6">
                   {hints.map((hint, i) => (
-                    <div key={i} className={`flex items-start gap-3 p-3 rounded-lg bg-${hint.color}-900/20 border border-${hint.color}-700/30`}>
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: `rgba(var(--${hint.color}), 0.1)` }}>
                       {hint.icon}
                       <p className="text-sm text-slate-300">{hint.text}</p>
                     </div>
@@ -468,7 +409,7 @@ export default function Contracts() {
             })()}
 
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); setRangeFilter('all'); }}>
+              <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
                 Filter zurücksetzen
               </Button>
               <Button 
