@@ -105,20 +105,20 @@ export default function FlightMapIframe({
         />
       </div>
 
-      {!staticMode && !isFullscreen && (
-        <div className="p-2 bg-slate-900/80 text-xs font-mono space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400">HDG {Math.round(fd.heading || 0)}°</span>
-            <span className="text-slate-400">ALT {Math.round(fd.altitude || 0).toLocaleString()} ft</span>
-            <span className="text-slate-400">GS {Math.round(fd.speed || 0)} kts</span>
+      {!staticMode && (
+        <div className="px-3 py-2 bg-slate-900/90 font-mono space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-cyan-400 font-semibold">HDG <span className="text-white">{String(Math.round(fd.heading || 0)).padStart(3, '0')}°</span></span>
+            <span className="text-emerald-400 font-semibold">ALT <span className="text-white">{Math.round(fd.altitude || 0).toLocaleString()}</span> <span className="text-slate-500 text-xs">ft</span></span>
+            <span className="text-emerald-400 font-semibold">GS <span className="text-white">{Math.round(fd.speed || 0)}</span> <span className="text-slate-500 text-xs">kts</span></span>
           </div>
-          <div className="flex items-center justify-between border-t border-slate-800 pt-1">
-            <span className="text-purple-400">
+          <div className="flex items-center justify-between text-sm border-t border-slate-700/60 pt-1.5">
+            <span className="text-purple-400 font-semibold">
               {mapDistances.nextWpDist !== null 
                 ? `▸ ${mapDistances.nextWpName}: ${mapDistances.nextWpDist} NM` 
                 : '—'}
             </span>
-            <span className="text-amber-400">
+            <span className="text-amber-400 font-semibold">
               {mapDistances.arrDist !== null 
                 ? `ARR: ${mapDistances.arrDist} NM` 
                 : '—'}
