@@ -433,10 +433,14 @@ export default function FlightTracker() {
       if (ts !== lastXplaneTimestampRef.current) {
         lastXplaneTimestampRef.current = ts;
         const now = Date.now();
-        if (lastDataReceivedRef.current) {
-          setDataLatency(now - lastDataReceivedRef.current);
-        }
         lastDataReceivedRef.current = now;
+        // Calculate real latency: how old is this data (server timestamp vs now)
+        if (ts) {
+          const serverTime = new Date(ts).getTime();
+          if (!isNaN(serverTime)) {
+            setDataLatency(now - serverTime);
+          }
+        }
         setXplaneLog({ raw_data: xpData, created_date: updDate });
       }
     };

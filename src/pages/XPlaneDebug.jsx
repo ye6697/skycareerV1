@@ -9,6 +9,8 @@ import { motion } from "framer-motion";
 
 export default function XPlaneDebug() {
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [dataLatency, setDataLatency] = useState(null);
+  const lastTimestampRef = React.useRef(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
