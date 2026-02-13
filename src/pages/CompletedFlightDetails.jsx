@@ -177,26 +177,32 @@ export default function CompletedFlightDetails() {
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               {/* Flight Route Map */}
-              {finalContract && (
-                <FlightMapIframe
-                  flightData={{
-                    latitude: 0,
-                    longitude: 0,
-                    departure_lat: flight?.xplane_data?.departure_lat || 0,
-                    departure_lon: flight?.xplane_data?.departure_lon || 0,
-                    arrival_lat: flight?.xplane_data?.arrival_lat || 0,
-                    arrival_lon: flight?.xplane_data?.arrival_lon || 0,
-                    heading: 0,
-                    altitude: 0,
-                    speed: 0,
-                  }}
-                  contract={finalContract}
-                  staticMode={true}
-                  title="Flugroute"
-                  flightPath={flight?.xplane_data?.flight_path || []}
-                  routeWaypoints={flight?.xplane_data?.fms_waypoints || []}
-                />
-              )}
+              {finalContract && (() => {
+                // Build departure/arrival coords from xplane_data or flight_path
+                const xpd = flight?.xplane_data || {};
+                const fp = xpd.flight_path || [];
+                const depLat = xpd.departure_lat || (fp.length > 0 ? fp[0][0] : 0);
+                const depLon = xpd.departure_lon || (fp.length > 0 ? fp[0][1] : 0);
+                const arrLat = xpd.arrival_lat || (fp.length > 1 ? fp[fp.length-1][0] : 0);
+                const arrLon = xpd.arrival_lon || (fp.length > 1 ? fp[fp.length-1][1] : 0);
+                return (
+                  <FlightMapIframe
+                    flightData={{
+                      latitude: 0, longitude: 0,
+                      departure_lat: depLat, departure_lon: depLon,
+                      arrival_lat: arrLat, arrival_lon: arrLon,
+                      heading: 0, altitude: 0, speed: 0,
+                    }}
+                    contract={finalContract}
+                    staticMode={true}
+                    title="Flugroute & Flugverlauf"
+                    flightPath={fp}
+                    routeWaypoints={xpd.fms_waypoints || []}
+                    departureCoords={depLat ? { lat: depLat, lon: depLon } : null}
+                    arrivalCoords={arrLat ? { lat: arrLat, lon: arrLon } : null}
+                  />
+                );
+              })()}
 
               {/* Flight Rating */}
               <FlightRating flight={flight} />
