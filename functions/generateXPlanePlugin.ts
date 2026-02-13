@@ -52,8 +52,10 @@ class PythonInterface:
         # Configuration
         self.api_endpoint = "${apiEndpoint}"
         self.api_key = "${apiKey}"
-        self.update_interval = 3.0  # seconds
+        self.update_interval = 3.0  # seconds between FULL data sends
+        self.fast_interval = 1.0 / 30.0  # ~30Hz for position-only sends
         self.last_update = 0
+        self.last_fast_update = 0
         self.last_on_ground = True
         self.flight_started = False
         
