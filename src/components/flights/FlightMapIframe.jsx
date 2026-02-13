@@ -605,25 +605,24 @@ function update(d) {
     arcEl.style.display = 'block';
     setArcDragLock(true);
     
-    // ARC mode: keep map at normal 100% size, just rotate via CSS transform
-    // Remove any transform first so invalidateSize and centering work correctly
+    // Remove rotation before any Leaflet operations
     mapEl.style.transform = 'none';
     
+    // Switch to oversized 300% map to prevent tile gaps on rotation
     if (switchedToArc) {
+      mapEl.className = 'arc-mode';
       map.invalidateSize();
       map.setZoom(arcZoomLevel, { animate: false });
     }
     
-    // Center aircraft at bottom 85% of viewport
+    // Center aircraft at 85% down the visible viewport
     centerAircraftArc(curPos);
     
-    // Rotate + scale around the AIRCRAFT position (not center of map)
-    // This ensures the aircraft stays in place while the map rotates around it
+    // Apply rotation around the CENTER of the 3x map (which = center of visible area)
+    // The aircraft was placed 35% below this center, so it stays at ~85% down
     var hdg = fd.heading || 0;
-    var ox = centerAircraftArc._originX || 50;
-    var oy = centerAircraftArc._originY || 85;
-    mapEl.style.transformOrigin = ox + '% ' + oy + '%';
-    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg) scale(1.8)';
+    mapEl.style.transformOrigin = '50% 50%';
+    mapEl.style.transform = 'rotate(' + (-hdg) + 'deg)';
     
     drawArcOverlay(fd.heading, fd.altitude, fd.speed, distInfo.nextWpName, distInfo.nextWpDist, distInfo.arrDist);
     
@@ -632,14 +631,16 @@ function update(d) {
     arcEl.style.display = 'none';
     setArcDragLock(false);
     
-    // F-PLN mode: reset transform
-    mapEl.style.transform = 'none';
-    mapEl.style.transformOrigin = '';
-    
+    // Switch back to normal map
     if (switchedFromArc) {
+      mapEl.className = '';
+      mapEl.style.transform = 'none';
+      mapEl.style.transformOrigin = '';
       map.invalidateSize();
       boundsSet = false;
     }
+    mapEl.style.transform = 'none';
+    mapEl.style.transformOrigin = '';
     
     var allPts = rp.concat(fp);
     if (curPos) allPts.push(curPos);
