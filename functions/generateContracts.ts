@@ -170,6 +170,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Parse optional distance filter from request body
+    let minNm = 0;
+    let maxNm = Infinity;
+    try {
+      const body = await req.json();
+      if (body.minNm && !isNaN(body.minNm)) minNm = Number(body.minNm);
+      if (body.maxNm && !isNaN(body.maxNm)) maxNm = Number(body.maxNm);
+    } catch (_) {}
+
     // Get user's company - prefer company_id from user, fallback to created_by
     let company = null;
     const companyId = user.company_id || user.data?.company_id;
