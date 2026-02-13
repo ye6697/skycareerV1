@@ -267,11 +267,18 @@ function makeIcon(bg, size, border, glow) {
   return L.divIcon({ html: '<div style="background:'+bg+';width:'+size+'px;height:'+size+'px;border-radius:50%;border:2px solid '+border+';'+shadow+'"></div>', className: '', iconSize: [size, size], iconAnchor: [size/2, size/2] });
 }
 function makeAircraftIcon(hdg) {
-  // In ARC mode, the MAP rotates, so aircraft icon must counter-rotate to stay upright
-  var rot = currentViewMode === 'arc' ? (hdg||0) : (hdg||0);
+  var rot = hdg||0;
+  if (currentViewMode === 'arc') {
+    // ARC mode: larger icon (120px)
+    return L.divIcon({
+      html: '<div style="transform:rotate('+rot+'deg);display:flex;align-items:center;justify-content:center;width:120px;height:120px;filter:drop-shadow(0 0 18px rgba(34,211,238,0.8)) drop-shadow(0 0 40px rgba(34,211,238,0.35));"><svg width="108" height="108" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#67e8f9" stroke-width="1.5"/><circle cx="50" cy="20" r="4" fill="#a5f3fc"/></svg></div>',
+      className: '', iconSize: [120, 120], iconAnchor: [60, 60]
+    });
+  }
+  // F-PLN mode: normal size (52px)
   return L.divIcon({
-    html: '<div style="transform:rotate('+rot+'deg);display:flex;align-items:center;justify-content:center;width:80px;height:80px;filter:drop-shadow(0 0 14px rgba(34,211,238,0.7)) drop-shadow(0 0 30px rgba(34,211,238,0.3));"><svg width="72" height="72" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#67e8f9" stroke-width="2"/><circle cx="50" cy="20" r="4" fill="#a5f3fc"/></svg></div>',
-    className: '', iconSize: [80, 80], iconAnchor: [40, 40]
+    html: '<div style="transform:rotate('+rot+'deg);display:flex;align-items:center;justify-content:center;width:52px;height:52px;filter:drop-shadow(0 2px 8px rgba(34,211,238,0.5));"><svg width="46" height="46" viewBox="0 0 100 100" fill="none"><path d="M50 8 L54 35 L80 55 L80 60 L54 48 L54 72 L65 80 L65 84 L50 78 L35 84 L35 80 L46 72 L46 48 L20 60 L20 55 L46 35 Z" fill="#22d3ee" stroke="#0891b2" stroke-width="1.5"/><circle cx="50" cy="20" r="3" fill="#67e8f9"/></svg></div>',
+    className: '', iconSize: [52, 52], iconAnchor: [26, 26]
   });
 }
 var depIcon = makeIcon('#10b981', 16, '#064e3b', true);
