@@ -885,7 +885,10 @@ function arcSmoothTick(now) {
   // Update Leaflet marker at ~10fps
   if (layers.aircraft && (now - arcLastMarkerUpdate > 100)) {
     arcLastMarkerUpdate = now;
-    layers.aircraft.setLatLng(curPos);
+    // In ARC mode, pin marker to the base projection point (CSS transform moves the map).
+    // This prevents the marker from visually drifting between recenters.
+    var markerPos = arcBaseLatLng ? arcBaseLatLng : curPos;
+    layers.aircraft.setLatLng(markerPos);
     var hdgRounded = Math.round(arcCurrent.hdg);
     if (Math.abs(hdgRounded - arcLastIconHdg) >= 2) {
       layers.aircraft.setIcon(makeAircraftIcon(arcCurrent.hdg));
