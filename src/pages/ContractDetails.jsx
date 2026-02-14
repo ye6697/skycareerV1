@@ -147,17 +147,28 @@ export default function ContractDetails() {
                   config.color === "purple" ? "text-purple-400" :
                   "text-red-400"
                 }`} />
-                Mission Briefing – {contract.title}
+                {lang === 'de' ? 'Mission Briefing' : 'Mission Briefing'} – {contract.title}
               </h3>
               <div className="space-y-3">
                 {contract.briefing && (
                   <p className="text-slate-300 leading-relaxed">{contract.briefing}</p>
                 )}
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  {contract.type === 'passenger' && `Du wurdest beauftragt, ${contract.passenger_count || 0} Passagiere sicher von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} zu fliegen. Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} Nautische Meilen. Die Passagiere erwarten einen komfortablen und professionellen Flug – achte besonders auf sanfte Manöver, niedrige G-Kräfte und eine butterweiche Landung, um die Zufriedenheit zu maximieren. Je besser dein Flug-Score, desto höher fällt der Bonus aus. Halte die Deadline ein und vermeide Vorfälle wie Strömungsabriss, Overspeed oder harte Landungen, um Strafkosten und Score-Abzüge zu vermeiden.`}
-                  {contract.type === 'cargo' && `Du hast den Auftrag erhalten, ${contract.cargo_weight_kg?.toLocaleString() || 0} kg Fracht von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} zu transportieren. Die Distanz beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Stelle sicher, dass dein Flugzeug die nötige Frachtkapazität und Reichweite besitzt. Fracht ist weniger empfindlich als Passagiere, aber Vorfälle wie harte Landungen oder Strukturbelastung führen trotzdem zu Wartungskosten. Liefere pünktlich innerhalb der vorgegebenen Deadline, um Bonuszahlungen zu sichern.`}
-                  {contract.type === 'charter' && `Exklusiver Charterauftrag: Fliege ${contract.passenger_count ? `${contract.passenger_count} VIP-Passagiere` : 'eine Gruppe'} von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} über ${contract.distance_nm?.toLocaleString() || 0} NM. Charterflüge haben besonders hohe Anforderungen an Komfort und Pünktlichkeit. Die Gäste erwarten erstklassigen Service – eine butterweiche Landung und ein ruhiger, professioneller Flugverlauf werden mit erheblichen Bonuszahlungen belohnt. Jeder Vorfall wirkt sich deutlich stärker auf die Bewertung aus.`}
-                  {contract.type === 'emergency' && `DRINGENDER NOTFALLEINSATZ: Du musst schnellstmöglich von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} fliegen! Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Zeit ist der absolut kritische Faktor – die Deadline muss unbedingt eingehalten werden, da sonst der gesamte Auftrag als fehlgeschlagen gilt. Trotz des Zeitdrucks ist eine sichere Flugdurchführung Pflicht. Unfälle oder Vorfälle führen zu empfindlichen Strafen.`}
+                  {lang === 'de' ? (
+                    <>
+                      {contract.type === 'passenger' && `Du wurdest beauftragt, ${contract.passenger_count || 0} Passagiere sicher von ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} nach ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''} zu fliegen. Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Die Passagiere erwarten einen komfortablen und professionellen Flug. Je besser dein Flug-Score, desto höher fällt der Bonus aus.`}
+                      {contract.type === 'cargo' && `Du hast den Auftrag erhalten, ${contract.cargo_weight_kg?.toLocaleString() || 0} kg Fracht von ${contract.departure_airport} nach ${contract.arrival_airport} zu transportieren. Die Distanz beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Liefere pünktlich, um Bonuszahlungen zu sichern.`}
+                      {contract.type === 'charter' && `Exklusiver Charterauftrag: Fliege ${contract.passenger_count ? `${contract.passenger_count} VIP-Passagiere` : 'eine Gruppe'} von ${contract.departure_airport} nach ${contract.arrival_airport} über ${contract.distance_nm?.toLocaleString() || 0} NM. Charterflüge haben besonders hohe Anforderungen an Komfort und Pünktlichkeit.`}
+                      {contract.type === 'emergency' && `DRINGENDER NOTFALLEINSATZ: Fliege schnellstmöglich von ${contract.departure_airport} nach ${contract.arrival_airport}! Die Strecke beträgt ${contract.distance_nm?.toLocaleString() || 0} NM. Zeit ist der absolut kritische Faktor.`}
+                    </>
+                  ) : (
+                    <>
+                      {contract.type === 'passenger' && `You are tasked with safely transporting ${contract.passenger_count || 0} passengers from ${contract.departure_airport} ${contract.departure_city ? `(${contract.departure_city})` : ''} to ${contract.arrival_airport} ${contract.arrival_city ? `(${contract.arrival_city})` : ''}. The route covers ${contract.distance_nm?.toLocaleString() || 0} NM. Passengers expect a comfortable, professional flight. The better your flight score, the higher the bonus.`}
+                      {contract.type === 'cargo' && `You have been assigned to transport ${contract.cargo_weight_kg?.toLocaleString() || 0} kg of cargo from ${contract.departure_airport} to ${contract.arrival_airport}. Distance: ${contract.distance_nm?.toLocaleString() || 0} NM. Deliver on time to secure bonus payments.`}
+                      {contract.type === 'charter' && `Exclusive charter flight: Fly ${contract.passenger_count ? `${contract.passenger_count} VIP passengers` : 'a group'} from ${contract.departure_airport} to ${contract.arrival_airport} over ${contract.distance_nm?.toLocaleString() || 0} NM. Charter flights have particularly high standards for comfort and punctuality.`}
+                      {contract.type === 'emergency' && `URGENT EMERGENCY MISSION: Fly as quickly as possible from ${contract.departure_airport} to ${contract.arrival_airport}! Distance: ${contract.distance_nm?.toLocaleString() || 0} NM. Time is the critical factor.`}
+                    </>
+                  )}
                 </p>
               </div>
             </Card>
@@ -205,7 +216,7 @@ export default function ContractDetails() {
                 </div>
                 {contract.level_requirement > 1 && (
                   <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-xs sm:text-sm mb-1">Min. Level</p>
+                    <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('min_level', lang)}</p>
                     <p className="text-xl sm:text-2xl font-bold text-amber-400">
                       {contract.level_requirement}
                     </p>
@@ -298,7 +309,7 @@ export default function ContractDetails() {
 
             {/* Status */}
             <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
-              <h3 className="text-lg font-semibold mb-4">Status</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('status_label', lang)}</h3>
               <Badge className={`${
                 contract.status === 'available' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
                 contract.status === 'accepted' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
@@ -324,38 +335,38 @@ export default function ContractDetails() {
               </h3>
               
               {/* Landing Quality - G-force based */}
-              <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-2">Landequalität (nach G-Kraft)</p>
+              <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-2">{lang === 'de' ? 'Landequalität (nach G-Kraft)' : 'Landing Quality (by G-force)'}</p>
               <div className="space-y-1.5 text-sm mb-4">
                 <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
-                  <span className="text-slate-300">Butterweich (&lt;0.5 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Butterweich' : 'Butter'} (&lt;0.5 G)</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-emerald-400 font-medium">+40 Score</span>
                     <span className="text-emerald-400">+4× Payout</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
-                  <span className="text-slate-300">Weich (&lt;1.0 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Weich' : 'Soft'} (&lt;1.0 G)</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-emerald-400 font-medium">+20 Score</span>
                     <span className="text-emerald-400">+2× Payout</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-blue-900/20 rounded">
-                  <span className="text-slate-300">Akzeptabel (&lt;1.6 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Akzeptabel' : 'Acceptable'} (&lt;1.6 G)</span>
                   <div className="flex gap-3 text-xs">
-                    <span className="text-blue-400 font-medium">+5 Score</span>
-                    <span className="text-slate-500">kein Bonus</span>
+                   <span className="text-blue-400 font-medium">+5 Score</span>
+                   <span className="text-slate-500">{lang === 'de' ? 'kein Bonus' : 'no bonus'}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Hart (&lt;2.0 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Hart' : 'Hard'} (&lt;2.0 G)</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-30 Score</span>
                     <span className="text-amber-400">-25% Payout</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Sehr Hart (≥2.0 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Sehr Hart' : 'Very Hard'} (≥2.0 G)</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-50 Score</span>
                     <span className="text-amber-400">-50% Payout</span>
@@ -364,26 +375,26 @@ export default function ContractDetails() {
               </div>
 
               {/* Deadline */}
-              <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider mb-2">Deadline</p>
+              <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider mb-2">{t('deadline', lang)}</p>
               <div className="space-y-1.5 text-sm mb-4">
                 <div className="flex justify-between items-center p-2 bg-blue-900/10 rounded">
-                  <span className="text-slate-300">Deadline eingehalten</span>
+                   <span className="text-slate-300">{lang === 'de' ? 'Deadline eingehalten' : 'Deadline met'}</span>
                   <span className="text-emerald-400 font-medium text-xs">+20 Score</span>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-blue-900/10 rounded">
-                  <span className="text-slate-300">Deadline überschritten</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Deadline überschritten' : 'Deadline exceeded'}</span>
                   <span className="text-red-400 font-medium text-xs">-20 Score</span>
                 </div>
               </div>
 
               {/* Penalties */}
-              <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-2">Straf-Events</p>
+              <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-2">{lang === 'de' ? 'Straf-Events' : 'Penalty Events'}</p>
               <div className="space-y-1.5 text-sm mb-4">
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Heckaufsetzer (Tailstrike)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Heckaufsetzer (Tailstrike)' : 'Tailstrike'}</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-20 Score</span>
-                    <span className="text-amber-400">2% Wartung</span>
+                    <span className="text-amber-400">2% {t('maintenance', lang)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
@@ -393,35 +404,35 @@ export default function ContractDetails() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Klappen-Overspeed</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Klappen-Overspeed' : 'Flaps Overspeed'}</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-15 Score</span>
-                    <span className="text-amber-400">2.5% Wartung</span>
+                    <span className="text-amber-400">2.5% {t('maintenance', lang)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">G-Kraft ≥1.5 G (erste)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'G-Kraft ≥1.5 G (erste)' : 'G-force ≥1.5 G (first)'}</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-10 Score</span>
-                    <span className="text-amber-400">1% Wartung</span>
+                    <span className="text-amber-400">1% {t('maintenance', lang)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Jede weitere G-Stufe (2G, 3G…)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Jede weitere G-Stufe (2G, 3G…)' : 'Each additional G-step (2G, 3G…)'}</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-10 Score/G</span>
-                    <span className="text-amber-400">G×1% Wartung</span>
+                    <span className="text-amber-400">G×1% {t('maintenance', lang)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Strukturschaden (Overstress)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Strukturschaden (Overstress)' : 'Structural damage (Overstress)'}</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-30 Score</span>
-                    <span className="text-amber-400">4% Wartung</span>
+                    <span className="text-amber-400">4% {t('maintenance', lang)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/10 rounded">
-                  <span className="text-slate-300">Strömungsabriss (Stall)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Strömungsabriss (Stall)' : 'Stall'}</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-medium">-50 Score</span>
                   </div>
@@ -429,24 +440,24 @@ export default function ContractDetails() {
               </div>
 
               {/* Catastrophic */}
-              <p className="text-xs text-red-500 font-semibold uppercase tracking-wider mb-2">Katastrophal</p>
+              <p className="text-xs text-red-500 font-semibold uppercase tracking-wider mb-2">{lang === 'de' ? 'Katastrophal' : 'Catastrophic'}</p>
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between items-center p-2 bg-red-900/20 border border-red-800/30 rounded">
-                  <span className="text-red-300 font-medium">Landung ohne Fahrwerk</span>
+                  <span className="text-red-300 font-medium">{lang === 'de' ? 'Landung ohne Fahrwerk' : 'Gear-up landing'}</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-bold">-35 Score</span>
-                    <span className="text-red-400 font-bold">15% Wartung</span>
+                    <span className="text-red-400 font-bold">15% {t('maintenance', lang)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-red-900/20 border border-red-800/30 rounded">
                   <span className="text-red-300 font-medium">Crash</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-red-400 font-bold">-100 Score</span>
-                    <span className="text-red-400 font-bold">70% Wartung</span>
+                    <span className="text-red-400 font-bold">70% {t('maintenance', lang)}</span>
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-3">Wartungskosten = % des Flugzeug-Neuwerts. Landebonus/-abzug basiert auf dem Auftrags-Payout. Score startet bei 100.</p>
+              <p className="text-xs text-slate-500 mt-3">{lang === 'de' ? 'Wartungskosten = % des Flugzeug-Neuwerts. Landebonus/-abzug basiert auf dem Auftrags-Payout. Score startet bei 100.' : 'Maintenance cost = % of aircraft purchase price. Landing bonus/penalty based on contract payout. Score starts at 100.'}</p>
             </Card>
           </div>
         </div>

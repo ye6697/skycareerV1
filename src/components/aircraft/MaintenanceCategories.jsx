@@ -15,16 +15,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const categories = [
-  { key: "engine", label: "Triebwerk", icon: Cog, description: "Motor, Turbine, Kraftstoffsystem" },
-  { key: "hydraulics", label: "Hydraulik", icon: Gauge, description: "Hydraulikpumpen, Leitungen, Ventile" },
-  { key: "avionics", label: "Avionik", icon: CircuitBoard, description: "Instrumente, Autopilot, Navigation" },
-  { key: "airframe", label: "Zelle/Struktur", icon: Shield, description: "Rumpf, Tragflächen, Leitwerk" },
-  { key: "landing_gear", label: "Fahrwerk", icon: Plane, description: "Räder, Bremsen, Fahrwerk-Mechanik" },
-  { key: "electrical", label: "Elektrik", icon: Zap, description: "Generatoren, Batterien, Beleuchtung" },
-  { key: "flight_controls", label: "Flugsteuerung", icon: Wind, description: "Querruder, Seitenruder, Höhenruder" },
-  { key: "pressurization", label: "Druckkabine", icon: Shield, description: "Druckregelung, Klimaanlage" },
-];
+function getCategories(lang) {
+  const tFn = (k) => tl(k, lang);
+  return [
+    { key: "engine", label: tFn('engine'), icon: Cog, description: lang === 'de' ? "Motor, Turbine, Kraftstoffsystem" : "Motor, Turbine, Fuel system" },
+    { key: "hydraulics", label: tFn('hydraulics'), icon: Gauge, description: lang === 'de' ? "Hydraulikpumpen, Leitungen, Ventile" : "Hydraulic pumps, lines, valves" },
+    { key: "avionics", label: tFn('avionics'), icon: CircuitBoard, description: lang === 'de' ? "Instrumente, Autopilot, Navigation" : "Instruments, Autopilot, Navigation" },
+    { key: "airframe", label: tFn('airframe'), icon: Shield, description: lang === 'de' ? "Rumpf, Tragflächen, Leitwerk" : "Fuselage, Wings, Empennage" },
+    { key: "landing_gear", label: tFn('landing_gear'), icon: Plane, description: lang === 'de' ? "Räder, Bremsen, Fahrwerk-Mechanik" : "Wheels, Brakes, Gear mechanics" },
+    { key: "electrical", label: tFn('electrical'), icon: Zap, description: lang === 'de' ? "Generatoren, Batterien, Beleuchtung" : "Generators, Batteries, Lighting" },
+    { key: "flight_controls", label: tFn('flight_controls'), icon: Wind, description: lang === 'de' ? "Querruder, Seitenruder, Höhenruder" : "Ailerons, Rudder, Elevator" },
+    { key: "pressurization", label: tFn('pressurization'), icon: Shield, description: lang === 'de' ? "Druckregelung, Klimaanlage" : "Pressure control, Air conditioning" },
+  ];
+}
 
 function getWearColor(percent) {
   if (percent <= 20) return "text-emerald-400";
@@ -44,6 +47,7 @@ export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
+  const categories = getCategories(lang);
   const cats = aircraft.maintenance_categories || {};
   const purchasePrice = aircraft.purchase_price || 100000;
   const currentValue = aircraft.current_value || purchasePrice;
@@ -255,19 +259,30 @@ export default function MaintenanceCategories({ aircraft }) {
               <h5 className="font-semibold text-white mb-1">{tl('maint_failures', lang)}</h5>
               <p>{tl('maint_failures_desc', lang)}</p>
               <ul className="list-disc ml-4 mt-1 space-y-1 text-slate-400">
-                <li><span className="text-emerald-400">0-20%</span>: Kaum Ausfälle</li>
-                <li><span className="text-amber-400">20-50%</span>: Gelegentlich leichte Ausfälle (Lichter, Instrumente)</li>
-                <li><span className="text-orange-400">50-75%</span>: Häufiger, auch mittelschwere (Generator, Hydraulik, Autopilot)</li>
-                <li><span className="text-red-400">75-100%</span>: Häufig und schwere Ausfälle (Triebwerksausfall, Feuer, Dekompression)</li>
+                {lang === 'de' ? (
+                  <>
+                    <li><span className="text-emerald-400">0-20%</span>: Kaum Ausfälle</li>
+                    <li><span className="text-amber-400">20-50%</span>: Gelegentlich leichte Ausfälle (Lichter, Instrumente)</li>
+                    <li><span className="text-orange-400">50-75%</span>: Häufiger, auch mittelschwere (Generator, Hydraulik, Autopilot)</li>
+                    <li><span className="text-red-400">75-100%</span>: Häufig und schwere Ausfälle (Triebwerksausfall, Feuer, Dekompression)</li>
+                  </>
+                ) : (
+                  <>
+                    <li><span className="text-emerald-400">0-20%</span>: Rare failures</li>
+                    <li><span className="text-amber-400">20-50%</span>: Occasional minor failures (lights, instruments)</li>
+                    <li><span className="text-orange-400">50-75%</span>: More frequent, also moderate (generator, hydraulics, autopilot)</li>
+                    <li><span className="text-red-400">75-100%</span>: Frequent and severe failures (engine failure, fire, decompression)</li>
+                  </>
+                )}
               </ul>
             </div>
             <div>
-              <h5 className="font-semibold text-white mb-1">Wertverlust</h5>
-              <p>Je stärker der Flugzeugwert vom Neupreis abweicht, desto anfälliger ist es für Ausfälle. Ein Flugzeug mit 50% Wertverlust hat deutlich mehr Probleme.</p>
+              <h5 className="font-semibold text-white mb-1">{lang === 'de' ? 'Wertverlust' : 'Depreciation'}</h5>
+              <p>{lang === 'de' ? 'Je stärker der Flugzeugwert vom Neupreis abweicht, desto anfälliger ist es für Ausfälle. Ein Flugzeug mit 50% Wertverlust hat deutlich mehr Probleme.' : 'The more the aircraft value deviates from the purchase price, the more prone it is to failures. An aircraft with 50% depreciation has significantly more issues.'}</p>
             </div>
             <div>
-              <h5 className="font-semibold text-white mb-1">Wartung</h5>
-              <p>Jede Kategorie kann einzeln oder komplett gewartet werden. Wartungskosten basieren auf dem Verschleiß (2% des Neupreises pro 100% Verschleiß). Jede Wartung verursacht 5% permanenten Wertverlust.</p>
+              <h5 className="font-semibold text-white mb-1">{lang === 'de' ? 'Wartung' : 'Maintenance'}</h5>
+              <p>{lang === 'de' ? 'Jede Kategorie kann einzeln oder komplett gewartet werden. Wartungskosten basieren auf dem Verschleiß (2% des Neupreises pro 100% Verschleiß). Jede Wartung verursacht 5% permanenten Wertverlust.' : 'Each category can be repaired individually or all at once. Maintenance costs are based on wear (2% of purchase price per 100% wear). Each repair causes 5% permanent depreciation.'}</p>
             </div>
             <div>
               <h5 className="font-semibold text-amber-400 mb-1">⚠️ {tl('maint_mandatory', lang)}</h5>
