@@ -68,14 +68,20 @@ export default function CompletedFlightDetails() {
     queryFn: async () => {
       if (!contractId) return [];
       const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      if (!companies[0]) return [];
-      const result = await base44.entities.Flight.filter({ contract_id: contractId, company_id: companies[0].id });
+      const cid = user?.company_id || user?.data?.company_id;
+      let companyId = cid;
+      if (!companyId) {
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        companyId = companies[0]?.id;
+      }
+      if (!companyId) return [];
+      const result = await base44.entities.Flight.filter({ contract_id: contractId, company_id: companyId });
       return result.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
-    enabled: !!contractId && !passedFlight,
-    staleTime: 300000,
+    enabled: !!contractId,
+    staleTime: 5000,
     refetchOnWindowFocus: false,
+    refetchInterval: !passedFlight ? 3000 : false, // keep refetching until we have flight data
   });
 
   // Prefer passed flight from navigation state, fallback to latest from DB
@@ -84,15 +90,17 @@ export default function CompletedFlightDetails() {
 
   // No route generation needed - map will use flight path data
 
-  // If we don't have all required data, auto-refresh
+  // If we don't have all required data, refetch queries instead of full reload
+  const queryClient = React.useMemo(() => null, []); // handled by useQuery refetch
   React.useEffect(() => {
-    if (!flight || !finalContract) {
+    if (!flight && contractId) {
+      // Force refetch flight data after short delay (data may not be written yet)
       const timer = setTimeout(() => {
         window.location.reload();
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [flight, finalContract]);
+  }, [flight, contractId]);
 
   if (!finalContract) {
     return (

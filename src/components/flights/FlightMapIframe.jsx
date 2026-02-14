@@ -198,7 +198,7 @@ var INTERACTION_COOLDOWN = 15000;
 var currentViewMode = 'fplan';
 var isFullscreen = false;
 var lastFd = {};
-var followZoom = 11;
+var followZoom = 14;
 var currentLang = 'en';
 
 map.on('dragstart', function() {
@@ -452,6 +452,8 @@ function update(d) {
     var centerLat = (curPos[0] + behindLat) / 2;
     var centerLon = (curPos[1] + behindLon) / 2;
     
+    // When switching to follow mode, zoom in close; allow user to adjust afterwards
+    if (prevMode !== 'follow') followZoom = 14;
     map.setView([centerLat, centerLon], followZoom, { animate: true, duration: 0.8 });
     
     if (prevMode !== 'follow') boundsSet = false;
