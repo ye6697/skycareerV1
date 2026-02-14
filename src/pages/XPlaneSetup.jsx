@@ -232,40 +232,40 @@ export default function XPlaneSetup() {
                 <div className="space-y-4">
                   {/* FlyWithLua Installation */}
                   <div className="bg-emerald-900/10 border border-emerald-700/30 rounded-lg p-4">
-                    <h4 className="text-emerald-400 font-semibold mb-3">FlyWithLua Script</h4>
+                    <h4 className="text-emerald-400 font-semibold mb-3">{t('xps_lua_title', lang)}</h4>
                     <div className="space-y-3 text-sm">
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">1. Installiere FlyWithLua (falls noch nicht vorhanden)</p>
-                        <p className="text-xs text-slate-400">Nach:</p>
+                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'Installiere FlyWithLua (falls noch nicht vorhanden)' : 'Install FlyWithLua (if not already installed)'}</p>
+                        <p className="text-xs text-slate-400">{lang === 'de' ? 'Nach' : 'To'}:</p>
                         <code className="text-xs text-emerald-400 block mt-1 break-all">X-Plane 12/Resources/plugins/FlyWithLua/</code>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">2. Kopiere SkyCareer.lua</p>
-                        <p className="text-xs text-slate-400">Nach:</p>
+                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'Kopiere SkyCareer.lua' : 'Copy SkyCareer.lua'}</p>
+                        <p className="text-xs text-slate-400">{lang === 'de' ? 'Nach' : 'To'}:</p>
                         <code className="text-xs text-emerald-400 block mt-1 break-all">X-Plane 12/Resources/plugins/FlyWithLua/Scripts/</code>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">3. Starte X-Plane 12 neu</p>
-                        <p className="text-xs text-slate-400">Das Script wird automatisch geladen</p>
+                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'Starte X-Plane 12 neu' : 'Restart X-Plane 12'}</p>
+                        <p className="text-xs text-slate-400">{lang === 'de' ? 'Das Script wird automatisch geladen' : 'The script will be loaded automatically'}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Python Installation */}
                   <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <h4 className="text-slate-400 font-semibold mb-3">Python Plugin</h4>
+                    <h4 className="text-slate-400 font-semibold mb-3">{t('xps_py_title', lang)}</h4>
                     <div className="space-y-3 text-sm">
                       <div className="bg-slate-950 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">1. Installiere XPPython3</p>
+                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'Installiere XPPython3' : 'Install XPPython3'}</p>
                         <code className="text-xs text-blue-400 block mt-1 break-all">X-Plane 12/Resources/plugins/XPPython3/</code>
                       </div>
                       <div className="bg-slate-950 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">2. Erstelle Ordner "SkyCareer"</p>
+                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'Erstelle Ordner "SkyCareer"' : 'Create folder "SkyCareer"'}</p>
                         <code className="text-xs text-blue-400 block mt-1 break-all">X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/</code>
                       </div>
                       <div className="bg-slate-950 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">3. Kopiere die Dateien aus der .txt in den Ordner</p>
-                        <p className="text-xs text-slate-400">PI_SkyCareer.py und README.md</p>
+                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'Kopiere die Dateien aus der .txt in den Ordner' : 'Copy the files from the .txt into the folder'}</p>
+                        <p className="text-xs text-slate-400">PI_SkyCareer.py {lang === 'de' ? 'und' : 'and'} README.md</p>
                       </div>
                     </div>
                   </div>

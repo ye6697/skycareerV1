@@ -64,6 +64,7 @@ import Landing from './pages/Landing';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import Account from './pages/Account';
 import __Layout from './Layout.jsx';
 
 
@@ -85,6 +86,7 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "Account": Account,
 }
 
 export const pagesConfig = {
