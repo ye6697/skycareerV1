@@ -668,6 +668,59 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ═══════ FAQ ═══════ */}
+      <section className="py-16 sm:py-28 px-4 sm:px-6 bg-slate-900/30">
+        <div className="max-w-4xl mx-auto">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-12">
+            <motion.div variants={fadeUp}><Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30 mb-4">FAQ</Badge></motion.div>
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-5xl font-black mb-3">{lang === 'en' ? 'Frequently Asked Questions' : 'Häufig gestellte Fragen'}</motion.h2>
+          </motion.div>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="space-y-4">
+            {[
+              {
+                q: lang === 'en' ? 'Which platforms are supported?' : 'Welche Plattformen werden unterstützt?',
+                a: lang === 'en' ? 'SkyCareer runs in any modern web browser – no installation needed. This means it works on Windows, macOS, Linux, and even on mobile devices (iOS & Android) via your browser. The X-Plane plugin is available for Windows, macOS and Linux.' : 'SkyCareer läuft in jedem modernen Webbrowser – keine Installation nötig. Das bedeutet es funktioniert auf Windows, macOS, Linux und sogar auf mobilen Geräten (iOS & Android) über den Browser. Das X-Plane Plugin ist für Windows, macOS und Linux verfügbar.'
+              },
+              {
+                q: lang === 'en' ? 'Does SkyCareer affect X-Plane performance?' : 'Beeinflusst SkyCareer die X-Plane Performance?',
+                a: lang === 'en' ? 'No. The plugin is a tiny data bridge that sends ~1KB of flight data every few seconds. It has zero measurable FPS impact. The entire game runs in the cloud/browser.' : 'Nein. Das Plugin ist eine winzige Datenbrücke, die alle paar Sekunden ~1KB Flugdaten sendet. Es hat null messbaren FPS-Verlust. Das gesamte Spiel läuft in der Cloud/Browser.'
+              },
+              {
+                q: lang === 'en' ? 'Can I use it with AviTab inside X-Plane?' : 'Kann ich es mit AviTab in X-Plane nutzen?',
+                a: lang === 'en' ? 'Yes! SkyCareer is a full web app that works perfectly in AviTab\'s built-in browser. Accept contracts, monitor flights and check maintenance – all without leaving the cockpit.' : 'Ja! SkyCareer ist eine vollständige Web-App, die perfekt in AviTabs eingebautem Browser funktioniert. Aufträge annehmen, Flüge überwachen und Wartung checken – alles ohne das Cockpit zu verlassen.'
+              },
+              {
+                q: lang === 'en' ? 'How does the maintenance system work?' : 'Wie funktioniert das Wartungssystem?',
+                a: lang === 'en' ? 'Each aircraft tracks 8 independent maintenance categories (Engine, Hydraulics, Avionics, Airframe, Landing Gear, Electrical, Flight Controls, Pressurization). Wear accumulates with every flight. When categories become critical, real system failures trigger inside X-Plane.' : 'Jedes Flugzeug trackt 8 unabhängige Wartungskategorien (Triebwerk, Hydraulik, Avionik, Zelle, Fahrwerk, Elektrik, Flugsteuerung, Druckkabine). Verschleiß akkumuliert mit jedem Flug. Bei kritischem Zustand werden echte System-Failures in X-Plane ausgelöst.'
+              },
+              {
+                q: lang === 'en' ? 'Is my progress saved in the cloud?' : 'Wird mein Fortschritt in der Cloud gespeichert?',
+                a: lang === 'en' ? 'Yes. Your entire career is saved in the cloud. You can play from any device, anytime. No local save files that can get lost.' : 'Ja. Deine gesamte Karriere wird in der Cloud gespeichert. Du kannst von jedem Gerät aus spielen, jederzeit. Keine lokalen Speicherdateien die verloren gehen können.'
+              },
+              {
+                q: lang === 'en' ? 'What happens if I cancel my subscription?' : 'Was passiert wenn ich mein Abo kündige?',
+                a: lang === 'en' ? 'Your account remains usable until the end of the billing period. After that, your data is preserved but the account becomes inactive. You can resubscribe anytime and continue where you left off.' : 'Dein Account bleibt bis zum Ende der Laufzeit nutzbar. Danach werden deine Daten aufbewahrt, aber der Account wird inaktiv. Du kannst jederzeit wieder abonnieren und dort weitermachen, wo du aufgehört hast.'
+              },
+              {
+                q: lang === 'en' ? 'Which X-Plane version is required?' : 'Welche X-Plane Version wird benötigt?',
+                a: lang === 'en' ? 'SkyCareer is designed for X-Plane 12. Two plugin options are available: FlyWithLua (recommended) or Python/XPPython3. Setup takes about 30 seconds.' : 'SkyCareer ist für X-Plane 12 konzipiert. Zwei Plugin-Optionen stehen zur Verfügung: FlyWithLua (empfohlen) oder Python/XPPython3. Setup dauert ca. 30 Sekunden.'
+              },
+              {
+                q: lang === 'en' ? 'Can I play on my phone or tablet?' : 'Kann ich auf dem Handy oder Tablet spielen?',
+                a: lang === 'en' ? 'Yes! The web app is fully responsive and works on any device with a browser. You can check your airline, manage contracts, and review finances on the go. Flying itself is done in X-Plane on your PC/Mac.' : 'Ja! Die Web-App ist voll responsiv und funktioniert auf jedem Gerät mit Browser. Du kannst deine Airline checken, Aufträge verwalten und Finanzen prüfen, auch unterwegs. Das Fliegen selbst geschieht in X-Plane auf deinem PC/Mac.'
+              },
+            ].map((faq, i) => (
+              <motion.div key={i} variants={fadeUp}>
+                <Card className="bg-slate-800/60 border-slate-700/50 p-5 hover:bg-slate-800 transition-all">
+                  <h4 className="text-white font-bold mb-2">{faq.q}</h4>
+                  <p className="text-slate-400 text-sm leading-relaxed">{faq.a}</p>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
       {/* ═══════ FINAL CTA ═══════ */}
       <section className="py-16 sm:py-28 px-4 sm:px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-t from-blue-600/5 to-transparent" />
@@ -683,7 +736,7 @@ export default function Landing() {
 
       <footer className="border-t border-slate-800/50 py-8 px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2"><img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-6 h-6 rounded-lg object-cover" /><span className="text-sm text-slate-500">{L.footer}</span></div>
+          <div className="flex items-center gap-2"><img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-6 h-6 rounded-lg object-cover" /><span className="text-sm text-slate-500">© 2026 SkyCareer V1 – X-Plane 12 Career Mode</span></div>
           <div className="text-xs text-slate-600">{L.footer_tag}</div>
         </div>
       </footer>

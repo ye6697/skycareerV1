@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     // Create plugin Python code
     const pluginCode = `"""
-SkyCareer X-Plane 12 Plugin
+SkyCareer V1 – X-Plane 12 Plugin
 Sends real-time flight data to SkyCareer career mode application
 """
 
@@ -564,7 +564,7 @@ X-Plane 12/Log.txt
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': 'attachment; filename="SkyCareer-XPlane-Plugin.zip"',
+        'Content-Disposition': 'attachment; filename="SkyCareer-V1-XPlane-Plugin.zip"',
         'Content-Transfer-Encoding': 'binary'
       }
     });

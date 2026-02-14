@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     // Create complete FlyWithLua script with CORRECT XP12 DataRefs
     const luaScript = `-- =========================================================
--- SkyCareer V1 - Complete Flight Monitoring System
+-- SkyCareer V1 – Complete Flight Monitoring System
 -- X-Plane 12 / FlyWithLua (Mac + Windows)
 -- =========================================================
 
@@ -492,7 +492,7 @@ do_every_frame("flight_loop_callback()")
       status: 200,
       headers: {
         'Content-Type': 'text/plain',
-        'Content-Disposition': 'attachment; filename="SkyCareer.lua"'
+        'Content-Disposition': 'attachment; filename="SkyCareer-V1.lua"'
       }
     });
 

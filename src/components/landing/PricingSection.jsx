@@ -130,7 +130,7 @@ export default function PricingSection({ L, lang, onLogin }) {
                     </div>
                   ))}
                 </div>
-                <Button onClick={onLogin} size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-base py-6 rounded-xl shadow-lg shadow-blue-600/20 font-bold">
+                <Button onClick={onLogin} size="lg" className="w-full bg-gradient-to-r from-cyan-400 via-blue-400 to-emerald-400 hover:from-cyan-300 hover:via-blue-300 hover:to-emerald-300 text-black text-base py-6 rounded-xl shadow-lg shadow-cyan-400/30 font-bold">
                   {L.pricing_lifetime_cta} <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
                 <EarlyAdopterBar count={127} lang={lang} label={L.pricing_lifetime_fomo} />
@@ -162,7 +162,7 @@ export default function PricingSection({ L, lang, onLogin }) {
                     </div>
                   ))}
                 </div>
-                <Button onClick={onLogin} size="lg" variant="outline" className="w-full border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-base py-6 rounded-xl font-bold">
+                <Button onClick={onLogin} size="lg" className="w-full bg-gradient-to-r from-emerald-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black text-base py-6 rounded-xl shadow-lg shadow-emerald-400/20 font-bold">
                   {L.pricing_annual_cta} <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
@@ -190,7 +190,7 @@ export default function PricingSection({ L, lang, onLogin }) {
                     </div>
                   ))}
                 </div>
-                <Button onClick={onLogin} size="lg" variant="outline" className="w-full border-slate-600 text-slate-300 hover:bg-slate-700/50 text-base py-6 rounded-xl font-bold">
+                <Button onClick={onLogin} size="lg" className="w-full bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-300 hover:to-purple-300 text-black text-base py-6 rounded-xl shadow-lg shadow-blue-400/20 font-bold">
                   {L.pricing_monthly_cta} <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
