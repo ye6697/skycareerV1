@@ -17,8 +17,11 @@ import {
   Check,
   Loader2
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function XPlaneSetup() {
+  const { lang } = useLanguage();
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
@@ -65,7 +68,7 @@ export default function XPlaneSetup() {
 
     } catch (error) {
       console.error('Error downloading Lua script:', error);
-      alert('Fehler beim Herunterladen');
+      alert(t('xps_download_error', lang));
     } finally {
       setDownloading(false);
     }
@@ -89,7 +92,7 @@ export default function XPlaneSetup() {
       a.remove();
     } catch (error) {
       console.error('Error downloading Python plugin:', error);
-      alert('Fehler beim Herunterladen');
+      alert(t('xps_download_error', lang));
     } finally {
       setDownloading(false);
     }
@@ -105,10 +108,10 @@ export default function XPlaneSetup() {
           className="mb-8"
         >
           <Link to={createPageUrl("Dashboard")} className="text-blue-400 hover:text-blue-300 text-sm mb-4 inline-block">
-            ← Zurück zum Dashboard
+            {t('xps_back', lang)}
           </Link>
-          <h1 className="text-2xl lg:text-3xl font-bold text-white">X-Plane 12 Integration</h1>
-          <p className="text-sm lg:text-base text-slate-400">Verbinde SkyCareer mit X-Plane 12 für Echtzeit-Flugdaten</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white">{t('xps_title', lang)}</h1>
+          <p className="text-sm lg:text-base text-slate-400">{t('xps_subtitle', lang)}</p>
         </motion.div>
 
         {/* Setup Steps */}
@@ -120,21 +123,21 @@ export default function XPlaneSetup() {
                 <span className="text-blue-400 font-bold text-sm sm:text-base">1</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">Plugin herunterladen</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step1', lang)}</h3>
                 <p className="text-sm text-slate-400 mb-4 break-words">
-                  Wähle eine der beiden Methoden – FlyWithLua ist empfohlen für einfachere Installation:
+                  {t('xps_step1_desc', lang)}
                 </p>
                 <div className="space-y-4">
                   {/* FlyWithLua Option - Empfohlen */}
                   <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">
-                        EMPFOHLEN
+                        {t('xps_recommended', lang)}
                       </div>
-                      <h4 className="text-white font-semibold">FlyWithLua Script</h4>
+                      <h4 className="text-white font-semibold">{t('xps_lua_title', lang)}</h4>
                     </div>
                     <p className="text-sm text-slate-400 mb-3 break-words">
-                      Einfachste Methode – funktioniert mit dem beliebten FlyWithLua Plugin
+                      {t('xps_lua_desc', lang)}
                     </p>
                     <Button 
                       className="bg-emerald-600 hover:bg-emerald-700 w-full whitespace-normal h-auto py-2"
@@ -144,24 +147,24 @@ export default function XPlaneSetup() {
                       {downloading ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
-                          Lädt...
+                          {t('xps_loading', lang)}
                         </>
                       ) : (
                         <>
                           <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          SkyCareer V1 herunterladen (.lua)
+                          {t('xps_lua_download', lang)}
                         </>
                       )}
                     </Button>
                     <div className="mt-3 bg-slate-900 rounded-lg p-3 space-y-2 text-xs">
-                      <p className="text-slate-300"><strong>Voraussetzung:</strong> FlyWithLua Plugin</p>
+                      <p className="text-slate-300"><strong>{t('xps_lua_req', lang)}</strong></p>
                       <a 
                         href="https://forums.x-plane.org/index.php?/files/file/38445-flywithlua-ng-next-generation-edition-for-x-plane-11-win-lin-mac/"
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
                       >
-                        FlyWithLua herunterladen
+                        {t('xps_lua_link', lang)}
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
@@ -170,15 +173,15 @@ export default function XPlaneSetup() {
                   {/* OR Divider */}
                   <div className="flex items-center gap-3 my-2">
                     <div className="flex-1 h-px bg-slate-600" />
-                    <span className="text-amber-400 font-bold text-sm tracking-widest uppercase px-3 py-1 bg-amber-400/10 border border-amber-400/30 rounded-full">ODER</span>
+                    <span className="text-amber-400 font-bold text-sm tracking-widest uppercase px-3 py-1 bg-amber-400/10 border border-amber-400/30 rounded-full">{t('xps_or', lang)}</span>
                     <div className="flex-1 h-px bg-slate-600" />
                   </div>
 
                   {/* Python Option */}
                   <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <h4 className="text-white font-semibold mb-2">Python Plugin (XPPython3)</h4>
+                    <h4 className="text-white font-semibold mb-2">{t('xps_py_title', lang)}</h4>
                     <p className="text-sm text-slate-400 mb-3 break-words">
-                      Alternative Methode mit XPPython3
+                      {t('xps_py_desc', lang)}
                     </p>
                     <Button 
                       className="w-full bg-black hover:bg-black/80 text-white border border-slate-600 whitespace-normal h-auto py-2"
@@ -188,24 +191,24 @@ export default function XPlaneSetup() {
                       {downloading ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
-                          Lädt...
+                          {t('xps_loading', lang)}
                         </>
                       ) : (
                         <>
                           <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          Python Plugin herunterladen (.txt)
+                          {t('xps_py_download', lang)}
                         </>
                       )}
                     </Button>
                     <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
-                      <p className="text-slate-300"><strong>Voraussetzung:</strong> XPPython3</p>
+                      <p className="text-slate-300"><strong>{t('xps_py_req', lang)}</strong></p>
                       <a 
                         href="https://xppython3.readthedocs.io"
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
                       >
-                        XPPython3 herunterladen
+                        {t('xps_py_link', lang)}
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
@@ -222,9 +225,9 @@ export default function XPlaneSetup() {
                 <span className="text-blue-400 font-bold text-sm sm:text-base">2</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">Installation</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step2', lang)}</h3>
                 <p className="text-sm text-slate-400 mb-4 break-words">
-                  Je nach gewählter Methode:
+                  {t('xps_step2_desc', lang)}
                 </p>
                 <div className="space-y-4">
                   {/* FlyWithLua Installation */}
@@ -278,21 +281,21 @@ export default function XPlaneSetup() {
                 <span className="text-blue-400 font-bold text-sm sm:text-base">3</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">Fertig - keine weitere Konfiguration nötig!</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step3', lang)}</h3>
                 <p className="text-sm text-slate-400 mb-4 break-words">
-                  Das Plugin ist bereits mit deiner Company ID vorkonfiguriert:
+                  {t('xps_step3_desc', lang)}
                 </p>
                 <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                    <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                   <p className="text-emerald-300 font-medium text-sm break-words">Automatisch konfiguriert mit individuellem API-Key</p>
+                   <p className="text-emerald-300 font-medium text-sm break-words">{t('xps_auto_configured', lang)}</p>
                   </div>
                   <p className="text-sm text-slate-400 mb-3">
-                    Das Plugin enthält deinen persönlichen API-Key und sendet die Daten nur an deinen Account!
+                    {t('xps_api_key_info', lang)}
                   </p>
                   <div className="bg-slate-900 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-slate-400">Dein persönlicher API-Key:</p>
+                      <p className="text-xs text-slate-400">{t('xps_your_api_key', lang)}</p>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -302,21 +305,21 @@ export default function XPlaneSetup() {
                         {copiedKey ? (
                           <>
                             <Check className="w-3 h-3 mr-1" />
-                            Kopiert
+                            {t('xps_copied', lang)}
                           </>
                         ) : (
                           <>
                             <Copy className="w-3 h-3 mr-1" />
-                            Kopieren
+                            {t('xps_copy', lang)}
                           </>
                         )}
                       </Button>
                     </div>
                     <code className="text-emerald-400 text-sm font-mono break-all block">
-                      {apiKey || 'Lädt...'}
+                      {apiKey || t('xps_loading', lang)}
                     </code>
                     <p className="text-xs text-slate-500 mt-2">
-                      ⚠️ Dieser Key bleibt dauerhaft gleich und ist bereits im heruntergeladenen Script enthalten
+                      {t('xps_key_note', lang)}
                     </p>
                   </div>
                 </div>
@@ -331,36 +334,33 @@ export default function XPlaneSetup() {
                 <span className="text-blue-400 font-bold text-sm sm:text-base">4</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">Flug durchführen</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step4', lang)}</h3>
                 <p className="text-sm text-slate-400 mb-4 break-words">
-                  So verwendest du das Plugin:
+                  {t('xps_step4_desc', lang)}
                 </p>
                 <div className="space-y-3 text-sm">
                   <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-slate-300 mb-2">1. Auftrag in SkyCareer annehmen und Flug vorbereiten</p>
-                    <p className="text-xs text-slate-400">Weise Flugzeug und Crew zu und klicke auf "Flug starten"</p>
+                    <p className="text-slate-300 mb-2">1. {t('xps_fly1', lang)}</p>
+                    <p className="text-xs text-slate-400">{t('xps_fly1_sub', lang)}</p>
                   </div>
                   <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-slate-300 mb-2">2. X-Plane 12 laden</p>
-                    <p className="text-xs text-slate-400">Richtiges Flugzeug, Startflughafen (ICAO), Payload-Gewicht einstellen</p>
+                    <p className="text-slate-300 mb-2">2. {t('xps_fly2', lang)}</p>
+                    <p className="text-xs text-slate-400">{t('xps_fly2_sub', lang)}</p>
                   </div>
                   <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3">
-                    <p className="text-amber-300 font-medium mb-1">⏳ Warte auf Abheben</p>
+                    <p className="text-amber-300 font-medium mb-1">⏳ {t('xps_fly_wait', lang)}</p>
                     <p className="text-xs text-slate-400">
-                      SkyCareer wartet geduldig, bis du in X-Plane tatsächlich abhebst.<br/>
-                      Solange du am Boden bist, passiert nichts – keine Kosten, kein Scoring.<br/>
-                      Du kannst dir so viel Zeit lassen wie du möchtest!
+                      {t('xps_fly_wait_desc', lang)}
                     </p>
                   </div>
                   <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-slate-300 mb-2">3. Flug durchführen</p>
-                    <p className="text-xs text-slate-400">Das Plugin überträgt automatisch alle Daten sobald du abhebst</p>
+                    <p className="text-slate-300 mb-2">3. {t('xps_fly3', lang)}</p>
+                    <p className="text-xs text-slate-400">{t('xps_fly3_sub', lang)}</p>
                   </div>
                   <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-3">
-                    <p className="text-emerald-300 font-medium mb-1">✈️ Automatische Flugbeendigung</p>
+                    <p className="text-emerald-300 font-medium mb-1">✈️ {t('xps_fly_auto', lang)}</p>
                     <p className="text-xs text-slate-400">
-                      Lande → Parke → Parkbremse setzen → Triebwerke abstellen<br/>
-                      → Flug wird automatisch beendet und bewertet!
+                      {t('xps_fly_auto_desc', lang)}
                     </p>
                   </div>
                 </div>
@@ -372,9 +372,9 @@ export default function XPlaneSetup() {
           <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Wifi className="w-5 h-5 text-blue-400" />
-              Übertragene & verarbeitete Daten
+              {t('xps_data_title', lang)}
             </h3>
-            <p className="text-sm text-slate-400 mb-4">Alle Datenpunkte die jede Sekunde von X-Plane empfangen und ausgewertet werden:</p>
+            <p className="text-sm text-slate-400 mb-4">{t('xps_data_desc', lang)}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
               {[
                 'Höhe (ft)',
@@ -420,23 +420,23 @@ export default function XPlaneSetup() {
           <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Code className="w-5 h-5 text-purple-400" />
-              Technische Details
+              {t('xps_tech_title', lang)}
             </h3>
             <div className="space-y-3 text-sm">
               <div>
-                <span className="text-slate-400">Protokoll:</span>
+                <span className="text-slate-400">{t('xps_protocol', lang)}:</span>
                 <span className="ml-2 text-white">HTTPS POST</span>
               </div>
               <div>
-                <span className="text-slate-400">Update-Frequenz:</span>
+                <span className="text-slate-400">{t('xps_frequency', lang)}:</span>
                 <span className="ml-2 text-white">1 Hz (jede Sekunde)</span>
               </div>
               <div>
-                <span className="text-slate-400">Automatische Beendigung:</span>
+                <span className="text-slate-400">{t('xps_auto_complete', lang)}:</span>
                 <span className="ml-2 text-white">Ja (bei Parkposition + Parkbremse + Triebwerke aus)</span>
               </div>
               <div>
-                <span className="text-slate-400">Anforderungen:</span>
+                <span className="text-slate-400">{t('xps_requirements', lang)}:</span>
                 <span className="ml-2 text-white">X-Plane 12.0 oder höher</span>
               </div>
             </div>
@@ -444,9 +444,9 @@ export default function XPlaneSetup() {
 
           {/* Help */}
           <Card className="p-4 sm:p-6 bg-blue-900/20 border border-blue-700/50">
-            <h3 className="text-lg font-semibold text-blue-300 mb-2">Benötigst du Hilfe?</h3>
+            <h3 className="text-lg font-semibold text-blue-300 mb-2">{t('xps_help_title', lang)}</h3>
             <p className="text-slate-300 text-sm mb-4">
-              Falls das Plugin nicht funktioniert, überprüfe:
+              {t('xps_help_desc', lang)}
             </p>
             <ul className="space-y-2 text-sm text-slate-300">
               <li>• X-Plane 12 ist geöffnet</li>
