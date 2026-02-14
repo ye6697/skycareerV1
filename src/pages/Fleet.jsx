@@ -140,7 +140,7 @@ export default function Fleet() {
           type: 'expense',
           category: 'aircraft_purchase',
           amount: aircraftData.purchase_price,
-          description: `Kauf: ${aircraftData.name}`,
+          description: `${lang === 'de' ? 'Kauf' : 'Purchase'}: ${aircraftData.name}`,
           date: new Date().toISOString()
         });
       }

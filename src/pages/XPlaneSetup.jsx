@@ -376,38 +376,29 @@ export default function XPlaneSetup() {
             </h3>
             <p className="text-sm text-slate-400 mb-4">{t('xps_data_desc', lang)}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {[
-                'Höhe (ft)',
-                'Geschwindigkeit (kts)',
-                'Vertikalgeschwindigkeit (ft/min)',
-                'Kurs / Heading',
-                'Treibstoffstand (%)',
-                'Treibstoff (kg)',
-                'G-Kräfte (aktuell)',
-                'Max G-Kräfte',
-                'Lande-G-Kraft',
-                'Position (Lat/Lon)',
-                'Bodenkontakt (on_ground)',
-                'Parkbremse',
-                'Triebwerksstatus',
-                'Tailstrike-Erkennung',
-                'Strömungsabriss (Stall)',
-                'Strukturbelastung (Overstress)',
-                'Overspeed',
-                'Klappen-Overspeed',
-                'Treibstoff-Notstand',
-                'Fahrwerk-Status',
-                'Crash-Erkennung',
-                'Steuerinput-Intensität',
-                'Lande-Vertikalgeschw.',
-                'Abflug-Koordinaten',
-                'Ziel-Koordinaten',
-                'Flug-Score (0-100)',
-                'Reputation',
-                'Wartungskosten (live)',
-                'Landequalitäts-Typ',
-                'Lande-Bonus'
-              ].map((feature, index) => (
+              {(lang === 'de' ? [
+                'Höhe (ft)', 'Geschwindigkeit (kts)', 'Vertikalgeschwindigkeit (ft/min)',
+                'Kurs / Heading', 'Treibstoffstand (%)', 'Treibstoff (kg)',
+                'G-Kräfte (aktuell)', 'Max G-Kräfte', 'Lande-G-Kraft',
+                'Position (Lat/Lon)', 'Bodenkontakt', 'Parkbremse',
+                'Triebwerksstatus', 'Tailstrike-Erkennung', 'Strömungsabriss (Stall)',
+                'Strukturbelastung (Overstress)', 'Overspeed', 'Klappen-Overspeed',
+                'Treibstoff-Notstand', 'Fahrwerk-Status', 'Crash-Erkennung',
+                'Steuerinput-Intensität', 'Lande-Vertikalgeschw.', 'Abflug-Koordinaten',
+                'Ziel-Koordinaten', 'Flug-Score (0-100)', 'Reputation',
+                'Wartungskosten (live)', 'Landequalitäts-Typ', 'Lande-Bonus'
+              ] : [
+                'Altitude (ft)', 'Speed (kts)', 'Vertical Speed (ft/min)',
+                'Heading', 'Fuel Level (%)', 'Fuel (kg)',
+                'G-Forces (current)', 'Max G-Forces', 'Landing G-Force',
+                'Position (Lat/Lon)', 'Ground Contact', 'Parking Brake',
+                'Engine Status', 'Tailstrike Detection', 'Stall Detection',
+                'Structural Stress', 'Overspeed', 'Flaps Overspeed',
+                'Fuel Emergency', 'Gear Status', 'Crash Detection',
+                'Control Input Intensity', 'Landing V/S', 'Departure Coordinates',
+                'Destination Coordinates', 'Flight Score (0-100)', 'Reputation',
+                'Maintenance Cost (live)', 'Landing Quality Type', 'Landing Bonus'
+              ]).map((feature, index) => (
                 <div key={index} className="flex items-center gap-2 text-slate-300 py-1">
                   <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                   <span className="text-xs sm:text-sm">{feature}</span>
@@ -429,15 +420,15 @@ export default function XPlaneSetup() {
               </div>
               <div>
                 <span className="text-slate-400">{t('xps_frequency', lang)}:</span>
-                <span className="ml-2 text-white">1 Hz (jede Sekunde)</span>
+                <span className="ml-2 text-white">1 Hz ({lang === 'de' ? 'jede Sekunde' : 'every second'})</span>
               </div>
               <div>
                 <span className="text-slate-400">{t('xps_auto_complete', lang)}:</span>
-                <span className="ml-2 text-white">Ja (bei Parkposition + Parkbremse + Triebwerke aus)</span>
+                <span className="ml-2 text-white">{lang === 'de' ? 'Ja (bei Parkposition + Parkbremse + Triebwerke aus)' : 'Yes (at parking + parking brake + engines off)'}</span>
               </div>
               <div>
                 <span className="text-slate-400">{t('xps_requirements', lang)}:</span>
-                <span className="ml-2 text-white">X-Plane 12.0 oder höher</span>
+                <span className="ml-2 text-white">X-Plane 12.0 {lang === 'de' ? 'oder höher' : 'or higher'}</span>
               </div>
             </div>
           </Card>
@@ -449,11 +440,23 @@ export default function XPlaneSetup() {
               {t('xps_help_desc', lang)}
             </p>
             <ul className="space-y-2 text-sm text-slate-300">
-              <li>• X-Plane 12 ist geöffnet</li>
-              <li>• Das Plugin ist korrekt installiert</li>
-              <li>• Der API-Endpoint ist korrekt konfiguriert</li>
-              <li>• Du hast einen aktiven Flug in SkyCareer gestartet</li>
-              <li>• Deine Firewall blockiert keine Verbindungen</li>
+              {lang === 'de' ? (
+                <>
+                  <li>• X-Plane 12 ist geöffnet</li>
+                  <li>• Das Plugin ist korrekt installiert</li>
+                  <li>• Der API-Endpoint ist korrekt konfiguriert</li>
+                  <li>• Du hast einen aktiven Flug in SkyCareer gestartet</li>
+                  <li>• Deine Firewall blockiert keine Verbindungen</li>
+                </>
+              ) : (
+                <>
+                  <li>• X-Plane 12 is open</li>
+                  <li>• The plugin is correctly installed</li>
+                  <li>• The API endpoint is correctly configured</li>
+                  <li>• You have an active flight in SkyCareer</li>
+                  <li>• Your firewall is not blocking connections</li>
+                </>
+              )}
             </ul>
           </Card>
         </div>

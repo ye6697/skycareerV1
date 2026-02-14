@@ -11,8 +11,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { AlertTriangle, Trash2 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function DeleteAccountDialog({ open, onOpenChange, company }) {
+  const { lang } = useLanguage();
   const [confirmText, setConfirmText] = useState('');
 
   const deleteMutation = useMutation({
@@ -55,7 +58,8 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
     }
   });
 
-  const canDelete = confirmText === 'LÖSCHEN';
+  const confirmWord = t('confirm_word', lang);
+  const canDelete = confirmText === confirmWord;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,33 +67,33 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-500">
             <AlertTriangle className="w-5 h-5" />
-            Account endgültig löschen
+            {t('delete_account_title', lang)}
           </DialogTitle>
           <DialogDescription className="text-slate-400">
-            Diese Aktion kann nicht rückgängig gemacht werden!
+            {t('cannot_undo', lang)}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="p-4 bg-red-950/30 border border-red-700 rounded-lg text-sm text-red-300 space-y-2">
-            <p><strong>Folgendes wird unwiderruflich gelöscht:</strong></p>
+            <p><strong>{t('will_be_deleted', lang)}</strong></p>
             <ul className="list-disc list-inside space-y-1 text-red-400">
-              <li>Deine Firma "{company?.name}"</li>
-              <li>Alle Flugzeuge, Mitarbeiter, Flüge, Aufträge</li>
-              <li>Alle Finanzdaten und Transaktionen</li>
-              <li>Dein gesamter Fortschritt</li>
-              <li>Du wirst ausgeloggt</li>
+              <li>{t('your_company', lang)} "{company?.name}"</li>
+              <li>{t('all_aircraft_employees', lang)}</li>
+              <li>{t('all_financial_data', lang)}</li>
+              <li>{t('all_progress', lang)}</li>
+              <li>{t('you_will_be_logged_out', lang)}</li>
             </ul>
           </div>
 
           <div>
             <p className="text-sm text-slate-400 mb-2">
-              Gib <span className="font-bold text-white">LÖSCHEN</span> ein, um zu bestätigen:
+              {t('type_to_confirm', lang).replace('{0}', '')} <span className="font-bold text-white">{confirmWord}</span>
             </p>
             <Input
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="LÖSCHEN"
+              placeholder={confirmWord}
               className="bg-slate-900 border-slate-600"
             />
           </div>
@@ -100,7 +104,7 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
               className="flex-1 border-slate-600 text-slate-300 hover:text-white"
               onClick={() => onOpenChange(false)}
             >
-              Abbrechen
+              {t('cancel', lang)}
             </Button>
             <Button
               variant="destructive"
@@ -109,7 +113,7 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
               onClick={() => deleteMutation.mutate()}
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              {deleteMutation.isPending ? 'Lösche...' : 'Endgültig löschen'}
+              {deleteMutation.isPending ? t('deleting', lang) : t('delete_permanently', lang)}
             </Button>
           </div>
         </div>

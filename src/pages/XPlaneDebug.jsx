@@ -293,14 +293,14 @@ export default function XPlaneDebug() {
                         {t('xp_incidents_detected', lang)}
                       </h4>
                       <div className="space-y-1 text-sm">
-                        {liveData.tailstrike && <p className="text-red-300">• Tailstrike</p>}
-                        {liveData.stall && <p className="text-red-300">• Strömungsabriss</p>}
-                        {liveData.overstress && <p className="text-orange-300">• Strukturschaden</p>}
-                        {liveData.overspeed && <p className="text-orange-300">• Overspeed</p>}
-                        {liveData.flaps_overspeed && <p className="text-orange-300">• Klappen-Overspeed</p>}
-                        {liveData.fuel_emergency && <p className="text-red-300">• Treibstoff-Notstand</p>}
-                        {liveData.gear_up_landing && <p className="text-red-300">• Landung ohne Fahrwerk!</p>}
-                        {liveData.crash && <p className="text-red-300 font-bold">• CRASH ERKANNT!</p>}
+                        {liveData.tailstrike && <p className="text-red-300">• {t('ev_tailstrike', lang)}</p>}
+                        {liveData.stall && <p className="text-red-300">• {t('ev_stall', lang)}</p>}
+                        {liveData.overstress && <p className="text-orange-300">• {t('ev_overstress', lang)}</p>}
+                        {liveData.overspeed && <p className="text-orange-300">• {t('ev_overspeed', lang)}</p>}
+                        {liveData.flaps_overspeed && <p className="text-orange-300">• {t('ev_flaps_overspeed', lang)}</p>}
+                        {liveData.fuel_emergency && <p className="text-red-300">• {t('ev_fuel_emergency', lang)}</p>}
+                        {liveData.gear_up_landing && <p className="text-red-300">• {t('gear_up_landing', lang)}</p>}
+                        {liveData.crash && <p className="text-red-300 font-bold">• {t('crash_detected', lang)}</p>}
                       </div>
                     </div>
                   )}
