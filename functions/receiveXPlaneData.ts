@@ -268,6 +268,132 @@ Deno.serve(async (req) => {
     
     const flightStatus = on_ground && park_brake && !areEnginesRunning && hasBeenAirborne ? 'ready_to_complete' : 'updated';
     
+    // === FAILURE TRIGGER SYSTEM ===
+    // Failures are triggered based on maintenance wear percentage.
+    // Higher wear = higher chance of failure per data packet.
+    // Only trigger failures when airborne to avoid ground anomalies.
+    let triggeredFailures = [];
+    if (hasBeenAirborne && !on_ground && flight.aircraft_id) {
+      // Use cached maintenance ratio for quick check (0.0 = perfect, 1.0 = 100% worn)
+      // Only attempt failure rolls if maintenance is above 15%
+      if (maintenanceRatio > 0.15) {
+        // Base chance per data packet (~1 per second): 
+        // At 20% wear: 0.05% chance per tick (~3% per minute)
+        // At 50% wear: 0.25% chance per tick (~15% per minute) 
+        // At 80% wear: 0.8% chance per tick (~40% per minute)
+        // At 100% wear: 1.5% chance per tick (~60% per minute)
+        const baseChance = Math.pow(maintenanceRatio, 2.5) * 0.015;
+        
+        // Roll for failure
+        if (Math.random() < baseChance) {
+          // Determine which category fails based on individual wear levels
+          // Fetch aircraft data (async, but we respond before it completes)
+          (async () => {
+            try {
+              const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+              const ac = aircraftList[0];
+              if (!ac?.maintenance_categories) return;
+              
+              const cats = ac.maintenance_categories;
+              // Build weighted pool: categories with higher wear are more likely to fail
+              const pool = [];
+              const categoryFailures = {
+                engine: [
+                  { name: 'Engine Power Loss', name_de: 'Triebwerk Leistungsverlust', severity: 'schwer' },
+                  { name: 'Engine Vibration', name_de: 'Triebwerk Vibration', severity: 'mittel' },
+                  { name: 'Oil Pressure Warning', name_de: 'Öldruck Warnung', severity: 'leicht' },
+                ],
+                hydraulics: [
+                  { name: 'Hydraulic Pressure Low', name_de: 'Hydraulikdruck niedrig', severity: 'mittel' },
+                  { name: 'Hydraulic Leak', name_de: 'Hydraulikleck', severity: 'schwer' },
+                ],
+                avionics: [
+                  { name: 'Autopilot Disconnect', name_de: 'Autopilot Abschaltung', severity: 'mittel' },
+                  { name: 'Navigation Display Failure', name_de: 'Navigationsanzeige Ausfall', severity: 'leicht' },
+                  { name: 'Radio Failure', name_de: 'Funkausfall', severity: 'leicht' },
+                ],
+                airframe: [
+                  { name: 'Cabin Pressure Warning', name_de: 'Kabinendruck Warnung', severity: 'schwer' },
+                  { name: 'Structural Vibration', name_de: 'Strukturelle Vibration', severity: 'mittel' },
+                ],
+                landing_gear: [
+                  { name: 'Gear Indicator Fault', name_de: 'Fahrwerksanzeige Fehler', severity: 'leicht' },
+                  { name: 'Gear Retraction Problem', name_de: 'Fahrwerk Einfahrproblem', severity: 'mittel' },
+                ],
+                electrical: [
+                  { name: 'Generator Failure', name_de: 'Generator Ausfall', severity: 'mittel' },
+                  { name: 'Bus Voltage Low', name_de: 'Bus Spannung niedrig', severity: 'leicht' },
+                  { name: 'Battery Overheat', name_de: 'Batterie Überhitzung', severity: 'schwer' },
+                ],
+                flight_controls: [
+                  { name: 'Trim Runaway', name_de: 'Trimmung Durchdrehen', severity: 'schwer' },
+                  { name: 'Aileron Stiffness', name_de: 'Querruder Schwergängig', severity: 'leicht' },
+                  { name: 'Elevator Malfunction', name_de: 'Höhenruder Fehlfunktion', severity: 'mittel' },
+                ],
+                pressurization: [
+                  { name: 'Bleed Air Leak', name_de: 'Zapfluft Leck', severity: 'mittel' },
+                  { name: 'Pack Failure', name_de: 'Klimaanlage Ausfall', severity: 'leicht' },
+                  { name: 'Pressurization Loss', name_de: 'Druckverlust', severity: 'schwer' },
+                ]
+              };
+              
+              for (const [cat, wear] of Object.entries(cats)) {
+                if (wear > 20 && categoryFailures[cat]) {
+                  // Weight: more wear = more likely to be selected
+                  const weight = Math.round(wear);
+                  for (let w = 0; w < weight; w++) {
+                    pool.push(cat);
+                  }
+                }
+              }
+              
+              if (pool.length === 0) return;
+              
+              // Pick a random category from weighted pool
+              const selectedCat = pool[Math.floor(Math.random() * pool.length)];
+              const possibleFailures = categoryFailures[selectedCat] || [];
+              if (possibleFailures.length === 0) return;
+              
+              // Higher wear = more severe failures possible
+              const catWear = cats[selectedCat] || 0;
+              let filtered = possibleFailures;
+              if (catWear < 40) {
+                filtered = possibleFailures.filter(f => f.severity === 'leicht');
+              } else if (catWear < 70) {
+                filtered = possibleFailures.filter(f => f.severity !== 'schwer');
+              }
+              if (filtered.length === 0) filtered = possibleFailures;
+              
+              const failure = filtered[Math.floor(Math.random() * filtered.length)];
+              
+              // Check if this failure already exists on the flight
+              const existingFailures = flight.active_failures || [];
+              const alreadyExists = existingFailures.some(f => f.name === failure.name || f.name === failure.name_de);
+              if (alreadyExists) return;
+              
+              const newFailure = {
+                name: failure.name_de,
+                severity: failure.severity,
+                category: selectedCat,
+                timestamp: new Date().toISOString()
+              };
+              
+              // Calculate damage
+              const dmg = failure.severity === 'schwer' ? 15 : failure.severity === 'mittel' ? 8 : 3;
+              const existingDamage = flight.maintenance_damage || {};
+              const updatedDamage = { ...existingDamage };
+              updatedDamage[selectedCat] = (updatedDamage[selectedCat] || 0) + dmg;
+              
+              await base44.asServiceRole.entities.Flight.update(flight.id, {
+                active_failures: [...existingFailures, newFailure],
+                maintenance_damage: updatedDamage
+              });
+            } catch (_) { /* ignore failure trigger errors */ }
+          })();
+        }
+      }
+    }
+    
     // Background maintenance ratio recalculation (~10% of requests, fully async)
     if (Math.random() < 0.1 && flight.aircraft_id) {
       (async () => {
