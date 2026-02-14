@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { Wrench, Cog, Gauge, CircuitBoard, Shield, Plane, Zap, Wind, AlertTriangle, Info } from "lucide-react";
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLanguage } from "@/components/LanguageContext";
+import { t as tl } from "@/components/i18n/translations";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +43,7 @@ function getProgressColor(percent) {
 export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
   const queryClient = useQueryClient();
+  const { lang } = useLanguage();
   const cats = aircraft.maintenance_categories || {};
   const purchasePrice = aircraft.purchase_price || 100000;
   const currentValue = aircraft.current_value || purchasePrice;
@@ -161,7 +164,7 @@ export default function MaintenanceCategories({ aircraft }) {
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-white flex items-center gap-2">
           <Wrench className="w-4 h-4 text-amber-400" />
-          Wartungsstatus
+          {tl('maintenance_status', lang)}
         </h4>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowInfo(true)}>
@@ -170,7 +173,7 @@ export default function MaintenanceCategories({ aircraft }) {
           {needsMaintenance && (
             <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">
               <AlertTriangle className="w-3 h-3 mr-1" />
-              Wartung nötig
+              {tl('maint_needed', lang)}
             </Badge>
           )}
         </div>
@@ -179,7 +182,7 @@ export default function MaintenanceCategories({ aircraft }) {
       {/* Overall wear indicator */}
       <div className="p-2 bg-slate-900 rounded-lg">
         <div className="flex justify-between text-xs mb-1">
-          <span className="text-slate-400">Gesamt-Verschleiß</span>
+          <span className="text-slate-400">{tl('overall_wear', lang)}</span>
           <span className={getWearColor(avgWear)}>{avgWear.toFixed(0)}%</span>
         </div>
         <div className="w-full bg-slate-700 rounded-full h-1.5">
@@ -232,8 +235,8 @@ export default function MaintenanceCategories({ aircraft }) {
           disabled={repairAllMutation.isPending}
         >
           <Wrench className="w-4 h-4 mr-1" />
-          {repairAllMutation.isPending ? 'Warte...' : `Alles warten ($${totalCost.toLocaleString()})`}
-          {needsMaintenance && ' - Erforderlich!'}
+          {repairAllMutation.isPending ? tl('waiting', lang) : `${tl('repair_all', lang)} ($${totalCost.toLocaleString()})`}
+          {needsMaintenance && ` - ${tl('required_excl', lang)}`}
         </Button>
       )}
 
@@ -241,16 +244,16 @@ export default function MaintenanceCategories({ aircraft }) {
       <Dialog open={showInfo} onOpenChange={setShowInfo}>
         <DialogContent className="bg-slate-900 border-slate-700 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-white">Wartungssystem - So funktioniert's</DialogTitle>
+            <DialogTitle className="text-white">{tl('maint_system_title', lang)}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 text-sm text-slate-300">
             <div>
-              <h5 className="font-semibold text-white mb-1">Verschleiß-Kategorien</h5>
-              <p>Jede Kategorie hat einen eigenen Verschleiß von 0-100%. Verschleiß entsteht durch Flugvorfälle wie harte Landungen, Überlastung oder technische Probleme.</p>
+              <h5 className="font-semibold text-white mb-1">{lang === 'de' ? 'Verschleiß-Kategorien' : 'Wear Categories'}</h5>
+              <p>{tl('maint_cat_desc', lang)}</p>
             </div>
             <div>
-              <h5 className="font-semibold text-white mb-1">Ausfälle im Flug</h5>
-              <p>Je höher der Verschleiß, desto häufiger treten zufällige Ausfälle im X-Plane auf. Der Verschleiß UND der Wertverlust des Flugzeugs bestimmen die Häufigkeit:</p>
+              <h5 className="font-semibold text-white mb-1">{tl('maint_failures', lang)}</h5>
+              <p>{tl('maint_failures_desc', lang)}</p>
               <ul className="list-disc ml-4 mt-1 space-y-1 text-slate-400">
                 <li><span className="text-emerald-400">0-20%</span>: Kaum Ausfälle</li>
                 <li><span className="text-amber-400">20-50%</span>: Gelegentlich leichte Ausfälle (Lichter, Instrumente)</li>
@@ -267,8 +270,8 @@ export default function MaintenanceCategories({ aircraft }) {
               <p>Jede Kategorie kann einzeln oder komplett gewartet werden. Wartungskosten basieren auf dem Verschleiß (2% des Neupreises pro 100% Verschleiß). Jede Wartung verursacht 5% permanenten Wertverlust.</p>
             </div>
             <div>
-              <h5 className="font-semibold text-amber-400 mb-1">⚠️ Pflicht-Wartung</h5>
-              <p>Ab 75% Verschleiß in einer Kategorie oder 50% Durchschnitt muss gewartet werden, bevor das Flugzeug erneut fliegen darf.</p>
+              <h5 className="font-semibold text-amber-400 mb-1">⚠️ {tl('maint_mandatory', lang)}</h5>
+              <p>{tl('maint_mandatory_desc', lang)}</p>
             </div>
           </div>
         </DialogContent>

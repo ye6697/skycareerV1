@@ -14,6 +14,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Landmark, AlertTriangle, Info, ShieldCheck, CreditCard, Banknote } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export function calculateCreditScore(company, fleetValue) {
   const level = company?.level || 1;
@@ -48,6 +50,7 @@ export function getCreditColor(score) {
 
 export default function CreditInfoCard({ company, fleetValue }) {
   const queryClient = useQueryClient();
+  const { lang } = useLanguage();
   const [showLoanDialog, setShowLoanDialog] = useState(false);
   const [loanAmount, setLoanAmount] = useState('');
   const [loanFlights, setLoanFlights] = useState(6);
@@ -166,7 +169,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
       <Card className="p-6 bg-slate-800 border border-slate-700">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Landmark className="w-5 h-5 text-blue-400" />
-          Kredit & Dispo
+          {t('credit_and_overdraft', lang)}
         </h3>
 
         <div className="space-y-4">
@@ -175,7 +178,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-white flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-blue-400" />
-                Kreditwürdigkeit
+                {t('creditworthiness', lang)}
               </span>
               <div className="flex items-center gap-2">
                 <span className={`text-2xl font-mono font-bold ${creditColor}`}>{creditScore}</span>
@@ -190,15 +193,15 @@ export default function CreditInfoCard({ company, fleetValue }) {
                 style={{ width: `${creditScore}%` }}
               />
             </div>
-            <p className="text-[10px] text-slate-500">Basiert auf Level, Reputation, Flottenwert, Kontostand & Flugerfahrung</p>
+            <p className="text-[10px] text-slate-500">{t('based_on', lang)}</p>
           </div>
 
           {/* Overdraft */}
           <div className="p-4 bg-slate-900 rounded-lg space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-amber-400">Dispositionskredit</span>
+              <span className="text-sm font-medium text-amber-400">{t('overdraft', lang)}</span>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-slate-400">{overdraftEnabled ? 'Aktiv' : 'Aus'}</span>
+                <span className="text-[10px] text-slate-400">{overdraftEnabled ? t('active_label', lang) : t('off_label', lang)}</span>
                 <Switch
                   checked={overdraftEnabled}
                   onCheckedChange={() => toggleOverdraftMutation.mutate()}
@@ -208,14 +211,14 @@ export default function CreditInfoCard({ company, fleetValue }) {
             </div>
             {overdraftEnabled ? (
               <>
-                <p className="text-xs text-slate-400">Konto kann automatisch bis zum Dispo-Limit ins Minus gehen.</p>
+                <p className="text-xs text-slate-400">{t('overdraft_auto_negative', lang)}</p>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase">Limit</p>
+                    <p className="text-[10px] text-slate-500 uppercase">{t('limit', lang)}</p>
                     <p className="text-sm font-mono font-bold text-white">-${overdraftLimit.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase">Verfügbar</p>
+                    <p className="text-[10px] text-slate-500 uppercase">{t('available_label', lang)}</p>
                     <p className="text-sm font-mono font-bold text-amber-400">${overdraftAvailable.toLocaleString()}</p>
                   </div>
                 </div>
@@ -223,16 +226,16 @@ export default function CreditInfoCard({ company, fleetValue }) {
                   <div className="flex items-center gap-2 mt-2 p-2 bg-red-950/30 rounded border border-red-700/50">
                     <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
                     <p className="text-xs text-red-400">
-                      Dispo genutzt: ${overdraftUsed.toLocaleString()} ({overdraftInterestDaily}%/Tag Zinsen)
+                      {t('overdraft_used_label', lang)}: ${overdraftUsed.toLocaleString()} ({overdraftInterestDaily}%/{lang === 'de' ? 'Tag' : 'day'} {lang === 'de' ? 'Zinsen' : 'interest'})
                     </p>
                   </div>
                 )}
                 {balance < 0 && (
-                  <p className="text-[10px] text-slate-500 mt-1">Kann nicht deaktiviert werden solange Konto im Minus.</p>
+                  <p className="text-[10px] text-slate-500 mt-1">{t('cannot_disable_neg', lang)}</p>
                 )}
               </>
             ) : (
-              <p className="text-xs text-slate-500">Dispo deaktiviert. Konto kann nicht ins Minus gehen.</p>
+              <p className="text-xs text-slate-500">{t('overdraft_disabled_label', lang)}</p>
             )}
           </div>
 
@@ -241,21 +244,21 @@ export default function CreditInfoCard({ company, fleetValue }) {
             <div className="p-4 bg-blue-950/30 border border-blue-700/50 rounded-lg space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-blue-400 flex items-center gap-2">
-                  <Banknote className="w-4 h-4" /> Aktiver Kredit
+                  <Banknote className="w-4 h-4" /> {t('active_loan_label', lang)}
                 </span>
-                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Läuft</Badge>
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">{t('running_label', lang)}</Badge>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Aufgenommen</p>
+                  <p className="text-[10px] text-slate-500 uppercase">{t('taken_label', lang)}</p>
                   <p className="text-sm font-mono font-bold text-white">${activeLoan.amount?.toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Restschuld</p>
+                  <p className="text-[10px] text-slate-500 uppercase">{t('remaining_debt_label', lang)}</p>
                   <p className="text-sm font-mono font-bold text-red-400">${activeLoan.remaining?.toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Rate/Flug</p>
+                  <p className="text-[10px] text-slate-500 uppercase">{t('rate_per_flight_label', lang)}</p>
                   <p className="text-sm font-mono font-bold text-amber-400">${activeLoan.monthly_payment?.toLocaleString()}</p>
                 </div>
               </div>
@@ -265,7 +268,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
                 disabled={repayLoanMutation.isPending}
                 onClick={() => repayLoanMutation.mutate()}
               >
-                {repayLoanMutation.isPending ? 'Zahle...' : `Kredit vollständig tilgen ($${activeLoan.remaining?.toLocaleString()})`}
+                {repayLoanMutation.isPending ? t('paying', lang) : `${t('repay_full_label', lang)} ($${activeLoan.remaining?.toLocaleString()})`}
               </Button>
             </div>
           )}
@@ -274,9 +277,9 @@ export default function CreditInfoCard({ company, fleetValue }) {
           {!hasActiveLoan && (
             <div className="p-4 bg-slate-900 rounded-lg space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-blue-400">Bankkredit</span>
+                <span className="text-sm font-medium text-blue-400">{t('bank_loan_label', lang)}</span>
                 <Badge className={`${canTakeLoan ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'}`}>
-                  {canTakeLoan ? 'Verfügbar' : 'Gesperrt'}
+                  {canTakeLoan ? t('available_status', lang) : t('blocked_label', lang)}
                 </Badge>
               </div>
               {canTakeLoan ? (
@@ -287,11 +290,11 @@ export default function CreditInfoCard({ company, fleetValue }) {
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     onClick={() => setShowLoanDialog(true)}
                   >
-                    <CreditCard className="w-4 h-4 mr-2" /> Kredit beantragen
+                    <CreditCard className="w-4 h-4 mr-2" /> {t('apply_loan_label', lang)}
                   </Button>
                 </>
               ) : (
-                <p className="text-xs text-red-400">Kreditwürdigkeit unter 29 – kein Kredit möglich. Verbessere dein Level und deine Reputation!</p>
+                <p className="text-xs text-red-400">{t('credit_too_low', lang)}</p>
               )}
             </div>
           )}
@@ -300,9 +303,9 @@ export default function CreditInfoCard({ company, fleetValue }) {
           <div className="p-3 bg-blue-950/30 border border-blue-700/50 rounded-lg flex items-start gap-2">
             <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <div className="text-xs text-blue-300 space-y-1">
-              <p><strong>Dispo:</strong> Level × $5.000 = ${overdraftLimit.toLocaleString()}</p>
-              <p><strong>Kredit:</strong> Level × $25k + 50% Kontostand + 10% Flottenwert</p>
-              <p><strong>Mindest-Score:</strong> 29 für Bankkredit</p>
+              <p><strong>{lang === 'de' ? 'Dispo' : 'Overdraft'}:</strong> Level × $5,000 = ${overdraftLimit.toLocaleString()}</p>
+              <p><strong>{lang === 'de' ? 'Kredit' : 'Loan'}:</strong> {t('info_loan', lang)}</p>
+              <p><strong>{lang === 'de' ? 'Mindest-Score' : 'Min. Score'}:</strong> {t('info_min_score', lang)}</p>
             </div>
           </div>
         </div>
@@ -314,16 +317,16 @@ export default function CreditInfoCard({ company, fleetValue }) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <CreditCard className="w-5 h-5 text-blue-400" />
-              Bankkredit beantragen
+              {t('apply_bank_loan_title', lang)}
             </DialogTitle>
             <DialogDescription className="text-slate-400">
-              Wähle Betrag und Rückzahlung nach Anzahl Flüge.
+              {t('choose_amount_repay', lang)}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="p-3 bg-slate-900 rounded-lg flex items-center justify-between">
-              <span className="text-sm text-slate-400">Kreditwürdigkeit</span>
+              <span className="text-sm text-slate-400">{t('creditworthiness', lang)}</span>
               <div className="flex items-center gap-2">
                 <span className={`font-mono font-bold ${creditColor}`}>{creditScore}</span>
                 <Badge className={`${creditScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' : creditScore >= 50 ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>{creditRating}</Badge>
@@ -331,7 +334,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
             </div>
 
             <div>
-              <label className="text-sm text-slate-400 mb-1 block">Kreditbetrag (max ${Math.round(maxLoan).toLocaleString()})</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t('loan_amount_label', lang)} ({t('max', lang)} ${Math.round(maxLoan).toLocaleString()})</label>
               <Input
                 type="number"
                 value={loanAmount}
@@ -343,7 +346,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
             </div>
 
             <div>
-              <label className="text-sm text-slate-400 mb-2 block">Rückzahlung über: {loanFlights} Flüge</label>
+              <label className="text-sm text-slate-400 mb-2 block">{t('repay_over_label', lang)}: {loanFlights} {t('flights_unit', lang)}</label>
               <div className="flex gap-2">
                 {[3, 6, 12, 24].map(f => (
                   <button
@@ -353,7 +356,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
                       loanFlights === f ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-600'
                     }`}
                   >
-                    {f} Flüge
+                    {f} {t('flights_unit', lang)}
                   </button>
                 ))}
               </div>
@@ -362,40 +365,40 @@ export default function CreditInfoCard({ company, fleetValue }) {
             {parsedLoanAmount > 0 && (
               <div className="p-4 bg-slate-900 rounded-lg space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Kreditbetrag</span>
+                  <span className="text-slate-400">{t('loan_amount_label', lang)}</span>
                   <span className="text-white font-mono">${parsedLoanAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Zinsen ({loanInterestPerFlight}% × {loanFlights} Flüge)</span>
+                  <span className="text-slate-400">{t('interest_label', lang)} ({loanInterestPerFlight}% × {loanFlights} {t('flights_unit', lang)})</span>
                   <span className="text-red-400 font-mono">${Math.round(totalInterest).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-slate-700 font-bold">
-                  <span className="text-white">Gesamt zurückzahlen</span>
+                  <span className="text-white">{t('total_repay_label', lang)}</span>
                   <span className="text-red-400 font-mono">${totalRepay.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Pro Flug abgezogen</span>
-                  <span className="text-amber-400 font-mono">${perFlightPayment.toLocaleString()}/Flug</span>
+                  <span className="text-slate-400">{t('per_flight_deducted', lang)}</span>
+                  <span className="text-amber-400 font-mono">${perFlightPayment.toLocaleString()}/{lang === 'de' ? 'Flug' : 'flight'}</span>
                 </div>
               </div>
             )}
 
             {parsedLoanAmount > maxLoan && (
               <p className="text-xs text-red-400 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" /> Betrag übersteigt Limit von ${Math.round(maxLoan).toLocaleString()}
+                <AlertTriangle className="w-3 h-3" /> {t('amount_exceeds', lang)} ${Math.round(maxLoan).toLocaleString()}
               </p>
             )}
 
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1 border-slate-600 text-slate-300 hover:text-white" onClick={() => setShowLoanDialog(false)}>
-                Abbrechen
+                {t('cancel', lang)}
               </Button>
               <Button
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
                 disabled={!parsedLoanAmount || parsedLoanAmount <= 0 || parsedLoanAmount > maxLoan || takeLoanMutation.isPending}
                 onClick={() => takeLoanMutation.mutate()}
               >
-                {takeLoanMutation.isPending ? 'Bearbeite...' : 'Kredit aufnehmen'}
+                {takeLoanMutation.isPending ? t('processing', lang) : t('take_loan_label', lang)}
               </Button>
             </div>
           </div>
