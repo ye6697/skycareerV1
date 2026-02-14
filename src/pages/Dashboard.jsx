@@ -26,7 +26,7 @@ import ReputationGauge from "@/components/dashboard/ReputationGauge";
 import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
 import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
 import ContractCard from "@/components/contracts/ContractCard";
-import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
+// DeleteAccountDialog moved to Account page
 import { Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -35,7 +35,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { lang } = useLanguage();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
   const [simbriefUsername, setSimbriefUsername] = useState('');
   const [simbriefPilotId, setSimbriefPilotId] = useState('');
   const [simbriefSaved, setSimbriefSaved] = useState(false);
@@ -454,21 +454,7 @@ export default function Dashboard() {
            </div>
          )}
 
-         {/* Delete Account – subtle at very bottom */}
-         <div className="mt-16 pt-6 border-t border-slate-800">
-           <button
-             onClick={() => setShowDeleteDialog(true)}
-             className="text-xs text-slate-600 hover:text-red-400 transition-colors"
-           >
-             {t('delete_account', lang)}
-           </button>
-         </div>
-
-         <DeleteAccountDialog 
-           open={showDeleteDialog} 
-           onOpenChange={setShowDeleteDialog} 
-           company={company} 
-         />
+         {/* Account management moved to Account page */}
       </div>
     </div>
   );
