@@ -2,8 +2,9 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Navigation, Maximize2, Minimize2, Map, LocateFixed } from 'lucide-react';
+import { Navigation, Maximize2, Minimize2, Map, LocateFixed, CloudSun } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function FlightMapIframe({ 
   flightData, contract, waypoints = [], routeWaypoints = [], 
@@ -19,6 +20,7 @@ export default function FlightMapIframe({
   const [iframeReady, setIframeReady] = useState(false);
   const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
   const [viewMode, setViewMode] = useState('fplan');
+  const [weatherOn, setWeatherOn] = useState(false);
 
   useEffect(() => {
     const handler = (e) => {
@@ -36,10 +38,10 @@ export default function FlightMapIframe({
       payload: {
         flightData, contract, waypoints, routeWaypoints, staticMode,
         flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords,
-        viewMode, liveFlightData, lang
+        viewMode, liveFlightData, lang, weatherOn
       }
     }, '*');
-  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang]);
+  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang, weatherOn]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -79,18 +81,29 @@ export default function FlightMapIframe({
             </Badge>
           )}
           {!staticMode && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-7 px-2 text-xs font-mono ${viewMode === 'follow' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-slate-600'}`}
-              onClick={() => {
-                const next = viewMode === 'fplan' ? 'follow' : 'fplan';
-                setViewMode(next);
-              }}
-            >
-              {viewMode === 'follow' ? <LocateFixed className="w-3.5 h-3.5 mr-1" /> : <Map className="w-3.5 h-3.5 mr-1" />}
-              {viewMode === 'follow' ? 'FOLLOW' : 'F-PLN'}
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-7 px-2 text-xs font-mono ${weatherOn ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white border border-slate-600'}`}
+                onClick={() => setWeatherOn(prev => !prev)}
+              >
+                <CloudSun className="w-3.5 h-3.5 mr-1" />
+                {weatherOn ? t('weather_on', lang) : t('weather_off', lang)}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-7 px-2 text-xs font-mono ${viewMode === 'follow' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-slate-600'}`}
+                onClick={() => {
+                  const next = viewMode === 'fplan' ? 'follow' : 'fplan';
+                  setViewMode(next);
+                }}
+              >
+                {viewMode === 'follow' ? <LocateFixed className="w-3.5 h-3.5 mr-1" /> : <Map className="w-3.5 h-3.5 mr-1" />}
+                {viewMode === 'follow' ? 'FOLLOW' : 'F-PLN'}
+              </Button>
+            </>
           )}
           <Button
             variant="ghost"
@@ -190,7 +203,7 @@ var map = L.map('map', { zoomControl: false, attributionControl: false, tap: tru
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 setTimeout(function(){ map.invalidateSize(); }, 100);
 
-var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null };
+var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null, weather: null };
 var boundsSet = false;
 var userInteracting = false;
 var interactionTimeout = null;
@@ -337,6 +350,15 @@ function update(d) {
   currentViewMode = d.viewMode || 'fplan';
   var live = d.liveFlightData;
   if (d.lang) currentLang = d.lang;
+
+  // Weather layer toggle
+  if (d.weatherOn && !layers.weather) {
+    layers.weather = L.tileLayer('https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2', { maxZoom: 18, opacity: 0.5 });
+    layers.weather.addTo(map);
+  } else if (!d.weatherOn && layers.weather) {
+    map.removeLayer(layers.weather);
+    layers.weather = null;
+  }
 
   var hasPos = fd.latitude !== 0 || fd.longitude !== 0;
   var hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
