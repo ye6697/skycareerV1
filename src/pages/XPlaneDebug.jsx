@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Activity, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function XPlaneDebug() {
+  const { lang } = useLanguage();
   const [lastUpdate, setLastUpdate] = useState(null);
   const [dataLatency, setDataLatency] = useState(null); // ms between updates
   const [dataAge, setDataAge] = useState(null); // ms since last received
@@ -100,12 +103,12 @@ export default function XPlaneDebug() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">X-Plane Debug</h1>
-              <p className="text-slate-400">Live-Datenüberwachung für Entwicklung</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">{t('xp_debug_title', lang)}</h1>
+              <p className="text-slate-400">{t('xp_debug_subtitle', lang)}</p>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-slate-500">
-                Letztes Update: {lastUpdate}
+                {t('xp_last_update', lang)}: {lastUpdate}
               </span>
               <Button 
                 variant="outline"
@@ -127,7 +130,7 @@ export default function XPlaneDebug() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-blue-400" />
-              Verbindungsstatus
+              {t('xp_connection_status', lang)}
             </h2>
             <Badge className={`${
               company?.xplane_connection_status === 'connected' 
@@ -149,7 +152,7 @@ export default function XPlaneDebug() {
             </div>
             <div>
               <p className="text-slate-500 mb-1">Status</p>
-              <p className="text-white">{company?.xplane_connection_status || 'Nicht verbunden'}</p>
+              <p className="text-white">{company?.xplane_connection_status ? t(company.xplane_connection_status, lang) : t('disconnected', lang)}</p>
             </div>
           </div>
         </Card>
@@ -164,7 +167,7 @@ export default function XPlaneDebug() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                   <Activity className="w-5 h-5 text-emerald-400" />
-                  Live X-Plane Daten
+                  {t('xp_live_data', lang)}
                 </h2>
                 <div className="flex items-center gap-2">
                   {dataAge !== null && (
@@ -182,7 +185,7 @@ export default function XPlaneDebug() {
                     </Badge>
                   )}
                   <Badge className={`text-xs ${liveData ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
-                    {liveData ? (dataSource === 'flight' ? 'Quelle: Flug' : 'Quelle: Log') : 'Keine Daten'}
+                    {liveData ? (dataSource === 'flight' ? t('xp_source_flight', lang) : t('xp_source_log', lang)) : t('xp_no_data', lang)}
                   </Badge>
                 </div>
               </div>
@@ -191,11 +194,11 @@ export default function XPlaneDebug() {
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Höhe</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_altitude', lang)}</p>
                       <p className="text-white font-mono">{Math.round(liveData.altitude || 0)} ft</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Geschwindigkeit</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_speed_label', lang)}</p>
                       <p className="text-white font-mono">{Math.round(liveData.speed || liveData.ias || 0)} kts</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
@@ -205,41 +208,41 @@ export default function XPlaneDebug() {
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Heading</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_heading', lang)}</p>
                       <p className="text-white font-mono">{Math.round(liveData.heading || 0)}°</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Treibstoff</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_fuel_label', lang)}</p>
                       <p className="text-white font-mono">{Math.round(liveData.fuel_percentage || 0)}%{liveData.fuel_kg ? ` (${Math.round(liveData.fuel_kg)} kg)` : ''}</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">G-Kraft</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_g_force', lang)}</p>
                       <p className={`font-mono ${(liveData.g_force || 0) < 1.3 ? 'text-emerald-400' : (liveData.g_force || 0) < 1.8 ? 'text-amber-400' : 'text-red-400'}`}>
                         {(liveData.g_force || 0).toFixed(2)} G
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Max G</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_max_g', lang)}</p>
                       <p className="text-white font-mono">{(liveData.max_g_force || 0).toFixed(2)} G</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Am Boden</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_on_ground', lang)}</p>
                       <p className={`font-mono ${liveData.on_ground ? 'text-amber-400' : 'text-emerald-400'}`}>
-                        {liveData.on_ground ? 'Ja' : 'Nein'}
+                        {liveData.on_ground ? t('xp_yes', lang) : t('xp_no', lang)}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Pitch</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_pitch', lang)}</p>
                       <p className="text-white font-mono">{(liveData.pitch || 0).toFixed(1)}°</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Gear</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_gear', lang)}</p>
                       <p className={`font-mono ${liveData.gear_down ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {liveData.gear_down ? 'Ausgefahren' : 'Eingefahren'}
+                        {liveData.gear_down ? t('xp_gear_down', lang) : t('xp_gear_up', lang)}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Flaps</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_flaps', lang)}</p>
                       <p className="text-white font-mono">{Math.round((liveData.flap_ratio || 0) * 100)}%</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
@@ -247,37 +250,37 @@ export default function XPlaneDebug() {
                       <p className="text-white font-mono text-xs">{(liveData.latitude || 0).toFixed(4)} / {(liveData.longitude || 0).toFixed(4)}</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">IAS</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_ias', lang)}</p>
                       <p className="text-white font-mono">{Math.round(liveData.ias || 0)} kts</p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Touchdown V/S</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_td_vs', lang)}</p>
                       <p className={`font-mono ${(liveData.touchdown_vspeed || 0) < -300 ? 'text-red-400' : (liveData.touchdown_vspeed || 0) < -150 ? 'text-amber-400' : 'text-emerald-400'}`}>
                         {liveData.touchdown_vspeed != null ? `${Math.round(liveData.touchdown_vspeed)} fpm` : '—'}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Landing G</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_landing_g', lang)}</p>
                       <p className={`font-mono ${(liveData.landing_g_force || 0) > 1.8 ? 'text-red-400' : (liveData.landing_g_force || 0) > 1.3 ? 'text-amber-400' : 'text-emerald-400'}`}>
                         {liveData.landing_g_force != null ? `${(liveData.landing_g_force).toFixed(2)} G` : '—'}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Engine 1</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_engine', lang)} 1</p>
                       <p className={`font-mono ${liveData.engine1_running ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {liveData.engine1_running ? 'Läuft' : 'Aus'}
+                        {liveData.engine1_running ? t('xp_running', lang) : t('xp_off', lang)}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Engine 2</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_engine', lang)} 2</p>
                       <p className={`font-mono ${liveData.engine2_running ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {liveData.engine2_running ? 'Läuft' : 'Aus'}
+                        {liveData.engine2_running ? t('xp_running', lang) : t('xp_off', lang)}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-lg">
-                      <p className="text-slate-500 text-xs mb-1">Parkbremse</p>
+                      <p className="text-slate-500 text-xs mb-1">{t('xp_park_brake', lang)}</p>
                       <p className={`font-mono ${(liveData.park_brake || liveData.parking_brake) ? 'text-amber-400' : 'text-slate-400'}`}>
-                        {(liveData.park_brake || liveData.parking_brake) ? 'Aktiviert' : 'Gelöst'}
+                        {(liveData.park_brake || liveData.parking_brake) ? t('xp_engaged', lang) : t('xp_released', lang)}
                       </p>
                     </div>
                   </div>
@@ -287,7 +290,7 @@ export default function XPlaneDebug() {
                     <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-lg mb-4">
                       <h4 className="text-red-400 font-semibold mb-2 flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
-                        Vorfälle erkannt
+                        {t('xp_incidents_detected', lang)}
                       </h4>
                       <div className="space-y-1 text-sm">
                         {liveData.tailstrike && <p className="text-red-300">• Tailstrike</p>}
@@ -305,7 +308,7 @@ export default function XPlaneDebug() {
                   {/* Raw JSON */}
                   <details>
                     <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300 mb-2">
-                      Rohdaten anzeigen
+                      {t('xp_show_raw', lang)}
                     </summary>
                     <pre className="text-xs bg-slate-900 p-4 rounded-lg overflow-auto max-h-96 text-slate-300 font-mono">
                       {JSON.stringify(liveData, null, 2)}
@@ -315,8 +318,8 @@ export default function XPlaneDebug() {
               ) : (
                 <div className="text-center py-8">
                   <AlertCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-400">Noch keine Daten empfangen</p>
-                  <p className="text-slate-500 text-sm mt-1">Starte X-Plane mit Plugin – Daten werden auch ohne aktiven Flug angezeigt</p>
+                  <p className="text-slate-400">{t('xp_no_data_received', lang)}</p>
+                  <p className="text-slate-500 text-sm mt-1">{t('xp_start_plugin', lang)}</p>
                 </div>
               )}
             </Card>
@@ -327,12 +330,12 @@ export default function XPlaneDebug() {
         <Card className="p-6 bg-slate-800/50 border-slate-700 mb-6">
           <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <Activity className="w-5 h-5 text-emerald-400" />
-            Alle empfangenen X-Plane Daten (letzte 20)
+            {t('xp_all_data', lang)}
           </h2>
           {xplaneLogs.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-400">Noch keine Daten empfangen</p>
-              <p className="text-slate-500 text-sm mt-2">Starte X-Plane mit installiertem Plugin</p>
+              <p className="text-slate-400">{t('xp_no_data_received', lang)}</p>
+              <p className="text-slate-500 text-sm mt-2">{t('xp_start_plugin', lang)}</p>
             </div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -348,12 +351,12 @@ export default function XPlaneDebug() {
                       <code className="text-xs text-blue-400">{log.id}</code>
                       {log.has_active_flight && (
                         <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
-                          Mit aktivem Flug
+                          {t('xp_with_flight', lang)}
                         </Badge>
                       )}
                       {!log.has_active_flight && (
                         <Badge className="bg-slate-500/20 text-slate-400 text-xs">
-                          Ohne Flug
+                          {t('xp_without_flight', lang)}
                         </Badge>
                       )}
                     </div>
@@ -364,7 +367,7 @@ export default function XPlaneDebug() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                     <div className="text-sm">
-                      <span className="text-slate-500">Höhe:</span>{' '}
+                      <span className="text-slate-500">{t('xp_altitude', lang)}:</span>{' '}
                       <span className="text-white font-mono">{Math.round(log.altitude || 0)} ft</span>
                     </div>
                     <div className="text-sm">
@@ -376,14 +379,14 @@ export default function XPlaneDebug() {
                       <span className="text-white font-mono">{Math.round(log.flight_score || 100)}</span>
                     </div>
                     <div className="text-sm">
-                      <span className="text-slate-500">Am Boden:</span>{' '}
-                      <span className="text-white font-mono">{log.on_ground ? 'Ja' : 'Nein'}</span>
+                      <span className="text-slate-500">{t('xp_on_ground', lang)}:</span>{' '}
+                      <span className="text-white font-mono">{log.on_ground ? t('xp_yes', lang) : t('xp_no', lang)}</span>
                     </div>
                   </div>
 
                   <details className="mt-2">
                     <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300">
-                      Rohdaten anzeigen
+                      {t('xp_show_raw', lang)}
                     </summary>
                     <pre className="text-xs bg-black/30 p-3 rounded mt-2 overflow-auto max-h-48 text-slate-300 font-mono">
                       {JSON.stringify(log.raw_data, null, 2)}
@@ -397,7 +400,7 @@ export default function XPlaneDebug() {
 
         {/* Recent Flights */}
         <Card className="p-6 bg-slate-800/50 border-slate-700">
-          <h2 className="text-xl font-semibold text-white mb-4">Letzte 5 Flüge</h2>
+          <h2 className="text-xl font-semibold text-white mb-4">{t('xp_last_5_flights', lang)}</h2>
           <div className="space-y-2">
             {flights.map((flight) => (
               <div key={flight.id} className="p-3 bg-slate-900 rounded-lg flex items-center justify-between">
@@ -407,7 +410,7 @@ export default function XPlaneDebug() {
                     <Badge variant="outline" className="text-xs">{flight.status}</Badge>
                     {flight.xplane_data && (
                       <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
-                        X-Plane Daten vorhanden
+                        {t('xp_data_present', lang)}
                       </Badge>
                     )}
                   </div>
