@@ -25,28 +25,31 @@ import {
 } from "@/components/ui/dialog";
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
   const [isSellDialogOpen, setIsSellDialogOpen] = React.useState(false);
   const queryClient = useQueryClient();
+  const { lang } = useLanguage();
 
   const typeConfig = {
-    small_prop: { label: "Propeller (Klein)", icon: "🛩️" },
-    turboprop: { label: "Turboprop", icon: "✈️" },
-    regional_jet: { label: "Regionaljet", icon: "🛫" },
-    narrow_body: { label: "Narrow-Body", icon: "✈️" },
-    wide_body: { label: "Wide-Body", icon: "🛬" },
-    cargo: { label: "Fracht", icon: "📦" }
+    small_prop: { label: t('small_prop_label', lang), icon: "🛩️" },
+    turboprop: { label: t('turboprop_label', lang), icon: "✈️" },
+    regional_jet: { label: t('regional_jet_label', lang), icon: "🛫" },
+    narrow_body: { label: t('narrow_body_label', lang), icon: "✈️" },
+    wide_body: { label: t('wide_body_label', lang), icon: "🛬" },
+    cargo: { label: t('cargo_label', lang), icon: "📦" }
   };
 
   const statusConfig = {
-    available: { label: "Verfügbar", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    in_flight: { label: "Im Flug", color: "bg-blue-100 text-blue-700 border-blue-200" },
-    maintenance: { label: "Wartung", color: "bg-amber-100 text-amber-700 border-amber-200" },
-    damaged: { label: "Beschädigt", color: "bg-red-100 text-red-700 border-red-200" },
-    total_loss: { label: "Totalschaden", color: "bg-red-200 text-red-800 border-red-300" },
-    sold: { label: "Verkauft", color: "bg-slate-100 text-slate-600 border-slate-200" }
+    available: { label: t('available', lang), color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    in_flight: { label: t('in_flight', lang), color: "bg-blue-100 text-blue-700 border-blue-200" },
+    maintenance: { label: t('maintenance', lang), color: "bg-amber-100 text-amber-700 border-amber-200" },
+    damaged: { label: t('damaged', lang), color: "bg-red-100 text-red-700 border-red-200" },
+    total_loss: { label: t('total_loss', lang), color: "bg-red-200 text-red-800 border-red-300" },
+    sold: { label: t('sold', lang), color: "bg-slate-100 text-slate-600 border-slate-200" }
   };
 
   const repairCost = aircraft.accumulated_maintenance_cost || 0;
@@ -169,7 +172,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const type = typeConfig[aircraft.type] || typeConfig.small_prop;
   const displayStatus = (aircraft.status === 'available' && needsMaintenance) 
-    ? { label: "Wartung erforderlich", color: "bg-orange-100 text-orange-700 border-orange-200" }
+    ? { label: t('maintenance_required', lang), color: "bg-orange-100 text-orange-700 border-orange-200" }
     : (statusConfig[aircraft.status] || statusConfig.available);
 
   return (
@@ -209,7 +212,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
             <div className="flex items-center gap-2 text-slate-300">
               <Users className="w-4 h-4 text-slate-400" />
-              <span>{aircraft.passenger_capacity || 0} Sitze</span>
+              <span>{aircraft.passenger_capacity || 0} {t('seats', lang)}</span>
             </div>
             <div className="flex items-center gap-2 text-slate-300">
               <Package className="w-4 h-4 text-slate-400" />
@@ -228,7 +231,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg mb-4">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-slate-400" />
-              <span className="text-sm text-slate-400">Flugstunden</span>
+              <span className="text-sm text-slate-400">{t('flight_hours_label', lang)}</span>
             </div>
             <span className="font-semibold text-white">
               {aircraft.total_flight_hours?.toLocaleString() || 0}h
@@ -243,26 +246,26 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           {/* Current & Depreciation Value */}
           <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Aktueller Wert:</span>
+              <span className="text-slate-400">{t('current_value', lang)}:</span>
               <span className={`font-semibold ${currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
                 ${Math.round(currentValue).toLocaleString()}
               </span>
             </div>
             {accumulatedMaintCost > 0 && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-amber-400">Wartungskosten (temp. Abzug):</span>
+                <span className="text-amber-400">{t('maint_cost_temp', lang)}:</span>
                 <span className="text-amber-400">-${Math.round(accumulatedMaintCost).toLocaleString()}</span>
               </div>
             )}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Neuwert:</span>
+              <span className="text-slate-400">{t('new_value', lang)}:</span>
               <span className="font-semibold text-slate-300">
                 ${(aircraft.purchase_price || 0).toLocaleString()}
               </span>
             </div>
             {currentValue < (aircraft.purchase_price || 0) && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">Wertverlust:</span>
+                <span className="text-slate-500">{t('depreciation', lang)}:</span>
                 <span className="text-red-400">
                   -${Math.round((aircraft.purchase_price || 0) - currentValue).toLocaleString()} ({(((aircraft.purchase_price || 0) - currentValue) / (aircraft.purchase_price || 1) * 100).toFixed(1)}%)
                 </span>
@@ -272,7 +275,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
           {aircraft.status === "total_loss" ? (
             <div className="w-full p-3 bg-red-200 border border-red-400 rounded-lg mb-3">
-              <p className="text-sm text-red-900 font-semibold mb-3">Totalschaden - Flugzeug ist wertlos</p>
+              <p className="text-sm text-red-900 font-semibold mb-3">{t('total_loss_worthless', lang)}</p>
               <Button 
                 size="sm" 
                 className="w-full"
@@ -281,12 +284,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                 variant="destructive"
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                {scrapMutation.isPending ? 'Entsorge...' : 'Verschrotten'}
+                {scrapMutation.isPending ? t('scrapping', lang) : t('scrap', lang)}
               </Button>
             </div>
           ) : aircraft.status === "damaged" ? (
             <div className="w-full p-3 bg-red-100 border border-red-300 rounded-lg mb-3">
-              <p className="text-sm text-red-800 font-semibold mb-3">Flugzeug beschädigt</p>
+              <p className="text-sm text-red-800 font-semibold mb-3">{t('aircraft_damaged', lang)}</p>
               <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
                 <div className="flex gap-2">
                   <Button 
@@ -295,7 +298,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                     onClick={() => setIsRepairDialogOpen(true)}
                   >
                     <Hammer className="w-4 h-4 mr-1" />
-                    Reparieren
+                    {t('repair', lang)}
                   </Button>
                   <Button 
                     size="sm" 
@@ -304,38 +307,38 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                     variant="destructive"
                   >
                     <Trash2 className="w-4 h-4 mr-1" />
-                    Entsorgen
+                    {t('dispose', lang)}
                   </Button>
                 </div>
                 <DialogContent className="bg-slate-900 border-slate-700">
                   <DialogHeader>
-                    <DialogTitle className="text-white">Flugzeug reparieren oder entsorgen</DialogTitle>
+                    <DialogTitle className="text-white">{t('repair_or_dispose', lang)}</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="p-4 bg-slate-800 rounded-lg space-y-3">
                       <div>
-                        <p className="text-sm text-slate-400 mb-2">Reparaturkosten (Gesamtwartung):</p>
+                        <p className="text-sm text-slate-400 mb-2">{t('repair_cost_total', lang)}:</p>
                         <p className="text-2xl font-bold text-amber-400">${Math.round(repairCost).toLocaleString()}</p>
                       </div>
                       <div className="border-t border-slate-700 pt-3">
-                        <p className="text-sm text-slate-400 mb-2">Verschrottungswert (10% des aktuellen Wertes):</p>
+                        <p className="text-sm text-slate-400 mb-2">{t('scrap_value', lang)}:</p>
                         <p className="text-xl font-bold text-slate-300">${scrapValue.toLocaleString()}</p>
                       </div>
                     </div>
                     <p className="text-sm text-slate-400">
-                      Das Flugzeug wird nach der Reparatur wieder einsatzfähig oder du kannst es verschrotten.
+                      {t('repair_msg', lang)}
                     </p>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)} className="border-slate-600 text-slate-300">
-                      Abbrechen
+                      {t('cancel', lang)}
                     </Button>
                     <Button 
                       onClick={() => repairMutation.mutate()}
                       disabled={repairMutation.isPending}
                       className="bg-amber-600 hover:bg-amber-700"
                     >
-                      {repairMutation.isPending ? 'Repariere...' : `Reparieren ($${repairCost.toLocaleString()})`}
+                      {repairMutation.isPending ? t('repairing', lang) : `${t('repair', lang)} ($${repairCost.toLocaleString()})`}
                     </Button>
                     <Button 
                       onClick={() => scrapMutation.mutate()}
@@ -343,7 +346,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                       variant="destructive"
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
-                      {scrapMutation.isPending ? 'Entsorge...' : `Entsorgen (+$${scrapValue.toLocaleString()})`}
+                      {scrapMutation.isPending ? t('scrapping', lang) : `${t('dispose', lang)} (+$${scrapValue.toLocaleString()})`}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -354,37 +357,37 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               {aircraft.status === "available" && (
                 <>
                   <Button 
-                    size="sm" 
-                    className="w-full bg-slate-600 hover:bg-slate-700"
-                    onClick={() => setIsSellDialogOpen(true)}
+                   size="sm" 
+                   className="w-full bg-slate-600 hover:bg-slate-700"
+                   onClick={() => setIsSellDialogOpen(true)}
                   >
-                    <DollarSign className="w-4 h-4 mr-1" />
-                    Verkaufen
+                   <DollarSign className="w-4 h-4 mr-1" />
+                   {t('sell', lang)}
                   </Button>
                   <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
                     <DialogContent className="bg-slate-900 border-slate-700">
                       <DialogHeader>
-                        <DialogTitle className="text-white">Flugzeug verkaufen</DialogTitle>
+                        <DialogTitle className="text-white">{t('sell_aircraft', lang)}</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="p-4 bg-slate-800 rounded-lg">
-                          <p className="text-sm text-slate-400 mb-2">Verkaufspreis (85% des aktuellen Wertes):</p>
+                          <p className="text-sm text-slate-400 mb-2">{t('sell_price_info', lang)}:</p>
                           <p className="text-2xl font-bold text-emerald-400">${sellPrice.toLocaleString()}</p>
                         </div>
                         <p className="text-sm text-slate-400">
-                          Das Flugzeug wird aus deiner Flotte entfernt.
+                          {t('sell_remove_msg', lang)}
                         </p>
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setIsSellDialogOpen(false)} className="border-slate-600 text-slate-300">
-                          Abbrechen
+                          {t('cancel', lang)}
                         </Button>
                         <Button 
                           onClick={() => sellMutation.mutate()}
                           disabled={sellMutation.isPending}
                           className="bg-emerald-600 hover:bg-emerald-700"
                         >
-                          {sellMutation.isPending ? 'Verkaufe...' : 'Verkaufen'}
+                          {sellMutation.isPending ? t('selling', lang) : t('sell', lang)}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
