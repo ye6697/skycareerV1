@@ -100,7 +100,7 @@ function LayoutInner({ children, currentPageName }) {
             </Button>
             <div className="flex items-center gap-2">
               <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-8 h-8 rounded-lg object-cover" />
-              <span className="font-bold text-white">SkyCareer</span>
+              <span className="font-bold text-white">SkyCareer <span className="text-blue-400 text-xs font-normal">V1</span></span>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ function LayoutInner({ children, currentPageName }) {
                 <div className="flex items-center gap-2">
                   <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-10 h-10 rounded-xl shadow-lg shadow-blue-500/20 object-cover" />
                   <div>
-                    <span className="font-bold text-white">SkyCareer</span>
+                    <span className="font-bold text-white">SkyCareer <span className="text-blue-400 text-xs font-normal">V1</span></span>
                     <p className="text-xs text-slate-400">X-Plane 12 Career</p>
                   </div>
                 </div>
@@ -239,7 +239,7 @@ function LayoutInner({ children, currentPageName }) {
           <div className="flex items-center gap-3">
             <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-11 h-11 rounded-xl shadow-lg shadow-blue-500/20 object-cover" />
             <div>
-              <span className="font-bold text-lg text-white">SkyCareer</span>
+              <span className="font-bold text-lg text-white">SkyCareer <span className="text-blue-400 text-sm font-normal">V1</span></span>
               <p className="text-xs text-slate-400">X-Plane 12 Career Mode</p>
             </div>
           </div>

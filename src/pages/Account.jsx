@@ -135,11 +135,11 @@ export default function Account() {
                 </div>
                 <span className="text-white font-mono text-sm">{subscription.nextPayment}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" className="border-slate-600 text-slate-300 hover:text-white" onClick={() => setShowChangePlan(true)}>
+              <div className="grid grid-cols-1 gap-2">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setShowChangePlan(true)}>
                   <ArrowUpRight className="w-4 h-4 mr-1" /> {t('change_plan', lang)}
                 </Button>
-                <Button variant="outline" className="border-red-700/50 text-red-400 hover:text-red-300 hover:bg-red-900/20" onClick={() => setShowCancelDialog(true)}>
+                <Button variant="outline" className="w-full border-slate-600 text-slate-400 hover:text-red-400 hover:border-red-700/50" onClick={() => setShowCancelDialog(true)}>
                   <XCircle className="w-4 h-4 mr-1" /> {t('cancel_subscription', lang)}
                 </Button>
               </div>
@@ -148,10 +148,18 @@ export default function Account() {
         </div>
 
         {/* Danger Zone */}
-        <div className="mt-12 pt-6 border-t border-slate-800/50">
-          <button onClick={() => setShowDeleteDialog(true)} className="text-xs text-slate-600 hover:text-red-400 transition-colors">
-            {t('delete_account', lang)}
-          </button>
+        <div className="mt-12 pt-6 border-t border-red-900/20">
+          <Card className="p-4 bg-red-950/10 border border-red-800/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-red-400">{lang === 'de' ? 'Gefahrenzone' : 'Danger Zone'}</h4>
+                <p className="text-xs text-slate-500">{lang === 'de' ? 'Account und alle Daten unwiderruflich löschen' : 'Permanently delete account and all data'}</p>
+              </div>
+              <Button variant="outline" size="sm" className="border-red-700/50 text-red-400 hover:bg-red-900/20" onClick={() => setShowDeleteDialog(true)}>
+                {t('delete_account', lang)}
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
 

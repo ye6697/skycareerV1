@@ -83,7 +83,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-9 h-9 rounded-xl object-cover" />
-            <span className="font-bold text-xl text-white hidden sm:block">SkyCareer</span>
+            <span className="font-bold text-xl text-white hidden sm:block">SkyCareer <span className="text-blue-400 text-sm font-normal">V1</span></span>
             <Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30 text-xs hidden sm:flex">X-Plane 12</Badge>
           </div>
           <div className="flex items-center gap-3">
@@ -98,8 +98,8 @@ export default function Landing() {
       {/* ═══════ HERO ═══════ */}
       <motion.section style={{ opacity: heroOpacity, scale: heroScale }} className="relative pt-16 overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1920&q=80')] bg-cover bg-center opacity-[0.06]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 via-transparent to-slate-950" />
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1920&q=80')] bg-cover bg-center opacity-[0.12]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-600/15 via-transparent to-slate-950" />
           <div className="absolute top-20 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
           <div className="absolute top-40 right-1/4 w-96 h-96 bg-purple-600/8 rounded-full blur-3xl" />
         </div>
@@ -114,7 +114,7 @@ export default function Landing() {
             <motion.p variants={fadeUp} custom={3} className="text-xs sm:text-sm text-slate-500 max-w-2xl mx-auto mb-10">{L.hero_tags}</motion.p>
             <motion.div variants={fadeUp} custom={4} className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button onClick={handleLogin} size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-10 py-7 rounded-xl shadow-2xl shadow-blue-600/20">{L.hero_cta} <ArrowRight className="w-5 h-5 ml-2" /></Button>
-              <Button size="lg" variant="outline" className="border-slate-700 text-white hover:bg-slate-800 text-lg px-10 py-7 rounded-xl" onClick={() => document.getElementById('screens').scrollIntoView({ behavior: 'smooth' })}>{L.hero_cta2} <ChevronDown className="w-5 h-5 ml-2" /></Button>
+              <Button size="lg" variant="outline" className="border-slate-700 text-white hover:bg-slate-800 text-lg px-10 py-7 rounded-xl" onClick={() => document.getElementById('screens').scrollIntoView({ behavior: 'smooth' })}>{lang === 'en' ? 'See in Action' : 'In Aktion sehen'} <ChevronDown className="w-5 h-5 ml-2" /></Button>
             </motion.div>
           </motion.div>
           {/* Stats */}
