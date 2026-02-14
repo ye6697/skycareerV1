@@ -96,7 +96,7 @@ function LayoutInner({ children, currentPageName }) {
               size="icon"
               onClick={() => setIsSidebarOpen(true)}
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-5 h-5 text-white" />
             </Button>
             <div className="flex items-center gap-2">
               <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-8 h-8 rounded-lg object-cover" />

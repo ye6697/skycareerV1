@@ -65,7 +65,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
   const creditRating = getCreditRating(creditScore);
   const creditColor = getCreditColor(creditScore);
 
-  const canTakeLoan = creditScore >= 29;
+  const canTakeLoan = creditScore >= 39;
 
   // Overdraft
   const overdraftLimit = level * 5000;

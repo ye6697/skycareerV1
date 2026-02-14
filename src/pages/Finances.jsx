@@ -34,6 +34,37 @@ import LevelBonusInfo from "@/components/finance/LevelBonusInfo";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
+function translateTransactionDesc(desc, lang) {
+  if (!desc || lang === 'de') return desc; // descriptions are stored in German
+  // Translate common German transaction descriptions to English
+  return desc
+    .replace(/^Flug: /, 'Flight: ')
+    .replace(/^Reparatur: /, 'Repair: ')
+    .replace(/^Komplettwartung: /, 'Full Maintenance: ')
+    .replace(/^Wartung /, 'Maintenance ')
+    .replace(/Wertminderung/g, 'Depreciation')
+    .replace(/^Stornierungsgebühr: /, 'Cancellation fee: ')
+    .replace(/^Bankkredit aufgenommen/, 'Bank loan taken')
+    .replace(/^Kreditrückzahlung/, 'Loan repayment')
+    .replace(/vollständig getilgt/, 'fully repaid')
+    .replace(/^Flugzeugkauf: /, 'Aircraft purchase: ')
+    .replace(/^Flugzeug verkauft: /, 'Aircraft sold: ')
+    .replace(/^Gehalt: /, 'Salary: ')
+    .replace(/^Einstellungsbonus: /, 'Hiring bonus: ')
+    .replace(/^Treibstoff: /, 'Fuel: ')
+    .replace(/^Crew-Kosten: /, 'Crew cost: ')
+    .replace(/^Flugerlös: /, 'Flight revenue: ')
+    .replace(/ Flüge/, ' flights')
+    .replace(/Triebwerk/g, 'Engine')
+    .replace(/Hydraulik/g, 'Hydraulics')
+    .replace(/Avionik/g, 'Avionics')
+    .replace(/Zelle\/Struktur/g, 'Airframe')
+    .replace(/Fahrwerk/g, 'Landing Gear')
+    .replace(/Elektrik/g, 'Electrical')
+    .replace(/Flugsteuerung/g, 'Flight Controls')
+    .replace(/Druckkabine/g, 'Pressurization');
+}
+
 export default function Finances() {
   const { lang } = useLanguage();
   
@@ -326,7 +357,7 @@ export default function Finances() {
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-white">{transaction.description || categoryLabels[transaction.category]}</p>
+                      <p className="font-medium text-white">{translateTransactionDesc(transaction.description, lang) || categoryLabels[transaction.category]}</p>
                       <p className="text-sm text-slate-400">
                         {new Date(transaction.date).toLocaleDateString('de-DE')}
                       </p>
