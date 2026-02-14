@@ -445,12 +445,15 @@ export default function FlightTracker() {
     if (flightPhase === 'completed') return;
     if (!activeFlightId) return;
     
+    let subscriptionActive = false;
+    let lastSubEventTime = 0;
+    let subReconnectTimer = null;
+    
     const updateData = (xpData, updDate) => {
       const ts = xpData.timestamp || updDate;
       if (ts !== lastXplaneTimestampRef.current) {
         lastXplaneTimestampRef.current = ts;
         const now = Date.now();
-        // Latency = time between this update and the previous one
         if (lastDataReceivedRef.current) {
           setDataLatency(now - lastDataReceivedRef.current);
         }
@@ -459,18 +462,37 @@ export default function FlightTracker() {
       }
     };
     
-    const unsubscribe = base44.entities.Flight.subscribe((event) => {
-      if (event.type === 'update' && event.id === activeFlightId && event.data?.xplane_data) {
-        updateData(event.data.xplane_data, event.data.updated_date);
+    // Setup subscription with automatic reconnect
+    let unsubscribe = null;
+    const setupSubscription = () => {
+      if (unsubscribe) {
+        try { unsubscribe(); } catch (_) {}
       }
-    });
+      unsubscribe = base44.entities.Flight.subscribe((event) => {
+        if (event.type === 'update' && event.id === activeFlightId && event.data?.xplane_data) {
+          subscriptionActive = true;
+          lastSubEventTime = Date.now();
+          updateData(event.data.xplane_data, event.data.updated_date);
+        }
+      });
+    };
     
-    // Aggressive polling fallback every 1s – ensures continuous data even if subscription has gaps
+    setupSubscription();
+    
+    // Monitor subscription health: if no events for 5s despite active flight, reconnect
+    const healthCheck = setInterval(() => {
+      if (lastSubEventTime > 0 && (Date.now() - lastSubEventTime) > 5000) {
+        subscriptionActive = false;
+        setupSubscription();
+      }
+    }, 3000);
+    
+    // Polling fallback: polls at 1.5s but only when subscription isn't delivering
     let pollInFlight = false;
     const pollInterval = setInterval(async () => {
       if (pollInFlight) return;
-      // Only skip poll if subscription delivered VERY recently (< 800ms)
-      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 800) return;
+      // Skip poll if subscription delivered recently (< 1.2s)
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 1200) return;
       pollInFlight = true;
       try {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
@@ -478,13 +500,15 @@ export default function FlightTracker() {
         if (f?.xplane_data) {
           updateData(f.xplane_data, f.updated_date);
         }
-      } catch (_) { /* ignore poll errors */ }
+      } catch (_) {}
       pollInFlight = false;
-    }, 1000);
+    }, 1500);
     
     return () => {
-      unsubscribe();
+      if (unsubscribe) try { unsubscribe(); } catch (_) {}
       clearInterval(pollInterval);
+      clearInterval(healthCheck);
+      if (subReconnectTimer) clearTimeout(subReconnectTimer);
     };
   }, [activeFlightId, flightPhase]);
 
