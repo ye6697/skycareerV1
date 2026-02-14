@@ -192,7 +192,7 @@ export default function Landing() {
 
           <div className="space-y-8">
             {/* Dashboard */}
-            <AppScreenshot title={L.screen_dashboard}>
+            <AppScreenshot title={L.screen_dashboard} description={lang === 'en' ? 'Your complete airline overview: balance, level, reputation, fleet size, active flights and credit score – all at a glance.' : 'Deine komplette Airline-Übersicht: Kontostand, Level, Reputation, Flottengröße, aktive Flüge und Kredit-Score – alles auf einen Blick.'}>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 {[
                   { label: lang === 'en' ? "Balance" : "Kontostand", value: "$2,450,000", color: "text-emerald-400", bg: "bg-emerald-500/10" },
@@ -215,7 +215,7 @@ export default function Landing() {
 
             {/* Contract Detail + Aircraft Market */}
             <div className="grid md:grid-cols-2 gap-6">
-              <AppScreenshot title={L.screen_contract_detail}>
+              <AppScreenshot title={L.screen_contract_detail} description={lang === 'en' ? 'Detailed mission briefings with scoring rules, deadlines, and payout info. Know exactly what earns bonus points.' : 'Detaillierte Missions-Briefings mit Scoring-Regeln, Deadlines und Auszahlungsinfos. Wisse genau, was Bonuspunkte bringt.'}>
                 <div className="mb-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-base font-bold text-white">{lang === 'en' ? 'Emergency Medical Supply' : 'Medizinischer Notfalltransport'}</div>
@@ -243,7 +243,7 @@ export default function Landing() {
                 </div>
               </AppScreenshot>
 
-              <AppScreenshot title={L.screen_market}>
+              <AppScreenshot title={L.screen_market} description={lang === 'en' ? 'Browse 50+ aircraft from small props to wide-body jets. Each unlocks at a specific level with unique specs.' : 'Durchstöbere 50+ Flugzeuge von kleinen Props bis Wide-Body Jets. Jedes wird auf einem bestimmten Level freigeschaltet.'}>
                 <div className="space-y-3">
                   {[
                     { name: "Cessna 172", type: "Small Prop", price: "$425K", level: "1", range: "640 NM", pax: "3" },
@@ -270,7 +270,7 @@ export default function Landing() {
 
             {/* Fleet with Maintenance + Tracker */}
             <div className="grid md:grid-cols-2 gap-6">
-              <AppScreenshot title={L.screen_fleet}>
+              <AppScreenshot title={L.screen_fleet} description={lang === 'en' ? 'Track 8 independent maintenance categories per aircraft. Neglect them and real failures trigger in X-Plane.' : 'Verfolge 8 unabhängige Wartungskategorien pro Flugzeug. Vernachlässige sie und echte Failures werden in X-Plane ausgelöst.'}>
                 <div className="space-y-3">
                   {[
                     { name: "Boeing 737 MAX 8", reg: "SC018", cats: { engine: 12, hydraulics: 8, avionics: 5, landing_gear: 22 }, status: lang === 'en' ? "Available" : "Verfügbar", statusColor: "text-emerald-400" },
@@ -293,7 +293,7 @@ export default function Landing() {
                 </div>
               </AppScreenshot>
 
-              <AppScreenshot title={L.screen_tracker}>
+              <AppScreenshot title={L.screen_tracker} description={lang === 'en' ? 'Real-time flight data from X-Plane: altitude, speed, V/S, G-force. Live event detection with scoring impact.' : 'Echtzeit-Flugdaten aus X-Plane: Höhe, Geschwindigkeit, V/S, G-Kraft. Live Event-Erkennung mit Scoring-Auswirkung.'}>
                 <div className="grid grid-cols-4 gap-2 mb-3">
                   {[
                     { label: lang === 'en' ? "Altitude" : "Höhe", val: "37,420", unit: "ft", color: "text-blue-400" },
@@ -322,7 +322,7 @@ export default function Landing() {
 
             {/* Finances + Employees */}
             <div className="grid md:grid-cols-2 gap-6">
-              <AppScreenshot title={L.screen_finances}>
+              <AppScreenshot title={L.screen_finances} description={lang === 'en' ? 'Full financial management with revenue charts, expense breakdowns, credit scores and bank loan system.' : 'Vollständiges Finanzmanagement mit Einnahmen-Charts, Ausgabenübersicht, Kredit-Score und Bankkredit-System.'}>
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="bg-emerald-500/10 rounded-lg p-2"><div className="text-[10px] text-slate-500">{lang === 'en' ? 'Revenue' : 'Einnahmen'}</div><div className="text-base font-bold text-emerald-400">$4,284,000</div></div>
                   <div className="bg-red-500/10 rounded-lg p-2"><div className="text-[10px] text-slate-500">{lang === 'en' ? 'Expenses' : 'Ausgaben'}</div><div className="text-base font-bold text-red-400">$1,892,000</div></div>
@@ -333,7 +333,7 @@ export default function Landing() {
                 </div>
               </AppScreenshot>
 
-              <AppScreenshot title={L.screen_employees}>
+              <AppScreenshot title={L.screen_employees} description={lang === 'en' ? 'Hire pilots, first officers, flight attendants and loadmasters. Skill levels affect flight quality and scoring.' : 'Stelle Piloten, Co-Piloten, Flugbegleiter und Lademeister ein. Skill-Level beeinflussen Flugqualität und Scoring.'}>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { name: "Hans Weber", role: lang === 'en' ? "Captain" : "Kapitän", exp: "Senior", skill: 80, salary: "$6,500", color: "bg-amber-500/10" },
@@ -354,7 +354,7 @@ export default function Landing() {
 
             {/* NEW: Passenger Comments */}
             <div className="grid md:grid-cols-2 gap-6">
-              <AppScreenshot title={L.screen_comments}>
+              <AppScreenshot title={L.screen_comments} description={lang === 'en' ? '150+ unique passenger comments react dynamically to your landing quality, G-forces, events and overall flight score.' : '150+ einzigartige Passagierkommentare reagieren dynamisch auf Landequalität, G-Kräfte, Events und den Gesamt-Score.'}>
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2 mb-3">
                     <MessageSquare className="w-4 h-4 text-amber-400" />
@@ -380,7 +380,7 @@ export default function Landing() {
               </AppScreenshot>
 
               {/* NEW: SimBrief Integration */}
-              <AppScreenshot title={L.screen_simbrief}>
+              <AppScreenshot title={L.screen_simbrief} description={lang === 'en' ? 'Flight plans auto-load from SimBrief per contract. Routes, runways, cruise altitude and weights – all automatic.' : 'Flugpläne laden automatisch aus SimBrief pro Auftrag. Routen, Runways, Reiseflughöhe und Gewichte – alles automatisch.'}>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Route className="w-4 h-4 text-blue-400" />
@@ -409,7 +409,7 @@ export default function Landing() {
 
             {/* NEW: Live Map + Performance Calculator */}
             <div className="grid md:grid-cols-2 gap-6">
-              <AppScreenshot title={L.screen_livemap}>
+              <AppScreenshot title={L.screen_livemap} description={lang === 'en' ? 'Real-time interactive map with aircraft position, FMS waypoints from X-Plane, SimBrief route overlay and runway centerlines.' : 'Echtzeit-Karte mit Flugzeugposition, FMS-Wegpunkten aus X-Plane, SimBrief-Route und Runway-Centerlines.'}>
                 <div className="space-y-3">
                   <div className="bg-slate-950 rounded-lg p-3 relative overflow-hidden" style={{ minHeight: 180 }}>
                     {/* Simulated dark map */}
@@ -450,7 +450,7 @@ export default function Landing() {
                 </div>
               </AppScreenshot>
 
-              <AppScreenshot title={L.screen_perf}>
+              <AppScreenshot title={L.screen_perf} description={lang === 'en' ? 'AI-powered V-speed calculator per aircraft type. V1, VR, V2, Vref, Vapp – adjusted for weight, temperature, altitude and runway.' : 'KI-basierter V-Speed-Rechner pro Flugzeugtyp. V1, VR, V2, Vref, Vapp – angepasst an Gewicht, Temperatur, Höhe und Bahn.'}>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-1">
                     <Calculator className="w-4 h-4 text-cyan-400" />
@@ -482,7 +482,7 @@ export default function Landing() {
             </div>
 
             {/* AviTab Cockpit Screenshot */}
-            <AppScreenshot title={L.screen_avitab}>
+            <AppScreenshot title={L.screen_avitab} description={lang === 'en' ? 'Run SkyCareer directly inside the X-Plane cockpit via AviTab. Accept contracts, monitor flights, check maintenance – without alt-tabbing.' : 'Starte SkyCareer direkt im X-Plane Cockpit über AviTab. Aufträge annehmen, Flüge überwachen, Wartung checken – ohne Alt-Tab.'}>
               <div className="relative">
                 <div className="bg-slate-950 rounded-xl p-4 border border-slate-700">
                   <div className="flex items-center gap-3 mb-4">
