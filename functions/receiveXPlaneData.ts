@@ -5,7 +5,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 // ----------------------------
 const companyCache = new Map(); // api_key → Company
 const flightCache = new Map();  // company.id → Flight
-const flightPathCache = new Map(); // company.id → { lastLat, lastLon, pathArray }
 
 Deno.serve(async (req) => {
   try {
@@ -62,88 +61,86 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid data - no altitude or speed received', xplane_connection_status: 'disconnected' }, { status: 400 });
     }
 
+    // Set company connection async
     if (company?.xplane_connection_status !== 'connected') {
       base44.asServiceRole.entities.Company.update(company.id, { xplane_connection_status: 'connected' }).catch(() => {});
     }
 
-    if (!flight) {
-      base44.asServiceRole.entities.XPlaneLog.create({
-        company_id: company.id,
-        raw_data: data,
-        altitude,
-        speed,
-        on_ground,
-        flight_score,
-        has_active_flight: false
-      }).catch(() => {});
+    // --- Fire-and-forget Flight Logging ---
+    const logFlightData = async () => {
+      if (!flight) {
+        await base44.asServiceRole.entities.XPlaneLog.create({
+          company_id: company.id,
+          raw_data: data,
+          altitude,
+          speed,
+          on_ground,
+          flight_score,
+          has_active_flight: false
+        }).catch(() => {});
 
-      if (Math.random() < 0.03) {
-        base44.asServiceRole.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 60)
-          .then(oldLogs => oldLogs.slice(30).forEach(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id).catch(() => {})))
-          .catch(() => {});
+        if (Math.random() < 0.03) {
+          base44.asServiceRole.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 60)
+            .then(oldLogs => oldLogs.slice(30).forEach(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id).catch(() => {})))
+            .catch(() => {});
+        }
+        return;
       }
 
-      return Response.json({ message: 'X-Plane connected - no active flight', xplane_connection_status: 'connected', data_logged: true }, { status: 200 });
-    }
+      const wasAirborne = flight.xplane_data?.was_airborne ?? false;
+      const isNowAirborne = !on_ground && altitude > 50;
+      const hasBeenAirborne = wasAirborne || isNowAirborne;
+      const initial_fuel_kg = flight.xplane_data?.initial_fuel_kg ?? fuel_kg ?? 0;
 
-    const wasAirborne = flight.xplane_data?.was_airborne ?? false;
-    const isNowAirborne = !on_ground && altitude > 50;
-    const hasBeenAirborne = wasAirborne || isNowAirborne;
-    const initial_fuel_kg = flight.xplane_data?.initial_fuel_kg ?? fuel_kg ?? 0;
-
-    // ----------------------------
-    // Flight path cache logic
-    // ----------------------------
-    const cached = flightPathCache.get(company.id) || {};
-    const existingPath = cached.pathArray || flight.xplane_data?.flight_path || [];
-    let lastLat = cached.lastLat ?? (existingPath[existingPath.length-1]?.[0] ?? null);
-    let lastLon = cached.lastLon ?? (existingPath[existingPath.length-1]?.[1] ?? null);
-
-    let newPath = existingPath;
-    if (latitude && longitude && !on_ground) {
-      if (lastLat === null || Math.abs(lastLat - latitude) > 0.005 || Math.abs(lastLon - longitude) > 0.005) {
-        newPath = [...existingPath, [latitude, longitude]];
-        if (newPath.length > 500) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
-        flightPathCache.set(company.id, { lastLat: latitude, lastLon: longitude, pathArray: newPath });
+      const existingPath = flight.xplane_data?.flight_path || [];
+      let newPath = existingPath;
+      if (latitude && longitude && !on_ground) {
+        const lastPt = existingPath[existingPath.length - 1];
+        if (!lastPt || Math.abs(lastPt[0] - latitude) > 0.005 || Math.abs(lastPt[1] - longitude) > 0.005) {
+          newPath = [...existingPath, [latitude, longitude]];
+          if (newPath.length > 500) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
+        }
       }
-    } else {
-      flightPathCache.set(company.id, { lastLat: null, lastLon: null, pathArray: newPath });
-    }
 
-    const xplaneData = {
-      altitude, speed, vertical_speed, heading, fuel_percentage,
-      fuel_kg: fuel_kg ?? 0, initial_fuel_kg, g_force, max_g_force,
-      latitude, longitude, on_ground, park_brake,
-      engine1_running, engine2_running, engines_running,
-      touchdown_vspeed, landing_g_force, landing_quality,
-      gear_down: gear_down ?? true, flap_ratio, pitch, ias,
-      tailstrike, stall: stall || is_in_stall || stall_warning || override_alpha,
-      is_in_stall, stall_warning, override_alpha, overstress,
-      overspeed: overspeed ?? false, flaps_overspeed: flaps_overspeed ?? false,
-      fuel_emergency, gear_up_landing, crash: isCrash, has_crashed: isCrash,
-      was_airborne: hasBeenAirborne,
-      departure_lat: departure_lat ?? flight.xplane_data?.departure_lat ?? 0,
-      departure_lon: departure_lon ?? flight.xplane_data?.departure_lon ?? 0,
-      arrival_lat: arrival_lat ?? flight.xplane_data?.arrival_lat ?? 0,
-      arrival_lon: arrival_lon ?? flight.xplane_data?.arrival_lon ?? 0,
-      total_weight_kg: total_weight_kg ?? flight.xplane_data?.total_weight_kg ?? null,
-      oat_c: oat_c ?? flight.xplane_data?.oat_c ?? null,
-      ground_elevation_ft: ground_elevation_ft ?? flight.xplane_data?.ground_elevation_ft ?? null,
-      baro_setting: baro_setting ?? flight.xplane_data?.baro_setting ?? null,
-      wind_speed_kts: wind_speed_kts ?? flight.xplane_data?.wind_speed_kts ?? null,
-      wind_direction: wind_direction ?? flight.xplane_data?.wind_direction ?? null,
-      aircraft_icao: aircraft_icao ?? flight.xplane_data?.aircraft_icao ?? null,
-      fms_waypoints: fms_waypoints ?? flight.xplane_data?.fms_waypoints ?? [],
-      flight_path: newPath,
-      timestamp: new Date().toISOString()
+      const xplaneData = {
+        altitude, speed, vertical_speed, heading, fuel_percentage,
+        fuel_kg: fuel_kg ?? 0, initial_fuel_kg, g_force, max_g_force,
+        latitude, longitude, on_ground, park_brake,
+        engine1_running, engine2_running, engines_running,
+        touchdown_vspeed, landing_g_force, landing_quality,
+        gear_down: gear_down ?? true, flap_ratio, pitch, ias,
+        tailstrike, stall: stall || is_in_stall || stall_warning || override_alpha,
+        is_in_stall, stall_warning, override_alpha, overstress,
+        overspeed: overspeed ?? false, flaps_overspeed: flaps_overspeed ?? false,
+        fuel_emergency, gear_up_landing, crash: isCrash, has_crashed: isCrash,
+        was_airborne: hasBeenAirborne,
+        departure_lat: departure_lat ?? flight.xplane_data?.departure_lat ?? 0,
+        departure_lon: departure_lon ?? flight.xplane_data?.departure_lon ?? 0,
+        arrival_lat: arrival_lat ?? flight.xplane_data?.arrival_lat ?? 0,
+        arrival_lon: arrival_lon ?? flight.xplane_data?.arrival_lon ?? 0,
+        total_weight_kg: total_weight_kg ?? flight.xplane_data?.total_weight_kg ?? null,
+        oat_c: oat_c ?? flight.xplane_data?.oat_c ?? null,
+        ground_elevation_ft: ground_elevation_ft ?? flight.xplane_data?.ground_elevation_ft ?? null,
+        baro_setting: baro_setting ?? flight.xplane_data?.baro_setting ?? null,
+        wind_speed_kts: wind_speed_kts ?? flight.xplane_data?.wind_speed_kts ?? null,
+        wind_direction: wind_direction ?? flight.xplane_data?.wind_direction ?? null,
+        aircraft_icao: aircraft_icao ?? flight.xplane_data?.aircraft_icao ?? null,
+        fms_waypoints: fms_waypoints ?? flight.xplane_data?.fms_waypoints ?? [],
+        flight_path: newPath,
+        timestamp: new Date().toISOString()
+      };
+
+      const updateData = { xplane_data: xplaneData };
+      if (max_g_force > (flight.max_g_force ?? 0)) updateData.max_g_force = max_g_force;
+
+      // Fire-and-forget Flight update
+      base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch(() => {});
     };
 
-    const updateData = { xplane_data: xplaneData };
-    if (max_g_force > (flight.max_g_force ?? 0)) updateData.max_g_force = max_g_force;
-    base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch(() => {});
+    logFlightData(); // Async, nicht await
 
     const maintenanceRatio = company?.current_maintenance_ratio ?? 0;
-    const flightStatus = on_ground && park_brake && !engines_running && hasBeenAirborne ? 'ready_to_complete' : 'updated';
+    const flightStatus = on_ground && park_brake && !engines_running && (data.was_airborne ?? false) ? 'ready_to_complete' : 'updated';
 
     return Response.json({
       status: flightStatus,
