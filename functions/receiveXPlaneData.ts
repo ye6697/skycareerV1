@@ -1,5 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+// ----------------------------
+// Cache
+// ----------------------------
+const companyCache = new Map(); // api_key → Company
+const flightCache = new Map();  // company.id → Flight
+const flightPathCache = new Map(); // company.id → { lastLat, lastLon, pathArray }
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -8,14 +15,27 @@ Deno.serve(async (req) => {
 
     if (!apiKey) return Response.json({ error: 'API key required' }, { status: 401 });
 
-    const companies = await base44.asServiceRole.entities.Company.filter({ xplane_api_key: apiKey });
-    if (companies.length === 0) return Response.json({ error: 'Invalid API key' }, { status: 401 });
-    const company = companies[0];
+    // --------- Company Fetch + Cache ---------
+    let company = companyCache.get(apiKey);
+    if (!company) {
+      const companies = await base44.asServiceRole.entities.Company.filter({ xplane_api_key: apiKey });
+      if (companies.length === 0) return Response.json({ error: 'Invalid API key' }, { status: 401 });
+      company = companies[0];
+      companyCache.set(apiKey, company);
+    }
 
     const data = await req.json();
 
     if (data.fast_position) {
       return Response.json({ status: 'fast_skipped', xplane_connection_status: 'connected' });
+    }
+
+    // --------- Flight Fetch + Cache ---------
+    let flight = flightCache.get(company.id);
+    if (!flight) {
+      const flights = await base44.asServiceRole.entities.Flight.filter({ company_id: company.id, status: 'in_flight' });
+      flight = flights[0] || null;
+      flightCache.set(company.id, flight);
     }
 
     const {
@@ -46,9 +66,6 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.Company.update(company.id, { xplane_connection_status: 'connected' }).catch(() => {});
     }
 
-    const flights = await base44.asServiceRole.entities.Flight.filter({ company_id: company.id, status: 'in_flight' });
-    const flight = flights[0] || null;
-
     if (!flight) {
       base44.asServiceRole.entities.XPlaneLog.create({
         company_id: company.id,
@@ -74,15 +91,23 @@ Deno.serve(async (req) => {
     const hasBeenAirborne = wasAirborne || isNowAirborne;
     const initial_fuel_kg = flight.xplane_data?.initial_fuel_kg ?? fuel_kg ?? 0;
 
-    // Flight path update (reduce points if moved little)
-    const existingPath = flight.xplane_data?.flight_path || [];
+    // ----------------------------
+    // Flight path cache logic
+    // ----------------------------
+    const cached = flightPathCache.get(company.id) || {};
+    const existingPath = cached.pathArray || flight.xplane_data?.flight_path || [];
+    let lastLat = cached.lastLat ?? (existingPath[existingPath.length-1]?.[0] ?? null);
+    let lastLon = cached.lastLon ?? (existingPath[existingPath.length-1]?.[1] ?? null);
+
     let newPath = existingPath;
     if (latitude && longitude && !on_ground) {
-      const lastPt = existingPath[existingPath.length - 1];
-      if (!lastPt || Math.abs(lastPt[0] - latitude) > 0.005 || Math.abs(lastPt[1] - longitude) > 0.005) {
+      if (lastLat === null || Math.abs(lastLat - latitude) > 0.005 || Math.abs(lastLon - longitude) > 0.005) {
         newPath = [...existingPath, [latitude, longitude]];
         if (newPath.length > 500) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
+        flightPathCache.set(company.id, { lastLat: latitude, lastLon: longitude, pathArray: newPath });
       }
+    } else {
+      flightPathCache.set(company.id, { lastLat: null, lastLon: null, pathArray: newPath });
     }
 
     const xplaneData = {
@@ -115,7 +140,6 @@ Deno.serve(async (req) => {
 
     const updateData = { xplane_data: xplaneData };
     if (max_g_force > (flight.max_g_force ?? 0)) updateData.max_g_force = max_g_force;
-
     base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch(() => {});
 
     const maintenanceRatio = company?.current_maintenance_ratio ?? 0;
