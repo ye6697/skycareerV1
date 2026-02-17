@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
     const company = companies[0];
     
     const data = await req.json();
+    console.log("DATA:", data);
     
     // --- FAST POSITION UPDATE: lightweight path for ~30Hz ARC mode data ---
     // These packets only contain position/heading/altitude/speed and skip all DB writes.
