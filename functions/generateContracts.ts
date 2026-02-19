@@ -106,6 +106,9 @@ const airports = [
 { icao: "PANC", city: "Anchorage", lat: 61.1743, lon: -149.9983 },
 { icao: "BIKF", city: "Reykjavik", lat: 63.9850, lon: -22.6056 },
 { icao: "GMMN", city: "Casablanca", lat: 33.3675, lon: -7.5899 },
+{ icao: "EDLW", city: "Dortmund", lat: 51.5183, lon: 7.6122 },
+{ icao: "LPMA", city: "Madeira", lat: 32.6979, lon: -16.7745 },
+{ icao: "LOWI", city: "Innsbruck", lat: 47.2602, lon: 11.3439 },
 ];
 
 const allAircraftTypes = [
