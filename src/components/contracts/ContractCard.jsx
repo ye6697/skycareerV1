@@ -13,23 +13,20 @@ import {
   ArrowRight,
   Star } from
 "lucide-react";
-import { useLanguage } from "@/components/LanguageContext";
-import { t } from "@/components/i18n/translations";
 
 export default function ContractCard({ contract, onAccept, onView, isAccepting }) {
-  const { lang } = useLanguage();
   const typeConfig = {
-    passenger: { icon: Users, color: "blue", label: t('passenger', lang) },
-    cargo: { icon: Package, color: "orange", label: t('cargo', lang) },
-    charter: { icon: Star, color: "purple", label: t('charter', lang) },
-    emergency: { icon: Clock, color: "red", label: t('emergency', lang) }
+    passenger: { icon: Users, color: "blue", label: "Passagiere" },
+    cargo: { icon: Package, color: "orange", label: "Fracht" },
+    charter: { icon: Star, color: "purple", label: "Charter" },
+    emergency: { icon: Clock, color: "red", label: "Notfall" }
   };
 
   const difficultyConfig = {
-    easy: { color: "bg-emerald-100 text-emerald-700 border-emerald-200", label: t('easy', lang) },
-    medium: { color: "bg-blue-100 text-blue-700 border-blue-200", label: t('medium', lang) },
-    hard: { color: "bg-orange-100 text-orange-700 border-orange-200", label: t('hard', lang) },
-    extreme: { color: "bg-red-100 text-red-700 border-red-200", label: t('extreme', lang) }
+    easy: { color: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "Einfach" },
+    medium: { color: "bg-blue-100 text-blue-700 border-blue-200", label: "Mittel" },
+    hard: { color: "bg-orange-100 text-orange-700 border-orange-200", label: "Schwer" },
+    extreme: { color: "bg-red-100 text-red-700 border-red-200", label: "Extrem" }
   };
 
   const config = typeConfig[contract.type] || typeConfig.passenger;
@@ -95,7 +92,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             {contract.type === "passenger" &&
             <div className="flex items-center gap-2 text-slate-300">
                 <Users className="w-4 h-4 text-slate-400" />
-                <span>{contract.passenger_count} {t('passenger', lang)}</span>
+                <span>{contract.passenger_count} Passagiere</span>
               </div>
             }
             {contract.type === "cargo" &&
@@ -108,19 +105,19 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-700">
             <div>
-              <p className="text-sm text-slate-400">{t('payout', lang)}</p>
+              <p className="text-sm text-slate-400">Vergütung</p>
               <p className="text-xl font-bold text-emerald-600">
                 ${contract.payout?.toLocaleString()}
               </p>
               {contract.bonus_potential > 0 &&
               <p className="text-xs text-amber-600">
-                  +${contract.bonus_potential?.toLocaleString()} {t('bonus_possible', lang)}
+                  +${contract.bonus_potential?.toLocaleString()} Bonus möglich
                 </p>
               }
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>
-                {t('details', lang)}
+                Details
               </Button>
               {contract.status === "available" &&
               <Button
@@ -129,7 +126,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                 onClick={() => onAccept?.(contract)}
                 disabled={isAccepting}>
 
-                  {t('accept', lang)}
+                  Annehmen
                 </Button>
               }
             </div>
