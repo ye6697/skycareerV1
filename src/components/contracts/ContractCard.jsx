@@ -78,7 +78,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
               <span className="text-slate-50 font-medium">{contract.departure_airport}</span>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
+            <div className="bg-slate-900 text-slate-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-slate-400" />
               <span className="font-mono font-medium">{contract.arrival_airport}</span>
             </div>
