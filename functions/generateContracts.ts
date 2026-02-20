@@ -193,12 +193,12 @@ function generateContract(companyId, aircraftType, companyLevel) {
   // Exponential payout scaling based on aircraft tier
   // Tier multipliers: small_prop=1, turboprop=3, regional_jet=8, narrow_body=25, wide_body=80, cargo=40
   const tierMultiplier = {
-    small_prop: 1,
-    turboprop: 3,
-    regional_jet: 8,
-    narrow_body: 25,
-    wide_body: 80,
-    cargo: 40
+    small_prop: 4,
+    turboprop: 8,
+    regional_jet: 20,
+    narrow_body: 65,
+    wide_body: 100,
+    cargo: 120
   }[aircraftType.type] || 1;
 
   const basePayout = (distance * 8 + passengers * 120 + cargo * 1.5) * tierMultiplier;
