@@ -34,6 +34,14 @@ Deno.serve(async (req) => {
       }
       return Number.isFinite(best) ? best : 0;
     };
+    const routeCompact = (wps) => {
+      if (!Array.isArray(wps) || wps.length === 0) return null;
+      // Keep payload compact for FlyWithLua regex parsing.
+      return wps
+        .slice(0, 120)
+        .map((wp) => `${Number(wp.lat).toFixed(5)},${Number(wp.lon).toFixed(5)}`)
+        .join(';');
+    };
     
     // Get API key from query params
     const url = new URL(req.url);
@@ -482,6 +490,7 @@ Deno.serve(async (req) => {
     const simbriefProgressPct = (simbriefTotalNm && simbriefRemainingNm !== null && simbriefTotalNm > 0)
       ? Math.max(0, Math.min(100, (simbriefFlownNm / simbriefTotalNm) * 100))
       : null;
+    const simbriefRouteCompact = validSimbriefWps.length ? routeCompact(validSimbriefWps) : null;
     const appOrigin = new URL(req.url).origin.replace(/\/$/, '');
     const liveMapUrl = flight.contract_id
       ? `${appOrigin}/FlightTracker?contractId=${encodeURIComponent(flight.contract_id)}`
@@ -503,6 +512,7 @@ Deno.serve(async (req) => {
       simbrief_remaining_nm: simbriefRemainingNm,
       simbrief_flown_nm: simbriefFlownNm,
       simbrief_progress_pct: simbriefProgressPct,
+      simbrief_route_compact: simbriefRouteCompact,
       live_map_url: liveMapUrl,
       status: flightStatus,
       on_ground,
