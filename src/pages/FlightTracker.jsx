@@ -2245,7 +2245,21 @@ export default function FlightTracker() {
             <SimBriefImport
               key={`simbrief-${contractIdFromUrl}`}
               contract={contract}
-              onRouteLoaded={(data) => setSimbriefRoute(data)}
+              onRouteLoaded={(data) => {
+                setSimbriefRoute(data);
+                if (activeFlightId && data?.waypoints?.length) {
+                  // Persist SimBrief route on the active flight so backend/plugin can reuse it for HUD distance.
+                  base44.entities.Flight.update(activeFlightId, {
+                    xplane_data: {
+                      ...((flight || existingFlight)?.xplane_data || {}),
+                      simbrief_waypoints: data.waypoints || [],
+                      simbrief_route_string: data.route_string || null,
+                      simbrief_departure_coords: data.departure_coords || null,
+                      simbrief_arrival_coords: data.arrival_coords || null
+                    }
+                  }).catch(() => {});
+                }
+              }}
             />
             <TakeoffLandingCalculator
               aircraft={aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id))}
