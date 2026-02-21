@@ -131,6 +131,15 @@ Deno.serve(async (req) => {
     }
     
     // Active flight exists - skip XPlaneLog write entirely to maximize speed
+    let contract = null;
+    if (flight.contract_id) {
+      try {
+        const contracts = await base44.asServiceRole.entities.Contract.filter({ id: flight.contract_id });
+        contract = contracts[0] || null;
+      } catch (_) {
+        contract = null;
+      }
+    }
 
     // Extract new aircraft/env fields from plugin
     const total_weight_kg = data.total_weight_kg;
@@ -413,8 +422,27 @@ Deno.serve(async (req) => {
       })();
     }
 
+    const mergedFms = fms_waypoints || flight.xplane_data?.fms_waypoints || [];
+    const depWp = mergedFms.length > 0 ? mergedFms[0] : null;
+    const arrWp = mergedFms.length > 0 ? mergedFms[mergedFms.length - 1] : null;
+
+    const departure_lat = data.departure_lat || flight.xplane_data?.departure_lat || depWp?.lat || 0;
+    const departure_lon = data.departure_lon || flight.xplane_data?.departure_lon || depWp?.lon || 0;
+    const arrival_lat = data.arrival_lat || flight.xplane_data?.arrival_lat || arrWp?.lat || 0;
+    const arrival_lon = data.arrival_lon || flight.xplane_data?.arrival_lon || arrWp?.lon || 0;
+
     // Respond IMMEDIATELY - no awaiting any DB operations
     return Response.json({ 
+      flight_id: flight.id,
+      contract_id: flight.contract_id || null,
+      departure_airport: contract?.departure_airport || null,
+      arrival_airport: contract?.arrival_airport || null,
+      distance_nm: contract?.distance_nm || null,
+      deadline_minutes: contract?.deadline_minutes || null,
+      departure_lat,
+      departure_lon,
+      arrival_lat,
+      arrival_lon,
       status: flightStatus,
       on_ground,
       park_brake,
