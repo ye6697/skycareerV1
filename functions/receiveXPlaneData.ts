@@ -36,11 +36,31 @@ Deno.serve(async (req) => {
     };
     const routeCompact = (wps) => {
       if (!Array.isArray(wps) || wps.length === 0) return null;
-      // Keep payload compact for FlyWithLua regex parsing.
+      const cleanToken = (v, fallback = "") => String(v ?? fallback)
+        .toUpperCase()
+        .replace(/[;,]/g, "")
+        .trim();
+      const toAlt = (wp) => {
+        const raw = Number(wp?.alt ?? wp?.altitude_feet ?? wp?.altitude ?? 0);
+        if (!Number.isFinite(raw)) return 0;
+        return Math.max(0, Math.round(raw));
+      };
+
+      // Extended compact format for FlyWithLua:
+      // NAME,LAT,LON,ALT,VIA;NAME,LAT,LON,ALT,VIA...
       return wps
         .slice(0, 120)
-        .map((wp) => `${Number(wp.lat).toFixed(5)},${Number(wp.lon).toFixed(5)}`)
-        .join(';');
+        .map((wp, idx) => {
+          const lat = Number(wp?.lat);
+          const lon = Number(wp?.lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+          const name = cleanToken(wp?.name || wp?.ident || `WP${idx + 1}`, `WP${idx + 1}`) || `WP${idx + 1}`;
+          const via = cleanToken(wp?.airway || wp?.via_airway || wp?.via || wp?.airway_ident || "DCT", "DCT") || "DCT";
+          const alt = toAlt(wp);
+          return `${name},${lat.toFixed(5)},${lon.toFixed(5)},${alt},${via}`;
+        })
+        .filter(Boolean)
+        .join(";");
     };
     
     // Get API key from query params
