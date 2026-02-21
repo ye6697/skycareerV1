@@ -3,6 +3,37 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const haversineNm = (lat1, lon1, lat2, lon2) => {
+      const R = 3440.065;
+      const toRad = (d) => d * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+    const routeTotalNm = (wps) => {
+      if (!Array.isArray(wps) || wps.length < 2) return 0;
+      let total = 0;
+      for (let i = 0; i < wps.length - 1; i++) {
+        total += haversineNm(wps[i].lat, wps[i].lon, wps[i + 1].lat, wps[i + 1].lon);
+      }
+      return total;
+    };
+    const routeRemainingNm = (wps, curLat, curLon) => {
+      if (!Array.isArray(wps) || wps.length === 0) return 0;
+      let best = Infinity;
+      for (let i = 0; i < wps.length; i++) {
+        let candidate = haversineNm(curLat, curLon, wps[i].lat, wps[i].lon);
+        for (let j = i; j < wps.length - 1; j++) {
+          candidate += haversineNm(wps[j].lat, wps[j].lon, wps[j + 1].lat, wps[j + 1].lon);
+        }
+        if (candidate < best) best = candidate;
+      }
+      return Number.isFinite(best) ? best : 0;
+    };
     
     // Get API key from query params
     const url = new URL(req.url);
@@ -226,6 +257,11 @@ Deno.serve(async (req) => {
       aircraft_icao: aircraft_icao || (flight.xplane_data?.aircraft_icao || null),
       // FMS waypoints - only update if plugin sends them (they don't change often)
       fms_waypoints: fms_waypoints || (flight.xplane_data?.fms_waypoints || []),
+      // Preserve SimBrief route data if present (set by web app/import)
+      simbrief_waypoints: data.simbrief_waypoints || (flight.xplane_data?.simbrief_waypoints || []),
+      simbrief_route_string: data.simbrief_route_string || (flight.xplane_data?.simbrief_route_string || null),
+      simbrief_departure_coords: data.simbrief_departure_coords || (flight.xplane_data?.simbrief_departure_coords || null),
+      simbrief_arrival_coords: data.simbrief_arrival_coords || (flight.xplane_data?.simbrief_arrival_coords || null),
       // Flight path for map visualization
       flight_path: newPath,
       timestamp: new Date().toISOString()
@@ -423,6 +459,7 @@ Deno.serve(async (req) => {
     }
 
     const mergedFms = fms_waypoints || flight.xplane_data?.fms_waypoints || [];
+    const mergedSimbriefWps = data.simbrief_waypoints || flight.xplane_data?.simbrief_waypoints || contract?.simbrief_waypoints || [];
     const depWp = mergedFms.length > 0 ? mergedFms[0] : null;
     const arrWp = mergedFms.length > 0 ? mergedFms[mergedFms.length - 1] : null;
 
@@ -430,6 +467,25 @@ Deno.serve(async (req) => {
     const departure_lon = data.departure_lon || flight.xplane_data?.departure_lon || depWp?.lon || 0;
     const arrival_lat = data.arrival_lat || flight.xplane_data?.arrival_lat || arrWp?.lat || 0;
     const arrival_lon = data.arrival_lon || flight.xplane_data?.arrival_lon || arrWp?.lon || 0;
+    const currentLat = latitude || 0;
+    const currentLon = longitude || 0;
+    const validSimbriefWps = Array.isArray(mergedSimbriefWps)
+      ? mergedSimbriefWps.filter(wp => wp?.lat && wp?.lon)
+      : [];
+    const simbriefTotalNm = validSimbriefWps.length >= 2 ? routeTotalNm(validSimbriefWps) : null;
+    const simbriefRemainingNm = (simbriefTotalNm && simbriefTotalNm > 0)
+      ? routeRemainingNm(validSimbriefWps, currentLat, currentLon)
+      : null;
+    const simbriefFlownNm = (simbriefTotalNm && simbriefRemainingNm !== null)
+      ? Math.max(0, simbriefTotalNm - simbriefRemainingNm)
+      : null;
+    const simbriefProgressPct = (simbriefTotalNm && simbriefRemainingNm !== null && simbriefTotalNm > 0)
+      ? Math.max(0, Math.min(100, (simbriefFlownNm / simbriefTotalNm) * 100))
+      : null;
+    const appOrigin = new URL(req.url).origin.replace(/\/$/, '');
+    const liveMapUrl = flight.contract_id
+      ? `${appOrigin}/FlightTracker?contractId=${encodeURIComponent(flight.contract_id)}`
+      : `${appOrigin}/ActiveFlights`;
 
     // Respond IMMEDIATELY - no awaiting any DB operations
     return Response.json({ 
@@ -443,6 +499,11 @@ Deno.serve(async (req) => {
       departure_lon,
       arrival_lat,
       arrival_lon,
+      simbrief_total_nm: simbriefTotalNm,
+      simbrief_remaining_nm: simbriefRemainingNm,
+      simbrief_flown_nm: simbriefFlownNm,
+      simbrief_progress_pct: simbriefProgressPct,
+      live_map_url: liveMapUrl,
       status: flightStatus,
       on_ground,
       park_brake,
