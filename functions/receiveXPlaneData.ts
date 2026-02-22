@@ -522,7 +522,13 @@ Deno.serve(async (req) => {
       contract_id: flight.contract_id || null,
       departure_airport: contract?.departure_airport || null,
       arrival_airport: contract?.arrival_airport || null,
-      distance_nm: contract?.distance_nm || null,
+      // Livemap source values (primary for plugin HUD)
+      livemap_total_nm: simbriefTotalNm,
+      livemap_remaining_nm: simbriefRemainingNm,
+      livemap_flown_nm: simbriefFlownNm,
+      livemap_progress_pct: simbriefProgressPct,
+      // Keep legacy fields for compatibility
+      distance_nm: simbriefRemainingNm ?? contract?.distance_nm ?? null,
       deadline_minutes: contract?.deadline_minutes || null,
       contract_payout: contract?.payout ?? null,
       contract_bonus_potential: contract?.bonus_potential ?? null,
