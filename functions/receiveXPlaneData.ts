@@ -515,6 +515,11 @@ Deno.serve(async (req) => {
     const liveMapUrl = flight.contract_id
       ? `${appOrigin}/FlightTracker?contractId=${encodeURIComponent(flight.contract_id)}`
       : `${appOrigin}/ActiveFlights`;
+    const activeFailuresForHud = Array.isArray(flight.active_failures) ? flight.active_failures : [];
+    const lastFailureForHud = activeFailuresForHud.length ? activeFailuresForHud[activeFailuresForHud.length - 1] : null;
+    const base44LastIncident = lastFailureForHud
+      ? (lastFailureForHud.name || lastFailureForHud.name_de || null)
+      : null;
 
     // Respond IMMEDIATELY - no awaiting any DB operations
     return Response.json({ 
@@ -530,6 +535,9 @@ Deno.serve(async (req) => {
       // Keep legacy fields for compatibility
       distance_nm: simbriefRemainingNm ?? contract?.distance_nm ?? null,
       deadline_minutes: contract?.deadline_minutes || null,
+      base44_score: flight.flight_score ?? data.flight_score ?? null,
+      base44_last_incident: base44LastIncident,
+      base44_active_failures_count: activeFailuresForHud.length,
       contract_payout: contract?.payout ?? null,
       contract_bonus_potential: contract?.bonus_potential ?? null,
       contract_total_potential: ((contract?.payout ?? 0) + (contract?.bonus_potential ?? 0)) || null,
