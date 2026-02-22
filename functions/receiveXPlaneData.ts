@@ -104,6 +104,74 @@ Deno.serve(async (req) => {
         .filter(Boolean)
         .join(";");
     };
+    const aircraftCruiseSpeeds: Record<string, number> = {
+      C172: 122, C182: 145, C208: 185, PC12: 280,
+      E170: 430, E175: 430, E190: 445, CRJ2: 420, CRJ7: 430, CRJ9: 430,
+      A318: 450, A319: 455, A320: 460, A321: 460, A20N: 460, A21N: 460,
+      B736: 450, B737: 455, B738: 460, B739: 460, B37M: 460, B38M: 460, B39M: 460,
+      B752: 470, B753: 470,
+      A332: 480, A333: 480, A339: 480, A359: 490,
+      B763: 480, B772: 490, B77W: 490, B788: 490, B789: 490, B78X: 490,
+    };
+    const categoryFallbackSpeeds: Record<string, number> = {
+      small_prop: 140,
+      turboprop: 280,
+      regional_jet: 430,
+      narrow_body: 460,
+      wide_body: 490,
+      cargo: 450,
+    };
+    const getCruiseSpeed = (xplaneIcao?: string | null, fleetAircraftType?: string | null) => {
+      if (xplaneIcao) {
+        const upper = String(xplaneIcao).toUpperCase();
+        if (aircraftCruiseSpeeds[upper]) return aircraftCruiseSpeeds[upper];
+        const cleaned = upper.replace(/[^A-Z0-9]/g, '');
+        for (const len of [4, 3]) {
+          const prefix = cleaned.slice(0, len);
+          if (aircraftCruiseSpeeds[prefix]) return aircraftCruiseSpeeds[prefix];
+        }
+      }
+      if (fleetAircraftType && categoryFallbackSpeeds[fleetAircraftType]) {
+        return categoryFallbackSpeeds[fleetAircraftType];
+      }
+      return 250;
+    };
+    const calculateDeadlineMinutes = (distanceNm?: number | null, xplaneIcao?: string | null, fleetAircraftType?: string | null) => {
+      const d = Number(distanceNm || 0);
+      if (!Number.isFinite(d) || d <= 0) return null;
+      const cruise = getCruiseSpeed(xplaneIcao, fleetAircraftType);
+      return Math.round((d / cruise) * 60 + 20 + 15);
+    };
+    const computeLiveScore = (packet: any) => {
+      let scoreNow = 100;
+      const maxG = Number(packet?.max_g_force ?? 1);
+      const stall = !!(packet?.stall || packet?.is_in_stall || packet?.stall_warning || packet?.override_alpha);
+      const tailstrike = !!packet?.tailstrike;
+      const overstress = !!packet?.overstress;
+      const overspeed = !!packet?.overspeed;
+      const flapsOver = !!packet?.flaps_overspeed;
+      const gearUpLanding = !!packet?.gear_up_landing;
+      const crashed = !!(packet?.crash || packet?.has_crashed);
+      if (tailstrike) scoreNow -= 20;
+      if (stall) scoreNow -= 50;
+      if (overstress) scoreNow -= 30;
+      if (overspeed) scoreNow -= 15;
+      if (flapsOver) scoreNow -= 15;
+      if (gearUpLanding) scoreNow -= 35;
+      if (maxG >= 1.5) {
+        scoreNow -= Math.max(10, Math.floor(maxG) * 10);
+      }
+      const lg = Number(packet?.landing_g_force ?? 0);
+      if (lg > 0) {
+        if (lg < 0.5) scoreNow += 40;
+        else if (lg < 1.0) scoreNow += 20;
+        else if (lg < 1.6) scoreNow += 5;
+        else if (lg < 2.0) scoreNow -= 30;
+        else scoreNow -= 50;
+      }
+      if (crashed) scoreNow -= 100;
+      return Math.max(0, Math.min(100, Math.round(scoreNow)));
+    };
     
     // Get API key from query params
     const url = new URL(req.url);
@@ -581,6 +649,16 @@ Deno.serve(async (req) => {
     const base44LastIncident = lastFailureForHud
       ? (lastFailureForHud.name || lastFailureForHud.name_de || null)
       : null;
+    const dynamicDeadlineMinutes = calculateDeadlineMinutes(
+      contract?.distance_nm ?? null,
+      aircraft_icao || flight.xplane_data?.aircraft_icao || null,
+      null
+    );
+    const liveScore = computeLiveScore({
+      ...data,
+      max_g_force: max_g_force,
+      landing_g_force: landing_g_force,
+    });
 
     // Respond IMMEDIATELY - no awaiting any DB operations
     return Response.json({ 
@@ -595,11 +673,11 @@ Deno.serve(async (req) => {
       livemap_progress_pct: simbriefProgressPct,
       // Keep legacy fields for compatibility
       distance_nm: simbriefRemainingNm ?? contract?.distance_nm ?? null,
-      deadline_minutes: contract?.deadline_minutes || null,
-      base44_score: flight.flight_score ?? data.flight_score ?? null,
+      deadline_minutes: (dynamicDeadlineMinutes ?? contract?.deadline_minutes ?? null),
+      base44_score: liveScore ?? data.flight_score ?? flight.flight_score ?? 100,
       base44_last_incident: base44LastIncident,
       base44_active_failures_count: activeFailuresForHud.length,
-      base44_deadline_remaining_sec: flight?.deadline_remaining_sec ?? contract?.deadline_remaining_sec ?? null,
+      base44_deadline_remaining_sec: null,
       contract_payout: contract?.payout ?? null,
       contract_bonus_potential: contract?.bonus_potential ?? null,
       contract_total_potential: ((contract?.payout ?? 0) + (contract?.bonus_potential ?? 0)) || null,
