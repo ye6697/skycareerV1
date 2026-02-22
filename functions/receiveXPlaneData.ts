@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
         .filter(Boolean)
         .join(";");
     };
-    const aircraftCruiseSpeeds: Record<string, number> = {
+    const aircraftCruiseSpeeds = {
       C172: 122, C182: 145, C208: 185, PC12: 280,
       E170: 430, E175: 430, E190: 445, CRJ2: 420, CRJ7: 430, CRJ9: 430,
       A318: 450, A319: 455, A320: 460, A321: 460, A20N: 460, A21N: 460,
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       A332: 480, A333: 480, A339: 480, A359: 490,
       B763: 480, B772: 490, B77W: 490, B788: 490, B789: 490, B78X: 490,
     };
-    const categoryFallbackSpeeds: Record<string, number> = {
+    const categoryFallbackSpeeds = {
       small_prop: 140,
       turboprop: 280,
       regional_jet: 430,
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
       wide_body: 490,
       cargo: 450,
     };
-    const getCruiseSpeed = (xplaneIcao?: string | null, fleetAircraftType?: string | null) => {
+    const getCruiseSpeed = (xplaneIcao, fleetAircraftType) => {
       if (xplaneIcao) {
         const upper = String(xplaneIcao).toUpperCase();
         if (aircraftCruiseSpeeds[upper]) return aircraftCruiseSpeeds[upper];
@@ -136,13 +136,13 @@ Deno.serve(async (req) => {
       }
       return 250;
     };
-    const calculateDeadlineMinutes = (distanceNm?: number | null, xplaneIcao?: string | null, fleetAircraftType?: string | null) => {
+    const calculateDeadlineMinutes = (distanceNm, xplaneIcao, fleetAircraftType) => {
       const d = Number(distanceNm || 0);
       if (!Number.isFinite(d) || d <= 0) return null;
       const cruise = getCruiseSpeed(xplaneIcao, fleetAircraftType);
       return Math.round((d / cruise) * 60 + 20 + 15);
     };
-    const computeLiveScore = (packet: any) => {
+    const computeLiveScore = (packet) => {
       let scoreNow = 100;
       const maxG = Number(packet?.max_g_force ?? 1);
       const stall = !!(packet?.stall || packet?.is_in_stall || packet?.stall_warning || packet?.override_alpha);
@@ -343,6 +343,11 @@ Deno.serve(async (req) => {
 
     // Build a LEAN xplane_data object - only current sensor readings
     // No merging with previous data (the frontend tracks accumulated state)
+    const prevAirborneStartedAt = flight.xplane_data?.airborne_started_at || null;
+    const airborneStartedAt = (!on_ground && altitude > 10)
+      ? (prevAirborneStartedAt || new Date().toISOString())
+      : prevAirborneStartedAt;
+
     const xplaneData = {
       altitude,
       speed,
@@ -380,6 +385,7 @@ Deno.serve(async (req) => {
       crash: isCrash,
       has_crashed: isCrash,
       was_airborne: hasBeenAirborne,
+      airborne_started_at: airborneStartedAt,
       // Preserve departure/arrival coords from first packet
       departure_lat: data.departure_lat || (flight.xplane_data?.departure_lat || 0),
       departure_lon: data.departure_lon || (flight.xplane_data?.departure_lon || 0),
@@ -654,6 +660,20 @@ Deno.serve(async (req) => {
       aircraft_icao || flight.xplane_data?.aircraft_icao || null,
       null
     );
+    const selectedDeadlineMinutes = dynamicDeadlineMinutes ?? contract?.deadline_minutes ?? null;
+    let deadlineRemainingSec = null;
+    if (selectedDeadlineMinutes !== null && Number.isFinite(Number(selectedDeadlineMinutes))) {
+      const totalDeadlineSec = Math.max(0, Math.round(Number(selectedDeadlineMinutes) * 60));
+      let elapsedSec = 0;
+      const airborneTs = xplaneData.airborne_started_at || flight.xplane_data?.airborne_started_at || null;
+      if (airborneTs) {
+        const parsed = Date.parse(airborneTs);
+        if (Number.isFinite(parsed)) {
+          elapsedSec = Math.max(0, Math.floor((Date.now() - parsed) / 1000));
+        }
+      }
+      deadlineRemainingSec = totalDeadlineSec - elapsedSec;
+    }
     const liveScore = computeLiveScore({
       ...data,
       max_g_force: max_g_force,
@@ -673,11 +693,11 @@ Deno.serve(async (req) => {
       livemap_progress_pct: simbriefProgressPct,
       // Keep legacy fields for compatibility
       distance_nm: simbriefRemainingNm ?? contract?.distance_nm ?? null,
-      deadline_minutes: (dynamicDeadlineMinutes ?? contract?.deadline_minutes ?? null),
+      deadline_minutes: selectedDeadlineMinutes,
       base44_score: liveScore ?? data.flight_score ?? flight.flight_score ?? 100,
       base44_last_incident: base44LastIncident,
       base44_active_failures_count: activeFailuresForHud.length,
-      base44_deadline_remaining_sec: null,
+      base44_deadline_remaining_sec: deadlineRemainingSec,
       contract_payout: contract?.payout ?? null,
       contract_bonus_potential: contract?.bonus_potential ?? null,
       contract_total_potential: ((contract?.payout ?? 0) + (contract?.bonus_potential ?? 0)) || null,
