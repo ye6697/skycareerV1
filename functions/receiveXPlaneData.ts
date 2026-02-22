@@ -301,12 +301,21 @@ Deno.serve(async (req) => {
     
     // Active flight exists - skip XPlaneLog write entirely to maximize speed
     let contract = null;
+    let assignedAircraftType = null;
     if (flight.contract_id) {
       try {
         const contracts = await base44.asServiceRole.entities.Contract.filter({ id: flight.contract_id });
         contract = contracts[0] || null;
       } catch (_) {
         contract = null;
+      }
+    }
+    if (flight.aircraft_id) {
+      try {
+        const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+        assignedAircraftType = aircraftList?.[0]?.type || null;
+      } catch (_) {
+        assignedAircraftType = null;
       }
     }
 
@@ -399,6 +408,7 @@ Deno.serve(async (req) => {
       wind_speed_kts: wind_speed_kts !== undefined ? wind_speed_kts : (flight.xplane_data?.wind_speed_kts ?? null),
       wind_direction: wind_direction !== undefined ? wind_direction : (flight.xplane_data?.wind_direction ?? null),
       aircraft_icao: aircraft_icao || (flight.xplane_data?.aircraft_icao || null),
+      aircraft_type: assignedAircraftType || (flight.xplane_data?.aircraft_type || null),
       // FMS waypoints - only update if plugin sends them (they don't change often)
       fms_waypoints: fms_waypoints || (flight.xplane_data?.fms_waypoints || []),
       // Preserve SimBrief route data if present (set by web app/import)
@@ -658,7 +668,7 @@ Deno.serve(async (req) => {
     const dynamicDeadlineMinutes = calculateDeadlineMinutes(
       contract?.distance_nm ?? null,
       aircraft_icao || flight.xplane_data?.aircraft_icao || null,
-      null
+      assignedAircraftType || flight.xplane_data?.aircraft_type || null
     );
     const selectedDeadlineMinutes = dynamicDeadlineMinutes ?? contract?.deadline_minutes ?? null;
     let deadlineRemainingSec = null;
