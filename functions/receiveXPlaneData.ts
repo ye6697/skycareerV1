@@ -715,11 +715,20 @@ Deno.serve(async (req) => {
       }
       deadlineRemainingSec = totalDeadlineSec - elapsedSec;
     }
-    const liveScore = computeLiveScore({
-      ...data,
-      max_g_force: max_g_force,
-      landing_g_force: landing_g_force,
-    });
+    const prev = flight.xplane_data || {};
+    const mergedScorePacket = {
+      max_g_force: Math.max(Number(max_g_force || 0), Number(prev.max_g_force || 0)),
+      landing_g_force: Number(landing_g_force ?? prev.landing_g_force ?? 0),
+      tailstrike: !!(data.tailstrike || prev.tailstrike),
+      stall: !!(data.stall || data.is_in_stall || data.stall_warning || data.override_alpha || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
+      overstress: !!(data.overstress || prev.overstress),
+      overspeed: !!(data.overspeed || prev.overspeed),
+      flaps_overspeed: !!(data.flaps_overspeed || prev.flaps_overspeed),
+      gear_up_landing: !!(data.gear_up_landing || prev.gear_up_landing),
+      crash: !!(data.crash || data.has_crashed || prev.crash || prev.has_crashed),
+      has_crashed: !!(data.has_crashed || data.crash || prev.has_crashed || prev.crash),
+    };
+    const liveScore = computeLiveScore(mergedScorePacket);
 
     // Respond IMMEDIATELY - no awaiting any DB operations
     return Response.json({ 
