@@ -22,17 +22,59 @@ Deno.serve(async (req) => {
       }
       return total;
     };
-    const routeRemainingNm = (wps, curLat, curLon) => {
-      if (!Array.isArray(wps) || wps.length === 0) return 0;
-      let best = Infinity;
-      for (let i = 0; i < wps.length; i++) {
-        let candidate = haversineNm(curLat, curLon, wps[i].lat, wps[i].lon);
-        for (let j = i; j < wps.length - 1; j++) {
-          candidate += haversineNm(wps[j].lat, wps[j].lon, wps[j + 1].lat, wps[j + 1].lon);
-        }
-        if (candidate < best) best = candidate;
+    const pointToSegment = (pLat, pLon, aLat, aLon, bLat, bLon) => {
+      const segLen = haversineNm(aLat, aLon, bLat, bLon);
+      if (segLen < 0.1) {
+        return { dist: haversineNm(pLat, pLon, aLat, aLon), fraction: 0 };
       }
-      return Number.isFinite(best) ? best : 0;
+      const dA = haversineNm(aLat, aLon, pLat, pLon);
+      const dB = haversineNm(bLat, bLon, pLat, pLon);
+      let fraction = (dA * dA - dB * dB + segLen * segLen) / (2 * segLen * segLen);
+      fraction = Math.max(0, Math.min(1, fraction));
+      const projLat = aLat + fraction * (bLat - aLat);
+      const projLon = aLon + fraction * (bLon - aLon);
+      return { dist: haversineNm(pLat, pLon, projLat, projLon), fraction };
+    };
+    const distanceAlongRouteNm = (routePoints, curLat, curLon) => {
+      if (!Array.isArray(routePoints) || routePoints.length < 2) return { totalRemaining: 0, closestSegIdx: 0, closestFraction: 0 };
+      let minDist = Infinity;
+      let closestSegIdx = 0;
+      let closestFraction = 0;
+      for (let i = 0; i < routePoints.length - 1; i++) {
+        const r = pointToSegment(
+          curLat,
+          curLon,
+          routePoints[i].lat,
+          routePoints[i].lon,
+          routePoints[i + 1].lat,
+          routePoints[i + 1].lon
+        );
+        if (r.dist < minDist) {
+          minDist = r.dist;
+          closestSegIdx = i;
+          closestFraction = r.fraction;
+        }
+      }
+      const segLen = haversineNm(
+        routePoints[closestSegIdx].lat,
+        routePoints[closestSegIdx].lon,
+        routePoints[closestSegIdx + 1].lat,
+        routePoints[closestSegIdx + 1].lon
+      );
+      let rem = segLen * (1 - closestFraction);
+      for (let j = closestSegIdx + 1; j < routePoints.length - 1; j++) {
+        rem += haversineNm(
+          routePoints[j].lat,
+          routePoints[j].lon,
+          routePoints[j + 1].lat,
+          routePoints[j + 1].lon
+        );
+      }
+      return {
+        totalRemaining: Math.max(0, Math.round(rem)),
+        closestSegIdx,
+        closestFraction,
+      };
     };
     const routeCompact = (wps) => {
       if (!Array.isArray(wps) || wps.length === 0) return null;
@@ -488,6 +530,8 @@ Deno.serve(async (req) => {
 
     const mergedFms = fms_waypoints || flight.xplane_data?.fms_waypoints || [];
     const mergedSimbriefWps = data.simbrief_waypoints || flight.xplane_data?.simbrief_waypoints || contract?.simbrief_waypoints || [];
+    const simbriefDepartureCoords = data.simbrief_departure_coords || flight.xplane_data?.simbrief_departure_coords || contract?.simbrief_departure_coords || null;
+    const simbriefArrivalCoords = data.simbrief_arrival_coords || flight.xplane_data?.simbrief_arrival_coords || contract?.simbrief_arrival_coords || null;
     const depWp = mergedFms.length > 0 ? mergedFms[0] : null;
     const arrWp = mergedFms.length > 0 ? mergedFms[mergedFms.length - 1] : null;
 
@@ -498,26 +542,41 @@ Deno.serve(async (req) => {
     const currentLat = latitude || 0;
     const currentLon = longitude || 0;
     const validSimbriefWps = Array.isArray(mergedSimbriefWps)
-      ? mergedSimbriefWps.filter(wp => wp?.lat && wp?.lon)
+      ? mergedSimbriefWps.filter(wp => wp?.lat && wp?.lon).map(wp => ({ lat: Number(wp.lat), lon: Number(wp.lon) }))
       : [];
-    const simbriefTotalNm = validSimbriefWps.length >= 2 ? routeTotalNm(validSimbriefWps) : null;
-    const simbriefRemainingNm = (simbriefTotalNm && simbriefTotalNm > 0)
-      ? routeRemainingNm(validSimbriefWps, currentLat, currentLon)
+    const depPos = (simbriefDepartureCoords?.lat && simbriefDepartureCoords?.lon)
+      ? { lat: Number(simbriefDepartureCoords.lat), lon: Number(simbriefDepartureCoords.lon) }
+      : (departure_lat && departure_lon) ? { lat: Number(departure_lat), lon: Number(departure_lon) } : null;
+    const arrPos = (simbriefArrivalCoords?.lat && simbriefArrivalCoords?.lon)
+      ? { lat: Number(simbriefArrivalCoords.lat), lon: Number(simbriefArrivalCoords.lon) }
+      : (arrival_lat && arrival_lon) ? { lat: Number(arrival_lat), lon: Number(arrival_lon) } : null;
+
+    let routePoints = [];
+    if (depPos) routePoints.push(depPos);
+    routePoints = routePoints.concat(validSimbriefWps);
+    if (arrPos) routePoints.push(arrPos);
+    if (routePoints.length < 2 && depPos && arrPos) {
+      routePoints = [depPos, arrPos];
+    }
+
+    const hasValidPosition = Number.isFinite(currentLat) && Number.isFinite(currentLon) && (currentLat !== 0 || currentLon !== 0);
+    const simbriefTotalNmRaw = routePoints.length >= 2 ? routeTotalNm(routePoints) : null;
+    const simbriefRemainingNm = (simbriefTotalNmRaw && simbriefTotalNmRaw > 0 && hasValidPosition)
+      ? distanceAlongRouteNm(routePoints, currentLat, currentLon).totalRemaining
       : null;
-    const simbriefFlownNm = (simbriefTotalNm && simbriefRemainingNm !== null)
-      ? Math.max(0, simbriefTotalNm - simbriefRemainingNm)
+    const simbriefTotalNm = simbriefTotalNmRaw !== null ? Math.round(simbriefTotalNmRaw) : null;
+    const simbriefFlownNm = (simbriefTotalNm !== null && simbriefRemainingNm !== null)
+      ? Math.max(0, Math.round(simbriefTotalNm - simbriefRemainingNm))
       : null;
-    const simbriefProgressPct = (simbriefTotalNm && simbriefRemainingNm !== null && simbriefTotalNm > 0)
-      ? Math.max(0, Math.min(100, (simbriefFlownNm / simbriefTotalNm) * 100))
+    const simbriefProgressPct = (simbriefTotalNm !== null && simbriefRemainingNm !== null && simbriefTotalNm > 0)
+      ? Math.max(0, Math.min(100, Math.round((simbriefFlownNm / simbriefTotalNm) * 100)))
       : null;
     const simbriefRouteCompact = validSimbriefWps.length ? routeCompact(validSimbriefWps) : null;
     const appOrigin = new URL(req.url).origin.replace(/\/$/, '');
     const liveMapUrl = flight.contract_id
       ? `${appOrigin}/FlightTracker?contractId=${encodeURIComponent(flight.contract_id)}`
       : `${appOrigin}/ActiveFlights`;
-    const activeFailuresForHud = (Array.isArray(data.active_failures) && data.active_failures.length > 0)
-      ? data.active_failures
-      : (Array.isArray(flight.active_failures) ? flight.active_failures : []);
+    const activeFailuresForHud = Array.isArray(flight.active_failures) ? flight.active_failures : [];
     const lastFailureForHud = activeFailuresForHud.length ? activeFailuresForHud[activeFailuresForHud.length - 1] : null;
     const base44LastIncident = lastFailureForHud
       ? (lastFailureForHud.name || lastFailureForHud.name_de || null)
@@ -537,7 +596,7 @@ Deno.serve(async (req) => {
       // Keep legacy fields for compatibility
       distance_nm: simbriefRemainingNm ?? contract?.distance_nm ?? null,
       deadline_minutes: contract?.deadline_minutes || null,
-      base44_score: data.flight_score ?? flight.flight_score ?? null,
+      base44_score: flight.flight_score ?? data.flight_score ?? null,
       base44_last_incident: base44LastIncident,
       base44_active_failures_count: activeFailuresForHud.length,
       base44_deadline_remaining_sec: flight?.deadline_remaining_sec ?? contract?.deadline_remaining_sec ?? null,
