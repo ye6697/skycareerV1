@@ -657,7 +657,22 @@ Deno.serve(async (req) => {
     const currentLat = latitude || 0;
     const currentLon = longitude || 0;
     const validSimbriefWps = Array.isArray(mergedSimbriefWps)
-      ? mergedSimbriefWps.filter(wp => wp?.lat && wp?.lon).map(wp => ({ lat: Number(wp.lat), lon: Number(wp.lon) }))
+      ? mergedSimbriefWps
+          .filter(wp => Number.isFinite(Number(wp?.lat)) && Number.isFinite(Number(wp?.lon)))
+          .map((wp, idx) => {
+            const lat = Number(wp.lat);
+            const lon = Number(wp.lon);
+            const rawName = wp?.name || wp?.ident || wp?.fix || wp?.waypoint || `WP${idx + 1}`;
+            const name = String(rawName)
+              .toUpperCase()
+              .replace(/[;,]/g, "")
+              .trim() || `WP${idx + 1}`;
+            const rawVia = wp?.airway || wp?.via_airway || wp?.via || wp?.airway_ident || "DCT";
+            const via = String(rawVia).toUpperCase().replace(/[;,]/g, "").trim() || "DCT";
+            const rawAlt = Number(wp?.alt ?? wp?.altitude_feet ?? wp?.altitude ?? 0);
+            const alt = Number.isFinite(rawAlt) ? Math.max(0, Math.round(rawAlt)) : 0;
+            return { lat, lon, name, via, alt };
+          })
       : [];
     const depPos = (simbriefDepartureCoords?.lat && simbriefDepartureCoords?.lon)
       ? { lat: Number(simbriefDepartureCoords.lat), lon: Number(simbriefDepartureCoords.lon) }
