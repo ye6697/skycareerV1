@@ -80,16 +80,28 @@ Deno.serve(async (req) => {
       const base = (v === undefined || v === null) ? fallback : String(v);
       const noDiacritics = base.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
       const cleaned = noDiacritics.replace(/[^\x20-\x7E]/g, " ").replace(/\s+/g, " ").trim();
-      if (cleaned.length > 0) return cleaned;
+      if (cleaned.length > 0) {
+        const alphaNum = cleaned.replace(/[^A-Za-z0-9]/g, "");
+        if (alphaNum.length > 0) return cleaned;
+      }
       const fb = String(fallback ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, " ").trim();
       return fb;
     };
+    const sanitizeWpToken = (v, fallback = "") => {
+      const tok = toHudAscii(v, fallback)
+        .toUpperCase()
+        .replace(/[^A-Z0-9+\-]/g, "")
+        .trim();
+      if (tok.length > 0) return tok;
+      const fb = toHudAscii(fallback, "WP")
+        .toUpperCase()
+        .replace(/[^A-Z0-9+\-]/g, "")
+        .trim();
+      return fb || "WP";
+    };
     const routeCompact = (wps) => {
       if (!Array.isArray(wps) || wps.length === 0) return null;
-      const cleanToken = (v, fallback = "") => toHudAscii(v, fallback)
-        .toUpperCase()
-        .replace(/[;,]/g, "")
-        .trim();
+      const cleanToken = (v, fallback = "") => sanitizeWpToken(v, fallback);
       const toAlt = (wp) => {
         const raw = Number(wp?.alt ?? wp?.altitude_feet ?? wp?.altitude ?? 0);
         if (!Number.isFinite(raw)) return 0;
@@ -698,12 +710,9 @@ Deno.serve(async (req) => {
             const lat = Number(wp.lat);
             const lon = Number(wp.lon);
             const rawName = wp?.name || wp?.ident || wp?.fix || wp?.waypoint || `WP${idx + 1}`;
-            const name = toHudAscii(rawName, `WP${idx + 1}`)
-              .toUpperCase()
-              .replace(/[;,]/g, "")
-              .trim() || `WP${idx + 1}`;
+            const name = sanitizeWpToken(rawName, `WP${idx + 1}`) || `WP${idx + 1}`;
             const rawVia = wp?.airway || wp?.via_airway || wp?.via || wp?.airway_ident || "DCT";
-            const via = toHudAscii(rawVia, "DCT").toUpperCase().replace(/[;,]/g, "").trim() || "DCT";
+            const via = sanitizeWpToken(rawVia, "DCT") || "DCT";
             const rawAlt = Number(wp?.alt ?? wp?.altitude_feet ?? wp?.altitude ?? 0);
             const alt = Number.isFinite(rawAlt) ? Math.max(0, Math.round(rawAlt)) : 0;
             return { lat, lon, name, via, alt };
