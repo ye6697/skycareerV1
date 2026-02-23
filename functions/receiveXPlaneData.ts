@@ -76,9 +76,17 @@ Deno.serve(async (req) => {
         closestFraction,
       };
     };
+    const toHudAscii = (v, fallback = "") => {
+      const base = (v === undefined || v === null) ? fallback : String(v);
+      const noDiacritics = base.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+      const cleaned = noDiacritics.replace(/[^\x20-\x7E]/g, " ").replace(/\s+/g, " ").trim();
+      if (cleaned.length > 0) return cleaned;
+      const fb = String(fallback ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, " ").trim();
+      return fb;
+    };
     const routeCompact = (wps) => {
       if (!Array.isArray(wps) || wps.length === 0) return null;
-      const cleanToken = (v, fallback = "") => String(v ?? fallback)
+      const cleanToken = (v, fallback = "") => toHudAscii(v, fallback)
         .toUpperCase()
         .replace(/[;,]/g, "")
         .trim();
@@ -358,7 +366,30 @@ Deno.serve(async (req) => {
     const wind_speed_kts = data.wind_speed_kts;
     const wind_direction = data.wind_direction;
     const aircraft_icao = data.aircraft_icao;
-    const fms_waypoints = data.fms_waypoints; // array of {name, lat, lon, alt}
+    const normalizeWpList = (wps) => {
+      if (!Array.isArray(wps)) return [];
+      return wps
+        .map((wp, idx) => {
+          const lat = Number(wp?.lat);
+          const lon = Number(wp?.lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+          const rawName = wp?.name || wp?.ident || wp?.fix || wp?.waypoint || `WP${idx + 1}`;
+          const name = toHudAscii(rawName, `WP${idx + 1}`)
+            .toUpperCase()
+            .replace(/[^A-Z0-9+\-]/g, "")
+            .trim() || `WP${idx + 1}`;
+          const rawVia = wp?.airway || wp?.via_airway || wp?.via || wp?.airway_ident || "DCT";
+          const via = toHudAscii(rawVia, "DCT")
+            .toUpperCase()
+            .replace(/[^A-Z0-9+\-]/g, "")
+            .trim() || "DCT";
+          const rawAlt = Number(wp?.alt ?? wp?.altitude_feet ?? wp?.altitude ?? 0);
+          const alt = Number.isFinite(rawAlt) ? Math.max(0, Math.round(rawAlt)) : 0;
+          return { ...wp, lat, lon, name, via, alt };
+        })
+        .filter(Boolean);
+    };
+    const incomingFmsWaypoints = normalizeWpList(data.fms_waypoints); // array of {name, lat, lon, alt}
 
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
     const wasAirborne = flight.xplane_data?.was_airborne || false;
@@ -441,7 +472,9 @@ Deno.serve(async (req) => {
       aircraft_icao: aircraft_icao || (flight.xplane_data?.aircraft_icao || null),
       aircraft_type: assignedAircraftType || (flight.xplane_data?.aircraft_type || null),
       // FMS waypoints - only update if plugin sends them (they don't change often)
-      fms_waypoints: fms_waypoints || (flight.xplane_data?.fms_waypoints || []),
+      fms_waypoints: incomingFmsWaypoints.length
+        ? incomingFmsWaypoints
+        : normalizeWpList(flight.xplane_data?.fms_waypoints || []),
       // Preserve SimBrief route data if present (set by web app/import)
       simbrief_waypoints: data.simbrief_waypoints || (flight.xplane_data?.simbrief_waypoints || []),
       simbrief_route_string: data.simbrief_route_string || (flight.xplane_data?.simbrief_route_string || null),
@@ -469,9 +502,9 @@ Deno.serve(async (req) => {
       for (const pf of pluginFailures) {
         if (!existingNames.has(pf.name)) {
           newFailures.push({
-            name: pf.name,
-            severity: pf.severity,
-            category: pf.category,
+            name: toHudAscii(pf.name || pf.name_de || "INCIDENT", "INCIDENT"),
+            severity: toHudAscii(pf.severity || "medium", "medium"),
+            category: toHudAscii(pf.category || "system", "system"),
             timestamp: new Date().toISOString()
           });
         }
@@ -643,7 +676,9 @@ Deno.serve(async (req) => {
       })();
     }
 
-    const mergedFms = fms_waypoints || flight.xplane_data?.fms_waypoints || [];
+    const mergedFms = incomingFmsWaypoints.length
+      ? incomingFmsWaypoints
+      : normalizeWpList(flight.xplane_data?.fms_waypoints || []);
     const mergedSimbriefWps = data.simbrief_waypoints || flight.xplane_data?.simbrief_waypoints || contract?.simbrief_waypoints || [];
     const simbriefDepartureCoords = data.simbrief_departure_coords || flight.xplane_data?.simbrief_departure_coords || contract?.simbrief_departure_coords || null;
     const simbriefArrivalCoords = data.simbrief_arrival_coords || flight.xplane_data?.simbrief_arrival_coords || contract?.simbrief_arrival_coords || null;
@@ -663,12 +698,12 @@ Deno.serve(async (req) => {
             const lat = Number(wp.lat);
             const lon = Number(wp.lon);
             const rawName = wp?.name || wp?.ident || wp?.fix || wp?.waypoint || `WP${idx + 1}`;
-            const name = String(rawName)
+            const name = toHudAscii(rawName, `WP${idx + 1}`)
               .toUpperCase()
               .replace(/[;,]/g, "")
               .trim() || `WP${idx + 1}`;
             const rawVia = wp?.airway || wp?.via_airway || wp?.via || wp?.airway_ident || "DCT";
-            const via = String(rawVia).toUpperCase().replace(/[;,]/g, "").trim() || "DCT";
+            const via = toHudAscii(rawVia, "DCT").toUpperCase().replace(/[;,]/g, "").trim() || "DCT";
             const rawAlt = Number(wp?.alt ?? wp?.altitude_feet ?? wp?.altitude ?? 0);
             const alt = Number.isFinite(rawAlt) ? Math.max(0, Math.round(rawAlt)) : 0;
             return { lat, lon, name, via, alt };
@@ -709,7 +744,7 @@ Deno.serve(async (req) => {
     const activeFailuresForHud = Array.isArray(flight.active_failures) ? flight.active_failures : [];
     const lastFailureForHud = activeFailuresForHud.length ? activeFailuresForHud[activeFailuresForHud.length - 1] : null;
     const base44LastIncident = lastFailureForHud
-      ? (lastFailureForHud.name || lastFailureForHud.name_de || null)
+      ? toHudAscii(lastFailureForHud.name || lastFailureForHud.name_de || null, null)
       : null;
     const dynamicDeadlineMinutes = calculateDeadlineMinutes(
       contract?.distance_nm ?? null,
