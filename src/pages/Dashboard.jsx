@@ -18,6 +18,10 @@ import {
   ChevronRight,
   AlertCircle,
   Save,
+  PlayCircle,
+  History,
+  Settings,
+  User,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -26,7 +30,6 @@ import ReputationGauge from "@/components/dashboard/ReputationGauge";
 import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
 import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
 import ContractCard from "@/components/contracts/ContractCard";
-// DeleteAccountDialog moved to Account page
 import { Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -214,247 +217,77 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">{company.name}</h1>
-              <p className="text-slate-400">{company.callsign} • Hub: {company.hub_airport || t('not_set', lang)}</p>
-              {company.xplane_api_key && (
-                <div className="mt-2 flex items-center gap-2 min-w-0">
-                  <p className="text-xs text-slate-500 flex-shrink-0">API-Key:</p>
-                  <code className="text-xs text-slate-400 font-mono bg-slate-800 px-2 py-1 rounded truncate">
-                    {company.xplane_api_key}
-                  </code>
-                </div>
-              )}
-              {/* SimBrief Credentials */}
-              <div className="mt-3 flex items-end gap-2 flex-wrap">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase mb-1">SimBrief Username</p>
-                  <Input
-                    value={simbriefUsername}
-                    onChange={(e) => setSimbriefUsername(e.target.value)}
-                    placeholder="Username"
-                    className="h-7 text-xs bg-slate-800 border-slate-700 w-36"
-                  />
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase mb-1">{t('or_pilot_id', lang)}</p>
-                  <Input
-                    value={simbriefPilotId}
-                    onChange={(e) => setSimbriefPilotId(e.target.value)}
-                    placeholder="z.B. 123456"
-                    className="h-7 text-xs bg-slate-800 border-slate-700 w-28"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={saveSimBriefCredentials}
-                  className={`h-7 text-xs ${simbriefSaved ? 'bg-emerald-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-                >
-                  {simbriefSaved ? <><Check className="w-3 h-3 mr-1" /> {t('saved', lang)}</> : <><Save className="w-3 h-3 mr-1" /> {t('save', lang)}</>}
-                </Button>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-slate-400">{t('balance', lang)}</p>
-              <p className="text-xl sm:text-3xl font-bold text-emerald-600">{formatCurrency(company.balance)}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <StatCard
-            title={t('total_flights', lang)}
-            value={company.total_flights?.toLocaleString() || 0}
-            icon={Plane}
-            color="blue"
-          />
-          <StatCard
-            title={t('passengers', lang)}
-            value={company.total_passengers?.toLocaleString() || 0}
-            icon={Users}
-            color="purple"
-          />
-          <StatCard
-            title={t('cargo_kg', lang)}
-            value={company.total_cargo_kg?.toLocaleString() || 0}
-            icon={Package}
-            color="orange"
-          />
-          <StatCard
-            title={t('level', lang)}
-            value={company.level || 1}
-            subtitle={t('bonus_profit_per_level', lang)}
-            icon={TrendingUp}
-            color="amber"
-          />
-          <StatCard
-            title={t('employees_label', lang)}
-            value={employees.length}
-            subtitle={`${employees.filter(e => e.role === 'captain' || e.role === 'first_officer').length} ${t('pilots', lang)}`}
-            icon={Users}
-            color="green"
-          />
+    <div className="h-full flex flex-col gap-3 max-w-5xl mx-auto">
+      {/* Zibo Style Top Bar Info */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
+           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('balance', lang)}</span>
+           <span className="text-base sm:text-xl font-mono text-emerald-400 font-bold">${company.balance?.toLocaleString()}</span>
         </div>
-
-        {/* Middle Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <ReputationGauge reputation={company.reputation} level={company.level} />
-          <CreditScoreBadge company={company} fleetValue={fleetValue} />
-          <XPlaneStatus status={company.xplane_connection_status} />
-          
-          {/* Quick Actions */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
-          <h3 className="font-semibold text-white mb-4">{t('quick_actions', lang)}</h3>
-            <div className="space-y-2">
-              <Link to={createPageUrl("Contracts")} className="block">
-                <Button variant="outline" className="w-full justify-between">
-                  <span className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    {t('browse_contracts', lang)}
-                  </span>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link to={createPageUrl("Employees")} className="block">
-                <Button variant="outline" className="w-full justify-between">
-                  <span className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    {t('hire_employees', lang)}
-                  </span>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link to={createPageUrl("Fleet")} className="block">
-                <Button variant="outline" className="w-full justify-between">
-                  <span className="flex items-center gap-2">
-                    <Plane className="w-4 h-4" />
-                    {t('manage_fleet', lang)}
-                  </span>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-          </Card>
+        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
+           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('level', lang)}</span>
+           <span className="text-base sm:text-xl font-mono text-cyan-400 font-bold">{company.level || 1}</span>
         </div>
+        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
+           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">Reputation</span>
+           <span className="text-base sm:text-xl font-mono text-amber-400 font-bold">{company.reputation || 0}%</span>
+        </div>
+        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
+           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('fleet', lang)}</span>
+           <span className="text-base sm:text-xl font-mono text-purple-400 font-bold">{allAircraft.filter(a => a.status !== 'sold').length}</span>
+        </div>
+      </div>
 
-        {/* Active Contracts Alert */}
-        {acceptedContracts.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mb-8"
+      {/* Main Grid Menu */}
+      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 auto-rows-fr">
+        {[
+          { name: t('nav_contracts', lang), icon: FileText, path: "Contracts", color: "text-blue-400", alert: acceptedContracts.length > 0 },
+          { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights", color: "text-emerald-400" },
+          { name: t('nav_fleet', lang), icon: Plane, path: "Fleet", color: "text-cyan-400" },
+          { name: t('nav_employees', lang), icon: Users, path: "Employees", color: "text-indigo-400" },
+          { name: t('nav_finances', lang), icon: DollarSign, path: "Finances", color: "text-amber-400" },
+          { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory", color: "text-purple-400" },
+          { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
+          { name: t('account', lang), icon: User, path: "Account", color: "text-rose-400" },
+        ].map((item, i) => (
+          <Link key={i} to={createPageUrl(item.path)} className="block h-full min-h-[140px]">
+            <button className="w-full h-full bg-slate-900/90 border border-cyan-900/40 hover:border-cyan-400/60 hover:bg-slate-800/90 rounded-xl flex flex-col items-center justify-center gap-3 transition-all duration-300 relative group shadow-lg overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              {item.alert && <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />}
+              <item.icon className={`w-12 h-12 ${item.color} group-hover:scale-110 group-hover:-translate-y-1 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]`} />
+              <span className="font-mono text-xs sm:text-sm uppercase font-bold text-slate-300 tracking-wider group-hover:text-white transition-colors">{item.name}</span>
+            </button>
+          </Link>
+        ))}
+      </div>
+      
+      {/* SimBrief Bar at bottom */}
+      <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-wrap items-center justify-between gap-3 shadow-lg mt-auto">
+        <div className="flex items-center gap-2">
+          <Plane className="w-4 h-4 text-cyan-600" />
+          <span className="text-xs font-mono uppercase text-cyan-600/70">SimBrief Integration</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            value={simbriefUsername}
+            onChange={(e) => setSimbriefUsername(e.target.value)}
+            placeholder="Username"
+            className="h-7 text-xs font-mono bg-slate-950 border-cyan-900/50 w-24 sm:w-32 text-cyan-100"
+          />
+          <Input
+            value={simbriefPilotId}
+            onChange={(e) => setSimbriefPilotId(e.target.value)}
+            placeholder="Pilot ID"
+            className="h-7 text-xs font-mono bg-slate-950 border-cyan-900/50 w-20 sm:w-24 text-cyan-100"
+          />
+          <Button
+            size="sm"
+            onClick={saveSimBriefCredentials}
+            className={`h-7 text-[10px] font-mono uppercase ${simbriefSaved ? 'bg-emerald-600 text-black hover:bg-emerald-500' : 'bg-cyan-900/50 text-cyan-400 border border-cyan-700 hover:bg-cyan-800'}`}
           >
-            <Card className="p-4 bg-amber-900/20 border border-amber-700/50">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400" />
-                <div className="flex-1">
-                  <p className="font-medium text-amber-100">
-                    {acceptedContracts.length} {t('active_contract_waiting', lang)}
-                  </p>
-                  <p className="text-sm text-amber-300">
-                    {t('connect_xplane_fly', lang)}
-                  </p>
-                </div>
-                <Link to={createPageUrl("ActiveFlights")}>
-                  <Button size="sm" className="bg-amber-600 hover:bg-amber-700">
-                    {t('go_to_active_flights', lang)}
-                  </Button>
-                </Link>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Available Contracts */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">{t('available_contracts', lang)}</h2>
-            <Link to={createPageUrl("Contracts")}>
-              <Button variant="ghost" className="text-blue-600">
-                {t('show_all', lang)} <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
-          </div>
-          {filteredContracts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredContracts.map((contract) => (
-                <ContractCard key={contract.id} contract={contract} ownedAircraft={allAircraft} />
-              ))}
-            </div>
-          ) : (
-            <Card className="p-8 text-center bg-slate-800 border border-slate-700">
-              <FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">{t('no_available_contracts', lang)}</p>
-            </Card>
-          )}
+            {simbriefSaved ? <Check className="w-3 h-3" /> : <Save className="w-3 h-3" />}
+          </Button>
         </div>
-
-        {/* Recent Flights */}
-         {recentFlights.length > 0 && (
-           <div>
-             <div className="flex items-center justify-between mb-4">
-               <div>
-                 <h2 className="text-xl font-semibold text-white">{t('last_flight', lang)}</h2>
-                 {recentFlights[0] && (
-                   <p className="text-sm text-slate-400">
-                     {recentFlights[0].departure_time ? new Date(recentFlights[0].departure_time).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
-                   </p>
-                 )}
-               </div>
-               <Link to={createPageUrl("FlightHistory")}>
-                 <Button variant="ghost" className="text-blue-600">
-                   {t('show_all', lang)} <ChevronRight className="w-4 h-4 ml-1" />
-                   </Button>
-                   </Link>
-                   </div>
-                   <Card className="p-6 bg-slate-800 border border-slate-700">
-                   {recentFlights[0] && (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-                          <Plane className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">{t('flight', lang)} #{recentFlights[0].id?.slice(-6)}</p>
-                          <p className="text-sm text-slate-400">{t('status', lang)}: {t('status_completed', lang)}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-4 bg-slate-900 rounded-lg">
-                        <div className="text-center">
-                          <p className="text-sm text-slate-400 mb-1">{t('rating', lang)}</p>
-                       <div className="flex items-center justify-center gap-1">
-                         <Star className={`w-5 h-5 ${recentFlights[0].overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
-                         <span className="text-lg font-semibold text-white">{recentFlights[0].overall_rating?.toFixed(1) || '-'}</span>
-                       </div>
-                     </div>
-                     <div className="text-center">
-                       <p className="text-sm text-slate-400 mb-1">{t('profit', lang)}</p>
-                       <p className={`text-lg font-semibold ${recentFlights[0].profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                         {formatCurrency(recentFlights[0].profit)}
-                       </p>
-                     </div>
-                     <div className="text-center">
-                       <p className="text-sm text-slate-400 mb-1">{t('flight_hours', lang)}</p>
-                       <p className="text-lg font-semibold text-white">{(recentFlights[0].flight_duration_hours || 0).toFixed(1)}h</p>
-                     </div>
-                   </div>
-                 </div>
-               )}
-             </Card>
-           </div>
-         )}
-
-         {/* Account management moved to Account page */}
       </div>
     </div>
   );

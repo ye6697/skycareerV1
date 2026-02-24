@@ -176,228 +176,108 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     : (statusConfig[aircraft.status] || statusConfig.available);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
-        <div className="relative h-32 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-          {aircraft.image_url ? (
-            <img 
-              src={aircraft.image_url} 
-              alt={aircraft.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="text-5xl">{type.icon}</span>
-          )}
-          <Badge className={`absolute top-3 right-3 ${displayStatus.color} border`}>
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
+      <Card className="bg-slate-900/90 border-cyan-900/40 flex flex-col text-xs font-mono overflow-hidden hover:border-cyan-500/60 transition-colors shadow-lg">
+        {/* Header bar */}
+        <div className="flex items-center justify-between p-1.5 border-b border-cyan-900/30 bg-slate-950/60">
+          <div className="flex flex-col">
+            <span className="text-cyan-400 font-bold text-sm tracking-wide">{aircraft.registration}</span>
+            <span className="text-cyan-700/80 text-[9px] uppercase truncate max-w-[100px] leading-tight">{aircraft.name}</span>
+          </div>
+          <div className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${displayStatus.color}`}>
             {displayStatus.label}
-          </Badge>
+          </div>
         </div>
-
-        <div className="p-5">
-          <div className="mb-4">
-            <h3 className="font-semibold text-lg text-white">{aircraft.name}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="font-mono text-sm text-slate-500 bg-slate-100 px-2 py-0.5 rounded" title={aircraft.registration}>
-                {aircraft.registration}
-              </span>
-              <span className="text-sm text-slate-400">{type.label}</span>
-            </div>
+        
+        {/* Stats Grid */}
+        <div className="p-2 grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] text-slate-400 bg-gradient-to-b from-transparent to-slate-950/30">
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">PAX</span>
+            <span className="text-cyan-100">{aircraft.passenger_capacity || 0}</span>
           </div>
-
-          <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-            <div className="flex items-center gap-2 text-slate-300">
-              <Users className="w-4 h-4 text-slate-400" />
-              <span>{aircraft.passenger_capacity || 0} {t('seats', lang)}</span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-300">
-              <Package className="w-4 h-4 text-slate-400" />
-              <span>{aircraft.cargo_capacity_kg?.toLocaleString() || 0} kg</span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-300">
-              <Fuel className="w-4 h-4 text-slate-400" />
-              <span>{aircraft.fuel_consumption_per_hour} L/h</span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-300">
-              <Plane className="w-4 h-4 text-slate-400" />
-              <span>{aircraft.range_nm?.toLocaleString()} NM</span>
-            </div>
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">CGO</span>
+            <span className="text-cyan-100">{(aircraft.cargo_capacity_kg/1000).toFixed(1)}t</span>
           </div>
-
-          <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg mb-4">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-400" />
-              <span className="text-sm text-slate-400">{t('flight_hours_label', lang)}</span>
-            </div>
-            <span className="font-semibold text-white">
-              {aircraft.total_flight_hours?.toLocaleString() || 0}h
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">HRS</span>
+            <span className="text-amber-100">{aircraft.total_flight_hours?.toLocaleString() || 0}</span>
+          </div>
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">VAL</span>
+            <span className={currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}>
+              ${(currentValue/1000000).toFixed(1)}M
             </span>
           </div>
+        </div>
 
-          {/* Detailed Maintenance Categories */}
-          <div className="p-3 bg-slate-900/50 border border-slate-700 rounded-lg mb-4">
-            <MaintenanceCategories aircraft={aircraft} />
+        {/* Maintenance Bar */}
+        <div className="px-2 pb-2">
+          <div className="flex justify-between text-[8px] mb-0.5">
+            <span className="text-slate-600">WEAR MAX</span>
+            <span className={needsMaintenance ? 'text-red-400 font-bold' : 'text-emerald-500'}>{Math.round(maxWear)}%</span>
           </div>
+          <div className="w-full bg-slate-950 rounded-full h-1 border border-slate-800">
+            <div className={`h-full rounded-full ${needsMaintenance ? 'bg-red-500 shadow-[0_0_5px_#ef4444]' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, maxWear)}%` }} />
+          </div>
+        </div>
 
-          {/* Current & Depreciation Value */}
-          <div className="p-3 bg-slate-900 rounded-lg mb-4 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">{t('current_value', lang)}:</span>
-              <span className={`font-semibold ${currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}`}>
-                ${Math.round(currentValue).toLocaleString()}
-              </span>
-            </div>
-            {accumulatedMaintCost > 0 && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-amber-400">{t('maint_cost_temp', lang)}:</span>
-                <span className="text-amber-400">-${Math.round(accumulatedMaintCost).toLocaleString()}</span>
+        {/* Action Buttons */}
+        <div className="flex p-1 gap-1 border-t border-cyan-900/30 bg-slate-950/80 mt-auto">
+           {aircraft.status === "total_loss" ? (
+               <Button size="sm" className="h-6 flex-1 text-[9px] bg-red-900/40 text-red-400 hover:bg-red-800 border border-red-900/50" onClick={() => scrapMutation.mutate()} disabled={scrapMutation.isPending}>
+                 {t('scrap', lang).toUpperCase()}
+               </Button>
+           ) : aircraft.status === "damaged" ? (
+               <>
+                 <Button size="sm" className="h-6 flex-1 text-[9px] bg-amber-900/40 text-amber-400 hover:bg-amber-800 border border-amber-900/50" onClick={() => setIsRepairDialogOpen(true)}>
+                   {t('repair', lang).toUpperCase()}
+                 </Button>
+                 <Button size="sm" className="h-6 flex-1 text-[9px] bg-red-900/40 text-red-400 hover:bg-red-800 border border-red-900/50" onClick={() => scrapMutation.mutate()} disabled={scrapMutation.isPending}>
+                   {t('dispose', lang).toUpperCase()}
+                 </Button>
+               </>
+           ) : (aircraft.status === "available" || aircraft.status === "maintenance") ? (
+               <Button size="sm" className="h-6 flex-1 text-[9px] bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700" onClick={() => setIsSellDialogOpen(true)}>
+                 {t('sell', lang).toUpperCase()}
+               </Button>
+           ) : (
+               <div className="h-6 flex-1 flex items-center justify-center text-[9px] text-cyan-600 uppercase">
+                 {displayStatus.label}
+               </div>
+           )}
+        </div>
+
+        {/* Dialogs */}
+        <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 font-mono text-xs max-w-sm">
+            <DialogHeader><DialogTitle className="text-amber-400 uppercase">{t('repair_or_dispose', lang)}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded">
+                <div className="flex justify-between mb-1"><span className="text-slate-500">REPAIR COST</span><span className="text-amber-400">${Math.round(repairCost).toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">SCRAP VALUE</span><span className="text-emerald-400">${Math.round(scrapValue).toLocaleString()}</span></div>
               </div>
-            )}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">{t('new_value', lang)}:</span>
-              <span className="font-semibold text-slate-300">
-                ${(aircraft.purchase_price || 0).toLocaleString()}
-              </span>
             </div>
-            {currentValue < (aircraft.purchase_price || 0) && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">{t('depreciation', lang)}:</span>
-                <span className="text-red-400">
-                  -${Math.round((aircraft.purchase_price || 0) - currentValue).toLocaleString()} ({(((aircraft.purchase_price || 0) - currentValue) / (aircraft.purchase_price || 1) * 100).toFixed(1)}%)
-                </span>
-              </div>
-            )}
-          </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button onClick={() => repairMutation.mutate()} disabled={repairMutation.isPending} className="h-8 text-[10px] bg-amber-900/50 text-amber-400 hover:bg-amber-800 border border-amber-900">{t('repair', lang).toUpperCase()}</Button>
+              <Button onClick={() => scrapMutation.mutate()} disabled={scrapMutation.isPending} className="h-8 text-[10px] bg-red-900/50 text-red-400 hover:bg-red-800 border border-red-900">{t('dispose', lang).toUpperCase()}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-          {aircraft.status === "total_loss" ? (
-            <div className="w-full p-3 bg-red-200 border border-red-400 rounded-lg mb-3">
-              <p className="text-sm text-red-900 font-semibold mb-3">{t('total_loss_worthless', lang)}</p>
-              <Button 
-                size="sm" 
-                className="w-full"
-                onClick={() => scrapMutation.mutate()}
-                disabled={scrapMutation.isPending}
-                variant="destructive"
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                {scrapMutation.isPending ? t('scrapping', lang) : t('scrap', lang)}
-              </Button>
+        <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 font-mono text-xs max-w-sm">
+            <DialogHeader><DialogTitle className="text-emerald-400 uppercase">{t('sell_aircraft', lang)}</DialogTitle></DialogHeader>
+            <div className="p-3 bg-slate-950 border border-slate-800 rounded mb-2">
+              <div className="flex justify-between"><span className="text-slate-500">PRICE</span><span className="text-emerald-400 font-bold">${Math.round(sellPrice).toLocaleString()}</span></div>
             </div>
-          ) : aircraft.status === "damaged" ? (
-            <div className="w-full p-3 bg-red-100 border border-red-300 rounded-lg mb-3">
-              <p className="text-sm text-red-800 font-semibold mb-3">{t('aircraft_damaged', lang)}</p>
-              <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    className="flex-1 bg-amber-600 hover:bg-amber-700"
-                    onClick={() => setIsRepairDialogOpen(true)}
-                  >
-                    <Hammer className="w-4 h-4 mr-1" />
-                    {t('repair', lang)}
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => setIsRepairDialogOpen(true)}
-                    variant="destructive"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    {t('dispose', lang)}
-                  </Button>
-                </div>
-                <DialogContent className="bg-slate-900 border-slate-700">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">{t('repair_or_dispose', lang)}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-slate-800 rounded-lg space-y-3">
-                      <div>
-                        <p className="text-sm text-slate-400 mb-2">{t('repair_cost_total', lang)}:</p>
-                        <p className="text-2xl font-bold text-amber-400">${Math.round(repairCost).toLocaleString()}</p>
-                      </div>
-                      <div className="border-t border-slate-700 pt-3">
-                        <p className="text-sm text-slate-400 mb-2">{t('scrap_value', lang)}:</p>
-                        <p className="text-xl font-bold text-slate-300">${scrapValue.toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-400">
-                      {t('repair_msg', lang)}
-                    </p>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)} className="border-slate-600 text-slate-300">
-                      {t('cancel', lang)}
-                    </Button>
-                    <Button 
-                      onClick={() => repairMutation.mutate()}
-                      disabled={repairMutation.isPending}
-                      className="bg-amber-600 hover:bg-amber-700"
-                    >
-                      {repairMutation.isPending ? t('repairing', lang) : `${t('repair', lang)} ($${repairCost.toLocaleString()})`}
-                    </Button>
-                    <Button 
-                      onClick={() => scrapMutation.mutate()}
-                      disabled={scrapMutation.isPending}
-                      variant="destructive"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      {scrapMutation.isPending ? t('scrapping', lang) : `${t('dispose', lang)} (+$${scrapValue.toLocaleString()})`}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          ) : (aircraft.status === "available" || aircraft.status === "maintenance") ? (
-            <div className="space-y-2">
-              {aircraft.status === "available" && (
-                <>
-                  <Button 
-                   size="sm" 
-                   className="w-full bg-slate-600 hover:bg-slate-700"
-                   onClick={() => setIsSellDialogOpen(true)}
-                  >
-                   <DollarSign className="w-4 h-4 mr-1" />
-                   {t('sell', lang)}
-                  </Button>
-                  <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
-                    <DialogContent className="bg-slate-900 border-slate-700">
-                      <DialogHeader>
-                        <DialogTitle className="text-white">{t('sell_aircraft', lang)}</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="p-4 bg-slate-800 rounded-lg">
-                          <p className="text-sm text-slate-400 mb-2">{t('sell_price_info', lang)}:</p>
-                          <p className="text-2xl font-bold text-emerald-400">${sellPrice.toLocaleString()}</p>
-                        </div>
-                        <p className="text-sm text-slate-400">
-                          {t('sell_remove_msg', lang)}
-                        </p>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsSellDialogOpen(false)} className="border-slate-600 text-slate-300">
-                          {t('cancel', lang)}
-                        </Button>
-                        <Button 
-                          onClick={() => sellMutation.mutate()}
-                          disabled={sellMutation.isPending}
-                          className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          {sellMutation.isPending ? t('selling', lang) : t('sell', lang)}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </>
-              )}
-            </div>
-          ) : null}
-          </div>
-          </Card>
-          </motion.div>
-          );
-          }
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsSellDialogOpen(false)} className="h-8 text-[10px] border-slate-700 text-slate-400">CANCEL</Button>
+              <Button onClick={() => sellMutation.mutate()} disabled={sellMutation.isPending} className="h-8 text-[10px] bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-900">{t('sell', lang).toUpperCase()}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </Card>
+    </motion.div>
+  );
+}

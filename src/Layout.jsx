@@ -86,273 +86,42 @@ function LayoutInner({ children, currentPageName }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-slate-800 border-b border-slate-700 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setIsSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5 text-white" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-8 h-8 rounded-lg object-cover" />
-              <span className="font-bold text-white">SkyCareer <span className="text-blue-400 text-xs font-normal">V1</span></span>
-            </div>
-          </div>
+    <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-cyan-900 flex flex-col">
+      {/* Universal Zibo-style Top Bar */}
+      <div className="h-10 bg-slate-900 border-b border-cyan-900/50 flex items-center justify-between px-3 sticky top-0 z-50 flex-shrink-0 shadow-md">
+        <div className="flex items-center gap-3">
+          {currentPageName !== "Dashboard" && (
+            <Link to={createPageUrl("Dashboard")}>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50">
+                ◀ HOME
+              </Button>
+            </Link>
+          )}
+          <span className="font-mono text-xs font-bold text-cyan-500 uppercase tracking-widest">{currentPageName}</span>
         </div>
-      </header>
-
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="lg:hidden fixed inset-0 z-50 bg-black/50"
-              onClick={() => setIsSidebarOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="lg:hidden fixed top-0 left-0 bottom-0 z-50 w-[280px] bg-slate-800 border-r border-slate-700 flex flex-col"
-            >
-              <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-10 h-10 rounded-xl shadow-lg shadow-blue-500/20 object-cover" />
-                  <div>
-                    <span className="font-bold text-white">SkyCareer <span className="text-blue-400 text-xs font-normal">V1</span></span>
-                    <p className="text-xs text-slate-400">X-Plane 12 Career</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-              <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
-                {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item) => {
-                  const isActive = currentPageName === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={createPageUrl(item.path)}
-                      onClick={() => setIsSidebarOpen(false)}
-                    >
-                      <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                        isActive 
-                          ? 'bg-blue-500/20 text-blue-400' 
-                          : 'text-slate-300 hover:bg-slate-700'
-                      }`}>
-                        <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
-                        <span className="font-medium">{item.name}</span>
-                        {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              <div className="p-4 border-t border-slate-700 space-y-3">
-                <div className="p-3 bg-slate-900 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4 text-amber-400" />
-                      <span className="text-xs text-slate-400 font-medium">
-                        Level {company?.level || 1} - {
-                          (company?.level || 1) <= 4 ? t('level_1_4', lang) :
-                          (company?.level || 1) <= 8 ? t('level_5_8', lang) :
-                          (company?.level || 1) <= 12 ? t('level_9_12', lang) :
-                          (company?.level || 1) <= 16 ? t('level_13_16', lang) :
-                          (company?.level || 1) <= 20 ? t('level_17_20', lang) :
-                          (company?.level || 1) <= 30 ? t('level_21_30', lang) :
-                          (company?.level || 1) <= 40 ? t('level_31_40', lang) :
-                          (company?.level || 1) <= 50 ? t('level_41_50', lang) :
-                          (company?.level || 1) <= 60 ? t('level_51_60', lang) :
-                          (company?.level || 1) <= 70 ? t('level_61_70', lang) :
-                          (company?.level || 1) <= 80 ? t('level_71_80', lang) :
-                          (company?.level || 1) <= 90 ? t('level_81_90', lang) :
-                          t('level_91_100', lang)
-                          }
-                          </span>
-                          </div>
-                          </div>
-                          <div className="text-xs text-slate-500 mb-2">
-                          {company?.experience_points || 0}/{Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))} XP
-                          </div>
-                          <div className="w-full bg-slate-700 rounded-full h-2">
-                          <div 
-                          className="bg-amber-400 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${((company?.experience_points || 0) / Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))) * 100}%` }}
-                          />
-                          </div>
-                          </div>
-                          <div className="p-3 bg-slate-900 rounded-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                          <DollarSign className="w-4 h-4 text-emerald-400" />
-                          <span className="text-xs text-slate-400 font-medium">{t('balance', lang)}</span>
-                          </div>
-                          <p className="text-lg font-bold text-emerald-400">
-                          ${(company?.balance || 0).toLocaleString()}
-                          </p>
-                          </div>
-                          <div className="p-3 bg-slate-900 rounded-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                          xplaneStatus === 'connected' ? 'bg-emerald-500' : 
-                          xplaneStatus === 'connecting' ? 'bg-amber-500' : 
-                          'bg-slate-500'
-                          }`} />
-                          <span className="text-xs text-slate-400 font-medium">{t('xplane_status', lang)}</span>
-                          </div>
-                          <p className="text-sm text-slate-300">
-                          {xplaneStatus === 'connected' ? t('connected', lang) : 
-                          xplaneStatus === 'connecting' ? t('connecting', lang) : 
-                          t('disconnected', lang)}
-                          </p>
-                          </div>
-                          {/* Language Toggle */}
-                          <button
-                          onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
-                          className="w-full p-3 bg-slate-900 rounded-lg flex items-center justify-between hover:bg-slate-800 transition-colors"
-                          >
-                          <span className="text-xs text-slate-400 font-medium flex items-center gap-2">
-                          <Globe className="w-4 h-4" /> Language
-                          </span>
-                          <span className="text-sm font-bold text-blue-400">{lang === 'en' ? '🇬🇧 EN' : '🇩🇪 DE'}</span>
-                          </button>
-                          </div>
-                          </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed top-0 left-0 bottom-0 z-40 w-64 bg-slate-800 border-r border-slate-700 flex-col">
-        <div className="p-6 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-11 h-11 rounded-xl shadow-lg shadow-blue-500/20 object-cover" />
-            <div>
-              <span className="font-bold text-lg text-white">SkyCareer <span className="text-blue-400 text-sm font-normal">V1</span></span>
-              <p className="text-xs text-slate-400">X-Plane 12 Career Mode</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+            <div className={`w-2 h-2 rounded-full ${xplaneStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : xplaneStatus === 'connecting' ? 'bg-amber-500' : 'bg-slate-600'}`} />
+            <span className="text-[9px] font-mono uppercase text-slate-400">{xplaneStatus}</span>
           </div>
+          <span className="text-[10px] font-mono text-slate-400 hidden sm:inline-block bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+             XP: {company?.experience_points || 0} | ${company?.balance?.toLocaleString() || 0}
+          </span>
+          <button onClick={() => setLang(lang === 'en' ? 'de' : 'en')} className="text-[10px] font-mono font-bold text-cyan-400 uppercase border border-cyan-800 px-1.5 py-0.5 rounded bg-cyan-950/30 hover:bg-cyan-900/50 transition-colors">
+            {lang}
+          </button>
         </div>
+      </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item) => {
-            const isActive = currentPageName === item.path;
-            return (
-              <Link key={item.path} to={createPageUrl(item.path)}>
-                <motion.div 
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    isActive 
-                      ? 'bg-blue-500/20 text-blue-400' 
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                  whileHover={{ x: 4 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
-                  <span className="font-medium">{item.name}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeIndicator"
-                      className="ml-auto w-1.5 h-1.5 bg-blue-400 rounded-full"
-                    />
-                  )}
-                </motion.div>
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 max-w-6xl mx-auto w-full">
+        {children}
+      </main>
+    </div>
+  );
+  }
 
-        <div className="p-4 border-t border-slate-700 space-y-3">
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Star className="w-4 h-4 text-amber-400" />
-                        <span className="text-xs text-slate-400 font-medium">
-                          Level {company?.level || 1} - {
-                            (company?.level || 1) <= 4 ? t('level_1_4', lang) :
-                            (company?.level || 1) <= 8 ? t('level_5_8', lang) :
-                            (company?.level || 1) <= 12 ? t('level_9_12', lang) :
-                            (company?.level || 1) <= 16 ? t('level_13_16', lang) :
-                            (company?.level || 1) <= 20 ? t('level_17_20', lang) :
-                            (company?.level || 1) <= 30 ? t('level_21_30', lang) :
-                            (company?.level || 1) <= 40 ? t('level_31_40', lang) :
-                            (company?.level || 1) <= 50 ? t('level_41_50', lang) :
-                            (company?.level || 1) <= 60 ? t('level_51_60', lang) :
-                            (company?.level || 1) <= 70 ? t('level_61_70', lang) :
-                            (company?.level || 1) <= 80 ? t('level_71_80', lang) :
-                            (company?.level || 1) <= 90 ? t('level_81_90', lang) :
-                            t('level_91_100', lang)
-                          }
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-slate-500 mb-2">
-                      {company?.experience_points || 0}/{Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))} XP
-                    </div>
-                    <div className="w-full bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-amber-400 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${((company?.experience_points || 0) / Math.round(100 * Math.pow(1.1, (company?.level || 1) - 1))) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs text-slate-400 font-medium">{t('balance', lang)}</span>
-                    </div>
-                    <p className="text-lg font-bold text-emerald-400">
-                      ${(company?.balance || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        xplaneStatus === 'connected' ? 'bg-emerald-500' : 
-                        xplaneStatus === 'connecting' ? 'bg-amber-500' : 
-                        'bg-slate-500'
-                      }`} />
-                      <span className="text-xs text-slate-400 font-medium">{t('xplane_status', lang)}</span>
-                    </div>
-                    <p className="text-sm text-slate-300">
-                      {xplaneStatus === 'connected' ? t('connected', lang) : 
-                       xplaneStatus === 'connecting' ? t('connecting', lang) : 
-                       t('disconnected', lang)}
-                    </p>
-                  </div>
-                  {/* Language Toggle */}
-                  <button
-                    onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
-                    className="w-full p-3 bg-slate-900 rounded-lg flex items-center justify-between hover:bg-slate-800 transition-colors"
-                  >
-                    <span className="text-xs text-slate-400 font-medium flex items-center gap-2">
-                      <Globe className="w-4 h-4" /> Language
-                    </span>
-                    <span className="text-sm font-bold text-blue-400">{lang === 'en' ? '🇬🇧 EN' : '🇩🇪 DE'}</span>
-                  </button>
-                  </div>
-                  </aside>
-
-                  {/* Main Content */}
-                  <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen overflow-x-hidden">
-                  {children}
-                  </main>
-                  </div>
-                  );
-                  }
-
-                  export default function Layout({ children, currentPageName }) {
+  export default function Layout({ children, currentPageName }) {
                   return (
                   <LanguageProvider>
                   <LayoutInner currentPageName={currentPageName}>{children}</LayoutInner>

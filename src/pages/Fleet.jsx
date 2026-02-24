@@ -182,181 +182,114 @@ export default function Fleet() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('fleet', lang)}</h1>
-              <p className="text-slate-400">{t('manage_fleet_desc', lang)}</p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder={t('search_aircraft', lang)}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
-                />
-              </div>
-              <Dialog open={isPurchaseDialogOpen} onOpenChange={setIsPurchaseDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30">
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('buy_aircraft', lang)}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700">
-                   <DialogHeader>
-                     <DialogTitle className="text-xl font-semibold text-white">{t('aircraft_market', lang)}</DialogTitle>
-                     <p className="text-sm text-slate-400">{t('choose_next_aircraft', lang)}</p>
-                   </DialogHeader>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {company && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="col-span-full p-4 bg-gradient-to-r from-emerald-900/30 to-emerald-800/30 border border-emerald-700/50 rounded-lg flex items-center justify-between sticky top-0 z-10"
-                      >
-                        <span className="text-sm font-semibold text-emerald-300">💰 {t('available_budget', lang)}:</span>
-                        <span className="font-bold text-lg text-emerald-400">${company.balance?.toLocaleString()}</span>
-                      </motion.div>
-                    )}
-
-                    {AIRCRAFT_MARKET_SPECS.map((ac, index) => {
-                      // Find template with image
-                      const template = templates.find(t => t.name === ac.name);
-                      const displayData = { ...ac, image_url: template?.image_url };
-
-                      const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
-                      const hasBalance = canAfford(ac.purchase_price);
-                      const isPurchasable = hasLevel && hasBalance;
-
-                      return (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <Card 
-                          className={`overflow-hidden flex flex-col h-full transition-all border ${
-                            isPurchasable 
-                              ? 'border-slate-600 hover:border-slate-500 hover:shadow-lg hover:shadow-blue-500/20 cursor-pointer' 
-                              : 'border-slate-700 opacity-60'
-                          }`}
-                        >
-                          <div className="relative h-40 bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden flex-shrink-0">
-                            {displayData.image_url && (
-                               <motion.img 
-                                 src={displayData.image_url}
-                                 alt={displayData.name}
-                                 className="w-full h-full object-cover"
-                                 whileHover={{ scale: 1.05 }}
-                                 onError={(e) => {
-                                   e.target.style.display = 'none';
-                                   const fallback = e.target.parentElement?.querySelector('[data-fallback]');
-                                   if (fallback) fallback.style.display = 'flex';
-                                 }}
-                               />
-                            )}
-                            <div data-fallback className="absolute inset-0 flex items-center justify-center text-5xl bg-gradient-to-br from-slate-700 to-slate-800" style={{display: displayData.image_url ? 'none' : 'flex'}}>✈️</div>
-                          </div>
-                          <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 space-y-3 flex flex-col flex-grow">
-                            <div>
-                              <p className="font-bold text-sm text-white line-clamp-1">{ac.name}</p>
-                              <p className="text-xs font-semibold text-blue-400">{typeLabels[ac.type]}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-1.5 text-xs font-medium flex-grow">
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('passengers', lang)}</p>
-                                 <p className="text-white text-sm font-bold">{ac.passenger_capacity}</p>
-                                </div>
-                                <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                  <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('cargo', lang)}</p>
-                                <p className="text-white text-sm font-bold">{ac.cargo_capacity_kg?.toLocaleString()} kg</p>
-                              </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('consumption', lang)}</p>
-                                <p className="text-white text-sm font-bold">{ac.fuel_consumption_per_hour} L/h</p>
-                              </div>
-                              <div className="bg-slate-900/60 border border-slate-700 px-2 py-2 rounded-lg">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">{t('range_label', lang)}</p>
-                                <p className="text-white text-sm font-bold">{ac.range_nm?.toLocaleString()} NM</p>
-                              </div>
-                            </div>
-                            <div className="pt-2 border-t border-slate-700 space-y-2">
-                              <div>
-                                <p className="text-xs text-slate-400">{t('purchase_price', lang)}</p>
-                                <p className={`text-lg font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>
-                                  ${(ac.purchase_price / 1000000).toFixed(1)}M
-                                </p>
-                              </div>
-                              {!hasLevel && (
-                                <p className="text-xs font-semibold text-amber-400 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>
-                              )}
-                              {hasLevel && !hasBalance && (
-                                <p className="text-xs font-semibold text-red-400 text-center">{t('budget_short', lang)}: ${(ac.purchase_price - (company?.balance || 0)).toLocaleString()}</p>
-                              )}
-                              <Button
-                                onClick={() => {
-                                  setSelectedAircraft(ac);
-                                  purchaseMutation.mutate(ac);
-                                }}
-                                disabled={!isPurchasable || purchaseMutation.isPending}
-                                size="sm"
-                                className={`w-full ${isPurchasable ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-600'}`}
-                              >
-                                {purchaseMutation.isPending && selectedAircraft?.name === ac.name ? t('buying', lang) : t('buy', lang)}
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      </motion.div>
-                    );
-                    })}
-                  </div>
-
-                  <DialogFooter className="gap-2">
-                    <Button 
-                      onClick={() => setIsPurchaseDialogOpen(false)}
-                      className="bg-white text-black hover:bg-gray-100"
-                    >
-                      {t('close', lang)}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('fleet', lang)}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-cyan-600" />
+            <Input
+              placeholder={t('search_aircraft', lang).toUpperCase()}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900"
+            />
           </div>
-        </motion.div>
+          <Dialog open={isPurchaseDialogOpen} onOpenChange={setIsPurchaseDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-7 text-[10px] font-mono uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60">
+                + {t('buy_aircraft', lang)}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-800 shadow-2xl">
+               <DialogHeader>
+                 <DialogTitle className="text-xl font-mono text-cyan-400 uppercase">{t('aircraft_market', lang)}</DialogTitle>
+                 <p className="text-[10px] font-mono text-cyan-600/70 uppercase">{t('choose_next_aircraft', lang)}</p>
+               </DialogHeader>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {company && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="col-span-full p-2 bg-emerald-950/40 border border-emerald-900/50 rounded flex items-center justify-between sticky top-0 z-10 font-mono"
+                  >
+                    <span className="text-[10px] text-emerald-600 uppercase">{t('available_budget', lang)}:</span>
+                    <span className="font-bold text-sm text-emerald-400">${company.balance?.toLocaleString()}</span>
+                  </motion.div>
+                )}
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="bg-slate-800 border border-slate-700 flex-wrap h-auto p-1">
-            <TabsTrigger value="all">{t('all', lang)}</TabsTrigger>
+                {AIRCRAFT_MARKET_SPECS.map((ac, index) => {
+                  const template = templates.find(t => t.name === ac.name);
+                  const displayData = { ...ac, image_url: template?.image_url };
+                  const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
+                  const hasBalance = canAfford(ac.purchase_price);
+                  const isPurchasable = hasLevel && hasBalance;
+
+                  return (
+                  <motion.div key={index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
+                    <Card className={`overflow-hidden flex flex-col h-full bg-slate-900 border ${isPurchasable ? 'border-cyan-900/50 hover:border-cyan-500/50 cursor-pointer' : 'border-slate-800 opacity-50'}`}>
+                      <div className="p-3 flex flex-col flex-grow">
+                        <div className="mb-2 border-b border-cyan-900/30 pb-2">
+                          <p className="font-bold text-xs text-white uppercase truncate">{ac.name}</p>
+                          <p className="text-[10px] text-cyan-600">{typeLabels[ac.type]?.toUpperCase()}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-[10px] font-mono mb-3">
+                          <div className="flex justify-between"><span className="text-slate-500">PAX</span><span className="text-cyan-100">{ac.passenger_capacity}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">CGO</span><span className="text-cyan-100">{ac.cargo_capacity_kg}kg</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">BURN</span><span className="text-cyan-100">{ac.fuel_consumption_per_hour}L/h</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">RNG</span><span className="text-cyan-100">{ac.range_nm}NM</span></div>
+                        </div>
+                        <div className="mt-auto space-y-2">
+                          <div className="flex justify-between items-center bg-slate-950 p-1.5 rounded border border-slate-800">
+                            <span className="text-[10px] text-slate-500">PRICE</span>
+                            <span className={`text-sm font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>${(ac.purchase_price / 1000000).toFixed(1)}M</span>
+                          </div>
+                          {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
+                          <Button
+                            onClick={() => { setSelectedAircraft(ac); purchaseMutation.mutate(ac); }}
+                            disabled={!isPurchasable || purchaseMutation.isPending}
+                            size="sm"
+                            className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}
+                          >
+                            {purchaseMutation.isPending && selectedAircraft?.name === ac.name ? t('buying', lang) : t('buy', lang)}
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                  );
+                })}
+              </div>
+
+              <DialogFooter>
+                <Button onClick={() => setIsPurchaseDialogOpen(false)} className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8">
+                  {t('close', lang).toUpperCase()}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-2">
+          <TabsList className="bg-slate-900/80 border border-cyan-900/30 flex-wrap h-auto p-0.5 rounded-lg w-full justify-start overflow-x-auto">
+            <TabsTrigger value="all" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">ALL</TabsTrigger>
             {Object.entries(typeLabels).map(([type, label]) => (
-              <TabsTrigger key={type} value={type}>{label}</TabsTrigger>
+              <TabsTrigger key={type} value={type} className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{label}</TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
 
         {/* Aircraft Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="h-80 animate-pulse bg-slate-100" />
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+            {[1, 2, 3, 4].map((i) => <Card key={i} className="h-32 animate-pulse bg-slate-900 border-cyan-900/30" />)}
           </div>
         ) : filteredAircraft.length > 0 ? (
-          <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" layout>
+          <motion.div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
             <AnimatePresence>
               {filteredAircraft.map((ac) => (
                 <AircraftCard key={ac.id} aircraft={ac} />
@@ -364,14 +297,9 @@ export default function Fleet() {
             </AnimatePresence>
           </motion.div>
         ) : (
-          <Card className="p-12 text-center bg-slate-800 border border-slate-700">
-            <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">{t('no_aircraft', lang)}</h3>
-            <p className="text-slate-400 mb-4">{t('buy_first_aircraft', lang)}</p>
-            <Button onClick={() => setIsPurchaseDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              {t('buy_aircraft', lang)}
-            </Button>
+          <Card className="p-8 text-center bg-slate-900/80 border border-cyan-900/30 flex flex-col items-center">
+            <Plane className="w-10 h-10 text-cyan-900 mx-auto mb-2" />
+            <h3 className="text-sm font-mono text-cyan-600 mb-1">{t('no_aircraft', lang).toUpperCase()}</h3>
           </Card>
         )}
       </div>
