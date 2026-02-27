@@ -389,6 +389,71 @@ Deno.serve(async (req) => {
       if (target.slice(0, 2) === candidate.slice(0, 2) && levenshteinDistance(target, candidate) <= 1) return 72;
       return 0;
     };
+    const aircraftTextFields = [
+      "display_name",
+      "aircraft_name",
+      "name",
+      "model_name",
+      "title",
+      "model",
+      "type",
+      "aircraft_type",
+      "manufacturer",
+      "make",
+      "variant",
+      "family",
+    ];
+    const extractAircraftText = (ac) => {
+      if (!ac || typeof ac !== "object") return "";
+      const parts = [];
+      for (const f of [...aircraftIcaoFields, ...aircraftTextFields]) {
+        const v = ac[f];
+        if (v !== undefined && v !== null) {
+          const s = normalizeIcaoCode(v);
+          if (s) parts.push(s);
+        }
+      }
+      return parts.join(" ");
+    };
+    const buildTargetTokens = (icaoRaw) => {
+      const n = normalizeIcaoCode(icaoRaw);
+      const c = canonicalIcao(n);
+      const tokens = new Set();
+      const add = (v) => {
+        const t = normalizeIcaoCode(v);
+        if (t && t.length >= 3) tokens.add(t);
+      };
+      add(n);
+      add(c);
+      if (n.length >= 4) add(n.slice(0, 4));
+      if (c.length >= 4) add(c.slice(0, 4));
+      if (n.length >= 3) add(n.slice(0, 3));
+      if (c.length >= 3) add(c.slice(0, 3));
+
+      const b = c.match(/^B(\d)(\d)(\d)$/);
+      if (b) {
+        const model = `7${b[1]}${b[2]}`;
+        const variant = `${b[3]}00`;
+        add(model);
+        add(`${model}${variant}`);
+        add(`BOEING${model}${variant}`);
+        add(`B${model}${variant}`);
+      }
+      const a = c.match(/^A(\d)(\d)(\d)$/);
+      if (a) {
+        const model = `${a[1]}${a[2]}${a[3]}`;
+        add(model);
+        add(`A${model}`);
+        add(`AIRBUS${model}`);
+      }
+      const e = c.match(/^E(\d)(\d)([A-Z0-9])$/);
+      if (e) {
+        const model = `E${e[1]}${e[2]}${e[3]}`;
+        add(model);
+        add(`EMBRAER${model}`);
+      }
+      return Array.from(tokens);
+    };
     const extractAircraftIcao = (ac) => {
       if (!ac || typeof ac !== "object") return "";
       for (const field of aircraftIcaoFields) {
@@ -400,19 +465,46 @@ Deno.serve(async (req) => {
       }
       return "";
     };
+    const aircraftRowMatchScore = (targetIcao, row) => {
+      if (!targetIcao || !row) return 0;
+      const t = normalizeIcaoCode(targetIcao);
+      const tc = canonicalIcao(t);
+      let best = 0;
+
+      const rowIcao = extractAircraftIcao(row);
+      best = Math.max(best, icaoMatchScore(t, rowIcao));
+
+      const hay = extractAircraftText(row);
+      if (hay) {
+        if (hay.includes(t) || hay.includes(tc)) best = Math.max(best, 94);
+        if (tc && tc.length >= 4 && hay.includes(tc.slice(0, 4))) best = Math.max(best, 90);
+        const tokens = buildTargetTokens(tc || t);
+        let tokenHits = 0;
+        for (const tk of tokens) {
+          if (tk.length >= 4 && hay.includes(tk)) tokenHits += 1;
+        }
+        if (tokenHits >= 2) best = Math.max(best, 86);
+        else if (tokenHits >= 1) best = Math.max(best, 80);
+
+        if (t.startsWith("B") && hay.includes("BOEING")) best = Math.max(best, Math.min(100, best + 4));
+        if (t.startsWith("A") && hay.includes("AIRBUS")) best = Math.max(best, Math.min(100, best + 4));
+        if (t.startsWith("E") && hay.includes("EMBRAER")) best = Math.max(best, Math.min(100, best + 4));
+        if (t.startsWith("C") && hay.includes("CESSNA")) best = Math.max(best, Math.min(100, best + 4));
+      }
+      return best;
+    };
     const pickBestAircraftMatch = (rows, targetIcao, minScore = 70) => {
       if (!Array.isArray(rows) || rows.length === 0 || !targetIcao) return null;
       let best = null;
       let bestScore = 0;
       for (const row of rows) {
-        const rowIcao = extractAircraftIcao(row);
-        const score = icaoMatchScore(targetIcao, rowIcao);
+        const score = aircraftRowMatchScore(targetIcao, row);
         if (score > bestScore) {
           best = row;
           bestScore = score;
         }
       }
-      if (best && bestScore >= minScore) return best;
+      if (best && bestScore >= minScore) return { row: best, score: bestScore };
       return null;
     };
     const fetchAircraftByIcao = async (icaoCode, baseFilter, limit = 20) => {
@@ -507,9 +599,9 @@ Deno.serve(async (req) => {
             const companyFleetRows = await base44.asServiceRole.entities.Aircraft.filter(
               { company_id: company.id },
               "-created_date",
-              120
+              1000
             );
-            fuzzyOwned = pickBestAircraftMatch(companyFleetRows, icaoCode, 70);
+            fuzzyOwned = pickBestAircraftMatch(companyFleetRows, icaoCode, 55);
           } catch (_) {
             fuzzyOwned = null;
           }
@@ -518,25 +610,35 @@ Deno.serve(async (req) => {
             owned = true;
             blocked = false;
             reason = null;
-            mergeAircraftMeta(fuzzyOwned);
+            mergeAircraftMeta(fuzzyOwned.row);
           } else {
-            owned = false;
-            blocked = true;
-            reason = "aircraft_not_owned";
+            let fuzzyMarket = null;
             const marketRows = await fetchAircraftByIcao(icaoCode, {}, 25);
             if (marketRows.length > 0) {
               const preferred = marketRows.find((ac) => !ac?.company_id) || marketRows[0];
               mergeAircraftMeta(preferred);
+              fuzzyMarket = { row: preferred, score: 100 };
             } else {
               try {
-                const marketPool = await base44.asServiceRole.entities.Aircraft.filter({}, "-created_date", 120);
-                const fuzzyMarket = pickBestAircraftMatch(marketPool, icaoCode, 70);
+                const marketPool = await base44.asServiceRole.entities.Aircraft.filter({}, "-created_date", 250);
+                fuzzyMarket = pickBestAircraftMatch(marketPool, icaoCode, 70);
                 if (fuzzyMarket) {
-                  mergeAircraftMeta(fuzzyMarket);
+                  mergeAircraftMeta(fuzzyMarket.row);
                 }
               } catch (_) {
                 // best effort only
               }
+            }
+            const marketConfidence = fuzzyMarket?.score || 0;
+            if (marketConfidence >= 75) {
+              owned = false;
+              blocked = true;
+              reason = "aircraft_not_owned";
+            } else {
+              // Unclear mapping: fail open to avoid false blocker popups.
+              owned = true;
+              blocked = false;
+              reason = null;
             }
           }
         }
