@@ -339,6 +339,82 @@ Deno.serve(async (req) => {
       "icao_type",
       "icaoType",
     ];
+    const icaoAliasMap = {
+      A20N: "A320",
+      A21N: "A321",
+      A19N: "A319",
+      B38M: "B738",
+      B39M: "B739",
+      B78X: "B789",
+      E75L: "E75S",
+    };
+    const canonicalIcao = (v) => {
+      const n = normalizeIcaoCode(v);
+      if (!n) return "";
+      if (icaoAliasMap[n]) return icaoAliasMap[n];
+      const four = n.match(/^[A-Z0-9]{4}/);
+      if (four) return four[0];
+      return n;
+    };
+    const levenshteinDistance = (a, b) => {
+      if (a === b) return 0;
+      if (!a || !b) return Math.max(a?.length || 0, b?.length || 0);
+      const dp = Array.from({ length: b.length + 1 }, (_, i) => i);
+      for (let i = 1; i <= a.length; i++) {
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= b.length; j++) {
+          const tmp = dp[j];
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[j] = Math.min(
+            dp[j] + 1,
+            dp[j - 1] + 1,
+            prev + cost
+          );
+          prev = tmp;
+        }
+      }
+      return dp[b.length];
+    };
+    const icaoMatchScore = (targetRaw, candidateRaw) => {
+      const target = normalizeIcaoCode(targetRaw);
+      const candidate = normalizeIcaoCode(candidateRaw);
+      if (!target || !candidate) return 0;
+      if (target === candidate) return 100;
+      const ct = canonicalIcao(target);
+      const cc = canonicalIcao(candidate);
+      if (ct && cc && ct === cc) return 95;
+      if (target.slice(0, 4) === candidate.slice(0, 4)) return 90;
+      if (target.slice(0, 3) === candidate.slice(0, 3) && Math.abs(target.length - candidate.length) <= 1) return 80;
+      if (target.slice(0, 2) === candidate.slice(0, 2) && levenshteinDistance(target, candidate) <= 1) return 72;
+      return 0;
+    };
+    const extractAircraftIcao = (ac) => {
+      if (!ac || typeof ac !== "object") return "";
+      for (const field of aircraftIcaoFields) {
+        const v = ac[field];
+        if (v !== undefined && v !== null) {
+          const n = normalizeIcaoCode(v);
+          if (n) return n;
+        }
+      }
+      return "";
+    };
+    const pickBestAircraftMatch = (rows, targetIcao, minScore = 70) => {
+      if (!Array.isArray(rows) || rows.length === 0 || !targetIcao) return null;
+      let best = null;
+      let bestScore = 0;
+      for (const row of rows) {
+        const rowIcao = extractAircraftIcao(row);
+        const score = icaoMatchScore(targetIcao, rowIcao);
+        if (score > bestScore) {
+          best = row;
+          bestScore = score;
+        }
+      }
+      if (best && bestScore >= minScore) return best;
+      return null;
+    };
     const fetchAircraftByIcao = async (icaoCode, baseFilter, limit = 20) => {
       if (!icaoCode) return [];
       for (const field of aircraftIcaoFields) {
@@ -426,13 +502,42 @@ Deno.serve(async (req) => {
           owned = true;
           mergeAircraftMeta(ownedRows[0]);
         } else {
-          owned = false;
-          blocked = true;
-          reason = "aircraft_not_owned";
-          const marketRows = await fetchAircraftByIcao(icaoCode, {}, 25);
-          if (marketRows.length > 0) {
-            const preferred = marketRows.find((ac) => !ac?.company_id) || marketRows[0];
-            mergeAircraftMeta(preferred);
+          let fuzzyOwned = null;
+          try {
+            const companyFleetRows = await base44.asServiceRole.entities.Aircraft.filter(
+              { company_id: company.id },
+              "-created_date",
+              120
+            );
+            fuzzyOwned = pickBestAircraftMatch(companyFleetRows, icaoCode, 70);
+          } catch (_) {
+            fuzzyOwned = null;
+          }
+
+          if (fuzzyOwned) {
+            owned = true;
+            blocked = false;
+            reason = null;
+            mergeAircraftMeta(fuzzyOwned);
+          } else {
+            owned = false;
+            blocked = true;
+            reason = "aircraft_not_owned";
+            const marketRows = await fetchAircraftByIcao(icaoCode, {}, 25);
+            if (marketRows.length > 0) {
+              const preferred = marketRows.find((ac) => !ac?.company_id) || marketRows[0];
+              mergeAircraftMeta(preferred);
+            } else {
+              try {
+                const marketPool = await base44.asServiceRole.entities.Aircraft.filter({}, "-created_date", 120);
+                const fuzzyMarket = pickBestAircraftMatch(marketPool, icaoCode, 70);
+                if (fuzzyMarket) {
+                  mergeAircraftMeta(fuzzyMarket);
+                }
+              } catch (_) {
+                // best effort only
+              }
+            }
           }
         }
       }
