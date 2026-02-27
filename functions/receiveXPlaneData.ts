@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from "npm:@base44/sdk";
 
 Deno.serve(async (req) => {
   try {
@@ -296,6 +296,158 @@ Deno.serve(async (req) => {
     const engine2_running = data.engine2_running || false;
     const engines_running = data.engines_running || engine1_running || engine2_running;
     const isCrash = crash || has_crashed || false;
+    const aircraft_icao = data.aircraft_icao;
+    const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const pickFirstNumber = (...vals) => {
+      for (const v of vals) {
+        const n = Number(v);
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    };
+    const pickAircraftNumber = (obj, keys) => {
+      if (!obj || typeof obj !== "object") return null;
+      for (const k of keys) {
+        const n = Number(obj[k]);
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    };
+    const pickAircraftString = (obj, keys) => {
+      if (!obj || typeof obj !== "object") return null;
+      for (const k of keys) {
+        const v = obj[k];
+        if (v !== undefined && v !== null) {
+          const s = String(v).trim();
+          if (s.length > 0) return s;
+        }
+      }
+      return null;
+    };
+    const companyLevel = pickFirstNumber(
+      company?.level,
+      company?.company_level,
+      company?.pilot_level,
+      company?.career_level,
+      company?.xp_level
+    );
+    const aircraftIcaoFields = [
+      "xplane_icao",
+      "aircraft_icao",
+      "icao_code",
+      "icao",
+      "icao_type",
+      "icaoType",
+    ];
+    const fetchAircraftByIcao = async (icaoCode, baseFilter, limit = 20) => {
+      if (!icaoCode) return [];
+      for (const field of aircraftIcaoFields) {
+        try {
+          const rows = await base44.asServiceRole.entities.Aircraft.filter(
+            { ...baseFilter, [field]: icaoCode },
+            "-created_date",
+            limit
+          );
+          if (Array.isArray(rows) && rows.length > 0) {
+            return rows;
+          }
+        } catch (_) {
+          // Try next possible ICAO field.
+        }
+      }
+      return [];
+    };
+    const resolveAircraftGateMeta = async (opts = {}) => {
+      const assignedAircraft = opts.assignedAircraft || null;
+      const contract = opts.contract || null;
+      const flightXplaneData = opts.flightXplaneData || null;
+      const icaoCode = normalizeIcaoCode(aircraft_icao || flightXplaneData?.aircraft_icao || "");
+
+      let owned = true;
+      let blocked = false;
+      let reason = null;
+      let requiredLevel = null;
+      let price = null;
+      let displayName = null;
+
+      const mergeAircraftMeta = (ac) => {
+        if (!ac || typeof ac !== "object") return;
+        if (requiredLevel === null) {
+          requiredLevel = pickAircraftNumber(ac, [
+            "required_level",
+            "min_level",
+            "unlock_level",
+            "level_required",
+            "requiredLevel",
+            "minLevel",
+            "unlockLevel",
+            "level_requirement",
+            "needed_level",
+            "target_level",
+            "level",
+          ]);
+        }
+        if (price === null) {
+          price = pickAircraftNumber(ac, [
+            "price",
+            "purchase_price",
+            "base_price",
+            "cost",
+            "value",
+            "market_value",
+            "purchasePrice",
+            "aircraft_price",
+          ]);
+        }
+        if (!displayName) {
+          displayName = pickAircraftString(ac, [
+            "display_name",
+            "aircraft_name",
+            "name",
+            "model_name",
+            "title",
+            "model",
+          ]);
+        }
+      };
+
+      mergeAircraftMeta(assignedAircraft);
+      if (contract && requiredLevel === null) {
+        requiredLevel = pickAircraftNumber(contract, [
+          "required_level",
+          "min_level",
+          "aircraft_required_level",
+        ]);
+      }
+
+      if (icaoCode) {
+        const ownedRows = await fetchAircraftByIcao(icaoCode, { company_id: company.id }, 8);
+        if (ownedRows.length > 0) {
+          owned = true;
+          mergeAircraftMeta(ownedRows[0]);
+        } else {
+          owned = false;
+          blocked = true;
+          reason = "aircraft_not_owned";
+          const marketRows = await fetchAircraftByIcao(icaoCode, {}, 25);
+          if (marketRows.length > 0) {
+            const preferred = marketRows.find((ac) => !ac?.company_id) || marketRows[0];
+            mergeAircraftMeta(preferred);
+          }
+        }
+      }
+
+      return {
+        owned,
+        blocked,
+        reason,
+        icao: icaoCode || aircraft_icao || null,
+        displayName,
+        price,
+        requiredLevel,
+        companyLevel,
+      };
+    };
 
     // Verify we have valid flight data before marking as connected
     if (altitude === undefined || speed === undefined) {
@@ -321,6 +473,7 @@ Deno.serve(async (req) => {
     const flight = flights[0] || null;
     
     if (!flight) {
+      const gateMeta = await resolveAircraftGateMeta();
       // No active flight - log to XPlaneLog so debug page can show data
       base44.asServiceRole.entities.XPlaneLog.create({
         company_id: company.id,
@@ -346,12 +499,21 @@ Deno.serve(async (req) => {
       return Response.json({ 
         message: 'X-Plane connected - no active flight',
         xplane_connection_status: 'connected',
-        data_logged: true
+        data_logged: true,
+        aircraft_gate_blocked: gateMeta.blocked,
+        aircraft_gate_reason: gateMeta.reason,
+        aircraft_gate_icao: gateMeta.icao,
+        aircraft_gate_display_name: gateMeta.displayName,
+        aircraft_gate_price: gateMeta.price,
+        aircraft_gate_required_level: gateMeta.requiredLevel,
+        aircraft_gate_company_level: gateMeta.companyLevel,
+        aircraft_owned: gateMeta.owned,
       }, { status: 200 });
     }
     
     // Active flight exists - skip XPlaneLog write entirely to maximize speed
     let contract = null;
+    let assignedAircraft = null;
     let assignedAircraftType = null;
     if (flight.contract_id) {
       try {
@@ -364,8 +526,10 @@ Deno.serve(async (req) => {
     if (flight.aircraft_id) {
       try {
         const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
-        assignedAircraftType = aircraftList?.[0]?.type || null;
+        assignedAircraft = aircraftList?.[0] || null;
+        assignedAircraftType = assignedAircraft?.type || null;
       } catch (_) {
+        assignedAircraft = null;
         assignedAircraftType = null;
       }
     }
@@ -377,7 +541,19 @@ Deno.serve(async (req) => {
     const baro_setting = data.baro_setting;
     const wind_speed_kts = data.wind_speed_kts;
     const wind_direction = data.wind_direction;
-    const aircraft_icao = data.aircraft_icao;
+    const gateMeta = await resolveAircraftGateMeta({
+      assignedAircraft,
+      contract,
+      flightXplaneData: flight.xplane_data || null,
+    });
+    const aircraftOwned = gateMeta.owned;
+    const aircraftGateBlocked = gateMeta.blocked;
+    const aircraftGateReason = gateMeta.reason;
+    const aircraftIcao = gateMeta.icao;
+    const aircraftGateDisplayName = gateMeta.displayName;
+    const aircraftGatePrice = gateMeta.price;
+    const aircraftGateRequiredLevel = gateMeta.requiredLevel;
+
     const normalizeWpList = (wps) => {
       if (!Array.isArray(wps)) return [];
       return wps
@@ -826,6 +1002,14 @@ Deno.serve(async (req) => {
       park_brake,
       engines_running: areEnginesRunning,
       maintenance_ratio: maintenanceRatio,
+      aircraft_gate_blocked: aircraftGateBlocked,
+      aircraft_gate_reason: aircraftGateReason,
+      aircraft_gate_icao: aircraftIcao || aircraft_icao || null,
+      aircraft_gate_display_name: aircraftGateDisplayName,
+      aircraft_gate_price: aircraftGatePrice,
+      aircraft_gate_required_level: aircraftGateRequiredLevel,
+      aircraft_gate_company_level: gateMeta.companyLevel,
+      aircraft_owned: aircraftOwned,
       xplane_connection_status: 'connected'
     });
 
