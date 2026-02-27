@@ -527,141 +527,24 @@ Deno.serve(async (req) => {
     };
     const resolveAircraftGateMeta = async (opts = {}) => {
       const assignedAircraft = opts.assignedAircraft || null;
-      const contract = opts.contract || null;
       const flightXplaneData = opts.flightXplaneData || null;
       const icaoCode = normalizeIcaoCode(aircraft_icao || flightXplaneData?.aircraft_icao || "");
-
-      let owned = true;
-      let blocked = false;
-      let reason = null;
-      let requiredLevel = null;
-      let price = null;
-      let displayName = null;
-
-      const mergeAircraftMeta = (ac) => {
-        if (!ac || typeof ac !== "object") return;
-        if (requiredLevel === null) {
-          requiredLevel = pickAircraftNumber(ac, [
-            "required_level",
-            "min_level",
-            "unlock_level",
-            "level_required",
-            "requiredLevel",
-            "minLevel",
-            "unlockLevel",
-            "level_requirement",
-            "needed_level",
-            "target_level",
-            "level",
-          ]);
-        }
-        if (price === null) {
-          price = pickAircraftNumber(ac, [
-            "price",
-            "purchase_price",
-            "base_price",
-            "cost",
-            "value",
-            "market_value",
-            "purchasePrice",
-            "aircraft_price",
-          ]);
-        }
-        if (!displayName) {
-          displayName = pickAircraftString(ac, [
-            "display_name",
-            "aircraft_name",
-            "name",
-            "model_name",
-            "title",
-            "model",
-          ]);
-        }
-      };
-
-      mergeAircraftMeta(assignedAircraft);
-      if (contract && requiredLevel === null) {
-        requiredLevel = pickAircraftNumber(contract, [
-          "required_level",
-          "min_level",
-          "aircraft_required_level",
-        ]);
-      }
-
-      if (icaoCode) {
-        const ownedRows = await fetchAircraftByIcao(icaoCode, { company_id: company.id }, 8);
-        if (ownedRows.length > 0) {
-          owned = true;
-          mergeAircraftMeta(ownedRows[0]);
-        } else {
-          let fuzzyOwned = null;
-          let ownedConfidence = 0;
-          try {
-            const companyFleetRows = await base44.asServiceRole.entities.Aircraft.filter(
-              { company_id: company.id },
-              "-created_date",
-              2000
-            );
-            fuzzyOwned = pickBestAircraftMatch(companyFleetRows, icaoCode, 0);
-            ownedConfidence = fuzzyOwned?.score || 0;
-          } catch (_) {
-            fuzzyOwned = null;
-            ownedConfidence = 0;
-          }
-
-          if (fuzzyOwned && ownedConfidence >= 58) {
-            owned = true;
-            blocked = false;
-            reason = null;
-            mergeAircraftMeta(fuzzyOwned.row);
-          } else {
-            let fuzzyMarket = null;
-            const marketRows = await fetchAircraftByIcao(icaoCode, {}, 25);
-            if (marketRows.length > 0) {
-              const preferred = marketRows.find((ac) => !ac?.company_id) || marketRows[0];
-              mergeAircraftMeta(preferred);
-              fuzzyMarket = { row: preferred, score: 100 };
-            } else {
-              try {
-                const marketPool = await base44.asServiceRole.entities.Aircraft.filter({}, "-created_date", 2000);
-                fuzzyMarket = pickBestAircraftMatch(marketPool, icaoCode, 0);
-                if (fuzzyMarket) {
-                  mergeAircraftMeta(fuzzyMarket.row);
-                }
-              } catch (_) {
-                // best effort only
-              }
-            }
-            const marketConfidence = fuzzyMarket?.score || 0;
-            const likelyOwned = ownedConfidence >= 50 && (ownedConfidence + 5) >= marketConfidence;
-            const clearlyNotOwned = marketConfidence >= 60 && marketConfidence >= (ownedConfidence + 8);
-            if (likelyOwned) {
-              owned = true;
-              blocked = false;
-              reason = null;
-              if (fuzzyOwned) mergeAircraftMeta(fuzzyOwned.row);
-            } else if (clearlyNotOwned) {
-              owned = false;
-              blocked = true;
-              reason = "aircraft_not_owned";
-            } else {
-              // Unclear mapping: fail open to avoid false blocker popups.
-              owned = true;
-              blocked = false;
-              reason = null;
-            }
-          }
-        }
-      }
-
+      const displayName = pickAircraftString(assignedAircraft, [
+        "display_name",
+        "aircraft_name",
+        "name",
+        "model_name",
+        "title",
+        "model",
+      ]);
       return {
-        owned,
-        blocked,
-        reason,
+        owned: true,
+        blocked: false,
+        reason: null,
         icao: icaoCode || aircraft_icao || null,
         displayName,
-        price,
-        requiredLevel,
+        price: null,
+        requiredLevel: null,
         companyLevel,
       };
     };
