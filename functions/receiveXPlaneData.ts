@@ -493,7 +493,7 @@ Deno.serve(async (req) => {
       }
       return best;
     };
-    const pickBestAircraftMatch = (rows, targetIcao, minScore = 70) => {
+    const pickBestAircraftMatch = (rows, targetIcao, minScore = 0) => {
       if (!Array.isArray(rows) || rows.length === 0 || !targetIcao) return null;
       let best = null;
       let bestScore = 0;
@@ -595,18 +595,21 @@ Deno.serve(async (req) => {
           mergeAircraftMeta(ownedRows[0]);
         } else {
           let fuzzyOwned = null;
+          let ownedConfidence = 0;
           try {
             const companyFleetRows = await base44.asServiceRole.entities.Aircraft.filter(
               { company_id: company.id },
               "-created_date",
-              1000
+              2000
             );
-            fuzzyOwned = pickBestAircraftMatch(companyFleetRows, icaoCode, 55);
+            fuzzyOwned = pickBestAircraftMatch(companyFleetRows, icaoCode, 0);
+            ownedConfidence = fuzzyOwned?.score || 0;
           } catch (_) {
             fuzzyOwned = null;
+            ownedConfidence = 0;
           }
 
-          if (fuzzyOwned) {
+          if (fuzzyOwned && ownedConfidence >= 58) {
             owned = true;
             blocked = false;
             reason = null;
@@ -620,8 +623,8 @@ Deno.serve(async (req) => {
               fuzzyMarket = { row: preferred, score: 100 };
             } else {
               try {
-                const marketPool = await base44.asServiceRole.entities.Aircraft.filter({}, "-created_date", 250);
-                fuzzyMarket = pickBestAircraftMatch(marketPool, icaoCode, 70);
+                const marketPool = await base44.asServiceRole.entities.Aircraft.filter({}, "-created_date", 2000);
+                fuzzyMarket = pickBestAircraftMatch(marketPool, icaoCode, 0);
                 if (fuzzyMarket) {
                   mergeAircraftMeta(fuzzyMarket.row);
                 }
@@ -630,7 +633,14 @@ Deno.serve(async (req) => {
               }
             }
             const marketConfidence = fuzzyMarket?.score || 0;
-            if (marketConfidence >= 75) {
+            const likelyOwned = ownedConfidence >= 50 && (ownedConfidence + 5) >= marketConfidence;
+            const clearlyNotOwned = marketConfidence >= 60 && marketConfidence >= (ownedConfidence + 8);
+            if (likelyOwned) {
+              owned = true;
+              blocked = false;
+              reason = null;
+              if (fuzzyOwned) mergeAircraftMeta(fuzzyOwned.row);
+            } else if (clearlyNotOwned) {
               owned = false;
               blocked = true;
               reason = "aircraft_not_owned";
