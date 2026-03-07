@@ -171,12 +171,11 @@ export default function Dashboard() {
   }, [contracts, aircraft]);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
+    if (amount === undefined || amount === null) return '$0';
+    if (amount >= 1e9) return `$${(amount / 1e9).toFixed(1)} Mrd`;
+    if (amount >= 1e6) return `$${(amount / 1e6).toFixed(1)} Mio`;
+    if (amount >= 1e3) return `$${(amount / 1e3).toFixed(1)}k`;
+    return `$${amount.toLocaleString()}`;
   };
 
   if (companyLoading) {
@@ -222,7 +221,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-2">
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('balance', lang)}</span>
-           <span className="text-base sm:text-xl font-mono text-emerald-400 font-bold">${company.balance?.toLocaleString()}</span>
+           <span className="text-base sm:text-xl font-mono text-emerald-400 font-bold">{formatCurrency(company.balance)}</span>
         </div>
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('level', lang)}</span>
@@ -247,7 +246,7 @@ export default function Dashboard() {
           { name: t('nav_employees', lang), icon: Users, path: "Employees", color: "text-indigo-400" },
           { name: t('nav_finances', lang), icon: DollarSign, path: "Finances", color: "text-amber-400" },
           { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory", color: "text-purple-400" },
-          { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
+          { name: "SETUP", icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
           { name: t('account', lang), icon: User, path: "Account", color: "text-rose-400" },
         ].map((item, i) => (
           <Link key={i} to={createPageUrl(item.path)} className="block h-full min-h-[140px]">
