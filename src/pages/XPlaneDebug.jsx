@@ -93,38 +93,29 @@ export default function XPlaneDebug() {
   }, [company, flights]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-4 lg:p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">{t('xp_debug_title', lang)}</h1>
-              <p className="text-slate-400">{t('xp_debug_subtitle', lang)}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-500">
-                {t('xp_last_update', lang)}: {lastUpdate}
-              </span>
-              <Button 
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  refetchCompany();
-                  refetchFlights();
-                  refetchLogs();
-                }}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </motion.div>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('xp_debug_title', lang)}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-mono text-cyan-600/70">
+            {lastUpdate}
+          </span>
+          <Button 
+            size="sm"
+            className="h-7 w-7 p-0 bg-cyan-900/40 text-cyan-400 border border-cyan-700/50 hover:bg-cyan-800/60"
+            onClick={() => {
+              refetchCompany();
+              refetchFlights();
+              refetchLogs();
+            }}
+          >
+            <RefreshCw className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Connection Status */}
         <Card className="p-6 bg-slate-800/50 border-slate-700 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -422,6 +413,7 @@ export default function XPlaneDebug() {
             ))}
           </div>
         </Card>
+        </div>
       </div>
     </div>
   );

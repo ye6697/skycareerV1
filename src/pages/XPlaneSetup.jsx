@@ -181,26 +181,13 @@ export default function XPlaneSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-4xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Link to={createPageUrl("Dashboard")} className="text-blue-400 hover:text-blue-300 text-sm mb-4 inline-block">
-            {t('xps_back', lang)}
-          </Link>
-          <h1 className="text-2xl lg:text-3xl font-bold text-white">{t('xps_title', lang)}</h1>
-          <p className="text-sm lg:text-base text-slate-400">{t('xps_subtitle', lang)}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            {lang === 'de'
-              ? 'Unterstuetzt: X-Plane 12, Microsoft Flight Simulator 2020 und 2024'
-              : 'Supports: X-Plane 12, Microsoft Flight Simulator 2020 and 2024'}
-          </p>
-        </motion.div>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('xps_title', lang)}</div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Setup Steps */}
         <div className="space-y-6">
           {/* Step 1 */}
@@ -651,6 +638,7 @@ export default function XPlaneSetup() {
               )}
             </ul>
           </Card>
+        </div>
         </div>
       </div>
     </div>

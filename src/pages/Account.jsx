@@ -58,26 +58,13 @@ export default function Account() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-4xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600/20 via-cyan-600/10 to-blue-600/20 border border-blue-700/30 p-6">
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-4 right-8 text-blue-300"><Plane className="w-24 h-24 rotate-12" /></div>
-            </div>
-            <div className="relative flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                <Plane className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white">{company?.name || 'SkyCareer'}</h1>
-                <p className="text-slate-400">{user?.full_name} • {user?.email}</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('account', lang)}</div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Profile */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
@@ -228,6 +215,7 @@ export default function Account() {
         </DialogContent>
       </Dialog>
 
+        </div>
       <DeleteAccountDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog} company={company} />
     </div>
   );
