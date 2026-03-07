@@ -686,7 +686,6 @@ export default function CompletedFlightDetails() {
             </p>
           </Card>
         )}
-        </div>
       </div>
     </div>
   );

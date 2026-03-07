@@ -335,7 +335,6 @@ export default function Employees() {
             </Button>
           </Card>
         )}
-        </div>
       </div>
     </div>
   );

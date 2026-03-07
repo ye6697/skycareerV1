@@ -639,7 +639,6 @@ export default function XPlaneSetup() {
             </ul>
           </Card>
         </div>
-        </div>
       </div>
     </div>
   );

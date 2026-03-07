@@ -544,7 +544,6 @@ export default function ActiveFlights() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        </div>
       </div>
     </div>);
 

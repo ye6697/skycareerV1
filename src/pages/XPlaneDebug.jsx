@@ -413,7 +413,6 @@ export default function XPlaneDebug() {
             ))}
           </div>
         </Card>
-        </div>
       </div>
     </div>
   );

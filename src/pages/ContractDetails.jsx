@@ -443,7 +443,6 @@ export default function ContractDetails() {
             </Card>
           </div>
         </div>
-        </div>
       </div>
     </div>
   );

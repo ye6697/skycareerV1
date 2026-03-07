@@ -239,7 +239,6 @@ export default function AdminAircraftImages() {
             })}
           </AnimatePresence>
         </div>
-        </div>
       </div>
     </div>
   );

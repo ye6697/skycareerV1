@@ -262,7 +262,6 @@ export default function EmployeeDetails() {
             </Card>
           </div>
         </div>
-        </div>
       </div>
     </div>
   );

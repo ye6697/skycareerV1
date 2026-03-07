@@ -547,7 +547,6 @@ export default function GameSettingsAdmin() {
             </Button>
           </div>
         </form>
-        </div>
       </div>
     </div>
   );

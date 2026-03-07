@@ -372,7 +372,6 @@ export default function Finances() {
             </div>
           )}
         </Card>
-        </div>
       </div>
     </div>
   );

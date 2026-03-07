@@ -373,7 +373,6 @@ export default function Contracts() {
             </div>
           </Card>
         )}
-        </div>
       </div>
     </div>
   );

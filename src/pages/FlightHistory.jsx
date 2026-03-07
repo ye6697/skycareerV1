@@ -373,7 +373,6 @@ export default function FlightHistory() {
             )}
           </DialogContent>
         </Dialog>
-        </div>
       </div>
     </div>
   );
