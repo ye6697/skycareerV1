@@ -120,26 +120,23 @@ export default function AdminAircraftImages() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-6xl mx-auto p-6">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 flex items-center justify-between"
-        >
-          <div>
-            <h1 className="text-3xl font-bold text-white">Flugzeug-Bilder verwalten</h1>
-            <p className="text-slate-400">Laden Sie benutzerdefinierte Bilder für Ihre Flugzeuge hoch</p>
-          </div>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">Flugzeug-Bilder verwalten</div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button 
             onClick={() => updateAllAircraftMutation.mutate()}
             disabled={updateAllAircraftMutation.isPending}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            size="sm"
+            className="h-7 text-[10px] font-mono uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60"
           >
-            {updateAllAircraftMutation.isPending ? 'Aktualisiere...' : 'Alle Flugzeuge aktualisieren'}
+            {updateAllAircraftMutation.isPending ? 'Aktualisiere...' : 'Alle aktualisieren'}
           </Button>
-        </motion.div>
+        </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence>
             {AIRCRAFT_MARKET.map((ac) => {
@@ -241,6 +238,7 @@ export default function AdminAircraftImages() {
               );
             })}
           </AnimatePresence>
+        </div>
         </div>
       </div>
     </div>
