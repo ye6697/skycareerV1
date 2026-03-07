@@ -134,63 +134,50 @@ export default function CompletedFlightDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="flex items-center gap-2">
           <Button 
             variant="ghost"
             onClick={() => navigate(createPageUrl("ActiveFlights"))}
-            className="mb-4 text-slate-400 hover:text-white"
+            className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t('back', lang)}
+            ◀ {t('back', lang)}
           </Button>
-
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-            <div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
-                <h1 className="text-2xl sm:text-3xl font-bold">{finalContract.title}</h1>
-                {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
-                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
-                    <AlertTriangle className="w-4 h-4" />
-                    CRASH - {t('failed_status', lang)}
-                  </Badge>
-                ) : (
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                    {t('completed', lang)}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-slate-400 text-sm sm:text-base">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {finalContract.departure_airport}
-                </span>
-                <span>→</span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {finalContract.arrival_airport}
-                </span>
-                <span className="text-slate-600">|</span>
-                <span>{finalContract.distance_nm} NM</span>
-              </div>
-            </div>
-            <div className="sm:text-right">
-              <p className="text-2xl sm:text-3xl font-bold text-emerald-400">
-                ${Math.round(finalContract.payout || 0).toLocaleString()}
-              </p>
-            </div>
+          <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{finalContract.title}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 text-slate-400 text-[10px] font-mono uppercase bg-slate-950 px-2 py-1 rounded border border-slate-800">
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-cyan-600" />
+              {finalContract.departure_airport}
+            </span>
+            <span>→</span>
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-cyan-600" />
+              {finalContract.arrival_airport}
+            </span>
+            <span className="text-slate-600">|</span>
+            <span>{finalContract.distance_nm} NM</span>
           </div>
-        </motion.div>
+          {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
+            <Badge className="bg-red-900/40 text-red-400 border-red-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
+              <AlertTriangle className="w-3 h-3" />
+              CRASH
+            </Badge>
+          ) : (
+            <Badge className="bg-emerald-900/40 text-emerald-400 border-emerald-700/50 text-[10px] font-mono uppercase h-7 rounded">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              {t('completed', lang)}
+            </Badge>
+          )}
+        </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         {flight ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               {/* Flight Route Map */}
@@ -699,6 +686,7 @@ export default function CompletedFlightDetails() {
             </p>
           </Card>
         )}
+        </div>
       </div>
     </div>
   );
