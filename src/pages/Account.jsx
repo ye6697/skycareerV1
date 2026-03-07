@@ -216,7 +216,6 @@ export default function Account() {
       </Dialog>
 
       <DeleteAccountDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog} company={company} />
-      </div>
     </div>
   );
 }
