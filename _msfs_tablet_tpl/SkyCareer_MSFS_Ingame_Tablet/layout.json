@@ -11,6 +11,21 @@
                         "date":  134173652605806082
                     },
                     {
+                        "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.css",
+                        "size":  241,
+                        "date":  134173684914134557
+                    },
+                    {
+                        "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.html",
+                        "size":  1460,
+                        "date":  134173684850066175
+                    },
+                    {
+                        "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.js",
+                        "size":  333,
+                        "date":  134173684999144220
+                    },
+                    {
                         "path":  "html_ui/InGamePanels/SkyCareerTabletToolbar/panel.css",
                         "size":  383,
                         "date":  134173652722852047
