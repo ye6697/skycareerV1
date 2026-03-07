@@ -101,24 +101,45 @@ export default function XPlaneSetup() {
   const downloadMsfsBridgeExe = async () => {
     setDownloading(true);
     try {
-      const basePath = (import.meta?.env?.BASE_URL || '/');
+      const file = 'SkyCareer_MSFS_Bridge_Windows.zip';
+      const basePath = import.meta?.env?.BASE_URL || '/';
       const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-      const fileUrl = `${window.location.origin}${normalizedBase}downloads/SkyCareer_MSFS_Bridge_Windows.zip`;
+      const candidates = [
+        new URL(`downloads/${file}`, window.location.href).toString(),
+        new URL(`${normalizedBase}downloads/${file}`, window.location.origin).toString(),
+        new URL(`/downloads/${file}`, window.location.origin).toString(),
+      ];
 
-      const res = await fetch(fileUrl, { cache: 'no-store' });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      let bytes = null;
+      let lastError = null;
+
+      for (const fileUrl of candidates) {
+        try {
+          const res = await fetch(fileUrl, { cache: 'no-store' });
+          if (!res.ok) {
+            lastError = `HTTP ${res.status} @ ${fileUrl}`;
+            continue;
+          }
+          const arr = new Uint8Array(await res.arrayBuffer());
+          if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
+            bytes = arr;
+            break;
+          }
+          lastError = `Invalid ZIP bytes @ ${fileUrl}`;
+        } catch (e) {
+          lastError = `${e?.message || e} @ ${fileUrl}`;
+        }
       }
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      // ZIP signature check ("PK")
-      if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
-        throw new Error('Invalid ZIP response');
+
+      if (!bytes) {
+        throw new Error(lastError || 'Download path not reachable');
       }
+
       const blob = new Blob([bytes], { type: 'application/zip' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'SkyCareer_MSFS_Bridge_Windows.zip';
+      a.download = file;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
