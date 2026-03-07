@@ -240,6 +240,7 @@ Deno.serve(async (req) => {
     const company = companies[0];
     
     const data = await req.json();
+    const simulator = String(data?.simulator || "xplane12").toLowerCase();
     
     // --- FAST POSITION UPDATE: lightweight path for ~30Hz ARC mode data ---
     // These packets only contain position/heading/altitude/speed and skip all DB writes.
@@ -597,8 +598,9 @@ Deno.serve(async (req) => {
       }
 
       return Response.json({ 
-        message: 'X-Plane connected - no active flight',
+        message: 'Simulator connected - no active flight',
         xplane_connection_status: 'connected',
+        simulator,
         data_logged: true,
         aircraft_gate_blocked: gateMeta.blocked,
         aircraft_gate_reason: gateMeta.reason,
@@ -708,6 +710,7 @@ Deno.serve(async (req) => {
       : prevAirborneStartedAt;
 
     const xplaneData = {
+      simulator,
       altitude,
       speed,
       vertical_speed,
@@ -1110,7 +1113,8 @@ Deno.serve(async (req) => {
       aircraft_gate_required_level: aircraftGateRequiredLevel,
       aircraft_gate_company_level: gateMeta.companyLevel,
       aircraft_owned: aircraftOwned,
-      xplane_connection_status: 'connected'
+      xplane_connection_status: 'connected',
+      simulator
     });
 
   } catch (error) {

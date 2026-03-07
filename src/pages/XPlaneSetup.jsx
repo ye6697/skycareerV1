@@ -98,6 +98,30 @@ export default function XPlaneSetup() {
     }
   };
 
+  const downloadMsfsBridge = async () => {
+    setDownloading(true);
+    try {
+      const response = await base44.functions.invoke('downloadMSFSBridge', {
+        endpoint
+      });
+
+      const blob = new Blob([response.data], { type: 'text/x-python' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'SkyCareer_MSFS_Bridge.py';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (error) {
+      console.error('Error downloading MSFS bridge:', error);
+      alert(t('xps_download_error', lang));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-4xl mx-auto p-3 sm:p-4 lg:p-6">
@@ -112,6 +136,11 @@ export default function XPlaneSetup() {
           </Link>
           <h1 className="text-2xl lg:text-3xl font-bold text-white">{t('xps_title', lang)}</h1>
           <p className="text-sm lg:text-base text-slate-400">{t('xps_subtitle', lang)}</p>
+          <p className="text-xs text-slate-500 mt-1">
+            {lang === 'de'
+              ? 'Unterstuetzt: X-Plane 12, Microsoft Flight Simulator 2020 und 2024'
+              : 'Supports: X-Plane 12, Microsoft Flight Simulator 2020 and 2024'}
+          </p>
         </motion.div>
 
         {/* Setup Steps */}
@@ -213,6 +242,55 @@ export default function XPlaneSetup() {
                       </a>
                     </div>
                   </div>
+
+                  {/* OR Divider */}
+                  <div className="flex items-center gap-3 my-2">
+                    <div className="flex-1 h-px bg-slate-600" />
+                    <span className="text-cyan-400 font-bold text-sm tracking-widest uppercase px-3 py-1 bg-cyan-400/10 border border-cyan-400/30 rounded-full">
+                      {lang === 'de' ? 'oder MSFS' : 'or MSFS'}
+                    </span>
+                    <div className="flex-1 h-px bg-slate-600" />
+                  </div>
+
+                  {/* MSFS Option */}
+                  <div className="bg-cyan-900/10 border border-cyan-700/40 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="px-2 py-0.5 bg-cyan-600 text-white text-xs font-bold rounded">
+                        {lang === 'de' ? 'NEU' : 'NEW'}
+                      </div>
+                      <h4 className="text-white font-semibold">
+                        {lang === 'de' ? 'MSFS 2020/2024 Bridge' : 'MSFS 2020/2024 Bridge'}
+                      </h4>
+                    </div>
+                    <p className="text-sm text-slate-400 mb-3 break-words">
+                      {lang === 'de'
+                        ? 'Externe Python-Bridge ueber SimConnect. Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
+                        : 'External Python bridge via SimConnect. Works with Microsoft Flight Simulator 2020 and 2024.'}
+                    </p>
+                    <Button
+                      className="w-full bg-cyan-600 hover:bg-cyan-700 whitespace-normal h-auto py-2"
+                      onClick={downloadMsfsBridge}
+                      disabled={downloading}
+                    >
+                      {downloading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
+                          {t('xps_loading', lang)}
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
+                          {lang === 'de' ? 'MSFS Bridge herunterladen' : 'Download MSFS bridge'}
+                        </>
+                      )}
+                    </Button>
+                    <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
+                      <p className="text-slate-300">
+                        <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> Python 3.10+, SimConnect, requests
+                      </p>
+                      <code className="text-cyan-400 block break-all">pip install SimConnect requests</code>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -266,6 +344,27 @@ export default function XPlaneSetup() {
                       <div className="bg-slate-950 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'Kopiere die Dateien aus der .txt in den Ordner' : 'Copy the files from the .txt into the folder'}</p>
                         <p className="text-xs text-slate-400">PI_SkyCareer.py {lang === 'de' ? 'und' : 'and'} README.md</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MSFS Installation */}
+                  <div className="bg-cyan-900/10 border border-cyan-700/30 rounded-lg p-4">
+                    <h4 className="text-cyan-300 font-semibold mb-3">
+                      {lang === 'de' ? 'MSFS 2020/2024 Installation' : 'MSFS 2020/2024 installation'}
+                    </h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-slate-900 rounded-lg p-3">
+                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'Python 3.10+ installieren' : 'Install Python 3.10+'}</p>
+                      </div>
+                      <div className="bg-slate-900 rounded-lg p-3">
+                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'Abhaengigkeiten installieren' : 'Install dependencies'}</p>
+                        <code className="text-xs text-cyan-400 block mt-1 break-all">pip install SimConnect requests</code>
+                      </div>
+                      <div className="bg-slate-900 rounded-lg p-3">
+                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'MSFS starten und dann Bridge starten' : 'Start MSFS, then start the bridge'}</p>
+                        <code className="text-xs text-cyan-400 block mt-1 break-all">python SkyCareer_MSFS_Bridge.py --sim msfs2020</code>
+                        <code className="text-xs text-cyan-400 block mt-1 break-all">python SkyCareer_MSFS_Bridge.py --sim msfs2024</code>
                       </div>
                     </div>
                   </div>
@@ -428,7 +527,7 @@ export default function XPlaneSetup() {
               </div>
               <div>
                 <span className="text-slate-400">{t('xps_requirements', lang)}:</span>
-                <span className="ml-2 text-white">X-Plane 12.0 {lang === 'de' ? 'oder höher' : 'or higher'}</span>
+                <span className="ml-2 text-white">X-Plane 12.0+, MSFS 2020, MSFS 2024</span>
               </div>
             </div>
           </Card>
@@ -442,16 +541,16 @@ export default function XPlaneSetup() {
             <ul className="space-y-2 text-sm text-slate-300">
               {lang === 'de' ? (
                 <>
-                  <li>• X-Plane 12 ist geöffnet</li>
-                  <li>• Das Plugin ist korrekt installiert</li>
+                  <li>• X-Plane 12 oder MSFS 2020/2024 ist geöffnet</li>
+                  <li>• Das Plugin/Bridge-Skript ist korrekt installiert und gestartet</li>
                   <li>• Der API-Endpoint ist korrekt konfiguriert</li>
                   <li>• Du hast einen aktiven Flug in SkyCareer gestartet</li>
                   <li>• Deine Firewall blockiert keine Verbindungen</li>
                 </>
               ) : (
                 <>
-                  <li>• X-Plane 12 is open</li>
-                  <li>• The plugin is correctly installed</li>
+                  <li>• X-Plane 12 or MSFS 2020/2024 is open</li>
+                  <li>• The plugin/bridge script is correctly installed and running</li>
                   <li>• The API endpoint is correctly configured</li>
                   <li>• You have an active flight in SkyCareer</li>
                   <li>• Your firewall is not blocking connections</li>
