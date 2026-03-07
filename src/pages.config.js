@@ -65,6 +65,8 @@ import Landing from './pages/Landing';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import FlightMap from './pages/FlightMap';
+import PerformanceCalculator from './pages/PerformanceCalculator';
 import __Layout from './Layout.jsx';
 
 
@@ -87,6 +89,8 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "FlightMap": FlightMap,
+    "PerformanceCalculator": PerformanceCalculator,
 }
 
 export const pagesConfig = {
