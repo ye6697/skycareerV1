@@ -172,8 +172,8 @@ export default function XPlaneSetup() {
     }
   };
 
-  const downloadMsfsBridgeExe = async () => {
-    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip', 'downloadMSFSBridgeExe');
+  const downloadSkyCareerDesktop = async () => {
+    await downloadStaticZip('SkyCareer_Desktop_AllInOne_Windows.zip', 'downloadSkyCareerDesktop');
   };
 
   const downloadMsfsTablet = async () => {
@@ -304,17 +304,17 @@ export default function XPlaneSetup() {
                         {lang === 'de' ? 'NEU' : 'NEW'}
                       </div>
                       <h4 className="text-white font-semibold">
-                        {lang === 'de' ? 'MSFS 2020/2024 Bridge' : 'MSFS 2020/2024 Bridge'}
+                        {lang === 'de' ? 'SkyCareer Desktop (MSFS 2020/2024)' : 'SkyCareer Desktop (MSFS 2020/2024)'}
                       </h4>
                     </div>
                     <p className="text-sm text-slate-400 mb-3 break-words">
                       {lang === 'de'
-                        ? 'Windows EXE-Bridge ueber SimConnect. Kein Python noetig. Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
-                        : 'Windows EXE bridge via SimConnect. No Python required. Works with Microsoft Flight Simulator 2020 and 2024.'}
+                        ? 'Native Windows App mit integriertem WebView + SimConnect-Bridge. Kein Python noetig. Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
+                        : 'Native Windows app with integrated webview + SimConnect bridge. No Python required. Works with Microsoft Flight Simulator 2020 and 2024.'}
                     </p>
                     <Button
                       className="w-full bg-cyan-600 hover:bg-cyan-700 whitespace-normal h-auto py-2"
-                      onClick={downloadMsfsBridgeExe}
+                      onClick={downloadSkyCareerDesktop}
                       disabled={downloading}
                     >
                       {downloading ? (
@@ -325,7 +325,7 @@ export default function XPlaneSetup() {
                       ) : (
                         <>
                           <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          {lang === 'de' ? 'MSFS Bridge EXE herunterladen' : 'Download MSFS bridge EXE'}
+                          {lang === 'de' ? 'SkyCareer Desktop (All-in-One) herunterladen' : 'Download SkyCareer Desktop (all-in-one)'}
                         </>
                       )}
                     </Button>
@@ -348,12 +348,12 @@ export default function XPlaneSetup() {
                     </Button>
                     <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
                       <p className="text-slate-300">
-                        <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> .NET Framework 4.8 (meist schon installiert)
+                        <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> WebView2 Runtime (meist schon installiert)
                       </p>
                       <p className="text-slate-400">
                         {lang === 'de'
-                          ? 'Bridge ZIP: entpacken und EXE starten. Tablet ZIP: in Community-Ordner kopieren.'
-                          : 'Bridge ZIP: unzip and start the EXE. Tablet ZIP: copy into Community folder.'}
+                          ? 'All-in-One ZIP: entpacken und SkyCareerDesktop.exe starten. Bridge startet automatisch.'
+                          : 'All-in-one ZIP: unzip and start SkyCareerDesktop.exe. Bridge starts automatically.'}
                       </p>
                     </div>
                   </div>
@@ -427,16 +427,15 @@ export default function XPlaneSetup() {
                         <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'MSFS starten' : 'Start MSFS'}</p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'Bridge starten (MSFS 2020)' : 'Start bridge (MSFS 2020)'}</p>
-                        <code className="text-xs text-cyan-400 block mt-1 break-all">SkyCareerMsfsBridge.exe --sim msfs2020 --endpoint "{endpoint}" --api-key "{apiKey || 'DEIN_API_KEY'}"</code>
-                      </div>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">4. {lang === 'de' ? 'Bridge starten (MSFS 2024)' : 'Start bridge (MSFS 2024)'}</p>
-                        <code className="text-xs text-cyan-400 block mt-1 break-all">SkyCareerMsfsBridge.exe --sim msfs2024 --endpoint "{endpoint}" --api-key "{apiKey || 'DEIN_API_KEY'}"</code>
+                        <p className="text-slate-300 mb-2">
+                          3. {lang === 'de'
+                            ? 'SkyCareerDesktop.exe starten (Bridge ist integriert und startet automatisch)'
+                            : 'Start SkyCareerDesktop.exe (bridge is integrated and starts automatically)'}
+                        </p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">
-                          5. {lang === 'de'
+                          4. {lang === 'de'
                             ? 'Optional: Ingame-Tablet ZIP entpacken und Ordner SkyCareer_MSFS_Ingame_Tablet in den Community-Ordner kopieren'
                             : 'Optional: Extract ingame tablet ZIP and copy SkyCareer_MSFS_Ingame_Tablet folder to Community'}
                         </p>
