@@ -98,24 +98,22 @@ export default function XPlaneSetup() {
     }
   };
 
-  const downloadMsfsBridge = async () => {
+  const downloadMsfsBridgeExe = async () => {
     setDownloading(true);
     try {
-      const response = await base44.functions.invoke('downloadMSFSBridge', {
-        endpoint
-      });
+      const response = await base44.functions.invoke('downloadMSFSBridgeExe', {});
 
-      const blob = new Blob([response.data], { type: 'text/x-python' });
+      const blob = new Blob([response.data], { type: 'application/zip' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'SkyCareer_MSFS_Bridge.py';
+      a.download = 'SkyCareer_MSFS_Bridge_Windows.zip';
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       a.remove();
     } catch (error) {
-      console.error('Error downloading MSFS bridge:', error);
+      console.error('Error downloading MSFS bridge exe zip:', error);
       alert(t('xps_download_error', lang));
     } finally {
       setDownloading(false);
@@ -264,12 +262,12 @@ export default function XPlaneSetup() {
                     </div>
                     <p className="text-sm text-slate-400 mb-3 break-words">
                       {lang === 'de'
-                        ? 'Externe Python-Bridge ueber SimConnect. Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
-                        : 'External Python bridge via SimConnect. Works with Microsoft Flight Simulator 2020 and 2024.'}
+                        ? 'Windows EXE-Bridge ueber SimConnect. Kein Python noetig. Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
+                        : 'Windows EXE bridge via SimConnect. No Python required. Works with Microsoft Flight Simulator 2020 and 2024.'}
                     </p>
                     <Button
                       className="w-full bg-cyan-600 hover:bg-cyan-700 whitespace-normal h-auto py-2"
-                      onClick={downloadMsfsBridge}
+                      onClick={downloadMsfsBridgeExe}
                       disabled={downloading}
                     >
                       {downloading ? (
@@ -280,15 +278,15 @@ export default function XPlaneSetup() {
                       ) : (
                         <>
                           <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          {lang === 'de' ? 'MSFS Bridge herunterladen' : 'Download MSFS bridge'}
+                          {lang === 'de' ? 'MSFS Bridge EXE herunterladen' : 'Download MSFS bridge EXE'}
                         </>
                       )}
                     </Button>
                     <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
                       <p className="text-slate-300">
-                        <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> Python 3.10+, SimConnect, requests
+                        <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> .NET Framework 4.8 (meist schon installiert)
                       </p>
-                      <code className="text-cyan-400 block break-all">pip install SimConnect requests</code>
+                      <p className="text-slate-400">{lang === 'de' ? 'ZIP entpacken und EXE starten.' : 'Unzip and start the EXE.'}</p>
                     </div>
                   </div>
                 </div>
@@ -355,16 +353,18 @@ export default function XPlaneSetup() {
                     </h4>
                     <div className="space-y-3 text-sm">
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'Python 3.10+ installieren' : 'Install Python 3.10+'}</p>
+                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'ZIP entpacken' : 'Extract the ZIP'}</p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'Abhaengigkeiten installieren' : 'Install dependencies'}</p>
-                        <code className="text-xs text-cyan-400 block mt-1 break-all">pip install SimConnect requests</code>
+                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'MSFS starten' : 'Start MSFS'}</p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'MSFS starten und dann Bridge starten' : 'Start MSFS, then start the bridge'}</p>
-                        <code className="text-xs text-cyan-400 block mt-1 break-all">python SkyCareer_MSFS_Bridge.py --sim msfs2020</code>
-                        <code className="text-xs text-cyan-400 block mt-1 break-all">python SkyCareer_MSFS_Bridge.py --sim msfs2024</code>
+                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'Bridge starten (MSFS 2020)' : 'Start bridge (MSFS 2020)'}</p>
+                        <code className="text-xs text-cyan-400 block mt-1 break-all">SkyCareerMsfsBridge.exe --sim msfs2020 --endpoint "{endpoint}" --api-key "{apiKey || 'DEIN_API_KEY'}"</code>
+                      </div>
+                      <div className="bg-slate-900 rounded-lg p-3">
+                        <p className="text-slate-300 mb-2">4. {lang === 'de' ? 'Bridge starten (MSFS 2024)' : 'Start bridge (MSFS 2024)'}</p>
+                        <code className="text-xs text-cyan-400 block mt-1 break-all">SkyCareerMsfsBridge.exe --sim msfs2024 --endpoint "{endpoint}" --api-key "{apiKey || 'DEIN_API_KEY'}"</code>
                       </div>
                     </div>
                   </div>
