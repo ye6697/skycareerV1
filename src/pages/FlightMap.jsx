@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { createPageUrl } from '@/utils';
 import { Map, ArrowLeft } from 'lucide-react';
+import FlightMapComponent from '@/components/flights/FlightMap';
 
 export default function FlightMap() {
   const navigate = useNavigate();
@@ -25,13 +26,9 @@ export default function FlightMap() {
         </h1>
       </div>
 
-      <Card className="flex-1 bg-slate-900/80 border-cyan-900/30 flex items-center justify-center min-h-[500px]">
-        <div className="text-center text-slate-500 font-mono">
-          <Map className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-lg mb-2">Global Flight Map</p>
-          <p className="text-sm">Wird in einem zukünftigen Update implementiert.</p>
-        </div>
-      </Card>
+      <div className="flex-1 min-h-[500px]">
+        <FlightMapComponent title="Global Flight Map" />
+      </div>
     </div>
   );
 }
