@@ -174,10 +174,11 @@ export default function Dashboard() {
 
   const formatCurrency = (amount) => {
     if (amount === undefined || amount === null) return '$0';
-    if (amount >= 1e9) return `$${(amount / 1e9).toFixed(1)} Mrd`;
-    if (amount >= 1e6) return `$${(amount / 1e6).toFixed(1)} Mio`;
-    if (amount >= 1e3) return `$${(amount / 1e3).toFixed(1)}k`;
-    return `$${amount.toLocaleString()}`;
+    const rounded = Math.round(amount);
+    if (rounded >= 1e9) return `$${(rounded / 1e9).toFixed(1)} Mrd`;
+    if (rounded >= 1e6) return `$${(rounded / 1e6).toFixed(1)} Mio`;
+    if (rounded >= 1e3) return `$${(rounded / 1e3).toFixed(0)}k`;
+    return `$${rounded.toLocaleString()}`;
   };
 
   if (companyLoading) {
