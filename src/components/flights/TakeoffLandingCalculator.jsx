@@ -45,12 +45,15 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     setSimLoading(true);
     setError(null);
     try {
-      const res = await base44.functions.invoke('getActiveFlightData', {});
+      const res = await base44.functions.invoke('getSimData', {});
       const d = res?.data;
-      if (d) setSimData(d);
-      else setError(lang === 'de' ? 'Keine Sim-Verbindung. X-Plane/MSFS verbinden.' : 'No sim connection. Connect X-Plane/MSFS first.');
+      if (d && !d.error) {
+        setSimData(d);
+      } else {
+        setError(lang === 'de' ? (d?.error || 'Keine Sim-Verbindung. X-Plane/MSFS verbinden.') : (d?.error || 'No sim connection. Connect X-Plane/MSFS first.'));
+      }
     } catch (e) {
-      setError(lang === 'de' ? 'Keine Sim-Verbindung.' : 'No sim connection.');
+      setError(lang === 'de' ? 'Keine Sim-Verbindung. Bitte Plugin starten.' : 'No sim connection. Please start the plugin.');
     }
     setSimLoading(false);
   }, [lang]);
