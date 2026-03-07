@@ -159,9 +159,9 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   }, [isFullscreen]);
 
   const fd = flightData || {};
-  const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
-  const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
-  const hasArr = fd.arrival_lat !== 0 || fd.arrival_lon !== 0;
+  const hasPosition = fd.latitude != null && fd.longitude != null && !(fd.latitude === 0 && fd.longitude === 0);
+  const hasDep = fd.departure_lat != null && fd.departure_lon != null && !(fd.departure_lat === 0 && fd.departure_lon === 0);
+  const hasArr = fd.arrival_lat != null && fd.arrival_lon != null && !(fd.arrival_lat === 0 && fd.arrival_lon === 0);
 
   // Derive departure position: prefer explicit coords from route API, then X-Plane data, then first waypoint
   let depPos = null;
@@ -219,8 +219,16 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   let bounds = null;
   const allPoints = [...routePoints, ...flownPoints];
   if (curPos) allPoints.push(curPos);
-  if (allPoints.length >= 2) {
-    bounds = L.latLngBounds(allPoints);
+  
+  const validBoundsPoints = allPoints.filter(p => 
+    p && (
+      (Array.isArray(p) && p[0] != null && p[1] != null) || 
+      (p.lat != null && (p.lon != null || p.lng != null))
+    )
+  );
+  
+  if (validBoundsPoints.length >= 2) {
+    bounds = L.latLngBounds(validBoundsPoints);
   }
 
   // Calculate distance to next waypoint and to arrival (live mode)
