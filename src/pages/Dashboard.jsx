@@ -22,6 +22,8 @@ import {
   History,
   Settings,
   User,
+  Map,
+  Calculator,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -238,7 +240,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Grid Menu */}
-      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 auto-rows-fr">
+      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 auto-rows-fr">
         {[
           { name: t('nav_contracts', lang), icon: FileText, path: "Contracts", color: "text-blue-400", alert: acceptedContracts.length > 0 },
           { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights", color: "text-emerald-400" },
@@ -246,6 +248,8 @@ export default function Dashboard() {
           { name: t('nav_employees', lang), icon: Users, path: "Employees", color: "text-indigo-400" },
           { name: t('nav_finances', lang), icon: DollarSign, path: "Finances", color: "text-amber-400" },
           { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory", color: "text-purple-400" },
+          { name: "FLIGHT MAP", icon: Map, path: "FlightMap", color: "text-emerald-500" },
+          { name: "PERFORMANCE", icon: Calculator, path: "PerformanceCalculator", color: "text-amber-500" },
           { name: "SETUP", icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
           { name: t('account', lang), icon: User, path: "Account", color: "text-rose-400" },
         ].map((item, i) => (
