@@ -198,32 +198,46 @@ export default function TakeoffLandingCalculator({ aircraft, contract, xplaneDat
   const [autoFilled, setAutoFilled] = useState(false);
   const [simbriefFilled, setSimbriefFilled] = useState(false);
 
-  // Auto-fill from SimBrief data if available (runway info etc.)
+  // Auto-fill from SimBrief data
   useEffect(() => {
     if (!simbriefData || simbriefFilled) return;
     setSimbriefFilled(true);
-    
-    // SimBrief provides planned weights and runway info
-    if (simbriefData.fuel_plan?.trip_fuel_kg) {
-      // Estimate TOW from SimBrief if available
-      const tripFuel = simbriefData.fuel_plan.trip_fuel_kg || 0;
-      const reserveFuel = simbriefData.fuel_plan.reserve_fuel_kg || 0;
-      // We don't have exact ZFW from SimBrief basic API, but can use as hint
-    }
-    
-    // Set departure runway label if available
-    if (simbriefData.departure_runway) {
-      // Could be used to look up runway length in future
-    }
-    if (simbriefData.arrival_runway) {
-      // Could be used to look up runway length in future
+
+    // TOW = ZFW + total fuel
+    if (simbriefData.tow_kg && simbriefData.tow_kg > 0) {
+      setWeight(String(Math.round(simbriefData.tow_kg)));
+    } else if (simbriefData.zfw_kg && simbriefData.fuel_plan?.total_fuel_kg) {
+      setWeight(String(Math.round(simbriefData.zfw_kg + simbriefData.fuel_plan.total_fuel_kg)));
     }
 
-    // Set cruise altitude info
-    if (simbriefData.cruise_altitude) {
-      // Info available for display
+    // Landing weight = TOW - trip fuel
+    if (simbriefData.ldw_kg && simbriefData.ldw_kg > 0) {
+      setLdgWeight(String(Math.round(simbriefData.ldw_kg)));
+    } else if (simbriefData.tow_kg && simbriefData.fuel_plan?.trip_fuel_kg) {
+      setLdgWeight(String(Math.round(simbriefData.tow_kg - simbriefData.fuel_plan.trip_fuel_kg)));
     }
-  }, [simbriefData, simbriefFilled]);
+
+    // Runway lengths from SimBrief
+    if (simbriefData.departure_rwy_length_m && simbriefData.departure_rwy_length_m > 0) {
+      setRwyLength(String(Math.round(simbriefData.departure_rwy_length_m)));
+    }
+    if (simbriefData.arrival_rwy_length_m && simbriefData.arrival_rwy_length_m > 0) {
+      setLdgRwyLength(String(Math.round(simbriefData.arrival_rwy_length_m)));
+    }
+
+    // Airport elevations
+    if (simbriefData.departure_elevation_ft != null) {
+      setElevFt(String(Math.round(simbriefData.departure_elevation_ft)));
+    }
+    if (simbriefData.arrival_elevation_ft != null) {
+      setLdgElevFt(String(Math.round(simbriefData.arrival_elevation_ft)));
+    }
+
+    // Aircraft ICAO type for profile fetch
+    if (simbriefData.aircraft_icao && !xplaneData?.aircraft_icao) {
+      fetchProfileForICAO(simbriefData.aircraft_icao);
+    }
+  }, [simbriefData, simbriefFilled, xplaneData, fetchProfileForICAO]);
 
   // ─── Autofill: only on button click, one-time ───
   const handleAutoFill = useCallback(() => {
