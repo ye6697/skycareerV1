@@ -234,7 +234,9 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
               </div>
               <div className="flex flex-col items-center bg-slate-950 rounded p-1.5">
                 <span className="text-slate-600">WIND</span>
-                <span className="text-slate-200 font-bold">{simData.wind_dir ? Math.round(simData.wind_dir) : '?'}°/{simData.wind_speed_kts ? Math.round(simData.wind_speed_kts) : '?'}kt</span>
+                <span className="text-slate-200 font-bold">
+                  {(simData.wind_dir ?? simData.wind_direction) != null ? Math.round(simData.wind_dir ?? simData.wind_direction) : '?'}°/{simData.wind_speed_kts != null ? Math.round(simData.wind_speed_kts) : '?'}kt
+                </span>
               </div>
               <div className="flex flex-col items-center bg-slate-950 rounded p-1.5">
                 <span className="text-slate-600">ELEV</span>
