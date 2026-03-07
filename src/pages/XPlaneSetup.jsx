@@ -98,7 +98,16 @@ export default function XPlaneSetup() {
     }
   };
 
-  const downloadStaticZip = async (file) => {
+  const decodeBase64Zip = (base64) => {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  const downloadStaticZip = async (file, fallbackFunction = null) => {
     setDownloading(true);
     try {
       const basePath = import.meta?.env?.BASE_URL || '/';
@@ -130,8 +139,20 @@ export default function XPlaneSetup() {
         }
       }
 
+      if (!bytes && fallbackFunction) {
+        try {
+          const response = await base44.functions.invoke(fallbackFunction, {});
+          const base64 = response?.data?.base64;
+          if (base64) {
+            bytes = decodeBase64Zip(base64);
+          }
+        } catch (invokeError) {
+          lastError = `${lastError || ''} | invoke: ${invokeError?.message || invokeError}`;
+        }
+      }
+
       if (!bytes) {
-        throw new Error(lastError || 'Download path not reachable');
+        throw new Error(lastError || 'Download path and fallback not reachable');
       }
 
       const blob = new Blob([bytes], { type: 'application/zip' });
@@ -152,11 +173,11 @@ export default function XPlaneSetup() {
   };
 
   const downloadMsfsBridgeExe = async () => {
-    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip');
+    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip', 'downloadMSFSBridgeExe');
   };
 
   const downloadMsfsTablet = async () => {
-    await downloadStaticZip('SkyCareer_MSFS_Ingame_Tablet.zip');
+    await downloadStaticZip('SkyCareer_MSFS_Ingame_Tablet.zip', 'downloadMSFSTablet');
   };
 
   return (
