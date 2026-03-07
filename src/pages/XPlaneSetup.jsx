@@ -98,10 +98,9 @@ export default function XPlaneSetup() {
     }
   };
 
-  const downloadMsfsBridgeExe = async () => {
+  const downloadStaticZip = async (file) => {
     setDownloading(true);
     try {
-      const file = 'SkyCareer_MSFS_Bridge_Windows.zip';
       const basePath = import.meta?.env?.BASE_URL || '/';
       const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
       const candidates = [
@@ -145,11 +144,19 @@ export default function XPlaneSetup() {
       window.URL.revokeObjectURL(url);
       a.remove();
     } catch (error) {
-      console.error('Error downloading MSFS bridge exe zip (static):', error);
+      console.error(`Error downloading ${file}:`, error);
       alert(t('xps_download_error', lang));
     } finally {
       setDownloading(false);
     }
+  };
+
+  const downloadMsfsBridgeExe = async () => {
+    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip');
+  };
+
+  const downloadMsfsTablet = async () => {
+    await downloadStaticZip('SkyCareer_MSFS_Ingame_Tablet.zip');
   };
 
   return (
@@ -314,11 +321,32 @@ export default function XPlaneSetup() {
                         </>
                       )}
                     </Button>
+                    <Button
+                      className="w-full mt-2 bg-slate-700 hover:bg-slate-600 whitespace-normal h-auto py-2"
+                      onClick={downloadMsfsTablet}
+                      disabled={downloading}
+                    >
+                      {downloading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
+                          {t('xps_loading', lang)}
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
+                          {lang === 'de' ? 'MSFS Ingame Tablet (WebView) herunterladen' : 'Download MSFS ingame tablet (WebView)'}
+                        </>
+                      )}
+                    </Button>
                     <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
                       <p className="text-slate-300">
                         <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> .NET Framework 4.8 (meist schon installiert)
                       </p>
-                      <p className="text-slate-400">{lang === 'de' ? 'ZIP entpacken und EXE starten.' : 'Unzip and start the EXE.'}</p>
+                      <p className="text-slate-400">
+                        {lang === 'de'
+                          ? 'Bridge ZIP: entpacken und EXE starten. Tablet ZIP: in Community-Ordner kopieren.'
+                          : 'Bridge ZIP: unzip and start the EXE. Tablet ZIP: copy into Community folder.'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -397,6 +425,18 @@ export default function XPlaneSetup() {
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">4. {lang === 'de' ? 'Bridge starten (MSFS 2024)' : 'Start bridge (MSFS 2024)'}</p>
                         <code className="text-xs text-cyan-400 block mt-1 break-all">SkyCareerMsfsBridge.exe --sim msfs2024 --endpoint "{endpoint}" --api-key "{apiKey || 'DEIN_API_KEY'}"</code>
+                      </div>
+                      <div className="bg-slate-900 rounded-lg p-3">
+                        <p className="text-slate-300 mb-2">
+                          5. {lang === 'de'
+                            ? 'Optional: Ingame-Tablet ZIP entpacken und Ordner SkyCareer_MSFS_Ingame_Tablet in den Community-Ordner kopieren'
+                            : 'Optional: Extract ingame tablet ZIP and copy SkyCareer_MSFS_Ingame_Tablet folder to Community'}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {lang === 'de'
+                            ? 'Im Simulator ueber Toolbar-Icon SkyCareer oeffnen. 3D-Template liegt im Paket unter html_ui/SkyCareerTablet3D.'
+                            : 'Open it via toolbar icon SkyCareer. 3D template is inside the package at html_ui/SkyCareerTablet3D.'}
+                        </p>
                       </div>
                     </div>
                   </div>
