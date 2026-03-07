@@ -101,30 +101,15 @@ export default function XPlaneSetup() {
   const downloadMsfsBridgeExe = async () => {
     setDownloading(true);
     try {
-      const response = await base44.functions.invoke('downloadMSFSBridgeExe', {});
-      const payload = response?.data || {};
-      if (!payload?.base64) {
-        throw new Error('Invalid ZIP payload');
-      }
-
-      const binary = atob(payload.base64);
-      const len = binary.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-
-      const blob = new Blob([bytes], { type: payload.mime_type || 'application/zip' });
-      const url = window.URL.createObjectURL(blob);
+      const url = `${window.location.origin}/downloads/SkyCareer_MSFS_Bridge_Windows.zip`;
       const a = document.createElement('a');
       a.href = url;
-      a.download = payload.filename || 'SkyCareer_MSFS_Bridge_Windows.zip';
+      a.download = 'SkyCareer_MSFS_Bridge_Windows.zip';
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       a.remove();
     } catch (error) {
-      console.error('Error downloading MSFS bridge exe zip:', error);
+      console.error('Error downloading MSFS bridge exe zip (static):', error);
       alert(t('xps_download_error', lang));
     } finally {
       setDownloading(false);
