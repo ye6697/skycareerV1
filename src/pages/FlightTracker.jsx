@@ -1647,85 +1647,82 @@ export default function FlightTracker() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Flight Header */}
-        {/* Tab Warning */}
-        {flightPhase !== 'preflight' && flightPhase !== 'completed' && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-center gap-3"
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost"
+            onClick={() => navigate(createPageUrl("ActiveFlights"))}
+            className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50"
           >
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-            <p className="text-sm text-amber-300">
-              {t('tab_warning', lang)}
-            </p>
-          </motion.div>
-        )}
-
-        {contract && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h1 className="text-2xl font-bold">{contract.title}</h1>
-                <div className="flex items-center gap-4 mt-2 text-slate-400">
-                  <span className="flex items-center gap-1 font-mono">
-                    <MapPin className="w-4 h-4" />
-                    {contract.departure_airport}
-                  </span>
-                  <span>→</span>
-                  <span className="flex items-center gap-1 font-mono">
-                    <MapPin className="w-4 h-4" />
-                    {contract.arrival_airport}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-              {company?.xplane_connection_status === 'connected' && (
-                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  X-Plane Live
-                </Badge>
-              )}
-              <Badge className={`px-4 py-2 text-lg ${
-                flightPhase === 'completed' 
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-              }`}>
-                {phaseLabels[flightPhase]}
-              </Badge>
-            </div>
-            </div>
-          </div>
-
-          {/* Progress */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2 text-sm">
-              <span className="flex items-center gap-2">
-                <PlaneTakeoff className="w-4 h-4 text-blue-400" />
+            ◀ {t('back', lang)}
+          </Button>
+          <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{contract ? contract.title : 'Flight Tracker'}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {contract && (
+            <div className="flex items-center gap-2 sm:gap-4 text-slate-400 text-[10px] font-mono uppercase bg-slate-950 px-2 py-1 rounded border border-slate-800">
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-cyan-600" />
                 {contract.departure_airport}
               </span>
-              <span className="flex items-center gap-2">
-                <PlaneLanding className="w-4 h-4 text-emerald-400" />
+              <span>→</span>
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-cyan-600" />
                 {contract.arrival_airport}
               </span>
             </div>
-            <Progress value={distanceProgress} className="h-2 bg-slate-700" />
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+          )}
+          {company?.xplane_connection_status === 'connected' && (
+            <Badge className="bg-emerald-900/40 text-emerald-400 border-emerald-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              X-Plane Live
+            </Badge>
+          )}
+          <Badge className={`h-7 rounded text-[10px] font-mono uppercase ${
+            flightPhase === 'completed' 
+              ? 'bg-emerald-900/40 text-emerald-400 border-emerald-700/50'
+              : 'bg-blue-900/40 text-blue-400 border-blue-700/50'
+          }`}>
+            {phaseLabels[flightPhase]}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Tab Warning */}
+        {flightPhase !== 'preflight' && flightPhase !== 'completed' && (
+          <div className="mb-2 p-2 bg-amber-950/30 border border-amber-900/50 rounded flex items-center gap-2">
+            <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+            <p className="text-[10px] font-mono text-amber-200">
+              {t('tab_warning', lang)}
+            </p>
+          </div>
+        )}
+
+        {contract && (
+          <div className="mb-4">
+            {/* Progress */}
+            <div className="flex items-center justify-between mb-1 text-[10px] font-mono uppercase text-cyan-600">
+              <span className="flex items-center gap-1">
+                <PlaneTakeoff className="w-3 h-3 text-cyan-500" />
+                {contract.departure_airport}
+              </span>
+              <span className="flex items-center gap-1">
+                <PlaneLanding className="w-3 h-3 text-emerald-500" />
+                {contract.arrival_airport}
+              </span>
+            </div>
+            <Progress value={distanceProgress} className="h-1.5 bg-slate-800" />
+            <div className="mt-1 flex items-center justify-between text-[9px] font-mono text-slate-500 uppercase">
               <span>{Math.round(distanceInfo.totalNm - distanceInfo.remainingNm)} NM {t('flown', lang)}</span>
-              <span className="font-mono font-semibold text-blue-400">
+              <span className="font-semibold text-cyan-400">
                 {distanceInfo.remainingNm} NM
               </span>
               <span>{distanceInfo.totalNm} NM {t('total', lang)}</span>
             </div>
           </div>
-        </motion.div>
         )}
 
         {!contract && (
@@ -2269,6 +2266,7 @@ export default function FlightTracker() {
             />
           </div>
         )}
+        </div>
       </div>
     </div>
   );
