@@ -223,8 +223,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-2">
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('balance', lang)}</span>
-           <span className="hidden sm:inline text-xl font-mono text-emerald-400 font-bold">${company.balance?.toLocaleString() || 0}</span>
-           <span className="sm:hidden text-base font-mono text-emerald-400 font-bold">{formatCurrency(company.balance)}</span>
+           <span className="text-base sm:text-xl font-mono text-emerald-400 font-bold">{formatCurrency(company.balance)}</span>
         </div>
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('level', lang)}</span>

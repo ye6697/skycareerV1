@@ -328,6 +328,16 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           attributionControl={false}
         >
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          {/* Real-time weather overlay from OpenWeatherMap (no API key needed for tiles) */}
+          <TileLayer
+            url="https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=439d4b804bc8187953eb36d2a8c26a02"
+            opacity={0.5}
+            attribution="Weather © OpenWeatherMap"
+          />
+          <TileLayer
+            url="https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=439d4b804bc8187953eb36d2a8c26a02"
+            opacity={0.35}
+          />
           <MapRefSetter mapRef={mapInstanceRef} />
           <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />
 

@@ -289,7 +289,7 @@ export default function Fleet() {
             {[1, 2, 3, 4].map((i) => <Card key={i} className="h-32 animate-pulse bg-slate-900 border-cyan-900/30" />)}
           </div>
         ) : filteredAircraft.length > 0 ? (
-          <motion.div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
+          <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
             <AnimatePresence>
               {filteredAircraft.map((ac) => (
                 <AircraftCard key={ac.id} aircraft={ac} />
