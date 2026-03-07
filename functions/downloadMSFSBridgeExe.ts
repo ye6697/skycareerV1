@@ -12,15 +12,23 @@ Deno.serve(async (req) => {
     const zipPath = new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url);
     const bytes = await Deno.readFile(zipPath);
 
-    return new Response(bytes, {
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': 'attachment; filename="SkyCareer_MSFS_Bridge_Windows.zip"'
-      }
+    // Use JSON payload because base44.functions.invoke does not reliably stream binary.
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      const slice = bytes.subarray(i, i + chunk);
+      binary += String.fromCharCode(...slice);
+    }
+    const base64 = btoa(binary);
+
+    return Response.json({
+      filename: 'SkyCareer_MSFS_Bridge_Windows.zip',
+      mime_type: 'application/zip',
+      base64,
+      byte_length: bytes.length,
     });
   } catch (error) {
     console.error('Error serving MSFS bridge exe zip:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
-
