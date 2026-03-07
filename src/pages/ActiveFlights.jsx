@@ -47,37 +47,48 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
-  });
-
-  const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
-  });
-
-  const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
-  });
-
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
-  });
-
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
       return companies[0];
     }
+  });
+
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['contracts', 'accepted', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ status: 'accepted', company_id: company.id }),
+    enabled: !!company?.id
+  });
+
+  const { data: inProgressContracts = [] } = useQuery({
+    queryKey: ['contracts', 'in_progress', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress', company_id: company.id }),
+    enabled: !!company?.id
+  });
+
+  const { data: completedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'completed', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ status: 'completed', company_id: company.id }),
+    enabled: !!company?.id
+  });
+
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', company?.id],
+    queryFn: () => base44.entities.Aircraft.filter({ status: 'available', company_id: company.id }),
+    enabled: !!company?.id
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', company?.id],
+    queryFn: () => base44.entities.Employee.filter({ status: 'available', company_id: company.id }),
+    enabled: !!company?.id
   });
 
   const startFlightMutation = useMutation({
@@ -99,10 +110,11 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
-        filter(([_, id]) => id).
+        filter(([_, id]) => id && id !== 'none').
         map(([role, id]) => ({ role, employee_id: id })),
         departure_time: new Date().toISOString(),
         status: 'in_flight'
@@ -196,39 +208,59 @@ export default function ActiveFlights() {
   const [activeTab, setActiveTab] = useState('active');
 
   return (
-    <div className="h-full flex flex-col gap-2">
-      {/* Zibo Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
-        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">Aktive Flüge</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded border border-slate-800">
-            <div className={`w-2 h-2 rounded-full ${company?.xplane_connection_status === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-slate-600'}`} />
-            <span className="text-[9px] font-mono uppercase text-slate-400">
-              {company?.xplane_connection_status === 'connected' ? 'Verbunden' : 'Nicht verbunden'}
-            </span>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8">
 
-      <div className="flex-1 overflow-y-auto min-h-0">
+          <h1 className="text-3xl font-bold text-white">Aktive Flüge</h1>
+          <p className="text-slate-400">Bereite Flüge vor und starte sie mit X-Plane 12</p>
+        </motion.div>
+
+        {/* Connection Status */}
+        <Card className="p-4 mb-6 bg-slate-900 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${
+              company?.xplane_connection_status === 'connected' ?
+              'bg-emerald-400 animate-pulse' :
+              'bg-slate-600'}`
+              } />
+              <span>
+                X-Plane 12: {company?.xplane_connection_status === 'connected' ? 'Verbunden' : 'Nicht verbunden'}
+              </span>
+            </div>
+            {company?.xplane_connection_status !== 'connected' &&
+            <p className="text-sm text-slate-300">
+                Plugin-Verbindung erforderlich für Live-Flugdaten
+              </p>
+            }
+          </div>
+        </Card>
+
         {/* Tabs */}
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-4 mb-6 border-b border-slate-700">
           <button
             onClick={() => setActiveTab('active')}
-            className={`px-3 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
+            className={`pb-3 px-4 font-medium transition-colors ${
             activeTab === 'active' ?
-            'bg-cyan-900/40 text-cyan-400 border border-cyan-900/50' :
-            'bg-slate-900 text-slate-500 hover:text-cyan-400 border border-slate-800'}`
+            'border-b-2 border-blue-500 text-blue-400' :
+            'text-slate-400 hover:text-white'}`
             }>
+
             Aktive Flüge ({allContracts.length})
           </button>
           <button
             onClick={() => setActiveTab('completed')}
-            className={`px-3 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
+            className={`pb-3 px-4 font-medium transition-colors ${
             activeTab === 'completed' ?
-            'bg-cyan-900/40 text-cyan-400 border border-cyan-900/50' :
-            'bg-slate-900 text-slate-500 hover:text-cyan-400 border border-slate-800'}`
+            'border-b-2 border-emerald-500 text-emerald-400' :
+            'text-slate-400 hover:text-white'}`
             }>
+
             Abgeschlossene Flüge ({completedContracts.length})
           </button>
         </div>
@@ -490,14 +522,14 @@ export default function ActiveFlights() {
                         </span>
                       </div>
                       <Select
-                        value={selectedCrew[role]}
-                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
+                        value={selectedCrew[role] || "none"}
+                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value === 'none' ? '' : value })}>
 
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
+                          <SelectItem value="none">-- Nicht zuweisen --</SelectItem>
                           {roleEmployees.map((emp) =>
                           <SelectItem key={emp.id} value={emp.id}>
                               {emp.name} (Skill: {emp.skill_rating})
