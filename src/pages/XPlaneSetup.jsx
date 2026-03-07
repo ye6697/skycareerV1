@@ -101,12 +101,27 @@ export default function XPlaneSetup() {
   const downloadMsfsBridgeExe = async () => {
     setDownloading(true);
     try {
-      const url = `${window.location.origin}/downloads/SkyCareer_MSFS_Bridge_Windows.zip`;
+      const basePath = (import.meta?.env?.BASE_URL || '/');
+      const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+      const fileUrl = `${window.location.origin}${normalizedBase}downloads/SkyCareer_MSFS_Bridge_Windows.zip`;
+
+      const res = await fetch(fileUrl, { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      // ZIP signature check ("PK")
+      if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+        throw new Error('Invalid ZIP response');
+      }
+      const blob = new Blob([bytes], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'SkyCareer_MSFS_Bridge_Windows.zip';
       document.body.appendChild(a);
       a.click();
+      window.URL.revokeObjectURL(url);
       a.remove();
     } catch (error) {
       console.error('Error downloading MSFS bridge exe zip (static):', error);
