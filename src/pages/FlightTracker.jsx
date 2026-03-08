@@ -2005,8 +2005,7 @@ export default function FlightTracker() {
             {/* Controls */}
             {flightPhase !== 'completed' && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">{t('flight_control', lang)}</h3>
-                
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-emerald-400"><PlaneTakeoff className="w-5 h-5 text-emerald-400" />{t('flight_control', lang)}</h3>
                 {flightPhase === 'preflight' && (
                   <div className="space-y-4">
                     <Button 
