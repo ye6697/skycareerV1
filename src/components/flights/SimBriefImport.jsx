@@ -309,7 +309,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
                 {importedData.departure_airport}{importedData.departure_runway ? ` / ${importedData.departure_runway}` : ''}
               </p>
             </div>
-            <div className="p-2 bg-slate-800/60 border border-slate-700/50 rounded-lg">
+            <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
               <span className="text-[10px] text-slate-500 uppercase">ARR</span>
               <p className="text-sm font-mono font-bold text-amber-400">
                 {importedData.arrival_airport}{importedData.arrival_runway ? ` / ${importedData.arrival_runway}` : ''}
