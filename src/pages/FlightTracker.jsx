@@ -1740,7 +1740,7 @@ export default function FlightTracker() {
             <div className="lg:col-span-2 space-y-6">
                 {/* Main Instruments */}
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-400">
                 <Gauge className="w-5 h-5 text-blue-400" />
                 {t('flight_data', lang)}
               </h3>
