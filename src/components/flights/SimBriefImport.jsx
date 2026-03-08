@@ -332,7 +332,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             </div>
           </div>
 
-          <div className="p-2 bg-purple-950/40 border border-purple-900/30 rounded-lg">
+          <div className="p-2 bg-slate-800/60 border border-slate-700/50 rounded-lg">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-slate-500">Route</span>
               <Button variant="ghost" size="sm" className="h-5 px-1 text-xs text-slate-400" onClick={copyRoute}>
