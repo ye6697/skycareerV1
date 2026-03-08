@@ -1878,7 +1878,8 @@ export default function FlightTracker() {
                 </div>
               </Card>
 
-              {/* Active Failures removed - shown in Events section */}
+              {/* Weather Display */}
+              <WeatherDisplay raw={xplaneLog?.raw_data} />
 
               {/* Compact Raw X-Plane Data */}
               {xplaneLog?.raw_data && (
