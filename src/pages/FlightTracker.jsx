@@ -1702,22 +1702,22 @@ export default function FlightTracker() {
         )}
 
         {contract && (
-          <div className="mb-4">
+          <div className="mb-6">
             {/* Progress */}
-            <div className="flex items-center justify-between mb-1 text-[10px] font-mono uppercase text-cyan-600">
-              <span className="flex items-center gap-1">
-                <PlaneTakeoff className="w-3 h-3 text-cyan-500" />
+            <div className="flex items-center justify-between mb-2 text-sm font-mono uppercase text-cyan-500">
+              <span className="flex items-center gap-2">
+                <PlaneTakeoff className="w-4 h-4 text-cyan-400" />
                 {contract.departure_airport}
               </span>
-              <span className="flex items-center gap-1">
-                <PlaneLanding className="w-3 h-3 text-emerald-500" />
+              <span className="flex items-center gap-2">
+                <PlaneLanding className="w-4 h-4 text-emerald-400" />
                 {contract.arrival_airport}
               </span>
             </div>
-            <Progress value={distanceProgress} className="h-1.5 bg-slate-800" />
-            <div className="mt-1 flex items-center justify-between text-[9px] font-mono text-slate-500 uppercase">
+            <Progress value={distanceProgress} className="h-3 bg-slate-800" />
+            <div className="mt-2 flex items-center justify-between text-xs font-mono text-slate-400 uppercase">
               <span>{Math.round(distanceInfo.totalNm - distanceInfo.remainingNm)} NM {t('flown', lang)}</span>
-              <span className="font-semibold text-cyan-400">
+              <span className="font-bold text-cyan-400 text-sm">
                 {distanceInfo.remainingNm} NM
               </span>
               <span>{distanceInfo.totalNm} NM {t('total', lang)}</span>
