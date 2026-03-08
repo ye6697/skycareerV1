@@ -1853,7 +1853,7 @@ export default function FlightTracker() {
             {/* Fuel & Status */}
             <Card className="p-6 bg-slate-800/50 border-slate-700">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
+                <h3 className="text-lg font-semibold flex items-center gap-2 text-amber-400">
                   <Fuel className="w-5 h-5 text-amber-400" />
                   {t('fuel_title', lang)}
                 </h3>
