@@ -318,21 +318,21 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-1.5 bg-slate-900 rounded">
-              <span className="text-[10px] text-slate-500">FL</span>
+            <div className="p-1.5 bg-slate-700 rounded">
+              <span className="text-[10px] text-slate-400">FL</span>
               <p className="text-xs font-mono font-bold text-white">{Math.round((importedData.cruise_altitude || 0) / 100)}</p>
             </div>
-            <div className="p-1.5 bg-slate-900 rounded">
-              <span className="text-[10px] text-slate-500">Distanz</span>
+            <div className="p-1.5 bg-slate-700 rounded">
+              <span className="text-[10px] text-slate-400">Distanz</span>
               <p className="text-xs font-mono font-bold text-white">{importedData.distance_nm} NM</p>
             </div>
-            <div className="p-1.5 bg-slate-900 rounded">
-              <span className="text-[10px] text-slate-500">WPTs</span>
+            <div className="p-1.5 bg-slate-700 rounded">
+              <span className="text-[10px] text-slate-400">WPTs</span>
               <p className="text-xs font-mono font-bold text-white">{importedData.waypoints?.length || 0}</p>
             </div>
           </div>
 
-          <div className="p-2 bg-slate-900 rounded-lg">
+          <div className="p-2 bg-slate-700 rounded-lg">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-slate-500">Route</span>
               <Button variant="ghost" size="sm" className="h-5 px-1 text-xs text-slate-400" onClick={copyRoute}>
