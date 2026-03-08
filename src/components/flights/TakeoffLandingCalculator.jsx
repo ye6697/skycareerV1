@@ -58,10 +58,54 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     setSimLoading(false);
   }, [lang]);
 
+  // Normalize raw sim data from any simulator (X-Plane 12, MSFS 2020/2024)
+  const normalizeSimData = (raw) => {
+    if (!raw) return null;
+    const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && v !== '') return v; } return null; };
+
+    // Weight: try kg first, then convert from lbs
+    let total_weight_kg = pick(raw.total_weight_kg, raw.gross_weight_kg, raw.weight_kg);
+    if (!total_weight_kg) {
+      const lbs = pick(raw.total_weight_lbs, raw.gross_weight_lbs, raw.weight_lbs, raw.total_weight_pounds, raw.gross_weight_pounds);
+      if (lbs) total_weight_kg = lbs * 0.453592;
+    }
+
+    // Temperature
+    const oat_c = pick(raw.oat_c, raw.oat, raw.outside_air_temp_c, raw.temperature_c, raw.ambient_temperature, raw.outside_temperature, raw.temperature, raw.ambient_temp_c);
+
+    // QNH/Baro
+    let baro_setting = pick(raw.baro_setting, raw.qnh, raw.altimeter_setting, raw.baro, raw.baro_hpa);
+    if (!baro_setting) {
+      const inHg = pick(raw.kohlsman_setting_hg, raw.altimeter_setting_hg, raw.baro_setting_inhg);
+      if (inHg) baro_setting = inHg * 33.8639;
+    }
+
+    // Wind
+    let wind_speed_kts = pick(raw.wind_speed_kts, raw.wind_speed, raw.windspeed_kts, raw.ambient_wind_speed, raw.wind_velocity);
+    if (!wind_speed_kts && raw.ambient_wind_x !== undefined && raw.ambient_wind_z !== undefined) {
+      wind_speed_kts = Math.sqrt(raw.ambient_wind_x ** 2 + raw.ambient_wind_z ** 2) * 1.94384;
+    }
+    const wind_dir = pick(raw.wind_direction, raw.wind_dir, raw.wind_heading, raw.ambient_wind_direction, raw.wind_deg);
+
+    return {
+      ...raw,
+      aircraft_icao: pick(raw.aircraft_icao),
+      total_weight_kg,
+      oat_c,
+      baro_setting,
+      wind_speed_kts,
+      wind_dir,
+      ground_elevation_ft: pick(raw.ground_elevation_ft, raw.elevation_ft, raw.airport_elevation_ft, raw.ground_altitude),
+    };
+  };
+
   // Use xplaneData prop directly if passed
   useEffect(() => {
-    if (xplaneData && (xplaneData.total_weight_kg > 0 || xplaneData.oat_c !== undefined)) {
-      setSimData(xplaneData);
+    if (xplaneData) {
+      const normalized = normalizeSimData(xplaneData);
+      if (normalized && (normalized.total_weight_kg > 0 || normalized.oat_c !== undefined || normalized.aircraft_icao)) {
+        setSimData(normalized);
+      }
     }
   }, [xplaneData]);
 
