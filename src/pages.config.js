@@ -67,6 +67,7 @@ import PerformanceCalculator from './pages/PerformanceCalculator';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import FreeFlight from './pages/FreeFlight';
 import __Layout from './Layout.jsx';
 
 
@@ -91,6 +92,7 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "FreeFlight": FreeFlight,
 }
 
 export const pagesConfig = {
