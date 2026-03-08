@@ -309,7 +309,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
                 {importedData.departure_airport}{importedData.departure_runway ? ` / ${importedData.departure_runway}` : ''}
               </p>
             </div>
-            <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+            <div className="p-2 bg-slate-800/60 border border-slate-700/50 rounded-lg">
               <span className="text-[10px] text-slate-500 uppercase">ARR</span>
               <p className="text-sm font-mono font-bold text-amber-400">
                 {importedData.arrival_airport}{importedData.arrival_runway ? ` / ${importedData.arrival_runway}` : ''}
@@ -318,15 +318,15 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-1.5 bg-amber-500/10 border border-amber-500/20 rounded">
+            <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
               <span className="text-[10px] text-slate-500 uppercase">FL</span>
               <p className="text-xs font-mono font-bold text-amber-400">{Math.round((importedData.cruise_altitude || 0) / 100)}</p>
             </div>
-            <div className="p-1.5 bg-amber-500/10 border border-amber-500/20 rounded">
+            <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
               <span className="text-[10px] text-slate-500 uppercase">Distanz</span>
               <p className="text-xs font-mono font-bold text-amber-400">{importedData.distance_nm} NM</p>
             </div>
-            <div className="p-1.5 bg-amber-500/10 border border-amber-500/20 rounded">
+            <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
               <span className="text-[10px] text-slate-500 uppercase">WPTs</span>
               <p className="text-xs font-mono font-bold text-amber-400">{importedData.waypoints?.length || 0}</p>
             </div>
