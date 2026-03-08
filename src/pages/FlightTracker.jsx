@@ -1745,21 +1745,21 @@ export default function FlightTracker() {
                 {t('flight_data', lang)}
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('altitude', lang)}</p>
                   <p className="text-2xl font-mono font-bold text-blue-400">
                     {Math.round(flightData.altitude).toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-500">ft</p>
                 </div>
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('speed', lang)}</p>
                   <p className="text-2xl font-mono font-bold text-emerald-400">
                     {Math.round(flightData.speed)}
                   </p>
                   <p className="text-xs text-slate-500">kts TAS</p>
                 </div>
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('vertical_speed', lang)}</p>
                   <p className={`text-2xl font-mono font-bold ${
                     flightData.verticalSpeed > 0 ? 'text-emerald-400' : 'text-amber-400'
@@ -1769,7 +1769,7 @@ export default function FlightTracker() {
                   </p>
                   <p className="text-xs text-slate-500">ft/min</p>
                 </div>
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('g_force', lang)}</p>
                   <p className={`text-2xl font-mono font-bold ${
                     flightData.gForce < 1.3 ? 'text-emerald-400' :
@@ -1860,13 +1860,13 @@ export default function FlightTracker() {
                 <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-slate-900 rounded text-center">
+                <div className="p-2 bg-slate-800 rounded text-center">
                   <p className="text-xs text-slate-400">{t('percent', lang)}</p>
                   <p className="text-lg font-mono font-bold text-amber-400">
                     {Math.round(flightData.fuel)}%
                   </p>
                 </div>
-                <div className="p-2 bg-slate-900 rounded text-center">
+                <div className="p-2 bg-slate-800 rounded text-center">
                   <p className="text-xs text-slate-400">{t('remaining', lang)}</p>
                   <p className="text-lg font-mono font-bold text-amber-400">
                     {Math.round(flightData.fuelKg).toLocaleString()} kg
