@@ -249,6 +249,7 @@ export default function Dashboard() {
           { name: t('nav_employees', lang), icon: Users, path: "Employees", color: "text-indigo-400" },
           { name: t('nav_finances', lang), icon: DollarSign, path: "Finances", color: "text-amber-400" },
           { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory", color: "text-purple-400" },
+          { name: "FREE FLIGHT", icon: Plane, path: "FreeFlight", color: "text-violet-400" },
           { name: "FLIGHT MAP", icon: Map, path: "FlightMap", color: "text-emerald-500" },
           { name: "PERFORMANCE", icon: Calculator, path: "PerformanceCalculator", color: "text-amber-500" },
           { name: "SETUP", icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
