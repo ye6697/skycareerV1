@@ -1383,7 +1383,10 @@ export default function FlightTracker() {
           {company?.xplane_connection_status === 'connected' && (
             <Badge className="bg-emerald-900/40 text-emerald-400 border-emerald-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              X-Plane Live
+              {xplaneLog?.raw_data?.simulator === 'msfs' ? 'MSFS Live' :
+               xplaneLog?.raw_data?.simulator === 'msfs2024' ? 'MSFS 2024 Live' :
+               xplaneLog?.raw_data?.simulator === 'xplane' || xplaneLog?.raw_data?.simulator === 'xplane12' ? 'X-Plane Live' :
+               xplaneLog?.raw_data?.simulator ? `${xplaneLog.raw_data.simulator} Live` : 'Sim Live'}
             </Badge>
           )}
           <Badge className={`h-7 rounded text-[10px] font-mono uppercase ${
