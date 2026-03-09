@@ -385,6 +385,11 @@ export default function FreeFlight() {
             )}
           </Card>
 
+          {/* Advanced Landing Score (shows after touchdown) */}
+          {advancedLandingResult && (
+            <AdvancedLandingScore landingResult={advancedLandingResult} />
+          )}
+
           {/* Fuel */}
           <Card className="p-3 bg-slate-900/80 border-slate-700">
             <div className="flex items-center justify-between mb-1">
