@@ -61,13 +61,13 @@ import Fleet from './pages/Fleet';
 import FlightHistory from './pages/FlightHistory';
 import FlightMap from './pages/FlightMap';
 import FlightTracker from './pages/FlightTracker';
+import FreeFlight from './pages/FreeFlight';
 import GameSettingsAdmin from './pages/GameSettingsAdmin';
 import Landing from './pages/Landing';
 import PerformanceCalculator from './pages/PerformanceCalculator';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
-import FreeFlight from './pages/FreeFlight';
 import __Layout from './Layout.jsx';
 
 
@@ -86,13 +86,13 @@ export const PAGES = {
     "FlightHistory": FlightHistory,
     "FlightMap": FlightMap,
     "FlightTracker": FlightTracker,
+    "FreeFlight": FreeFlight,
     "GameSettingsAdmin": GameSettingsAdmin,
     "Landing": Landing,
     "PerformanceCalculator": PerformanceCalculator,
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
-    "FreeFlight": FreeFlight,
 }
 
 export const pagesConfig = {

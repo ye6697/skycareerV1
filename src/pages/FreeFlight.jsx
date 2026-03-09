@@ -12,6 +12,8 @@ import { motion } from "framer-motion";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import SimBriefImport from "@/components/flights/SimBriefImport";
 import WeatherDisplay from "@/components/flights/WeatherDisplay";
+import AdvancedLandingScore from "@/components/flights/AdvancedLandingScore";
+import { calculateAdvancedLandingScore } from "@/components/flights/LandingScoreCalculator";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
