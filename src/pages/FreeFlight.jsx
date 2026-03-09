@@ -41,6 +41,12 @@ export default function FreeFlight() {
     }
   });
 
+  // Approach data tracking for advanced landing score
+  const vsHistoryRef = useRef([]);        // V/S readings before touchdown
+  const speedAfterTDRef = useRef([]);     // Speed readings after touchdown
+  const touchdownCapturedRef = useRef(false);
+  const [advancedLandingResult, setAdvancedLandingResult] = useState(null);
+
   const { data: company } = useQuery({
     queryKey: ['company-ff'],
     queryFn: async () => {
