@@ -786,6 +786,9 @@ Deno.serve(async (req) => {
       simbrief_arrival_coords: data.simbrief_arrival_coords || (flight.xplane_data?.simbrief_arrival_coords || null),
       // Flight path for map visualization
       flight_path: newPath,
+      // Advanced landing metrics
+      vs_history: vsHistory,
+      speed_after_touchdown: speedAfterTouchdown,
       timestamp: new Date().toISOString()
     };
 
