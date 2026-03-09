@@ -686,19 +686,6 @@ Deno.serve(async (req) => {
     const isNowAirborne = !on_ground && altitude > 50;
     const hasBeenAirborne = wasAirborne || isNowAirborne;
 
-    // --- Advanced landing metrics tracking ---
-    // Track V/S history during approach (below 2500ft, descending)
-    let vsHistory = flight.xplane_data?.vs_history || [];
-    if (isNowAirborne && altitude < 2500 && vertical_speed < 0) {
-      vsHistory = [...vsHistory, vertical_speed].slice(-30);
-    }
-    // Track speed after touchdown for braking analysis
-    let speedAfterTouchdown = flight.xplane_data?.speed_after_touchdown || [];
-    const justTouchedDown = on_ground && hasBeenAirborne;
-    if (justTouchedDown && speed > 5) {
-      speedAfterTouchdown = [...speedAfterTouchdown, speed].slice(-25);
-    }
-
     // Track initial fuel for consumption calculation
     const initial_fuel_kg = flight.xplane_data?.initial_fuel_kg || fuel_kg || 0;
 
@@ -786,9 +773,6 @@ Deno.serve(async (req) => {
       simbrief_arrival_coords: data.simbrief_arrival_coords || (flight.xplane_data?.simbrief_arrival_coords || null),
       // Flight path for map visualization
       flight_path: newPath,
-      // Advanced landing metrics
-      vs_history: vsHistory,
-      speed_after_touchdown: speedAfterTouchdown,
       timestamp: new Date().toISOString()
     };
 

@@ -12,8 +12,6 @@ import { motion } from "framer-motion";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import SimBriefImport from "@/components/flights/SimBriefImport";
 import WeatherDisplay from "@/components/flights/WeatherDisplay";
-import AdvancedLandingScore from "@/components/flights/AdvancedLandingScore";
-import { calculateAdvancedLandingScore } from "@/components/flights/LandingScoreCalculator";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -40,12 +38,6 @@ export default function FreeFlight() {
       crash: false, harsh_controls: false, high_g_force: false, hard_landing: false
     }
   });
-
-  // Approach data tracking for advanced landing score
-  const vsHistoryRef = useRef([]);        // V/S readings before touchdown
-  const speedAfterTDRef = useRef([]);     // Speed readings after touchdown
-  const touchdownCapturedRef = useRef(false);
-  const [advancedLandingResult, setAdvancedLandingResult] = useState(null);
 
   const { data: company } = useQuery({
     queryKey: ['company-ff'],
@@ -205,60 +197,6 @@ export default function FreeFlight() {
     });
   }, [xplaneLog]);
 
-  // Track approach V/S history and post-touchdown speed for advanced scoring
-  useEffect(() => {
-    if (!xplaneLog?.raw_data) return;
-    const xp = xplaneLog.raw_data;
-    const isAirborne = !xp.on_ground && (xp.altitude || 0) > 10;
-    const wasAirborne = flightData.wasAirborne;
-
-    // While airborne and descending below 2000 AGL-ish, track V/S for flare analysis
-    if (isAirborne && (xp.altitude || 0) < 2500 && (xp.vertical_speed || 0) < 0) {
-      vsHistoryRef.current.push(xp.vertical_speed || 0);
-      if (vsHistoryRef.current.length > 30) vsHistoryRef.current = vsHistoryRef.current.slice(-30);
-    }
-
-    // Touchdown just happened
-    if (xp.on_ground && wasAirborne && !touchdownCapturedRef.current) {
-      touchdownCapturedRef.current = true;
-      speedAfterTDRef.current = [xp.speed || 0];
-    }
-
-    // After touchdown, track speed for braking analysis
-    if (touchdownCapturedRef.current && xp.on_ground) {
-      speedAfterTDRef.current.push(xp.speed || 0);
-      if (speedAfterTDRef.current.length > 20) {
-        // Enough data – calculate advanced score
-        const result = calculateAdvancedLandingScore({
-          touchdownVs: flightData.landingVs || xp.touchdown_vspeed || 0,
-          landingGForce: flightData.landingGForce || xp.landing_g_force || xp.g_force || 1.0,
-          vsHistory: vsHistoryRef.current,
-          headingAtTouchdown: flightData.heading || xp.heading || 0,
-          windDirection: xp.wind_direction || 0,
-          windSpeed: xp.wind_speed_kts || 0,
-          runwayHeading: null, // no runway data available
-          speedAfterTouchdown: speedAfterTDRef.current,
-        });
-        setAdvancedLandingResult(result);
-      }
-    }
-
-    // Calculate score as soon as we have a landing + at least 5 braking readings
-    if (touchdownCapturedRef.current && !advancedLandingResult && speedAfterTDRef.current.length >= 5) {
-      const result = calculateAdvancedLandingScore({
-        touchdownVs: flightData.landingVs || xp.touchdown_vspeed || 0,
-        landingGForce: flightData.landingGForce || xp.landing_g_force || xp.g_force || 1.0,
-        vsHistory: vsHistoryRef.current,
-        headingAtTouchdown: flightData.heading || xp.heading || 0,
-        windDirection: xp.wind_direction || 0,
-        windSpeed: xp.wind_speed_kts || 0,
-        runwayHeading: null,
-        speedAfterTouchdown: speedAfterTDRef.current,
-      });
-      setAdvancedLandingResult(result);
-    }
-  }, [xplaneLog, flightData.wasAirborne, flightData.landingVs, flightData.landingGForce]);
-
   const raw = xplaneLog?.raw_data || {};
   const isConnected = company?.xplane_connection_status === 'connected';
 
@@ -384,11 +322,6 @@ export default function FreeFlight() {
               </div>
             )}
           </Card>
-
-          {/* Advanced Landing Score (shows after touchdown) */}
-          {advancedLandingResult && (
-            <AdvancedLandingScore landingResult={advancedLandingResult} />
-          )}
 
           {/* Fuel */}
           <Card className="p-3 bg-slate-900/80 border-slate-700">
