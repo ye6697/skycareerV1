@@ -191,6 +191,22 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
           </div>
         )}
       </motion.div>
+
+      {/* Advanced multi-factor score if approach data available */}
+      {flight.xplane_data?.vs_history && (
+        <AdvancedLandingScore
+          landingResult={calculateAdvancedLandingScore({
+            touchdownVs: landingVs,
+            landingGForce: landingGforce,
+            vsHistory: flight.xplane_data.vs_history || [],
+            headingAtTouchdown: flight.xplane_data.heading || 0,
+            windDirection: flight.xplane_data.wind_direction || 0,
+            windSpeed: flight.xplane_data.wind_speed_kts || 0,
+            runwayHeading: null,
+            speedAfterTouchdown: flight.xplane_data.speed_after_touchdown || [],
+          })}
+        />
+      )}
     </Card>
   );
 }
