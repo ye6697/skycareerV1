@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import AdvancedLandingScore from './AdvancedLandingScore';
+import { calculateAdvancedLandingScore } from './LandingScoreCalculator';
 
 export default function LandingQualityVisual({ flight, gameSettings }) {
   const landingVs = Math.abs(flight.landing_vs || 0);
