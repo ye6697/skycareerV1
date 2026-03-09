@@ -205,6 +205,60 @@ export default function FreeFlight() {
     });
   }, [xplaneLog]);
 
+  // Track approach V/S history and post-touchdown speed for advanced scoring
+  useEffect(() => {
+    if (!xplaneLog?.raw_data) return;
+    const xp = xplaneLog.raw_data;
+    const isAirborne = !xp.on_ground && (xp.altitude || 0) > 10;
+    const wasAirborne = flightData.wasAirborne;
+
+    // While airborne and descending below 2000 AGL-ish, track V/S for flare analysis
+    if (isAirborne && (xp.altitude || 0) < 2500 && (xp.vertical_speed || 0) < 0) {
+      vsHistoryRef.current.push(xp.vertical_speed || 0);
+      if (vsHistoryRef.current.length > 30) vsHistoryRef.current = vsHistoryRef.current.slice(-30);
+    }
+
+    // Touchdown just happened
+    if (xp.on_ground && wasAirborne && !touchdownCapturedRef.current) {
+      touchdownCapturedRef.current = true;
+      speedAfterTDRef.current = [xp.speed || 0];
+    }
+
+    // After touchdown, track speed for braking analysis
+    if (touchdownCapturedRef.current && xp.on_ground) {
+      speedAfterTDRef.current.push(xp.speed || 0);
+      if (speedAfterTDRef.current.length > 20) {
+        // Enough data – calculate advanced score
+        const result = calculateAdvancedLandingScore({
+          touchdownVs: flightData.landingVs || xp.touchdown_vspeed || 0,
+          landingGForce: flightData.landingGForce || xp.landing_g_force || xp.g_force || 1.0,
+          vsHistory: vsHistoryRef.current,
+          headingAtTouchdown: flightData.heading || xp.heading || 0,
+          windDirection: xp.wind_direction || 0,
+          windSpeed: xp.wind_speed_kts || 0,
+          runwayHeading: null, // no runway data available
+          speedAfterTouchdown: speedAfterTDRef.current,
+        });
+        setAdvancedLandingResult(result);
+      }
+    }
+
+    // Calculate score as soon as we have a landing + at least 5 braking readings
+    if (touchdownCapturedRef.current && !advancedLandingResult && speedAfterTDRef.current.length >= 5) {
+      const result = calculateAdvancedLandingScore({
+        touchdownVs: flightData.landingVs || xp.touchdown_vspeed || 0,
+        landingGForce: flightData.landingGForce || xp.landing_g_force || xp.g_force || 1.0,
+        vsHistory: vsHistoryRef.current,
+        headingAtTouchdown: flightData.heading || xp.heading || 0,
+        windDirection: xp.wind_direction || 0,
+        windSpeed: xp.wind_speed_kts || 0,
+        runwayHeading: null,
+        speedAfterTouchdown: speedAfterTDRef.current,
+      });
+      setAdvancedLandingResult(result);
+    }
+  }, [xplaneLog, flightData.wasAirborne, flightData.landingVs, flightData.landingGForce]);
+
   const raw = xplaneLog?.raw_data || {};
   const isConnected = company?.xplane_connection_status === 'connected';
 
