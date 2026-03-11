@@ -693,14 +693,21 @@ Deno.serve(async (req) => {
     // Record positions both airborne AND on ground (for takeoff/landing path visualization)
     const existingPath = flight.xplane_data?.flight_path || [];
     let newPath = existingPath;
-    if (latitude && longitude) {
-      const lastPt = existingPath[existingPath.length - 1];
+    // Only record path if we have a valid position (not near 0,0 which is default/uninitialized)
+    const hasValidCoords = Number.isFinite(latitude) && Number.isFinite(longitude) 
+      && (Math.abs(latitude) > 0.5 || Math.abs(longitude) > 0.5);
+    if (hasValidCoords) {
+      // Filter out any bad initial points near 0,0 from existing path
+      const cleanPath = existingPath.filter(p => Math.abs(p[0]) > 0.5 || Math.abs(p[1]) > 0.5);
+      const lastPt = cleanPath[cleanPath.length - 1];
       // Add point only if moved enough (reduce data) - tighter threshold on ground for taxi path
       const threshold = on_ground ? 0.001 : 0.005;
       if (!lastPt || Math.abs(lastPt[0] - latitude) > threshold || Math.abs(lastPt[1] - longitude) > threshold) {
-        newPath = [...existingPath, [latitude, longitude]];
+        newPath = [...cleanPath, [latitude, longitude]];
         // Keep max 800 points (increased for ground segments)
         if (newPath.length > 800) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
+      } else {
+        newPath = cleanPath;
       }
     }
 
