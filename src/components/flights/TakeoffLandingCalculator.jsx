@@ -272,6 +272,14 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
             {simLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading...</> : <><Download className="w-4 h-4" /> Load from X-Plane / MSFS</>}
           </Button>
 
+          {hasSimData && simData.weight_estimated && (
+            <div className="flex items-start gap-2 p-2 bg-blue-900/20 border border-blue-700/30 rounded text-[10px] text-blue-400">
+              <span>ℹ {lang === 'de'
+                ? `Gewicht geschätzt aus OEW + Fuel (${simData.aircraft_icao}): ~${Math.round(simData.total_weight_kg).toLocaleString()} kg. OAT/QNH nutzt Standardwerte.`
+                : `Weight estimated from OEW + Fuel (${simData.aircraft_icao}): ~${Math.round(simData.total_weight_kg).toLocaleString()} kg. OAT/QNH uses defaults.`
+              }</span>
+            </div>
+          )}
           {hasSimData && !simData.total_weight_kg && !simData.oat_c && !simData.baro_setting && (
             <div className="flex items-start gap-2 p-2 bg-amber-900/20 border border-amber-700/30 rounded text-[10px] text-amber-400">
               <span>⚠ {lang === 'de'
