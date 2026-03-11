@@ -102,14 +102,23 @@ Deno.serve(async (req) => {
       else if (raw.oat_c !== undefined || raw.baro_setting !== undefined) sim_type = 'xplane';
     }
 
+    // For active flights, xplane_data already has normalized performance fields
+    // that receiveXPlaneData persists. These are more reliable than raw XPlaneLog data.
+    const final_weight = total_weight_kg || pick(xd.total_weight_kg) || null;
+    const final_oat = oat_c ?? pick(xd.oat_c) ?? null;
+    const final_baro = baro_setting || pick(xd.baro_setting) || null;
+    const final_wind_speed = wind_speed_kts ?? pick(xd.wind_speed_kts) ?? null;
+    const final_wind_dir = wind_dir ?? pick(xd.wind_direction, xd.wind_dir) ?? null;
+    const final_elev = ground_elevation_ft || pick(xd.ground_elevation_ft) || null;
+
     const result = {
       aircraft_icao: pick(raw.aircraft_icao, xd.aircraft_icao),
-      total_weight_kg,
-      oat_c,
-      ground_elevation_ft,
-      baro_setting,
-      wind_speed_kts,
-      wind_dir,
+      total_weight_kg: final_weight,
+      oat_c: final_oat,
+      ground_elevation_ft: final_elev,
+      baro_setting: final_baro,
+      wind_speed_kts: final_wind_speed,
+      wind_dir: final_wind_dir,
       turbulence,
       rain_intensity,
       visibility_m,
@@ -120,6 +129,7 @@ Deno.serve(async (req) => {
       fuel_kg: pick(raw.fuel_kg, xd.fuel_kg),
       simulator: sim_type,
       timestamp: log.created_date,
+      has_active_flight: !!flight,
       // Include the full raw_data so frontend can inspect if needed
       _raw_fields: Object.keys(raw),
     };
