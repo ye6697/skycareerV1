@@ -22,6 +22,7 @@ export default function FreeFlight() {
   const [xplaneLog, setXplaneLog] = useState(null);
   const [dataAge, setDataAge] = useState(null);
   const [simbriefRoute, setSimbriefRoute] = useState(null);
+  const [localFlightPath, setLocalFlightPath] = useState([]);
   const lastDataRef = useRef(null);
   const lastTimestampRef = useRef(null);
 
@@ -103,6 +104,26 @@ export default function FreeFlight() {
     }, 500);
     return () => clearInterval(ticker);
   }, []);
+
+  // Build local flight path from live positions (XPlaneLog doesn't store flight_path)
+  useEffect(() => {
+    if (!xplaneLog?.raw_data) return;
+    const xp = xplaneLog.raw_data;
+    const lat = xp.latitude;
+    const lon = xp.longitude;
+    if (lat && lon) {
+      setLocalFlightPath(prev => {
+        const last = prev[prev.length - 1];
+        const threshold = xp.on_ground ? 0.001 : 0.003;
+        if (!last || Math.abs(last[0] - lat) > threshold || Math.abs(last[1] - lon) > threshold) {
+          const updated = [...prev, [lat, lon]];
+          if (updated.length > 800) return updated.filter((_, i) => i % 2 === 0 || i === updated.length - 1);
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, [xplaneLog]);
 
   // Process X-Plane data into flight state (display-only, no DB writes)
   useEffect(() => {
@@ -366,7 +387,7 @@ export default function FreeFlight() {
             contract={null}
             waypoints={raw.fms_waypoints || []}
             routeWaypoints={simbriefRoute?.waypoints || []}
-            flightPath={raw.flight_path || []}
+            flightPath={localFlightPath}
             departureRunway={simbriefRoute?.departure_runway}
             arrivalRunway={simbriefRoute?.arrival_runway}
             departureCoords={simbriefRoute?.departure_coords}
