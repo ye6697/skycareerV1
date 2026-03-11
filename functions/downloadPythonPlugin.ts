@@ -94,6 +94,12 @@ class PythonInterface:
         self.datarefs['flap_ratio'] = xp.findDataRef("sim/flightmodel/controls/flaprat")
         self.datarefs['has_crashed'] = xp.findDataRef("sim/flightmodel2/misc/has_crashed")
         self.datarefs['vne'] = xp.findDataRef("sim/aircraft/view/acf_Vne")
+        self.datarefs['oat_c'] = xp.findDataRef("sim/weather/temperature_ambient_c")
+        self.datarefs['baro_setting'] = xp.findDataRef("sim/cockpit/misc/barometer_setting")
+        self.datarefs['wind_speed'] = xp.findDataRef("sim/weather/wind_speed_kt")
+        self.datarefs['wind_dir'] = xp.findDataRef("sim/weather/wind_direction_degt")
+        self.datarefs['ground_elevation'] = xp.findDataRef("sim/flightmodel/position/y_agl")
+        self.datarefs['total_weight'] = xp.findDataRef("sim/flightmodel/weight/m_total")
         
         xp.createFlightLoop(self.FlightLoopCallback, 1)
         return self.Name, self.Sig, self.Desc
@@ -128,6 +134,14 @@ class PythonInterface:
             flap_ratio = xp.getDataf(self.datarefs['flap_ratio'])
             has_crashed = xp.getDatai(self.datarefs['has_crashed']) == 1
             vne = xp.getDataf(self.datarefs['vne']) or 999
+            oat_c = xp.getDataf(self.datarefs['oat_c'])
+            baro_inhg = xp.getDataf(self.datarefs['baro_setting'])
+            baro_mb = round(baro_inhg * 33.8639, 1) if baro_inhg else None
+            wind_speed_kts = xp.getDataf(self.datarefs['wind_speed'])
+            wind_dir = xp.getDataf(self.datarefs['wind_dir'])
+            agl_m = xp.getDataf(self.datarefs['ground_elevation'])
+            ground_elev_ft = round((altitude / 3.28084 - agl_m) * 3.28084, 1) if agl_m else None
+            total_weight_kg = xp.getDataf(self.datarefs['total_weight'])
             
             engines_running = False
             engine_array = []
@@ -205,7 +219,13 @@ class PythonInterface:
                 'fuel_emergency': self.fuel_emergency,
                 'gear_up_landing': self.gear_up_landing,
                 'crash': self.crash,
-                'has_crashed': has_crashed
+                'has_crashed': has_crashed,
+                'oat_c': round(oat_c, 1) if oat_c is not None else None,
+                'baro_setting': baro_mb,
+                'wind_speed_kts': round(wind_speed_kts, 1) if wind_speed_kts is not None else None,
+                'wind_direction': round(wind_dir, 1) if wind_dir is not None else None,
+                'ground_elevation_ft': ground_elev_ft,
+                'total_weight_kg': round(total_weight_kg, 1) if total_weight_kg is not None else None
             }
             
             self.send_data(payload)
