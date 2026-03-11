@@ -111,9 +111,49 @@ Deno.serve(async (req) => {
     const final_wind_dir = wind_dir ?? pick(xd.wind_direction, xd.wind_dir) ?? null;
     const final_elev = ground_elevation_ft || pick(xd.ground_elevation_ft) || null;
 
+    // If plugin doesn't send weight but sends fuel_kg + aircraft_icao, estimate GWT
+    // by looking up the aircraft's OEW (operating empty weight) from known types
+    let estimated_weight = final_weight;
+    const acIcao = pick(raw.aircraft_icao, xd.aircraft_icao);
+    const fuelKg = pick(raw.fuel_kg, xd.fuel_kg);
+    if (!estimated_weight && fuelKg && acIcao) {
+      // Known OEW (Operating Empty Weight) in kg for common types
+      const oewTable = {
+        'C172': 767, 'C182': 880, 'C208': 2145, 'PA28': 680, 'SR22': 1050,
+        'DA40': 800, 'DA42': 1280, 'DA62': 1470, 'TBM9': 2100, 'PC12': 2845,
+        'B350': 4080, 'AT76': 13500, 'DH8D': 17745, 'CRJ9': 22300,
+        'E170': 21000, 'E175': 21800, 'E190': 28000, 'E195': 28970,
+        'A318': 39500, 'A319': 40800, 'A320': 42600, 'A321': 48500,
+        'A20N': 44300, 'A21N': 50100,
+        'B731': 28100, 'B732': 29000, 'B733': 31500, 'B734': 33200,
+        'B735': 31300, 'B736': 36400, 'B737': 37600, 'B738': 41400,
+        'B739': 42100, 'B38M': 45070, 'B39M': 45860,
+        '737': 41400, '738': 41400, '739': 42100, // short MSFS ICAO codes
+        'B752': 58400, 'B753': 62100,
+        'B763': 86070, 'B764': 92500,
+        'B772': 138100, 'B773': 160530, 'B77W': 167800, 'B77L': 155530,
+        'B744': 178756, 'B748': 197131, 'B788': 119950, 'B789': 128850, 'B78X': 135500,
+        'A332': 120600, 'A333': 125200, 'A339': 130000, 'A338': 129800,
+        'A343': 129000, 'A346': 177000, 'A359': 142400, 'A35K': 149000,
+        'A388': 276800, 'MD11': 131000,
+      };
+      const upperIcao = String(acIcao).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const oew = oewTable[upperIcao] || oewTable[upperIcao.slice(0, 4)] || oewTable[upperIcao.slice(0, 3)] || null;
+      if (oew) {
+        // Estimate: assume average passenger/cargo load from fuel percentage
+        // GWT ≈ OEW + fuel + estimated payload
+        // For a rough estimate: payload ≈ 70% of (MTOW - OEW - max_fuel)
+        // Simpler: OEW + fuel gives minimum, add ~60% payload estimate
+        const fuelPct = pick(raw.fuel_percentage, xd.fuel_percentage);
+        // Conservative estimate: OEW + fuel + moderate payload
+        const payloadEstimate = oew * 0.25; // ~25% of OEW as payload estimate
+        estimated_weight = Math.round(oew + fuelKg + payloadEstimate);
+      }
+    }
+
     const result = {
-      aircraft_icao: pick(raw.aircraft_icao, xd.aircraft_icao),
-      total_weight_kg: final_weight,
+      aircraft_icao: acIcao,
+      total_weight_kg: estimated_weight,
       oat_c: final_oat,
       ground_elevation_ft: final_elev,
       baro_setting: final_baro,
@@ -126,10 +166,11 @@ Deno.serve(async (req) => {
       latitude: pick(raw.latitude, xd.latitude),
       longitude: pick(raw.longitude, xd.longitude),
       on_ground: raw.on_ground ?? xd.on_ground ?? true,
-      fuel_kg: pick(raw.fuel_kg, xd.fuel_kg),
+      fuel_kg: fuelKg,
       simulator: sim_type,
       timestamp: log.created_date,
       has_active_flight: !!flight,
+      weight_estimated: !final_weight && !!estimated_weight,
       // Include the full raw_data so frontend can inspect if needed
       _raw_fields: Object.keys(raw),
     };
