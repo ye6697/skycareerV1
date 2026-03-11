@@ -652,43 +652,58 @@ export default function FlightTracker() {
               totalMaintenanceCostWithCrash
             });
             
+            // Preserve flight_path, fms_waypoints, and simbrief data from the existing xplane_data on the Flight record
+            const existingXpData = activeFlight?.xplane_data || {};
+
             await base44.entities.Flight.update(activeFlight.id, {
-              status: hasCrashed ? 'failed' : 'completed',
-              arrival_time: new Date().toISOString(),
-              flight_score: scoreWithTime,
-              takeoff_rating: scoreToRating(scoreWithTime),
-              flight_rating: scoreToRating(scoreWithTime),
-              landing_rating: scoreToRating(scoreWithTime),
-              overall_rating: scoreToRating(scoreWithTime),
-              landing_vs: finalFlightData.landingVs,
-              max_g_force: finalFlightData.maxGForce,
-              fuel_used_liters: fuelUsed,
-              fuel_cost: fuelCost,
-              crew_cost: crewCost,
-              maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
-              flight_duration_hours: flightHours,
-              revenue,
-              profit,
-              passenger_comments: generateComments(scoreWithTime, finalFlightData),
-              xplane_data: {
-                ...finalFlightData,
-                final_score: scoreWithTime,
-                flightHours,
-                timeScoreChange,
-                timeBonus,
-                madeDeadline,
-                deadlineMinutes,
-                totalRevenue: contract?.payout || 0,
-                landingBonus: landingBonusUsed,
-                landingPenalty: landingPenaltyUsed,
-                levelBonus: levelBonus,
-                levelBonusPercent: levelBonusPercent * 100,
-                companyLevel: company?.level || 1,
-                crewBonus: crewBonusAmount,
-                events: finalFlightData.events,
-                crashMaintenanceCost: crashMaintenanceCost
-              }
-            });
+               status: hasCrashed ? 'failed' : 'completed',
+               arrival_time: new Date().toISOString(),
+               flight_score: scoreWithTime,
+               takeoff_rating: scoreToRating(scoreWithTime),
+               flight_rating: scoreToRating(scoreWithTime),
+               landing_rating: scoreToRating(scoreWithTime),
+               overall_rating: scoreToRating(scoreWithTime),
+               landing_vs: finalFlightData.landingVs,
+               max_g_force: finalFlightData.maxGForce,
+               fuel_used_liters: fuelUsed,
+               fuel_cost: fuelCost,
+               crew_cost: crewCost,
+               maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
+               flight_duration_hours: flightHours,
+               revenue,
+               profit,
+               passenger_comments: generateComments(scoreWithTime, finalFlightData),
+               xplane_data: {
+                 ...finalFlightData,
+                 // Preserve map/route data from backend that local state doesn't track
+                 flight_path: existingXpData.flight_path || [],
+                 fms_waypoints: existingXpData.fms_waypoints || [],
+                 simbrief_waypoints: existingXpData.simbrief_waypoints || [],
+                 simbrief_route_string: existingXpData.simbrief_route_string || null,
+                 simbrief_departure_coords: existingXpData.simbrief_departure_coords || null,
+                 simbrief_arrival_coords: existingXpData.simbrief_arrival_coords || null,
+                 departure_lat: existingXpData.departure_lat || finalFlightData.departure_lat || 0,
+                 departure_lon: existingXpData.departure_lon || finalFlightData.departure_lon || 0,
+                 arrival_lat: existingXpData.arrival_lat || finalFlightData.arrival_lat || 0,
+                 arrival_lon: existingXpData.arrival_lon || finalFlightData.arrival_lon || 0,
+                 // Completion metadata
+                 final_score: scoreWithTime,
+                 flightHours,
+                 timeScoreChange,
+                 timeBonus,
+                 madeDeadline,
+                 deadlineMinutes,
+                 totalRevenue: contract?.payout || 0,
+                 landingBonus: landingBonusUsed,
+                 landingPenalty: landingPenaltyUsed,
+                 levelBonus: levelBonus,
+                 levelBonusPercent: levelBonusPercent * 100,
+                 companyLevel: company?.level || 1,
+                 crewBonus: crewBonusAmount,
+                 events: finalFlightData.events,
+                 crashMaintenanceCost: crashMaintenanceCost
+               }
+             });
 
             // Update contract
             console.log('Aktualisiere Contract Status:', activeFlight.contract_id, hasCrashed ? 'failed' : 'completed');
