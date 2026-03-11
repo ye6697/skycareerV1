@@ -270,9 +270,12 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
             {simLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading...</> : <><Download className="w-4 h-4" /> Load from X-Plane / MSFS</>}
           </Button>
 
-          {hasSimData && simData._raw_fields && !simData.total_weight_kg && !simData.oat_c && (
+          {hasSimData && !simData.total_weight_kg && !simData.oat_c && !simData.baro_setting && (
             <div className="flex items-start gap-2 p-2 bg-amber-900/20 border border-amber-700/30 rounded text-[10px] text-amber-400">
-              <span>⚠ Plugin sendet keine Performance-Daten (GWT/OAT/QNH). Bitte das Plugin auf die neueste Version aktualisieren. Verfügbare Felder: {simData._raw_fields?.slice(0,8).join(', ')}</span>
+              <span>⚠ {lang === 'de'
+                ? 'Keine Performance-Daten vom Simulator (GWT/OAT/QNH). Die Berechnung nutzt Standardwerte bzw. SimBrief-Daten falls verfügbar.'
+                : 'No performance data from simulator (GWT/OAT/QNH). Calculation will use defaults or SimBrief data if available.'
+              }</span>
             </div>
           )}
           {hasSimData && (
