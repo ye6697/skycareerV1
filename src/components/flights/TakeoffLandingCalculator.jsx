@@ -48,7 +48,9 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
       const res = await base44.functions.invoke('getSimData', {});
       const d = res?.data;
       if (d && !d.error) {
-        setSimData(d);
+        // Normalize the data through our normalizer to catch any alias fields
+        const normalized = normalizeSimData(d);
+        setSimData(normalized || d);
       } else {
         setError(lang === 'de' ? (d?.error || 'Keine Sim-Verbindung. X-Plane/MSFS verbinden.') : (d?.error || 'No sim connection. Connect X-Plane/MSFS first.'));
       }
