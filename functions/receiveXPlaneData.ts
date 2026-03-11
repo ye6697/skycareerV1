@@ -641,13 +641,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Extract new aircraft/env fields from plugin
-    const total_weight_kg = data.total_weight_kg;
-    const oat_c = data.oat_c;
-    const ground_elevation_ft = data.ground_elevation_ft;
-    const baro_setting = data.baro_setting;
-    const wind_speed_kts = data.wind_speed_kts;
-    const wind_direction = data.wind_direction;
+    // Extract aircraft/env fields from plugin - normalize across X-Plane and MSFS naming
+    let total_weight_kg = data.total_weight_kg ?? data.gross_weight_kg ?? data.weight_kg ?? null;
+    if (!total_weight_kg) {
+      const lbs = data.total_weight_lbs ?? data.gross_weight_lbs ?? data.weight_lbs ?? data.total_weight_pounds ?? data.gross_weight_pounds ?? null;
+      if (lbs) total_weight_kg = lbs * 0.453592;
+    }
+    const oat_c = data.oat_c ?? data.oat ?? data.outside_air_temp_c ?? data.temperature_c ?? data.ambient_temperature ?? data.outside_temperature ?? data.temperature ?? data.ambient_temp_c ?? undefined;
+    const ground_elevation_ft = data.ground_elevation_ft ?? data.elevation_ft ?? data.airport_elevation_ft ?? data.ground_altitude ?? null;
+    let baro_setting = data.baro_setting ?? data.qnh ?? data.altimeter_setting ?? data.baro ?? data.baro_hpa ?? null;
+    if (!baro_setting) {
+      const inHg = data.kohlsman_setting_hg ?? data.altimeter_setting_hg ?? data.baro_setting_inhg ?? null;
+      if (inHg) baro_setting = inHg * 33.8639;
+    }
+    let wind_speed_kts = data.wind_speed_kts ?? data.wind_speed ?? data.windspeed_kts ?? data.ambient_wind_speed ?? data.wind_velocity ?? undefined;
+    if (wind_speed_kts === undefined && data.ambient_wind_x !== undefined && data.ambient_wind_z !== undefined) {
+      wind_speed_kts = Math.sqrt(data.ambient_wind_x ** 2 + data.ambient_wind_z ** 2) * 1.94384;
+    }
+    const wind_direction = data.wind_direction ?? data.wind_dir ?? data.wind_heading ?? data.ambient_wind_direction ?? data.wind_deg ?? undefined;
     const gateMeta = await resolveAircraftGateMeta({
       assignedAircraft,
       contract,
