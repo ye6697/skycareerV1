@@ -59,6 +59,10 @@ def to_float(v, default=0.0):
     try:
         if v is None:
             return default
+        if isinstance(v, bytes):
+            if len(v) == 0:
+                return default
+            v = v.decode('utf-8', errors='ignore')
         return float(v)
     except Exception:
         return default
@@ -179,6 +183,11 @@ def main():
                 "ground_elevation_ft": ground_elev_ft,
                 "total_weight_kg": total_weight_kg,
             }
+
+            # Debug: show env data on first packet and every 30 seconds
+            if not hasattr(main, '_last_debug') or (time.time() - main._last_debug) > 30:
+                main._last_debug = time.time()
+                print(f"[SkyCareer] ENV: OAT={oat_c}C QNH={baro_mb}mb WIND={wind_direction}/{wind_speed_kts}kt ELEV={ground_elev_ft}ft GWT={total_weight_kg}kg ICAO={payload['aircraft_icao']}")
 
             resp = post_payload(payload)
             if resp.status_code >= 400:
