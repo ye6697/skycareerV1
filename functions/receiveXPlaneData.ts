@@ -760,6 +760,7 @@ Deno.serve(async (req) => {
       gear_up_landing,
       crash: isCrash,
       has_crashed: isCrash,
+      harsh_controls: data.harsh_controls || data.harshControls || false,
       was_airborne: hasBeenAirborne,
       airborne_started_at: airborneStartedAt,
       // Preserve departure/arrival coords from first packet
