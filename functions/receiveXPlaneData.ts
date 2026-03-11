@@ -690,15 +690,17 @@ Deno.serve(async (req) => {
     const initial_fuel_kg = flight.xplane_data?.initial_fuel_kg || fuel_kg || 0;
 
     // Track flight path (add position every update, limited to keep data manageable)
+    // Record positions both airborne AND on ground (for takeoff/landing path visualization)
     const existingPath = flight.xplane_data?.flight_path || [];
     let newPath = existingPath;
-    if (latitude && longitude && !on_ground) {
+    if (latitude && longitude) {
       const lastPt = existingPath[existingPath.length - 1];
-      // Add point only if moved enough (reduce data)
-      if (!lastPt || Math.abs(lastPt[0] - latitude) > 0.005 || Math.abs(lastPt[1] - longitude) > 0.005) {
+      // Add point only if moved enough (reduce data) - tighter threshold on ground for taxi path
+      const threshold = on_ground ? 0.001 : 0.005;
+      if (!lastPt || Math.abs(lastPt[0] - latitude) > threshold || Math.abs(lastPt[1] - longitude) > threshold) {
         newPath = [...existingPath, [latitude, longitude]];
-        // Keep max 500 points
-        if (newPath.length > 500) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
+        // Keep max 800 points (increased for ground segments)
+        if (newPath.length > 800) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
       }
     }
 
