@@ -1080,17 +1080,18 @@ Deno.serve(async (req) => {
       deadlineRemainingSec = totalDeadlineSec - elapsedSec;
     }
     const prev = flight.xplane_data || {};
+    // Use already-normalized variables (not raw data.*) so MSFS aliases are covered
     const mergedScorePacket = {
       max_g_force: Math.max(Number(max_g_force || 0), Number(prev.max_g_force || 0)),
       landing_g_force: Number(landing_g_force ?? prev.landing_g_force ?? 0),
-      tailstrike: !!(data.tailstrike || prev.tailstrike),
-      stall: !!(data.stall || data.is_in_stall || data.stall_warning || data.override_alpha || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
-      overstress: !!(data.overstress || prev.overstress),
-      overspeed: !!(data.overspeed || prev.overspeed),
-      flaps_overspeed: !!(data.flaps_overspeed || prev.flaps_overspeed),
-      gear_up_landing: !!(data.gear_up_landing || prev.gear_up_landing),
-      crash: !!(data.crash || data.has_crashed || prev.crash || prev.has_crashed),
-      has_crashed: !!(data.has_crashed || data.crash || prev.has_crashed || prev.crash),
+      tailstrike: !!(tailstrike || prev.tailstrike),
+      stall: !!(stall || is_in_stall || stall_warning || override_alpha || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
+      overstress: !!(overstress || prev.overstress),
+      overspeed: !!(overspeed || prev.overspeed),
+      flaps_overspeed: !!(flaps_overspeed || prev.flaps_overspeed),
+      gear_up_landing: !!(gear_up_landing || prev.gear_up_landing),
+      crash: !!(isCrash || prev.crash || prev.has_crashed),
+      has_crashed: !!(isCrash || prev.has_crashed || prev.crash),
     };
     const liveScore = computeLiveScore(mergedScorePacket);
 
