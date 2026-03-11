@@ -47,6 +47,20 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      if (cid) {
+        const cos = await base44.entities.Company.filter({ id: cid });
+        if (cos[0]) return cos[0];
+      }
+      const cos = await base44.entities.Company.filter({ created_by: user.email });
+      return cos[0] || null;
+    }
+  });
+
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'accepted', company?.id],
     queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'accepted' }),
@@ -63,20 +77,6 @@ export default function ActiveFlights() {
     queryKey: ['contracts', 'completed', company?.id],
     queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'completed' }),
     enabled: !!company?.id
-  });
-
-  const { data: company } = useQuery({
-    queryKey: ['company'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const cid = user?.company_id || user?.data?.company_id;
-      if (cid) {
-        const cos = await base44.entities.Company.filter({ id: cid });
-        if (cos[0]) return cos[0];
-      }
-      const cos = await base44.entities.Company.filter({ created_by: user.email });
-      return cos[0] || null;
-    }
   });
 
   const { data: aircraft = [] } = useQuery({
@@ -529,7 +529,7 @@ export default function ActiveFlights() {
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
+                          <SelectItem value="none">-- Nicht zuweisen --</SelectItem>
                           {roleEmployees.map((emp) =>
                           <SelectItem key={emp.id} value={emp.id}>
                               {emp.name} (Skill: {emp.skill_rating})
