@@ -647,6 +647,27 @@ Deno.serve(async (req) => {
       const lbs = data.total_weight_lbs ?? data.gross_weight_lbs ?? data.weight_lbs ?? data.total_weight_pounds ?? data.gross_weight_pounds ?? null;
       if (lbs) total_weight_kg = lbs * 0.453592;
     }
+    // If still no weight but we have fuel_kg + aircraft_icao, estimate from OEW
+    if (!total_weight_kg && fuel_kg && aircraft_icao) {
+      const oewLookup = {
+        C172: 767, C182: 880, C208: 2145, PA28: 680, SR22: 1050,
+        DA40: 800, DA42: 1280, TBM9: 2100, PC12: 2845, B350: 4080,
+        AT76: 13500, DH8D: 17745, CRJ9: 22300,
+        E170: 21000, E175: 21800, E190: 28000, E195: 28970,
+        A318: 39500, A319: 40800, A320: 42600, A321: 48500, A20N: 44300, A21N: 50100,
+        B733: 31500, B734: 33200, B735: 31300, B736: 36400, B737: 37600,
+        B738: 41400, B739: 42100, B38M: 45070, B39M: 45860, '737': 41400,
+        B752: 58400, B753: 62100, B763: 86070, B764: 92500,
+        B772: 138100, B773: 160530, B77W: 167800, B788: 119950, B789: 128850, B78X: 135500,
+        B744: 178756, B748: 197131,
+        A332: 120600, A333: 125200, A339: 130000, A359: 142400, A35K: 149000, A388: 276800,
+      };
+      const ic = normalizeIcaoCode(aircraft_icao);
+      const oew = oewLookup[ic] || oewLookup[ic.slice(0, 4)] || oewLookup[ic.slice(0, 3)] || null;
+      if (oew) {
+        total_weight_kg = Math.round(oew + fuel_kg + oew * 0.25);
+      }
+    }
     const oat_c = data.oat_c ?? data.oat ?? data.outside_air_temp_c ?? data.temperature_c ?? data.ambient_temperature ?? data.outside_temperature ?? data.temperature ?? data.ambient_temp_c ?? undefined;
     const ground_elevation_ft = data.ground_elevation_ft ?? data.elevation_ft ?? data.airport_elevation_ft ?? data.ground_altitude ?? null;
     let baro_setting = data.baro_setting ?? data.qnh ?? data.altimeter_setting ?? data.baro ?? data.baro_hpa ?? null;
