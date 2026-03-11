@@ -126,6 +126,16 @@ def main():
             fuel_percentage = (fuel_gal / fuel_capacity_gal * 100.0) if fuel_capacity_gal > 0 else 0.0
             fuel_kg = fuel_gal * FUEL_KG_PER_GALLON
 
+            # Environment & performance data
+            oat_c = to_float(safe_get(aq, "AMBIENT TEMPERATURE", "celsius"), None)
+            baro_mb = to_float(safe_get(aq, "KOHLSMAN SETTING MB", "millibars"), None)
+            wind_speed_kts = to_float(safe_get(aq, "AMBIENT WIND VELOCITY", "knots"), None)
+            wind_direction = to_float(safe_get(aq, "AMBIENT WIND DIRECTION", "degrees"), None)
+            ground_elev_m = to_float(safe_get(aq, "GROUND ALTITUDE", "meters"), None)
+            ground_elev_ft = ground_elev_m * 3.28084 if ground_elev_m is not None else None
+            total_weight_lbs = to_float(safe_get(aq, "TOTAL WEIGHT", "pounds"), None)
+            total_weight_kg = total_weight_lbs * 0.453592 if total_weight_lbs is not None else None
+
             payload = {
                 "simulator": args.sim,
                 "altitude": altitude,
@@ -162,6 +172,12 @@ def main():
                 "crash": False,
                 "has_crashed": False,
                 "aircraft_icao": safe_get(aq, "ATC MODEL", "string", "") or "",
+                "oat_c": oat_c,
+                "baro_setting": baro_mb,
+                "wind_speed_kts": wind_speed_kts,
+                "wind_direction": wind_direction,
+                "ground_elevation_ft": ground_elev_ft,
+                "total_weight_kg": total_weight_kg,
             }
 
             resp = post_payload(payload)
@@ -195,4 +211,3 @@ if __name__ == "__main__":
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
-
