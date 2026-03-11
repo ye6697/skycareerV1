@@ -652,8 +652,10 @@ export default function FlightTracker() {
               totalMaintenanceCostWithCrash
             });
             
-            // Preserve flight_path, fms_waypoints, and simbrief data from the existing xplane_data on the Flight record
-            const existingXpData = activeFlight?.xplane_data || {};
+            // Fetch LATEST xplane_data from DB (local state may be stale, missing current flight_path)
+            let existingXpData = activeFlight?.xplane_data || {};
+            const freshFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
+            if (freshFlights[0]?.xplane_data) existingXpData = freshFlights[0].xplane_data;
 
             await base44.entities.Flight.update(activeFlight.id, {
                status: hasCrashed ? 'failed' : 'completed',
@@ -713,13 +715,7 @@ export default function FlightTracker() {
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostWithCrash;
 
-            console.log('Wartungskosten Update:', {
-              currentAccumulatedCost,
-              flightMaintenanceCost: finalFlightData.maintenanceCost,
-              crashMaintenanceCost,
-              totalMaintenanceCostWithCrash,
-              newAccumulatedCost
-            });
+            console.log('Wartungskosten Update:', { currentAccumulatedCost, totalMaintenanceCostWithCrash, newAccumulatedCost });
 
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (activeFlight?.aircraft_id) {
