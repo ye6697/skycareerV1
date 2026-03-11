@@ -246,6 +246,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
           {hasSimbriefData && (
             <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30 text-[10px]">
               SimBrief: {simbriefData.departure_airport}→{simbriefData.arrival_airport}
+              {simbriefData.tow_kg ? ` | TOW ${Math.round(simbriefData.tow_kg/1000)}t` : ''}
             </Badge>
           )}
           {hasSimData && (
