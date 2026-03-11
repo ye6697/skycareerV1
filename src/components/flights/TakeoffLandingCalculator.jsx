@@ -99,12 +99,23 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     };
   };
 
-  // Use xplaneData prop directly if passed
+  // Use xplaneData prop directly if passed - update continuously with latest sim data
   useEffect(() => {
     if (xplaneData) {
       const normalized = normalizeSimData(xplaneData);
       if (normalized && (normalized.total_weight_kg > 0 || normalized.oat_c !== undefined || normalized.aircraft_icao)) {
-        setSimData(normalized);
+        setSimData(prev => {
+          // Only update if key values changed to avoid excessive re-renders
+          if (!prev) return normalized;
+          if (prev.aircraft_icao !== normalized.aircraft_icao ||
+              Math.abs((prev.total_weight_kg || 0) - (normalized.total_weight_kg || 0)) > 50 ||
+              Math.abs((prev.oat_c || 0) - (normalized.oat_c || 0)) > 1 ||
+              Math.abs((prev.baro_setting || 0) - (normalized.baro_setting || 0)) > 1 ||
+              Math.abs((prev.wind_speed_kts || 0) - (normalized.wind_speed_kts || 0)) > 2) {
+            return normalized;
+          }
+          return prev;
+        });
       }
     }
   }, [xplaneData]);
