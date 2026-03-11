@@ -60,7 +60,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   }, []);
 
   const checkPlanMatchesContract = (data) => {
-    if (!contract || !data) return true;
+    if (!contract || !data) return true; // No contract = free flight, always accept
     const depMatch = !contract.departure_airport ||
       data.departure_airport?.toUpperCase() === contract.departure_airport?.toUpperCase();
     const arrMatch = !contract.arrival_airport ||
