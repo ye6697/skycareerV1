@@ -255,49 +255,54 @@ Deno.serve(async (req) => {
       });
     }
     
-    const altitude = data.altitude;
-    const speed = data.speed;
-    const vertical_speed = data.vertical_speed;
-    const heading = data.heading;
-    const fuel_percentage = data.fuel_percentage;
-    const fuel_kg = data.fuel_kg;
-    const g_force = data.g_force;
-    const max_g_force = data.max_g_force;
-    const latitude = data.latitude;
-    const longitude = data.longitude;
-    const on_ground = data.on_ground;
-    const touchdown_vspeed = data.touchdown_vspeed;
-    const landing_g_force = data.landing_g_force;
-    const tailstrike = data.tailstrike;
-    const stall = data.stall;
-    const is_in_stall = data.is_in_stall;
-    const stall_warning = data.stall_warning;
-    const override_alpha = data.override_alpha;
-    const overstress = data.overstress;
-    const flaps_overspeed = data.flaps_overspeed;
-    const fuel_emergency = data.fuel_emergency;
-    const gear_up_landing = data.gear_up_landing;
-    const crash = data.crash;
-    const has_crashed = data.has_crashed;
-    const overspeed = data.overspeed;
-    const gear_down = data.gear_down;
+    // Normalize all data fields - support both X-Plane and MSFS field naming conventions
+    // MSFS bridges may use camelCase or different names
+    const altitude = data.altitude ?? data.alt ?? data.indicated_altitude;
+    const speed = data.speed ?? data.airspeed ?? data.true_airspeed ?? data.tas;
+    const vertical_speed = data.vertical_speed ?? data.verticalSpeed ?? data.vspeed ?? data.vertical_rate;
+    const heading = data.heading ?? data.hdg ?? data.true_heading ?? data.magnetic_heading;
+    const fuel_percentage = data.fuel_percentage ?? data.fuelPercentage ?? data.fuel_percent;
+    const fuel_kg = data.fuel_kg ?? data.fuelKg ?? data.fuel_weight_kg ?? data.total_fuel_kg;
+    const g_force = data.g_force ?? data.gForce ?? data.g_load ?? data.gLoad;
+    const max_g_force = data.max_g_force ?? data.maxGForce ?? data.max_g ?? data.peakG;
+    const latitude = data.latitude ?? data.lat;
+    const longitude = data.longitude ?? data.lon ?? data.lng;
+    const on_ground = data.on_ground ?? data.onGround ?? data.sim_on_ground ?? data.isOnGround;
+    const touchdown_vspeed = data.touchdown_vspeed ?? data.touchdownVspeed ?? data.landing_vspeed ?? data.touchdown_vs ?? data.landing_vs;
+    const landing_g_force = data.landing_g_force ?? data.landingGForce ?? data.touchdown_g ?? data.landing_g;
+    // Events - support X-Plane datarefs AND MSFS SimConnect event names
+    const tailstrike = data.tailstrike ?? data.tail_strike ?? data.tailStrike ?? false;
+    const stall = data.stall ?? data.isStalling ?? data.stall_active ?? false;
+    const is_in_stall = data.is_in_stall ?? data.isInStall ?? data.stalling ?? false;
+    const stall_warning = data.stall_warning ?? data.stallWarning ?? data.stall_warn ?? false;
+    const override_alpha = data.override_alpha ?? data.overrideAlpha ?? false;
+    const overstress = data.overstress ?? data.overStress ?? data.structural_damage ?? data.structuralDamage ?? data.overstressed ?? false;
+    const flaps_overspeed = data.flaps_overspeed ?? data.flapsOverspeed ?? data.flap_overspeed ?? false;
+    const fuel_emergency = data.fuel_emergency ?? data.fuelEmergency ?? false;
+    const gear_up_landing = data.gear_up_landing ?? data.gearUpLanding ?? data.gear_retracted_landing ?? false;
+    const crash = data.crash ?? data.crashed ?? false;
+    const has_crashed = data.has_crashed ?? data.hasCrashed ?? data.is_crashed ?? data.sim_crashed ?? false;
+    const overspeed = data.overspeed ?? data.overSpeed ?? data.vmo_exceeded ?? data.over_speed ?? false;
+    const gear_down = data.gear_down ?? data.gearDown ?? data.gear_extended;
     // flap_ratio: preserve 0 as valid value (don't use || which treats 0 as falsy)
-    const flap_ratio = data.flap_ratio !== undefined && data.flap_ratio !== null ? data.flap_ratio : 0;
-    const pitch = data.pitch;
-    const ias = data.ias;
+    const flap_ratio = data.flap_ratio ?? data.flapRatio ?? data.flap_position ?? data.flapPosition ?? 0;
+    const pitch = data.pitch ?? data.pitch_angle ?? data.pitchAngle;
+    const ias = data.ias ?? data.indicated_airspeed ?? data.indicatedAirspeed;
     // Legacy fields from old plugins
-    const flight_score = data.flight_score;
-    const maintenance_cost = data.maintenance_cost;
+    const flight_score = data.flight_score ?? data.flightScore;
+    const maintenance_cost = data.maintenance_cost ?? data.maintenanceCost;
     const reputation = data.reputation;
-    const landing_quality = data.landing_quality;
+    const landing_quality = data.landing_quality ?? data.landingQuality;
 
-    // Normalize field names (support both naming conventions)
-    const park_brake = data.parking_brake || data.park_brake || false;
-    const engine1_running = data.engine1_running || false;
-    const engine2_running = data.engine2_running || false;
-    const engines_running = data.engines_running || engine1_running || engine2_running;
-    const isCrash = crash || has_crashed || false;
-    const aircraft_icao = data.aircraft_icao;
+    // Normalize field names (support both X-Plane and MSFS naming conventions)
+    // MSFS bridges may use different field names for the same data
+    const park_brake = data.parking_brake || data.park_brake || data.parkingBrake || false;
+    const engine1_running = data.engine1_running || data.eng1Running || data.engine_1_running || false;
+    const engine2_running = data.engine2_running || data.eng2Running || data.engine_2_running || false;
+    const engines_running = data.engines_running || data.enginesRunning || engine1_running || engine2_running;
+    // MSFS crash detection: support multiple field names
+    const isCrash = crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || false;
+    const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const pickFirstNumber = (...vals) => {
       for (const v of vals) {
