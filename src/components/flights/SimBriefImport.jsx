@@ -126,11 +126,12 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
 
   // Open SimBrief dispatch with contract data pre-filled
   const openSimBriefDispatch = () => {
-    if (!contract) return;
     const params = new URLSearchParams();
-    params.set('orig', contract.departure_airport || '');
-    params.set('dest', contract.arrival_airport || '');
-    if (contract.passenger_count) params.set('pax', String(contract.passenger_count));
+    if (contract) {
+      params.set('orig', contract.departure_airport || '');
+      params.set('dest', contract.arrival_airport || '');
+      if (contract.passenger_count) params.set('pax', String(contract.passenger_count));
+    }
     
     const url = `https://dispatch.simbrief.com/options/custom?${params.toString()}`;
     window.open(url, '_blank');
