@@ -48,18 +48,21 @@ export default function ActiveFlights() {
   });
 
   const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
+    queryKey: ['contracts', 'accepted', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'accepted' }),
+    enabled: !!company?.id
   });
 
   const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
+    queryKey: ['contracts', 'in_progress', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'in_progress' }),
+    enabled: !!company?.id
   });
 
   const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
+    queryKey: ['contracts', 'completed', company?.id],
+    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'completed' }),
+    enabled: !!company?.id
   });
 
   const { data: company } = useQuery({
