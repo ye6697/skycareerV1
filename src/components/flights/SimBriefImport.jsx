@@ -260,8 +260,8 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs text-amber-300 font-medium mb-1">
-                  {mismatch 
-                    ? `${t('plan_mismatch', lang)} (${contract?.departure_airport} → ${contract?.arrival_airport}).`
+                  {mismatch && contract
+                    ? `${t('plan_mismatch', lang)} (${contract.departure_airport} → ${contract.arrival_airport}).`
                     : t('no_matching_plan', lang)
                   }
                 </p>
