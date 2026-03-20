@@ -48,6 +48,7 @@ export default function FlightTracker() {
   const [processedGLevels, setProcessedGLevels] = useState(new Set());
   const [isCompletingFlight, setIsCompletingFlight] = useState(false);
   const [flightStartedAt, setFlightStartedAt] = useState(null);
+  const [emergencyLanding, setEmergencyLanding] = useState(false);
   const flightDataRef = React.useRef(null);
 
   const urlParams = new URLSearchParams(window.location.search);
