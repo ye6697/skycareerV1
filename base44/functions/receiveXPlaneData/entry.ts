@@ -820,6 +820,28 @@ Deno.serve(async (req) => {
       simbrief_arrival_coords: data.simbrief_arrival_coords || (flight.xplane_data?.simbrief_arrival_coords || null),
       // Flight path for map visualization
       flight_path: newPath,
+      // Telemetry history for post-flight profile chart (sampled every ~15s, max 600 points)
+      telemetry_history: (() => {
+        const prevHistory = flight.xplane_data?.telemetry_history || [];
+        const now = Date.now();
+        const lastEntry = prevHistory.length > 0 ? prevHistory[prevHistory.length - 1] : null;
+        const lastTs = lastEntry?.t ? new Date(lastEntry.t).getTime() : 0;
+        // Only record a new sample every ~15 seconds
+        if (now - lastTs >= 15000) {
+          const newPt = {
+            t: new Date().toISOString(),
+            alt: Math.round(altitude || 0),
+            spd: Math.round(speed || 0),
+            ias: Math.round(ias || 0),
+            vs: Math.round(vertical_speed || 0),
+            g: Number((g_force || 1).toFixed(2)),
+          };
+          const updated = [...prevHistory, newPt];
+          // Keep max 600 points (~2.5 hours at 15s intervals)
+          return updated.length > 600 ? updated.slice(-600) : updated;
+        }
+        return prevHistory;
+      })(),
       timestamp: new Date().toISOString()
     };
 
