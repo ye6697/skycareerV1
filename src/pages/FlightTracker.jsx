@@ -1779,16 +1779,20 @@ export default function FlightTracker() {
                       {flightPhase === 'cruise' && t('flight_controlled_xplane', lang)}
                       {flightPhase === 'landing' && t('land_and_park', lang)}
                     </p>
-                    <Button 
-                      onClick={() => {
-                        if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) {
-                          cancelFlightMutation.mutate();
-                        }
-                      }}
-                      disabled={cancelFlightMutation.isPending}
-                      variant="destructive"
-                      className="w-full"
-                    >
+                    {/* Emergency Landing Button */}
+                    {flightData.wasAirborne && !emergencyLanding && (
+                      <Button onClick={() => { setEmergencyLanding(true); }} className="w-full bg-amber-700 hover:bg-amber-600 text-white">
+                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        {lang === 'de' ? 'Notlandung erklären' : 'Declare Emergency Landing'}
+                      </Button>
+                    )}
+                    {emergencyLanding && (
+                      <div className="p-2 bg-amber-900/30 border border-amber-700/50 rounded text-xs text-amber-300 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        {lang === 'de' ? 'Notlandung erklärt – Landung an jedem Flughafen erlaubt' : 'Emergency declared – landing at any airport allowed'}
+                      </div>
+                    )}
+                    <Button onClick={() => { if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) cancelFlightMutation.mutate(); }} disabled={cancelFlightMutation.isPending} variant="destructive" className="w-full">
                       {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
                     </Button>
                   </div>
