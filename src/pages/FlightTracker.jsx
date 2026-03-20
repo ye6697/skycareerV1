@@ -544,7 +544,7 @@ export default function FlightTracker() {
      let landingPenaltyUsed = 0;
      // Calculate crew bonus based on attributes
      let crewBonusAmount = 0;
-     if (!hasCrashed) {
+     if (!hasCrashed && !wrongAirport) {
        const activeFl = flight || existingFlight;
        if (activeFl?.crew && Array.isArray(activeFl.crew)) {
          // Fetch crew member details for attribute bonuses
