@@ -23,6 +23,7 @@ import FlightRating from "@/components/flights/FlightRating";
 import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
+import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
