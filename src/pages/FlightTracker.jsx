@@ -822,7 +822,7 @@ export default function FlightTracker() {
             // Update company - only deduct direct costs (fuel, crew, airport)
             if (company) {
               // Reputation based on score (0-100)
-              const reputationChange = hasCrashed ? -10 : Math.round((scoreWithTime - 85) / 5);
+              const reputationChange = (hasCrashed || wrongAirport) ? -10 : Math.round((scoreWithTime - 85) / 5);
               
               // XP and Level system with level-up bonus
               const calculateXPForLevel = (level) => Math.round(100 * Math.pow(1.1, level - 1));
