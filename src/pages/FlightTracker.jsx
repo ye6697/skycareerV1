@@ -660,7 +660,7 @@ export default function FlightTracker() {
             if (freshFlights[0]?.xplane_data) existingXpData = freshFlights[0].xplane_data;
 
             await base44.entities.Flight.update(activeFlight.id, {
-               status: hasCrashed ? 'failed' : 'completed',
+               status: (hasCrashed || wrongAirport) ? 'failed' : 'completed',
                arrival_time: new Date().toISOString(),
                flight_score: scoreWithTime,
                takeoff_rating: scoreToRating(scoreWithTime),
