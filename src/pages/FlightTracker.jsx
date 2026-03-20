@@ -1812,7 +1812,7 @@ export default function FlightTracker() {
                     const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
                     const crewCost = flightHours * 250;
                     const airportFee = 150;
-                    const isCrashed = flightData.events.crash;
+                    const isCrashed = flightData.events.crash || flightData.events.wrong_airport;
                     let revenue = 0;
                     if (!isCrashed) {
                       revenue = contract?.payout || 0;
