@@ -229,7 +229,7 @@ export default function CompletedFlightDetails() {
                     const isCrash = flight?.xplane_data?.events?.crash || flight?.status === 'failed';
                     const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? 0;
                     return (
-                      <div className="p-4 bg-slate-900 rounded-lg">
+                      <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                         <p className="text-slate-400 text-sm mb-1">{t('landing_g_touch', lang)}</p>
                         {isCrash ? (
                           <p className="text-2xl font-mono font-bold text-red-500">CRASH</p>
@@ -245,7 +245,7 @@ export default function CompletedFlightDetails() {
                       </div>
                     );
                   })()}
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('landing_vs_label', lang)}</p>
                     <p className={`text-2xl font-mono font-bold ${
                       Math.abs(flight.landing_vs || 0) < 150 ? 'text-emerald-400' :
@@ -255,13 +255,13 @@ export default function CompletedFlightDetails() {
                       {Math.abs(flight.landing_vs || 0)} ft/min
                     </p>
                   </div>
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('landing_speed', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
                       {Math.round(flight?.xplane_data?.speed || 0)} kts
                     </p>
                   </div>
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('fuel_used', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
                       {(() => {
@@ -283,7 +283,7 @@ export default function CompletedFlightDetails() {
                       })()} L
                     </p>
                   </div>
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('flight_duration', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-slate-300">
                       {flight.flight_duration_hours?.toFixed(1)} h
@@ -293,7 +293,7 @@ export default function CompletedFlightDetails() {
 
                 {/* Deadline Result */}
                 {flight.xplane_data?.deadlineMinutes && (
-                  <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                  <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Deadline</p>
                     <div className="flex items-center justify-between">
                       <div>
@@ -317,7 +317,7 @@ export default function CompletedFlightDetails() {
                 )}
 
                 {/* Final Score */}
-                <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                   <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
                   {(() => {
                     const score = flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0;
@@ -361,7 +361,7 @@ export default function CompletedFlightDetails() {
                   const vs = Math.abs(flight.landing_vs || 0);
 
                   return (
-                  <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-3">
+                  <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-3">
                     <div>
                       <p className="text-slate-400 text-sm mb-2 font-semibold">Landungsqualitäts-Analyse</p>
                       <p className="text-xs text-slate-400 mb-3">Basierend auf G-Kraft beim Landen ({landingG.toFixed(2)} G)</p>
@@ -454,8 +454,8 @@ export default function CompletedFlightDetails() {
 
                   {/* Total Maintenance Breakdown */}
                   {(flight.xplane_data?.maintenanceCost > 0 || flight.xplane_data?.crashMaintenanceCost > 0 || flight.xplane_data?.events?.crash) && (
-                    <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-2">
-                      <h4 className="text-sm font-semibold text-white mb-3">Wartungskosten-Aufschlüsselung:</h4>
+                    <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-2">
+                     <h4 className="text-sm font-semibold text-white mb-3">Wartungskosten-Aufschlüsselung:</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between text-slate-300">
                           <span>Reguläre Wartung ({flight.flight_duration_hours?.toFixed(1)}h × $400/h)</span>
@@ -490,8 +490,8 @@ export default function CompletedFlightDetails() {
 
                   {/* Maintenance Damage Breakdown */}
                   {flight?.maintenance_damage && Object.values(flight.maintenance_damage).some(v => v > 0) && (
-                    <div className="mt-4 p-4 bg-slate-900 rounded-lg">
-                      <h4 className="text-sm font-semibold text-white mb-3">Wartungsschäden durch diesen Flug:</h4>
+                    <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
+                     <h4 className="text-sm font-semibold text-white mb-3">Wartungsschäden durch diesen Flug:</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         {Object.entries(flight.maintenance_damage).filter(([_, v]) => v > 0).map(([cat, dmg]) => {
                           const labels = {
