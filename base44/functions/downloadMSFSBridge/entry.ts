@@ -90,6 +90,14 @@ def main():
     args = parser.parse_args()
 
     max_g_force = 1.0
+    prev_on_ground = True
+    touchdown_vspeed = 0.0
+    landing_g_force = 0.0
+    prev_vs = 0.0
+    # Track events that persist across ticks (once triggered, stay True until reset)
+    event_tailstrike = False
+    event_overstress = False
+    event_crash = False
 
     print("[SkyCareer] Starting MSFS bridge ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
@@ -130,6 +138,64 @@ def main():
             fuel_percentage = (fuel_gal / fuel_capacity_gal * 100.0) if fuel_capacity_gal > 0 else 0.0
             fuel_kg = fuel_gal * FUEL_KG_PER_GALLON
 
+            # === EVENT DETECTION via SimConnect variables ===
+
+            # Stall: STALL WARNING is a reliable SimConnect variable (0 or 1)
+            stall_warning = to_bool(safe_get(aq, "STALL WARNING", "bool", False))
+            # Also check angle-of-attack vs critical alpha if available
+            stall_alpha = to_bool(safe_get(aq, "STALL ALPHA", "degrees", None))
+            incidence_alpha = to_float(safe_get(aq, "INCIDENCE ALPHA", "degrees", 0.0), 0.0)
+            is_stalling = stall_warning  # primary detection
+            # Extra: if AoA > ~18 degrees, likely stalled even without warning
+            if incidence_alpha > 18.0 and not on_ground:
+                is_stalling = True
+
+            # Overspeed: Compare IAS to max design speed (Barber pole / Vne)
+            # MSFS provides AIRSPEED TRUE, BARBER POLE SPEED (some aircraft), DESIGN SPEED MIN ROTATION etc.
+            overspeed_warning = to_bool(safe_get(aq, "OVERSPEED WARNING", "bool", False))
+            # Direct overspeed detection from SimConnect
+            is_overspeed = overspeed_warning
+
+            # Crash / structural damage detection
+            # MSFS sets SIM DISABLED when aircraft crashes/breaks
+            sim_disabled = to_bool(safe_get(aq, "SIM DISABLED", "bool", False))
+            # Also check if aircraft is upside down or in impossible attitude as crash proxy
+            plane_bank = abs(to_float(safe_get(aq, "PLANE BANK DEGREES", "degrees"), 0.0))
+            plane_pitch_abs = abs(pitch)
+            if sim_disabled:
+                event_crash = True
+            # Detect overstress from excessive G-force
+            if abs(g_force) > 2.5 and not on_ground:
+                event_overstress = True
+
+            # Tailstrike: pitch > ~10-12 degrees while on ground (depends on aircraft)
+            # This is a proxy - if on ground and pitch is very high, tail likely scraped
+            if on_ground and pitch > 11.0 and speed > 30:
+                event_tailstrike = True
+
+            # Flaps overspeed: check flap position vs speed
+            # Typical flap speed limits: flaps > 0 and IAS > ~250 kts is dangerous
+            # More precise: full flaps at > 180kts, partial flaps at > 230kts
+            flaps_overspeed = False
+            if flap_ratio > 0.5 and ias > 200:
+                flaps_overspeed = True
+            elif flap_ratio > 0.0 and ias > 250:
+                flaps_overspeed = True
+
+            # Gear-up landing detection: on ground, gear retracted, speed > 40 (not taxi)
+            gear_up_landing = on_ground and not gear_down and speed > 40
+
+            # Touchdown detection: transition from airborne to ground
+            just_landed = on_ground and not prev_on_ground
+            if just_landed:
+                # Capture the V/S and G at moment of touchdown
+                touchdown_vspeed = abs(prev_vs)
+                landing_g_force = g_force
+                print(f"[SkyCareer] TOUCHDOWN: V/S={touchdown_vspeed:.0f} fpm, G={landing_g_force:.2f}")
+
+            prev_on_ground = on_ground
+            prev_vs = vertical_speed
+
             # Environment & performance data
             oat_c = to_float(safe_get(aq, "AMBIENT TEMPERATURE", "celsius"), None)
             baro_mb = to_float(safe_get(aq, "KOHLSMAN SETTING MB", "millibars"), None)
@@ -161,20 +227,20 @@ def main():
                 "flap_ratio": flap_ratio,
                 "fuel_percentage": fuel_percentage,
                 "fuel_kg": fuel_kg,
-                "touchdown_vspeed": 0,
-                "landing_g_force": 0,
-                "tailstrike": False,
-                "stall": False,
-                "is_in_stall": False,
-                "stall_warning": False,
+                "touchdown_vspeed": touchdown_vspeed,
+                "landing_g_force": landing_g_force,
+                "tailstrike": event_tailstrike,
+                "stall": is_stalling,
+                "is_in_stall": is_stalling,
+                "stall_warning": stall_warning,
                 "override_alpha": False,
-                "overstress": False,
-                "overspeed": False,
-                "flaps_overspeed": False,
+                "overstress": event_overstress,
+                "overspeed": is_overspeed,
+                "flaps_overspeed": flaps_overspeed,
                 "fuel_emergency": fuel_percentage < 3.0,
-                "gear_up_landing": False,
-                "crash": False,
-                "has_crashed": False,
+                "gear_up_landing": gear_up_landing,
+                "crash": event_crash,
+                "has_crashed": event_crash,
                 "aircraft_icao": safe_get(aq, "ATC MODEL", "string", "") or "",
                 "oat_c": oat_c,
                 "baro_setting": baro_mb,
@@ -187,7 +253,17 @@ def main():
             # Debug: show env data on first packet and every 30 seconds
             if not hasattr(main, '_last_debug') or (time.time() - main._last_debug) > 30:
                 main._last_debug = time.time()
+                events_str = []
+                if is_stalling: events_str.append("STALL")
+                if is_overspeed: events_str.append("OVERSPEED")
+                if event_overstress: events_str.append("OVERSTRESS")
+                if event_tailstrike: events_str.append("TAILSTRIKE")
+                if flaps_overspeed: events_str.append("FLAPS_OVSPD")
+                if gear_up_landing: events_str.append("GEAR_UP_LDG")
+                if event_crash: events_str.append("CRASH")
+                ev_display = ", ".join(events_str) if events_str else "NONE"
                 print(f"[SkyCareer] ENV: OAT={oat_c}C QNH={baro_mb}mb WIND={wind_direction}/{wind_speed_kts}kt ELEV={ground_elev_ft}ft GWT={total_weight_kg}kg ICAO={payload['aircraft_icao']}")
+                print(f"[SkyCareer] EVENTS: {ev_display} | G={g_force:.2f} MaxG={max_g_force:.2f} AoA={incidence_alpha:.1f} Pitch={pitch:.1f} IAS={ias:.0f}")
 
             resp = post_payload(payload)
             if resp.status_code >= 400:
