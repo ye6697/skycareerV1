@@ -1291,56 +1291,53 @@ export default function FlightTracker() {
 
   const calculateDistanceInfo = () => {
     if (!contract || flightPhase === 'preflight') return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
-    
-    const hasCurrentPos = (flightData.latitude !== 0 || flightData.longitude !== 0);
-    const hasArrivalCoords = flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0;
-    const hasDepartureCoords = flightData.departure_lat !== 0 || flightData.departure_lon !== 0;
-    
-    if (hasCurrentPos) {
-      // Total route distance: prefer calculated from departure->arrival coords, fallback to contract distance_nm
-      let totalDistance = contract?.distance_nm || 0;
-      
-      if (hasArrivalCoords) {
-        // We have arrival coordinates - calculate remaining distance directly
-        const remainingDistance = calculateHaversineDistance(
-          flightData.latitude, flightData.longitude,
-          flightData.arrival_lat, flightData.arrival_lon
-        );
-        
-        if (hasDepartureCoords) {
-          totalDistance = calculateHaversineDistance(
-            flightData.departure_lat, flightData.departure_lon,
-            flightData.arrival_lat, flightData.arrival_lon
-          );
+    const hasPos = flightData.latitude !== 0 || flightData.longitude !== 0;
+    // Use SimBrief route if available
+    const xpd = (flight || existingFlight)?.xplane_data || {};
+    const sbWps = simbriefRoute?.waypoints || xpd.simbrief_waypoints || [];
+    const sbDep = simbriefRoute?.departure_coords || xpd.simbrief_departure_coords;
+    const sbArr = simbriefRoute?.arrival_coords || xpd.simbrief_arrival_coords;
+    if (sbWps.length >= 2 && hasPos) {
+      const pts = [];
+      if (sbDep?.lat && sbDep?.lon) pts.push({ lat: +sbDep.lat, lon: +sbDep.lon });
+      sbWps.forEach(wp => { const la = +wp?.lat, lo = +wp?.lon; if (Number.isFinite(la) && Number.isFinite(lo)) pts.push({ lat: la, lon: lo }); });
+      if (sbArr?.lat && sbArr?.lon) pts.push({ lat: +sbArr.lat, lon: +sbArr.lon });
+      if (pts.length >= 2) {
+        let totalNm = 0;
+        for (let i = 0; i < pts.length - 1; i++) totalNm += calculateHaversineDistance(pts[i].lat, pts[i].lon, pts[i+1].lat, pts[i+1].lon);
+        let minD = Infinity, cIdx = 0, cFrac = 0;
+        for (let i = 0; i < pts.length - 1; i++) {
+          const sL = calculateHaversineDistance(pts[i].lat, pts[i].lon, pts[i+1].lat, pts[i+1].lon);
+          if (sL < 0.1) continue;
+          const dA = calculateHaversineDistance(pts[i].lat, pts[i].lon, flightData.latitude, flightData.longitude);
+          const dB = calculateHaversineDistance(pts[i+1].lat, pts[i+1].lon, flightData.latitude, flightData.longitude);
+          let f = (dA*dA - dB*dB + sL*sL) / (2*sL*sL); f = Math.max(0, Math.min(1, f));
+          const pLat = pts[i].lat + f*(pts[i+1].lat-pts[i].lat), pLon = pts[i].lon + f*(pts[i+1].lon-pts[i].lon);
+          const d = calculateHaversineDistance(flightData.latitude, flightData.longitude, pLat, pLon);
+          if (d < minD) { minD = d; cIdx = i; cFrac = f; }
         }
-        
-        if (totalDistance <= 0) totalDistance = contract?.distance_nm || remainingDistance;
-        
-        const progress = ((totalDistance - remainingDistance) / totalDistance) * 100;
-        return { 
-          progress: Math.max(0, Math.min(100, progress)), 
-          remainingNm: Math.max(0, Math.round(remainingDistance)),
-          totalNm: Math.round(totalDistance)
-        };
-      }
-      
-      // No arrival coords but have current position and departure coords
-      // Estimate progress based on distance from departure vs total contract distance
-      if (hasDepartureCoords && totalDistance > 0) {
-        const flownDistance = calculateHaversineDistance(
-          flightData.departure_lat, flightData.departure_lon,
-          flightData.latitude, flightData.longitude
-        );
-        const remainingDistance = Math.max(0, totalDistance - flownDistance);
-        const progress = (flownDistance / totalDistance) * 100;
-        return {
-          progress: Math.max(0, Math.min(100, progress)),
-          remainingNm: Math.max(0, Math.round(remainingDistance)),
-          totalNm: Math.round(totalDistance)
-        };
+        const cSL = calculateHaversineDistance(pts[cIdx].lat, pts[cIdx].lon, pts[cIdx+1].lat, pts[cIdx+1].lon);
+        let rem = cSL * (1 - cFrac);
+        for (let j = cIdx + 1; j < pts.length - 1; j++) rem += calculateHaversineDistance(pts[j].lat, pts[j].lon, pts[j+1].lat, pts[j+1].lon);
+        const flown = Math.max(0, totalNm - rem);
+        return { progress: Math.max(0, Math.min(100, totalNm > 0 ? (flown / totalNm) * 100 : 0)), remainingNm: Math.max(0, Math.round(rem)), totalNm: Math.round(totalNm) };
       }
     }
-    
+    // Fallback: direct line
+    const hasArr = flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0;
+    const hasDep = flightData.departure_lat !== 0 || flightData.departure_lon !== 0;
+    if (hasPos && hasArr) {
+      const rem = calculateHaversineDistance(flightData.latitude, flightData.longitude, flightData.arrival_lat, flightData.arrival_lon);
+      let tot = contract?.distance_nm || 0;
+      if (hasDep) tot = calculateHaversineDistance(flightData.departure_lat, flightData.departure_lon, flightData.arrival_lat, flightData.arrival_lon);
+      if (tot <= 0) tot = contract?.distance_nm || rem;
+      return { progress: Math.max(0, Math.min(100, ((tot - rem) / tot) * 100)), remainingNm: Math.max(0, Math.round(rem)), totalNm: Math.round(tot) };
+    }
+    if (hasPos && hasDep && (contract?.distance_nm || 0) > 0) {
+      const flown = calculateHaversineDistance(flightData.departure_lat, flightData.departure_lon, flightData.latitude, flightData.longitude);
+      const tot = contract.distance_nm;
+      return { progress: Math.max(0, Math.min(100, (flown / tot) * 100)), remainingNm: Math.max(0, Math.round(tot - flown)), totalNm: Math.round(tot) };
+    }
     return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
   };
 
