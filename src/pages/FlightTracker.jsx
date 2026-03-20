@@ -711,7 +711,7 @@ export default function FlightTracker() {
 
             // Update contract
             console.log('Aktualisiere Contract Status:', activeFlight.contract_id, hasCrashed ? 'failed' : 'completed');
-            await base44.entities.Contract.update(activeFlight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
+            await base44.entities.Contract.update(activeFlight.contract_id, { status: (hasCrashed || wrongAirport) ? 'failed' : 'completed' });
 
             // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
