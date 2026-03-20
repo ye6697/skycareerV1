@@ -180,28 +180,8 @@ export default function XPlaneSetup() {
     await downloadStaticZip('SkyCareer_MSFS_Ingame_Tablet.zip', 'downloadMSFSTablet');
   };
 
-  const downloadMsfsBridge = async () => {
-    setDownloading(true);
-    try {
-      const response = await base44.functions.invoke('downloadMSFSBridge', {
-        endpoint
-      });
-      
-      const blob = new Blob([response.data], { type: 'text/x-python' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'SkyCareer_MSFS_Bridge.py';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-    } catch (error) {
-      console.error('Error downloading MSFS Bridge:', error);
-      alert(t('xps_download_error', lang));
-    } finally {
-      setDownloading(false);
-    }
+  const downloadMsfsBridgeExe = async () => {
+    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip', 'downloadMSFSBridgeExe');
   };
 
   return (
