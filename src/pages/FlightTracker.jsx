@@ -64,7 +64,7 @@ export default function FlightTracker() {
     events: {
       tailstrike: false, stall: false, overstress: false, overspeed: false,
       flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
-      crash: false, harsh_controls: false, high_g_force: false, hard_landing: false
+      crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
     },
     maxControlInput: 0, departure_lat: 0, departure_lon: 0,
     arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0
