@@ -36,7 +36,7 @@ export default function FlightRating({ flight }) {
   };
 
   const RatingStars = ({ rating, label, icon: Icon }) => (
-    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+    <div className="flex items-center justify-between p-3 bg-slate-700/50 border border-slate-600/50 rounded-lg">
       <div className="flex items-center gap-2">
         <Icon className="w-4 h-4 text-slate-400" />
         <span className="text-sm text-slate-300">{label}</span>
@@ -90,7 +90,7 @@ export default function FlightRating({ flight }) {
   const score = flight?.xplane_data?.final_score ?? flight?.xplane_data?.flightScore ?? flight?.flight_score ?? (flight?.overall_rating !== undefined ? (flight.overall_rating / 5) * 100 : 100);
 
   return (
-    <Card className="p-6 bg-slate-800 border border-slate-700">
+    <Card className="p-6 bg-slate-800/50 border-slate-700">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-white">{t('flight_rating', lang)}</h3>
         <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl border border-slate-600">
@@ -103,7 +103,7 @@ export default function FlightRating({ flight }) {
       </div>
 
       <div className="space-y-3 mb-6">
-        <div className="p-3 bg-slate-900 rounded-lg">
+        <div className="p-3 bg-slate-700/50 border border-slate-600/50 rounded-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-300">Score</span>
             <span className={`text-xl font-bold ${getScoreColor(score)}`}>
@@ -113,7 +113,7 @@ export default function FlightRating({ flight }) {
         </div>
       </div>
 
-      <div className="p-4 bg-slate-900 rounded-lg mb-4">
+      <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg mb-4">
         <div className="grid grid-cols-2 gap-4 text-center">
           {flight?.landing_vs !== undefined && (
             <div>
@@ -156,7 +156,7 @@ export default function FlightRating({ flight }) {
 
       {/* Additional Flight Metrics */}
       {(flight?.fuel_used_liters || flight?.flight_duration_hours) && (
-        <div className="p-4 bg-slate-900 rounded-lg mb-4">
+        <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg mb-4">
           <div className="grid grid-cols-2 gap-4 text-center text-sm">
             {flight?.fuel_used_liters && (
               <div>
@@ -180,8 +180,8 @@ export default function FlightRating({ flight }) {
 
       {/* Financial Summary */}
       {(flight?.revenue || flight?.fuel_cost || flight?.crew_cost || flight?.maintenance_cost || flight?.profit) && (
-        <div className="p-4 bg-slate-900 rounded-lg mb-4">
-          <h4 className="text-sm font-semibold text-slate-300 mb-3">{t('finances_label', lang)}</h4>
+        <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg mb-4">
+          <h4 className="text-sm font-semibold text-white mb-3">{t('finances_label', lang)}</h4>
           <div className="space-y-2">
             {flight?.revenue && (
               <div className="flex items-center justify-between text-sm">
@@ -238,7 +238,7 @@ export default function FlightRating({ flight }) {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="p-3 bg-slate-900 rounded-lg text-sm text-slate-300 italic"
+                className="p-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-sm text-slate-300 italic"
               >
                 "{comment}"
               </motion.div>

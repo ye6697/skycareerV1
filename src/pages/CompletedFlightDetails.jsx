@@ -220,9 +220,9 @@ export default function CompletedFlightDetails() {
 
               {/* Flight Details */}
               <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Plane className="w-5 h-5 text-blue-400" />
-                  {t('flight_details', lang)}
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                   <Plane className="w-5 h-5 text-blue-400" />
+                   {t('flight_details', lang)}
                   </h3>
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(() => {
@@ -598,9 +598,9 @@ export default function CompletedFlightDetails() {
             <div className="space-y-6">
               {/* Financial Summary */}
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-amber-400" />
-                  {t('financial_overview', lang)}
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                   <DollarSign className="w-5 h-5 text-amber-400" />
+                   {t('financial_overview', lang)}
                   </h3>
                 <div className="space-y-3">
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
@@ -650,13 +650,13 @@ export default function CompletedFlightDetails() {
                     <span className="text-red-400 font-mono">-$150</span>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-700">
-                    <span className="font-semibold">{t('total_revenue', lang)}</span>
+                    <span className="font-semibold text-white">{t('total_revenue', lang)}</span>
                     <span className="text-xl font-bold font-mono text-emerald-400">
                       ${Math.round(flight.revenue || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-3">
-                    <span className="font-semibold">{t('profit_loss', lang)}</span>
+                    <span className="font-semibold text-white">{t('profit_loss', lang)}</span>
                     <span className={`text-xl font-bold font-mono ${
                       flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
@@ -669,7 +669,7 @@ export default function CompletedFlightDetails() {
               {/* Passenger Comments */}
               {flight.passenger_comments && flight.passenger_comments.length > 0 && (
                 <Card className="p-6 bg-slate-800/50 border-slate-700">
-                  <h3 className="text-lg font-semibold mb-4">{t('passenger_comments', lang)}</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-white">{t('passenger_comments', lang)}</h3>
                   <div className="space-y-2">
                     {flight.passenger_comments.map((comment, idx) => (
                       <p key={idx} className="text-slate-300 text-sm">
