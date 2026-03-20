@@ -1244,16 +1244,19 @@ export default function FlightTracker() {
       setFlightStartTime(Date.now());
     }
     
-    // Landing detection: aircraft was airborne, is now on ground, in any active flight phase
-    // Also detect "ready_to_complete" status from backend (parked with engines off + parking brake)
+    // Landing detection: on ground after being airborne
     const isReadyToComplete = xp.on_ground && flightData.wasAirborne;
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
-      console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Warte auf Flugabschluss');
+      // Check distance to arrival airport (>10NM without emergency = failed)
+      const aLt = flightData.arrival_lat || xp.arrival_lat || 0, aLn = flightData.arrival_lon || xp.arrival_lon || 0;
+      const cLt = xp.latitude || flightData.latitude || 0, cLn = xp.longitude || flightData.longitude || 0;
+      const dArr = (aLt || aLn) && (cLt || cLn) ? calculateHaversineDistance(cLt, cLn, aLt, aLn) : 0;
+      if ((aLt || aLn) && (cLt || cLn) && dArr > 10 && !emergencyLanding) {
+        console.log(`🚨 WRONG AIRPORT (${Math.round(dArr)} NM) - FAILED`);
+        setFlightData(prev => { const u = { ...prev, events: { ...prev.events, wrong_airport: true }, flightScore: 0 }; flightDataRef.current = u; return u; });
+      }
       setFlightPhase('completed');
-      // Delay to ensure the landing score/bonus state update is committed via flightDataRef
-      setTimeout(() => {
-        completeFlightMutation.mutate();
-      }, 500);
+      setTimeout(() => completeFlightMutation.mutate(), 500);
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
