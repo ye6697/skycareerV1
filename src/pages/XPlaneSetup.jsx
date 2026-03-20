@@ -180,8 +180,28 @@ export default function XPlaneSetup() {
     await downloadStaticZip('SkyCareer_MSFS_Ingame_Tablet.zip', 'downloadMSFSTablet');
   };
 
-  const downloadMsfsBridgeExe = async () => {
-    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip', 'downloadMSFSBridgeExe');
+  const downloadMsfsBridge = async () => {
+    setDownloading(true);
+    try {
+      const response = await base44.functions.invoke('downloadMSFSBridge', {
+        endpoint
+      });
+      
+      const blob = new Blob([response.data], { type: 'text/x-python' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'SkyCareer_MSFS_Bridge.py';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (error) {
+      console.error('Error downloading MSFS Bridge:', error);
+      alert(t('xps_download_error', lang));
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -351,19 +371,19 @@ export default function XPlaneSetup() {
                       )}
                     </Button>
 
-                    {/* Standalone MSFS Bridge EXE */}
+                    {/* Standalone MSFS Python Bridge */}
                     <div className="mt-3 bg-amber-900/20 border border-amber-700/40 rounded-lg p-3">
                       <p className="text-amber-300 text-xs font-bold mb-2">
-                        {lang === 'de' ? '⚡ Alternative: Standalone MSFS Bridge (.exe)' : '⚡ Alternative: Standalone MSFS Bridge (.exe)'}
+                        {lang === 'de' ? '🐍 Alternative: Standalone Python Bridge' : '🐍 Alternative: Standalone Python Bridge'}
                       </p>
                       <p className="text-xs text-slate-400 mb-2">
                         {lang === 'de'
-                          ? 'Leichtgewichtige Bridge für MSFS 2020/2024. Erkennt Stall, Overspeed, Crash, Tailstrike, Flaps-Overspeed, Gear-Up-Landing und Touchdown-Daten. Keine Installation nötig – einfach starten.'
-                          : 'Lightweight bridge for MSFS 2020/2024. Detects stall, overspeed, crash, tailstrike, flaps overspeed, gear-up landing, and touchdown data. No installation needed – just run.'}
+                          ? 'Leichtgewichtige Python-Bridge für MSFS 2020/2024. Erkennt Stall, Overspeed, Crash, Tailstrike, Flaps-Overspeed, Gear-Up-Landing und Touchdown-Daten. Benötigt Python 3 + python-simconnect.'
+                          : 'Lightweight Python bridge for MSFS 2020/2024. Detects stall, overspeed, crash, tailstrike, flaps overspeed, gear-up landing, and touchdown data. Requires Python 3 + python-simconnect.'}
                       </p>
                       <Button
                         className="w-full bg-amber-700 hover:bg-amber-600 text-white whitespace-normal h-auto py-2 text-xs"
-                        onClick={downloadMsfsBridgeExe}
+                        onClick={downloadMsfsBridge}
                         disabled={downloading}
                       >
                         {downloading ? (
@@ -374,14 +394,14 @@ export default function XPlaneSetup() {
                         ) : (
                           <>
                             <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                            {lang === 'de' ? 'MSFS Bridge (.exe) herunterladen' : 'Download MSFS Bridge (.exe)'}
+                            {lang === 'de' ? 'MSFS Bridge (Python) herunterladen' : 'Download MSFS Bridge (Python)'}
                           </>
                         )}
                       </Button>
                       <p className="text-[10px] text-slate-500 mt-1.5">
                         {lang === 'de'
-                          ? 'ZIP entpacken → SkyCareer_MSFS_Bridge.exe starten → MSFS starten'
-                          : 'Extract ZIP → Run SkyCareer_MSFS_Bridge.exe → Start MSFS'}
+                          ? 'Nutzung: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (oder msfs2024)'
+                          : 'Usage: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (or msfs2024)'}
                       </p>
                     </div>
 
