@@ -1711,10 +1711,10 @@ export default function FlightTracker() {
                           </div>
                         )}
                         {flightData.events.hard_landing === true && (
-                          <div className="text-xs text-red-400 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" />
-                            {t('hard_landing', lang)}
-                          </div>
+                          <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{t('hard_landing', lang)}</div>
+                        )}
+                        {flightData.events.wrong_airport === true && (
+                          <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Falscher Flughafen! (>10 NM)' : 'Wrong airport! (>10 NM)'}</div>
                         )}
                         </div>
                         </div>
