@@ -3,11 +3,41 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = await req.json();
+    } catch {
+      payload = {};
+    }
 
-    const cid = user?.company_id;
-    if (!cid) return Response.json({ error: 'No company found' }, { status: 400 });
+    const url = new URL(req.url);
+    const apiKeyFromRequest =
+      (url.searchParams.get('api_key') || String(payload?.api_key || '')).trim();
+
+    let user = null;
+    try {
+      user = await base44.auth.me();
+    } catch {
+      user = null;
+    }
+
+    let cid = user?.company_id || null;
+    if (!cid && apiKeyFromRequest) {
+      const companiesByKey = await base44.asServiceRole.entities.Company.filter({
+        xplane_api_key: apiKeyFromRequest,
+      });
+      cid = companiesByKey?.[0]?.id || null;
+    }
+    if (!cid) {
+      return Response.json(
+        {
+          error: 'Unauthorized',
+          requires_auth: true,
+          xplane_connection_status: 'disconnected',
+        },
+        { status: 200 }
+      );
+    }
 
     // Check connection status first
     const companies = await base44.asServiceRole.entities.Company.filter({ id: cid });

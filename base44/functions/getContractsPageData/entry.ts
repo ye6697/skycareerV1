@@ -3,9 +3,17 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    let user = null;
+    try {
+      user = await base44.auth.me();
+    } catch {
+      user = null;
+    }
     if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json(
+        { company: null, aircraft: [], contracts: [], employees: [], requires_auth: true },
+        { status: 200 }
+      );
     }
 
     // Get user's company - prefer company_id from user, fallback to created_by
