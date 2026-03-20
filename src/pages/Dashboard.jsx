@@ -24,6 +24,7 @@ import {
   User,
   Map,
   Calculator,
+  Trophy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -253,6 +254,7 @@ export default function Dashboard() {
           { name: "FLIGHT MAP", icon: Map, path: "FlightMap", color: "text-emerald-500" },
           { name: "PERFORMANCE", icon: Calculator, path: "PerformanceCalculator", color: "text-amber-500" },
           { name: "SETUP", icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
+          { name: lang === 'de' ? 'RANKING' : 'LEADERBOARD', icon: Trophy, path: "Leaderboard", color: "text-amber-400" },
           { name: t('account', lang), icon: User, path: "Account", color: "text-rose-400" },
         ].map((item, i) => (
           <Link key={i} to={createPageUrl(item.path)} className="block h-full min-h-[140px]">
