@@ -370,6 +370,41 @@ export default function XPlaneSetup() {
                         </>
                       )}
                     </Button>
+
+                    {/* Standalone MSFS Python Bridge */}
+                    <div className="mt-3 bg-amber-900/20 border border-amber-700/40 rounded-lg p-3">
+                      <p className="text-amber-300 text-xs font-bold mb-2">
+                        {lang === 'de' ? '🐍 Alternative: Standalone Python Bridge' : '🐍 Alternative: Standalone Python Bridge'}
+                      </p>
+                      <p className="text-xs text-slate-400 mb-2">
+                        {lang === 'de'
+                          ? 'Leichtgewichtige Python-Bridge für MSFS 2020/2024. Erkennt Stall, Overspeed, Crash, Tailstrike, Flaps-Overspeed, Gear-Up-Landing und Touchdown-Daten. Benötigt Python 3 + python-simconnect.'
+                          : 'Lightweight Python bridge for MSFS 2020/2024. Detects stall, overspeed, crash, tailstrike, flaps overspeed, gear-up landing, and touchdown data. Requires Python 3 + python-simconnect.'}
+                      </p>
+                      <Button
+                        className="w-full bg-amber-700 hover:bg-amber-600 text-white whitespace-normal h-auto py-2 text-xs"
+                        onClick={downloadMsfsBridge}
+                        disabled={downloading}
+                      >
+                        {downloading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
+                            {t('xps_loading', lang)}
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2 flex-shrink-0" />
+                            {lang === 'de' ? 'MSFS Bridge (Python) herunterladen' : 'Download MSFS Bridge (Python)'}
+                          </>
+                        )}
+                      </Button>
+                      <p className="text-[10px] text-slate-500 mt-1.5">
+                        {lang === 'de'
+                          ? 'Nutzung: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (oder msfs2024)'
+                          : 'Usage: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (or msfs2024)'}
+                      </p>
+                    </div>
+
                     <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
                       <p className="text-slate-300">
                         <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> WebView2 Runtime (meist schon installiert)
