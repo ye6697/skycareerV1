@@ -209,6 +209,9 @@ export default function CompletedFlightDetails() {
                 );
               })()}
 
+              {/* Flight Profile Chart */}
+              <FlightProfileChart flight={flight} />
+
               {/* Flight Rating */}
               <FlightRating flight={flight} />
 
