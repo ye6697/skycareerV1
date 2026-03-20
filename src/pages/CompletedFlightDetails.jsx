@@ -500,7 +500,7 @@ export default function CompletedFlightDetails() {
                             flight_controls: "Steuerung", pressurization: "Druckkabine"
                           };
                           return (
-                            <div key={cat} className="flex justify-between p-2 bg-slate-800 rounded">
+                            <div key={cat} className="flex justify-between p-2 bg-slate-600/30 border border-slate-600/40 rounded">
                               <span className="text-slate-400">{labels[cat] || cat}</span>
                               <span className="text-red-400 font-mono">+{dmg.toFixed(0)}%</span>
                             </div>
