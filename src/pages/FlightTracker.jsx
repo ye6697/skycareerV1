@@ -623,7 +623,7 @@ export default function FlightTracker() {
               }
             }
             
-            const scoreWithTime = hasCrashed ? 0 : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange));
+            const scoreWithTime = (hasCrashed || wrongAirport) ? 0 : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange));
 
             console.log('🎯 SCORE BERECHNUNG:', {
              baseScore: finalFlightData.flightScore,
