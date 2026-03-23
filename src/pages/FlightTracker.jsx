@@ -236,7 +236,7 @@ export default function FlightTracker() {
         landingMaintenanceCost: 0, landingBonus: 0, flightScore: 100,
         maintenanceCost: 0, reputation: 'EXCELLENT', latitude: 0, longitude: 0,
         events: {
-          tailstrike: false, stall: false, overstress: false,
+          tailstrike: false, stall: false, overstress: false, overspeed: false,
           flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
           crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
         },
