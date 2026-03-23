@@ -1156,6 +1156,23 @@ export default function FlightTracker() {
       const arrLat = prev.arrival_lat || xp.arrival_lat || 0;
       const arrLon = prev.arrival_lon || xp.arrival_lon || 0;
       
+      // Merge events: backend xplane_data events are authoritative (once true, always true)
+      // Local detection adds to them but never overrides true->false
+      const mergedEvents = {
+        tailstrike: !!(xp.tailstrike || prev.events.tailstrike),
+        stall: !!(xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha || prev.events.stall),
+        overstress: !!(xp.overstress || prev.events.overstress),
+        overspeed: !!(xp.overspeed || prev.events.overspeed),
+        flaps_overspeed: !!(flapsOverspeedDetected || xp.flaps_overspeed || prev.events.flaps_overspeed),
+        fuel_emergency: !!(xp.fuel_emergency || prev.events.fuel_emergency),
+        gear_up_landing: !!(xp.gear_up_landing || prev.events.gear_up_landing),
+        crash: !!isCrash,
+        harsh_controls: !!(xp.harsh_controls || prev.events.harsh_controls),
+        high_g_force: !!(newMaxGForce >= 1.5 || prev.events.high_g_force),
+        hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing),
+        wrong_airport: !!(prev.events.wrong_airport),
+      };
+
       const newData = {
         altitude: xp.altitude || prev.altitude,
         speed: xp.speed || prev.speed,
@@ -1180,19 +1197,7 @@ export default function FlightTracker() {
         departure_lon: depLon,
         arrival_lat: arrLat,
         arrival_lon: arrLon,
-        events: {
-         tailstrike: xp.tailstrike || prev.events.tailstrike,
-         stall: (xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha) || prev.events.stall,
-         overstress: xp.overstress || prev.events.overstress,
-          overspeed: xp.overspeed || prev.events.overspeed,
-          flaps_overspeed: flapsOverspeedDetected || prev.events.flaps_overspeed,
-          fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
-          gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-          crash: isCrash,
-          harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
-          high_g_force: newMaxGForce >= 1.5 || prev.events.high_g_force,
-          hard_landing: landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing
-        },
+        events: mergedEvents,
         maxControlInput: newMaxControlInput,
         wasAirborne: newWasAirborne,
         previousSpeed: currentSpeed
