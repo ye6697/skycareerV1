@@ -146,50 +146,57 @@ def main():
 
             # === EVENT DETECTION via SimConnect variables ===
 
-            # Stall: STALL WARNING is a reliable SimConnect variable (0 or 1)
+            # Track if aircraft was airborne (for event detection - only count events after takeoff)
+            if not on_ground and altitude > 50:
+                was_airborne = True
+
+            # === STALL DETECTION ===
             stall_warning = to_bool(safe_get(aq, "STALL WARNING", "bool", False))
-            # Also check angle-of-attack vs critical alpha if available
-            stall_alpha = to_bool(safe_get(aq, "STALL ALPHA", "degrees", None))
             incidence_alpha = to_float(safe_get(aq, "INCIDENCE ALPHA", "degrees", 0.0), 0.0)
-            is_stalling = stall_warning  # primary detection
-            # Extra: if AoA > ~18 degrees, likely stalled even without warning
+            is_stalling_now = stall_warning
             if incidence_alpha > 18.0 and not on_ground:
-                is_stalling = True
+                is_stalling_now = True
+            # Persist: once stalled, stays True
+            if is_stalling_now and was_airborne:
+                event_stall = True
 
-            # Overspeed: Compare IAS to max design speed (Barber pole / Vne)
-            # MSFS provides AIRSPEED TRUE, BARBER POLE SPEED (some aircraft), DESIGN SPEED MIN ROTATION etc.
+            # === OVERSPEED DETECTION ===
             overspeed_warning = to_bool(safe_get(aq, "OVERSPEED WARNING", "bool", False))
-            # Direct overspeed detection from SimConnect
-            is_overspeed = overspeed_warning
+            if overspeed_warning and was_airborne:
+                event_overspeed = True
 
-            # Crash / structural damage detection
-            # MSFS sets SIM DISABLED when aircraft crashes/breaks
+            # === CRASH DETECTION ===
             sim_disabled = to_bool(safe_get(aq, "SIM DISABLED", "bool", False))
-            # Also check if aircraft is upside down or in impossible attitude as crash proxy
             plane_bank = abs(to_float(safe_get(aq, "PLANE BANK DEGREES", "degrees"), 0.0))
             plane_pitch_abs = abs(pitch)
-            if sim_disabled:
+            if sim_disabled and was_airborne:
                 event_crash = True
-            # Detect overstress from excessive G-force
-            if abs(g_force) > 2.5 and not on_ground:
+
+            # === OVERSTRESS DETECTION ===
+            # G-force > 2.5 or extreme bank/pitch while airborne
+            if abs(g_force) > 2.5 and not on_ground and was_airborne:
                 event_overstress = True
 
-            # Tailstrike: pitch > ~10-12 degrees while on ground (depends on aircraft)
-            # This is a proxy - if on ground and pitch is very high, tail likely scraped
+            # === TAILSTRIKE DETECTION ===
             if on_ground and pitch > 11.0 and speed > 30:
                 event_tailstrike = True
 
-            # Flaps overspeed: check flap position vs speed
-            # Typical flap speed limits: flaps > 0 and IAS > ~250 kts is dangerous
-            # More precise: full flaps at > 180kts, partial flaps at > 230kts
-            flaps_overspeed = False
-            if flap_ratio > 0.5 and ias > 200:
-                flaps_overspeed = True
-            elif flap_ratio > 0.0 and ias > 250:
-                flaps_overspeed = True
+            # === FLAPS OVERSPEED DETECTION ===
+            if was_airborne:
+                if flap_ratio > 0.5 and ias > 200:
+                    event_flaps_overspeed = True
+                elif flap_ratio > 0.0 and ias > 250:
+                    event_flaps_overspeed = True
 
-            # Gear-up landing detection: on ground, gear retracted, speed > 40 (not taxi)
-            gear_up_landing = on_ground and not gear_down and speed > 40
+            # === GEAR-UP LANDING DETECTION ===
+            if on_ground and not gear_down and speed > 40 and was_airborne:
+                event_gear_up_landing = True
+
+            # === HARSH CONTROLS DETECTION ===
+            # Detect aggressive control inputs via rapid pitch/bank changes
+            if was_airborne and not on_ground:
+                if plane_bank > 60 or plane_pitch_abs > 30:
+                    event_harsh_controls = True
 
             # Touchdown detection: transition from airborne to ground
             just_landed = on_ground and not prev_on_ground
