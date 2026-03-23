@@ -94,10 +94,16 @@ def main():
     touchdown_vspeed = 0.0
     landing_g_force = 0.0
     prev_vs = 0.0
+    was_airborne = False
     # Track events that persist across ticks (once triggered, stay True until reset)
     event_tailstrike = False
     event_overstress = False
     event_crash = False
+    event_stall = False
+    event_overspeed = False
+    event_flaps_overspeed = False
+    event_gear_up_landing = False
+    event_harsh_controls = False
 
     print("[SkyCareer] Starting MSFS bridge ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
