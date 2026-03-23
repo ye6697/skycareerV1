@@ -357,6 +357,7 @@ export default function FlightTracker() {
           tailstrike: false,
           stall: false,
           overstress: false,
+          overspeed: false,
           flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
           crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
         },
