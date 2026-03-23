@@ -268,13 +268,14 @@ def main():
             if not hasattr(main, '_last_debug') or (time.time() - main._last_debug) > 30:
                 main._last_debug = time.time()
                 events_str = []
-                if is_stalling: events_str.append("STALL")
-                if is_overspeed: events_str.append("OVERSPEED")
+                if event_stall: events_str.append("STALL")
+                if event_overspeed: events_str.append("OVERSPEED")
                 if event_overstress: events_str.append("OVERSTRESS")
                 if event_tailstrike: events_str.append("TAILSTRIKE")
-                if flaps_overspeed: events_str.append("FLAPS_OVSPD")
-                if gear_up_landing: events_str.append("GEAR_UP_LDG")
+                if event_flaps_overspeed: events_str.append("FLAPS_OVSPD")
+                if event_gear_up_landing: events_str.append("GEAR_UP_LDG")
                 if event_crash: events_str.append("CRASH")
+                if event_harsh_controls: events_str.append("HARSH_CTRL")
                 ev_display = ", ".join(events_str) if events_str else "NONE"
                 print(f"[SkyCareer] ENV: OAT={oat_c}C QNH={baro_mb}mb WIND={wind_direction}/{wind_speed_kts}kt ELEV={ground_elev_ft}ft GWT={total_weight_kg}kg ICAO={payload['aircraft_icao']}")
                 print(f"[SkyCareer] EVENTS: {ev_display} | G={g_force:.2f} MaxG={max_g_force:.2f} AoA={incidence_alpha:.1f} Pitch={pitch:.1f} IAS={ias:.0f}")
