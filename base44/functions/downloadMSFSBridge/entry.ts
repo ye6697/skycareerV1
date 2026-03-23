@@ -231,18 +231,34 @@ def main():
             if abs(g_force) > 2.5 and not on_ground and state["was_airborne"]:
                 state["event_overstress"] = True
 
-            # === FIX #7: TAILSTRIKE - speed-dependent pitch thresholds ===
-            # Airliners rotate at higher speeds with lower pitch limits
-            # GA aircraft can have higher pitch at lower speeds without tailstrike
-            if on_ground and state["was_airborne"]:
+            # === FIX #7: TAILSTRIKE - SimConnect contact point detection + heuristic fallback ===
+            # MSFS contact points: 0=nosewheel, 1=left main, 2=right main, 3+=tail/scrape/wingtip
+            # CONTACT POINT IS ON GROUND:index returns true if that point touches ground
+            # We check indices 3-6 which are typically tail bumper/scrape points
+            tail_contact_detected = False
+            for cp_idx in range(3, 7):
+                cp_on_ground = to_bool(safe_get(aq, f"CONTACT POINT IS ON GROUND:{cp_idx}", "bool", False))
+                if cp_on_ground and not on_ground:
+                    # Contact point touching ground while aircraft is not "on ground" = scrape during flight
+                    tail_contact_detected = True
+                    break
+                if cp_on_ground and on_ground and speed > 30:
+                    # Contact point touching while on ground at speed = tail scrape during takeoff/landing
+                    tail_contact_detected = True
+                    break
+
+            if tail_contact_detected and state["was_airborne"]:
+                if not state["event_tailstrike"]:
+                    print(f"[SkyCareer] TAILSTRIKE detected via contact point!")
+                state["event_tailstrike"] = True
+
+            # Heuristic fallback: speed-dependent pitch thresholds (if contact points not available)
+            if not state["event_tailstrike"] and on_ground and state["was_airborne"]:
                 if speed > 120 and pitch > 9.0:
-                    # Airliner-range speeds: strict tailstrike threshold
                     state["event_tailstrike"] = True
                 elif speed > 60 and pitch > 12.0:
-                    # Mid-range: moderate threshold
                     state["event_tailstrike"] = True
                 elif speed > 30 and pitch > 15.0:
-                    # GA speeds: lenient threshold
                     state["event_tailstrike"] = True
 
             # === FLAPS OVERSPEED DETECTION ===
