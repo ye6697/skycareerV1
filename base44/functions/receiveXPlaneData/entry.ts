@@ -701,12 +701,20 @@ Deno.serve(async (req) => {
     if (rain_intensity !== undefined && rain_intensity > 1) {
       rain_intensity = Math.min(1, rain_intensity / 100);
     }
+    if (rain_intensity === undefined) {
+      rain_intensity = 0;
+    }
     let turbulence = asFinite(data.turbulence ?? data.turbulence_intensity ?? data.sim_weather_turbulence);
     if (turbulence === undefined) {
       const verticalWind = asFinite(data.wind_vertical_mps ?? data.ambient_wind_y ?? data.wind_y_mps);
       if (verticalWind !== undefined) {
         turbulence = Math.min(1, Math.abs(verticalWind) / 6);
       }
+    }
+    if (turbulence === undefined) {
+      const gNow = asFinite(g_force ?? data.gForce ?? 1) ?? 1;
+      const vsNow = asFinite(vertical_speed) ?? 0;
+      turbulence = Math.min(1, (Math.abs(gNow - 1) * 0.8) + (Math.min(1, Math.abs(vsNow) / 2500) * 0.35));
     }
     if (turbulence !== undefined && turbulence > 1) {
       turbulence = Math.min(1, turbulence / 100);
