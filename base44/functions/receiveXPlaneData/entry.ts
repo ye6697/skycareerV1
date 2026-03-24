@@ -322,13 +322,6 @@ Deno.serve(async (req) => {
     );
     const isCrash = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || sim_disabled || hasCrashFailure);
     const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
-    const prevXd = flight.xplane_data || {};
-    const incomingTouchdownVspeed = Number(touchdown_vspeed ?? 0);
-    const incomingLandingG = Number(landing_g_force ?? 0);
-    const prevTouchdownVspeed = Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0);
-    const prevLandingG = Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0);
-    const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
-    const mergedLandingG = incomingLandingG > 0 ? incomingLandingG : prevLandingG;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const asFinite = (v) => {
       const n = Number(v);
@@ -770,6 +763,14 @@ Deno.serve(async (req) => {
         assignedAircraftType = null;
       }
     }
+
+    const prevXd = flight.xplane_data || {};
+    const incomingTouchdownVspeed = Number(touchdown_vspeed ?? 0);
+    const incomingLandingG = Number(landing_g_force ?? 0);
+    const prevTouchdownVspeed = Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0);
+    const prevLandingG = Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0);
+    const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
+    const mergedLandingG = incomingLandingG > 0 ? incomingLandingG : prevLandingG;
 
     // Extract aircraft/env fields from plugin - normalize across X-Plane and MSFS naming
     let total_weight_kg = data.total_weight_kg ?? data.gross_weight_kg ?? data.weight_kg ?? null;
