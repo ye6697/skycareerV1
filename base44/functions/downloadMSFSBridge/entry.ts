@@ -48,7 +48,7 @@ LOOP_INTERVAL = 1.0
 JETA_KG_PER_GALLON = 3.039   # Jet-A / Jet-A1
 AVGAS_KG_PER_GALLON = 2.72   # 100LL Avgas
 
-def to_bool(v):
+def to_bool(v, default=False):
     if isinstance(v, bool):
         return v
     if isinstance(v, (int, float)):
@@ -56,7 +56,7 @@ def to_bool(v):
     if isinstance(v, str):
         s = v.strip().lower()
         return s in ("1", "true", "yes", "on")
-    return False
+    return default
 
 def to_float(v, default=0.0):
     try:
@@ -289,13 +289,25 @@ def main():
 
             # === ENVIRONMENT DATA ===
             oat_c = to_float(safe_get(aq, "AMBIENT TEMPERATURE", "celsius"), None)
+            tat_c = to_float(safe_get(aq, "TOTAL AIR TEMPERATURE", "celsius"), None)
             baro_mb = to_float(safe_get(aq, "KOHLSMAN SETTING MB", "millibars"), None)
             wind_speed_kts = to_float(safe_get(aq, "AMBIENT WIND VELOCITY", "knots"), None)
             wind_direction = to_float(safe_get(aq, "AMBIENT WIND DIRECTION", "degrees"), None)
+            precip_state = to_float(safe_get(aq, "AMBIENT PRECIP STATE", "mask"), None)
+            precip_rate = to_float(safe_get(aq, "AMBIENT PRECIP RATE", "millimeters of water"), None)
             ground_elev_m = to_float(safe_get(aq, "GROUND ALTITUDE", "meters"), None)
             ground_elev_ft = ground_elev_m * 3.28084 if ground_elev_m is not None else None
             total_weight_lbs = to_float(safe_get(aq, "TOTAL WEIGHT", "pounds"), None)
             total_weight_kg = total_weight_lbs * 0.453592 if total_weight_lbs is not None else None
+            rain_intensity = None
+            if precip_rate is not None and precip_rate > 0:
+                rain_intensity = min(1.0, max(0.0, precip_rate / 4.0))
+            if rain_intensity is None and precip_state is not None:
+                try:
+                    if (int(precip_state) & 4) == 4:
+                        rain_intensity = 0.2
+                except Exception:
+                    pass
 
             payload = {
                 "simulator": args.sim,
@@ -335,9 +347,17 @@ def main():
                 "harsh_controls": state["event_harsh_controls"],
                 "aircraft_icao": aircraft_icao,
                 "oat_c": oat_c,
+                "tat_c": tat_c,
+                "tat": tat_c,
                 "baro_setting": baro_mb,
                 "wind_speed_kts": wind_speed_kts,
                 "wind_direction": wind_direction,
+                "precip_state": int(precip_state) if precip_state is not None else None,
+                "ambient_precip_state": int(precip_state) if precip_state is not None else None,
+                "precip_rate": precip_rate,
+                "ambient_precip_rate": precip_rate,
+                "rain_intensity": rain_intensity,
+                "precipitation": rain_intensity,
                 "ground_elevation_ft": ground_elev_ft,
                 "total_weight_kg": total_weight_kg,
             }
