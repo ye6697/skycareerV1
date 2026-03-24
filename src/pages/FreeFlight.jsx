@@ -159,9 +159,11 @@ export default function FreeFlight() {
       let landingType = prev.landingType;
       let landingScoreChange = prev.landingScoreChange || 0;
       let landingGForceValue = prev.landingType ? prev.landingGForce : 0;
+      const touchdownVs = xp.landing_vs || xp.touchdown_vspeed || 0;
+      const hasTouchdownEvidence = (Math.abs(touchdownVs) > 50) || Number(xp.landing_g_force || 0) > 0;
 
-      if (!prev.landingType && xp.on_ground && newWasAirborne) {
-        const lg = xp.landing_g_force || currentGForce;
+      if (!prev.landingType && xp.on_ground && newWasAirborne && hasTouchdownEvidence) {
+        const lg = Number(xp.landing_g_force || 0);
         landingGForceValue = lg;
         if (lg < 0.5) { landingType = 'butter'; landingScoreChange = 40; }
         else if (lg < 1.0) { landingType = 'soft'; landingScoreChange = 20; }
@@ -190,7 +192,7 @@ export default function FreeFlight() {
         gForce: currentGForce,
         maxGForce: newMaxGForce,
         landingGForce: landingGForceValue,
-        landingVs: xp.landing_vs || xp.touchdown_vspeed || prev.landingVs,
+        landingVs: hasTouchdownEvidence ? (xp.landing_vs || xp.touchdown_vspeed || prev.landingVs) : prev.landingVs,
         landingType,
         landingScoreChange,
         flightScore: baseScore,

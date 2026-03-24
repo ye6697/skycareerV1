@@ -889,7 +889,11 @@ Deno.serve(async (req) => {
     // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
     const maintenanceRatio = company?.current_maintenance_ratio || 0;
     
-    const flightStatus = on_ground && hasBeenAirborne ? 'ready_to_complete' : 'updated';
+    const hasTouchdownEvidence =
+      Number(landing_g_force || 0) > 0 ||
+      Math.abs(Number(touchdown_vspeed || 0)) > 50 ||
+      !!landing_quality;
+    const flightStatus = (on_ground && hasBeenAirborne && hasTouchdownEvidence) ? 'ready_to_complete' : 'updated';
     
     // === FAILURE TRIGGER SYSTEM ===
     // Failures are triggered based on maintenance wear percentage.
