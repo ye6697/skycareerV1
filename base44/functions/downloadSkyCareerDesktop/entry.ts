@@ -56,6 +56,16 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   return patched;
 }
 
+function normalizeZipPath(path: string) {
+  return path.replace(/\\/g, '/').replace(/^\.\/+/, '');
+}
+
+function basename(path: string) {
+  const normalized = normalizeZipPath(path);
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || normalized;
+}
+
 async function ensureCompanyApiKey(base44: any, user: any) {
   const companies = await base44.entities.Company.filter({ created_by: user.email });
   const company = companies[0];
@@ -98,14 +108,15 @@ Deno.serve(async (req) => {
     let hasSimConnectCfg = false;
     for (const [name, file] of Object.entries(bridgeZip.files)) {
       if (file.dir) continue;
-      const targetName = name.split('/').pop() || name;
+      const targetName = normalizeZipPath(name);
       if (!targetName) continue;
+      const fileName = basename(targetName).toLowerCase();
 
-      if (targetName.toLowerCase() === 'simconnect.cfg') {
+      if (fileName === 'simconnect.cfg') {
         hasSimConnectCfg = true;
       }
 
-      if (targetName.toLowerCase() === 'skycareermsfsbridge.exe.config') {
+      if (fileName === 'skycareermsfsbridge.exe.config') {
         const configText = await file.async('string');
         const patchedConfig = patchBridgeConfig(configText, apiKey, endpoint);
         outputZip.file(targetName, patchedConfig);

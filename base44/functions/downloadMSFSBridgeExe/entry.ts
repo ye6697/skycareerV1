@@ -43,6 +43,16 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   return patched;
 }
 
+function normalizeZipPath(path: string) {
+  return path.replace(/\\/g, '/').replace(/^\.\/+/, '');
+}
+
+function basename(path: string) {
+  const normalized = normalizeZipPath(path);
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || normalized;
+}
+
 async function ensureCompanyApiKey(base44: any, user: any) {
   const companies = await base44.entities.Company.filter({ created_by: user.email });
   const company = companies[0];
@@ -74,10 +84,11 @@ Deno.serve(async (req) => {
 
     for (const [name, file] of Object.entries(sourceZip.files)) {
       if (file.dir) continue;
-      const targetName = name.split('/').pop() || name;
+      const targetName = normalizeZipPath(name);
       if (!targetName) continue;
+      const fileName = basename(targetName).toLowerCase();
 
-      if (targetName.toLowerCase() === 'skycareermsfsbridge.exe.config') {
+      if (fileName === 'skycareermsfsbridge.exe.config') {
         const configText = await file.async('string');
         outputZip.file(targetName, patchBridgeConfig(configText, apiKey, endpoint));
       } else {
