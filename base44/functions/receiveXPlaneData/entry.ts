@@ -300,14 +300,92 @@ Deno.serve(async (req) => {
     const engine1_running = data.engine1_running || data.eng1Running || data.engine_1_running || false;
     const engine2_running = data.engine2_running || data.eng2Running || data.engine_2_running || false;
     const engines_running = data.engines_running || data.enginesRunning || engine1_running || engine2_running;
-    // MSFS crash detection: support multiple field names
-    const isCrash = crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || false;
+    // MSFS crash detection: support multiple field names + bridge fallbacks
+    const crash_flag = data.crash_flag ?? data.crashFlag ?? data.crashflag ?? false;
+    const sim_disabled = data.sim_disabled ?? data.simDisabled ?? data.sim_is_disabled ?? data.simDisabledFlag ?? false;
+    const hasCrashFailure = Array.isArray(data.active_failures) && data.active_failures.some((f) =>
+      /crash/i.test(String(f?.name || f?.name_de || ""))
+    );
+    const isCrash = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || sim_disabled || hasCrashFailure);
     const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const asFinite = (v) => {
       const n = Number(v);
       return Number.isFinite(n) ? n : undefined;
     };
+    const deriveWeather = () => {
+      const oat_c = data.oat_c ?? data.oat ?? data.outside_air_temp_c ?? data.temperature_c ?? data.ambient_temperature ?? data.outside_temperature ?? data.temperature ?? data.ambient_temp_c ?? undefined;
+      const oat_c_num = asFinite(oat_c);
+      let tat_c = asFinite(data.tat_c ?? data.tat ?? data.total_air_temp_c ?? data.total_air_temperature ?? data.total_air_temperature_c);
+      if (tat_c === undefined && oat_c_num !== undefined) {
+        const tasForTat = asFinite(data.true_airspeed ?? data.tas ?? data.speed ?? data.airspeed ?? data.ias ?? speed ?? ias) ?? 0;
+        tat_c = oat_c_num + ((Math.max(0, tasForTat) * Math.max(0, tasForTat)) / 7592);
+      }
+
+      const precip_state_num = asFinite(data.precip_state ?? data.ambient_precip_state ?? data.precipitation_state);
+      const precip_state = precip_state_num !== undefined ? Math.round(precip_state_num) : undefined;
+      const precip_rate = asFinite(
+        data.precip_rate ??
+        data.ambient_precip_rate ??
+        data.sim_weather_precipitation_rate ??
+        data.rain_rate ??
+        data.precipitation_rate
+      );
+      let rain_intensity = asFinite(data.rain_intensity ?? data.precipitation ?? data.rain);
+      if (rain_intensity === undefined && precip_rate !== undefined) {
+        rain_intensity = Math.min(1, Math.max(0, precip_rate / 4));
+      }
+      const hasRainMask = precip_state !== undefined && (precip_state & 4) === 4;
+      if (rain_intensity === undefined && hasRainMask) {
+        rain_intensity = 0.2;
+      }
+      if (rain_intensity !== undefined && rain_intensity > 1) {
+        rain_intensity = Math.min(1, rain_intensity / 100);
+      }
+
+      const ground_elevation_ft = data.ground_elevation_ft ?? data.elevation_ft ?? data.airport_elevation_ft ?? data.ground_altitude ?? null;
+      let baro_setting = data.baro_setting ?? data.qnh ?? data.altimeter_setting ?? data.baro ?? data.baro_hpa ?? null;
+      if (!baro_setting) {
+        const inHg = data.kohlsman_setting_hg ?? data.altimeter_setting_hg ?? data.baro_setting_inhg ?? null;
+        if (inHg) baro_setting = inHg * 33.8639;
+      }
+      let wind_speed_kts = data.wind_speed_kts ?? data.wind_speed ?? data.windspeed_kts ?? data.ambient_wind_speed ?? data.wind_velocity ?? undefined;
+      if (wind_speed_kts === undefined && data.ambient_wind_x !== undefined && data.ambient_wind_z !== undefined) {
+        wind_speed_kts = Math.sqrt(data.ambient_wind_x ** 2 + data.ambient_wind_z ** 2) * 1.94384;
+      }
+      const wind_direction = data.wind_direction ?? data.wind_dir ?? data.wind_heading ?? data.ambient_wind_direction ?? data.wind_deg ?? undefined;
+
+      let turbulence = asFinite(data.turbulence ?? data.turbulence_intensity ?? data.sim_weather_turbulence);
+      if (turbulence === undefined) {
+        const verticalWind = asFinite(data.wind_vertical_mps ?? data.ambient_wind_y ?? data.wind_y_mps);
+        if (verticalWind !== undefined) {
+          turbulence = Math.min(1, Math.abs(verticalWind) / 6);
+        }
+      }
+      if (turbulence === undefined) {
+        const gNow = asFinite(g_force ?? data.gForce ?? 1) ?? 1;
+        const vsNow = asFinite(vertical_speed) ?? 0;
+        const windNow = asFinite(wind_speed_kts) ?? 0;
+        turbulence = Math.min(1, (Math.abs(gNow - 1) * 0.8) + (Math.min(1, Math.abs(vsNow) / 2500) * 0.35) + Math.min(0.25, windNow / 80));
+      }
+      if (turbulence !== undefined && turbulence > 1) {
+        turbulence = Math.min(1, turbulence / 100);
+      }
+
+      return {
+        oat_c,
+        tat_c,
+        precip_state,
+        precip_rate,
+        rain_intensity,
+        turbulence,
+        ground_elevation_ft,
+        baro_setting,
+        wind_speed_kts,
+        wind_direction,
+      };
+    };
+    const derivedWeather = deriveWeather();
     const pickFirstNumber = (...vals) => {
       for (const v of vals) {
         const n = Number(v);
@@ -584,10 +662,41 @@ Deno.serve(async (req) => {
     
     if (!flight) {
       const gateMeta = await resolveAircraftGateMeta();
+      const noFlightData = {
+        ...data,
+        simulator,
+        altitude,
+        speed,
+        vertical_speed,
+        heading,
+        latitude,
+        longitude,
+        on_ground,
+        park_brake,
+        engine1_running,
+        engine2_running,
+        engines_running,
+        pitch,
+        ias,
+        crash: isCrash,
+        has_crashed: isCrash,
+        crash_flag,
+        sim_disabled,
+        oat_c: derivedWeather.oat_c ?? null,
+        tat_c: derivedWeather.tat_c ?? null,
+        rain_intensity: derivedWeather.rain_intensity ?? null,
+        precipitation: derivedWeather.rain_intensity ?? null,
+        precip_rate: derivedWeather.precip_rate ?? null,
+        precip_state: derivedWeather.precip_state ?? null,
+        turbulence: derivedWeather.turbulence ?? null,
+        turbulence_intensity: derivedWeather.turbulence ?? null,
+        wind_speed_kts: derivedWeather.wind_speed_kts ?? null,
+        wind_direction: derivedWeather.wind_direction ?? null,
+      };
       // No active flight - log to XPlaneLog so debug page can show data
       base44.asServiceRole.entities.XPlaneLog.create({
         company_id: company.id,
-        raw_data: data,
+        raw_data: noFlightData,
         altitude,
         speed,
         on_ground,
@@ -672,64 +781,18 @@ Deno.serve(async (req) => {
         total_weight_kg = Math.round(oew + fuel_kg + oew * 0.25);
       }
     }
-    const oat_c = data.oat_c ?? data.oat ?? data.outside_air_temp_c ?? data.temperature_c ?? data.ambient_temperature ?? data.outside_temperature ?? data.temperature ?? data.ambient_temp_c ?? undefined;
-    const oat_c_num = asFinite(oat_c);
-    let tat_c = asFinite(data.tat_c ?? data.tat ?? data.total_air_temp_c ?? data.total_air_temperature ?? data.total_air_temperature_c);
-    if (tat_c === undefined && oat_c_num !== undefined) {
-      const tasForTat = asFinite(data.true_airspeed ?? data.tas ?? data.speed ?? data.airspeed ?? data.ias);
-      if (tasForTat !== undefined && tasForTat > 1) {
-        tat_c = oat_c_num + ((tasForTat * tasForTat) / 7592);
-      }
-    }
-    const precip_state_num = asFinite(data.precip_state ?? data.ambient_precip_state ?? data.precipitation_state);
-    const precip_state = precip_state_num !== undefined ? Math.round(precip_state_num) : undefined;
-    const precip_rate = asFinite(
-      data.precip_rate ??
-      data.ambient_precip_rate ??
-      data.sim_weather_precipitation_rate ??
-      data.rain_rate ??
-      data.precipitation_rate
-    );
-    let rain_intensity = asFinite(data.rain_intensity ?? data.precipitation ?? data.rain);
-    if (rain_intensity === undefined && precip_rate !== undefined) {
-      rain_intensity = Math.min(1, Math.max(0, precip_rate / 4));
-    }
-    const hasRainMask = precip_state !== undefined && (precip_state & 4) === 4;
-    if (rain_intensity === undefined && hasRainMask) {
-      rain_intensity = 0.2;
-    }
-    if (rain_intensity !== undefined && rain_intensity > 1) {
-      rain_intensity = Math.min(1, rain_intensity / 100);
-    }
-    if (rain_intensity === undefined) {
-      rain_intensity = 0;
-    }
-    let turbulence = asFinite(data.turbulence ?? data.turbulence_intensity ?? data.sim_weather_turbulence);
-    if (turbulence === undefined) {
-      const verticalWind = asFinite(data.wind_vertical_mps ?? data.ambient_wind_y ?? data.wind_y_mps);
-      if (verticalWind !== undefined) {
-        turbulence = Math.min(1, Math.abs(verticalWind) / 6);
-      }
-    }
-    if (turbulence === undefined) {
-      const gNow = asFinite(g_force ?? data.gForce ?? 1) ?? 1;
-      const vsNow = asFinite(vertical_speed) ?? 0;
-      turbulence = Math.min(1, (Math.abs(gNow - 1) * 0.8) + (Math.min(1, Math.abs(vsNow) / 2500) * 0.35));
-    }
-    if (turbulence !== undefined && turbulence > 1) {
-      turbulence = Math.min(1, turbulence / 100);
-    }
-    const ground_elevation_ft = data.ground_elevation_ft ?? data.elevation_ft ?? data.airport_elevation_ft ?? data.ground_altitude ?? null;
-    let baro_setting = data.baro_setting ?? data.qnh ?? data.altimeter_setting ?? data.baro ?? data.baro_hpa ?? null;
-    if (!baro_setting) {
-      const inHg = data.kohlsman_setting_hg ?? data.altimeter_setting_hg ?? data.baro_setting_inhg ?? null;
-      if (inHg) baro_setting = inHg * 33.8639;
-    }
-    let wind_speed_kts = data.wind_speed_kts ?? data.wind_speed ?? data.windspeed_kts ?? data.ambient_wind_speed ?? data.wind_velocity ?? undefined;
-    if (wind_speed_kts === undefined && data.ambient_wind_x !== undefined && data.ambient_wind_z !== undefined) {
-      wind_speed_kts = Math.sqrt(data.ambient_wind_x ** 2 + data.ambient_wind_z ** 2) * 1.94384;
-    }
-    const wind_direction = data.wind_direction ?? data.wind_dir ?? data.wind_heading ?? data.ambient_wind_direction ?? data.wind_deg ?? undefined;
+    const {
+      oat_c,
+      tat_c,
+      precip_state,
+      precip_rate,
+      rain_intensity,
+      turbulence,
+      ground_elevation_ft,
+      baro_setting,
+      wind_speed_kts,
+      wind_direction,
+    } = derivedWeather;
     const gateMeta = await resolveAircraftGateMeta({
       assignedAircraft,
       contract,
@@ -842,6 +905,8 @@ Deno.serve(async (req) => {
       gear_up_landing,
       crash: isCrash,
       has_crashed: isCrash,
+      crash_flag: !!crash_flag,
+      sim_disabled: !!sim_disabled,
       harsh_controls: data.harsh_controls || data.harshControls || false,
       was_airborne: hasBeenAirborne,
       airborne_started_at: airborneStartedAt,
