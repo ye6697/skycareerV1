@@ -530,9 +530,27 @@ export default function FlightTracker() {
      // Landing and airport fees
      const airportFee = 150;
 
-      // Check for crash or wrong airport
-      const hasCrashed = finalFlightData.events.crash;
-      const wrongAirport = finalFlightData.events.wrong_airport;
+     // Check for crash or off-airport landing (>=10 NM from arrival airport)
+      const hasCrashed = !!finalFlightData.events.crash;
+      const arrivalLat = Number(finalFlightData.arrival_lat || xpData.arrival_lat || 0);
+      const arrivalLon = Number(finalFlightData.arrival_lon || xpData.arrival_lon || 0);
+      const currentLat = Number(finalFlightData.latitude || xpData.latitude || 0);
+      const currentLon = Number(finalFlightData.longitude || xpData.longitude || 0);
+      const hasArrivalCoords = (arrivalLat !== 0 || arrivalLon !== 0);
+      const hasCurrentCoords = (currentLat !== 0 || currentLon !== 0);
+      const arrivalDistanceNm = (hasArrivalCoords && hasCurrentCoords)
+        ? calculateHaversineDistance(currentLat, currentLon, arrivalLat, arrivalLon)
+        : 0;
+      const landedTooFarFromArrival = (hasArrivalCoords && hasCurrentCoords) && arrivalDistanceNm >= 10;
+      const emergencyOffAirportCompletion = landedTooFarFromArrival && !!emergencyLanding && !hasCrashed;
+      const wrongAirport = !!(finalFlightData.events.wrong_airport || (landedTooFarFromArrival && !emergencyLanding));
+      if (wrongAirport && !finalFlightData.events.wrong_airport) {
+        finalFlightData = {
+          ...finalFlightData,
+          events: { ...finalFlightData.events, wrong_airport: true }
+        };
+      }
+      const emergencyScorePenalty = emergencyOffAirportCompletion ? 30 : 0;
 
      // Bei Crash: KEIN Payout und KEIN Bonus
      let revenue = 0;
@@ -541,6 +559,9 @@ export default function FlightTracker() {
      // Calculate crew bonus based on attributes
      let crewBonusAmount = 0;
      if (!hasCrashed && !wrongAirport) {
+       if (emergencyOffAirportCompletion) {
+         revenue = Math.round((contract?.payout || 0) * 0.30);
+       } else {
        const activeFl = flight || existingFlight;
        if (activeFl?.crew && Array.isArray(activeFl.crew)) {
          // Fetch crew member details for attribute bonuses
@@ -573,6 +594,7 @@ export default function FlightTracker() {
        }
        // Add time bonus + crew bonus
        revenue += timeBonus + crewBonusAmount;
+       }
      }
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
@@ -619,7 +641,9 @@ export default function FlightTracker() {
               }
             }
             
-            const scoreWithTime = (hasCrashed || wrongAirport) ? 0 : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange));
+            const scoreWithTime = (hasCrashed || wrongAirport)
+              ? 0
+              : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange - emergencyScorePenalty));
 
             console.log('🎯 SCORE BERECHNUNG:', {
              baseScore: finalFlightData.flightScore,
@@ -628,6 +652,11 @@ export default function FlightTracker() {
              timeScoreChange,
              finalScoreWithTime: scoreWithTime,
              hasCrashed,
+             wrongAirport,
+             emergencyLanding,
+             landedTooFarFromArrival,
+             arrivalDistanceNm,
+             emergencyScorePenalty,
              events: finalFlightData.events,
              landingType: finalFlightData.landingType
             });
@@ -700,13 +729,19 @@ export default function FlightTracker() {
                  levelBonusPercent: levelBonusPercent * 100,
                  companyLevel: company?.level || 1,
                  crewBonus: crewBonusAmount,
+                 arrival_distance_nm: hasArrivalCoords && hasCurrentCoords ? Math.round(arrivalDistanceNm * 10) / 10 : null,
+                 landed_too_far_from_arrival: landedTooFarFromArrival,
+                 emergency_landing_declared: !!emergencyLanding,
+                 emergency_off_airport_completion: emergencyOffAirportCompletion,
+                 emergency_score_penalty: emergencyScorePenalty,
+                 emergency_payout_factor: emergencyOffAirportCompletion ? 0.3 : 1.0,
                  events: finalFlightData.events,
                  crashMaintenanceCost: crashMaintenanceCost
                }
              });
 
             // Update contract
-            console.log('Aktualisiere Contract Status:', activeFlight.contract_id, hasCrashed ? 'failed' : 'completed');
+            console.log('Aktualisiere Contract Status:', activeFlight.contract_id, (hasCrashed || wrongAirport) ? 'failed' : 'completed');
             await base44.entities.Contract.update(activeFlight.contract_id, { status: (hasCrashed || wrongAirport) ? 'failed' : 'completed' });
 
             // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
@@ -1251,11 +1286,11 @@ export default function FlightTracker() {
     const readyTouchdownEvidence = Number(xp.landing_g_force || 0) > 0 || Math.abs(Number(xp.touchdown_vspeed || xp.landing_vs || 0)) > 50 || !!flightData.landingType;
     const isReadyToComplete = xp.on_ground && flightData.wasAirborne && readyTouchdownEvidence;
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
-      // Check distance to arrival airport (>10NM without emergency = failed)
+      // Check distance to arrival airport (>=10 NM without emergency = failed)
       const aLt = flightData.arrival_lat || xp.arrival_lat || 0, aLn = flightData.arrival_lon || xp.arrival_lon || 0;
       const cLt = xp.latitude || flightData.latitude || 0, cLn = xp.longitude || flightData.longitude || 0;
       const dArr = (aLt || aLn) && (cLt || cLn) ? calculateHaversineDistance(cLt, cLn, aLt, aLn) : 0;
-      if ((aLt || aLn) && (cLt || cLn) && dArr > 10 && !emergencyLanding) {
+      if ((aLt || aLn) && (cLt || cLn) && dArr >= 10 && !emergencyLanding) {
         console.log(`🚨 WRONG AIRPORT (${Math.round(dArr)} NM) - FAILED`);
         setFlightData(prev => { const u = { ...prev, events: { ...prev.events, wrong_airport: true }, flightScore: 0 }; flightDataRef.current = u; return u; });
       }
@@ -1718,7 +1753,7 @@ export default function FlightTracker() {
                           <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{t('hard_landing', lang)}</div>
                         )}
                         {flightData.events.wrong_airport === true && (
-                          <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Falscher Flughafen! (>10 NM)' : 'Wrong airport! (>10 NM)'}</div>
+                          <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Falscher Flughafen! (>=10 NM)' : 'Wrong airport! (>=10 NM)'}</div>
                         )}
                         </div>
                         </div>
@@ -1793,7 +1828,7 @@ export default function FlightTracker() {
                     {emergencyLanding && (
                       <div className="p-2 bg-amber-900/30 border border-amber-700/50 rounded text-xs text-amber-300 flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 shrink-0" />
-                        {lang === 'de' ? 'Notlandung erklärt – Landung an jedem Flughafen erlaubt' : 'Emergency declared – landing at any airport allowed'}
+                        {lang === 'de' ? 'Notlandung erklaert - Landung >=10 NM entfernt erlaubt, aber -30 Score und nur 30% Payout' : 'Emergency declared - off-airport landing >=10 NM allowed, but -30 score and only 30% payout'}
                       </div>
                     )}
                     <Button onClick={() => { if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) cancelFlightMutation.mutate(); }} disabled={cancelFlightMutation.isPending} variant="destructive" className="w-full">
