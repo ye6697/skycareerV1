@@ -899,7 +899,9 @@ Deno.serve(async (req) => {
       : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0);
     const effectiveLandingG = Number(mergedLandingG || 0) > 0
       ? Number(mergedLandingG || 0)
-      : (shouldSynthesizeTouchdownEvidence ? 1.0 : 0);
+      : (Math.abs(Number(effectiveTouchdownVspeed || 0)) > 50
+        ? Math.min(3.5, Math.max(1.0, 1 + (Math.abs(Number(effectiveTouchdownVspeed || 0)) / 900)))
+        : 0);
 
     const xplaneData = {
       simulator,

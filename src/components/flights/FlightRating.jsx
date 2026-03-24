@@ -145,7 +145,7 @@ export default function FlightRating({ flight }) {
                     landingG < 2.5 ? 'text-orange-400' :
                     'text-red-400'
                   }`}>
-                    {landingG?.toFixed(2) || "-"} G
+                    {landingG > 0 ? `${landingG.toFixed(2)} G` : "-"}
                   </p>
                 )}
               </div>

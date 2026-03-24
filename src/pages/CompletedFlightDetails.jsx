@@ -248,7 +248,7 @@ export default function CompletedFlightDetails() {
                             landingG < 2.0 ? 'text-amber-400' :
                             'text-red-400'
                           }`}>
-                            {landingG?.toFixed(2)} G
+                            {landingG > 0 ? `${landingG.toFixed(2)} G` : '-'}
                           </p>
                         )}
                       </div>
