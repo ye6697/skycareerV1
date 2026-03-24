@@ -33,6 +33,7 @@ export default function WeatherDisplay({ raw }) {
 
   // Temperature
   const oat = raw.oat_c ?? raw.oat ?? raw.outside_air_temp_c ?? raw.ambient_temperature ?? raw.temperature_c ?? null;
+  const tat = raw.tat_c ?? raw.tat ?? raw.total_air_temp_c ?? raw.total_air_temperature ?? null;
 
   // Rain/Precip (0-1 or 0-100 scale)
   const rawRain = raw.rain_intensity ?? raw.precipitation ?? raw.rain ?? raw.precip_rate ?? raw.sim_weather_precipitation_rate ?? null;
@@ -63,7 +64,7 @@ export default function WeatherDisplay({ raw }) {
     rainPct < 20 ? 'bg-blue-400' :
     rainPct < 50 ? 'bg-blue-500' : 'bg-blue-600';
 
-  const noData = windDir == null && windKts == null && oat == null && rainPct == null && turbPct == null;
+  const noData = windDir == null && windKts == null && oat == null && tat == null && rainPct == null && turbPct == null;
   if (noData) return null;
 
   return (
@@ -112,6 +113,22 @@ export default function WeatherDisplay({ raw }) {
                 <span className="text-slate-500 text-[10px]">C</span>
               </div>
               <span className="text-slate-500 text-[10px] uppercase">OAT</span>
+            </div>
+          </div>
+        )}
+
+        {/* Total Air Temperature */}
+        {tat != null && (
+          <div className="p-2 bg-slate-900/60 rounded-lg flex items-center gap-2">
+            <Thermometer className="w-4 h-4 shrink-0 text-violet-300" />
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-bold tabular-nums text-violet-300">
+                  {Math.round(tat)}°
+                </span>
+                <span className="text-slate-500 text-[10px]">C</span>
+              </div>
+              <span className="text-slate-500 text-[10px] uppercase">TAT</span>
             </div>
           </div>
         )}

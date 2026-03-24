@@ -304,6 +304,10 @@ Deno.serve(async (req) => {
     const isCrash = crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || false;
     const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const asFinite = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
     const pickFirstNumber = (...vals) => {
       for (const v of vals) {
         const n = Number(v);
@@ -669,6 +673,44 @@ Deno.serve(async (req) => {
       }
     }
     const oat_c = data.oat_c ?? data.oat ?? data.outside_air_temp_c ?? data.temperature_c ?? data.ambient_temperature ?? data.outside_temperature ?? data.temperature ?? data.ambient_temp_c ?? undefined;
+    const oat_c_num = asFinite(oat_c);
+    let tat_c = asFinite(data.tat_c ?? data.tat ?? data.total_air_temp_c ?? data.total_air_temperature ?? data.total_air_temperature_c);
+    if (tat_c === undefined && oat_c_num !== undefined) {
+      const tasForTat = asFinite(data.true_airspeed ?? data.tas ?? data.speed ?? data.airspeed ?? data.ias);
+      if (tasForTat !== undefined && tasForTat > 1) {
+        tat_c = oat_c_num + ((tasForTat * tasForTat) / 7592);
+      }
+    }
+    const precip_state_num = asFinite(data.precip_state ?? data.ambient_precip_state ?? data.precipitation_state);
+    const precip_state = precip_state_num !== undefined ? Math.round(precip_state_num) : undefined;
+    const precip_rate = asFinite(
+      data.precip_rate ??
+      data.ambient_precip_rate ??
+      data.sim_weather_precipitation_rate ??
+      data.rain_rate ??
+      data.precipitation_rate
+    );
+    let rain_intensity = asFinite(data.rain_intensity ?? data.precipitation ?? data.rain);
+    if (rain_intensity === undefined && precip_rate !== undefined) {
+      rain_intensity = Math.min(1, Math.max(0, precip_rate / 4));
+    }
+    const hasRainMask = precip_state !== undefined && (precip_state & 4) === 4;
+    if (rain_intensity === undefined && hasRainMask) {
+      rain_intensity = 0.2;
+    }
+    if (rain_intensity !== undefined && rain_intensity > 1) {
+      rain_intensity = Math.min(1, rain_intensity / 100);
+    }
+    let turbulence = asFinite(data.turbulence ?? data.turbulence_intensity ?? data.sim_weather_turbulence);
+    if (turbulence === undefined) {
+      const verticalWind = asFinite(data.wind_vertical_mps ?? data.ambient_wind_y ?? data.wind_y_mps);
+      if (verticalWind !== undefined) {
+        turbulence = Math.min(1, Math.abs(verticalWind) / 6);
+      }
+    }
+    if (turbulence !== undefined && turbulence > 1) {
+      turbulence = Math.min(1, turbulence / 100);
+    }
     const ground_elevation_ft = data.ground_elevation_ft ?? data.elevation_ft ?? data.airport_elevation_ft ?? data.ground_altitude ?? null;
     let baro_setting = data.baro_setting ?? data.qnh ?? data.altimeter_setting ?? data.baro ?? data.baro_hpa ?? null;
     if (!baro_setting) {
@@ -803,10 +845,17 @@ Deno.serve(async (req) => {
       // Aircraft environment data for calculator
       total_weight_kg: total_weight_kg || (flight.xplane_data?.total_weight_kg || null),
       oat_c: oat_c !== undefined ? oat_c : (flight.xplane_data?.oat_c ?? null),
+      tat_c: tat_c !== undefined ? tat_c : (flight.xplane_data?.tat_c ?? null),
       ground_elevation_ft: ground_elevation_ft || (flight.xplane_data?.ground_elevation_ft || null),
       baro_setting: baro_setting || (flight.xplane_data?.baro_setting || null),
       wind_speed_kts: wind_speed_kts !== undefined ? wind_speed_kts : (flight.xplane_data?.wind_speed_kts ?? null),
       wind_direction: wind_direction !== undefined ? wind_direction : (flight.xplane_data?.wind_direction ?? null),
+      rain_intensity: rain_intensity !== undefined ? rain_intensity : (flight.xplane_data?.rain_intensity ?? null),
+      precipitation: rain_intensity !== undefined ? rain_intensity : (flight.xplane_data?.precipitation ?? null),
+      precip_rate: precip_rate !== undefined ? precip_rate : (flight.xplane_data?.precip_rate ?? null),
+      precip_state: precip_state !== undefined ? precip_state : (flight.xplane_data?.precip_state ?? null),
+      turbulence: turbulence !== undefined ? turbulence : (flight.xplane_data?.turbulence ?? null),
+      turbulence_intensity: turbulence !== undefined ? turbulence : (flight.xplane_data?.turbulence_intensity ?? null),
       aircraft_icao: aircraft_icao || (flight.xplane_data?.aircraft_icao || null),
       aircraft_type: assignedAircraftType || (flight.xplane_data?.aircraft_type || null),
       // FMS waypoints - only update if plugin sends them (they don't change often)

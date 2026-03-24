@@ -193,17 +193,37 @@ function buildIframeHtml() {
   #events-overlay .ev-item { font-size:13px; color:#fca5a5; padding:2px 0; display:flex; align-items:center; gap:6px; }
   #events-overlay .ev-detail { font-size:11px; color:#94a3b8; margin-left:11px; padding:1px 0; }
   #events-overlay .ev-dot { width:6px; height:6px; border-radius:50%; background:#f87171; flex-shrink:0; }
+  #weather-overlay { position:absolute; top:12px; right:12px; z-index:1000; pointer-events:none; display:none; }
+  #weather-overlay .wx-card { background:rgba(10,20,40,0.88); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:8px 10px; font-family:'Courier New',monospace; min-width:190px; }
+  #weather-overlay .wx-title { color:#7dd3fc; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:6px; font-weight:bold; }
+  #weather-overlay .wx-row { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#cbd5e1; line-height:1.35; }
+  #weather-overlay .wx-val { color:#f8fafc; font-weight:bold; }
 </style>
 </head><body>
 <div id="map"></div>
 <div id="hud-top" style="display:none;"></div>
 <div id="events-overlay" style="display:none;"></div>
+<div id="weather-overlay" style="display:none;"></div>
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5, fadeAnimation: false, markerZoomAnimation: false, zoomAnimation: false });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 setTimeout(function(){ map.invalidateSize(); }, 100);
 
-var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null, weather: null };
+var layers = {
+  route: null,
+  routeGlow: null,
+  flown: null,
+  dep: null,
+  arr: null,
+  aircraft: null,
+  wpGroup: L.layerGroup().addTo(map),
+  depRwyLine: null,
+  arrRwyLine: null,
+  weatherClouds: null,
+  weatherPrecip: null,
+  weatherRainRing: null,
+  weatherTurbRing: null
+};
 var boundsSet = false;
 var userInteracting = false;
 var interactionTimeout = null;
@@ -334,6 +354,103 @@ function updateEvents(evts) {
   el.innerHTML = html;
 }
 
+function pickFinite() {
+  for (var i = 0; i < arguments.length; i++) {
+    var n = Number(arguments[i]);
+    if (isFinite(n)) return n;
+  }
+  return null;
+}
+
+function norm01(v) {
+  if (v === null || v === undefined) return null;
+  var n = Number(v);
+  if (!isFinite(n)) return null;
+  if (n > 1) n = n / 100;
+  if (n < 0) n = 0;
+  if (n > 1) n = 1;
+  return n;
+}
+
+function turbColor(t) {
+  if (t < 0.2) return '#34d399';
+  if (t < 0.4) return '#facc15';
+  if (t < 0.7) return '#f97316';
+  return '#ef4444';
+}
+
+function updateWeatherOverlay(weatherOn, fd, curPos) {
+  var panel = document.getElementById('weather-overlay');
+  if (!panel) return;
+
+  if (!weatherOn || !curPos) {
+    panel.style.display = 'none';
+    if (layers.weatherRainRing) { map.removeLayer(layers.weatherRainRing); layers.weatherRainRing = null; }
+    if (layers.weatherTurbRing) { map.removeLayer(layers.weatherTurbRing); layers.weatherTurbRing = null; }
+    return;
+  }
+
+  var tat = pickFinite(fd.tat_c, fd.tat, fd.total_air_temp_c, fd.total_air_temperature);
+  var rain = norm01(pickFinite(fd.rain_intensity, fd.precipitation, fd.rain, fd.precip_rate));
+  var turb = norm01(pickFinite(fd.turbulence, fd.turbulence_intensity, fd.sim_weather_turbulence));
+
+  panel.style.display = 'block';
+  panel.innerHTML =
+    '<div class="wx-card">' +
+      '<div class="wx-title">Weather Mode</div>' +
+      '<div class="wx-row"><span>TAT</span><span class="wx-val">' + (tat !== null ? Math.round(tat) + ' C' : '--') + '</span></div>' +
+      '<div class="wx-row"><span>Rain</span><span class="wx-val">' + (rain !== null ? Math.round(rain * 100) + '%' : '--') + '</span></div>' +
+      '<div class="wx-row"><span>Turbulence</span><span class="wx-val">' + (turb !== null ? Math.round(turb * 100) + '%' : '--') + '</span></div>' +
+    '</div>';
+
+  if (rain !== null && rain > 0.01) {
+    var rainRadius = 1500 + (rain * 8000);
+    if (!layers.weatherRainRing) {
+      layers.weatherRainRing = L.circle(curPos, {
+        radius: rainRadius,
+        color: '#60a5fa',
+        weight: 1.5,
+        fillColor: '#1d4ed8',
+        fillOpacity: 0.08 + (rain * 0.2)
+      }).addTo(map);
+    } else {
+      layers.weatherRainRing.setLatLng(curPos);
+      layers.weatherRainRing.setRadius(rainRadius);
+      layers.weatherRainRing.setStyle({
+        fillOpacity: 0.08 + (rain * 0.2)
+      });
+    }
+  } else if (layers.weatherRainRing) {
+    map.removeLayer(layers.weatherRainRing);
+    layers.weatherRainRing = null;
+  }
+
+  if (turb !== null && turb > 0.01) {
+    var turbRadius = 1200 + (turb * 7000);
+    var tColor = turbColor(turb);
+    if (!layers.weatherTurbRing) {
+      layers.weatherTurbRing = L.circle(curPos, {
+        radius: turbRadius,
+        color: tColor,
+        weight: 2,
+        fillColor: tColor,
+        fillOpacity: 0.02 + (turb * 0.08)
+      }).addTo(map);
+    } else {
+      layers.weatherTurbRing.setLatLng(curPos);
+      layers.weatherTurbRing.setRadius(turbRadius);
+      layers.weatherTurbRing.setStyle({
+        color: tColor,
+        fillColor: tColor,
+        fillOpacity: 0.02 + (turb * 0.08)
+      });
+    }
+  } else if (layers.weatherTurbRing) {
+    map.removeLayer(layers.weatherTurbRing);
+    layers.weatherTurbRing = null;
+  }
+}
+
 function update(d) {
   var fd = d.flightData || {};
   lastFd = fd;
@@ -352,12 +469,18 @@ function update(d) {
   if (d.lang) currentLang = d.lang;
 
   // Weather layer toggle
-  if (d.weatherOn && !layers.weather) {
-    layers.weather = L.tileLayer('https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2', { maxZoom: 18, opacity: 0.5 });
-    layers.weather.addTo(map);
-  } else if (!d.weatherOn && layers.weather) {
-    map.removeLayer(layers.weather);
-    layers.weather = null;
+  if (d.weatherOn) {
+    if (!layers.weatherClouds) {
+      layers.weatherClouds = L.tileLayer('https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2', { maxZoom: 18, opacity: 0.45 });
+    }
+    if (!layers.weatherPrecip) {
+      layers.weatherPrecip = L.tileLayer('https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2', { maxZoom: 18, opacity: 0.55 });
+    }
+    if (!map.hasLayer(layers.weatherClouds)) layers.weatherClouds.addTo(map);
+    if (!map.hasLayer(layers.weatherPrecip)) layers.weatherPrecip.addTo(map);
+  } else {
+    if (layers.weatherClouds && map.hasLayer(layers.weatherClouds)) map.removeLayer(layers.weatherClouds);
+    if (layers.weatherPrecip && map.hasLayer(layers.weatherPrecip)) map.removeLayer(layers.weatherPrecip);
   }
 
   var hasPos = fd.latitude !== 0 || fd.longitude !== 0;
@@ -375,6 +498,7 @@ function update(d) {
   else if (routeWaypoints.length > 0) { var lw = routeWaypoints[routeWaypoints.length-1]; if(lw.lat&&lw.lon) arrPos=[lw.lat,lw.lon]; }
 
   var curPos = hasPos ? [fd.latitude, fd.longitude] : null;
+  updateWeatherOverlay(d.weatherOn, fd, curPos);
 
   var routeSource = routeWaypoints.length > 0 ? routeWaypoints : waypoints;
 
