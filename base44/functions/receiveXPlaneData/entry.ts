@@ -257,6 +257,20 @@ Deno.serve(async (req) => {
     
     // Normalize all data fields - support both X-Plane and MSFS field naming conventions
     // MSFS bridges may use camelCase or different names
+    const toBool = (value: any, defaultValue = false) => {
+      if (value === undefined || value === null) return defaultValue;
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value !== 0;
+      if (typeof value === 'string') {
+        const s = value.trim().toLowerCase();
+        if (s === '') return defaultValue;
+        if (['1', 'true', 'yes', 'on'].includes(s)) return true;
+        if (['0', 'false', 'no', 'off'].includes(s)) return false;
+        const n = Number(s);
+        if (Number.isFinite(n)) return n !== 0;
+      }
+      return defaultValue;
+    };
     const altitude = data.altitude ?? data.alt ?? data.indicated_altitude;
     const speed = data.speed ?? data.airspeed ?? data.true_airspeed ?? data.tas;
     const vertical_speed = data.vertical_speed ?? data.verticalSpeed ?? data.vspeed ?? data.vertical_rate;
@@ -267,7 +281,7 @@ Deno.serve(async (req) => {
     const max_g_force = data.max_g_force ?? data.maxGForce ?? data.max_g ?? data.peakG;
     const latitude = data.latitude ?? data.lat;
     const longitude = data.longitude ?? data.lon ?? data.lng;
-    const on_ground = data.on_ground ?? data.onGround ?? data.sim_on_ground ?? data.isOnGround;
+    const on_ground = toBool(data.on_ground ?? data.onGround ?? data.sim_on_ground ?? data.isOnGround, false);
     const touchdown_vspeed = data.touchdown_vspeed ?? data.touchdownVspeed ?? data.landing_vspeed ?? data.touchdown_vs ?? data.landing_vs;
     const landing_g_force = data.landing_g_force ?? data.landingGForce ?? data.touchdown_g ?? data.landing_g;
     // Events - support X-Plane datarefs AND MSFS SimConnect event names
@@ -296,10 +310,10 @@ Deno.serve(async (req) => {
 
     // Normalize field names (support both X-Plane and MSFS naming conventions)
     // MSFS bridges may use different field names for the same data
-    const park_brake = data.parking_brake || data.park_brake || data.parkingBrake || false;
-    const engine1_running = data.engine1_running || data.eng1Running || data.engine_1_running || false;
-    const engine2_running = data.engine2_running || data.eng2Running || data.engine_2_running || false;
-    const engines_running = data.engines_running || data.enginesRunning || engine1_running || engine2_running;
+    const park_brake = toBool(data.parking_brake ?? data.park_brake ?? data.parkingBrake, false);
+    const engine1_running = toBool(data.engine1_running ?? data.eng1Running ?? data.engine_1_running, false);
+    const engine2_running = toBool(data.engine2_running ?? data.eng2Running ?? data.engine_2_running, false);
+    const engines_running = toBool(data.engines_running ?? data.enginesRunning, false) || engine1_running || engine2_running;
     // MSFS crash detection: support multiple field names + bridge fallbacks
     const crash_flag = data.crash_flag ?? data.crashFlag ?? data.crashflag ?? false;
     const sim_disabled = data.sim_disabled ?? data.simDisabled ?? data.sim_is_disabled ?? data.simDisabledFlag ?? false;
@@ -308,6 +322,13 @@ Deno.serve(async (req) => {
     );
     const isCrash = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || sim_disabled || hasCrashFailure);
     const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
+    const prevXd = flight.xplane_data || {};
+    const incomingTouchdownVspeed = Number(touchdown_vspeed ?? 0);
+    const incomingLandingG = Number(landing_g_force ?? 0);
+    const prevTouchdownVspeed = Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0);
+    const prevLandingG = Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0);
+    const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
+    const mergedLandingG = incomingLandingG > 0 ? incomingLandingG : prevLandingG;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const asFinite = (v) => {
       const n = Number(v);
@@ -828,16 +849,16 @@ Deno.serve(async (req) => {
     const incomingFmsWaypoints = normalizeWpList(data.fms_waypoints); // array of {name, lat, lon, alt}
 
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
-    const wasAirborne = flight.xplane_data?.was_airborne || false;
+    const wasAirborne = prevXd.was_airborne || false;
     const isNowAirborne = !on_ground && altitude > 50;
     const hasBeenAirborne = wasAirborne || isNowAirborne;
 
     // Track initial fuel for consumption calculation
-    const initial_fuel_kg = flight.xplane_data?.initial_fuel_kg || fuel_kg || 0;
+    const initial_fuel_kg = prevXd.initial_fuel_kg || fuel_kg || 0;
 
     // Track flight path (add position every update, limited to keep data manageable)
     // Record positions both airborne AND on ground (for takeoff/landing path visualization)
-    const existingPath = flight.xplane_data?.flight_path || [];
+    const existingPath = prevXd.flight_path || [];
     let newPath = existingPath;
     // Only record path if we have a valid position (not near 0,0 which is default/uninitialized)
     const hasValidCoords = Number.isFinite(latitude) && Number.isFinite(longitude) 
@@ -859,7 +880,7 @@ Deno.serve(async (req) => {
 
     // Build a LEAN xplane_data object - only current sensor readings
     // No merging with previous data (the frontend tracks accumulated state)
-    const prevAirborneStartedAt = flight.xplane_data?.airborne_started_at || null;
+    const prevAirborneStartedAt = prevXd.airborne_started_at || null;
     const airborneStartedAt = (!on_ground && altitude > 10)
       ? (prevAirborneStartedAt || new Date().toISOString())
       : prevAirborneStartedAt;
@@ -882,8 +903,8 @@ Deno.serve(async (req) => {
       engine1_running,
       engine2_running,
       engines_running: areEnginesRunning,
-      touchdown_vspeed,
-      landing_g_force,
+      touchdown_vspeed: mergedTouchdownVspeed,
+      landing_g_force: mergedLandingG,
       landing_quality,
       gear_down: gear_down !== undefined ? gear_down : true,
       flap_ratio,
@@ -907,40 +928,40 @@ Deno.serve(async (req) => {
       was_airborne: hasBeenAirborne,
       airborne_started_at: airborneStartedAt,
       // Preserve departure/arrival coords from first packet
-      departure_lat: data.departure_lat || (flight.xplane_data?.departure_lat || 0),
-      departure_lon: data.departure_lon || (flight.xplane_data?.departure_lon || 0),
-      arrival_lat: data.arrival_lat || (flight.xplane_data?.arrival_lat || 0),
-      arrival_lon: data.arrival_lon || (flight.xplane_data?.arrival_lon || 0),
+      departure_lat: data.departure_lat || (prevXd.departure_lat || 0),
+      departure_lon: data.departure_lon || (prevXd.departure_lon || 0),
+      arrival_lat: data.arrival_lat || (prevXd.arrival_lat || 0),
+      arrival_lon: data.arrival_lon || (prevXd.arrival_lon || 0),
       // Aircraft environment data for calculator
-      total_weight_kg: total_weight_kg || (flight.xplane_data?.total_weight_kg || null),
-      oat_c: oat_c !== undefined ? oat_c : (flight.xplane_data?.oat_c ?? null),
+      total_weight_kg: total_weight_kg || (prevXd.total_weight_kg || null),
+      oat_c: oat_c !== undefined ? oat_c : (prevXd.oat_c ?? null),
       tat_c: tat_c !== undefined ? tat_c : null,
-      ground_elevation_ft: ground_elevation_ft || (flight.xplane_data?.ground_elevation_ft || null),
-      baro_setting: baro_setting || (flight.xplane_data?.baro_setting || null),
-      wind_speed_kts: wind_speed_kts !== undefined ? wind_speed_kts : (flight.xplane_data?.wind_speed_kts ?? null),
-      wind_direction: wind_direction !== undefined ? wind_direction : (flight.xplane_data?.wind_direction ?? null),
+      ground_elevation_ft: ground_elevation_ft || (prevXd.ground_elevation_ft || null),
+      baro_setting: baro_setting || (prevXd.baro_setting || null),
+      wind_speed_kts: wind_speed_kts !== undefined ? wind_speed_kts : (prevXd.wind_speed_kts ?? null),
+      wind_direction: wind_direction !== undefined ? wind_direction : (prevXd.wind_direction ?? null),
       rain_intensity: rain_intensity !== undefined ? rain_intensity : null,
       precipitation: rain_intensity !== undefined ? rain_intensity : null,
       precip_rate: precip_rate !== undefined ? precip_rate : null,
       precip_state: precip_state !== undefined ? precip_state : null,
       turbulence: turbulence !== undefined ? turbulence : null,
       turbulence_intensity: turbulence !== undefined ? turbulence : null,
-      aircraft_icao: aircraft_icao || (flight.xplane_data?.aircraft_icao || null),
-      aircraft_type: assignedAircraftType || (flight.xplane_data?.aircraft_type || null),
+      aircraft_icao: aircraft_icao || (prevXd.aircraft_icao || null),
+      aircraft_type: assignedAircraftType || (prevXd.aircraft_type || null),
       // FMS waypoints - only update if plugin sends them (they don't change often)
       fms_waypoints: incomingFmsWaypoints.length
         ? incomingFmsWaypoints
-        : normalizeWpList(flight.xplane_data?.fms_waypoints || []),
+        : normalizeWpList(prevXd.fms_waypoints || []),
       // Preserve SimBrief route data if present (set by web app/import)
-      simbrief_waypoints: data.simbrief_waypoints || (flight.xplane_data?.simbrief_waypoints || []),
-      simbrief_route_string: data.simbrief_route_string || (flight.xplane_data?.simbrief_route_string || null),
-      simbrief_departure_coords: data.simbrief_departure_coords || (flight.xplane_data?.simbrief_departure_coords || null),
-      simbrief_arrival_coords: data.simbrief_arrival_coords || (flight.xplane_data?.simbrief_arrival_coords || null),
+      simbrief_waypoints: data.simbrief_waypoints || (prevXd.simbrief_waypoints || []),
+      simbrief_route_string: data.simbrief_route_string || (prevXd.simbrief_route_string || null),
+      simbrief_departure_coords: data.simbrief_departure_coords || (prevXd.simbrief_departure_coords || null),
+      simbrief_arrival_coords: data.simbrief_arrival_coords || (prevXd.simbrief_arrival_coords || null),
       // Flight path for map visualization
       flight_path: newPath,
       // Telemetry history for post-flight profile chart (sampled every ~15s, max 600 points)
       telemetry_history: (() => {
-        const prevHistory = flight.xplane_data?.telemetry_history || [];
+        const prevHistory = prevXd.telemetry_history || [];
         const now = Date.now();
         const lastEntry = prevHistory.length > 0 ? prevHistory[prevHistory.length - 1] : null;
         const lastTs = lastEntry?.t ? new Date(lastEntry.t).getTime() : 0;
@@ -1008,8 +1029,8 @@ Deno.serve(async (req) => {
     const maintenanceRatio = company?.current_maintenance_ratio || 0;
     
     const hasTouchdownEvidence =
-      Number(landing_g_force || 0) > 0 ||
-      Math.abs(Number(touchdown_vspeed || 0)) > 50 ||
+      Number(mergedLandingG || 0) > 0 ||
+      Math.abs(Number(mergedTouchdownVspeed || 0)) > 50 ||
       !!landing_quality;
     const flightStatus = (on_ground && hasBeenAirborne && hasTouchdownEvidence) ? 'ready_to_complete' : 'updated';
     
@@ -1244,11 +1265,11 @@ Deno.serve(async (req) => {
       }
       deadlineRemainingSec = totalDeadlineSec - elapsedSec;
     }
-    const prev = flight.xplane_data || {};
+    const prev = prevXd;
     // Use already-normalized variables (not raw data.*) so MSFS aliases are covered
     const mergedScorePacket = {
       max_g_force: Math.max(Number(max_g_force || 0), Number(prev.max_g_force || 0)),
-      landing_g_force: Number(landing_g_force ?? prev.landing_g_force ?? 0),
+      landing_g_force: Number(mergedLandingG ?? prev.landing_g_force ?? 0),
       tailstrike: !!(tailstrike || prev.tailstrike),
       stall: !!(stall || is_in_stall || stall_warning || override_alpha || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
       overstress: !!(overstress || prev.overstress),
