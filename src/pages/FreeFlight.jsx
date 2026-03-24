@@ -109,7 +109,6 @@ export default function FreeFlight() {
   useEffect(() => {
     if (!xplaneLog?.raw_data) return;
     const xp = xplaneLog.raw_data;
-    const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || xp.sim_disabled);
     const lat = xp.latitude;
     const lon = xp.longitude;
     if (lat && lon) {
@@ -130,6 +129,7 @@ export default function FreeFlight() {
   useEffect(() => {
     if (!xplaneLog?.raw_data) return;
     const xp = xplaneLog.raw_data;
+    const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || xp.sim_disabled);
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
