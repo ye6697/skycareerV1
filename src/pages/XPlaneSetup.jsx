@@ -201,7 +201,7 @@ export default function XPlaneSetup() {
   };
 
   const downloadSkyCareerDesktop = async () => {
-    await downloadZipFromFunction('downloadSkyCareerDesktop', 'SkyCareer_Desktop_AllInOne_Windows.zip');
+    await downloadStaticZip('SkyCareer_Desktop_AllInOne_Windows.zip', 'downloadSkyCareerDesktop');
   };
 
   const downloadMsfsTablet = async () => {
