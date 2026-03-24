@@ -1034,16 +1034,15 @@ export default function FlightTracker() {
       const touchdownVs = prev.landingType 
         ? prev.landingVs  // Already landed - keep the captured value
         : (xp.landing_vs || xp.touchdown_vspeed || 0);
-      const hasTouchdownEvidence = (Math.abs(touchdownVs) > 50) || Number(xp.landing_g_force || 0) > 0;
       // Landing G-force: Capture the ACTUAL g-force at touchdown moment
       // NOT the peak g-force during the entire flight
       // Once landed (landingType set), preserve the captured value
       let landingGForceValue;
       if (prev.landingType) {
         landingGForceValue = prev.landingGForce; // Already landed - keep captured value
-      } else if (xp.on_ground && newWasAirborne && hasTouchdownEvidence) {
-        // Only use touchdown G when plugin reports actual touchdown evidence.
-        landingGForceValue = Number(xp.landing_g_force || 0);
+      } else if (xp.on_ground && newWasAirborne) {
+        // Once airborne and back on ground, allow landing evaluation even without explicit touchdown markers.
+        landingGForceValue = Number(xp.landing_g_force || currentGForce || 1.0);
       } else {
         // Still airborne (or false on_ground glitch) - do not synthesize landing G.
         landingGForceValue = 0;
@@ -1061,7 +1060,7 @@ export default function FlightTracker() {
        const currentAircraft = aircraft?.find(a => a.id === aircraftId);
        const aircraftPurchasePrice = currentAircraft?.purchase_price || 1000000; // fallback price if not found
 
-      if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && hasTouchdownEvidence && !prev.events.crash && !prev.landingType) {
+      if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
         const gForce = landingGForceValue;
         // Revenue = contract payout (Gesamteinnahmen)
         const totalRevenue = contract?.payout || 0;
@@ -1282,9 +1281,8 @@ export default function FlightTracker() {
       setFlightStartTime(Date.now());
     }
     
-    // Landing detection: on ground after being airborne
-    const readyTouchdownEvidence = Number(xp.landing_g_force || 0) > 0 || Math.abs(Number(xp.touchdown_vspeed || xp.landing_vs || 0)) > 50 || !!flightData.landingType;
-    const isReadyToComplete = xp.on_ground && flightData.wasAirborne && readyTouchdownEvidence;
+    // Auto-complete trigger: once aircraft was airborne, on_ground is enough.
+    const isReadyToComplete = xp.on_ground && flightData.wasAirborne;
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
       // Check distance to arrival airport (>=10 NM without emergency = failed)
       const aLt = flightData.arrival_lat || xp.arrival_lat || 0, aLn = flightData.arrival_lon || xp.arrival_lon || 0;
