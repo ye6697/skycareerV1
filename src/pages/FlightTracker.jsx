@@ -1075,17 +1075,9 @@ export default function FlightTracker() {
       if (prev.landingType) {
         landingGForceValue = prev.landingGForce; // Already landed - keep captured value
       } else if (xp.on_ground && newWasAirborne) {
-        // Prefer real touchdown G from bridge/backend.
+        // Use only measured touchdown G from backend/bridge and preserve once captured.
         const reportedLandingG = Number(xp.landing_g_force || 0);
-        const hasCredibleLandingG = reportedLandingG > 1.02;
-        if (hasCredibleLandingG) {
-          landingGForceValue = reportedLandingG;
-        } else if (Math.abs(Number(touchdownVs || 0)) > 50) {
-          // Fallback estimate from touchdown vertical speed only when we have touchdown evidence.
-          landingGForceValue = Math.min(3.5, Math.max(1.0, 1 + (Math.abs(Number(touchdownVs || 0)) / 900)));
-        } else {
-          landingGForceValue = 0;
-        }
+        landingGForceValue = reportedLandingG > 0 ? reportedLandingG : Number(prev.landingGForce || 0);
       } else {
         // Still airborne (or false on_ground glitch) - do not synthesize landing G.
         landingGForceValue = 0;
