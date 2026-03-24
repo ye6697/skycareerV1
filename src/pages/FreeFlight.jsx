@@ -109,6 +109,7 @@ export default function FreeFlight() {
   useEffect(() => {
     if (!xplaneLog?.raw_data) return;
     const xp = xplaneLog.raw_data;
+    const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || xp.sim_disabled);
     const lat = xp.latitude;
     const lon = xp.longitude;
     if (lat && lon) {
@@ -211,7 +212,7 @@ export default function FreeFlight() {
           flaps_overspeed: xp.flaps_overspeed || prev.events.flaps_overspeed,
           fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
           gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-          crash: (xp.has_crashed && newWasAirborne) || prev.events.crash,
+          crash: (crashSignal && newWasAirborne) || prev.events.crash,
           harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
           high_g_force: newMaxGForce >= 1.5 || prev.events.high_g_force,
           hard_landing: landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing,

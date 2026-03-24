@@ -944,8 +944,9 @@ export default function FlightTracker() {
 
     const xp = xplaneLog.raw_data;
 
-    // Check for crash via X-Plane dataref - NUR wenn wasAirborne
-    if (xp.has_crashed && flightData.wasAirborne) {
+    const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || xp.sim_disabled);
+    // Check for crash via X-Plane/MSFS signals - only when aircraft was airborne
+    if (crashSignal && flightData.wasAirborne) {
     setFlightData(prev => ({
       ...prev,
       events: {
@@ -1060,7 +1061,7 @@ export default function FlightTracker() {
       }
 
       // Crash nur wenn tatsächlich abgehoben war
-      const isCrash = (landingType === 'crash' || prev.events.crash || (xp.has_crashed && newWasAirborne)) && newWasAirborne;
+      const isCrash = (landingType === 'crash' || prev.events.crash || (crashSignal && newWasAirborne)) && newWasAirborne;
       
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;
