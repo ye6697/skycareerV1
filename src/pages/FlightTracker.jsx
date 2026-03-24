@@ -961,7 +961,7 @@ export default function FlightTracker() {
       const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
 
       // Track if aircraft was airborne
-      const newWasAirborne = prev.wasAirborne || (!xp.on_ground && xp.altitude > 10);
+      const newWasAirborne = prev.wasAirborne || !!xp.was_airborne || (!xp.on_ground && xp.altitude > 10);
 
       // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
       if (!newWasAirborne) {

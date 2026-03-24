@@ -851,8 +851,9 @@ Deno.serve(async (req) => {
 
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
     const wasAirborne = prevXd.was_airborne || false;
+    const payloadWasAirborne = toBool(data.was_airborne ?? data.wasAirborne, false);
     const isNowAirborne = !on_ground && altitude > 50;
-    const hasBeenAirborne = wasAirborne || isNowAirborne;
+    const hasBeenAirborne = wasAirborne || payloadWasAirborne || isNowAirborne;
 
     // Track initial fuel for consumption calculation
     const initial_fuel_kg = prevXd.initial_fuel_kg || fuel_kg || 0;
