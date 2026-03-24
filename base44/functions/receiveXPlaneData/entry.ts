@@ -1138,6 +1138,29 @@ Deno.serve(async (req) => {
     };
     const liveScore = computeLiveScore(mergedScorePacket);
 
+    // Keep a live XPlaneLog stream even during active contracts.
+    // FreeFlight/FlightMap pages consume XPlaneLog as realtime source.
+    base44.asServiceRole.entities.XPlaneLog.create({
+      company_id: company.id,
+      raw_data: xplaneData,
+      altitude,
+      speed,
+      on_ground,
+      flight_score: liveScore,
+      has_active_flight: true,
+    }).catch(() => {});
+
+    // Background cleanup so logs do not grow unbounded.
+    if (Math.random() < 0.02) {
+      base44.asServiceRole.entities.XPlaneLog.filter(
+        { company_id: company.id }, '-created_date', 120
+      ).then(async (oldLogs) => {
+        if (oldLogs.length > 40) {
+          await Promise.all(oldLogs.slice(40).map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
+        }
+      }).catch(() => {});
+    }
+
     // Respond IMMEDIATELY - no awaiting any DB operations
     return Response.json({ 
       flight_id: flight.id,
