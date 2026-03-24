@@ -36,7 +36,7 @@ export default function FlightProfileChart({ flight }) {
 
   const chartData = useMemo(() => {
     const xpd = flight?.xplane_data || {};
-    const history = xpd.telemetry_history;
+    const history = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile;
 
     if (!Array.isArray(history) || history.length < 2) return null;
 
@@ -55,7 +55,16 @@ export default function FlightProfileChart({ flight }) {
   }, [flight]);
 
   if (!chartData) {
-    return null; // No telemetry history available
+    return (
+      <Card className="bg-slate-900/80 border-slate-800 overflow-hidden p-4">
+        <div className="text-sm font-semibold text-slate-300 mb-1">
+          {lang === 'de' ? 'Flugprofil' : 'Flight Profile'}
+        </div>
+        <div className="text-xs text-slate-500">
+          {lang === 'de' ? 'Keine Telemetrie-History für diesen Flug gespeichert.' : 'No telemetry history stored for this flight.'}
+        </div>
+      </Card>
+    );
   }
 
   const toggle = (key) => {

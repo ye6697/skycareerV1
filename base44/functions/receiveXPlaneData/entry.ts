@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
     const hasCrashFailure = Array.isArray(data.active_failures) && data.active_failures.some((f) =>
       /crash/i.test(String(f?.name || f?.name_de || ""))
     );
-    const isCrash = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || sim_disabled || hasCrashFailure);
+    const isCrashSignal = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || sim_disabled || hasCrashFailure);
     const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const asFinite = (v) => {
@@ -688,8 +688,8 @@ Deno.serve(async (req) => {
         engines_running,
         pitch,
         ias,
-        crash: isCrash,
-        has_crashed: isCrash,
+        crash: isCrashSignal,
+        has_crashed: isCrashSignal,
         crash_flag,
         sim_disabled,
         oat_c: derivedWeather.oat_c ?? null,
@@ -899,6 +899,12 @@ Deno.serve(async (req) => {
       : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0);
     const mergedLandingGNum = Number(mergedLandingG || 0);
     const effectiveLandingG = mergedLandingGNum > 0 ? mergedLandingGNum : 0;
+    const crashFromTouchdown = hasBeenAirborne && on_ground && (
+      Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 900 ||
+      Number(effectiveLandingG || 0) >= 2.9
+    );
+    const prevCrashState = toBool(prevXd.crash ?? prevXd.has_crashed, false);
+    const isCrash = !!(isCrashSignal || crashFromTouchdown || prevCrashState);
 
     const xplaneData = {
       simulator,

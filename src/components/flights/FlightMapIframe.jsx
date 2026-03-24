@@ -457,7 +457,20 @@ function update(d) {
   var contract = d.contract;
   var waypoints = (d.waypoints || []).filter(function(w){return w.lat && w.lon;});
   var routeWaypoints = (d.routeWaypoints || []).filter(function(w){return w.lat && w.lon;});
-  var flightPath = d.flightPath || [];
+  var rawFlightPath = d.flightPath || [];
+  var flightPath = (Array.isArray(rawFlightPath) ? rawFlightPath : [])
+    .map(function(p){
+      if (Array.isArray(p) && p.length >= 2) return [Number(p[0]), Number(p[1])];
+      if (p && typeof p === 'object') {
+        var la = Number(p.lat ?? p.latitude);
+        var lo = Number(p.lon ?? p.lng ?? p.longitude);
+        return [la, lo];
+      }
+      return null;
+    })
+    .filter(function(p){
+      return p && isFinite(p[0]) && isFinite(p[1]) && !(p[0] === 0 && p[1] === 0);
+    });
   var staticMode = d.staticMode;
   var depCoords = d.departureCoords;
   var arrCoords = d.arrivalCoords;

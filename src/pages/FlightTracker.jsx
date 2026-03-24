@@ -713,6 +713,14 @@ export default function FlightTracker() {
             let existingXpData = activeFlight?.xplane_data || {};
             const freshFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
             if (freshFlights[0]?.xplane_data) existingXpData = freshFlights[0].xplane_data;
+            const liveXpData = xplaneLog?.raw_data || {};
+            const preservedFlightPath = existingXpData.flight_path || liveXpData.flight_path || [];
+            const preservedTelemetryHistory = existingXpData.telemetry_history || liveXpData.telemetry_history || [];
+            const preservedFmsWaypoints = existingXpData.fms_waypoints || liveXpData.fms_waypoints || [];
+            const preservedSimbriefWaypoints = existingXpData.simbrief_waypoints || liveXpData.simbrief_waypoints || [];
+            const preservedSimbriefRouteString = existingXpData.simbrief_route_string || liveXpData.simbrief_route_string || null;
+            const preservedSimbriefDepCoords = existingXpData.simbrief_departure_coords || liveXpData.simbrief_departure_coords || null;
+            const preservedSimbriefArrCoords = existingXpData.simbrief_arrival_coords || liveXpData.simbrief_arrival_coords || null;
 
             await base44.entities.Flight.update(activeFlight.id, {
                status: (hasCrashed || wrongAirport) ? 'failed' : 'completed',
@@ -735,12 +743,13 @@ export default function FlightTracker() {
                xplane_data: {
                  ...finalFlightData,
                  // Preserve map/route data from backend that local state doesn't track
-                 flight_path: existingXpData.flight_path || [],
-                 fms_waypoints: existingXpData.fms_waypoints || [],
-                 simbrief_waypoints: existingXpData.simbrief_waypoints || [],
-                 simbrief_route_string: existingXpData.simbrief_route_string || null,
-                 simbrief_departure_coords: existingXpData.simbrief_departure_coords || null,
-                 simbrief_arrival_coords: existingXpData.simbrief_arrival_coords || null,
+                 flight_path: preservedFlightPath,
+                 telemetry_history: preservedTelemetryHistory,
+                 fms_waypoints: preservedFmsWaypoints,
+                 simbrief_waypoints: preservedSimbriefWaypoints,
+                 simbrief_route_string: preservedSimbriefRouteString,
+                 simbrief_departure_coords: preservedSimbriefDepCoords,
+                 simbrief_arrival_coords: preservedSimbriefArrCoords,
                  departure_lat: existingXpData.departure_lat || finalFlightData.departure_lat || 0,
                  departure_lon: existingXpData.departure_lon || finalFlightData.departure_lon || 0,
                  arrival_lat: existingXpData.arrival_lat || finalFlightData.arrival_lat || 0,
@@ -1011,7 +1020,7 @@ export default function FlightTracker() {
 
     const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || xp.sim_disabled);
     // Check for crash via X-Plane/MSFS signals - only when aircraft was airborne
-    if (crashSignal && flightData.wasAirborne) {
+    if (crashSignal && (flightData.wasAirborne || !!xp.was_airborne)) {
     setFlightData(prev => ({
       ...prev,
       events: {
@@ -1130,7 +1139,8 @@ export default function FlightTracker() {
       }
 
       // Crash nur wenn tatsächlich abgehoben war
-      const isCrash = (landingType === 'crash' || prev.events.crash || (crashSignal && newWasAirborne)) && newWasAirborne;
+      const isCrashArmed = newWasAirborne || !!xp.was_airborne;
+      const isCrash = (landingType === 'crash' || prev.events.crash || (crashSignal && isCrashArmed)) && isCrashArmed;
       
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;

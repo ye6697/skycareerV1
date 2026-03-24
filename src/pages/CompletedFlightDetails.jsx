@@ -194,7 +194,16 @@ export default function CompletedFlightDetails() {
               {finalContract && (() => {
                 // Build departure/arrival coords from xplane_data or flight_path
                 const xpd = flight?.xplane_data || {};
-                const fp = xpd.flight_path || [];
+                const fp = (Array.isArray(xpd.flight_path) ? xpd.flight_path : [])
+                  .map((p) => {
+                    if (Array.isArray(p) && p.length >= 2) return [Number(p[0]), Number(p[1])];
+                    if (p && typeof p === 'object') return [Number(p.lat ?? p.latitude), Number(p.lon ?? p.lng ?? p.longitude)];
+                    return null;
+                  })
+                  .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && !(p[0] === 0 && p[1] === 0));
+                const mapRouteWaypoints = (Array.isArray(xpd.simbrief_waypoints) && xpd.simbrief_waypoints.length > 0)
+                  ? xpd.simbrief_waypoints
+                  : (xpd.fms_waypoints || []);
                 const depLat = xpd.departure_lat || (fp.length > 0 ? fp[0][0] : 0);
                 const depLon = xpd.departure_lon || (fp.length > 0 ? fp[0][1] : 0);
                 const arrLat = xpd.arrival_lat || (fp.length > 1 ? fp[fp.length-1][0] : 0);
@@ -211,7 +220,7 @@ export default function CompletedFlightDetails() {
                     staticMode={true}
                     title="Flugroute & Flugverlauf"
                     flightPath={fp}
-                    routeWaypoints={xpd.fms_waypoints || []}
+                    routeWaypoints={mapRouteWaypoints}
                     departureCoords={depLat ? { lat: depLat, lon: depLon } : null}
                     arrivalCoords={arrLat ? { lat: arrLat, lon: arrLon } : null}
                   />
