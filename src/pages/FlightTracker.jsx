@@ -305,6 +305,18 @@ export default function FlightTracker() {
     }
   }, [contractIdFromUrl]);
 
+  const pickFirstValidLatLon = (pairs = []) => {
+    for (const pair of pairs) {
+      if (!Array.isArray(pair) || pair.length < 2) continue;
+      const lat = Number(pair[0]);
+      const lon = Number(pair[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      if (lat === 0 && lon === 0) continue;
+      return { lat, lon, valid: true };
+    }
+    return { lat: 0, lon: 0, valid: false };
+  };
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Verwende den existierenden Flight oder erstelle einen neuen (sollte nicht passieren)
@@ -532,12 +544,27 @@ export default function FlightTracker() {
 
      // Check for crash or off-airport landing (>=10 NM from arrival airport)
       const hasCrashed = !!finalFlightData.events.crash;
-      const arrivalLat = Number(finalFlightData.arrival_lat || xpData.arrival_lat || 0);
-      const arrivalLon = Number(finalFlightData.arrival_lon || xpData.arrival_lon || 0);
-      const currentLat = Number(finalFlightData.latitude || xpData.latitude || 0);
-      const currentLon = Number(finalFlightData.longitude || xpData.longitude || 0);
-      const hasArrivalCoords = (arrivalLat !== 0 || arrivalLon !== 0);
-      const hasCurrentCoords = (currentLat !== 0 || currentLon !== 0);
+      const simbriefArrival = xpData.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
+      const lastPathPoint = Array.isArray(xpData.flight_path) && xpData.flight_path.length > 0
+        ? xpData.flight_path[xpData.flight_path.length - 1]
+        : null;
+      const arrivalPos = pickFirstValidLatLon([
+        [finalFlightData.arrival_lat, finalFlightData.arrival_lon],
+        [xpData.arrival_lat, xpData.arrival_lon],
+        [simbriefArrival?.lat, simbriefArrival?.lon],
+        [simbriefArrival?.latitude, simbriefArrival?.longitude],
+      ]);
+      const currentPos = pickFirstValidLatLon([
+        [finalFlightData.latitude, finalFlightData.longitude],
+        [xpData.latitude, xpData.longitude],
+        [Array.isArray(lastPathPoint) ? lastPathPoint[0] : null, Array.isArray(lastPathPoint) ? lastPathPoint[1] : null],
+      ]);
+      const arrivalLat = arrivalPos.lat;
+      const arrivalLon = arrivalPos.lon;
+      const currentLat = currentPos.lat;
+      const currentLon = currentPos.lon;
+      const hasArrivalCoords = arrivalPos.valid;
+      const hasCurrentCoords = currentPos.valid;
       const arrivalDistanceNm = (hasArrivalCoords && hasCurrentCoords)
         ? calculateHaversineDistance(currentLat, currentLon, arrivalLat, arrivalLon)
         : 0;
@@ -995,8 +1022,12 @@ export default function FlightTracker() {
       const currentGForce = xp.g_force || 1.0;
       const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
 
-      // Track if aircraft was airborne
-      const newWasAirborne = prev.wasAirborne || !!xp.was_airborne || (!xp.on_ground && xp.altitude > 10);
+      // Track airborne state for THIS contract only; ignore stale payload flags.
+      const airborneEvidence = !xp.on_ground && (
+        Number(xp.speed || 0) > 35 ||
+        Math.abs(Number(xp.vertical_speed || 0)) > 200
+      );
+      const newWasAirborne = prev.wasAirborne || airborneEvidence;
 
       // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
       if (!newWasAirborne) {
@@ -1285,10 +1316,21 @@ export default function FlightTracker() {
     const isReadyToComplete = xp.on_ground && flightData.wasAirborne;
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
       // Check distance to arrival airport (>=10 NM without emergency = failed)
-      const aLt = flightData.arrival_lat || xp.arrival_lat || 0, aLn = flightData.arrival_lon || xp.arrival_lon || 0;
-      const cLt = xp.latitude || flightData.latitude || 0, cLn = xp.longitude || flightData.longitude || 0;
-      const dArr = (aLt || aLn) && (cLt || cLn) ? calculateHaversineDistance(cLt, cLn, aLt, aLn) : 0;
-      if ((aLt || aLn) && (cLt || cLn) && dArr >= 10 && !emergencyLanding) {
+      const simbriefArr = xp.simbrief_arrival_coords || xplaneLog?.raw_data?.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
+      const arrivalPos = pickFirstValidLatLon([
+        [flightData.arrival_lat, flightData.arrival_lon],
+        [xp.arrival_lat, xp.arrival_lon],
+        [simbriefArr?.lat, simbriefArr?.lon],
+        [simbriefArr?.latitude, simbriefArr?.longitude],
+      ]);
+      const currentPos = pickFirstValidLatLon([
+        [xp.latitude, xp.longitude],
+        [flightData.latitude, flightData.longitude],
+      ]);
+      const dArr = (arrivalPos.valid && currentPos.valid)
+        ? calculateHaversineDistance(currentPos.lat, currentPos.lon, arrivalPos.lat, arrivalPos.lon)
+        : 0;
+      if (arrivalPos.valid && currentPos.valid && dArr >= 10 && !emergencyLanding) {
         console.log(`🚨 WRONG AIRPORT (${Math.round(dArr)} NM) - FAILED`);
         setFlightData(prev => { const u = { ...prev, events: { ...prev.events, wrong_airport: true }, flightScore: 0 }; flightDataRef.current = u; return u; });
       }
@@ -1304,7 +1346,7 @@ export default function FlightTracker() {
         completeFlightMutation.mutate();
       }, 200);
     }
-  }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime]);
+  }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime, emergencyLanding, simbriefRoute]);
 
   // FailuresCard removed - failures are shown in the Events section above
   // No extra DB queries needed

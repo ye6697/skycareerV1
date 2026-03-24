@@ -134,6 +134,15 @@ export default function CompletedFlightDetails() {
     );
   }
 
+  const emergencyOffAirportCompletion = !!flight?.xplane_data?.emergency_off_airport_completion;
+  const emergencyScorePenalty = Number(flight?.xplane_data?.emergency_score_penalty || 0);
+  const emergencyPayoutFactor = Number(flight?.xplane_data?.emergency_payout_factor || 1);
+  const emergencyArrivalDistanceNm = Number(flight?.xplane_data?.arrival_distance_nm || 0);
+  const basePayout = Number(finalContract?.payout || 0);
+  const emergencyPayoutReduction = emergencyOffAirportCompletion
+    ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
+    : 0;
+
   return (
     <div className="h-full flex flex-col gap-2">
       {/* Zibo Header */}
@@ -252,7 +261,7 @@ export default function CompletedFlightDetails() {
                       Math.abs(flight.landing_vs || 0) < 300 ? 'text-amber-400' :
                       'text-red-400'
                     }`}>
-                      {Math.abs(flight.landing_vs || 0)} ft/min
+                      {Math.round(Math.abs(flight.landing_vs || 0))} ft/min
                     </p>
                   </div>
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
@@ -333,6 +342,28 @@ export default function CompletedFlightDetails() {
                     );
                   })()}
                 </div>
+
+                {emergencyOffAirportCompletion && (
+                  <div className="mt-4 p-4 bg-amber-900/25 border border-amber-700/50 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-300 mb-2">
+                      {lang === 'de' ? 'Notlandung außerhalb Zielflughafen erkannt' : 'Emergency off-airport landing detected'}
+                    </p>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{lang === 'de' ? 'Distanz zum Zielflughafen' : 'Distance to destination airport'}</span>
+                        <span className="text-amber-300 font-mono">{Math.round(emergencyArrivalDistanceNm)} NM</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{lang === 'de' ? 'Notlandungs-Scoreabzug' : 'Emergency score penalty'}</span>
+                        <span className="text-red-400 font-mono">-{Math.round(emergencyScorePenalty)} {lang === 'de' ? 'Punkte' : 'points'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{lang === 'de' ? 'Payout-Reduktion (auf 30%)' : 'Payout reduction (to 30%)'}</span>
+                        <span className="text-red-400 font-mono">-${Math.round(emergencyPayoutReduction).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Landing Quality Details */}
                 {(() => {
@@ -358,7 +389,7 @@ export default function CompletedFlightDetails() {
                   else if (lt === 'acceptable') { scoreChange = 5; financialImpact = 0; }
                   else if (lt === 'hard') { scoreChange = -30; financialImpact = -(totalRev * 0.25); }
                   else if (lt === 'very_hard') { scoreChange = -50; financialImpact = -(totalRev * 0.5); }
-                  const vs = Math.abs(flight.landing_vs || 0);
+                  const vs = Math.round(Math.abs(flight.landing_vs || 0));
 
                   return (
                   <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-3">
@@ -607,6 +638,12 @@ export default function CompletedFlightDetails() {
                      <span className="text-slate-400">{t('payout', lang)}</span>
                      <span className="text-emerald-400 font-mono">${Math.round(finalContract?.payout || 0).toLocaleString()}</span>
                    </div>
+                   {emergencyOffAirportCompletion && (
+                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                     <span className="text-amber-300">{lang === 'de' ? 'Notlandung Payout-Abzug (70%)' : 'Emergency payout reduction (70%)'}</span>
+                     <span className="text-red-400 font-mono">-${Math.round(emergencyPayoutReduction).toLocaleString()}</span>
+                   </div>
+                   )}
                    {flight?.xplane_data?.landingBonus > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-slate-400">{t('landing_bonus', lang)}</span>

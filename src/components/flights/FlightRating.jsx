@@ -125,7 +125,7 @@ export default function FlightRating({ flight }) {
                 Math.abs(flight.landing_vs) < 400 ? 'text-orange-400' :
                 'text-red-400'
               }`}>
-                {Math.abs(flight.landing_vs)} ft/min
+                {Math.round(Math.abs(flight.landing_vs))} ft/min
               </p>
             </div>
           )}
