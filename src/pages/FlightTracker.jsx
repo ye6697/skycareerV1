@@ -1077,7 +1077,8 @@ export default function FlightTracker() {
       } else if (xp.on_ground && newWasAirborne) {
         // Prefer real touchdown G from bridge/backend.
         const reportedLandingG = Number(xp.landing_g_force || 0);
-        if (reportedLandingG > 0) {
+        const hasCredibleLandingG = reportedLandingG > 1.02;
+        if (hasCredibleLandingG) {
           landingGForceValue = reportedLandingG;
         } else if (Math.abs(Number(touchdownVs || 0)) > 50) {
           // Fallback estimate from touchdown vertical speed only when we have touchdown evidence.
