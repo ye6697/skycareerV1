@@ -50,6 +50,7 @@ export default function FlightTracker() {
   const [flightStartedAt, setFlightStartedAt] = useState(null);
   const [emergencyLanding, setEmergencyLanding] = useState(false);
   const flightDataRef = React.useRef(null);
+  const readyToCompleteSinceRef = React.useRef(null);
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
@@ -1246,9 +1247,37 @@ export default function FlightTracker() {
       setFlightStartTime(Date.now());
     }
     
-    // Landing detection: on ground after being airborne
-    const isReadyToComplete = xp.on_ground && flightData.wasAirborne;
-    if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
+    // Landing detection: require stable "parked after landing" state to avoid false auto-completion mid-flight.
+    const speedNow = Number(xp.speed ?? flightData.speed ?? 0);
+    const enginesRunning = !!(xp.engines_running || xp.engine1_running || xp.engine2_running);
+    const parkBrakeSet = !!(xp.park_brake || xp.parking_brake);
+    const touchdownEvidence = !!(
+      xp.landing_g_force ||
+      xp.touchdown_vspeed ||
+      flightData.landingType ||
+      xp.landing_quality
+    );
+    const candidateReadyToComplete =
+      !!xp.on_ground &&
+      flightData.wasAirborne &&
+      speedNow <= 40 &&
+      parkBrakeSet &&
+      !enginesRunning &&
+      touchdownEvidence;
+
+    if (candidateReadyToComplete) {
+      if (!readyToCompleteSinceRef.current) {
+        readyToCompleteSinceRef.current = Date.now();
+      }
+    } else {
+      readyToCompleteSinceRef.current = null;
+    }
+
+    const stableReadyToComplete =
+      !!readyToCompleteSinceRef.current &&
+      (Date.now() - readyToCompleteSinceRef.current) >= 5000;
+
+    if (stableReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
       // Check distance to arrival airport (>10NM without emergency = failed)
       const aLt = flightData.arrival_lat || xp.arrival_lat || 0, aLn = flightData.arrival_lon || xp.arrival_lon || 0;
       const cLt = xp.latitude || flightData.latitude || 0, cLn = xp.longitude || flightData.longitude || 0;
@@ -1259,6 +1288,7 @@ export default function FlightTracker() {
       }
       setFlightPhase('completed');
       setTimeout(() => completeFlightMutation.mutate(), 500);
+      readyToCompleteSinceRef.current = null;
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
