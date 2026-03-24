@@ -132,20 +132,23 @@ Deno.serve(async (req) => {
       else if (raw.oat_c !== undefined || raw.baro_setting !== undefined) sim_type = 'xplane';
     }
 
-    // For active flights, xplane_data already has normalized performance fields
-    // that receiveXPlaneData persists. These are more reliable than raw XPlaneLog data.
-    const final_weight = total_weight_kg || pick(xd.total_weight_kg) || null;
-    const final_oat = oat_c ?? pick(xd.oat_c) ?? null;
-    const final_baro = baro_setting || pick(xd.baro_setting) || null;
-    const final_wind_speed = wind_speed_kts ?? pick(xd.wind_speed_kts) ?? null;
-    const final_wind_dir = wind_dir ?? pick(xd.wind_direction, xd.wind_dir) ?? null;
-    const final_elev = ground_elevation_ft || pick(xd.ground_elevation_ft) || null;
+    // For active flights, xplane_data is fresher than XPlaneLog.raw_data.
+    // Prefer xplane_data during in-flight tracking to avoid stale telemetry.
+    const hasActiveFlight = !!flight;
+    const pickPreferred = (rawVal, xdVal) =>
+      hasActiveFlight ? pick(xdVal, rawVal) : pick(rawVal, xdVal);
+    const final_weight = pickPreferred(total_weight_kg, pick(xd.total_weight_kg)) ?? null;
+    const final_oat = pickPreferred(oat_c, pick(xd.oat_c)) ?? null;
+    const final_baro = pickPreferred(baro_setting, pick(xd.baro_setting)) ?? null;
+    const final_wind_speed = pickPreferred(wind_speed_kts, pick(xd.wind_speed_kts)) ?? null;
+    const final_wind_dir = pickPreferred(wind_dir, pick(xd.wind_direction, xd.wind_dir)) ?? null;
+    const final_elev = pickPreferred(ground_elevation_ft, pick(xd.ground_elevation_ft)) ?? null;
 
     // If plugin doesn't send weight but sends fuel_kg + aircraft_icao, estimate GWT
     // by looking up the aircraft's OEW (operating empty weight) from known types
     let estimated_weight = final_weight;
-    const acIcao = pick(raw.aircraft_icao, xd.aircraft_icao);
-    const fuelKg = pick(raw.fuel_kg, xd.fuel_kg);
+    const acIcao = pickPreferred(raw.aircraft_icao, xd.aircraft_icao);
+    const fuelKg = pickPreferred(raw.fuel_kg, xd.fuel_kg);
     if (!estimated_weight && fuelKg && acIcao) {
       // Known OEW (Operating Empty Weight) in kg for common types
       const oewTable = {
@@ -174,7 +177,7 @@ Deno.serve(async (req) => {
         // GWT ≈ OEW + fuel + estimated payload
         // For a rough estimate: payload ≈ 70% of (MTOW - OEW - max_fuel)
         // Simpler: OEW + fuel gives minimum, add ~60% payload estimate
-        const fuelPct = pick(raw.fuel_percentage, xd.fuel_percentage);
+        const fuelPct = pickPreferred(raw.fuel_percentage, xd.fuel_percentage);
         // Conservative estimate: OEW + fuel + moderate payload
         const payloadEstimate = oew * 0.25; // ~25% of OEW as payload estimate
         estimated_weight = Math.round(oew + fuelKg + payloadEstimate);
@@ -192,17 +195,17 @@ Deno.serve(async (req) => {
       turbulence,
       rain_intensity,
       visibility_m,
-      altitude: pick(raw.altitude, xd.altitude),
-      latitude: pick(raw.latitude, xd.latitude),
-      longitude: pick(raw.longitude, xd.longitude),
-      on_ground: raw.on_ground ?? xd.on_ground ?? true,
+      altitude: pickPreferred(raw.altitude, xd.altitude),
+      latitude: pickPreferred(raw.latitude, xd.latitude),
+      longitude: pickPreferred(raw.longitude, xd.longitude),
+      on_ground: hasActiveFlight ? (xd.on_ground ?? raw.on_ground ?? true) : (raw.on_ground ?? xd.on_ground ?? true),
       fuel_kg: fuelKg,
       simulator: sim_type,
-      timestamp: log.created_date,
-      has_active_flight: !!flight,
+      timestamp: hasActiveFlight ? (flight.updated_date || flight.created_date || log.created_date) : log.created_date,
+      has_active_flight: hasActiveFlight,
       weight_estimated: !final_weight && !!estimated_weight,
       // Include the full raw_data so frontend can inspect if needed
-      _raw_fields: Object.keys(raw),
+      _raw_fields: Array.from(new Set([...Object.keys(raw), ...Object.keys(xd)])),
     };
 
     return Response.json(result);

@@ -107,6 +107,34 @@ export default function XPlaneSetup() {
     return bytes;
   };
 
+  const downloadZipFromFunction = async (functionName, defaultFilename) => {
+    setDownloading(true);
+    try {
+      const response = await base44.functions.invoke(functionName, {});
+      const base64 = response?.data?.base64;
+      if (!base64) {
+        throw new Error('No base64 payload returned');
+      }
+      const bytes = decodeBase64Zip(base64);
+      const fileName = response?.data?.filename || defaultFilename;
+
+      const blob = new Blob([bytes], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (error) {
+      console.error(`Error downloading ${functionName}:`, error);
+      alert(t('xps_download_error', lang));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const downloadStaticZip = async (file, fallbackFunction = null) => {
     setDownloading(true);
     try {
@@ -173,7 +201,7 @@ export default function XPlaneSetup() {
   };
 
   const downloadSkyCareerDesktop = async () => {
-    await downloadStaticZip('SkyCareer_Desktop_AllInOne_Windows.zip', 'downloadSkyCareerDesktop');
+    await downloadZipFromFunction('downloadSkyCareerDesktop', 'SkyCareer_Desktop_AllInOne_Windows.zip');
   };
 
   const downloadMsfsTablet = async () => {
