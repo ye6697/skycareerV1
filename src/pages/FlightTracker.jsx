@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { getAirportCoords } from "@/utils/airportCoordinates";
 import {
   Plane,
   PlaneTakeoff,
@@ -545,6 +546,7 @@ export default function FlightTracker() {
      // Check for crash or off-airport landing (>=10 NM from arrival airport)
       const hasCrashed = !!finalFlightData.events.crash;
       const simbriefArrival = xpData.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
+      const contractArrival = getAirportCoords(contract?.arrival_airport);
       const lastPathPoint = Array.isArray(xpData.flight_path) && xpData.flight_path.length > 0
         ? xpData.flight_path[xpData.flight_path.length - 1]
         : null;
@@ -553,6 +555,7 @@ export default function FlightTracker() {
         [xpData.arrival_lat, xpData.arrival_lon],
         [simbriefArrival?.lat, simbriefArrival?.lon],
         [simbriefArrival?.latitude, simbriefArrival?.longitude],
+        [contractArrival?.lat, contractArrival?.lon],
       ]);
       const currentPos = pickFirstValidLatLon([
         [finalFlightData.latitude, finalFlightData.longitude],
@@ -1317,11 +1320,13 @@ export default function FlightTracker() {
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
       // Check distance to arrival airport (>=10 NM without emergency = failed)
       const simbriefArr = xp.simbrief_arrival_coords || xplaneLog?.raw_data?.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
+      const contractArrival = getAirportCoords(contract?.arrival_airport);
       const arrivalPos = pickFirstValidLatLon([
         [flightData.arrival_lat, flightData.arrival_lon],
         [xp.arrival_lat, xp.arrival_lon],
         [simbriefArr?.lat, simbriefArr?.lon],
         [simbriefArr?.latitude, simbriefArr?.longitude],
+        [contractArrival?.lat, contractArrival?.lon],
       ]);
       const currentPos = pickFirstValidLatLon([
         [xp.latitude, xp.longitude],
