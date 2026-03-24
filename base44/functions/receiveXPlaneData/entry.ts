@@ -887,6 +887,17 @@ Deno.serve(async (req) => {
       ? (prevAirborneStartedAt || new Date().toISOString())
       : prevAirborneStartedAt;
 
+    const shouldSynthesizeTouchdownEvidence =
+      hasBeenAirborne &&
+      on_ground &&
+      Number(speed || 0) <= 30;
+    const effectiveTouchdownVspeed = Math.abs(Number(mergedTouchdownVspeed || 0)) > 0
+      ? Number(mergedTouchdownVspeed || 0)
+      : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0);
+    const effectiveLandingG = Number(mergedLandingG || 0) > 0
+      ? Number(mergedLandingG || 0)
+      : (shouldSynthesizeTouchdownEvidence ? 1.0 : 0);
+
     const xplaneData = {
       simulator,
       altitude,
@@ -905,8 +916,8 @@ Deno.serve(async (req) => {
       engine1_running,
       engine2_running,
       engines_running: areEnginesRunning,
-      touchdown_vspeed: mergedTouchdownVspeed,
-      landing_g_force: mergedLandingG,
+      touchdown_vspeed: effectiveTouchdownVspeed,
+      landing_g_force: effectiveLandingG,
       landing_quality,
       gear_down: gear_down !== undefined ? gear_down : true,
       flap_ratio,
@@ -1031,8 +1042,8 @@ Deno.serve(async (req) => {
     const maintenanceRatio = company?.current_maintenance_ratio || 0;
     
     const hasTouchdownEvidence =
-      Number(mergedLandingG || 0) > 0 ||
-      Math.abs(Number(mergedTouchdownVspeed || 0)) > 50 ||
+      Number(effectiveLandingG || 0) > 0 ||
+      Math.abs(Number(effectiveTouchdownVspeed || 0)) > 50 ||
       !!landing_quality;
     const flightStatus = (on_ground && hasBeenAirborne && hasTouchdownEvidence) ? 'ready_to_complete' : 'updated';
     
@@ -1271,7 +1282,7 @@ Deno.serve(async (req) => {
     // Use already-normalized variables (not raw data.*) so MSFS aliases are covered
     const mergedScorePacket = {
       max_g_force: Math.max(Number(max_g_force || 0), Number(prev.max_g_force || 0)),
-      landing_g_force: Number(mergedLandingG ?? prev.landing_g_force ?? 0),
+      landing_g_force: Number(effectiveLandingG ?? prev.landing_g_force ?? 0),
       tailstrike: !!(tailstrike || prev.tailstrike),
       stall: !!(stall || is_in_stall || stall_warning || override_alpha || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
       overstress: !!(overstress || prev.overstress),
