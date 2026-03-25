@@ -236,6 +236,12 @@ export default function FlightHistory() {
                 const ac = getAircraftForFlight(flight);
                 const isFailed = flight.status === 'failed';
                 const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? 0;
+                const landingVs = Number(
+                  flight.landing_vs ??
+                  flight.xplane_data?.touchdown_vspeed ??
+                  flight.xplane_data?.landing_vs ??
+                  0
+                ) || 0;
                 const madeDeadline = flight.xplane_data?.madeDeadline;
                 return (
                   <motion.div
@@ -271,13 +277,13 @@ export default function FlightHistory() {
                     {/* Landing V/S */}
                     <div className="flex justify-center">
                       <span className={`text-[11px] sm:text-xs font-bold px-1.5 py-0.5 rounded ${
-                        Math.abs(flight.landing_vs || 0) < 150
+                        Math.abs(landingVs) < 150
                           ? 'bg-emerald-500/20 text-emerald-400'
-                          : Math.abs(flight.landing_vs || 0) < 300
+                          : Math.abs(landingVs) < 300
                           ? 'bg-amber-500/20 text-amber-400'
                           : 'bg-red-500/20 text-red-400'
                       }`}>
-                        {flight.landing_vs || 0} ft/m
+                        {Math.round(Math.abs(landingVs))} ft/m
                       </span>
                     </div>
                     {/* Landing G */}

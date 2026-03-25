@@ -13,6 +13,12 @@ import { t } from "@/components/i18n/translations";
 
 export default function FlightRating({ flight }) {
   const { lang } = useLanguage();
+  const landingVsValue = Number(
+    flight?.landing_vs ??
+    flight?.xplane_data?.touchdown_vspeed ??
+    flight?.xplane_data?.landing_vs ??
+    0
+  ) || 0;
   const getRatingColor = (rating) => {
     if (rating >= 4.5) return "text-emerald-500";
     if (rating >= 3.5) return "text-blue-500";
@@ -115,17 +121,17 @@ export default function FlightRating({ flight }) {
 
       <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg mb-4">
         <div className="grid grid-cols-2 gap-4 text-center">
-          {flight?.landing_vs !== undefined && (
+          {landingVsValue !== undefined && (
             <div>
               <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('landing_vs_short', lang)}</p>
               <p className={`text-xl font-mono font-bold ${
-                Math.abs(flight.landing_vs) < 100 ? 'text-emerald-400' :
-                Math.abs(flight.landing_vs) < 150 ? 'text-green-400' :
-                Math.abs(flight.landing_vs) < 250 ? 'text-amber-400' :
-                Math.abs(flight.landing_vs) < 400 ? 'text-orange-400' :
+                Math.abs(landingVsValue) < 100 ? 'text-emerald-400' :
+                Math.abs(landingVsValue) < 150 ? 'text-green-400' :
+                Math.abs(landingVsValue) < 250 ? 'text-amber-400' :
+                Math.abs(landingVsValue) < 400 ? 'text-orange-400' :
                 'text-red-400'
               }`}>
-                {Math.round(Math.abs(flight.landing_vs))} ft/min
+                {Math.round(Math.abs(landingVsValue))} ft/min
               </p>
             </div>
           )}

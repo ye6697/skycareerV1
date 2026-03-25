@@ -142,6 +142,12 @@ export default function CompletedFlightDetails() {
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
+  const landingVsValue = Number(
+    flight?.landing_vs ??
+    flight?.xplane_data?.touchdown_vspeed ??
+    flight?.xplane_data?.landing_vs ??
+    0
+  ) || 0;
   const wrongAirportCompletion = !!(
     flight?.xplane_data?.events?.wrong_airport ||
     flight?.xplane_data?.landed_too_far_from_arrival
@@ -297,11 +303,11 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('landing_vs_label', lang)}</p>
                     <p className={`text-2xl font-mono font-bold ${
-                      Math.abs(flight.landing_vs || 0) < 150 ? 'text-emerald-400' :
-                      Math.abs(flight.landing_vs || 0) < 300 ? 'text-amber-400' :
+                      Math.abs(landingVsValue) < 150 ? 'text-emerald-400' :
+                      Math.abs(landingVsValue) < 300 ? 'text-amber-400' :
                       'text-red-400'
                     }`}>
-                      {Math.round(Math.abs(flight.landing_vs || 0))} ft/min
+                      {Math.round(Math.abs(landingVsValue))} ft/min
                     </p>
                   </div>
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
@@ -429,7 +435,7 @@ export default function CompletedFlightDetails() {
                   else if (lt === 'acceptable') { scoreChange = 5; financialImpact = 0; }
                   else if (lt === 'hard') { scoreChange = -30; financialImpact = -(totalRev * 0.25); }
                   else if (lt === 'very_hard') { scoreChange = -50; financialImpact = -(totalRev * 0.5); }
-                  const vs = Math.round(Math.abs(flight.landing_vs || 0));
+                  const vs = Math.round(Math.abs(landingVsValue));
 
                   return (
                   <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-3">
