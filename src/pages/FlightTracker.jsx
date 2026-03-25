@@ -497,7 +497,6 @@ export default function FlightTracker() {
      
      // Realistic cost calculations based on aviation industry
      // Use actual X-Plane fuel data: initial_fuel_kg - current fuel_kg
-     const xpData = latestFlight?.xplane_data || activeFlight?.xplane_data || {};
      const liveData = xplaneLog?.raw_data || {};
      const nonZeroNumber = (...values) => {
        for (const value of values) {
@@ -513,6 +512,38 @@ export default function FlightTracker() {
        }
        return 0;
      };
+     let xpData = latestFlight?.xplane_data || activeFlight?.xplane_data || {};
+     const hasAnyTouchdownValues = (packet = {}) => {
+       const vs = nonZeroNumber(packet.touchdown_vspeed, packet.landing_vs);
+       const g = positiveNumber(packet.landing_g_force, packet.landingGForce);
+       return Math.abs(vs) > 0 || g > 0;
+     };
+     const localHasTouchdownValues = Math.abs(nonZeroNumber(finalFlightData.landingVs, finalFlightData.landing_vs)) > 0
+       || positiveNumber(finalFlightData.landingGForce, finalFlightData.landing_g_force) > 0;
+     const shouldWaitForTouchdownData =
+       !localHasTouchdownValues &&
+       !hasAnyTouchdownValues(xpData) &&
+       !!(finalFlightData.wasAirborne || xpData.was_airborne || liveData.was_airborne) &&
+       !!(xpData.on_ground || liveData.on_ground);
+     if (shouldWaitForTouchdownData) {
+       for (let attempt = 0; attempt < 6; attempt++) {
+         try {
+           const polledFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
+           if (polledFlights?.[0]) {
+             latestFlight = polledFlights[0];
+             xpData = latestFlight?.xplane_data || xpData;
+             if (hasAnyTouchdownValues(xpData)) {
+               break;
+             }
+           }
+         } catch (_) {
+           // continue waiting with current snapshot
+         }
+         if (attempt < 5) {
+           await new Promise((resolve) => setTimeout(resolve, 700));
+         }
+       }
+     }
      const resolvedLandingVs = nonZeroNumber(
        finalFlightData.landingVs,
        finalFlightData.landing_vs,
