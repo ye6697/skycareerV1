@@ -722,6 +722,7 @@ function update(d) {
     }
   }
 
+  var showWpLabels = map.getZoom() >= 7;
   layers.wpGroup.clearLayers();
   if (waypoints.length > 0) {
     waypoints.forEach(function(wp, i) {
@@ -732,15 +733,19 @@ function update(d) {
         else if(wbs===closestSegIdx&&haversineNm(rp[wbs][0],rp[wbs][1],wp.lat,wp.lon)<haversineNm(rp[wbs][0],rp[wbs][1],curPos[0],curPos[1])) passed=true;
       }
       var m = L.marker([wp.lat, wp.lon], { icon: wpIcon(wp.is_active, passed) }).addTo(layers.wpGroup);
-      var cls = passed ? 'wpl wpl-fms-passed' : (wp.is_active ? 'wpl wpl-fms-active' : 'wpl wpl-fms');
-      var txt = (wp.is_active ? '▸ ' : '') + (wp.name || 'WPT '+(i+1)) + (wp.alt > 0 ? ' FL'+Math.round(wp.alt/100) : '');
-      m.bindTooltip('<span class="'+cls+'">'+txt+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      if (showWpLabels) {
+        var cls = passed ? 'wpl wpl-fms-passed' : (wp.is_active ? 'wpl wpl-fms-active' : 'wpl wpl-fms');
+        var txt = (wp.is_active ? '▸ ' : '') + (wp.name || 'WPT '+(i+1)) + (wp.alt > 0 ? ' FL'+Math.round(wp.alt/100) : '');
+        m.bindTooltip('<span class="'+cls+'">'+txt+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      }
     });
   }
   if (routeWaypoints.length > 0) {
     routeWaypoints.forEach(function(wp) {
       var m = L.marker([wp.lat, wp.lon], { icon: routeWpIcon }).addTo(layers.wpGroup);
-      m.bindTooltip('<span class="wpl wpl-route">'+wp.name+(wp.alt>0?' FL'+Math.round(wp.alt/100):'')+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      if (showWpLabels) {
+        m.bindTooltip('<span class="wpl wpl-route">'+wp.name+(wp.alt>0?' FL'+Math.round(wp.alt/100):'')+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      }
     });
   }
 
