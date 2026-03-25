@@ -201,7 +201,7 @@ export default function XPlaneSetup() {
   };
 
   const downloadSkyCareerDesktop = async () => {
-    await downloadStaticZip('SkyCareer_Desktop_AllInOne_Windows.zip');
+    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip');
   };
 
   const downloadMsfsTablet = async () => {
@@ -356,13 +356,13 @@ export default function XPlaneSetup() {
                         {lang === 'de' ? 'NEU' : 'NEW'}
                       </div>
                       <h4 className="text-white font-semibold">
-                        {lang === 'de' ? 'SkyCareer Desktop (MSFS 2020/2024)' : 'SkyCareer Desktop (MSFS 2020/2024)'}
+                        {lang === 'de' ? 'SkyCareer MSFS Bridge (Windows)' : 'SkyCareer MSFS Bridge (Windows)'}
                       </h4>
                     </div>
                     <p className="text-sm text-slate-400 mb-3 break-words">
                       {lang === 'de'
-                        ? 'Native Windows App mit integriertem WebView + SimConnect-Bridge. Kein Python noetig. Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
-                        : 'Native Windows app with integrated webview + SimConnect bridge. No Python required. Works with Microsoft Flight Simulator 2020 and 2024.'}
+                        ? 'Nur die MSFS SimConnect-Bridge als ZIP (ohne Desktop-App). Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
+                        : 'MSFS SimConnect bridge ZIP only (without desktop app). Works with Microsoft Flight Simulator 2020 and 2024.'}
                     </p>
                     <Button
                       className="w-full bg-cyan-600 hover:bg-cyan-700 whitespace-normal h-auto py-2"
@@ -377,7 +377,7 @@ export default function XPlaneSetup() {
                       ) : (
                         <>
                           <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          {lang === 'de' ? 'SkyCareer Desktop (All-in-One) herunterladen' : 'Download SkyCareer Desktop (all-in-one)'}
+                          {lang === 'de' ? 'MSFS Bridge (Windows) herunterladen' : 'Download MSFS Bridge (Windows)'}
                         </>
                       )}
                     </Button>
@@ -439,8 +439,8 @@ export default function XPlaneSetup() {
                       </p>
                       <p className="text-slate-400">
                         {lang === 'de'
-                          ? 'All-in-One ZIP: entpacken und SkyCareerDesktop.exe starten. Bridge startet automatisch.'
-                          : 'All-in-one ZIP: unzip and start SkyCareerDesktop.exe. Bridge starts automatically.'}
+                          ? 'Bridge-ZIP: entpacken und SkyCareerMsfsBridge.exe starten.'
+                          : 'Bridge ZIP: unzip and run SkyCareerMsfsBridge.exe.'}
                       </p>
                     </div>
                   </div>
