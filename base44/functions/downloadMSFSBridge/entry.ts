@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     }
 
     const script = `#!/usr/bin/env python3
-# SkyCareer MSFS Bridge v2.0 (MSFS 2020 + 2024 via SimConnect)
+# SkyCareer MSFS Bridge v2.1 (MSFS 2020 + 2024 via SimConnect)
 # Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike
 # Usage:
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2020
@@ -103,6 +103,11 @@ def reset_flight_state():
         "max_g_force": 1.0,
         "touchdown_vspeed": 0.0,
         "landing_g_force": 0.0,
+        "peak_pre_touchdown_vs": 0.0,
+        "peak_pre_touchdown_g": 1.0,
+        "landing_data_timestamp": None,
+        "landing_locked_local": False,
+        "prev_g_force": 1.0,
         "was_airborne": False,
         "event_tailstrike": False,
         "event_overstress": False,
@@ -123,7 +128,7 @@ def main():
     prev_vs = 0.0
     state = reset_flight_state()
 
-    print("[SkyCareer] Starting MSFS bridge v2.0 ...")
+    print("[SkyCareer] Starting MSFS bridge v2.1 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
     print(f"[SkyCareer] Simulator label: {args.sim}")
 
@@ -189,7 +194,7 @@ def main():
             # === EVENT DETECTION ===
 
             # Track if aircraft was airborne (only count events after takeoff)
-            if not on_ground and altitude > 50:
+            if not on_ground and (altitude > 50 or ias > 35 or abs(vertical_speed) > 200):
                 state["was_airborne"] = True
 
             # === FIX #5: Reset touchdown values when lifting off ===
@@ -197,6 +202,10 @@ def main():
             if just_took_off:
                 state["touchdown_vspeed"] = 0.0
                 state["landing_g_force"] = 0.0
+                state["peak_pre_touchdown_vs"] = 0.0
+                state["peak_pre_touchdown_g"] = 1.0
+                state["landing_data_timestamp"] = None
+                state["landing_locked_local"] = False
                 print("[SkyCareer] AIRBORNE - touchdown values reset")
 
             # === FIX #4: Reset ALL events when starting a new flight cycle ===
@@ -205,6 +214,16 @@ def main():
             if on_ground and parking_brake and engines_off and speed < 5 and state["was_airborne"]:
                 print("[SkyCareer] FLIGHT CYCLE COMPLETE - resetting all events")
                 state = reset_flight_state()
+
+            # Capture pre-touchdown peaks while airborne (local source of truth for landing metrics)
+            if not on_ground:
+                if vertical_speed < -50:
+                    state["peak_pre_touchdown_vs"] = max(state["peak_pre_touchdown_vs"], abs(vertical_speed))
+                state["peak_pre_touchdown_g"] = max(
+                    state["peak_pre_touchdown_g"],
+                    g_force,
+                    state.get("prev_g_force", 1.0)
+                )
 
             # === STALL DETECTION ===
             stall_warning = to_bool(safe_get(aq, "STALL WARNING", "bool", False))
@@ -278,14 +297,19 @@ def main():
                     state["event_harsh_controls"] = True
 
             # === TOUCHDOWN DETECTION ===
-            just_landed = on_ground and not prev_on_ground
+            just_landed = state["was_airborne"] and on_ground and not prev_on_ground
             if just_landed:
-                state["touchdown_vspeed"] = abs(prev_vs)
-                state["landing_g_force"] = g_force
+                touchdown_vs_local = max(abs(prev_vs), abs(vertical_speed), state["peak_pre_touchdown_vs"])
+                landing_g_local = max(1.0, g_force, state.get("prev_g_force", 1.0), state["peak_pre_touchdown_g"])
+                state["touchdown_vspeed"] = max(state["touchdown_vspeed"], touchdown_vs_local)
+                state["landing_g_force"] = max(state["landing_g_force"], landing_g_local)
+                state["landing_data_timestamp"] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                state["landing_locked_local"] = True
                 print(f"[SkyCareer] TOUCHDOWN: V/S={state['touchdown_vspeed']:.0f} fpm, G={state['landing_g_force']:.2f}")
 
             prev_on_ground = on_ground
             prev_vs = vertical_speed
+            state["prev_g_force"] = g_force
 
             # === ENVIRONMENT DATA ===
             oat_c = to_float(safe_get(aq, "AMBIENT TEMPERATURE", "celsius"), None)
@@ -354,7 +378,13 @@ def main():
                 "fuel_percentage": fuel_percentage,
                 "fuel_kg": fuel_kg,
                 "touchdown_vspeed": state["touchdown_vspeed"],
+                "landing_vs": state["touchdown_vspeed"],
                 "landing_g_force": state["landing_g_force"],
+                "bridge_local_landing_locked": state["landing_locked_local"],
+                "landing_data_source": "bridge_local",
+                "landing_data_timestamp": state["landing_data_timestamp"],
+                "touchdown_detected": state["landing_locked_local"],
+                "was_airborne": state["was_airborne"],
                 "tailstrike": state["event_tailstrike"],
                 "stall": state["event_stall"] or is_stalling_now,
                 "is_in_stall": state["event_stall"] or is_stalling_now,
