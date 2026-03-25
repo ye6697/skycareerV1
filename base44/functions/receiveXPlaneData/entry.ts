@@ -980,6 +980,47 @@ Deno.serve(async (req) => {
       simbrief_arrival_coords: data.simbrief_arrival_coords || (prevXd.simbrief_arrival_coords || null),
       // Flight path for map visualization
       flight_path: newPath,
+      // Flight events log for map markers (gear, flaps, speedbrake, incidents)
+      flight_events_log: (() => {
+        const prevLog = prevXd.flight_events_log || [];
+        if (!hasValidCoords || !hasBeenAirborne) return prevLog;
+        const newEvents = [];
+        const prevGear = prevXd.gear_down;
+        const curGear = gear_down !== undefined ? gear_down : true;
+        if (prevGear !== undefined && prevGear !== curGear) {
+          newEvents.push({ type: curGear ? 'gear_down' : 'gear_up', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        }
+        const prevFlap = prevXd.flap_ratio;
+        const curFlap = Number(flap_ratio || 0);
+        if (prevFlap !== undefined && prevFlap !== null) {
+          const prevPct = Math.round(prevFlap * 100);
+          const curPct = Math.round(curFlap * 100);
+          if (Math.abs(prevPct - curPct) >= 5) {
+            newEvents.push({ type: 'flaps', val: curPct, lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+          }
+        }
+        const prevSpeedbrake = prevXd.speedbrake;
+        const curSpeedbrake = data.speedbrake ?? data.speed_brake ?? data.speedBrake ?? data.spoiler ?? null;
+        if (curSpeedbrake !== null && curSpeedbrake !== undefined) {
+          const prevSb = Number(prevSpeedbrake || 0) > 0.1;
+          const curSb = Number(curSpeedbrake) > 0.1;
+          if (prevSpeedbrake !== undefined && prevSpeedbrake !== null && prevSb !== curSb) {
+            newEvents.push({ type: curSb ? 'spoiler_on' : 'spoiler_off', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+          }
+        }
+        // Incident events (only when first detected)
+        if (tailstrike && !prevXd.tailstrike) newEvents.push({ type: 'tailstrike', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        if ((stall || is_in_stall || stall_warning) && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning) newEvents.push({ type: 'stall', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        if (overstress && !prevXd.overstress) newEvents.push({ type: 'overstress', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        if (overspeed && !prevXd.overspeed) newEvents.push({ type: 'overspeed', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        if (flaps_overspeed && !prevXd.flaps_overspeed) newEvents.push({ type: 'flaps_overspeed', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        if (isCrash && !prevCrashState) newEvents.push({ type: 'crash', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        if (newEvents.length === 0) return prevLog;
+        const merged = [...prevLog, ...newEvents];
+        return merged.length > 200 ? merged.slice(-200) : merged;
+      })(),
+      // Speedbrake state for change detection
+      speedbrake: data.speedbrake ?? data.speed_brake ?? data.speedBrake ?? data.spoiler ?? (prevXd.speedbrake ?? null),
       // Telemetry history for post-flight profile chart (sampled every ~15s, max 600 points)
       telemetry_history: (() => {
         const prevHistory = prevXd.telemetry_history || [];

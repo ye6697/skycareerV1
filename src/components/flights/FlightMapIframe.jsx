@@ -13,6 +13,7 @@ export default function FlightMapIframe({
   departureCoords = null, arrivalCoords = null,
   liveFlightData = null,
   onViewModeChange = null,
+  flightEventsLog = [],
 }) {
   const { lang } = useLanguage();
   const iframeRef = useRef(null);
@@ -38,10 +39,10 @@ export default function FlightMapIframe({
       payload: {
         flightData, contract, waypoints, routeWaypoints, staticMode,
         flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords,
-        viewMode, liveFlightData, lang, weatherOn
+        viewMode, liveFlightData, lang, weatherOn, flightEventsLog
       }
     }, '*');
-  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang, weatherOn]);
+  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang, weatherOn, flightEventsLog]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -172,6 +173,8 @@ function buildIframeHtml() {
   .wpl-route { color:#c4b5fd; border:1px solid #6d28d9; }
   .leaflet-tooltip.clean-tooltip { background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; }
   .leaflet-tooltip.clean-tooltip::before { display:none !important; }
+  .evt-marker { display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:bold; font-family:'Courier New',monospace; cursor:default; }
+  .evt-label { font-size:10px; font-family:'Courier New',monospace; padding:1px 5px; border-radius:3px; background:rgba(15,23,42,0.92); white-space:nowrap; letter-spacing:0.3px; }
 
   /* HUD overlay - top center, enlarged in fullscreen */
   #hud-top { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; gap:6px; pointer-events:none; }
@@ -231,6 +234,7 @@ var layers = {
   arr: null,
   aircraft: null,
   wpGroup: L.layerGroup().addTo(map),
+  evtGroup: L.layerGroup().addTo(map),
   depRwyLine: null,
   arrRwyLine: null,
   weatherClouds: null,
@@ -688,6 +692,40 @@ function update(d) {
       var m = L.marker([wp.lat, wp.lon], { icon: routeWpIcon }).addTo(layers.wpGroup);
       m.bindTooltip('<span class="wpl wpl-route">'+wp.name+(wp.alt>0?' FL'+Math.round(wp.alt/100):'')+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
     });
+  }
+
+  // Flight events log markers (gear, flaps, speedbrake, incidents)
+  layers.evtGroup.clearLayers();
+  var evtLog = d.flightEventsLog || [];
+  if (evtLog.length > 0) {
+    var evtCfg = {
+      gear_down: {icon:'▼',color:'#22d3ee',bg:'rgba(6,78,107,0.85)',label:'GEAR DN'},
+      gear_up: {icon:'▲',color:'#22d3ee',bg:'rgba(6,78,107,0.85)',label:'GEAR UP'},
+      flaps: {icon:'F',color:'#a78bfa',bg:'rgba(76,29,149,0.85)',label:'FLAPS'},
+      spoiler_on: {icon:'S',color:'#fbbf24',bg:'rgba(120,53,15,0.85)',label:'SPD BRK'},
+      spoiler_off: {icon:'S',color:'#64748b',bg:'rgba(30,41,59,0.85)',label:'SPD BRK OFF'},
+      tailstrike: {icon:'!',color:'#f87171',bg:'rgba(127,29,29,0.85)',label:'TAILSTRIKE'},
+      stall: {icon:'!',color:'#f87171',bg:'rgba(127,29,29,0.85)',label:'STALL'},
+      overstress: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSTRESS'},
+      overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSPEED'},
+      flaps_overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'FLAP OVSPD'},
+      crash: {icon:'✕',color:'#ef4444',bg:'rgba(127,29,29,0.95)',label:'CRASH'}
+    };
+    for (var ei = 0; ei < evtLog.length; ei++) {
+      var ev = evtLog[ei];
+      if (!ev.lat || !ev.lon) continue;
+      var cfg = evtCfg[ev.type] || {icon:'•',color:'#94a3b8',bg:'rgba(30,41,59,0.85)',label:ev.type};
+      var lbl = cfg.label;
+      if (ev.type === 'flaps' && ev.val !== undefined) lbl = 'FLAPS ' + ev.val + '%';
+      var sz = (ev.type === 'crash' || ev.type === 'tailstrike' || ev.type === 'stall') ? 20 : 16;
+      var evIcon = L.divIcon({
+        html: '<div class="evt-marker" style="width:'+sz+'px;height:'+sz+'px;background:'+cfg.bg+';border:1.5px solid '+cfg.color+';color:'+cfg.color+';box-shadow:0 0 6px '+cfg.color+'44;">'+cfg.icon+'</div>',
+        className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
+      });
+      var evM = L.marker([ev.lat, ev.lon], { icon: evIcon, zIndexOffset: 500 }).addTo(layers.evtGroup);
+      var altStr = ev.alt ? ' FL'+Math.round(ev.alt/100) : '';
+      evM.bindTooltip('<span class="evt-label" style="color:'+cfg.color+';border:1px solid '+cfg.color+'44;">'+lbl+altStr+'</span>', { permanent:false, direction:'top', offset:[0,-10], className:'clean-tooltip' });
+    }
   }
 
   // Aircraft marker

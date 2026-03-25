@@ -72,8 +72,6 @@ export default function FlightTracker() {
     arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0
   });
 
-  const generateComments = (score, data) => generatePassengerComments(score, data);
-
   const { data: contract } = useQuery({
     queryKey: ['contract', contractIdFromUrl],
     queryFn: async () => {
@@ -676,21 +674,7 @@ export default function FlightTracker() {
               ? 0
               : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange - emergencyScorePenalty));
 
-            console.log('🎯 SCORE BERECHNUNG:', {
-             baseScore: finalFlightData.flightScore,
-             adjustedFlightScore,
-             landingScoreChange,
-             timeScoreChange,
-             finalScoreWithTime: scoreWithTime,
-             hasCrashed,
-             wrongAirport,
-             emergencyLanding,
-             landedTooFarFromArrival,
-             arrivalDistanceNm,
-             emergencyScorePenalty,
-             events: finalFlightData.events,
-             landingType: finalFlightData.landingType
-            });
+            console.log('🎯 SCORE:', { adj: adjustedFlightScore, time: timeScoreChange, final: scoreWithTime, crash: hasCrashed });
 
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
@@ -716,6 +700,7 @@ export default function FlightTracker() {
             if (freshFlights[0]?.xplane_data) existingXpData = freshFlights[0].xplane_data;
             const liveXpData = xplaneLog?.raw_data || {};
             const preservedFlightPath = existingXpData.flight_path || liveXpData.flight_path || [];
+            const preservedFlightEventsLog = existingXpData.flight_events_log || liveXpData.flight_events_log || [];
             const preservedTelemetryHistory = existingXpData.telemetry_history || liveXpData.telemetry_history || [];
             const preservedFmsWaypoints = existingXpData.fms_waypoints || liveXpData.fms_waypoints || [];
             const preservedSimbriefWaypoints = existingXpData.simbrief_waypoints || liveXpData.simbrief_waypoints || [];
@@ -740,11 +725,11 @@ export default function FlightTracker() {
                flight_duration_hours: flightHours,
                revenue,
                profit,
-               passenger_comments: generateComments(scoreWithTime, finalFlightData),
+               passenger_comments: generatePassengerComments(scoreWithTime, finalFlightData),
                xplane_data: {
                  ...finalFlightData,
-                 // Preserve map/route data from backend that local state doesn't track
                  flight_path: preservedFlightPath,
+                 flight_events_log: preservedFlightEventsLog,
                  telemetry_history: preservedTelemetryHistory,
                  fms_waypoints: preservedFmsWaypoints,
                  simbrief_waypoints: preservedSimbriefWaypoints,
@@ -1240,20 +1225,7 @@ export default function FlightTracker() {
       
       // Merge events: backend xplane_data events are authoritative (once true, always true)
       // Local detection adds to them but never overrides true->false
-      const mergedEvents = {
-        tailstrike: !!(xp.tailstrike || prev.events.tailstrike),
-        stall: !!(xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha || prev.events.stall),
-        overstress: !!(xp.overstress || prev.events.overstress),
-        overspeed: !!(xp.overspeed || prev.events.overspeed),
-        flaps_overspeed: !!(flapsOverspeedDetected || xp.flaps_overspeed || prev.events.flaps_overspeed),
-        fuel_emergency: !!(xp.fuel_emergency || prev.events.fuel_emergency),
-        gear_up_landing: !!(xp.gear_up_landing || prev.events.gear_up_landing),
-        crash: !!isCrash,
-        harsh_controls: !!(xp.harsh_controls || prev.events.harsh_controls),
-        high_g_force: !!(newMaxGForce >= 1.5 || prev.events.high_g_force),
-        hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing),
-        wrong_airport: !!(prev.events.wrong_airport),
-      };
+      const mergedEvents = { tailstrike: !!(xp.tailstrike || prev.events.tailstrike), stall: !!(xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha || prev.events.stall), overstress: !!(xp.overstress || prev.events.overstress), overspeed: !!(xp.overspeed || prev.events.overspeed), flaps_overspeed: !!(flapsOverspeedDetected || xp.flaps_overspeed || prev.events.flaps_overspeed), fuel_emergency: !!(xp.fuel_emergency || prev.events.fuel_emergency), gear_up_landing: !!(xp.gear_up_landing || prev.events.gear_up_landing), crash: !!isCrash, harsh_controls: !!(xp.harsh_controls || prev.events.harsh_controls), high_g_force: !!(newMaxGForce >= 1.5 || prev.events.high_g_force), hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing), wrong_airport: !!(prev.events.wrong_airport) };
 
       const newData = {
         altitude: xp.altitude || prev.altitude,
@@ -1287,21 +1259,8 @@ export default function FlightTracker() {
       
 
 
-      // Update ref with latest data
       flightDataRef.current = newData;
-
-      // Update processed G levels if we processed new ones
-      if (newMaxGForce >= 1.5) {
-       const currentGLevel = Math.floor(newMaxGForce);
-       setProcessedGLevels(prev => {
-         const updated = new Set(prev);
-         for (let gLevel = 2; gLevel <= currentGLevel; gLevel++) {
-           updated.add(gLevel);
-         }
-         return updated;
-       });
-      }
-
+      if (newMaxGForce >= 1.5) { const cl = Math.floor(newMaxGForce); setProcessedGLevels(p => { const u = new Set(p); for (let g = 2; g <= cl; g++) u.add(g); return u; }); }
       return newData;
       });
 
@@ -1364,9 +1323,6 @@ export default function FlightTracker() {
       }, 200);
     }
   }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime, emergencyLanding, simbriefRoute]);
-
-  // FailuresCard removed - failures are shown in the Events section above
-  // No extra DB queries needed
 
   const phaseLabels = {
     preflight: t('preflight', lang),
@@ -1906,7 +1862,7 @@ export default function FlightTracker() {
                       max_g_force: flightData.maxGForce,
                       fuel_used_liters: fuelUsed,
                       flight_duration_hours: flightHours,
-                      passenger_comments: generateComments(flightData.flightScore, flightData),
+                      passenger_comments: generatePassengerComments(flightData.flightScore, flightData),
                       xplane_data: {
                         final_score: flightData.flightScore,
                         landingGForce: flightData.landingGForce,
@@ -1990,6 +1946,7 @@ export default function FlightTracker() {
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
               routeWaypoints={simbriefRoute?.waypoints || []}
               flightPath={xplaneLog?.raw_data?.flight_path || []}
+              flightEventsLog={xplaneLog?.raw_data?.flight_events_log || []}
               departureRunway={simbriefRoute?.departure_runway}
               arrivalRunway={simbriefRoute?.arrival_runway}
               departureCoords={simbriefRoute?.departure_coords}

@@ -220,6 +220,7 @@ export default function CompletedFlightDetails() {
                     staticMode={true}
                     title="Flugroute & Flugverlauf"
                     flightPath={fp}
+                    flightEventsLog={xpd.flight_events_log || []}
                     routeWaypoints={mapRouteWaypoints}
                     departureCoords={depLat ? { lat: depLat, lon: depLon } : null}
                     arrivalCoords={arrLat ? { lat: arrLat, lon: arrLon } : null}
