@@ -173,8 +173,11 @@ function buildIframeHtml() {
   .wpl-route { color:#c4b5fd; border:1px solid #6d28d9; }
   .leaflet-tooltip.clean-tooltip { background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; }
   .leaflet-tooltip.clean-tooltip::before { display:none !important; }
-  .evt-marker { display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:bold; font-family:'Courier New',monospace; cursor:default; }
+  .evt-marker { display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:bold; font-family:'Courier New',monospace; cursor:pointer; }
   .evt-label { font-size:10px; font-family:'Courier New',monospace; padding:1px 5px; border-radius:3px; background:rgba(15,23,42,0.92); white-space:nowrap; letter-spacing:0.3px; }
+  .dark-popup .leaflet-popup-content-wrapper { background:transparent; border:none; box-shadow:none; padding:0; border-radius:6px; }
+  .dark-popup .leaflet-popup-content { margin:0; }
+  .dark-popup .leaflet-popup-tip { background:#0f172a; }
 
   /* HUD overlay - top center, enlarged in fullscreen */
   #hud-top { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; gap:6px; pointer-events:none; }
@@ -240,7 +243,8 @@ var layers = {
   weatherClouds: null,
   weatherPrecip: null,
   weatherRainRing: null,
-  weatherTurbRing: null
+  weatherTurbRing: null,
+  rainCellsGroup: L.layerGroup().addTo(map)
 };
 var boundsSet = false;
 var userInteracting = false;
@@ -465,8 +469,8 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
 
   if (!weatherOn || !curPos) {
     panel.style.display = 'none';
-    if (layers.weatherRainRing) { map.removeLayer(layers.weatherRainRing); layers.weatherRainRing = null; }
     if (layers.weatherTurbRing) { map.removeLayer(layers.weatherTurbRing); layers.weatherTurbRing = null; }
+    updateRainCells(false, null, null);
     updateRainOverlay(false, null);
     updateWindOverlay(false, fd);
     return;
@@ -502,30 +506,8 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
       '<div class="wx-row"><span>Turb</span><span class="wx-val" style="color:'+turbColor(turb || 0)+'">' + (turb !== null ? Math.round(turb*100)+'%' : '--') + '</span></div>' +
     '</div>';
 
-  if (rain !== null && rain > 0.01) {
-    var rainRadius = 1500 + (rain * 8000);
-    if (!layers.weatherRainRing) {
-      layers.weatherRainRing = L.circle(curPos, {
-        radius: rainRadius,
-        color: rainColor(rain),
-        weight: 1.5,
-        fillColor: rainColor(rain),
-        fillOpacity: 0.06 + (rain * 0.18),
-        dashArray: '4,6'
-      }).addTo(map);
-    } else {
-      layers.weatherRainRing.setLatLng(curPos);
-      layers.weatherRainRing.setRadius(rainRadius);
-      layers.weatherRainRing.setStyle({
-        color: rainColor(rain),
-        fillColor: rainColor(rain),
-        fillOpacity: 0.06 + (rain * 0.18)
-      });
-    }
-  } else if (layers.weatherRainRing) {
-    map.removeLayer(layers.weatherRainRing);
-    layers.weatherRainRing = null;
-  }
+  // Realistic rain cells within 60 NM radius
+  updateRainCells(weatherOn && rain !== null && rain > 0.01, rain, curPos);
 
   if (turb !== null && turb > 0.01) {
     var turbRadius = 1200 + (turb * 7000);
@@ -551,6 +533,74 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
   } else if (layers.weatherTurbRing) {
     map.removeLayer(layers.weatherTurbRing);
     layers.weatherTurbRing = null;
+  }
+}
+
+// Seeded PRNG for deterministic rain cell positions (changes every ~10s)
+var rainSeedEpoch = 0;
+var rainCellCache = [];
+function seededRandom(seed) { var x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+function generateRainCellPositions(lat, lon, rain, epoch) {
+  // Number of cells scales with rain intensity: 4-18 cells
+  var cellCount = Math.round(4 + rain * 14);
+  var cells = [];
+  var NM60_DEG = 60 / 60; // 60 NM in degrees latitude (~1 degree)
+  for (var i = 0; i < cellCount; i++) {
+    var s = epoch * 100 + i;
+    // Random angle and distance within 60 NM
+    var angle = seededRandom(s) * 2 * Math.PI;
+    var dist = (0.15 + seededRandom(s + 1) * 0.85) * NM60_DEG; // 15%-100% of 60NM
+    var cLat = lat + dist * Math.cos(angle);
+    var cLon = lon + dist * Math.sin(angle) / Math.cos(lat * Math.PI / 180);
+    // Cell size: 3-15 NM radius, heavier rain = bigger cells
+    var cellRadiusNm = 3 + seededRandom(s + 2) * 12 * rain;
+    var cellRadiusM = cellRadiusNm * 1852;
+    // Cell intensity varies: 40%-120% of base rain
+    var cellIntensity = Math.min(1, rain * (0.4 + seededRandom(s + 3) * 0.8));
+    cells.push({ lat: cLat, lon: cLon, radius: cellRadiusM, intensity: cellIntensity });
+  }
+  return cells;
+}
+
+function updateRainCells(active, rain, curPos) {
+  if (!active || !curPos || rain === null || rain < 0.01) {
+    layers.rainCellsGroup.clearLayers();
+    rainCellCache = [];
+    rainSeedEpoch = 0;
+    return;
+  }
+  // Regenerate cell positions every ~10 seconds (slow drift)
+  var newEpoch = Math.floor(Date.now() / 10000);
+  if (newEpoch !== rainSeedEpoch || rainCellCache.length === 0) {
+    rainSeedEpoch = newEpoch;
+    rainCellCache = generateRainCellPositions(curPos[0], curPos[1], rain, newEpoch);
+  }
+  layers.rainCellsGroup.clearLayers();
+  for (var i = 0; i < rainCellCache.length; i++) {
+    var c = rainCellCache[i];
+    var col = rainColor(c.intensity);
+    var fillOp = 0.08 + c.intensity * 0.22;
+    // Each rain cell is an irregular shape approximated by an ellipse (circle with slight offset)
+    L.circle([c.lat, c.lon], {
+      radius: c.radius,
+      color: col,
+      weight: 1,
+      fillColor: col,
+      fillOpacity: fillOp,
+      dashArray: null,
+      interactive: false
+    }).addTo(layers.rainCellsGroup);
+    // Add a smaller core for heavier cells
+    if (c.intensity > 0.3) {
+      L.circle([c.lat, c.lon], {
+        radius: c.radius * 0.4,
+        color: col,
+        weight: 0,
+        fillColor: col,
+        fillOpacity: fillOp * 1.5,
+        interactive: false
+      }).addTo(layers.rainCellsGroup);
+    }
   }
 }
 
@@ -722,9 +772,18 @@ function update(d) {
         html: '<div class="evt-marker" style="width:'+sz+'px;height:'+sz+'px;background:'+cfg.bg+';border:1.5px solid '+cfg.color+';color:'+cfg.color+';box-shadow:0 0 6px '+cfg.color+'44;">'+cfg.icon+'</div>',
         className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
       });
-      var evM = L.marker([ev.lat, ev.lon], { icon: evIcon, zIndexOffset: 500 }).addTo(layers.evtGroup);
+      var evM = L.marker([ev.lat, ev.lon], { icon: evIcon, zIndexOffset: 500, interactive: true }).addTo(layers.evtGroup);
       var altStr = ev.alt ? ' FL'+Math.round(ev.alt/100) : '';
-      evM.bindTooltip('<span class="evt-label" style="color:'+cfg.color+';border:1px solid '+cfg.color+'44;">'+lbl+altStr+'</span>', { permanent:false, direction:'top', offset:[0,-10], className:'clean-tooltip' });
+      var spdStr = ev.spd ? ' · ' + Math.round(ev.spd) + ' kts' : '';
+      var popupHtml = '<div style="background:#0f172a;color:#e2e8f0;padding:8px 12px;border-radius:6px;border:1px solid '+cfg.color+'66;font-family:Courier New,monospace;font-size:12px;min-width:140px;">' +
+        '<div style="color:'+cfg.color+';font-weight:bold;font-size:13px;margin-bottom:4px;">'+cfg.icon+' '+lbl+'</div>' +
+        (ev.alt ? '<div style="color:#94a3b8;font-size:11px;">ALT: '+Math.round(ev.alt).toLocaleString()+' ft</div>' : '') +
+        (ev.spd ? '<div style="color:#94a3b8;font-size:11px;">SPD: '+Math.round(ev.spd)+' kts</div>' : '') +
+        (ev.gs ? '<div style="color:#94a3b8;font-size:11px;">GS: '+Math.round(ev.gs)+' kts</div>' : '') +
+        (ev.vs ? '<div style="color:#94a3b8;font-size:11px;">V/S: '+Math.round(ev.vs)+' ft/min</div>' : '') +
+        (ev.g ? '<div style="color:#94a3b8;font-size:11px;">G: '+Number(ev.g).toFixed(2)+'</div>' : '') +
+        '</div>';
+      evM.bindPopup(popupHtml, { className: 'dark-popup', closeButton: false, offset: [0, -sz/2] });
     }
   }
 
