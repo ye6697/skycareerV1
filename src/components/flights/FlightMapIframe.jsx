@@ -174,6 +174,8 @@ function buildIframeHtml() {
   .leaflet-tooltip.clean-tooltip { background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; }
   .leaflet-tooltip.clean-tooltip::before { display:none !important; }
   .evt-marker { display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:bold; font-family:'Courier New',monospace; cursor:pointer; }
+  .leaflet-div-icon { background:transparent !important; border:none !important; }
+  .evt-marker-wrap { pointer-events:auto !important; cursor:pointer !important; }
   .evt-label { font-size:10px; font-family:'Courier New',monospace; padding:1px 5px; border-radius:3px; background:rgba(15,23,42,0.92); white-space:nowrap; letter-spacing:0.3px; }
   .dark-popup .leaflet-popup-content-wrapper { background:transparent; border:none; box-shadow:none; padding:0; border-radius:6px; }
   .dark-popup .leaflet-popup-content { margin:0; }
@@ -722,7 +724,7 @@ function update(d) {
     }
   }
 
-  var showWpLabels = map.getZoom() >= 7;
+  var showWpLabels = map.getZoom() >= 10;
   layers.wpGroup.clearLayers();
   if (waypoints.length > 0) {
     waypoints.forEach(function(wp, i) {
@@ -774,12 +776,10 @@ function update(d) {
       if (ev.type === 'flaps' && ev.val !== undefined) lbl = 'FLAPS ' + ev.val + '%';
       var sz = (ev.type === 'crash' || ev.type === 'tailstrike' || ev.type === 'stall') ? 20 : 16;
       var evIcon = L.divIcon({
-        html: '<div class="evt-marker" style="width:'+sz+'px;height:'+sz+'px;background:'+cfg.bg+';border:1.5px solid '+cfg.color+';color:'+cfg.color+';box-shadow:0 0 6px '+cfg.color+'44;">'+cfg.icon+'</div>',
-        className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
+        html: '<div class="evt-marker evt-marker-wrap" style="width:'+sz+'px;height:'+sz+'px;background:'+cfg.bg+';border:1.5px solid '+cfg.color+';color:'+cfg.color+';box-shadow:0 0 6px '+cfg.color+'44;">'+cfg.icon+'</div>',
+        className:'evt-marker-wrap', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
       });
-      var evM = L.marker([ev.lat, ev.lon], { icon: evIcon, zIndexOffset: 500, interactive: true }).addTo(layers.evtGroup);
-      var altStr = ev.alt ? ' FL'+Math.round(ev.alt/100) : '';
-      var spdStr = ev.spd ? ' · ' + Math.round(ev.spd) + ' kts' : '';
+      var evM = L.marker([ev.lat, ev.lon], { icon: evIcon, zIndexOffset: 500, interactive: true, bubblingMouseEvents: false }).addTo(layers.evtGroup);
       var popupHtml = '<div style="background:#0f172a;color:#e2e8f0;padding:8px 12px;border-radius:6px;border:1px solid '+cfg.color+'66;font-family:Courier New,monospace;font-size:12px;min-width:140px;">' +
         '<div style="color:'+cfg.color+';font-weight:bold;font-size:13px;margin-bottom:4px;">'+cfg.icon+' '+lbl+'</div>' +
         (ev.alt ? '<div style="color:#94a3b8;font-size:11px;">ALT: '+Math.round(ev.alt).toLocaleString()+' ft</div>' : '') +
