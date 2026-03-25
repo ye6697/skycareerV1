@@ -920,6 +920,8 @@ Deno.serve(async (req) => {
     const isNowAirborne = !on_ground && (speedNow > 35 || verticalNow > 200);
     const payloadAirborneCredible = payloadWasAirborne && !on_ground && (speedNow > 20 || verticalNow > 100);
     const hasBeenAirborne = wasAirborne || isNowAirborne || payloadAirborneCredible;
+    const prevOnGround = toBool(prevXd.on_ground, false);
+    const justTouchedDown = hasBeenAirborne && on_ground && !prevOnGround;
 
     // Track initial fuel for consumption calculation
     const initial_fuel_kg = prevXd.initial_fuel_kg || fuel_kg || 0;
@@ -957,11 +959,25 @@ Deno.serve(async (req) => {
       hasBeenAirborne &&
       on_ground &&
       Number(speed || 0) <= 30;
+    const prevVerticalSpeed = Number(prevXd.vertical_speed ?? 0);
+    const transitionTouchdownVspeed = justTouchedDown
+      ? Math.max(
+          50,
+          Math.abs(
+            Number.isFinite(prevVerticalSpeed) && Math.abs(prevVerticalSpeed) > 0
+              ? prevVerticalSpeed
+              : Number(vertical_speed || 0)
+          )
+        )
+      : 0;
     const effectiveTouchdownVspeed = Math.abs(Number(mergedTouchdownVspeed || 0)) > 0
       ? Number(mergedTouchdownVspeed || 0)
-      : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0);
+      : (transitionTouchdownVspeed > 0
+          ? transitionTouchdownVspeed
+          : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0));
     const mergedLandingGNum = Number(mergedLandingG || 0);
-    const effectiveLandingG = mergedLandingGNum > 0 ? mergedLandingGNum : 0;
+    const transitionLandingG = justTouchedDown ? Math.max(1.0, Number(g_force || 1.0)) : 0;
+    const effectiveLandingG = mergedLandingGNum > 0 ? mergedLandingGNum : transitionLandingG;
     const crashFromTouchdown = hasBeenAirborne && on_ground && (
       Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 900 ||
       Number(effectiveLandingG || 0) >= 2.9
@@ -1148,9 +1164,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // CRITICAL: Fire-and-forget the DB write so X-Plane gets a response IMMEDIATELY.
-    // The plugin blocks on the HTTP response, so fast response = fast next send cycle.
-    base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch(() => {});
+    // Persist synchronously (with short retry) to keep update order stable.
+    // This avoids delayed/out-of-order data snapshots in the frontend.
+    let flightWriteErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
+        flightWriteErr = null;
+        break;
+      } catch (err) {
+        flightWriteErr = err;
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 80 * (attempt + 1)));
+        }
+      }
+    }
+    if (flightWriteErr) {
+      console.error("Flight.update failed after retries:", flightWriteErr);
+    }
 
     // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
     const maintenanceRatio = company?.current_maintenance_ratio || 0;
