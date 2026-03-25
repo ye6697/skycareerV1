@@ -107,6 +107,18 @@ export default function XPlaneSetup() {
     return bytes;
   };
 
+  const triggerZipDownload = (bytes, fileName) => {
+    const blob = new Blob([bytes], { type: 'application/zip' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  };
+
   const downloadZipFromFunction = async (functionName, defaultFilename) => {
     setDownloading(true);
     try {
@@ -118,15 +130,7 @@ export default function XPlaneSetup() {
       const bytes = decodeBase64Zip(base64);
       const fileName = response?.data?.filename || defaultFilename;
 
-      const blob = new Blob([bytes], { type: 'application/zip' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
+      triggerZipDownload(bytes, fileName);
     } catch (error) {
       console.error(`Error downloading ${functionName}:`, error);
       alert(t('xps_download_error', lang));
@@ -183,15 +187,7 @@ export default function XPlaneSetup() {
         throw new Error(lastError || 'Download path and fallback not reachable');
       }
 
-      const blob = new Blob([bytes], { type: 'application/zip' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
+      triggerZipDownload(bytes, file);
     } catch (error) {
       console.error(`Error downloading ${file}:`, error);
       alert(t('xps_download_error', lang));
@@ -201,7 +197,68 @@ export default function XPlaneSetup() {
   };
 
   const downloadSkyCareerDesktop = async () => {
-    await downloadZipFromFunction('downloadMSFSBridgeExe', 'SkyCareer_MSFS_Bridge_Windows.zip');
+    setDownloading(true);
+    try {
+      const targetFile = 'SkyCareer_MSFS_Bridge_Windows.zip';
+      let bytes = null;
+      let fileName = targetFile;
+      let lastError = null;
+
+      // 1) Preferred path: personalized bridge zip from function (API key + LoopInterval).
+      try {
+        const response = await base44.functions.invoke('downloadMSFSBridgeExe', {});
+        const base64 = response?.data?.base64;
+        if (base64) {
+          bytes = decodeBase64Zip(base64);
+          fileName = response?.data?.filename || targetFile;
+        } else {
+          lastError = 'downloadMSFSBridgeExe returned no base64 payload';
+        }
+      } catch (fnError) {
+        lastError = fnError?.message || String(fnError);
+      }
+
+      // 2) Fallback: static zip from public downloads.
+      if (!bytes) {
+        const basePath = import.meta?.env?.BASE_URL || '/';
+        const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+        const candidates = [
+          new URL(`downloads/${targetFile}`, window.location.href).toString(),
+          new URL(`${normalizedBase}downloads/${targetFile}`, window.location.origin).toString(),
+          new URL(`/downloads/${targetFile}`, window.location.origin).toString(),
+        ];
+
+        for (const fileUrl of candidates) {
+          try {
+            const res = await fetch(fileUrl, { cache: 'no-store' });
+            if (!res.ok) {
+              lastError = `HTTP ${res.status} @ ${fileUrl}`;
+              continue;
+            }
+            const arr = new Uint8Array(await res.arrayBuffer());
+            if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
+              bytes = arr;
+              fileName = targetFile;
+              break;
+            }
+            lastError = `Invalid ZIP bytes @ ${fileUrl}`;
+          } catch (e) {
+            lastError = `${e?.message || e} @ ${fileUrl}`;
+          }
+        }
+      }
+
+      if (!bytes) {
+        throw new Error(lastError || 'Bridge download unavailable');
+      }
+
+      triggerZipDownload(bytes, fileName);
+    } catch (error) {
+      console.error('Error downloading SkyCareer MSFS bridge:', error);
+      alert(t('xps_download_error', lang));
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const downloadMsfsTablet = async () => {
