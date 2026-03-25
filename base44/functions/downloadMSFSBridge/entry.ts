@@ -292,6 +292,7 @@ def main():
             tat_c = to_float(safe_get(aq, "TOTAL AIR TEMPERATURE", "celsius"), None)
             baro_mb = to_float(safe_get(aq, "KOHLSMAN SETTING MB", "millibars"), None)
             wind_speed_kts = to_float(safe_get(aq, "AMBIENT WIND VELOCITY", "knots"), None)
+            wind_gust_kts = to_float(safe_get(aq, "AMBIENT WIND GUST", "knots"), None)
             wind_direction = to_float(safe_get(aq, "AMBIENT WIND DIRECTION", "degrees"), None)
             precip_state = to_float(safe_get(aq, "AMBIENT PRECIP STATE", "mask"), None)
             precip_rate = to_float(safe_get(aq, "AMBIENT PRECIP RATE", "millimeters of water"), None)
@@ -301,13 +302,35 @@ def main():
             total_weight_kg = total_weight_lbs * 0.453592 if total_weight_lbs is not None else None
             rain_intensity = None
             if precip_rate is not None and precip_rate > 0:
-                rain_intensity = min(1.0, max(0.0, precip_rate / 4.0))
+                rain_intensity = precip_rate if precip_rate <= 1.0 else min(1.0, max(0.0, precip_rate / 4.0))
             if rain_intensity is None and precip_state is not None:
                 try:
                     if (int(precip_state) & 4) == 4:
-                        rain_intensity = 0.2
+                        gust_spread = 0.0
+                        if wind_gust_kts is not None and wind_speed_kts is not None:
+                            gust_spread = max(0.0, wind_gust_kts - wind_speed_kts)
+                        wind_based = min(1.0, 0.08 + ((wind_speed_kts or 0.0) / 85.0))
+                        gust_based = min(1.0, 0.10 + (gust_spread / 35.0))
+                        rain_intensity = max(0.10, wind_based, gust_based)
                 except Exception:
                     pass
+
+            gust_spread = 0.0
+            if wind_gust_kts is not None and wind_speed_kts is not None:
+                gust_spread = max(0.0, wind_gust_kts - wind_speed_kts)
+            turbulence = max(
+                min(1.0, max(0.0, (abs(g_force - 1.0) - 0.03) * 3.5)),
+                min(1.0, abs(vertical_speed) / 1600.0),
+                min(1.0, gust_spread / 22.0),
+                min(1.0, (wind_speed_kts or 0.0) / 90.0) * 0.45,
+                min(1.0, (rain_intensity or 0.0) * 0.55)
+            )
+            rain_detected = (rain_intensity is not None and rain_intensity > 0.01)
+            if not rain_detected and precip_state is not None:
+                try:
+                    rain_detected = (int(precip_state) & 4) == 4
+                except Exception:
+                    rain_detected = False
 
             payload = {
                 "simulator": args.sim,
@@ -351,13 +374,17 @@ def main():
                 "tat": tat_c,
                 "baro_setting": baro_mb,
                 "wind_speed_kts": wind_speed_kts,
+                "wind_gust_kts": wind_gust_kts,
                 "wind_direction": wind_direction,
                 "precip_state": int(precip_state) if precip_state is not None else None,
                 "ambient_precip_state": int(precip_state) if precip_state is not None else None,
                 "precip_rate": precip_rate,
                 "ambient_precip_rate": precip_rate,
                 "rain_intensity": rain_intensity,
+                "rain_detected": rain_detected,
                 "precipitation": rain_intensity,
+                "turbulence": turbulence,
+                "turbulence_intensity": turbulence,
                 "ground_elevation_ft": ground_elev_ft,
                 "total_weight_kg": total_weight_kg,
             }

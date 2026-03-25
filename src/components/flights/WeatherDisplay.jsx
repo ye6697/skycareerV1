@@ -27,21 +27,65 @@ function WeatherBar({ value, max, color }) {
 export default function WeatherDisplay({ raw }) {
   if (!raw) return null;
 
+  const firstFinite = (...values) => {
+    for (const value of values) {
+      const num = Number(value);
+      if (Number.isFinite(num)) return num;
+    }
+    return null;
+  };
+  const norm01 = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    if (num <= 0) return 0;
+    if (num <= 1) return num;
+    return Math.min(1, num / 100);
+  };
+
   // Wind
   const windDir = raw.wind_direction ?? raw.wind_dir ?? raw.wind_heading ?? raw.ambient_wind_direction ?? null;
   const windKts = raw.wind_speed_kts ?? raw.wind_speed ?? raw.ambient_wind_speed ?? null;
+  const windGustKts = raw.wind_gust_kts ?? raw.wind_gust ?? raw.wind_gust_speed ?? raw.ambient_wind_gust ?? null;
 
   // Temperature
   const oat = raw.oat_c ?? raw.oat ?? raw.outside_air_temp_c ?? raw.ambient_temperature ?? raw.temperature_c ?? null;
   const tat = raw.tat_c ?? raw.tat ?? raw.total_air_temp_c ?? raw.total_air_temperature ?? null;
 
-  // Rain/Precip (0-1 or 0-100 scale)
-  const rawRain = raw.rain_intensity ?? raw.precipitation ?? raw.rain ?? raw.precip_rate ?? raw.sim_weather_precipitation_rate ?? null;
-  const rainPct = rawRain != null ? Math.min(100, rawRain > 1 ? rawRain : rawRain * 100) : null;
+  // Rain/Precip (0-1, 0-100, or precip rate)
+  let rain01 = norm01(raw.rain_intensity ?? raw.precipitation ?? raw.rain);
+  const precipRate = firstFinite(raw.precip_rate, raw.ambient_precip_rate, raw.sim_weather_precipitation_rate, raw.rain_rate, raw.precipitation_rate);
+  const precipState = firstFinite(raw.precip_state, raw.ambient_precip_state, raw.precipitation_state);
+  const hasRainMask = precipState != null && (Math.round(precipState) & 4) === 4;
+  const rainDetected = raw.rain_detected === true || hasRainMask;
+  if (rain01 == null && precipRate != null) {
+    rain01 = precipRate <= 1 ? Math.max(0, precipRate) : Math.min(1, Math.max(0, precipRate / 4));
+  }
+  if (rain01 == null && rainDetected) {
+    // If only "rain present" exists, avoid fixed 20% and show a low-confidence baseline.
+    const wind = firstFinite(windKts, 0) || 0;
+    const gust = firstFinite(windGustKts, wind) || wind;
+    const gustSpread = Math.max(0, gust - wind);
+    rain01 = Math.min(1, Math.max(0.1, 0.08 + (wind / 90) + (gustSpread / 40)));
+  }
+  const rainPct = rain01 != null ? Math.round(Math.min(1, Math.max(0, rain01)) * 100) : null;
 
-  // Turbulence (0-1 or 0-100)
-  const rawTurb = raw.turbulence ?? raw.turbulence_intensity ?? raw.sim_weather_turbulence ?? null;
-  const turbPct = rawTurb != null ? Math.min(100, rawTurb > 1 ? rawTurb : rawTurb * 100) : null;
+  // Turbulence (0-1 or 0-100), with fallback from flight dynamics + gusts
+  let turb01 = norm01(raw.turbulence ?? raw.turbulence_intensity ?? raw.sim_weather_turbulence);
+  if (turb01 == null) {
+    const gForce = firstFinite(raw.g_force, raw.gForce, raw.g_load, raw.gLoad);
+    const verticalSpeed = firstFinite(raw.vertical_speed, raw.verticalSpeed, raw.vspeed, raw.vertical_rate);
+    const wind = firstFinite(windKts, raw.wind_speed_kts, raw.wind_speed);
+    const gust = firstFinite(windGustKts, raw.wind_gust_kts, raw.wind_gust);
+    const gustSpread = (gust != null && wind != null) ? Math.max(0, gust - wind) : null;
+    let estimate = 0;
+    if (gForce != null) estimate = Math.max(estimate, Math.min(1, Math.max(0, (Math.abs(gForce - 1.0) - 0.03) * 3.5)));
+    if (verticalSpeed != null) estimate = Math.max(estimate, Math.min(1, Math.abs(verticalSpeed) / 1600));
+    if (gustSpread != null) estimate = Math.max(estimate, Math.min(1, gustSpread / 22));
+    if (wind != null) estimate = Math.max(estimate, Math.min(1, wind / 90) * 0.45);
+    if (rain01 != null) estimate = Math.max(estimate, Math.min(1, rain01 * 0.55));
+    turb01 = estimate > 0 ? estimate : null;
+  }
+  const turbPct = turb01 != null ? Math.round(Math.min(1, Math.max(0, turb01)) * 100) : null;
 
   const turbLabel = turbPct == null ? null :
     turbPct < 10 ? 'Smooth' :

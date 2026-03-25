@@ -78,6 +78,17 @@ Deno.serve(async (req) => {
       }
       return null;
     };
+    const num = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const norm01 = (v) => {
+      const n = num(v);
+      if (n === null) return null;
+      if (n <= 0) return 0;
+      if (n <= 1) return n;
+      return Math.min(1, n / 100);
+    };
 
     // Merge: prefer live raw_data, fall back to xplane_data on active flight
     // Covers X-Plane 12, MSFS 2020, MSFS 2024 field name variations
@@ -119,8 +130,42 @@ Deno.serve(async (req) => {
     const ground_elevation_ft = pick(raw.ground_elevation_ft, raw.elevation_ft, raw.airport_elevation_ft, raw.ground_altitude, raw.plane_alt_above_ground, xd.ground_elevation_ft);
 
     // Weather extras: turbulence, rain/precipitation, visibility
-    const turbulence = pick(raw.turbulence, raw.turbulence_intensity, raw.sim_weather_turbulence, raw.turb_intensity);
-    const rain_intensity = pick(raw.rain_intensity, raw.precipitation, raw.rain, raw.precip_rate, raw.sim_weather_precipitation_rate);
+    const precipRate = pick(raw.precip_rate, raw.ambient_precip_rate, raw.sim_weather_precipitation_rate, raw.rain_rate, xd.precip_rate);
+    const precipState = pick(raw.precip_state, raw.ambient_precip_state, raw.precipitation_state, xd.precip_state);
+    const hasRainMask = (() => {
+      const p = num(precipState);
+      return p !== null && (Math.round(p) & 4) === 4;
+    })();
+    let rain_intensity = norm01(pick(raw.rain_intensity, raw.precipitation, raw.rain, xd.rain_intensity, xd.precipitation, xd.rain));
+    if (rain_intensity == null && precipRate != null) {
+      const pr = num(precipRate);
+      if (pr !== null) rain_intensity = pr <= 1 ? Math.max(0, pr) : Math.min(1, Math.max(0, pr / 4));
+    }
+    if (rain_intensity == null && hasRainMask) rain_intensity = 0.1;
+
+    const windGust = pick(raw.wind_gust_kts, raw.wind_gust, raw.wind_gust_speed, raw.ambient_wind_gust, xd.wind_gust_kts);
+    const gForce = pick(raw.g_force, raw.gForce, raw.g_load, raw.gLoad, xd.g_force);
+    const verticalSpeed = pick(raw.vertical_speed, raw.verticalSpeed, raw.vspeed, raw.vertical_rate, xd.vertical_speed);
+    const gustSpread = (() => {
+      const gust = num(windGust);
+      const wind = num(wind_speed_kts);
+      if (gust === null || wind === null) return null;
+      return Math.max(0, gust - wind);
+    })();
+    let turbulence = norm01(pick(raw.turbulence, raw.turbulence_intensity, raw.sim_weather_turbulence, raw.turb_intensity, xd.turbulence, xd.turbulence_intensity));
+    if (turbulence == null) {
+      let estimate = 0;
+      const g = num(gForce);
+      const vs = num(verticalSpeed);
+      const ws = num(wind_speed_kts);
+      const gs = num(gustSpread);
+      if (g !== null) estimate = Math.max(estimate, Math.min(1, Math.max(0, (Math.abs(g - 1.0) - 0.03) * 3.5)));
+      if (vs !== null) estimate = Math.max(estimate, Math.min(1, Math.abs(vs) / 1600));
+      if (gs !== null) estimate = Math.max(estimate, Math.min(1, gs / 22));
+      if (ws !== null) estimate = Math.max(estimate, Math.min(1, ws / 90) * 0.45);
+      if (rain_intensity !== null) estimate = Math.max(estimate, Math.min(1, rain_intensity * 0.55));
+      turbulence = estimate > 0 ? estimate : null;
+    }
     const visibility_m = pick(raw.visibility_m, raw.visibility, raw.ambient_visibility, raw.sim_weather_visibility_m);
 
     // Simulator type detection
@@ -191,6 +236,7 @@ Deno.serve(async (req) => {
       ground_elevation_ft: final_elev,
       baro_setting: final_baro,
       wind_speed_kts: final_wind_speed,
+      wind_gust_kts: pickPreferred(windGust, pick(xd.wind_gust_kts)) ?? null,
       wind_dir: final_wind_dir,
       turbulence,
       rain_intensity,

@@ -485,6 +485,8 @@ const translations = {
   // === COMPLETED FLIGHT DETAILS ===
   landing_g_touch: { en: "G-Force at Touchdown", de: "G-Kraft beim Aufsetzen" },
   landing_vs_label: { en: "Sink Rate at Landing", de: "Sinkrate beim Landen" },
+  wrong_airport_result_title: { en: "Landing At Wrong Airport", de: "Landung am falschen Zielflughafen" },
+  wrong_airport_result_desc: { en: "You landed more than 10 NM away from the destination airport. The contract was marked as failed.", de: "Du bist mehr als 10 NM vom Zielflughafen entfernt gelandet. Der Auftrag wurde als fehlgeschlagen gewertet." },
   landing_speed: { en: "Landing Speed", de: "Landegeschwindigkeit" },
   fuel_used: { en: "Fuel Used", de: "Treibstoff verbraucht" },
   flight_duration: { en: "Flight Duration", de: "Flugdauer" },

@@ -347,16 +347,53 @@ Deno.serve(async (req) => {
         data.rain_rate ??
         data.precipitation_rate
       );
-      let rain_intensity = asFinite(data.rain_intensity ?? data.precipitation ?? data.rain);
-      if (rain_intensity === undefined && precip_rate !== undefined) {
-        rain_intensity = Math.min(1, Math.max(0, precip_rate / 4));
-      }
       const hasRainMask = precip_state !== undefined && (precip_state & 4) === 4;
+      let rain_intensity = asFinite(data.rain_intensity ?? data.precipitation ?? data.rain);
+      const wind_speed_num = asFinite(
+        data.wind_speed_kts ??
+        data.wind_speed ??
+        data.windspeed_kts ??
+        data.ambient_wind_speed ??
+        data.wind_velocity
+      );
+      const wind_gust_num = asFinite(
+        data.wind_gust_kts ??
+        data.wind_gust ??
+        data.wind_gust_speed ??
+        data.ambient_wind_gust ??
+        data.ambient_wind_velocity_gust
+      );
+
+      // Some bridges emit fixed 0.2 when only "rain present" mask is known.
+      // Treat this as synthetic when no precip rate is available.
+      const isLikelySyntheticRain20 = rain_intensity !== undefined &&
+        Math.abs(rain_intensity - 0.2) < 0.0001 &&
+        hasRainMask &&
+        !(precip_rate !== undefined && precip_rate > 0);
+      if (isLikelySyntheticRain20) {
+        rain_intensity = undefined;
+      }
+
+      if (rain_intensity === undefined && precip_rate !== undefined) {
+        rain_intensity = precip_rate <= 1
+          ? Math.max(0, precip_rate)
+          : Math.min(1, Math.max(0, precip_rate / 4));
+      }
       if (rain_intensity === undefined && hasRainMask) {
-        rain_intensity = 0.2;
+        // No real intensity available: estimate from wind/gust as a better fallback than constant 20%.
+        const gustSpread = (wind_gust_num !== undefined && wind_speed_num !== undefined)
+          ? Math.max(0, wind_gust_num - wind_speed_num)
+          : undefined;
+        const windBased = wind_speed_num !== undefined ? Math.min(1, 0.08 + (wind_speed_num / 85)) : undefined;
+        const gustBased = gustSpread !== undefined ? Math.min(1, 0.10 + (gustSpread / 35)) : undefined;
+        const estimated = Math.max(windBased ?? 0, gustBased ?? 0);
+        rain_intensity = estimated > 0 ? estimated : 0.10;
       }
       if (rain_intensity !== undefined && rain_intensity > 1) {
         rain_intensity = Math.min(1, rain_intensity / 100);
+      }
+      if (rain_intensity !== undefined && rain_intensity < 0) {
+        rain_intensity = 0;
       }
 
       const ground_elevation_ft = data.ground_elevation_ft ?? data.elevation_ft ?? data.airport_elevation_ft ?? data.ground_altitude ?? null;
@@ -365,22 +402,42 @@ Deno.serve(async (req) => {
         const inHg = data.kohlsman_setting_hg ?? data.altimeter_setting_hg ?? data.baro_setting_inhg ?? null;
         if (inHg) baro_setting = inHg * 33.8639;
       }
-      let wind_speed_kts = data.wind_speed_kts ?? data.wind_speed ?? data.windspeed_kts ?? data.ambient_wind_speed ?? data.wind_velocity ?? undefined;
+      let wind_speed_kts = wind_speed_num;
       if (wind_speed_kts === undefined && data.ambient_wind_x !== undefined && data.ambient_wind_z !== undefined) {
         wind_speed_kts = Math.sqrt(data.ambient_wind_x ** 2 + data.ambient_wind_z ** 2) * 1.94384;
       }
       const wind_direction = data.wind_direction ?? data.wind_dir ?? data.wind_heading ?? data.ambient_wind_direction ?? data.wind_deg ?? undefined;
+      const wind_gust_kts = wind_gust_num;
 
       let turbulence = asFinite(data.turbulence ?? data.turbulence_intensity ?? data.sim_weather_turbulence);
-      if (turbulence === undefined) {
-        const verticalWind = asFinite(data.wind_vertical_mps ?? data.ambient_wind_y ?? data.wind_y_mps);
-        if (verticalWind !== undefined) {
-          turbulence = Math.min(1, Math.abs(verticalWind) / 6);
-        }
+      const verticalWind = asFinite(data.wind_vertical_mps ?? data.ambient_wind_y ?? data.wind_y_mps);
+      const verticalSpeedNow = asFinite(data.vertical_speed ?? data.verticalSpeed ?? data.vspeed ?? data.vertical_rate);
+      const gForceNow = asFinite(data.g_force ?? data.gForce ?? data.g_load ?? data.gLoad);
+      const gustSpread = (wind_gust_kts !== undefined && wind_speed_kts !== undefined)
+        ? Math.max(0, wind_gust_kts - wind_speed_kts)
+        : undefined;
+      const turbulenceCandidates = [];
+      if (turbulence !== undefined) turbulenceCandidates.push(turbulence);
+      if (verticalWind !== undefined) turbulenceCandidates.push(Math.min(1, Math.abs(verticalWind) / 4.5));
+      if (verticalSpeedNow !== undefined) turbulenceCandidates.push(Math.min(1, Math.abs(verticalSpeedNow) / 1600));
+      if (gForceNow !== undefined) turbulenceCandidates.push(Math.min(1, Math.max(0, (Math.abs(gForceNow - 1.0) - 0.03) * 3.5)));
+      if (gustSpread !== undefined) turbulenceCandidates.push(Math.min(1, gustSpread / 22));
+      if (wind_speed_kts !== undefined) turbulenceCandidates.push(Math.min(1, wind_speed_kts / 90) * 0.45);
+      if (rain_intensity !== undefined) turbulenceCandidates.push(Math.min(1, rain_intensity * 0.55));
+      if (turbulenceCandidates.length > 0) {
+        turbulence = Math.max(...turbulenceCandidates);
       }
       if (turbulence !== undefined && turbulence > 1) {
         turbulence = Math.min(1, turbulence / 100);
       }
+      if (turbulence !== undefined && turbulence < 0) {
+        turbulence = 0;
+      }
+      const rain_detected = !!(
+        hasRainMask ||
+        (precip_rate !== undefined && precip_rate > 0) ||
+        (rain_intensity !== undefined && rain_intensity > 0.01)
+      );
 
       return {
         oat_c,
@@ -388,10 +445,12 @@ Deno.serve(async (req) => {
         precip_state,
         precip_rate,
         rain_intensity,
+        rain_detected,
         turbulence,
         ground_elevation_ft,
         baro_setting,
         wind_speed_kts,
+        wind_gust_kts,
         wind_direction,
       };
     };
@@ -694,14 +753,16 @@ Deno.serve(async (req) => {
         sim_disabled,
         oat_c: derivedWeather.oat_c ?? null,
         tat_c: derivedWeather.tat_c ?? null,
-        rain_intensity: derivedWeather.rain_intensity ?? null,
-        precipitation: derivedWeather.rain_intensity ?? null,
-        precip_rate: derivedWeather.precip_rate ?? null,
-        precip_state: derivedWeather.precip_state ?? null,
-        turbulence: derivedWeather.turbulence ?? null,
-        turbulence_intensity: derivedWeather.turbulence ?? null,
-        wind_speed_kts: derivedWeather.wind_speed_kts ?? null,
-        wind_direction: derivedWeather.wind_direction ?? null,
+      rain_intensity: derivedWeather.rain_intensity ?? null,
+      rain_detected: derivedWeather.rain_detected ?? false,
+      precipitation: derivedWeather.rain_intensity ?? null,
+      precip_rate: derivedWeather.precip_rate ?? null,
+      precip_state: derivedWeather.precip_state ?? null,
+      turbulence: derivedWeather.turbulence ?? null,
+      turbulence_intensity: derivedWeather.turbulence ?? null,
+      wind_speed_kts: derivedWeather.wind_speed_kts ?? null,
+      wind_gust_kts: derivedWeather.wind_gust_kts ?? null,
+      wind_direction: derivedWeather.wind_direction ?? null,
       };
       // No active flight - log to XPlaneLog so debug page can show data
       base44.asServiceRole.entities.XPlaneLog.create({
@@ -805,10 +866,12 @@ Deno.serve(async (req) => {
       precip_state,
       precip_rate,
       rain_intensity,
+      rain_detected,
       turbulence,
       ground_elevation_ft,
       baro_setting,
       wind_speed_kts,
+      wind_gust_kts,
       wind_direction,
     } = derivedWeather;
     const gateMeta = await resolveAircraftGateMeta({
@@ -960,8 +1023,10 @@ Deno.serve(async (req) => {
       ground_elevation_ft: ground_elevation_ft || (prevXd.ground_elevation_ft || null),
       baro_setting: baro_setting || (prevXd.baro_setting || null),
       wind_speed_kts: wind_speed_kts !== undefined ? wind_speed_kts : (prevXd.wind_speed_kts ?? null),
+      wind_gust_kts: wind_gust_kts !== undefined ? wind_gust_kts : (prevXd.wind_gust_kts ?? null),
       wind_direction: wind_direction !== undefined ? wind_direction : (prevXd.wind_direction ?? null),
       rain_intensity: rain_intensity !== undefined ? rain_intensity : null,
+      rain_detected: rain_detected !== undefined ? rain_detected : (prevXd.rain_detected ?? false),
       precipitation: rain_intensity !== undefined ? rain_intensity : null,
       precip_rate: precip_rate !== undefined ? precip_rate : null,
       precip_state: precip_state !== undefined ? precip_state : null,

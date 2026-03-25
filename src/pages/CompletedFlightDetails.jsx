@@ -142,6 +142,13 @@ export default function CompletedFlightDetails() {
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
+  const wrongAirportCompletion = !!(
+    flight?.xplane_data?.events?.wrong_airport ||
+    flight?.xplane_data?.landed_too_far_from_arrival
+  );
+  const wrongAirportDistanceNm = Number(flight?.xplane_data?.arrival_distance_nm || 0);
+  const isCrashFlight = !!flight?.xplane_data?.events?.crash;
+  const showWrongAirportBanner = wrongAirportCompletion && !emergencyOffAirportCompletion && !isCrashFlight;
 
   return (
     <div className="h-full flex flex-col gap-2">
@@ -171,10 +178,15 @@ export default function CompletedFlightDetails() {
             <span className="text-slate-600">|</span>
             <span>{finalContract.distance_nm} NM</span>
           </div>
-          {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
+          {isCrashFlight ? (
             <Badge className="bg-red-900/40 text-red-400 border-red-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
               <AlertTriangle className="w-3 h-3" />
               CRASH
+            </Badge>
+          ) : (showWrongAirportBanner || flight?.status === 'failed') ? (
+            <Badge className="bg-red-900/40 text-red-400 border-red-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
+              <AlertTriangle className="w-3 h-3" />
+              FAILED
             </Badge>
           ) : (
             <Badge className="bg-emerald-900/40 text-emerald-400 border-emerald-700/50 text-[10px] font-mono uppercase h-7 rounded">
@@ -186,6 +198,24 @@ export default function CompletedFlightDetails() {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
+        {showWrongAirportBanner && (
+          <Card className="mb-2 p-4 bg-red-900/25 border border-red-700/60">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5" />
+              <div>
+                <p className="text-red-300 font-semibold">
+                  {t('wrong_airport_result_title', lang)}
+                </p>
+                <p className="text-sm text-slate-300 mt-1">
+                  {t('wrong_airport_result_desc', lang)}{' '}
+                  {wrongAirportDistanceNm > 0 && (
+                    <span className="text-red-300 font-mono">({Math.round(wrongAirportDistanceNm)} NM)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
         {flight ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             {/* Main Content */}
@@ -626,6 +656,12 @@ export default function CompletedFlightDetails() {
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Treibstoff-Notstand (unter 3%)
+                        </div>
+                      )}
+                      {events.wrong_airport === true && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
+                          <AlertTriangle className="w-4 h-4" />
+                          {lang === 'de' ? 'Landung am falschen Zielflughafen' : 'Landed at wrong destination airport'}
                         </div>
                       )}
                       </div>
