@@ -968,8 +968,11 @@ Deno.serve(async (req) => {
     const contractDeadlineMinutes = Number(contract?.deadline_minutes ?? prevXd.contract_deadline_minutes ?? 0) || null;
     const contractPayout = Number(contract?.payout ?? prevXd.contract_payout ?? 0) || null;
     const contractBonusPotential = Number(contract?.bonus_potential ?? prevXd.contract_bonus_potential ?? 0) || null;
-    const incomingTouchdownVspeed = Number(touchdown_vspeed ?? 0);
-    const incomingLandingG = Number(landing_g_force ?? 0);
+    const incomingTouchdownVspeed = Math.abs(Number(touchdown_vspeed ?? data.landing_vs ?? data.landingVs ?? 0));
+    const incomingLandingG = Number(landing_g_force ?? data.landingG ?? 0);
+    const landingDataSource = String(data.landing_data_source || "").trim().toLowerCase();
+    const bridgeLocalLandingLocked = toBool(data.bridge_local_landing_locked ?? data.landing_data_locked, false);
+    const useBridgeLocalLanding = bridgeLocalLandingLocked || landingDataSource.includes("bridge_local");
     const prevTouchdownVspeed = Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0);
     const prevLandingG = Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0);
     const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
@@ -1114,12 +1117,16 @@ Deno.serve(async (req) => {
       : 0;
     const effectiveTouchdownVspeed = Math.abs(Number(mergedTouchdownVspeed || 0)) > 0
       ? Number(mergedTouchdownVspeed || 0)
-      : (transitionTouchdownVspeed > 0
-          ? transitionTouchdownVspeed
-          : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0));
+      : (useBridgeLocalLanding
+          ? 0
+          : (transitionTouchdownVspeed > 0
+              ? transitionTouchdownVspeed
+              : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0)));
     const mergedLandingGNum = Number(mergedLandingG || 0);
     const transitionLandingG = justTouchedDown ? Math.max(1.0, Number(g_force || 1.0)) : 0;
-    const effectiveLandingG = mergedLandingGNum > 0 ? mergedLandingGNum : transitionLandingG;
+    const effectiveLandingG = mergedLandingGNum > 0
+      ? mergedLandingGNum
+      : (useBridgeLocalLanding ? 0 : transitionLandingG);
     const crashFromTouchdown = hasBeenAirborne && on_ground && (
       Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 900 ||
       Number(effectiveLandingG || 0) >= 2.9
@@ -1147,6 +1154,9 @@ Deno.serve(async (req) => {
       engines_running: areEnginesRunning,
       touchdown_vspeed: effectiveTouchdownVspeed,
       landing_g_force: effectiveLandingG,
+      landing_data_source: useBridgeLocalLanding ? "bridge_local" : (data.landing_data_source || null),
+      bridge_local_landing_locked: useBridgeLocalLanding,
+      landing_data_timestamp: data.landing_data_timestamp || prevXd.landing_data_timestamp || null,
       landing_quality,
       gear_down: gear_down !== undefined ? gear_down : true,
       flap_ratio,
