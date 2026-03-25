@@ -43,7 +43,7 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   if (/<add\s+key="LoopIntervalMs"\s+value="/i.test(patched)) {
     patched = patched.replace(
       /(<add\s+key="LoopIntervalMs"\s+value=")[^"]*(")/i,
-      `$12000$2`
+      (_match, p1, p2) => `${p1}2000${p2}`
     );
   } else {
     patched = patched.replace(
