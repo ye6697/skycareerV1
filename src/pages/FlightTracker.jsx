@@ -28,6 +28,7 @@ import {
 
 import FlightRating from "@/components/flights/FlightRating";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
+import FuelPrediction from "@/components/flights/FuelPrediction";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import SimBriefImport from "@/components/flights/SimBriefImport";
 import WeatherDisplay from "@/components/flights/WeatherDisplay";
@@ -1666,36 +1667,14 @@ export default function FlightTracker() {
               </Card>
             )}
 
-            {/* Fuel & Status */}
-            <Card className="p-6 bg-slate-800/50 border-slate-700">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold flex items-center gap-2 text-amber-400">
-                  <Fuel className="w-5 h-5 text-amber-400" />
-                  {t('fuel_title', lang)}
-                </h3>
-                <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-slate-800 rounded text-center">
-                  <p className="text-xs text-slate-400">{t('percent', lang)}</p>
-                  <p className="text-lg font-mono font-bold text-amber-400">
-                    {Math.round(flightData.fuel)}%
-                  </p>
-                </div>
-                <div className="p-2 bg-slate-800 rounded text-center">
-                  <p className="text-xs text-slate-400">{t('remaining', lang)}</p>
-                  <p className="text-lg font-mono font-bold text-amber-400">
-                    {Math.round(flightData.fuelKg).toLocaleString()} kg
-                  </p>
-                </div>
-              </div>
-              {flightData.fuel < 3 && (
-                <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
-                  <AlertTriangle className="w-4 h-4" />
-                  {t('fuel_emergency', lang)}
-                </div>
-              )}
-            </Card>
+            {/* Fuel & Status with Arrival Prediction */}
+            <FuelPrediction
+              flightData={flightData}
+              flightStartTime={flightStartTime}
+              distanceInfo={distanceInfo}
+              flight={flight}
+              existingFlight={existingFlight}
+            />
 
             {/* Flight Score & Events */}
             {flightPhase !== 'preflight' && (
@@ -1995,41 +1974,7 @@ export default function FlightTracker() {
               {/* Weather Display */}
               <WeatherDisplay raw={xplaneLog?.raw_data} />
 
-              {/* Compact Raw X-Plane Data */}
-              {xplaneLog?.raw_data && (
-                <Card className="p-4 bg-slate-800/50 border-slate-700">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center justify-between text-slate-400">
-                    <span className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-blue-400" />
-                      {t('xplane_raw_data', lang)}
-                    </span>
-                    {dataAge !== null && (
-                      <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                        dataAge < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
-                        dataAge < 5000 ? 'bg-amber-500/20 text-amber-400' :
-                        'bg-red-500/20 text-red-400'
-                      }`}>
-                        {dataLatency ? `Δ${(dataLatency / 1000).toFixed(1)}s` : ''} | {(dataAge / 1000).toFixed(1)}s ago
-                      </span>
-                    )}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-mono">
-                    {Object.entries(xplaneLog.raw_data)
-                      .filter(([key]) => !['departure_lat','departure_lon','arrival_lat','arrival_lon'].includes(key))
-                      .map(([key, value]) => (
-                      <div key={key} className="flex justify-between gap-1 py-0.5 border-b border-slate-700/50">
-                        <span className="text-slate-500 truncate">{key}</span>
-                        <span className="text-slate-300 shrink-0">
-                          {typeof value === 'number' ? value.toFixed(2) : 
-                           typeof value === 'boolean' ? (value ? '✓' : '✗') :
-                           typeof value === 'object' ? '{}' :
-                           String(value).substring(0, 12)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
+              {/* Raw X-Plane Data - moved to XPlaneDebug page */}
               </>
             )}
           </div>
@@ -2051,12 +1996,10 @@ export default function FlightTracker() {
               arrivalCoords={simbriefRoute?.arrival_coords}
               onViewModeChange={null}
               liveFlightData={{
-                gForce: flightData.gForce,
-                maxGForce: flightData.maxGForce,
-                fuelPercent: flightData.fuel,
-                fuelKg: flightData.fuelKg,
-                flightScore: flightData.flightScore,
-                events: flightData.events
+                gForce: flightData.gForce, maxGForce: flightData.maxGForce,
+                fuelPercent: flightData.fuel, fuelKg: flightData.fuelKg,
+                flightScore: flightData.flightScore, events: flightData.events,
+                weather: xplaneLog?.raw_data ? { wind_speed_kts: xplaneLog.raw_data.wind_speed_kts, wind_direction: xplaneLog.raw_data.wind_direction, rain_intensity: xplaneLog.raw_data.rain_intensity, precipitation: xplaneLog.raw_data.precipitation, precip_rate: xplaneLog.raw_data.precip_rate, oat_c: xplaneLog.raw_data.oat_c, tat_c: xplaneLog.raw_data.tat_c, baro_setting: xplaneLog.raw_data.baro_setting, turbulence: xplaneLog.raw_data.turbulence } : null
               }}
             />
             <SimBriefImport

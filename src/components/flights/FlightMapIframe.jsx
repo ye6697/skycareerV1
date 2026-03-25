@@ -194,16 +194,30 @@ function buildIframeHtml() {
   #events-overlay .ev-detail { font-size:11px; color:#94a3b8; margin-left:11px; padding:1px 0; }
   #events-overlay .ev-dot { width:6px; height:6px; border-radius:50%; background:#f87171; flex-shrink:0; }
   #weather-overlay { position:absolute; top:12px; right:12px; z-index:1000; pointer-events:none; display:none; }
-  #weather-overlay .wx-card { background:rgba(10,20,40,0.88); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:8px 10px; font-family:'Courier New',monospace; min-width:190px; }
+  #weather-overlay .wx-card { background:rgba(10,20,40,0.88); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:8px 10px; font-family:'Courier New',monospace; min-width:220px; }
   #weather-overlay .wx-title { color:#7dd3fc; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:6px; font-weight:bold; }
   #weather-overlay .wx-row { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#cbd5e1; line-height:1.35; }
   #weather-overlay .wx-val { color:#f8fafc; font-weight:bold; }
+  #weather-overlay .wx-wind-arrow { display:inline-block; transition:transform 0.3s ease; }
+  #weather-overlay .wx-precip-bar { height:4px; border-radius:2px; margin-top:3px; transition:width 0.3s, background 0.3s; }
+
+  /* Rain drops overlay */
+  #rain-overlay { position:absolute; top:0; left:0; width:100%; height:100%; z-index:800; pointer-events:none; overflow:hidden; display:none; }
+  .rain-drop { position:absolute; width:2px; border-radius:1px; opacity:0.7; animation:rain-fall linear infinite; }
+  @keyframes rain-fall { 0% { transform:translateY(-20px); opacity:0.7; } 100% { transform:translateY(100vh); opacity:0; } }
+
+  /* Wind overlay */
+  #wind-overlay { position:absolute; bottom:60px; right:12px; z-index:1000; pointer-events:none; display:none; }
+  #wind-overlay .wind-card { background:rgba(10,20,40,0.85); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.3); border-radius:50%; width:80px; height:80px; display:flex; align-items:center; justify-content:center; position:relative; }
+  #wind-overlay .wind-label { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:10px; color:#94a3b8; font-family:'Courier New',monospace; white-space:nowrap; }
 </style>
 </head><body>
 <div id="map"></div>
 <div id="hud-top" style="display:none;"></div>
 <div id="events-overlay" style="display:none;"></div>
 <div id="weather-overlay" style="display:none;"></div>
+<div id="rain-overlay" style="display:none;"></div>
+<div id="wind-overlay" style="display:none;"></div>
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5, fadeAnimation: false, markerZoomAnimation: false, zoomAnimation: false });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
@@ -379,6 +393,68 @@ function turbColor(t) {
   return '#ef4444';
 }
 
+function rainColor(intensity) {
+  if (intensity < 0.2) return '#60a5fa'; // light blue
+  if (intensity < 0.5) return '#3b82f6'; // medium blue
+  if (intensity < 0.75) return '#f59e0b'; // amber (heavy)
+  return '#ef4444'; // red (extreme)
+}
+
+function precipLabel(rain) {
+  if (rain < 0.1) return 'Light';
+  if (rain < 0.3) return 'Moderate';
+  if (rain < 0.6) return 'Heavy';
+  return 'Extreme';
+}
+
+function updateRainOverlay(weatherOn, rain) {
+  var el = document.getElementById('rain-overlay');
+  if (!el) return;
+  if (!weatherOn || rain === null || rain < 0.02) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  el.style.display = 'block';
+  // Number of drops scales with intensity
+  var dropCount = Math.round(20 + rain * 180);
+  var color = rainColor(rain);
+  var html = '';
+  for (var i = 0; i < dropCount; i++) {
+    var left = Math.random() * 100;
+    var delay = Math.random() * 2;
+    var dur = 0.6 + Math.random() * 0.8 - (rain * 0.3); // faster in heavy rain
+    var h = 8 + Math.random() * 12 + rain * 10;
+    var opacity = 0.3 + rain * 0.5;
+    html += '<div class="rain-drop" style="left:'+left.toFixed(1)+'%;height:'+h.toFixed(0)+'px;background:'+color+';opacity:'+opacity.toFixed(2)+';animation-duration:'+dur.toFixed(2)+'s;animation-delay:'+delay.toFixed(2)+'s;"></div>';
+  }
+  el.innerHTML = html;
+}
+
+function updateWindOverlay(weatherOn, fd) {
+  var el = document.getElementById('wind-overlay');
+  if (!el) return;
+  var windSpd = pickFinite(fd.wind_speed_kts, fd.wind_speed, fd.ambient_wind_velocity);
+  var windDir = pickFinite(fd.wind_direction, fd.ambient_wind_direction);
+  if (!weatherOn || windSpd === null || windSpd < 1) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  // Color based on wind strength
+  var wCol = windSpd < 15 ? '#34d399' : windSpd < 30 ? '#fbbf24' : windSpd < 50 ? '#f97316' : '#ef4444';
+  // Arrow length scales with wind speed
+  var arrowLen = Math.min(30, 12 + windSpd * 0.4);
+  var rot = windDir !== null ? windDir : 0;
+  // SVG arrow pointing up (north), rotated by wind direction (FROM direction, so arrow points the way wind blows)
+  var svg = '<svg width="60" height="60" viewBox="0 0 60 60" style="transform:rotate('+(rot+180)+'deg);transition:transform 0.5s;">' +
+    '<line x1="30" y1="'+(30+arrowLen)+'" x2="30" y2="'+(30-arrowLen)+'" stroke="'+wCol+'" stroke-width="3" stroke-linecap="round"/>' +
+    '<polygon points="30,'+(30-arrowLen-4)+' '+(30-6)+','+(30-arrowLen+6)+' '+(30+6)+','+(30-arrowLen+6)+'" fill="'+wCol+'"/>' +
+    '</svg>';
+  el.innerHTML = '<div class="wind-card" style="border-color:'+wCol+'44;">' + svg + '</div>' +
+    '<div class="wind-label" style="color:'+wCol+'">' + Math.round(windSpd) + ' kts' + (windDir !== null ? ' / ' + Math.round(windDir) + '°' : '') + '</div>';
+}
+
 function updateWeatherOverlay(weatherOn, fd, curPos) {
   var panel = document.getElementById('weather-overlay');
   if (!panel) return;
@@ -387,20 +463,39 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
     panel.style.display = 'none';
     if (layers.weatherRainRing) { map.removeLayer(layers.weatherRainRing); layers.weatherRainRing = null; }
     if (layers.weatherTurbRing) { map.removeLayer(layers.weatherTurbRing); layers.weatherTurbRing = null; }
+    updateRainOverlay(false, null);
+    updateWindOverlay(false, fd);
     return;
   }
 
   var tat = pickFinite(fd.tat_c, fd.tat, fd.total_air_temp_c, fd.total_air_temperature);
+  var oat = pickFinite(fd.oat_c, fd.ambient_temperature);
   var rain = norm01(pickFinite(fd.rain_intensity, fd.precipitation, fd.rain, fd.precip_rate));
   var turb = norm01(pickFinite(fd.turbulence, fd.turbulence_intensity, fd.sim_weather_turbulence));
+  var windSpd = pickFinite(fd.wind_speed_kts, fd.wind_speed, fd.ambient_wind_velocity);
+  var windDir = pickFinite(fd.wind_direction, fd.ambient_wind_direction);
+  var baro = pickFinite(fd.baro_setting, fd.kohlsman_setting_mb);
+
+  // Rain visual effects
+  updateRainOverlay(weatherOn, rain);
+  updateWindOverlay(weatherOn, fd);
 
   panel.style.display = 'block';
+  var rCol = rain !== null ? rainColor(rain) : '#64748b';
+  var rLabel = rain !== null ? precipLabel(rain) : '--';
+  var wCol = windSpd !== null ? (windSpd < 15 ? '#34d399' : windSpd < 30 ? '#fbbf24' : '#f97316') : '#64748b';
+  var windArrow = windDir !== null ? '<span class="wx-wind-arrow" style="transform:rotate('+(windDir+180)+'deg);color:'+wCol+';">↑</span> ' : '';
+
   panel.innerHTML =
     '<div class="wx-card">' +
-      '<div class="wx-title">Weather Mode</div>' +
-      '<div class="wx-row"><span>TAT</span><span class="wx-val">' + (tat !== null ? Math.round(tat) + ' C' : '--') + '</span></div>' +
-      '<div class="wx-row"><span>Rain</span><span class="wx-val">' + (rain !== null ? Math.round(rain * 100) + '%' : '--') + '</span></div>' +
-      '<div class="wx-row"><span>Turbulence</span><span class="wx-val">' + (turb !== null ? Math.round(turb * 100) + '%' : '--') + '</span></div>' +
+      '<div class="wx-title">☁ WEATHER</div>' +
+      (oat !== null ? '<div class="wx-row"><span>OAT</span><span class="wx-val">' + Math.round(oat) + '°C</span></div>' : '') +
+      (tat !== null ? '<div class="wx-row"><span>TAT</span><span class="wx-val">' + Math.round(tat) + '°C</span></div>' : '') +
+      (baro !== null ? '<div class="wx-row"><span>QNH</span><span class="wx-val">' + Math.round(baro) + ' mb</span></div>' : '') +
+      '<div class="wx-row"><span>Wind</span><span class="wx-val" style="color:'+wCol+'">' + windArrow + (windSpd !== null ? Math.round(windSpd) + ' kts' : '--') + (windDir !== null ? ' / ' + Math.round(windDir) + '°' : '') + '</span></div>' +
+      '<div class="wx-row"><span>Precip</span><span class="wx-val" style="color:'+rCol+'">' + rLabel + (rain !== null && rain > 0 ? ' (' + Math.round(rain*100) + '%)' : '') + '</span></div>' +
+      (rain !== null && rain > 0 ? '<div class="wx-precip-bar" style="width:'+Math.round(rain*100)+'%;background:'+rCol+';"></div>' : '') +
+      '<div class="wx-row"><span>Turb</span><span class="wx-val" style="color:'+turbColor(turb || 0)+'">' + (turb !== null ? Math.round(turb*100)+'%' : '--') + '</span></div>' +
     '</div>';
 
   if (rain !== null && rain > 0.01) {
@@ -408,16 +503,19 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
     if (!layers.weatherRainRing) {
       layers.weatherRainRing = L.circle(curPos, {
         radius: rainRadius,
-        color: '#60a5fa',
+        color: rainColor(rain),
         weight: 1.5,
-        fillColor: '#1d4ed8',
-        fillOpacity: 0.08 + (rain * 0.2)
+        fillColor: rainColor(rain),
+        fillOpacity: 0.06 + (rain * 0.18),
+        dashArray: '4,6'
       }).addTo(map);
     } else {
       layers.weatherRainRing.setLatLng(curPos);
       layers.weatherRainRing.setRadius(rainRadius);
       layers.weatherRainRing.setStyle({
-        fillOpacity: 0.08 + (rain * 0.2)
+        color: rainColor(rain),
+        fillColor: rainColor(rain),
+        fillOpacity: 0.06 + (rain * 0.18)
       });
     }
   } else if (layers.weatherRainRing) {
@@ -434,7 +532,8 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
         color: tColor,
         weight: 2,
         fillColor: tColor,
-        fillOpacity: 0.02 + (turb * 0.08)
+        fillOpacity: 0.02 + (turb * 0.08),
+        dashArray: '8,4'
       }).addTo(map);
     } else {
       layers.weatherTurbRing.setLatLng(curPos);
@@ -511,7 +610,10 @@ function update(d) {
   else if (routeWaypoints.length > 0) { var lw = routeWaypoints[routeWaypoints.length-1]; if(lw.lat&&lw.lon) arrPos=[lw.lat,lw.lon]; }
 
   var curPos = hasPos ? [fd.latitude, fd.longitude] : null;
-  updateWeatherOverlay(d.weatherOn, fd, curPos);
+  // Merge weather data from liveFlightData into fd for weather overlay
+  var wxFd = Object.assign({}, fd);
+  if (live && live.weather) { Object.assign(wxFd, live.weather); }
+  updateWeatherOverlay(d.weatherOn, wxFd, curPos);
 
   var routeSource = routeWaypoints.length > 0 ? routeWaypoints : waypoints;
 
