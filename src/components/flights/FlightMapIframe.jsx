@@ -751,10 +751,11 @@ function update(d) {
     });
   }
 
-  // Flight events log markers (gear, flaps, speedbrake, incidents)
-  layers.evtGroup.clearLayers();
+  // Flight events log markers - only rebuild when event count changes to preserve open popups
   var evtLog = d.flightEventsLog || [];
-  if (evtLog.length > 0) {
+  if (evtLog.length !== layers._lastEvtCount) {
+    layers._lastEvtCount = evtLog.length;
+    layers.evtGroup.clearLayers();
     var evtCfg = {
       gear_down: {icon:'▼',color:'#22d3ee',bg:'rgba(6,78,107,0.85)',label:'GEAR DN'},
       gear_up: {icon:'▲',color:'#22d3ee',bg:'rgba(6,78,107,0.85)',label:'GEAR UP'},
@@ -788,7 +789,7 @@ function update(d) {
         (ev.vs ? '<div style="color:#94a3b8;font-size:11px;">V/S: '+Math.round(ev.vs)+' ft/min</div>' : '') +
         (ev.g ? '<div style="color:#94a3b8;font-size:11px;">G: '+Number(ev.g).toFixed(2)+'</div>' : '') +
         '</div>';
-      evM.bindPopup(popupHtml, { className: 'dark-popup', closeButton: false, offset: [0, -sz/2] });
+      evM.bindPopup(popupHtml, { className: 'dark-popup', closeButton: false, offset: [0, -sz/2], autoClose: false, closeOnClick: false });
     }
   }
 
