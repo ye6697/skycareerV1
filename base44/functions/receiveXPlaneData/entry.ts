@@ -1,5 +1,134 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
 
+const COMPANY_CACHE_TTL_MS = 5 * 60 * 1000;
+const ACTIVE_FLIGHT_CACHE_TTL_MS = 15 * 1000;
+const NO_ACTIVE_FLIGHT_CACHE_TTL_MS = 2500;
+
+const companyByApiKeyCache = new Map();
+const companyRefreshInFlight = new Map();
+const activeFlightByCompanyCache = new Map();
+const activeFlightRefreshInFlight = new Map();
+
+const cloneValue = (value) => {
+  if (value === undefined || value === null) return value;
+  try {
+    return structuredClone(value);
+  } catch (_) {
+    return value;
+  }
+};
+
+const fetchCompanyByApiKey = async (base44, apiKey) => {
+  const companies = await base44.asServiceRole.entities.Company.filter({ xplane_api_key: apiKey });
+  return companies[0] || null;
+};
+
+const setCompanyCache = (apiKey, company, ttlMs = COMPANY_CACHE_TTL_MS) => {
+  companyByApiKeyCache.set(apiKey, {
+    company: cloneValue(company),
+    expiresAt: Date.now() + ttlMs,
+  });
+};
+
+const refreshCompanyCacheAsync = (base44, apiKey) => {
+  if (companyRefreshInFlight.has(apiKey)) return;
+  const p = (async () => {
+    try {
+      const fresh = await fetchCompanyByApiKey(base44, apiKey);
+      if (fresh) setCompanyCache(apiKey, fresh);
+      else companyByApiKeyCache.delete(apiKey);
+    } catch (_) {
+      // Keep stale cache on refresh errors.
+    } finally {
+      companyRefreshInFlight.delete(apiKey);
+    }
+  })();
+  companyRefreshInFlight.set(apiKey, p);
+};
+
+const getCompanyByApiKeyCached = async (base44, apiKey) => {
+  const now = Date.now();
+  const cached = companyByApiKeyCache.get(apiKey);
+  if (cached && cached.expiresAt > now) {
+    return cloneValue(cached.company);
+  }
+  if (cached?.company) {
+    refreshCompanyCacheAsync(base44, apiKey);
+    return cloneValue(cached.company);
+  }
+  const fresh = await fetchCompanyByApiKey(base44, apiKey);
+  if (!fresh) return null;
+  setCompanyCache(apiKey, fresh);
+  return cloneValue(fresh);
+};
+
+const fetchActiveFlightForCompany = async (base44, companyId) => {
+  const flights = await base44.asServiceRole.entities.Flight.filter({
+    company_id: companyId,
+    status: "in_flight",
+  });
+  return flights[0] || null;
+};
+
+const setActiveFlightCache = (
+  companyId,
+  flight,
+  ttlMs = flight ? ACTIVE_FLIGHT_CACHE_TTL_MS : NO_ACTIVE_FLIGHT_CACHE_TTL_MS,
+) => {
+  activeFlightByCompanyCache.set(companyId, {
+    flight: cloneValue(flight),
+    expiresAt: Date.now() + ttlMs,
+  });
+};
+
+const refreshActiveFlightCacheAsync = (base44, companyId) => {
+  if (activeFlightRefreshInFlight.has(companyId)) return;
+  const p = (async () => {
+    try {
+      const fresh = await fetchActiveFlightForCompany(base44, companyId);
+      setActiveFlightCache(companyId, fresh);
+    } catch (_) {
+      // Keep stale cache on refresh errors.
+    } finally {
+      activeFlightRefreshInFlight.delete(companyId);
+    }
+  })();
+  activeFlightRefreshInFlight.set(companyId, p);
+};
+
+const getActiveFlightForCompanyCached = async (base44, companyId) => {
+  const now = Date.now();
+  const cached = activeFlightByCompanyCache.get(companyId);
+  if (cached && cached.expiresAt > now) {
+    return cloneValue(cached.flight);
+  }
+  if (cached) {
+    // If we have a stale active flight, return it immediately and refresh in background.
+    // If we have stale "no flight", do a blocking refresh so newly started flights are detected quickly.
+    if (cached.flight) {
+      refreshActiveFlightCacheAsync(base44, companyId);
+      return cloneValue(cached.flight);
+    }
+  }
+  const fresh = await fetchActiveFlightForCompany(base44, companyId);
+  setActiveFlightCache(companyId, fresh);
+  return cloneValue(fresh);
+};
+
+const patchActiveFlightCache = (companyId, partialFlight) => {
+  const now = Date.now();
+  const cached = activeFlightByCompanyCache.get(companyId);
+  const prevFlight = cached?.flight && typeof cached.flight === "object" ? cached.flight : {};
+  const merged = { ...prevFlight, ...partialFlight };
+  const expiresAt = Number(cached?.expiresAt ?? 0) > now
+    ? Number(cached.expiresAt)
+    : (now + ACTIVE_FLIGHT_CACHE_TTL_MS);
+  activeFlightByCompanyCache.set(companyId, {
+    flight: cloneValue(merged),
+    expiresAt,
+  });
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -233,12 +362,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'API key required' }, { status: 401 });
     }
 
-    // Find company by API key
-    const companies = await base44.asServiceRole.entities.Company.filter({ xplane_api_key: apiKey });
-    if (companies.length === 0) {
+    // Resolve company by API key with cache (stale-while-revalidate).
+    const company = await getCompanyByApiKeyCached(base44, apiKey);
+    if (!company) {
       return Response.json({ error: 'Invalid API key' }, { status: 401 });
     }
-    const company = companies[0];
     
     const data = await req.json();
     const simulator = String(data?.simulator || "xplane12").toLowerCase();
@@ -722,15 +850,14 @@ Deno.serve(async (req) => {
       }).catch(() => {});
     }
 
-    // Get active flight for this company (single DB query)
-    const flights = await base44.asServiceRole.entities.Flight.filter({ 
-      company_id: company.id,
-      status: 'in_flight'
-    });
-    
-    const flight = flights[0] || null;
+    // Resolve active flight with cache to avoid a blocking DB read on every telemetry packet.
+    const flight = await getActiveFlightForCompanyCached(base44, company.id);
+    if (flight) {
+      setActiveFlightCache(company.id, flight, ACTIVE_FLIGHT_CACHE_TTL_MS);
+    }
     
     if (!flight) {
+      setActiveFlightCache(company.id, null, NO_ACTIVE_FLIGHT_CACHE_TTL_MS);
       const gateMeta = await resolveAircraftGateMeta();
       const noFlightData = {
         ...data,
@@ -1189,6 +1316,14 @@ Deno.serve(async (req) => {
     // Keep request path non-blocking so bridge packets cannot stall on DB latency.
     base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch((err) => {
       console.error("Flight.update failed:", err);
+    });
+    patchActiveFlightCache(company.id, {
+      ...flight,
+      xplane_data: xplaneData,
+      max_g_force: updateData.max_g_force ?? flight.max_g_force,
+      active_failures: updateData.active_failures ?? flight.active_failures,
+      maintenance_damage: updateData.maintenance_damage ?? flight.maintenance_damage,
+      status: flight.status || "in_flight",
     });
 
     // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
