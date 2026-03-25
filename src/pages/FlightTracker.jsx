@@ -1358,7 +1358,8 @@ export default function FlightTracker() {
         setFlightData(prev => { const u = { ...prev, events: { ...prev.events, wrong_airport: true }, flightScore: 0 }; flightDataRef.current = u; return u; });
       }
       setFlightPhase('completed');
-      setTimeout(() => completeFlightMutation.mutate(), 1500);
+      // Keep a buffer >= bridge send interval so touchdown VS/G reaches backend before completion.
+      setTimeout(() => completeFlightMutation.mutate(), 3200);
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
