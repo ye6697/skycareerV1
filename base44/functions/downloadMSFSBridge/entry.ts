@@ -42,7 +42,7 @@ from SimConnect import SimConnect, AircraftRequests
 API_ENDPOINT = "${apiEndpoint}"
 API_KEY = "${apiKey}"
 POST_TIMEOUT = 2.0
-LOOP_INTERVAL = 1.0
+LOOP_INTERVAL = 2.0
 
 # Fuel density constants (kg per gallon)
 JETA_KG_PER_GALLON = 3.039   # Jet-A / Jet-A1

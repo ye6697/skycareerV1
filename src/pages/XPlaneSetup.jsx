@@ -201,7 +201,7 @@ export default function XPlaneSetup() {
   };
 
   const downloadSkyCareerDesktop = async () => {
-    await downloadStaticZip('SkyCareer_MSFS_Bridge_Windows.zip');
+    await downloadZipFromFunction('downloadMSFSBridgeExe', 'SkyCareer_MSFS_Bridge_Windows.zip');
   };
 
   const downloadMsfsTablet = async () => {

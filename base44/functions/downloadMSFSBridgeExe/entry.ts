@@ -40,6 +40,17 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
     /(<add\s+key="ApiKey"\s+value=")[^"]*(")/i,
     `$1${apiKey}$2`
   );
+  if (/<add\s+key="LoopIntervalMs"\s+value="/i.test(patched)) {
+    patched = patched.replace(
+      /(<add\s+key="LoopIntervalMs"\s+value=")[^"]*(")/i,
+      `$12000$2`
+    );
+  } else {
+    patched = patched.replace(
+      /<\/appSettings>/i,
+      `    <add key="LoopIntervalMs" value="2000" />\n  </appSettings>`
+    );
+  }
   return patched;
 }
 
