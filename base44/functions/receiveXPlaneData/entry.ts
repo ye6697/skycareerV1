@@ -1164,24 +1164,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Persist synchronously (with short retry) to keep update order stable.
-    // This avoids delayed/out-of-order data snapshots in the frontend.
-    let flightWriteErr = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        await base44.asServiceRole.entities.Flight.update(flight.id, updateData);
-        flightWriteErr = null;
-        break;
-      } catch (err) {
-        flightWriteErr = err;
-        if (attempt < 2) {
-          await new Promise((resolve) => setTimeout(resolve, 80 * (attempt + 1)));
-        }
-      }
-    }
-    if (flightWriteErr) {
-      console.error("Flight.update failed after retries:", flightWriteErr);
-    }
+    // Keep request path non-blocking so bridge packets cannot stall on DB latency.
+    base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch((err) => {
+      console.error("Flight.update failed:", err);
+    });
 
     // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
     const maintenanceRatio = company?.current_maintenance_ratio || 0;

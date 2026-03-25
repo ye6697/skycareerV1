@@ -158,15 +158,21 @@ export default function FlightTracker() {
     
     const updateData = (xpData, updDate) => {
       const ts = xpData.timestamp || updDate;
-      if (ts !== lastXplaneTimestampRef.current) {
-        lastXplaneTimestampRef.current = ts;
-        const now = Date.now();
-        if (lastDataReceivedRef.current) {
-          setDataLatency(now - lastDataReceivedRef.current);
-        }
-        lastDataReceivedRef.current = now;
-        setXplaneLog({ raw_data: xpData, created_date: updDate });
+      const prevTs = lastXplaneTimestampRef.current;
+      if (ts === prevTs) return;
+
+      const nextMs = Date.parse(ts || '');
+      const prevMs = Date.parse(prevTs || '');
+      // Ignore out-of-order snapshots so stale packets cannot overwrite newer telemetry.
+      if (Number.isFinite(nextMs) && Number.isFinite(prevMs) && nextMs <= prevMs) return;
+
+      lastXplaneTimestampRef.current = ts;
+      const now = Date.now();
+      if (lastDataReceivedRef.current) {
+        setDataLatency(now - lastDataReceivedRef.current);
       }
+      lastDataReceivedRef.current = now;
+      setXplaneLog({ raw_data: xpData, created_date: updDate });
     };
     
     // Setup subscription with automatic reconnect
