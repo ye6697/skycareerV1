@@ -118,6 +118,25 @@ export default function FlightTracker() {
   const [dataLatency, setDataLatency] = useState(null); // ms between two received updates
   const [dataAge, setDataAge] = useState(null); // ms since last data received (live ticker)
   const lastDataReceivedRef = React.useRef(null);
+  const ingestLiveXplaneData = React.useCallback((xpData, sourceDate) => {
+    if (!xpData) return;
+    const ts = xpData.timestamp || sourceDate;
+    const prevTs = lastXplaneTimestampRef.current;
+    if (ts && prevTs && ts === prevTs) return;
+
+    const nextMs = Date.parse(ts || '');
+    const prevMs = Date.parse(prevTs || '');
+    // Ignore stale packets so slower channels cannot overwrite fresher telemetry.
+    if (Number.isFinite(nextMs) && Number.isFinite(prevMs) && nextMs <= prevMs) return;
+
+    lastXplaneTimestampRef.current = ts || prevTs || new Date().toISOString();
+    const now = Date.now();
+    if (lastDataReceivedRef.current) {
+      setDataLatency(now - lastDataReceivedRef.current);
+    }
+    lastDataReceivedRef.current = now;
+    setXplaneLog({ raw_data: xpData, created_date: sourceDate || ts || new Date().toISOString() });
+  }, []);
   
   // Live ticker: shows how long ago the last data arrived (updates every 200ms)
   useEffect(() => {
@@ -139,41 +158,18 @@ export default function FlightTracker() {
       const flights = await base44.entities.Flight.filter({ id: activeFlightId });
       const currentFlight = flights[0];
       if (currentFlight?.xplane_data) {
-        const ts = currentFlight.xplane_data.timestamp || currentFlight.updated_date;
-        lastXplaneTimestampRef.current = ts;
-        setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
+        ingestLiveXplaneData(currentFlight.xplane_data, currentFlight.updated_date);
       }
     };
     fetchInitial();
-  }, [activeFlightId, flightPhase]);
+  }, [activeFlightId, flightPhase, ingestLiveXplaneData]);
 
   // Real-time subscription – receives updates instantly when backend writes new xplane_data
   useEffect(() => {
     if (flightPhase === 'completed') return;
     if (!activeFlightId) return;
     
-    let subscriptionActive = false;
     let lastSubEventTime = 0;
-    let subReconnectTimer = null;
-    
-    const updateData = (xpData, updDate) => {
-      const ts = xpData.timestamp || updDate;
-      const prevTs = lastXplaneTimestampRef.current;
-      if (ts === prevTs) return;
-
-      const nextMs = Date.parse(ts || '');
-      const prevMs = Date.parse(prevTs || '');
-      // Ignore out-of-order snapshots so stale packets cannot overwrite newer telemetry.
-      if (Number.isFinite(nextMs) && Number.isFinite(prevMs) && nextMs <= prevMs) return;
-
-      lastXplaneTimestampRef.current = ts;
-      const now = Date.now();
-      if (lastDataReceivedRef.current) {
-        setDataLatency(now - lastDataReceivedRef.current);
-      }
-      lastDataReceivedRef.current = now;
-      setXplaneLog({ raw_data: xpData, created_date: updDate });
-    };
     
     // Setup subscription with automatic reconnect
     let unsubscribe = null;
@@ -183,9 +179,8 @@ export default function FlightTracker() {
       }
       unsubscribe = base44.entities.Flight.subscribe((event) => {
         if (event.type === 'update' && event.id === activeFlightId && event.data?.xplane_data) {
-          subscriptionActive = true;
           lastSubEventTime = Date.now();
-          updateData(event.data.xplane_data, event.data.updated_date);
+          ingestLiveXplaneData(event.data.xplane_data, event.data.updated_date);
         }
       });
     };
@@ -211,7 +206,7 @@ export default function FlightTracker() {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
         const f = flights[0];
         if (f?.xplane_data) {
-          updateData(f.xplane_data, f.updated_date);
+          ingestLiveXplaneData(f.xplane_data, f.updated_date);
         }
       } catch (_) {}
       pollInFlight = false;
@@ -221,9 +216,8 @@ export default function FlightTracker() {
       if (unsubscribe) try { unsubscribe(); } catch (_) {}
       clearInterval(pollInterval);
       clearInterval(healthCheck);
-      if (subReconnectTimer) clearTimeout(subReconnectTimer);
     };
-  }, [activeFlightId, flightPhase]);
+  }, [activeFlightId, flightPhase, ingestLiveXplaneData]);
 
   // Restore flight data and phase from existing flight
   useEffect(() => {
@@ -269,6 +263,62 @@ export default function FlightTracker() {
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
+
+  // Faster live source: consume XPlaneLog stream directly (written every ~2s),
+  // so UI does not wait for slower Flight record propagation.
+  useEffect(() => {
+    if (flightPhase === 'completed') return;
+    if (!company?.id || !activeFlightId) return;
+
+    const applyLog = (logEntry) => {
+      if (!logEntry?.raw_data) return;
+      ingestLiveXplaneData(logEntry.raw_data, logEntry.created_date || logEntry.updated_date);
+    };
+
+    let unsub = null;
+    let pollInFlight = false;
+
+    const prime = async () => {
+      try {
+        const logs = await base44.entities.XPlaneLog.filter(
+          { company_id: company.id, has_active_flight: true },
+          '-created_date',
+          1
+        );
+        if (logs[0]) applyLog(logs[0]);
+      } catch (_) {}
+    };
+    prime();
+
+    unsub = base44.entities.XPlaneLog.subscribe((event) => {
+      if (event.type !== 'create' && event.type !== 'update') return;
+      if (event.data?.company_id !== company.id) return;
+      if (!event.data?.has_active_flight) return;
+      applyLog(event.data);
+    });
+
+    const poll = setInterval(async () => {
+      if (pollInFlight) return;
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 1200) return;
+      pollInFlight = true;
+      try {
+        const logs = await base44.entities.XPlaneLog.filter(
+          { company_id: company.id, has_active_flight: true },
+          '-created_date',
+          1
+        );
+        if (logs[0]) applyLog(logs[0]);
+      } catch (_) {}
+      pollInFlight = false;
+    }, 1500);
+
+    return () => {
+      if (unsub) {
+        try { unsub(); } catch (_) {}
+      }
+      clearInterval(poll);
+    };
+  }, [company?.id, activeFlightId, flightPhase, ingestLiveXplaneData]);
 
   const { data: aircraft } = useQuery({
     queryKey: ['aircraft'],

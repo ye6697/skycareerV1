@@ -1450,7 +1450,7 @@ Deno.serve(async (req) => {
     const shouldWriteLiveLog =
       !Number.isFinite(prevXPlaneLogAtMs) ||
       prevXPlaneLogAtMs <= 0 ||
-      (nowMs - prevXPlaneLogAtMs) >= 6000;
+      (nowMs - prevXPlaneLogAtMs) >= 2000;
     xplaneData.last_xplanelog_at_ms = shouldWriteLiveLog ? nowMs : prevXPlaneLogAtMs;
     if (shouldWriteLiveLog) {
       base44.asServiceRole.entities.XPlaneLog.create({
