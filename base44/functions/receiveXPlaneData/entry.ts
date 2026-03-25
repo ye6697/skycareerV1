@@ -3,6 +3,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const reqStartedAtMs = Date.now();
     const haversineNm = (lat1, lon1, lat2, lon2) => {
       const R = 3440.065;
       const toRad = (d) => d * Math.PI / 180;
@@ -791,6 +792,7 @@ Deno.serve(async (req) => {
         xplane_connection_status: 'connected',
         simulator,
         data_logged: true,
+        server_processing_ms: Date.now() - reqStartedAtMs,
         aircraft_gate_blocked: gateMeta.blocked,
         aircraft_gate_reason: gateMeta.reason,
         aircraft_gate_icao: gateMeta.icao,
@@ -802,11 +804,19 @@ Deno.serve(async (req) => {
       }, { status: 200 });
     }
     
-    // Active flight exists - skip XPlaneLog write entirely to maximize speed
+    // Active flight: keep per-packet DB reads minimal so bridge latency stays low.
+    const prevXd = flight.xplane_data || {};
+    const referenceRefreshMsPrev = Number(prevXd.reference_refresh_ms ?? 0);
+    const shouldRefreshReferenceData =
+      !Number.isFinite(referenceRefreshMsPrev) ||
+      referenceRefreshMsPrev <= 0 ||
+      (Date.now() - referenceRefreshMsPrev) >= 30000;
+
     let contract = null;
     let assignedAircraft = null;
-    let assignedAircraftType = null;
-    if (flight.contract_id) {
+    let assignedAircraftType = prevXd.aircraft_type || null;
+
+    if (shouldRefreshReferenceData && flight.contract_id) {
       try {
         const contracts = await base44.asServiceRole.entities.Contract.filter({ id: flight.contract_id });
         contract = contracts[0] || null;
@@ -814,18 +824,23 @@ Deno.serve(async (req) => {
         contract = null;
       }
     }
-    if (flight.aircraft_id) {
+
+    if (shouldRefreshReferenceData && flight.aircraft_id) {
       try {
         const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
         assignedAircraft = aircraftList?.[0] || null;
-        assignedAircraftType = assignedAircraft?.type || null;
+        assignedAircraftType = assignedAircraft?.type || assignedAircraftType || null;
       } catch (_) {
         assignedAircraft = null;
-        assignedAircraftType = null;
       }
     }
 
-    const prevXd = flight.xplane_data || {};
+    const contractDepartureAirport = contract?.departure_airport ?? prevXd.contract_departure_airport ?? null;
+    const contractArrivalAirport = contract?.arrival_airport ?? prevXd.contract_arrival_airport ?? null;
+    const contractDistanceNm = Number(contract?.distance_nm ?? prevXd.contract_distance_nm ?? 0) || null;
+    const contractDeadlineMinutes = Number(contract?.deadline_minutes ?? prevXd.contract_deadline_minutes ?? 0) || null;
+    const contractPayout = Number(contract?.payout ?? prevXd.contract_payout ?? 0) || null;
+    const contractBonusPotential = Number(contract?.bonus_potential ?? prevXd.contract_bonus_potential ?? 0) || null;
     const incomingTouchdownVspeed = Number(touchdown_vspeed ?? 0);
     const incomingLandingG = Number(landing_g_force ?? 0);
     const prevTouchdownVspeed = Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0);
@@ -1050,6 +1065,13 @@ Deno.serve(async (req) => {
       turbulence_intensity: turbulence !== undefined ? turbulence : null,
       aircraft_icao: aircraft_icao || (prevXd.aircraft_icao || null),
       aircraft_type: assignedAircraftType || (prevXd.aircraft_type || null),
+      reference_refresh_ms: shouldRefreshReferenceData ? Date.now() : (referenceRefreshMsPrev || Date.now()),
+      contract_departure_airport: contractDepartureAirport,
+      contract_arrival_airport: contractArrivalAirport,
+      contract_distance_nm: contractDistanceNm,
+      contract_deadline_minutes: contractDeadlineMinutes,
+      contract_payout: contractPayout,
+      contract_bonus_potential: contractBonusPotential,
       // FMS waypoints - only update if plugin sends them (they don't change often)
       fms_waypoints: incomingFmsWaypoints.length
         ? incomingFmsWaypoints
@@ -1387,11 +1409,11 @@ Deno.serve(async (req) => {
       ? toHudAscii(lastFailureForHud.name || lastFailureForHud.name_de || null, null)
       : null;
     const dynamicDeadlineMinutes = calculateDeadlineMinutes(
-      contract?.distance_nm ?? null,
+      contractDistanceNm ?? null,
       aircraft_icao || flight.xplane_data?.aircraft_icao || null,
       assignedAircraftType || flight.xplane_data?.aircraft_type || null
     );
-    const selectedDeadlineMinutes = dynamicDeadlineMinutes ?? contract?.deadline_minutes ?? null;
+    const selectedDeadlineMinutes = dynamicDeadlineMinutes ?? contractDeadlineMinutes ?? null;
     let deadlineRemainingSec = null;
     if (selectedDeadlineMinutes !== null && Number.isFinite(Number(selectedDeadlineMinutes))) {
       const totalDeadlineSec = Math.max(0, Math.round(Number(selectedDeadlineMinutes) * 60));
@@ -1421,17 +1443,26 @@ Deno.serve(async (req) => {
     };
     const liveScore = computeLiveScore(mergedScorePacket);
 
-    // Keep a live XPlaneLog stream even during active contracts.
-    // FreeFlight/FlightMap pages consume XPlaneLog as realtime source.
-    base44.asServiceRole.entities.XPlaneLog.create({
-      company_id: company.id,
-      raw_data: xplaneData,
-      altitude,
-      speed,
-      on_ground,
-      flight_score: liveScore,
-      has_active_flight: true,
-    }).catch(() => {});
+    // Keep a live XPlaneLog stream during active contracts, but throttle writes
+    // to reduce backend load and telemetry lag.
+    const prevXPlaneLogAtMs = Number(prevXd.last_xplanelog_at_ms ?? 0);
+    const nowMs = Date.now();
+    const shouldWriteLiveLog =
+      !Number.isFinite(prevXPlaneLogAtMs) ||
+      prevXPlaneLogAtMs <= 0 ||
+      (nowMs - prevXPlaneLogAtMs) >= 6000;
+    xplaneData.last_xplanelog_at_ms = shouldWriteLiveLog ? nowMs : prevXPlaneLogAtMs;
+    if (shouldWriteLiveLog) {
+      base44.asServiceRole.entities.XPlaneLog.create({
+        company_id: company.id,
+        raw_data: xplaneData,
+        altitude,
+        speed,
+        on_ground,
+        flight_score: liveScore,
+        has_active_flight: true,
+      }).catch(() => {});
+    }
 
     // Background cleanup so logs do not grow unbounded.
     if (Math.random() < 0.02) {
@@ -1448,23 +1479,23 @@ Deno.serve(async (req) => {
     return Response.json({ 
       flight_id: flight.id,
       contract_id: flight.contract_id || null,
-      departure_airport: contract?.departure_airport || null,
-      arrival_airport: contract?.arrival_airport || null,
+      departure_airport: contractDepartureAirport,
+      arrival_airport: contractArrivalAirport,
       // Livemap source values (primary for plugin HUD)
       livemap_total_nm: simbriefTotalNm,
       livemap_remaining_nm: simbriefRemainingNm,
       livemap_flown_nm: simbriefFlownNm,
       livemap_progress_pct: simbriefProgressPct,
       // Keep legacy fields for compatibility
-      distance_nm: simbriefRemainingNm ?? contract?.distance_nm ?? null,
+      distance_nm: simbriefRemainingNm ?? contractDistanceNm ?? null,
       deadline_minutes: selectedDeadlineMinutes,
       base44_score: liveScore ?? data.flight_score ?? flight.flight_score ?? 100,
       base44_last_incident: base44LastIncident,
       base44_active_failures_count: activeFailuresForHud.length,
       base44_deadline_remaining_sec: deadlineRemainingSec,
-      contract_payout: contract?.payout ?? null,
-      contract_bonus_potential: contract?.bonus_potential ?? null,
-      contract_total_potential: ((contract?.payout ?? 0) + (contract?.bonus_potential ?? 0)) || null,
+      contract_payout: contractPayout ?? null,
+      contract_bonus_potential: contractBonusPotential ?? null,
+      contract_total_potential: ((contractPayout ?? 0) + (contractBonusPotential ?? 0)) || null,
       contract_payout_currency: "$",
       departure_lat,
       departure_lon,
@@ -1490,6 +1521,7 @@ Deno.serve(async (req) => {
       aircraft_gate_company_level: gateMeta.companyLevel,
       aircraft_owned: aircraftOwned,
       xplane_connection_status: 'connected',
+      server_processing_ms: Date.now() - reqStartedAtMs,
       simulator
     });
 
