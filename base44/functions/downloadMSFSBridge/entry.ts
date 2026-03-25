@@ -43,6 +43,7 @@ API_ENDPOINT = "${apiEndpoint}"
 API_KEY = "${apiKey}"
 POST_TIMEOUT = 2.0
 LOOP_INTERVAL = 2.0
+SAMPLE_INTERVAL = 0.2
 
 # Fuel density constants (kg per gallon)
 JETA_KG_PER_GALLON = 3.039   # Jet-A / Jet-A1
@@ -94,7 +95,7 @@ def post_payload(payload):
 
 def connect_sim():
     sm = SimConnect()
-    aq = AircraftRequests(sm, _time=250)
+    aq = AircraftRequests(sm, _time=100)
     return sm, aq
 
 def reset_flight_state():
@@ -127,6 +128,7 @@ def main():
     prev_on_ground = True
     prev_vs = 0.0
     state = reset_flight_state()
+    next_post_at = 0.0
 
     print("[SkyCareer] Starting MSFS bridge v2.1 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
@@ -438,11 +440,14 @@ def main():
                 print(f"[SkyCareer] ENV: OAT={oat_c}C QNH={baro_mb}mb WIND={wind_direction}/{wind_speed_kts}kt ELEV={ground_elev_ft}ft GWT={total_weight_kg}kg")
                 print(f"[SkyCareer] EVENTS: {ev_display} | G={g_force:.2f} MaxG={state['max_g_force']:.2f} AoA={incidence_alpha:.1f} Pitch={pitch:.1f} IAS={ias:.0f}")
 
-            resp = post_payload(payload)
-            if resp.status_code >= 400:
-                print(f"[SkyCareer] API error {resp.status_code}: {resp.text[:200]}")
+            now = time.time()
+            if now >= next_post_at:
+                resp = post_payload(payload)
+                if resp.status_code >= 400:
+                    print(f"[SkyCareer] API error {resp.status_code}: {resp.text[:200]}")
+                next_post_at = now + LOOP_INTERVAL
 
-            time.sleep(LOOP_INTERVAL)
+            time.sleep(SAMPLE_INTERVAL)
 
         except KeyboardInterrupt:
             print("\\n[SkyCareer] Stopped by user.")
@@ -452,6 +457,7 @@ def main():
             traceback.print_exc()
             sm = None
             aq = None
+            next_post_at = 0.0
             time.sleep(3.0)
 
 if __name__ == "__main__":
