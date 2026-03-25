@@ -469,6 +469,15 @@ export default function FlightTracker() {
      if (!aircraft || aircraft.length === 0) {
        throw new Error('Flugzeugdaten nicht geladen');
      }
+
+     // Pull latest flight snapshot first so completion uses freshest touchdown values.
+     let latestFlight = activeFlight;
+     try {
+       const latestFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
+       if (latestFlights?.[0]) latestFlight = latestFlights[0];
+     } catch (_) {
+       // no-op: fallback to current activeFlight snapshot
+     }
      
      // Use the latest flightData from ref to ensure all events are captured
      let finalFlightData = flightDataRef.current || flightData;
@@ -477,7 +486,7 @@ export default function FlightTracker() {
      // stelle sicher dass das crash-Event gesetzt ist
      if (finalFlightData.events && !finalFlightData.events.crash) {
        // Prüfe ob ein Crash über andere Wege erkannt wurde
-       const latestXPlane = activeFlight?.xplane_data;
+       const latestXPlane = latestFlight?.xplane_data || activeFlight?.xplane_data;
        if (latestXPlane?.has_crashed) {
          finalFlightData = {
            ...finalFlightData,
@@ -488,7 +497,43 @@ export default function FlightTracker() {
      
      // Realistic cost calculations based on aviation industry
      // Use actual X-Plane fuel data: initial_fuel_kg - current fuel_kg
-     const xpData = activeFlight?.xplane_data || {};
+     const xpData = latestFlight?.xplane_data || activeFlight?.xplane_data || {};
+     const liveData = xplaneLog?.raw_data || {};
+     const nonZeroNumber = (...values) => {
+       for (const value of values) {
+         const num = Number(value);
+         if (Number.isFinite(num) && Math.abs(num) > 0) return num;
+       }
+       return 0;
+     };
+     const positiveNumber = (...values) => {
+       for (const value of values) {
+         const num = Number(value);
+         if (Number.isFinite(num) && num > 0) return num;
+       }
+       return 0;
+     };
+     const resolvedLandingVs = nonZeroNumber(
+       finalFlightData.landingVs,
+       finalFlightData.landing_vs,
+       liveData.touchdown_vspeed,
+       liveData.landing_vs,
+       xpData.touchdown_vspeed,
+       xpData.landing_vs
+     );
+     const resolvedLandingG = positiveNumber(
+       finalFlightData.landingGForce,
+       finalFlightData.landing_g_force,
+       liveData.landing_g_force,
+       liveData.landingGForce,
+       xpData.landing_g_force,
+       xpData.landingGForce
+     );
+     finalFlightData = {
+       ...finalFlightData,
+       landingVs: resolvedLandingVs || finalFlightData.landingVs || 0,
+       landingGForce: resolvedLandingG || finalFlightData.landingGForce || 0,
+     };
      const initialFuelKg = xpData.initial_fuel_kg || 0;
      const currentFuelKg = finalFlightData.fuelKg || xpData.fuel_kg || 0;
      const fuelUsedKg = Math.max(0, initialFuelKg - currentFuelKg);
@@ -728,6 +773,8 @@ export default function FlightTracker() {
                passenger_comments: generatePassengerComments(scoreWithTime, finalFlightData),
                xplane_data: {
                  ...finalFlightData,
+                 landing_g_force: finalFlightData.landingGForce || existingXpData.landing_g_force || existingXpData.landingGForce || 0,
+                 touchdown_vspeed: finalFlightData.landingVs || existingXpData.touchdown_vspeed || existingXpData.landing_vs || 0,
                  flight_path: preservedFlightPath,
                  flight_events_log: preservedFlightEventsLog,
                  telemetry_history: preservedTelemetryHistory,
@@ -1311,7 +1358,7 @@ export default function FlightTracker() {
         setFlightData(prev => { const u = { ...prev, events: { ...prev.events, wrong_airport: true }, flightScore: 0 }; flightDataRef.current = u; return u; });
       }
       setFlightPhase('completed');
-      setTimeout(() => completeFlightMutation.mutate(), 500);
+      setTimeout(() => completeFlightMutation.mutate(), 1500);
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
