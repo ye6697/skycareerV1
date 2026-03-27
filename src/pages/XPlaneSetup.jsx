@@ -496,8 +496,8 @@ export default function XPlaneSetup() {
                       </p>
                       <p className="text-slate-400">
                         {lang === 'de'
-                          ? 'Bridge-ZIP: entpacken und SkyCareerMsfsBridge.exe starten.'
-                          : 'Bridge ZIP: unzip and run SkyCareerMsfsBridge.exe.'}
+                          ? 'Bridge-ZIP: entpacken, Ordner "SkyCareer_MSFS_Bridge" oeffnen und SkyCareerMsfsBridge.exe starten.'
+                          : 'Bridge ZIP: unzip, open folder "SkyCareer_MSFS_Bridge", and run SkyCareerMsfsBridge.exe.'}
                       </p>
                     </div>
                   </div>
@@ -565,7 +565,7 @@ export default function XPlaneSetup() {
                     </h4>
                     <div className="space-y-3 text-sm">
                       <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'ZIP entpacken' : 'Extract the ZIP'}</p>
+                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'ZIP entpacken und Ordner "SkyCareer_MSFS_Bridge" oeffnen' : 'Extract ZIP and open folder "SkyCareer_MSFS_Bridge"'}</p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'MSFS starten' : 'Start MSFS'}</p>
@@ -573,8 +573,8 @@ export default function XPlaneSetup() {
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">
                           3. {lang === 'de'
-                            ? 'SkyCareerMsfsBridge.exe starten'
-                            : 'Start SkyCareerMsfsBridge.exe'}
+                            ? 'SkyCareer_MSFS_Bridge/SkyCareerMsfsBridge.exe starten'
+                            : 'Start SkyCareer_MSFS_Bridge/SkyCareerMsfsBridge.exe'}
                         </p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">

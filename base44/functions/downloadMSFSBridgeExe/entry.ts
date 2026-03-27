@@ -2,6 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://aero-career-pilot.base44.app/api/functions/receiveXPlaneData';
+const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
+const BRIDGE_ROOT_README = `SkyCareer MSFS Bridge
+
+1) Open folder: ${BRIDGE_PACKAGE_DIR}
+2) Start: SkyCareerMsfsBridge.exe
+`;
 const BRIDGE_ZIP_CANDIDATES = [
   new URL('./assets/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
   new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
@@ -101,15 +107,17 @@ Deno.serve(async (req) => {
       const targetName = normalizeZipPath(name);
       if (!targetName) continue;
       const fileName = basename(targetName).toLowerCase();
+      const packagedName = `${BRIDGE_PACKAGE_DIR}/${targetName}`;
 
       if (fileName === 'skycareermsfsbridge.exe.config') {
         const configText = await file.async('string');
-        outputZip.file(targetName, patchBridgeConfig(configText, apiKey, endpoint));
+        outputZip.file(packagedName, patchBridgeConfig(configText, apiKey, endpoint));
       } else {
         const data = await file.async('uint8array');
-        outputZip.file(targetName, data);
+        outputZip.file(packagedName, data);
       }
     }
+    outputZip.file('README_START_HERE.txt', BRIDGE_ROOT_README);
     const finalZipBytes = await outputZip.generateAsync({
       type: 'uint8array',
       compression: 'DEFLATE',
