@@ -1180,16 +1180,6 @@ export default function FlightTracker() {
     const xp = xplaneLog.raw_data;
 
     const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || xp.sim_disabled);
-    // Check for crash via X-Plane/MSFS signals - only when aircraft was airborne
-    if (crashSignal && (flightData.wasAirborne || !!xp.was_airborne)) {
-    setFlightData(prev => ({
-      ...prev,
-      events: {
-        ...prev.events,
-        crash: true
-      }
-    }));
-    }
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
@@ -1200,7 +1190,8 @@ export default function FlightTracker() {
         Number(xp.speed || 0) > 35 ||
         Math.abs(Number(xp.vertical_speed || 0)) > 200
       );
-      const newWasAirborne = prev.wasAirborne || airborneEvidence;
+      const backendAirborneArmed = !!(xp.completion_armed || xp.was_airborne);
+      const newWasAirborne = prev.wasAirborne || airborneEvidence || backendAirborneArmed;
 
       // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
       if (!newWasAirborne) {
@@ -1223,6 +1214,11 @@ export default function FlightTracker() {
           departure_lon: prev.departure_lon || xp.departure_lon || curLon || 0,
           arrival_lat: prev.arrival_lat || xp.arrival_lat || 0,
           arrival_lon: prev.arrival_lon || xp.arrival_lon || 0,
+          events: {
+            tailstrike: false, stall: false, overstress: false, overspeed: false,
+            flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
+            crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
+          },
           wasAirborne: false,
         };
         flightDataRef.current = groundData;
@@ -1300,7 +1296,7 @@ export default function FlightTracker() {
       }
 
       // Crash nur wenn tatsächlich abgehoben war
-      const isCrashArmed = newWasAirborne || !!xp.was_airborne;
+      const isCrashArmed = newWasAirborne;
       const isCrash = (landingType === 'crash' || prev.events.crash || (crashSignal && isCrashArmed)) && isCrashArmed;
       
       // Calculate score penalties - only deduct when NEW event occurs

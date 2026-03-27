@@ -1248,6 +1248,14 @@ Deno.serve(async (req) => {
     const completionArmedAt = completionArmSignal
       ? (prevCompletionArmedAt || new Date().toISOString())
       : ((on_ground && !hasBeenAirborne) ? null : prevCompletionArmedAt);
+    const incidentArmed = hasBeenAirborne || completionArmed;
+    const tailstrikeDetected = incidentArmed && toBool(tailstrike, false);
+    const stallDetected = incidentArmed && !!(stall || is_in_stall || stall_warning || override_alpha);
+    const overspeedDetected = incidentArmed && toBool(overspeed, false);
+    const flapsOverspeedDetected = incidentArmed && toBool(flaps_overspeed, false);
+    const gearUpLandingDetected = incidentArmed && toBool(gear_up_landing, false);
+    const harshControlsDetected = incidentArmed && toBool(data.harsh_controls || data.harshControls, false);
+    const fuelEmergencyDetected = hasBeenAirborne && toBool(fuel_emergency, false);
 
     const shouldSynthesizeTouchdownEvidence =
       hasBeenAirborne &&
@@ -1284,9 +1292,10 @@ Deno.serve(async (req) => {
       Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 900 ||
       Number(effectiveLandingG || 0) >= 2.9
     );
-    const overstressDetected = toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceEffective) >= 2.6);
-    const prevCrashState = toBool(prevXd.crash ?? prevXd.has_crashed, false);
-    const isCrash = !!(isCrashSignal || crashFromTouchdown || prevCrashState);
+    const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceEffective) >= 2.6));
+    const prevCrashState = hasFreshAirborneState ? toBool(prevXd.crash ?? prevXd.has_crashed, false) : false;
+    const crashSignalTrusted = incidentArmed ? isCrashSignal : false;
+    const isCrash = !!(crashSignalTrusted || crashFromTouchdown || prevCrashState);
     const effectiveBridgePostInterval = bridgePostIntervalMs ?? (Number(prevXd.bridge_post_interval_ms ?? 0) || null);
     const effectiveBridgeSampleInterval = bridgeSampleIntervalMs ?? (Number(prevXd.bridge_sample_interval_ms ?? 0) || null);
 
@@ -1325,21 +1334,21 @@ Deno.serve(async (req) => {
       flap_ratio,
       pitch: pitch || 0,
       ias: ias || 0,
-      tailstrike,
-      stall: stall || is_in_stall || stall_warning || override_alpha,
-      is_in_stall,
-      stall_warning,
-      override_alpha,
+      tailstrike: tailstrikeDetected,
+      stall: stallDetected,
+      is_in_stall: incidentArmed && toBool(is_in_stall, false),
+      stall_warning: incidentArmed && toBool(stall_warning, false),
+      override_alpha: incidentArmed && toBool(override_alpha, false),
       overstress: overstressDetected,
-      overspeed: overspeed || false,
-      flaps_overspeed: flaps_overspeed || false,
-      fuel_emergency,
-      gear_up_landing,
+      overspeed: overspeedDetected,
+      flaps_overspeed: flapsOverspeedDetected,
+      fuel_emergency: fuelEmergencyDetected,
+      gear_up_landing: gearUpLandingDetected,
       crash: isCrash,
       has_crashed: isCrash,
       crash_flag: !!crash_flag,
       sim_disabled: !!sim_disabled,
-      harsh_controls: data.harsh_controls || data.harshControls || false,
+      harsh_controls: harshControlsDetected,
       was_airborne: hasBeenAirborne,
       airborne_started_at: airborneStartedAt,
       completion_armed: completionArmed,
@@ -1530,9 +1539,9 @@ Deno.serve(async (req) => {
           }
         }
 
-        const stallNow = !!(stall || is_in_stall || stall_warning);
+        const stallNow = stallDetected;
         appendEvent("tailstrike", {}, {
-          force: !!(tailstrike && !prevXd.tailstrike),
+          force: !!(tailstrikeDetected && !prevXd.tailstrike),
           cooldownSec: 60,
           minDistanceNm: 0.4,
         });
@@ -1547,17 +1556,17 @@ Deno.serve(async (req) => {
           minDistanceNm: 0.2,
         });
         appendEvent("overspeed", {}, {
-          force: !!(overspeed && !prevXd.overspeed),
+          force: !!(overspeedDetected && !prevXd.overspeed),
           cooldownSec: 14,
           minDistanceNm: 0.2,
         });
         appendEvent("flaps_overspeed", {}, {
-          force: !!(flaps_overspeed && !prevXd.flaps_overspeed),
+          force: !!(flapsOverspeedDetected && !prevXd.flaps_overspeed),
           cooldownSec: 20,
           minDistanceNm: 0.2,
         });
         appendEvent("gear_up_landing", {}, {
-          force: !!(gear_up_landing && !prevXd.gear_up_landing),
+          force: !!(gearUpLandingDetected && !prevXd.gear_up_landing),
           cooldownSec: 120,
           minDistanceNm: 0.1,
         });
@@ -1894,12 +1903,12 @@ Deno.serve(async (req) => {
     const mergedScorePacket = {
       max_g_force: Math.max(Number(max_g_force || 0), Number(prev.max_g_force || 0)),
       landing_g_force: Number(effectiveLandingG ?? prev.landing_g_force ?? 0),
-      tailstrike: !!(tailstrike || prev.tailstrike),
-      stall: !!(stall || is_in_stall || stall_warning || override_alpha || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
+      tailstrike: !!(tailstrikeDetected || prev.tailstrike),
+      stall: !!(stallDetected || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
       overstress: !!(overstressDetected || prev.overstress),
-      overspeed: !!(overspeed || prev.overspeed),
-      flaps_overspeed: !!(flaps_overspeed || prev.flaps_overspeed),
-      gear_up_landing: !!(gear_up_landing || prev.gear_up_landing),
+      overspeed: !!(overspeedDetected || prev.overspeed),
+      flaps_overspeed: !!(flapsOverspeedDetected || prev.flaps_overspeed),
+      gear_up_landing: !!(gearUpLandingDetected || prev.gear_up_landing),
       crash: !!(isCrash || prev.crash || prev.has_crashed),
       has_crashed: !!(isCrash || prev.has_crashed || prev.crash),
     };
