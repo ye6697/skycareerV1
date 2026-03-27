@@ -751,8 +751,74 @@ function update(d) {
     });
   }
 
-  // Flight events log markers - rebuild when count OR last-event signature changed.
-  var evtLog = d.flightEventsLog || [];
+  // Flight events log markers (map-only dedupe to avoid visual spam).
+  var evtLogRaw = Array.isArray(d.flightEventsLog) ? d.flightEventsLog : [];
+  var normalizeEvtType = function(v) {
+    var tp = String(v || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (!tp) return '';
+    if (tp === 'crashed' || tp === 'has_crashed') return 'crash';
+    if (tp === 'spoiler' || tp === 'speedbrake_on') return 'spoiler_on';
+    if (tp === 'speedbrake_off') return 'spoiler_off';
+    return tp;
+  };
+  var dedupeCfg = {
+    crash: { cooldownSec: 36000, minNm: 9999, single: true },
+    tailstrike: { cooldownSec: 36000, minNm: 9999, single: true },
+    stall: { cooldownSec: 36000, minNm: 9999, single: true },
+    gear_up_landing: { cooldownSec: 36000, minNm: 9999, single: true },
+    overstress: { cooldownSec: 36000, minNm: 9999, single: true },
+    overspeed: { cooldownSec: 36000, minNm: 9999, single: true },
+    flaps_overspeed: { cooldownSec: 36000, minNm: 9999, single: true },
+    harsh_controls: { cooldownSec: 36000, minNm: 9999, single: true },
+    flaps: { cooldownSec: 8, minNm: 0.08 },
+    gear_up: { cooldownSec: 8, minNm: 0.08 },
+    gear_down: { cooldownSec: 8, minNm: 0.08 },
+    spoiler_on: { cooldownSec: 8, minNm: 0.08 },
+    spoiler_off: { cooldownSec: 8, minNm: 0.08 },
+    _default: { cooldownSec: 60, minNm: 0.5 }
+  };
+  var dedupeEventsForMap = function(list) {
+    var byType = {};
+    var seen = new Set();
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var src = list[i] || {};
+      var lat = Number(src.lat);
+      var lon = Number(src.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      var tp = normalizeEvtType(src.type || src.event || src.name);
+      if (!tp) continue;
+
+      var tsRaw = Date.parse(String(src.t || src.timestamp || ''));
+      var ts = Number.isFinite(tsRaw) ? tsRaw : (i * 1000);
+      var timeBucket = Number.isFinite(tsRaw) ? Math.floor(ts / 10000) : i;
+      var bucketSig = tp + '|' + lat.toFixed(4) + '|' + lon.toFixed(4) + '|' + timeBucket;
+      if (seen.has(bucketSig)) continue;
+
+      var cfg = dedupeCfg[tp] || dedupeCfg._default;
+      var prev = byType[tp];
+      if (prev) {
+        if (cfg.single) continue;
+        var dtSec = Math.abs(ts - prev.ts) / 1000;
+        var movedNm = haversineNm(prev.lat, prev.lon, lat, lon);
+        if (dtSec < cfg.cooldownSec && movedNm < cfg.minNm) {
+          continue;
+        }
+      }
+
+      seen.add(bucketSig);
+      byType[tp] = { ts: ts, lat: lat, lon: lon };
+      out.push({
+        ...src,
+        type: tp,
+        lat: lat,
+        lon: lon,
+        t: Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : (src.t || src.timestamp || null)
+      });
+    }
+    return out.length > 180 ? out.slice(-180) : out;
+  };
+  var evtLog = dedupeEventsForMap(evtLogRaw);
   var lastEvt = evtLog.length ? evtLog[evtLog.length - 1] : null;
   var evtSignature = evtLog.length + '|' + (lastEvt ? ((lastEvt.type||'') + '|' + (lastEvt.t||'') + '|' + (lastEvt.lat||'') + '|' + (lastEvt.lon||'')) : '');
   if (evtLog.length !== layers._lastEvtCount || evtSignature !== layers._lastEvtSignature) {
