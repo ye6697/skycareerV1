@@ -1083,7 +1083,13 @@ Deno.serve(async (req) => {
     const incomingFmsWaypoints = normalizeWpList(data.fms_waypoints); // array of {name, lat, lon, alt}
 
     const areEnginesRunning = engines_running || engine1_running || engine2_running;
-    const wasAirborne = prevXd.was_airborne || false;
+    const prevAirborneStartedAt = prevXd.airborne_started_at || null;
+    const flightCreatedAtMs = Date.parse(String(flight.created_date || ""));
+    const prevAirborneStartedAtMs = Date.parse(String(prevAirborneStartedAt || ""));
+    const hasFreshAirborneState =
+      Number.isFinite(prevAirborneStartedAtMs) &&
+      (!Number.isFinite(flightCreatedAtMs) || prevAirborneStartedAtMs >= (flightCreatedAtMs - 5000));
+    const wasAirborne = hasFreshAirborneState ? toBool(prevXd.was_airborne, false) : false;
     const payloadWasAirborne = toBool(data.was_airborne ?? data.wasAirborne, false);
     const speedNow = Number(speed || 0);
     const verticalNow = Math.abs(Number(vertical_speed || 0));
@@ -1197,10 +1203,24 @@ Deno.serve(async (req) => {
 
     // Build a LEAN xplane_data object - only current sensor readings
     // No merging with previous data (the frontend tracks accumulated state)
-    const prevAirborneStartedAt = prevXd.airborne_started_at || null;
     const airborneStartedAt = (!on_ground && altitude > 10)
       ? (prevAirborneStartedAt || new Date().toISOString())
       : prevAirborneStartedAt;
+    const airborneStartedAtMs = Date.parse(String(airborneStartedAt || ""));
+    const airborneDurationSec = Number.isFinite(airborneStartedAtMs)
+      ? Math.max(0, Math.floor((Date.now() - airborneStartedAtMs) / 1000))
+      : 0;
+    const prevCompletionArmed = toBool(prevXd.completion_armed, false);
+    const prevCompletionArmedAt = prevXd.completion_armed_at || null;
+    const minAirborneSecondsForCompletion = 35;
+    const completionArmSignal = hasBeenAirborne && !on_ground && (
+      airborneDurationSec >= minAirborneSecondsForCompletion ||
+      (speedNow >= 120 && altitude >= 300)
+    );
+    const completionArmed = completionArmSignal || (prevCompletionArmed && hasBeenAirborne);
+    const completionArmedAt = completionArmSignal
+      ? (prevCompletionArmedAt || new Date().toISOString())
+      : ((on_ground && !hasBeenAirborne) ? null : prevCompletionArmedAt);
 
     const shouldSynthesizeTouchdownEvidence =
       hasBeenAirborne &&
@@ -1293,6 +1313,8 @@ Deno.serve(async (req) => {
       harsh_controls: data.harsh_controls || data.harshControls || false,
       was_airborne: hasBeenAirborne,
       airborne_started_at: airborneStartedAt,
+      completion_armed: completionArmed,
+      completion_armed_at: completionArmedAt,
       // Preserve departure/arrival coords from first packet
       departure_lat: data.departure_lat || (prevXd.departure_lat || 0),
       departure_lon: data.departure_lon || (prevXd.departure_lon || 0),
@@ -1594,7 +1616,8 @@ Deno.serve(async (req) => {
     // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
     const maintenanceRatio = company?.current_maintenance_ratio || 0;
     
-    const flightStatus = (on_ground && hasBeenAirborne) ? 'ready_to_complete' : 'updated';
+    const completionReady = on_ground && hasBeenAirborne && completionArmed;
+    const flightStatus = completionReady ? 'ready_to_complete' : 'updated';
     
     // === FAILURE TRIGGER SYSTEM ===
     // Failures are triggered based on maintenance wear percentage.
