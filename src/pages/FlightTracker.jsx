@@ -1818,6 +1818,7 @@ export default function FlightTracker() {
               distanceInfo={distanceInfo}
               flight={flight}
               existingFlight={existingFlight}
+              xplaneRawData={xplaneLog?.raw_data || null}
             />
 
             {/* Flight Score & Events */}

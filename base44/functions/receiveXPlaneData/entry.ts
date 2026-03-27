@@ -1125,6 +1125,33 @@ Deno.serve(async (req) => {
     const initial_fuel_kg = hasBeenAirborne
       ? (prevInitialFuelKg > 0 ? prevInitialFuelKg : lastValidFuelKg)
       : (lastValidFuelKg > 0 ? lastValidFuelKg : prevInitialFuelKg);
+    const prevSampleTsMs = Date.parse(String(prevXd.timestamp || ""));
+    const fuelSampleDeltaSec = Number.isFinite(prevSampleTsMs)
+      ? Math.max(0, (Date.now() - prevSampleTsMs) / 1000)
+      : 0;
+    const prevFuelBurnRateKgph = Number(prevXd.fuel_burn_rate_kgph ?? 0);
+    let instantFuelBurnRateKgph = 0;
+    if (
+      hasBeenAirborne &&
+      fuelSampleDeltaSec >= 1 &&
+      prevFuelKg > 0 &&
+      effectiveFuelKg >= 0 &&
+      effectiveFuelKg <= prevFuelKg
+    ) {
+      const burnedKg = prevFuelKg - effectiveFuelKg;
+      if (burnedKg > 0) {
+        const computedRate = (burnedKg * 3600) / fuelSampleDeltaSec;
+        if (Number.isFinite(computedRate) && computedRate >= 5 && computedRate <= 12000) {
+          instantFuelBurnRateKgph = computedRate;
+        }
+      }
+    }
+    const fuelBurnRateKgph = instantFuelBurnRateKgph > 0
+      ? (prevFuelBurnRateKgph > 0
+          ? ((prevFuelBurnRateKgph * 0.75) + (instantFuelBurnRateKgph * 0.25))
+          : instantFuelBurnRateKgph)
+      : (prevFuelBurnRateKgph > 0 ? prevFuelBurnRateKgph : 0);
+    const fuelBurnRateLph = fuelBurnRateKgph > 0 ? (fuelBurnRateKgph * 1.25) : 0;
 
     // Track flight path: denser capture + interpolation to avoid visual data loss on slower packet delivery.
     const existingPath = Array.isArray(prevXd.flight_path) ? prevXd.flight_path : [];
@@ -1273,6 +1300,8 @@ Deno.serve(async (req) => {
       fuel_kg: effectiveFuelKg || 0,
       last_valid_fuel_kg: lastValidFuelKg || 0,
       initial_fuel_kg,
+      fuel_burn_rate_kgph: fuelBurnRateKgph > 0 ? Number(fuelBurnRateKgph.toFixed(1)) : 0,
+      fuel_burn_rate_lph: fuelBurnRateLph > 0 ? Number(fuelBurnRateLph.toFixed(1)) : 0,
       g_force: gForceEffective,
       max_g_force,
       g_force_window_peak: Number.isFinite(gForceWindowPeakNumeric) ? gForceWindowPeakNumeric : null,
@@ -1461,7 +1490,17 @@ Deno.serve(async (req) => {
           })
           .filter(Boolean)
           .slice(-120);
+        const isCrashEventType = (eventType) => eventType === "crash" || eventType === "crashed" || eventType === "has_crashed";
         for (const eventItem of normalizedBridgeEvents) {
+          if (isCrashEventType(eventItem.type)) {
+            if (!isCrash) continue;
+            appendEvent("crash", eventItem, {
+              force: !!(isCrash && !prevCrashState),
+              cooldownSec: 36000,
+              minDistanceNm: 9999,
+            });
+            continue;
+          }
           appendEvent(eventItem.type, eventItem, { cooldownSec: 1, minDistanceNm: 0.02 });
         }
 
@@ -1524,8 +1563,8 @@ Deno.serve(async (req) => {
         });
         appendEvent("crash", {}, {
           force: !!(isCrash && !prevCrashState),
-          cooldownSec: 180,
-          minDistanceNm: 0.05,
+          cooldownSec: 36000,
+          minDistanceNm: 9999,
         });
 
         return merged.length > 650 ? merged.slice(-650) : merged;
