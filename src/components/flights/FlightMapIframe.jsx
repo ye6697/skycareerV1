@@ -751,8 +751,44 @@ function update(d) {
     });
   }
 
-  // Flight events log markers (map-only dedupe to avoid visual spam).
-  var evtLogRaw = Array.isArray(d.flightEventsLog) ? d.flightEventsLog : [];
+  // Flight events log markers.
+  // Live mode: derive marker points from trusted live event flags (same source as side panels).
+  // Static mode: use stored historical event log from backend.
+  var evtLogRaw = [];
+  if (!staticMode) {
+    layers._liveIncidentLog = Array.isArray(layers._liveIncidentLog) ? layers._liveIncidentLog : [];
+    layers._liveIncidentState = layers._liveIncidentState || {};
+    var liveIncidentTypes = ['crash', 'tailstrike', 'stall', 'overstress', 'overspeed', 'flaps_overspeed', 'gear_up_landing', 'harsh_controls', 'touchdown'];
+    if (!live || !live.wasAirborne) {
+      layers._liveIncidentLog = [];
+      layers._liveIncidentState = {};
+    } else if (curPos && live.events) {
+      for (var li = 0; li < liveIncidentTypes.length; li++) {
+        var lType = liveIncidentTypes[li];
+        var isNowOn = !!live.events[lType];
+        var wasOn = !!layers._liveIncidentState[lType];
+        if (isNowOn && !wasOn) {
+          layers._liveIncidentLog.push({
+            type: lType,
+            lat: Number(curPos[0]),
+            lon: Number(curPos[1]),
+            alt: Number(fd.altitude || 0),
+            spd: Number(fd.speed || 0),
+            vs: Number(fd.verticalSpeed || 0),
+            g: Number((live.gForce || fd.gForce || 1).toFixed ? (live.gForce || fd.gForce || 1).toFixed(2) : (live.gForce || fd.gForce || 1)),
+            t: new Date().toISOString()
+          });
+        }
+        layers._liveIncidentState[lType] = isNowOn;
+      }
+      if (layers._liveIncidentLog.length > 180) {
+        layers._liveIncidentLog = layers._liveIncidentLog.slice(-180);
+      }
+    }
+    evtLogRaw = layers._liveIncidentLog;
+  } else {
+    evtLogRaw = Array.isArray(d.flightEventsLog) ? d.flightEventsLog : [];
+  }
   var normalizeEvtType = function(v) {
     var tp = String(v || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
     if (!tp) return '';

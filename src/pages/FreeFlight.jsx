@@ -402,7 +402,8 @@ export default function FreeFlight() {
               fuelPercent: flightData.fuel,
               fuelKg: flightData.fuelKg,
               flightScore: flightData.flightScore,
-              events: flightData.events
+              events: flightData.events,
+              wasAirborne: flightData.wasAirborne
             }}
           />
 

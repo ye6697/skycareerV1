@@ -2150,7 +2150,7 @@ export default function FlightTracker() {
               liveFlightData={{
                 gForce: flightData.gForce, maxGForce: flightData.maxGForce,
                 fuelPercent: flightData.fuel, fuelKg: flightData.fuelKg,
-                flightScore: flightData.flightScore, events: flightData.events,
+                flightScore: flightData.flightScore, events: flightData.events, wasAirborne: flightData.wasAirborne,
                 weather: xplaneLog?.raw_data ? { wind_speed_kts: xplaneLog.raw_data.wind_speed_kts, wind_direction: xplaneLog.raw_data.wind_direction, rain_intensity: xplaneLog.raw_data.rain_intensity, precipitation: xplaneLog.raw_data.precipitation, precip_rate: xplaneLog.raw_data.precip_rate, oat_c: xplaneLog.raw_data.oat_c, tat_c: xplaneLog.raw_data.tat_c, baro_setting: xplaneLog.raw_data.baro_setting, turbulence: xplaneLog.raw_data.turbulence } : null
               }}
             />
