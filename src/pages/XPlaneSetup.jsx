@@ -418,8 +418,8 @@ export default function XPlaneSetup() {
                     </div>
                     <p className="text-sm text-slate-400 mb-3 break-words">
                       {lang === 'de'
-                        ? 'MSFS SimConnect-Bridge als ZIP mit modernem Bridge Launcher (Auto-Start/Stop bei MSFS oder X-Plane 12).'
-                        : 'MSFS SimConnect bridge ZIP with modern bridge launcher (auto start/stop for MSFS or X-Plane 12).'}
+                        ? 'MSFS SimConnect-Bridge als ZIP. Start direkt mit SkyCareerMsfsBridge.exe.'
+                        : 'MSFS SimConnect bridge ZIP. Start directly with SkyCareerMsfsBridge.exe.'}
                     </p>
                     <Button
                       className="w-full bg-cyan-600 hover:bg-cyan-700 whitespace-normal h-auto py-2"
@@ -496,8 +496,8 @@ export default function XPlaneSetup() {
                       </p>
                       <p className="text-slate-400">
                         {lang === 'de'
-                          ? 'Bridge-ZIP: entpacken und SkyCareerBridgeLauncher.cmd starten (empfohlen).'
-                          : 'Bridge ZIP: unzip and run SkyCareerBridgeLauncher.cmd (recommended).'}
+                          ? 'Bridge-ZIP: entpacken und SkyCareerMsfsBridge.exe starten.'
+                          : 'Bridge ZIP: unzip and run SkyCareerMsfsBridge.exe.'}
                       </p>
                     </div>
                   </div>
@@ -573,8 +573,8 @@ export default function XPlaneSetup() {
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">
                           3. {lang === 'de'
-                            ? 'SkyCareerBridgeLauncher.cmd starten (moderne UI, Auto-Start/Stop der Bridge)'
-                            : 'Start SkyCareerBridgeLauncher.cmd (modern UI, auto start/stop of the bridge)'}
+                            ? 'SkyCareerMsfsBridge.exe starten'
+                            : 'Start SkyCareerMsfsBridge.exe'}
                         </p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">
