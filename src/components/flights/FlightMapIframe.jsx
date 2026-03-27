@@ -770,12 +770,25 @@ function update(d) {
     overspeed: { cooldownSec: 36000, minNm: 9999, single: true },
     flaps_overspeed: { cooldownSec: 36000, minNm: 9999, single: true },
     harsh_controls: { cooldownSec: 36000, minNm: 9999, single: true },
+    touchdown: { cooldownSec: 36000, minNm: 9999, single: true },
     flaps: { cooldownSec: 8, minNm: 0.08 },
     gear_up: { cooldownSec: 8, minNm: 0.08 },
     gear_down: { cooldownSec: 8, minNm: 0.08 },
     spoiler_on: { cooldownSec: 8, minNm: 0.08 },
     spoiler_off: { cooldownSec: 8, minNm: 0.08 },
     _default: { cooldownSec: 60, minNm: 0.5 }
+  };
+  // Map markers should show only real incidents (no control-surface/noise events).
+  var markerAllowedTypes = {
+    crash: true,
+    tailstrike: true,
+    stall: true,
+    overstress: true,
+    overspeed: true,
+    flaps_overspeed: true,
+    gear_up_landing: true,
+    harsh_controls: true,
+    touchdown: true
   };
   var dedupeEventsForMap = function(list) {
     var byType = {};
@@ -788,6 +801,7 @@ function update(d) {
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
       var tp = normalizeEvtType(src.type || src.event || src.name);
       if (!tp) continue;
+      if (!markerAllowedTypes[tp]) continue;
 
       var tsRaw = Date.parse(String(src.t || src.timestamp || ''));
       var ts = Number.isFinite(tsRaw) ? tsRaw : (i * 1000);
