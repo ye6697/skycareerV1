@@ -403,11 +403,22 @@ Deno.serve(async (req) => {
     const altitude = data.altitude ?? data.alt ?? data.indicated_altitude;
     const speed = data.speed ?? data.airspeed ?? data.true_airspeed ?? data.tas;
     const vertical_speed = data.vertical_speed ?? data.verticalSpeed ?? data.vspeed ?? data.vertical_rate;
+    const vertical_speed_window_min = data.vertical_speed_window_min ?? data.min_vertical_speed_window ?? data.window_min_vs;
     const heading = data.heading ?? data.hdg ?? data.true_heading ?? data.magnetic_heading;
     const fuel_percentage = data.fuel_percentage ?? data.fuelPercentage ?? data.fuel_percent;
     const fuel_kg = data.fuel_kg ?? data.fuelKg ?? data.fuel_weight_kg ?? data.total_fuel_kg;
     const g_force = data.g_force ?? data.gForce ?? data.g_load ?? data.gLoad;
-    const max_g_force = data.max_g_force ?? data.maxGForce ?? data.max_g ?? data.peakG;
+    const g_force_window_peak = data.g_force_window_peak ?? data.g_peak_window ?? data.window_peak_g;
+    const gForceNumeric = Number(g_force ?? 1);
+    const gForceWindowPeakNumeric = Number(g_force_window_peak ?? 0);
+    const gForceEffective = Math.max(
+      Number.isFinite(gForceNumeric) ? gForceNumeric : 1,
+      Number.isFinite(gForceWindowPeakNumeric) ? gForceWindowPeakNumeric : 0
+    );
+    const max_g_force = Math.max(
+      Number(data.max_g_force ?? data.maxGForce ?? data.max_g ?? data.peakG ?? 0) || 0,
+      gForceEffective
+    );
     const latitude = data.latitude ?? data.lat;
     const longitude = data.longitude ?? data.lon ?? data.lng;
     const on_ground = toBool(data.on_ground ?? data.onGround ?? data.sim_on_ground ?? data.isOnGround, false);
@@ -1133,9 +1144,13 @@ Deno.serve(async (req) => {
       ? Math.max(
           50,
           Math.abs(
-            Number.isFinite(prevVerticalSpeed) && Math.abs(prevVerticalSpeed) > 0
-              ? prevVerticalSpeed
-              : Number(vertical_speed || 0)
+            Math.min(
+              Number.isFinite(prevVerticalSpeed) && Math.abs(prevVerticalSpeed) > 0
+                ? prevVerticalSpeed
+                : Number(vertical_speed || 0),
+              Number(vertical_speed || 0),
+              Number(vertical_speed_window_min || 0)
+            )
           )
         )
       : 0;
@@ -1147,7 +1162,7 @@ Deno.serve(async (req) => {
               ? transitionTouchdownVspeed
               : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0)));
     const mergedLandingGNum = Number(mergedLandingG || 0);
-    const transitionLandingG = justTouchedDown ? Math.max(1.0, Number(g_force || 1.0)) : 0;
+    const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceEffective) : 0;
     const effectiveLandingG = mergedLandingGNum > 0
       ? mergedLandingGNum
       : (useBridgeLocalLanding ? 0 : transitionLandingG);
@@ -1155,6 +1170,7 @@ Deno.serve(async (req) => {
       Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 900 ||
       Number(effectiveLandingG || 0) >= 2.9
     );
+    const overstressDetected = toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceEffective) >= 2.6);
     const prevCrashState = toBool(prevXd.crash ?? prevXd.has_crashed, false);
     const isCrash = !!(isCrashSignal || crashFromTouchdown || prevCrashState);
 
@@ -1168,8 +1184,10 @@ Deno.serve(async (req) => {
       fuel_kg: effectiveFuelKg || 0,
       last_valid_fuel_kg: lastValidFuelKg || 0,
       initial_fuel_kg,
-      g_force,
+      g_force: gForceEffective,
       max_g_force,
+      g_force_window_peak: Number.isFinite(gForceWindowPeakNumeric) ? gForceWindowPeakNumeric : null,
+      vertical_speed_window_min: Number(vertical_speed_window_min ?? 0) || 0,
       latitude,
       longitude,
       on_ground,
@@ -1192,7 +1210,7 @@ Deno.serve(async (req) => {
       is_in_stall,
       stall_warning,
       override_alpha,
-      overstress,
+      overstress: overstressDetected,
       overspeed: overspeed || false,
       flaps_overspeed: flaps_overspeed || false,
       fuel_emergency,
@@ -1276,7 +1294,7 @@ Deno.serve(async (req) => {
         // Incident events (only when first detected)
         if (tailstrike && !prevXd.tailstrike) newEvents.push({ type: 'tailstrike', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
         if ((stall || is_in_stall || stall_warning) && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning) newEvents.push({ type: 'stall', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
-        if (overstress && !prevXd.overstress) newEvents.push({ type: 'overstress', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+        if (overstressDetected && !prevXd.overstress) newEvents.push({ type: 'overstress', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
         if (overspeed && !prevXd.overspeed) newEvents.push({ type: 'overspeed', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
         if (flaps_overspeed && !prevXd.flaps_overspeed) newEvents.push({ type: 'flaps_overspeed', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
         if (isCrash && !prevCrashState) newEvents.push({ type: 'crash', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
@@ -1300,7 +1318,7 @@ Deno.serve(async (req) => {
             spd: Math.round(speed || 0),
             ias: Math.round(ias || 0),
             vs: Math.round(vertical_speed || 0),
-            g: Number((g_force || 1).toFixed(2)),
+            g: Number((gForceEffective || 1).toFixed(2)),
           };
           const updated = [...prevHistory, newPt];
           // Keep max 600 points (~2.5 hours at 15s intervals)
@@ -1604,7 +1622,7 @@ Deno.serve(async (req) => {
       landing_g_force: Number(effectiveLandingG ?? prev.landing_g_force ?? 0),
       tailstrike: !!(tailstrike || prev.tailstrike),
       stall: !!(stall || is_in_stall || stall_warning || override_alpha || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
-      overstress: !!(overstress || prev.overstress),
+      overstress: !!(overstressDetected || prev.overstress),
       overspeed: !!(overspeed || prev.overspeed),
       flaps_overspeed: !!(flaps_overspeed || prev.flaps_overspeed),
       gear_up_landing: !!(gear_up_landing || prev.gear_up_landing),

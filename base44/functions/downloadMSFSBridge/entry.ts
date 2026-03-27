@@ -106,6 +106,8 @@ def reset_flight_state():
     """Returns a clean state dict for a new flight cycle."""
     return {
         "max_g_force": 1.0,
+        "window_peak_g": 1.0,
+        "window_min_vs": 0.0,
         "touchdown_vspeed": 0.0,
         "landing_g_force": 0.0,
         "landing_data_timestamp": None,
@@ -164,6 +166,9 @@ def main():
             g_force = to_float(safe_get(aq, "G FORCE", "GForce"), 1.0)
             if g_force > state["max_g_force"]:
                 state["max_g_force"] = g_force
+            state["window_peak_g"] = max(state["window_peak_g"], g_force)
+            if vertical_speed < state["window_min_vs"]:
+                state["window_min_vs"] = vertical_speed
 
             on_ground = to_bool(safe_get(aq, "SIM ON GROUND", "bool", True))
             parking_brake = to_bool(safe_get(aq, "BRAKE PARKING POSITION", "bool", False))
@@ -222,6 +227,8 @@ def main():
             if just_took_off:
                 state["touchdown_vspeed"] = 0.0
                 state["landing_g_force"] = 0.0
+                state["window_peak_g"] = g_force
+                state["window_min_vs"] = min(0.0, vertical_speed)
                 state["landing_data_timestamp"] = None
                 state["landing_locked_local"] = False
                 state["touchdown_epoch"] = None
@@ -408,6 +415,10 @@ def main():
                 "pitch": pitch,
                 "g_force": g_force,
                 "max_g_force": state["max_g_force"],
+                "g_force_window_peak": state["window_peak_g"],
+                "vertical_speed_window_min": state["window_min_vs"],
+                "bridge_sample_interval_ms": int(SAMPLE_INTERVAL * 1000),
+                "bridge_post_interval_ms": int(LOOP_INTERVAL * 1000),
                 "latitude": latitude,
                 "longitude": longitude,
                 "on_ground": on_ground,
@@ -485,6 +496,10 @@ def main():
                 resp = post_payload(payload)
                 if resp.status_code >= 400:
                     print(f"[SkyCareer] API error {resp.status_code}: {resp.text[:200]}")
+                else:
+                    # Reset per-post peak window only after a successful send.
+                    state["window_peak_g"] = g_force
+                    state["window_min_vs"] = min(0.0, vertical_speed)
                 next_post_at = now + LOOP_INTERVAL
 
             time.sleep(SAMPLE_INTERVAL)
