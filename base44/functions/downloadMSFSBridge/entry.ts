@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     }
 
     const script = `#!/usr/bin/env python3
-# SkyCareer MSFS Bridge v2.1 (MSFS 2020 + 2024 via SimConnect)
+# SkyCareer MSFS Bridge v2.2 (MSFS 2020 + 2024 via SimConnect)
 # Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike
 # Usage:
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2020
@@ -48,6 +48,7 @@ SAMPLE_BUFFER_SECONDS = 2.0
 TOUCHDOWN_CAPTURE_BEFORE_S = 0.6
 TOUCHDOWN_CAPTURE_AFTER_S = 0.4
 TOUCHDOWN_MAX_AGL_FT = 60.0
+MAX_EVENT_QUEUE = 120
 
 # Fuel density constants (kg per gallon)
 JETA_KG_PER_GALLON = 3.039   # Jet-A / Jet-A1
@@ -125,7 +126,34 @@ def reset_flight_state():
         "event_flaps_overspeed": False,
         "event_gear_up_landing": False,
         "event_harsh_controls": False,
+        "event_queue": [],
+        "event_last_emit": {},
+        "prev_gear_down": True,
+        "prev_flap_pct": 0,
+        "prev_speedbrake_on": False,
     }
+
+def queue_event(state, event_type, lat, lon, altitude, speed, vertical_speed, g_force, val=None, cooldown=0.0):
+    now_epoch = time.time()
+    last_emit = float(state.get("event_last_emit", {}).get(event_type, 0.0) or 0.0)
+    if cooldown > 0 and (now_epoch - last_emit) < cooldown:
+        return
+    evt = {
+        "type": str(event_type),
+        "lat": float(lat) if lat is not None else None,
+        "lon": float(lon) if lon is not None else None,
+        "alt": float(altitude) if altitude is not None else None,
+        "spd": float(speed) if speed is not None else None,
+        "vs": float(vertical_speed) if vertical_speed is not None else None,
+        "g": float(g_force) if g_force is not None else None,
+        "t": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+    }
+    if val is not None:
+        evt["val"] = val
+    state["event_queue"].append(evt)
+    if len(state["event_queue"]) > MAX_EVENT_QUEUE:
+        state["event_queue"] = state["event_queue"][-MAX_EVENT_QUEUE:]
+    state["event_last_emit"][event_type] = now_epoch
 
 def main():
     parser = argparse.ArgumentParser(description="SkyCareer bridge for MSFS 2020/2024")
@@ -137,7 +165,7 @@ def main():
     state = reset_flight_state()
     next_post_at = 0.0
 
-    print("[SkyCareer] Starting MSFS bridge v2.1 ...")
+    print("[SkyCareer] Starting MSFS bridge v2.2 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
     print(f"[SkyCareer] Simulator label: {args.sim}")
 
@@ -187,6 +215,8 @@ def main():
             flap_raw = to_float(safe_get(aq, "TRAILING EDGE FLAPS LEFT PERCENT", "Position"), 0.0)
             # Normalize: if value > 1.0, it's likely 0-100 range; otherwise 0-1
             flap_ratio = flap_raw / 100.0 if flap_raw > 1.5 else flap_raw
+            speedbrake_pos = to_float(safe_get(aq, "SPOILERS HANDLE POSITION", "position"), 0.0)
+            speedbrake_on = speedbrake_pos > 0.1
 
             # === FIX #6: FUEL - detect engine type for correct density ===
             engine_type = to_float(safe_get(aq, "ENGINE TYPE", "Enum"), 0.0)
@@ -218,6 +248,10 @@ def main():
                 "vs": vertical_speed,
                 "on_ground": on_ground,
                 "agl": alt_agl,
+                "lat": latitude,
+                "lon": longitude,
+                "alt": altitude,
+                "spd": speed,
             })
             sample_cutoff = now_epoch - SAMPLE_BUFFER_SECONDS
             state["sample_buffer"] = [s for s in state["sample_buffer"] if s.get("t", 0) >= sample_cutoff]
@@ -242,6 +276,53 @@ def main():
                 print("[SkyCareer] FLIGHT CYCLE COMPLETE - resetting all events")
                 state = reset_flight_state()
 
+            # === CONTROL SURFACE/CONFIG TRANSITIONS (for map event markers) ===
+            if state.get("was_airborne"):
+                prev_gear_down = state.get("prev_gear_down", gear_down)
+                if prev_gear_down != gear_down:
+                    queue_event(
+                        state,
+                        "gear_down" if gear_down else "gear_up",
+                        latitude,
+                        longitude,
+                        altitude,
+                        speed,
+                        vertical_speed,
+                        g_force,
+                        cooldown=0.2,
+                    )
+                prev_flap_pct = int(round(float(state.get("prev_flap_pct", 0))))
+                cur_flap_pct = int(round(float(flap_ratio) * 100.0))
+                if abs(cur_flap_pct - prev_flap_pct) >= 4:
+                    queue_event(
+                        state,
+                        "flaps",
+                        latitude,
+                        longitude,
+                        altitude,
+                        speed,
+                        vertical_speed,
+                        g_force,
+                        val=cur_flap_pct,
+                        cooldown=0.5,
+                    )
+                prev_speedbrake_on = bool(state.get("prev_speedbrake_on", False))
+                if prev_speedbrake_on != speedbrake_on:
+                    queue_event(
+                        state,
+                        "spoiler_on" if speedbrake_on else "spoiler_off",
+                        latitude,
+                        longitude,
+                        altitude,
+                        speed,
+                        vertical_speed,
+                        g_force,
+                        cooldown=0.5,
+                    )
+            state["prev_gear_down"] = gear_down
+            state["prev_flap_pct"] = int(round(float(flap_ratio) * 100.0))
+            state["prev_speedbrake_on"] = bool(speedbrake_on)
+
             # === STALL DETECTION ===
             stall_warning = to_bool(safe_get(aq, "STALL WARNING", "bool", False))
             incidence_alpha = to_float(safe_get(aq, "INCIDENCE ALPHA", "degrees", 0.0), 0.0)
@@ -250,11 +331,13 @@ def main():
                 is_stalling_now = True
             if is_stalling_now and state["was_airborne"]:
                 state["event_stall"] = True
+                queue_event(state, "stall", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=6.0)
 
             # === OVERSPEED DETECTION ===
             overspeed_warning = to_bool(safe_get(aq, "OVERSPEED WARNING", "bool", False))
             if overspeed_warning and state["was_airborne"]:
                 state["event_overspeed"] = True
+                queue_event(state, "overspeed", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=6.0)
 
             # === CRASH DETECTION ===
             sim_disabled = to_bool(safe_get(aq, "SIM DISABLED", "bool", False))
@@ -262,10 +345,12 @@ def main():
             plane_pitch_abs = abs(pitch)
             if sim_disabled and state["was_airborne"]:
                 state["event_crash"] = True
+                queue_event(state, "crash", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=30.0)
 
             # === OVERSTRESS DETECTION ===
             if abs(g_force) > 2.5 and not on_ground and state["was_airborne"]:
                 state["event_overstress"] = True
+                queue_event(state, "overstress", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=6.0)
 
             # === FIX #7: TAILSTRIKE - SimConnect contact point detection + heuristic fallback ===
             # MSFS contact points: 0=nosewheel, 1=left main, 2=right main, 3+=tail/scrape/wingtip
@@ -287,6 +372,7 @@ def main():
                 if not state["event_tailstrike"]:
                     print(f"[SkyCareer] TAILSTRIKE detected via contact point!")
                 state["event_tailstrike"] = True
+                queue_event(state, "tailstrike", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=20.0)
 
             # Heuristic fallback: speed-dependent pitch thresholds (if contact points not available)
             if not state["event_tailstrike"] and on_ground and state["was_airborne"]:
@@ -296,6 +382,8 @@ def main():
                     state["event_tailstrike"] = True
                 elif speed > 30 and pitch > 15.0:
                     state["event_tailstrike"] = True
+                if state["event_tailstrike"]:
+                    queue_event(state, "tailstrike", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=20.0)
 
             # === FLAPS OVERSPEED DETECTION ===
             if state["was_airborne"]:
@@ -303,15 +391,19 @@ def main():
                     state["event_flaps_overspeed"] = True
                 elif flap_ratio > 0.0 and ias > 250:
                     state["event_flaps_overspeed"] = True
+                if state["event_flaps_overspeed"]:
+                    queue_event(state, "flaps_overspeed", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=8.0)
 
             # === GEAR-UP LANDING DETECTION (using actual gear positions) ===
             if on_ground and not gear_down and speed > 40 and state["was_airborne"]:
                 state["event_gear_up_landing"] = True
+                queue_event(state, "gear_up_landing", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=30.0)
 
             # === HARSH CONTROLS DETECTION ===
             if state["was_airborne"] and not on_ground:
                 if plane_bank > 60 or plane_pitch_abs > 30:
                     state["event_harsh_controls"] = True
+                    queue_event(state, "harsh_controls", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=8.0)
 
             # === TOUCHDOWN DETECTION ===
             just_landed = state["was_airborne"] and on_ground and not prev_on_ground
@@ -335,6 +427,17 @@ def main():
                 state["landing_g_force"] = max(state["landing_g_force"], landing_g_local)
                 state["landing_data_timestamp"] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
                 state["landing_locked_local"] = True
+                queue_event(
+                    state,
+                    "touchdown",
+                    latitude,
+                    longitude,
+                    altitude,
+                    speed,
+                    -abs(state["touchdown_vspeed"]),
+                    state["landing_g_force"],
+                    cooldown=2.0,
+                )
                 print(f"[SkyCareer] TOUCHDOWN: V/S={state['touchdown_vspeed']:.0f} fpm, G={state['landing_g_force']:.2f}")
 
             # Keep capturing a brief post-touchdown window to catch the exact impact spike.
@@ -405,6 +508,21 @@ def main():
                 except Exception:
                     rain_detected = False
 
+            bridge_position_samples = [
+                {
+                    "lat": float(s.get("lat")),
+                    "lon": float(s.get("lon")),
+                    "alt": float(s.get("alt", 0.0)),
+                    "spd": float(s.get("spd", 0.0)),
+                    "vs": float(s.get("vs", 0.0)),
+                    "g": float(s.get("g", 1.0)),
+                    "on_ground": bool(s.get("on_ground", False)),
+                    "t": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(float(s.get("t", now_epoch)))),
+                }
+                for s in state["sample_buffer"]
+                if s.get("lat") is not None and s.get("lon") is not None
+            ][-60:]
+
             payload = {
                 "simulator": args.sim,
                 "altitude": altitude,
@@ -428,6 +546,7 @@ def main():
                 "engines_running": engine1_running or engine2_running,
                 "gear_down": gear_down,
                 "flap_ratio": flap_ratio,
+                "speedbrake": speedbrake_pos,
                 "fuel_percentage": fuel_percentage,
                 "fuel_kg": fuel_kg,
                 "touchdown_vspeed": state["touchdown_vspeed"],
@@ -451,6 +570,8 @@ def main():
                 "crash": state["event_crash"],
                 "has_crashed": state["event_crash"],
                 "harsh_controls": state["event_harsh_controls"],
+                "bridge_event_log": state["event_queue"][-MAX_EVENT_QUEUE:],
+                "bridge_position_samples": bridge_position_samples,
                 "aircraft_icao": aircraft_icao,
                 "oat_c": oat_c,
                 "tat_c": tat_c,
@@ -500,6 +621,7 @@ def main():
                     # Reset per-post peak window only after a successful send.
                     state["window_peak_g"] = g_force
                     state["window_min_vs"] = min(0.0, vertical_speed)
+                    state["event_queue"] = []
                 next_post_at = now + LOOP_INTERVAL
 
             time.sleep(SAMPLE_INTERVAL)

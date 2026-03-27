@@ -447,6 +447,20 @@ Deno.serve(async (req) => {
     const maintenance_cost = data.maintenance_cost ?? data.maintenanceCost;
     const reputation = data.reputation;
     const landing_quality = data.landing_quality ?? data.landingQuality;
+    const bridgePostIntervalRaw = Number(data.bridge_post_interval_ms ?? data.bridgePostIntervalMs ?? data.loop_interval_ms ?? data.loopIntervalMs ?? 0);
+    const bridgeSampleIntervalRaw = Number(data.bridge_sample_interval_ms ?? data.bridgeSampleIntervalMs ?? data.sample_interval_ms ?? data.sampleIntervalMs ?? 0);
+    const bridgePostIntervalMs = Number.isFinite(bridgePostIntervalRaw) && bridgePostIntervalRaw > 0
+      ? Math.max(1000, Math.min(15000, Math.round(bridgePostIntervalRaw)))
+      : null;
+    const bridgeSampleIntervalMs = Number.isFinite(bridgeSampleIntervalRaw) && bridgeSampleIntervalRaw > 0
+      ? Math.max(50, Math.min(5000, Math.round(bridgeSampleIntervalRaw)))
+      : null;
+    const incomingBridgePositionSamples = Array.isArray(data.bridge_position_samples)
+      ? data.bridge_position_samples
+      : (Array.isArray(data.position_samples) ? data.position_samples : []);
+    const incomingBridgeEventLog = Array.isArray(data.bridge_event_log)
+      ? data.bridge_event_log
+      : (Array.isArray(data.event_log) ? data.event_log : []);
 
     // Normalize field names (support both X-Plane and MSFS naming conventions)
     // MSFS bridges may use different field names for the same data
@@ -1106,26 +1120,79 @@ Deno.serve(async (req) => {
       ? (prevInitialFuelKg > 0 ? prevInitialFuelKg : lastValidFuelKg)
       : (lastValidFuelKg > 0 ? lastValidFuelKg : prevInitialFuelKg);
 
-    // Track flight path (add position every update, limited to keep data manageable)
-    // Record positions both airborne AND on ground (for takeoff/landing path visualization)
-    const existingPath = prevXd.flight_path || [];
+    // Track flight path: denser capture + interpolation to avoid visual data loss on slower packet delivery.
+    const existingPath = Array.isArray(prevXd.flight_path) ? prevXd.flight_path : [];
     let newPath = existingPath;
-    // Only record path if we have a valid position (not near 0,0 which is default/uninitialized)
-    const hasValidCoords = Number.isFinite(latitude) && Number.isFinite(longitude) 
+    const hasValidCoords = Number.isFinite(latitude) && Number.isFinite(longitude)
       && (Math.abs(latitude) > 0.5 || Math.abs(longitude) > 0.5);
-    if (hasValidCoords) {
-      // Filter out any bad initial points near 0,0 from existing path
-      const cleanPath = existingPath.filter(p => Math.abs(p[0]) > 0.5 || Math.abs(p[1]) > 0.5);
-      const lastPt = cleanPath[cleanPath.length - 1];
-      // Add point only if moved enough (reduce data) - tighter threshold on ground for taxi path
-      const threshold = on_ground ? 0.001 : 0.005;
-      if (!lastPt || Math.abs(lastPt[0] - latitude) > threshold || Math.abs(lastPt[1] - longitude) > threshold) {
-        newPath = [...cleanPath, [latitude, longitude]];
-        // Keep max 800 points (increased for ground segments)
-        if (newPath.length > 800) newPath = newPath.filter((_, i) => i % 2 === 0 || i === newPath.length - 1);
-      } else {
-        newPath = cleanPath;
+    const normalizeSamplePoint = (point) => {
+      if (!point) return null;
+      const latNum = Number(point?.lat ?? point?.latitude);
+      const lonNum = Number(point?.lon ?? point?.longitude ?? point?.lng);
+      if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return null;
+      if (Math.abs(latNum) <= 0.5 && Math.abs(lonNum) <= 0.5) return null;
+      return {
+        lat: latNum,
+        lon: lonNum,
+        onGround: toBool(point?.on_ground ?? point?.onGround, on_ground),
+      };
+    };
+    const bridgedPathSamples = incomingBridgePositionSamples
+      .map(normalizeSamplePoint)
+      .filter(Boolean)
+      .slice(-120);
+    const appendPathPoint = (path, latNum, lonNum, isGroundPoint) => {
+      if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return path;
+      if (Math.abs(latNum) <= 0.5 && Math.abs(lonNum) <= 0.5) return path;
+      const nextPath = Array.isArray(path) ? path : [];
+      const last = nextPath.length > 0 ? nextPath[nextPath.length - 1] : null;
+      if (!last) {
+        nextPath.push([latNum, lonNum]);
+        return nextPath;
       }
+      const distNm = haversineNm(Number(last[0]), Number(last[1]), latNum, lonNum);
+      const minStepNm = isGroundPoint ? 0.010 : 0.035; // ~18m ground, ~65m airborne
+      if (!Number.isFinite(distNm) || distNm < minStepNm) return nextPath;
+
+      // Backfill large jumps so map and event markers keep a continuous visual path.
+      const maxLegNm = isGroundPoint ? 0.08 : 0.22;
+      if (distNm > (maxLegNm * 1.5)) {
+        const steps = Math.min(20, Math.max(1, Math.floor(distNm / maxLegNm)));
+        for (let i = 1; i <= steps; i++) {
+          const frac = i / (steps + 1);
+          const ilat = Number(last[0]) + ((latNum - Number(last[0])) * frac);
+          const ilon = Number(last[1]) + ((lonNum - Number(last[1])) * frac);
+          nextPath.push([ilat, ilon]);
+        }
+      }
+      nextPath.push([latNum, lonNum]);
+      return nextPath;
+    };
+    if (hasValidCoords || bridgedPathSamples.length > 0) {
+      let cleanPath = existingPath
+        .filter((p) => Array.isArray(p) && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])))
+        .filter((p) => Math.abs(Number(p[0])) > 0.5 || Math.abs(Number(p[1])) > 0.5);
+
+      for (const sample of bridgedPathSamples) {
+        cleanPath = appendPathPoint(cleanPath, sample.lat, sample.lon, sample.onGround);
+      }
+      if (hasValidCoords) {
+        cleanPath = appendPathPoint(cleanPath, Number(latitude), Number(longitude), on_ground);
+      }
+
+      // Keep more detail for long flights while still capping entity size.
+      if (cleanPath.length > 2600) {
+        const compacted = [];
+        const stride = Math.max(2, Math.ceil(cleanPath.length / 1800));
+        for (let i = 0; i < cleanPath.length; i += stride) {
+          compacted.push(cleanPath[i]);
+        }
+        if (compacted.length === 0 || compacted[compacted.length - 1] !== cleanPath[cleanPath.length - 1]) {
+          compacted.push(cleanPath[cleanPath.length - 1]);
+        }
+        cleanPath = compacted.slice(-1800);
+      }
+      newPath = cleanPath;
     }
 
     // Build a LEAN xplane_data object - only current sensor readings
@@ -1173,6 +1240,8 @@ Deno.serve(async (req) => {
     const overstressDetected = toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceEffective) >= 2.6);
     const prevCrashState = toBool(prevXd.crash ?? prevXd.has_crashed, false);
     const isCrash = !!(isCrashSignal || crashFromTouchdown || prevCrashState);
+    const effectiveBridgePostInterval = bridgePostIntervalMs ?? (Number(prevXd.bridge_post_interval_ms ?? 0) || null);
+    const effectiveBridgeSampleInterval = bridgeSampleIntervalMs ?? (Number(prevXd.bridge_sample_interval_ms ?? 0) || null);
 
     const xplaneData = {
       simulator,
@@ -1188,6 +1257,8 @@ Deno.serve(async (req) => {
       max_g_force,
       g_force_window_peak: Number.isFinite(gForceWindowPeakNumeric) ? gForceWindowPeakNumeric : null,
       vertical_speed_window_min: Number(vertical_speed_window_min ?? 0) || 0,
+      bridge_post_interval_ms: effectiveBridgePostInterval,
+      bridge_sample_interval_ms: effectiveBridgeSampleInterval,
       latitude,
       longitude,
       on_ground,
@@ -1265,53 +1336,191 @@ Deno.serve(async (req) => {
       flight_path: newPath,
       // Flight events log for map markers (gear, flaps, speedbrake, incidents)
       flight_events_log: (() => {
-        const prevLog = prevXd.flight_events_log || [];
-        if (!hasValidCoords || !hasBeenAirborne) return prevLog;
-        const newEvents = [];
+        const prevLog = Array.isArray(prevXd.flight_events_log) ? prevXd.flight_events_log : [];
+        if (!hasBeenAirborne) return prevLog;
+        if (!hasValidCoords && incomingBridgeEventLog.length === 0) return prevLog;
+
+        const merged = [...prevLog];
+        const nowMs = Date.now();
+        const nowIso = new Date(nowMs).toISOString();
+        const recentFingerprints = new Set(
+          merged.slice(-500).map((ev) => {
+            const latNum = Number(ev?.lat ?? 0);
+            const lonNum = Number(ev?.lon ?? 0);
+            return `${String(ev?.type || '')}|${latNum.toFixed(4)}|${lonNum.toFixed(4)}|${String(ev?.t || '').slice(0, 19)}`;
+          })
+        );
+        const fallbackLat = Number(latitude);
+        const fallbackLon = Number(longitude);
+        const fallbackAlt = Math.round(Number(altitude || 0));
+        const fallbackSpd = Math.round(Number(speed || 0));
+        const fallbackVs = Math.round(Number(vertical_speed || 0));
+        const fallbackG = Number((Number(gForceEffective || 1) || 1).toFixed(2));
+
+        const appendEvent = (type, payload = {}, options = {}) => {
+          if (!type) return false;
+          const eventType = String(type).trim().toLowerCase();
+          if (!eventType) return false;
+          const latNum = Number(payload.lat ?? fallbackLat);
+          const lonNum = Number(payload.lon ?? fallbackLon);
+          if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return false;
+          const altNum = Number(payload.alt ?? fallbackAlt);
+          const spdNum = Number(payload.spd ?? payload.gs ?? fallbackSpd);
+          const vsNum = Number(payload.vs ?? fallbackVs);
+          const gNum = Number(payload.g ?? fallbackG);
+          const parsedTs = Date.parse(String(payload.t || payload.timestamp || nowIso));
+          const eventIso = Number.isFinite(parsedTs) ? new Date(parsedTs).toISOString() : nowIso;
+          const force = !!options.force;
+          const cooldownSec = Number(options.cooldownSec ?? 0);
+          const minDistanceNm = Number(options.minDistanceNm ?? 0);
+
+          if (!force) {
+            let lastSame = null;
+            for (let i = merged.length - 1; i >= 0; i--) {
+              if (String(merged[i]?.type || '').toLowerCase() === eventType) {
+                lastSame = merged[i];
+                break;
+              }
+            }
+            if (lastSame) {
+              const lastTs = Date.parse(String(lastSame?.t || ''));
+              if (Number.isFinite(lastTs) && cooldownSec > 0 && (nowMs - lastTs) < (cooldownSec * 1000)) {
+                if (!(Number.isFinite(minDistanceNm) && minDistanceNm > 0)) return false;
+                const lastLat = Number(lastSame?.lat ?? NaN);
+                const lastLon = Number(lastSame?.lon ?? NaN);
+                if (Number.isFinite(lastLat) && Number.isFinite(lastLon)) {
+                  const movedNm = haversineNm(lastLat, lastLon, latNum, lonNum);
+                  if (!Number.isFinite(movedNm) || movedNm < minDistanceNm) return false;
+                } else {
+                  return false;
+                }
+              }
+            }
+          }
+
+          const fingerprint = `${eventType}|${latNum.toFixed(4)}|${lonNum.toFixed(4)}|${eventIso.slice(0, 19)}`;
+          if (recentFingerprints.has(fingerprint)) return false;
+          recentFingerprints.add(fingerprint);
+
+          merged.push({
+            type: eventType,
+            lat: latNum,
+            lon: lonNum,
+            alt: Number.isFinite(altNum) ? Math.round(altNum) : fallbackAlt,
+            spd: Number.isFinite(spdNum) ? Math.round(spdNum) : fallbackSpd,
+            vs: Number.isFinite(vsNum) ? Math.round(vsNum) : fallbackVs,
+            g: Number.isFinite(gNum) ? Number(gNum.toFixed(2)) : fallbackG,
+            ...(payload.val !== undefined ? { val: payload.val } : {}),
+            t: eventIso,
+          });
+          return true;
+        };
+
+        // Prefer bridge-local event batches when available (prevents missing short incidents between posts).
+        const normalizedBridgeEvents = incomingBridgeEventLog
+          .map((evt) => {
+            const eventTypeRaw = toHudAscii(evt?.type || evt?.event || evt?.name || evt?.code || "", "");
+            const eventType = eventTypeRaw.toLowerCase().replace(/[^a-z0-9_]/g, "_").trim();
+            if (!eventType) return null;
+            const latNum = Number(evt?.lat ?? evt?.latitude ?? fallbackLat);
+            const lonNum = Number(evt?.lon ?? evt?.longitude ?? evt?.lng ?? fallbackLon);
+            if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return null;
+            return {
+              type: eventType,
+              lat: latNum,
+              lon: lonNum,
+              alt: Number(evt?.alt ?? evt?.altitude ?? fallbackAlt),
+              spd: Number(evt?.spd ?? evt?.gs ?? evt?.speed ?? fallbackSpd),
+              vs: Number(evt?.vs ?? evt?.vertical_speed ?? evt?.verticalSpeed ?? fallbackVs),
+              g: Number(evt?.g ?? evt?.g_force ?? evt?.gForce ?? fallbackG),
+              t: evt?.t ?? evt?.timestamp ?? nowIso,
+              val: evt?.val,
+            };
+          })
+          .filter(Boolean)
+          .slice(-120);
+        for (const eventItem of normalizedBridgeEvents) {
+          appendEvent(eventItem.type, eventItem, { cooldownSec: 1, minDistanceNm: 0.02 });
+        }
+
         const prevGear = prevXd.gear_down;
         const curGear = gear_down !== undefined ? gear_down : true;
         if (prevGear !== undefined && prevGear !== curGear) {
-          newEvents.push({ type: curGear ? 'gear_down' : 'gear_up', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+          appendEvent(curGear ? "gear_down" : "gear_up", {}, { force: true });
         }
+
         const prevFlap = prevXd.flap_ratio;
         const curFlap = Number(flap_ratio || 0);
         if (prevFlap !== undefined && prevFlap !== null) {
-          const prevPct = Math.round(prevFlap * 100);
+          const prevPct = Math.round(Number(prevFlap) * 100);
           const curPct = Math.round(curFlap * 100);
-          if (Math.abs(prevPct - curPct) >= 5) {
-            newEvents.push({ type: 'flaps', val: curPct, lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+          if (Math.abs(prevPct - curPct) >= 4) {
+            appendEvent("flaps", { val: curPct }, { force: true });
           }
         }
+
         const prevSpeedbrake = prevXd.speedbrake;
         const curSpeedbrake = data.speedbrake ?? data.speed_brake ?? data.speedBrake ?? data.spoiler ?? null;
         if (curSpeedbrake !== null && curSpeedbrake !== undefined) {
           const prevSb = Number(prevSpeedbrake || 0) > 0.1;
           const curSb = Number(curSpeedbrake) > 0.1;
           if (prevSpeedbrake !== undefined && prevSpeedbrake !== null && prevSb !== curSb) {
-            newEvents.push({ type: curSb ? 'spoiler_on' : 'spoiler_off', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
+            appendEvent(curSb ? "spoiler_on" : "spoiler_off", {}, { force: true });
           }
         }
-        // Incident events (only when first detected)
-        if (tailstrike && !prevXd.tailstrike) newEvents.push({ type: 'tailstrike', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
-        if ((stall || is_in_stall || stall_warning) && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning) newEvents.push({ type: 'stall', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
-        if (overstressDetected && !prevXd.overstress) newEvents.push({ type: 'overstress', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
-        if (overspeed && !prevXd.overspeed) newEvents.push({ type: 'overspeed', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
-        if (flaps_overspeed && !prevXd.flaps_overspeed) newEvents.push({ type: 'flaps_overspeed', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
-        if (isCrash && !prevCrashState) newEvents.push({ type: 'crash', lat: latitude, lon: longitude, alt: Math.round(altitude || 0), t: new Date().toISOString() });
-        if (newEvents.length === 0) return prevLog;
-        const merged = [...prevLog, ...newEvents];
-        return merged.length > 200 ? merged.slice(-200) : merged;
+
+        const stallNow = !!(stall || is_in_stall || stall_warning);
+        appendEvent("tailstrike", {}, {
+          force: !!(tailstrike && !prevXd.tailstrike),
+          cooldownSec: 60,
+          minDistanceNm: 0.4,
+        });
+        appendEvent("stall", {}, {
+          force: !!(stallNow && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning),
+          cooldownSec: 16,
+          minDistanceNm: 0.25,
+        });
+        appendEvent("overstress", {}, {
+          force: !!(overstressDetected && !prevXd.overstress),
+          cooldownSec: 14,
+          minDistanceNm: 0.2,
+        });
+        appendEvent("overspeed", {}, {
+          force: !!(overspeed && !prevXd.overspeed),
+          cooldownSec: 14,
+          minDistanceNm: 0.2,
+        });
+        appendEvent("flaps_overspeed", {}, {
+          force: !!(flaps_overspeed && !prevXd.flaps_overspeed),
+          cooldownSec: 20,
+          minDistanceNm: 0.2,
+        });
+        appendEvent("gear_up_landing", {}, {
+          force: !!(gear_up_landing && !prevXd.gear_up_landing),
+          cooldownSec: 120,
+          minDistanceNm: 0.1,
+        });
+        appendEvent("crash", {}, {
+          force: !!(isCrash && !prevCrashState),
+          cooldownSec: 180,
+          minDistanceNm: 0.05,
+        });
+
+        return merged.length > 650 ? merged.slice(-650) : merged;
       })(),
       // Speedbrake state for change detection
       speedbrake: data.speedbrake ?? data.speed_brake ?? data.speedBrake ?? data.spoiler ?? (prevXd.speedbrake ?? null),
-      // Telemetry history for post-flight profile chart (sampled every ~15s, max 600 points)
+      // Telemetry history for post-flight profile chart.
+      // Sample close to bridge post interval so spikes are less likely to disappear.
       telemetry_history: (() => {
-        const prevHistory = prevXd.telemetry_history || [];
+        const prevHistory = Array.isArray(prevXd.telemetry_history) ? prevXd.telemetry_history : [];
         const now = Date.now();
         const lastEntry = prevHistory.length > 0 ? prevHistory[prevHistory.length - 1] : null;
         const lastTs = lastEntry?.t ? new Date(lastEntry.t).getTime() : 0;
-        // Only record a new sample every ~15 seconds
-        if (now - lastTs >= 15000) {
+        const fallbackInterval = Number(prevXd.bridge_post_interval_ms ?? 2000) || 2000;
+        const desiredInterval = bridgePostIntervalMs || fallbackInterval;
+        const historySampleMs = Math.max(1200, Math.min(4000, desiredInterval));
+        if (now - lastTs >= historySampleMs) {
           const newPt = {
             t: new Date().toISOString(),
             alt: Math.round(altitude || 0),
@@ -1319,10 +1528,13 @@ Deno.serve(async (req) => {
             ias: Math.round(ias || 0),
             vs: Math.round(vertical_speed || 0),
             g: Number((gForceEffective || 1).toFixed(2)),
+            lat: Number.isFinite(Number(latitude)) ? Number(latitude) : null,
+            lon: Number.isFinite(Number(longitude)) ? Number(longitude) : null,
+            hdg: Number.isFinite(Number(heading)) ? Math.round(Number(heading)) : null,
           };
           const updated = [...prevHistory, newPt];
-          // Keep max 600 points (~2.5 hours at 15s intervals)
-          return updated.length > 600 ? updated.slice(-600) : updated;
+          // Keep max 3600 points (~2h at 2s intervals) for detailed post-flight charts.
+          return updated.length > 3600 ? updated.slice(-3600) : updated;
         }
         return prevHistory;
       })(),

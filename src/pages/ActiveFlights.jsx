@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,9 @@ import {
   Users,
   MapPin,
   ArrowRight,
-  Clock,
   AlertCircle,
   CheckCircle,
   Play,
-  DollarSign,
   User } from
 "lucide-react";
 
@@ -143,37 +141,6 @@ export default function ActiveFlights() {
       setSelectedContract(null);
       setSelectedAircraft('');
       setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
-    }
-  });
-
-  const cancelFlightMutation = useMutation({
-    mutationFn: async (contractToCancel) => {
-      const penalty = (contractToCancel.payout + (contractToCancel.bonus_potential || 0)) * 0.1;
-
-      // Update contract status
-      await base44.entities.Contract.update(contractToCancel.id, { status: 'available' });
-
-      // Deduct penalty from company
-      if (company) {
-        await base44.entities.Company.update(company.id, {
-          balance: Math.max(0, (company.balance || 0) - penalty)
-        });
-
-        // Create transaction for penalty
-        await base44.entities.Transaction.create({
-          type: 'expense',
-          category: 'other',
-          amount: penalty,
-          description: `Stornierungsgebühr: ${contractToCancel.title}`,
-          date: new Date().toISOString()
-        });
-      }
-
-      return penalty;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      queryClient.invalidateQueries({ queryKey: ['company'] });
     }
   });
 
@@ -353,14 +320,6 @@ export default function ActiveFlights() {
                               <Play className="w-4 h-4 mr-2" />
                               Flug vorbereiten
                             </Button>
-                            <Button
-                        onClick={() => cancelFlightMutation.mutate(contract)}
-                        disabled={cancelFlightMutation.isPending}
-                        variant="outline"
-                        className="border-red-500 text-red-400 hover:bg-red-500/10">
-
-                              Stornieren
-                            </Button>
                           </>
                     }
                         {contract.status === 'in_progress' &&
@@ -371,14 +330,6 @@ export default function ActiveFlights() {
                                 Flug verfolgen
                               </Button>
                             </Link>
-                            <Button
-                        onClick={() => cancelFlightMutation.mutate(contract)}
-                        disabled={cancelFlightMutation.isPending}
-                        variant="outline"
-                        className="border-red-500 text-red-400 hover:bg-red-500/10">
-
-                              Abbrechen
-                            </Button>
                           </>
                     }
                       </div>

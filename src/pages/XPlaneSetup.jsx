@@ -418,8 +418,8 @@ export default function XPlaneSetup() {
                     </div>
                     <p className="text-sm text-slate-400 mb-3 break-words">
                       {lang === 'de'
-                        ? 'Nur die MSFS SimConnect-Bridge als ZIP (ohne Desktop-App). Funktioniert mit Microsoft Flight Simulator 2020 und 2024.'
-                        : 'MSFS SimConnect bridge ZIP only (without desktop app). Works with Microsoft Flight Simulator 2020 and 2024.'}
+                        ? 'MSFS SimConnect-Bridge als ZIP mit modernem Bridge Launcher (Auto-Start/Stop bei MSFS oder X-Plane 12).'
+                        : 'MSFS SimConnect bridge ZIP with modern bridge launcher (auto start/stop for MSFS or X-Plane 12).'}
                     </p>
                     <Button
                       className="w-full bg-cyan-600 hover:bg-cyan-700 whitespace-normal h-auto py-2"
@@ -496,8 +496,8 @@ export default function XPlaneSetup() {
                       </p>
                       <p className="text-slate-400">
                         {lang === 'de'
-                          ? 'Bridge-ZIP: entpacken und SkyCareerMsfsBridge.exe starten.'
-                          : 'Bridge ZIP: unzip and run SkyCareerMsfsBridge.exe.'}
+                          ? 'Bridge-ZIP: entpacken und SkyCareerBridgeLauncher.cmd starten (empfohlen).'
+                          : 'Bridge ZIP: unzip and run SkyCareerBridgeLauncher.cmd (recommended).'}
                       </p>
                     </div>
                   </div>
@@ -573,8 +573,8 @@ export default function XPlaneSetup() {
                       <div className="bg-slate-900 rounded-lg p-3">
                         <p className="text-slate-300 mb-2">
                           3. {lang === 'de'
-                            ? 'SkyCareerDesktop.exe starten (Bridge ist integriert und startet automatisch)'
-                            : 'Start SkyCareerDesktop.exe (bridge is integrated and starts automatically)'}
+                            ? 'SkyCareerBridgeLauncher.cmd starten (moderne UI, Auto-Start/Stop der Bridge)'
+                            : 'Start SkyCareerBridgeLauncher.cmd (modern UI, auto start/stop of the bridge)'}
                         </p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3">

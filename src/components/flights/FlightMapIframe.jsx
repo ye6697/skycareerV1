@@ -751,10 +751,13 @@ function update(d) {
     });
   }
 
-  // Flight events log markers - only rebuild when event count changes to preserve open popups
+  // Flight events log markers - rebuild when count OR last-event signature changed.
   var evtLog = d.flightEventsLog || [];
-  if (evtLog.length !== layers._lastEvtCount) {
+  var lastEvt = evtLog.length ? evtLog[evtLog.length - 1] : null;
+  var evtSignature = evtLog.length + '|' + (lastEvt ? ((lastEvt.type||'') + '|' + (lastEvt.t||'') + '|' + (lastEvt.lat||'') + '|' + (lastEvt.lon||'')) : '');
+  if (evtLog.length !== layers._lastEvtCount || evtSignature !== layers._lastEvtSignature) {
     layers._lastEvtCount = evtLog.length;
+    layers._lastEvtSignature = evtSignature;
     layers.evtGroup.clearLayers();
     var evtCfg = {
       gear_down: {icon:'▼',color:'#22d3ee',bg:'rgba(6,78,107,0.85)',label:'GEAR DN'},
@@ -767,11 +770,14 @@ function update(d) {
       overstress: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSTRESS'},
       overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSPEED'},
       flaps_overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'FLAP OVSPD'},
+      gear_up_landing: {icon:'!',color:'#f43f5e',bg:'rgba(131,24,67,0.90)',label:'GEAR-UP LDG'},
+      harsh_controls: {icon:'!',color:'#f59e0b',bg:'rgba(120,53,15,0.85)',label:'HARSH CTRL'},
       crash: {icon:'✕',color:'#ef4444',bg:'rgba(127,29,29,0.95)',label:'CRASH'}
     };
     for (var ei = 0; ei < evtLog.length; ei++) {
       var ev = evtLog[ei];
-      if (!ev.lat || !ev.lon) continue;
+      var evLat = Number(ev.lat), evLon = Number(ev.lon);
+      if (!Number.isFinite(evLat) || !Number.isFinite(evLon)) continue;
       var cfg = evtCfg[ev.type] || {icon:'•',color:'#94a3b8',bg:'rgba(30,41,59,0.85)',label:ev.type};
       var lbl = cfg.label;
       if (ev.type === 'flaps' && ev.val !== undefined) lbl = 'FLAPS ' + ev.val + '%';
@@ -780,7 +786,7 @@ function update(d) {
         html: '<div class="evt-marker evt-marker-wrap" style="width:'+sz+'px;height:'+sz+'px;background:'+cfg.bg+';border:1.5px solid '+cfg.color+';color:'+cfg.color+';box-shadow:0 0 6px '+cfg.color+'44;">'+cfg.icon+'</div>',
         className:'evt-marker-wrap', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
       });
-      var evM = L.marker([ev.lat, ev.lon], { icon: evIcon, zIndexOffset: 500, interactive: true, bubblingMouseEvents: false }).addTo(layers.evtGroup);
+      var evM = L.marker([evLat, evLon], { icon: evIcon, zIndexOffset: 500, interactive: true, bubblingMouseEvents: false }).addTo(layers.evtGroup);
       var popupHtml = '<div style="background:#0f172a;color:#e2e8f0;padding:8px 12px;border-radius:6px;border:1px solid '+cfg.color+'66;font-family:Courier New,monospace;font-size:12px;min-width:140px;">' +
         '<div style="color:'+cfg.color+';font-weight:bold;font-size:13px;margin-bottom:4px;">'+cfg.icon+' '+lbl+'</div>' +
         (ev.alt ? '<div style="color:#94a3b8;font-size:11px;">ALT: '+Math.round(ev.alt).toLocaleString()+' ft</div>' : '') +

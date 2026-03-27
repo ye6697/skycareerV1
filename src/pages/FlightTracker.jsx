@@ -49,9 +49,11 @@ export default function FlightTracker() {
   const [flightDurationSeconds, setFlightDurationSeconds] = useState(0);
   const [processedGLevels, setProcessedGLevels] = useState(new Set());
   const [isCompletingFlight, setIsCompletingFlight] = useState(false);
+  const [showAutoCompleteOverlay, setShowAutoCompleteOverlay] = useState(false);
   const [flightStartedAt, setFlightStartedAt] = useState(null);
   const [emergencyLanding, setEmergencyLanding] = useState(false);
   const flightDataRef = React.useRef(null);
+  const autoCompleteTimeoutRef = useRef(null);
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
@@ -187,20 +189,19 @@ export default function FlightTracker() {
     
     setupSubscription();
     
-    // Monitor subscription health: if no events for 5s despite active flight, reconnect
+    // Monitor subscription health: if no events for >3s despite active flight, reconnect quickly
     const healthCheck = setInterval(() => {
-      if (lastSubEventTime > 0 && (Date.now() - lastSubEventTime) > 5000) {
-        subscriptionActive = false;
+      if (lastSubEventTime > 0 && (Date.now() - lastSubEventTime) > 3000) {
         setupSubscription();
       }
-    }, 3000);
+    }, 2000);
     
-    // Polling fallback: polls at 1.5s but only when subscription isn't delivering
+    // Polling fallback: polls at 1.0s but only when subscription isn't delivering
     let pollInFlight = false;
     const pollInterval = setInterval(async () => {
       if (pollInFlight) return;
-      // Skip poll if subscription delivered recently (< 1.2s)
-      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 1200) return;
+      // Skip poll if subscription delivered very recently (< 0.9s)
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 900) return;
       pollInFlight = true;
       try {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
@@ -310,7 +311,7 @@ export default function FlightTracker() {
         if (logs[0]) applyLog(logs[0]);
       } catch (_) {}
       pollInFlight = false;
-    }, 1500);
+    }, 1000);
 
     return () => {
       if (unsub) {
@@ -398,6 +399,7 @@ export default function FlightTracker() {
       setFlightDurationSeconds(0);
       setProcessedGLevels(new Set());
       setIsCompletingFlight(false);
+      setShowAutoCompleteOverlay(false);
       // Merke Zeitpunkt des Flugstarts, um alte X-Plane Logs zu ignorieren
       setFlightStartedAt(Date.now());
       
@@ -1112,6 +1114,7 @@ export default function FlightTracker() {
       // Wenn null zurückgegeben wurde, war die Mutation bereits in Bearbeitung
       if (!updatedFlight) {
         console.log('⚠️ Keine Daten - Flug wurde bereits abgeschlossen');
+        setShowAutoCompleteOverlay(false);
         return;
       }
 
@@ -1136,8 +1139,17 @@ export default function FlightTracker() {
     onError: (error) => {
       console.error('❌ FEHLER BEIM FLUGABSCHLUSS:', error);
       setIsCompletingFlight(false);
+      setShowAutoCompleteOverlay(false);
     }
   });
+
+  useEffect(() => {
+    return () => {
+      if (autoCompleteTimeoutRef.current) {
+        clearTimeout(autoCompleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Update flight duration every second
   useEffect(() => {
@@ -1474,15 +1486,27 @@ export default function FlightTracker() {
         setFlightData(prev => { const u = { ...prev, events: { ...prev.events, wrong_airport: true }, flightScore: 0 }; flightDataRef.current = u; return u; });
       }
       setFlightPhase('completed');
+      setShowAutoCompleteOverlay(true);
       // Keep a buffer >= bridge send interval so touchdown VS/G reaches backend before completion.
-      setTimeout(() => completeFlightMutation.mutate(), 3200);
+      if (autoCompleteTimeoutRef.current) {
+        clearTimeout(autoCompleteTimeoutRef.current);
+      }
+      autoCompleteTimeoutRef.current = setTimeout(() => {
+        autoCompleteTimeoutRef.current = null;
+        completeFlightMutation.mutate();
+      }, 3200);
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
     if (flightData.events.crash && flightData.wasAirborne && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
-      setTimeout(() => {
+      setShowAutoCompleteOverlay(true);
+      if (autoCompleteTimeoutRef.current) {
+        clearTimeout(autoCompleteTimeoutRef.current);
+      }
+      autoCompleteTimeoutRef.current = setTimeout(() => {
+        autoCompleteTimeoutRef.current = null;
         completeFlightMutation.mutate();
       }, 200);
     }
@@ -2161,6 +2185,32 @@ export default function FlightTracker() {
           </div>
         )}
       </div>
+      <AnimatePresence>
+        {showAutoCompleteOverlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <div className="w-full max-w-xl text-center bg-slate-900/90 border border-cyan-800/50 rounded-2xl p-8 shadow-2xl">
+              <motion.div
+                className="w-16 h-16 mx-auto mb-6 rounded-full border-4 border-cyan-700/40 border-t-cyan-300"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+              <h2 className="text-2xl font-bold text-cyan-300 mb-3">
+                {lang === 'de' ? 'Flug wird automatisch abgeschlossen' : 'Auto-completing flight'}
+              </h2>
+              <p className="text-slate-300 text-base">
+                {lang === 'de'
+                  ? 'Bitte warten. Du wirst automatisch zur Ergebnisseite weitergeleitet.'
+                  : 'Please wait. You will be redirected to the results page automatically.'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
