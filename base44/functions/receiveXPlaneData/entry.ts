@@ -1068,8 +1068,32 @@ Deno.serve(async (req) => {
     const prevOnGround = toBool(prevXd.on_ground, false);
     const justTouchedDown = hasBeenAirborne && on_ground && !prevOnGround;
 
+    // Fuel smoothing: preserve last valid fuel value when packets arrive late/missing.
+    const prevFuelKg = Number(prevXd.fuel_kg ?? prevXd.last_valid_fuel_kg ?? 0);
+    const incomingFuelKg = Number(fuel_kg ?? 0);
+    let effectiveFuelKg = Number.isFinite(incomingFuelKg) ? incomingFuelKg : 0;
+    if (effectiveFuelKg <= 0 && prevFuelKg > 0) {
+      effectiveFuelKg = prevFuelKg;
+    }
+    const airborneFuelJumpThresholdKg = 2500;
+    if (hasBeenAirborne && prevFuelKg > 0 && effectiveFuelKg > (prevFuelKg + airborneFuelJumpThresholdKg)) {
+      effectiveFuelKg = prevFuelKg;
+    }
+    const prevFuelPct = Number(prevXd.fuel_percentage ?? 0);
+    const incomingFuelPct = Number(fuel_percentage ?? 0);
+    let effectiveFuelPct = Number.isFinite(incomingFuelPct) ? incomingFuelPct : prevFuelPct;
+    if ((!Number.isFinite(incomingFuelKg) || incomingFuelKg <= 0) && prevFuelPct > 0) {
+      effectiveFuelPct = prevFuelPct;
+    }
+    const lastValidFuelKg = effectiveFuelKg > 0
+      ? effectiveFuelKg
+      : (Number(prevXd.last_valid_fuel_kg ?? 0) > 0 ? Number(prevXd.last_valid_fuel_kg ?? 0) : 0);
+
     // Track initial fuel for consumption calculation
-    const initial_fuel_kg = prevXd.initial_fuel_kg || fuel_kg || 0;
+    const prevInitialFuelKg = Number(prevXd.initial_fuel_kg ?? 0);
+    const initial_fuel_kg = hasBeenAirborne
+      ? (prevInitialFuelKg > 0 ? prevInitialFuelKg : lastValidFuelKg)
+      : (lastValidFuelKg > 0 ? lastValidFuelKg : prevInitialFuelKg);
 
     // Track flight path (add position every update, limited to keep data manageable)
     // Record positions both airborne AND on ground (for takeoff/landing path visualization)
@@ -1140,8 +1164,9 @@ Deno.serve(async (req) => {
       speed,
       vertical_speed,
       heading,
-      fuel_percentage,
-      fuel_kg: fuel_kg || 0,
+      fuel_percentage: effectiveFuelPct,
+      fuel_kg: effectiveFuelKg || 0,
+      last_valid_fuel_kg: lastValidFuelKg || 0,
       initial_fuel_kg,
       g_force,
       max_g_force,

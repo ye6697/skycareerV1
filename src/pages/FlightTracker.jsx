@@ -621,8 +621,37 @@ export default function FlightTracker() {
        landingVs: resolvedLandingVs || finalFlightData.landingVs || 0,
        landingGForce: resolvedLandingG || finalFlightData.landingGForce || 0,
      };
-     const initialFuelKg = xpData.initial_fuel_kg || 0;
-     const currentFuelKg = finalFlightData.fuelKg || xpData.fuel_kg || 0;
+     const initialFuelKg = positiveNumber(
+       xpData.initial_fuel_kg,
+       liveData.initial_fuel_kg
+     );
+     let currentFuelKg = positiveNumber(
+       finalFlightData.fuelKg,
+       liveData.fuel_kg,
+       liveData.last_valid_fuel_kg,
+       xpData.fuel_kg,
+       xpData.last_valid_fuel_kg
+     );
+     const fuelPct = Math.max(
+       0,
+       Math.min(100, Number(nonZeroNumber(finalFlightData.fuel, liveData.fuel_percentage, xpData.fuel_percentage) || 0))
+     );
+     const pctDerivedFuelKg = (initialFuelKg > 0 && fuelPct > 0)
+       ? ((initialFuelKg * fuelPct) / 100)
+       : 0;
+     if (initialFuelKg > 0 && pctDerivedFuelKg > 0) {
+       if (currentFuelKg <= 0) {
+         currentFuelKg = pctDerivedFuelKg;
+       } else {
+         const maxDriftKg = initialFuelKg * 0.55;
+         if (Math.abs(currentFuelKg - pctDerivedFuelKg) > maxDriftKg) {
+           currentFuelKg = pctDerivedFuelKg;
+         }
+       }
+     }
+     if (initialFuelKg > 0) {
+       currentFuelKg = Math.min(currentFuelKg, initialFuelKg);
+     }
      const fuelUsedKg = Math.max(0, initialFuelKg - currentFuelKg);
      const fuelUsed = fuelUsedKg * 1.25; // kg -> liters (Jet-A density ~0.8 kg/L, so 1kg ≈ 1.25L)
      const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
@@ -1973,8 +2002,18 @@ export default function FlightTracker() {
                 <FlightRating 
                   flight={(() => {
                     const xpd = (flight || existingFlight)?.xplane_data || {};
-                    const initFuel = xpd.initial_fuel_kg || 0;
-                    const curFuel = flightData.fuelKg || 0;
+                    const initFuel = Number(xpd.initial_fuel_kg || 0);
+                    let curFuel = Number(flightData.fuelKg || xpd.fuel_kg || xpd.last_valid_fuel_kg || 0);
+                    const fuelPct = Number(flightData.fuel || xpd.fuel_percentage || 0);
+                    if (initFuel > 0 && fuelPct > 0 && fuelPct <= 100) {
+                      const pctDerived = (initFuel * fuelPct) / 100;
+                      if (curFuel <= 0 || Math.abs(curFuel - pctDerived) > (initFuel * 0.55)) {
+                        curFuel = pctDerived;
+                      }
+                    }
+                    if (initFuel > 0) {
+                      curFuel = Math.min(curFuel, initFuel);
+                    }
                     const fuelUsedKg = Math.max(0, initFuel - curFuel);
                     const fuelUsed = fuelUsedKg * 1.25;
                     const fuelCost = fuelUsed * 1.2;

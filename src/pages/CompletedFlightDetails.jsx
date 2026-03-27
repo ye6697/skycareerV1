@@ -138,6 +138,25 @@ export default function CompletedFlightDetails() {
   const emergencyScorePenalty = Number(flight?.xplane_data?.emergency_score_penalty || 0);
   const emergencyPayoutFactor = Number(flight?.xplane_data?.emergency_payout_factor || 1);
   const emergencyArrivalDistanceNm = Number(flight?.xplane_data?.arrival_distance_nm || 0);
+  const estimateFuelUsedLiters = () => {
+    if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters);
+    const xpd = flight.xplane_data || {};
+    const initKg = Number(xpd.initial_fuel_kg || 0);
+    let curKg = Number(xpd.fuelKg || xpd.fuel_kg || xpd.last_valid_fuel_kg || 0);
+    const fuelPct = Number(xpd.fuel_percentage || xpd.fuel || 0);
+    if (initKg > 0 && fuelPct > 0 && fuelPct <= 100) {
+      const pctDerived = (initKg * fuelPct) / 100;
+      if (curKg <= 0 || Math.abs(curKg - pctDerived) > (initKg * 0.55)) {
+        curKg = pctDerived;
+      }
+    }
+    if (initKg > 0) {
+      curKg = Math.min(curKg, initKg);
+      return Math.round(Math.max(0, initKg - curKg) * 1.25);
+    }
+    if (flight.flight_duration_hours > 0) return Math.round(flight.flight_duration_hours * 2500);
+    return 0;
+  };
   const basePayout = Number(finalContract?.payout || 0);
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
@@ -319,23 +338,7 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('fuel_used', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
-                      {(() => {
-                        // Try stored fuel_used_liters first
-                        if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters).toLocaleString();
-                        // Fallback: compute from xplane_data
-                        const xpd = flight.xplane_data || {};
-                        const initKg = xpd.initial_fuel_kg || 0;
-                        const curKg = xpd.fuelKg || xpd.fuel_kg || 0;
-                        if (initKg > 0 && curKg >= 0) {
-                          const usedKg = Math.max(0, initKg - curKg);
-                          return Math.round(usedKg * 1.25).toLocaleString();
-                        }
-                        // Final fallback: estimate from flight hours and a typical burn rate
-                        if (flight.flight_duration_hours > 0) {
-                          return Math.round(flight.flight_duration_hours * 2500).toLocaleString();
-                        }
-                        return '0';
-                      })()} L
+                      {estimateFuelUsedLiters().toLocaleString()} L
                     </p>
                   </div>
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
@@ -715,15 +718,7 @@ export default function CompletedFlightDetails() {
                    </div>
                    )}
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Treibstoff ({(() => {
-                       if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters).toLocaleString();
-                       const xpd = flight.xplane_data || {};
-                       const initKg = xpd.initial_fuel_kg || 0;
-                       const curKg = xpd.fuelKg || xpd.fuel_kg || 0;
-                       if (initKg > 0) return Math.round(Math.max(0, initKg - curKg) * 1.25).toLocaleString();
-                       if (flight.flight_duration_hours > 0) return Math.round(flight.flight_duration_hours * 2500).toLocaleString();
-                       return '0';
-                     })()} L)</span>
+                     <span className="text-slate-400">Treibstoff ({estimateFuelUsedLiters().toLocaleString()} L)</span>
                     <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
