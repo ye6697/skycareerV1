@@ -9,10 +9,10 @@ const BRIDGE_ROOT_README = `SkyCareer MSFS Bridge
 2) Start: SkyCareerMsfsBridge.exe
 `;
 const BRIDGE_ZIP_CANDIDATES = [
-  new URL('./assets/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
-  new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
-  new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
   new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
+  new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
+  new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
+  new URL('./assets/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
 ];
 
 function toBase64(bytes: Uint8Array) {
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
     });
 
     return Response.json({
-      filename: 'SkyCareer_MSFS_Bridge_Windows.zip',
+      filename: 'SkyCareer_MSFS_Bridge_Windows_v1.zip',
       mime_type: 'application/zip',
       base64: toBase64(finalZipBytes),
       byte_length: finalZipBytes.length,

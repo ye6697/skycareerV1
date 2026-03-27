@@ -22,6 +22,7 @@ import { t } from "@/components/i18n/translations";
 
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
+  const DOWNLOAD_CACHE_BUST = '20260327v1';
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
@@ -145,9 +146,9 @@ export default function XPlaneSetup() {
       const basePath = import.meta?.env?.BASE_URL || '/';
       const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
       const candidates = [
-        new URL(`downloads/${file}`, window.location.href).toString(),
-        new URL(`${normalizedBase}downloads/${file}`, window.location.origin).toString(),
-        new URL(`/downloads/${file}`, window.location.origin).toString(),
+        new URL(`downloads/${file}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
+        new URL(`${normalizedBase}downloads/${file}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+        new URL(`/downloads/${file}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
       ];
 
       let bytes = null;
@@ -223,9 +224,9 @@ export default function XPlaneSetup() {
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
         const candidates = [
-          new URL(`downloads/${targetFile}`, window.location.href).toString(),
-          new URL(`${normalizedBase}downloads/${targetFile}`, window.location.origin).toString(),
-          new URL(`/downloads/${targetFile}`, window.location.origin).toString(),
+          new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
+          new URL(`${normalizedBase}downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          new URL(`/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
         ];
 
         for (const fileUrl of candidates) {
