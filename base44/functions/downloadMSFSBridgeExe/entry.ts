@@ -106,8 +106,15 @@ Deno.serve(async (req) => {
       if (file.dir) continue;
       const targetName = normalizeZipPath(name);
       if (!targetName) continue;
-      const fileName = basename(targetName).toLowerCase();
-      const packagedName = `${BRIDGE_PACKAGE_DIR}/${targetName}`;
+      if (targetName.toLowerCase() === 'readme_start_here.txt') {
+        continue;
+      }
+      const relativeName = targetName.startsWith(`${BRIDGE_PACKAGE_DIR}/`)
+        ? targetName.slice(BRIDGE_PACKAGE_DIR.length + 1)
+        : targetName;
+      if (!relativeName) continue;
+      const fileName = basename(relativeName).toLowerCase();
+      const packagedName = `${BRIDGE_PACKAGE_DIR}/${relativeName}`;
 
       if (fileName === 'skycareermsfsbridge.exe.config') {
         const configText = await file.async('string');
