@@ -13,12 +13,14 @@ import { t } from "@/components/i18n/translations";
 
 export default function FlightRating({ flight }) {
   const { lang } = useLanguage();
-  const landingVsValue = Number(
-    flight?.landing_vs ??
-    flight?.xplane_data?.touchdown_vspeed ??
-    flight?.xplane_data?.landing_vs ??
-    0
-  ) || 0;
+  const landingVsValue = Math.max(0, Math.min(
+    2500,
+    Math.abs(Number(
+      flight?.landing_vs ??
+      flight?.xplane_data?.touchdown_vspeed ??
+      0
+    ) || 0)
+  ));
   const getRatingColor = (rating) => {
     if (rating >= 4.5) return "text-emerald-500";
     if (rating >= 3.5) return "text-blue-500";

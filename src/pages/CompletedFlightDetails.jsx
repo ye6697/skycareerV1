@@ -161,12 +161,14 @@ export default function CompletedFlightDetails() {
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
-  const landingVsValue = Number(
-    flight?.landing_vs ??
-    flight?.xplane_data?.touchdown_vspeed ??
-    flight?.xplane_data?.landing_vs ??
-    0
-  ) || 0;
+  const landingVsValue = Math.max(0, Math.min(
+    2500,
+    Math.abs(Number(
+      flight?.landing_vs ??
+      flight?.xplane_data?.touchdown_vspeed ??
+      0
+    ) || 0)
+  ));
   const wrongAirportCompletion = !!(
     flight?.xplane_data?.events?.wrong_airport ||
     flight?.xplane_data?.landed_too_far_from_arrival
@@ -418,7 +420,7 @@ export default function CompletedFlightDetails() {
                 {(() => {
                   // Determine landing type: prefer stored, then compute from G-force
                   let lt = flight.xplane_data?.landingType;
-                  const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? flight.max_g_force ?? 0;
+                  const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? 0;
                   if (!lt && landingG > 0 && !flight.xplane_data?.events?.crash) {
                     if (landingG < 0.5) lt = 'butter';
                     else if (landingG < 1.0) lt = 'soft';

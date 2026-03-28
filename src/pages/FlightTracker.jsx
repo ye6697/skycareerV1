@@ -974,16 +974,19 @@ export default function FlightTracker() {
             // Fetch LATEST xplane_data from DB (local state may be stale, missing current flight_path)
             let existingXpData = activeFlight?.xplane_data || {};
             const freshFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
-            if (freshFlights[0]?.xplane_data) existingXpData = freshFlights[0].xplane_data;
+            if (freshFlights[0]?.xplane_data) {
+              existingXpData = freshFlights[0].xplane_data;
+              xpData = freshFlights[0].xplane_data;
+            }
             const liveXpData = xplaneLog?.raw_data || {};
-            const preservedFlightPath = existingXpData.flight_path || liveXpData.flight_path || [];
-            const preservedFlightEventsLog = existingXpData.flight_events_log || liveXpData.flight_events_log || [];
-            const preservedTelemetryHistory = existingXpData.telemetry_history || liveXpData.telemetry_history || [];
-            const preservedFmsWaypoints = existingXpData.fms_waypoints || liveXpData.fms_waypoints || [];
-            const preservedSimbriefWaypoints = existingXpData.simbrief_waypoints || liveXpData.simbrief_waypoints || [];
-            const preservedSimbriefRouteString = existingXpData.simbrief_route_string || liveXpData.simbrief_route_string || null;
-            const preservedSimbriefDepCoords = existingXpData.simbrief_departure_coords || liveXpData.simbrief_departure_coords || null;
-            const preservedSimbriefArrCoords = existingXpData.simbrief_arrival_coords || liveXpData.simbrief_arrival_coords || null;
+            const preservedFlightPath = xpData.flight_path || finalFlightData.flight_path || existingXpData.flight_path || liveXpData.flight_path || [];
+            const preservedFlightEventsLog = xpData.flight_events_log || finalFlightData.flight_events_log || existingXpData.flight_events_log || liveXpData.flight_events_log || [];
+            const preservedTelemetryHistory = xpData.telemetry_history || existingXpData.telemetry_history || liveXpData.telemetry_history || [];
+            const preservedFmsWaypoints = xpData.fms_waypoints || existingXpData.fms_waypoints || liveXpData.fms_waypoints || [];
+            const preservedSimbriefWaypoints = xpData.simbrief_waypoints || existingXpData.simbrief_waypoints || liveXpData.simbrief_waypoints || [];
+            const preservedSimbriefRouteString = xpData.simbrief_route_string || existingXpData.simbrief_route_string || liveXpData.simbrief_route_string || null;
+            const preservedSimbriefDepCoords = xpData.simbrief_departure_coords || existingXpData.simbrief_departure_coords || liveXpData.simbrief_departure_coords || null;
+            const preservedSimbriefArrCoords = xpData.simbrief_arrival_coords || existingXpData.simbrief_arrival_coords || liveXpData.simbrief_arrival_coords || null;
             const existingLandingTrusted = !!(
               existingXpData.touchdown_detected ||
               existingXpData.landing_data_locked ||
@@ -2374,7 +2377,16 @@ export default function FlightTracker() {
               key={`simbrief-${contractIdFromUrl}`}
               contract={contract}
               onRouteLoaded={(data) => {
-                setSimbriefRoute(data);
+                const normalizedSimbrief = {
+                  ...(data || {}),
+                  aircraft_icao:
+                    data?.aircraft_icao ||
+                    data?.raw_general?.icao_aircraft ||
+                    data?.raw_general?.aircraft_icao ||
+                    data?.raw_general?.aircraft_type ||
+                    null
+                };
+                setSimbriefRoute(normalizedSimbrief);
                 if (activeFlightId && data?.waypoints?.length) {
                   // Persist SimBrief route on the active flight so backend/plugin can reuse it for HUD distance.
                   base44.entities.Flight.update(activeFlightId, {

@@ -1714,7 +1714,10 @@ Deno.serve(async (req) => {
             });
             continue;
           }
-          appendEvent(eventItem.type, eventItem, { cooldownSec: 1, minDistanceNm: 0.02 });
+          appendEvent(eventItem.type, eventItem, {
+            cooldownSec: isBridgeIncidentType ? 10 : 1,
+            minDistanceNm: isBridgeIncidentType ? 0.05 : 0.02
+          });
         }
 
         const prevGear = prevXd.gear_down;
@@ -1747,54 +1750,56 @@ Deno.serve(async (req) => {
         if (tailstrikeDetected) {
           appendEvent("tailstrike", {}, {
             force: !!(tailstrikeDetected && !prevXd.tailstrike),
-            cooldownSec: 60,
-            minDistanceNm: 0.4,
+            cooldownSec: 10,
+            minDistanceNm: 0.05,
           });
         }
         if (stallNow) {
           appendEvent("stall", {}, {
             force: !!(stallNow && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning),
-            cooldownSec: 16,
-            minDistanceNm: 0.25,
+            cooldownSec: 10,
+            minDistanceNm: 0.05,
           });
         }
         if (overstressDetected) {
           appendEvent("overstress", {}, {
             force: !!(overstressDetected && !prevXd.overstress),
-            cooldownSec: 14,
-            minDistanceNm: 0.2,
+            cooldownSec: 10,
+            minDistanceNm: 0.05,
           });
         }
-        const prevMaxGAbs = Math.abs(Number(prevXd.max_g_force ?? prevXd.g_force ?? 0));
-        const curMaxGAbs = Math.abs(Number(max_g_force || gForceCurrent || 0));
-        if (curMaxGAbs >= 1.5) {
-          const crossedHighGThreshold = prevMaxGAbs < 1.5;
-          const crossedHigherBand = Math.floor(curMaxGAbs / 0.25) > Math.floor(prevMaxGAbs / 0.25);
-          appendEvent("high_g_force", { g: curMaxGAbs, val: Number(curMaxGAbs.toFixed(2)) }, {
-            force: crossedHighGThreshold || crossedHigherBand,
-            cooldownSec: 20,
-            minDistanceNm: 0.15,
-          });
+        const prevGAbs = Math.abs(Number(prevXd.g_force ?? 0));
+        const curGAbs = Math.abs(Number(gForceCurrent || 0));
+        if (curGAbs >= 1.5) {
+          const crossedHighGThreshold = prevGAbs < 1.5;
+          const crossedHigherBand = Math.floor(curGAbs / 0.25) > Math.floor(prevGAbs / 0.25);
+          if (crossedHighGThreshold || crossedHigherBand) {
+            appendEvent("high_g_force", { g: curGAbs, val: Number(curGAbs.toFixed(2)) }, {
+              force: true,
+              cooldownSec: 10,
+              minDistanceNm: 0.05,
+            });
+          }
         }
         if (overspeedDetected) {
           appendEvent("overspeed", {}, {
             force: !!(overspeedDetected && !prevXd.overspeed),
-            cooldownSec: 14,
-            minDistanceNm: 0.2,
+            cooldownSec: 10,
+            minDistanceNm: 0.05,
           });
         }
         if (flapsOverspeedDetected) {
           appendEvent("flaps_overspeed", {}, {
             force: !!(flapsOverspeedDetected && !prevXd.flaps_overspeed),
-            cooldownSec: 20,
-            minDistanceNm: 0.2,
+            cooldownSec: 10,
+            minDistanceNm: 0.05,
           });
         }
         if (gearUpLandingDetected) {
           appendEvent("gear_up_landing", {}, {
             force: !!(gearUpLandingDetected && !prevXd.gear_up_landing),
-            cooldownSec: 120,
-            minDistanceNm: 0.1,
+            cooldownSec: 10,
+            minDistanceNm: 0.05,
           });
         }
         if (isCrash) {
