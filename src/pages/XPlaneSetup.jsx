@@ -431,7 +431,7 @@ export default function XPlaneSetup() {
         <Card className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-[linear-gradient(135deg,#0e2b56_0%,#15427b_58%,#1d4f93_100%)] text-white shadow-[0_24px_72px_rgba(6,18,36,0.48)]">
           <div className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 sm:block">
             <img
-              src="/skycareer-logo.ico"
+              src="/skycareer-logo-clean.png"
               alt=""
               aria-hidden="true"
               className="h-44 w-44 opacity-[0.14] [filter:drop-shadow(0_0_24px_rgba(147,197,253,0.35))]"
