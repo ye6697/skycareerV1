@@ -1281,6 +1281,7 @@ Deno.serve(async (req) => {
     const rawFlapsOverspeedFlag = toBool(flaps_overspeed, false);
     const rawGearUpLandingFlag = toBool(gear_up_landing, false);
     const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
+    const rawCrashFlag = !!(crash || has_crashed || crash_flag || hasCrashFailure);
     const prevTakeoffSuppress = (prevXd?.event_takeoff_suppress && typeof prevXd.event_takeoff_suppress === "object")
       ? prevXd.event_takeoff_suppress
       : {};
@@ -1291,6 +1292,7 @@ Deno.serve(async (req) => {
       flaps_overspeed: justLiftedOff ? rawFlapsOverspeedFlag : toBool(prevTakeoffSuppress.flaps_overspeed, false),
       gear_up_landing: justLiftedOff ? rawGearUpLandingFlag : toBool(prevTakeoffSuppress.gear_up_landing, false),
       harsh_controls: justLiftedOff ? rawHarshControlsFlag : toBool(prevTakeoffSuppress.harsh_controls, false),
+      crash: justLiftedOff ? rawCrashFlag : toBool(prevTakeoffSuppress.crash, false),
     };
     if (!rawTailstrikeFlag) eventTakeoffSuppress.tailstrike = false;
     if (!rawStallFlag) eventTakeoffSuppress.stall = false;
@@ -1298,6 +1300,7 @@ Deno.serve(async (req) => {
     if (!rawFlapsOverspeedFlag) eventTakeoffSuppress.flaps_overspeed = false;
     if (!rawGearUpLandingFlag) eventTakeoffSuppress.gear_up_landing = false;
     if (!rawHarshControlsFlag) eventTakeoffSuppress.harsh_controls = false;
+    if (!rawCrashFlag) eventTakeoffSuppress.crash = false;
 
     const tailstrikeDetected = incidentArmed && (hasBridgeEventType("tailstrike") || (rawTailstrikeFlag && !eventTakeoffSuppress.tailstrike));
     const stallDetected = incidentArmed && (hasBridgeEventType("stall") || (rawStallFlag && !eventTakeoffSuppress.stall));
@@ -1352,7 +1355,9 @@ Deno.serve(async (req) => {
       Math.abs(Number(vertical_speed || 0)) >= 1200 ||
       Number(gForceEffective || 0) >= 2.8
     );
-    const crashSignalTrusted = incidentArmed ? (explicitCrashSignal || simDisabledCrashSignal) : false;
+    const crashSignalTrusted = incidentArmed
+      ? (((rawCrashFlag && !eventTakeoffSuppress.crash) || simDisabledCrashSignal))
+      : false;
     const isCrash = !!(crashSignalTrusted || crashFromTouchdown || prevCrashState);
     const effectiveBridgePostInterval = bridgePostIntervalMs ?? (Number(prevXd.bridge_post_interval_ms ?? 0) || null);
     const effectiveBridgeSampleInterval = bridgeSampleIntervalMs ?? (Number(prevXd.bridge_sample_interval_ms ?? 0) || null);
@@ -1407,7 +1412,8 @@ Deno.serve(async (req) => {
       gear_up_landing: gearUpLandingDetected,
       crash: isCrash,
       has_crashed: isCrash,
-      crash_flag: !!crash_flag,
+      // Expose only trusted crash state (raw plugin crash_flag can be stale/high all the time).
+      crash_flag: !!isCrash,
       sim_disabled: !!sim_disabled,
       harsh_controls: harshControlsDetected,
       event_takeoff_suppress: eventTakeoffSuppress,
@@ -1550,6 +1556,8 @@ Deno.serve(async (req) => {
             const latNum = Number(evt?.lat ?? evt?.latitude ?? fallbackLat);
             const lonNum = Number(evt?.lon ?? evt?.longitude ?? evt?.lng ?? fallbackLon);
             if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return null;
+            const eventTsMsRaw = Date.parse(String(evt?.t ?? evt?.timestamp ?? ""));
+            const eventTsMs = Number.isFinite(eventTsMsRaw) ? eventTsMsRaw : null;
             return {
               type: eventType,
               lat: latNum,
@@ -1558,14 +1566,50 @@ Deno.serve(async (req) => {
               spd: Number(evt?.spd ?? evt?.gs ?? evt?.speed ?? fallbackSpd),
               vs: Number(evt?.vs ?? evt?.vertical_speed ?? evt?.verticalSpeed ?? fallbackVs),
               g: Number(evt?.g ?? evt?.g_force ?? evt?.gForce ?? fallbackG),
-              t: evt?.t ?? evt?.timestamp ?? nowIso,
+              t: eventTsMs ? new Date(eventTsMs).toISOString() : nowIso,
+              tsMs: eventTsMs,
               val: evt?.val,
             };
           })
           .filter(Boolean)
           .slice(-120);
+        const bridgeIncidentTypes = new Set([
+          "tailstrike",
+          "stall",
+          "overstress",
+          "overspeed",
+          "flaps_overspeed",
+          "gear_up_landing",
+          "fuel_emergency",
+          "harsh_controls",
+          "crash",
+          "crashed",
+          "has_crashed",
+        ]);
         const isCrashEventType = (eventType) => eventType === "crash" || eventType === "crashed" || eventType === "has_crashed";
+        const suppressByTakeoffType: Record<string, boolean> = {
+          tailstrike: !!eventTakeoffSuppress.tailstrike,
+          stall: !!eventTakeoffSuppress.stall,
+          overspeed: !!eventTakeoffSuppress.overspeed,
+          flaps_overspeed: !!eventTakeoffSuppress.flaps_overspeed,
+          gear_up_landing: !!eventTakeoffSuppress.gear_up_landing,
+          harsh_controls: !!eventTakeoffSuppress.harsh_controls,
+          crash: !!eventTakeoffSuppress.crash,
+          crashed: !!eventTakeoffSuppress.crash,
+          has_crashed: !!eventTakeoffSuppress.crash,
+        };
         for (const eventItem of normalizedBridgeEvents) {
+          const eventType = String(eventItem?.type || "").toLowerCase();
+          const eventTsMs = Number(eventItem?.tsMs ?? NaN);
+          const hasValidEventTs = Number.isFinite(eventTsMs);
+          const isBridgeIncidentType = bridgeIncidentTypes.has(eventType);
+          if (isBridgeIncidentType) {
+            if (!incidentArmed) continue;
+            if (suppressByTakeoffType[eventType]) continue;
+            if (hasValidEventTs && Number.isFinite(airborneStartedAtMs) && eventTsMs < (airborneStartedAtMs - 1500)) continue;
+            if (hasValidEventTs && (nowMs - eventTsMs) > 180000) continue;
+            if (!hasValidEventTs && airborneDurationSec > 0 && airborneDurationSec < 20) continue;
+          }
           if (isCrashEventType(eventItem.type)) {
             if (!isCrash) continue;
             appendEvent("crash", eventItem, {

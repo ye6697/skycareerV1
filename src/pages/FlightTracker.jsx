@@ -1215,7 +1215,11 @@ export default function FlightTracker() {
       Math.abs(Number(xp.vertical_speed || 0)) >= 1200 ||
       Number(xp.g_force || 0) >= 2.8
     );
-    const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || simDisabledImpact);
+    const bridgeCrashEvent = Array.isArray(xp.bridge_event_log) && xp.bridge_event_log.some((evt) => {
+      const tp = String(evt?.type || evt?.event || evt?.name || evt?.code || "").toLowerCase();
+      return tp === "crash" || tp === "crashed" || tp === "has_crashed";
+    });
+    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact || (!!xp.completion_armed && (xp.crash_flag || bridgeCrashEvent)));
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
@@ -1511,8 +1515,8 @@ export default function FlightTracker() {
       setFlightStartTime(Date.now());
     }
     
-    // Auto-complete trigger: once aircraft was airborne, on_ground is enough.
-    const isReadyToComplete = xp.on_ground && latestFlightData.wasAirborne;
+    // Auto-complete trigger: require backend arming to avoid stale on_ground completions right after takeoff.
+    const isReadyToComplete = xp.on_ground && latestFlightData.wasAirborne && !!xp.completion_armed;
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
       // Check distance to arrival airport (>=10 NM without emergency = failed)
       const simbriefArr = xp.simbrief_arrival_coords || xplaneLog?.raw_data?.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
