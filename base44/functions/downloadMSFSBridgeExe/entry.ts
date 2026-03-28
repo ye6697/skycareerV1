@@ -4,13 +4,15 @@ import JSZip from 'npm:jszip@3.10.1';
 const API_ENDPOINT_DEFAULT = 'https://aero-career-pilot.base44.app/api/functions/receiveXPlaneData';
 const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
 const ROOT_LEVEL_FILES = new Set([
+  'sc installer.exe',
+  'sc uninstaller.exe',
   'skycareerbridgeinstaller.exe',
   'skycareerbridgeuninstaller.exe',
 ]);
 const BRIDGE_ROOT_README = `SkyCareer MSFS Bridge
 
-1) Run: SkyCareerBridgeInstaller.exe (recommended)
-2) If needed, remove everything with: SkyCareerBridgeUninstaller.exe
+1) Run: SC Installer.exe (recommended)
+2) If needed, remove everything with: SC Uninstaller.exe
 3) Bridge runtime files are inside the folder: ${BRIDGE_PACKAGE_DIR}
 4) Direct start (without installer): open ${BRIDGE_PACKAGE_DIR} and run SkyCareerMsfsBridge.exe
 `;
