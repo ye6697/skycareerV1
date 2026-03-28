@@ -75,28 +75,25 @@ export default function Account() {
       const preservedSimbriefPilotId =
         company?.simbrief_pilot_id ?? user?.simbrief_pilot_id ?? null;
 
-      const [aircraft, employees, flights, contracts, transactions, logs] = await Promise.all([
-        base44.entities.Aircraft.filter({ company_id: company.id }),
-        base44.entities.Employee.filter({ company_id: company.id }),
-        base44.entities.Flight.filter({ company_id: company.id }),
-        base44.entities.Contract.filter({ company_id: company.id }),
-        base44.entities.Transaction.filter({ company_id: company.id }),
-        base44.entities.XPlaneLog.filter({ company_id: company.id }),
-      ]);
-
-      const deleteAll = async (items, entity) => {
-        if (!Array.isArray(items) || items.length === 0) return;
-        await Promise.all(items.map((item) => entity.delete(item.id)));
+      const wipeEntity = async (entity, where) => {
+        while (true) {
+          const batch = await entity.filter(where, undefined, 200);
+          if (!Array.isArray(batch) || batch.length === 0) break;
+          for (const item of batch) {
+            try {
+              await entity.delete(item.id);
+            } catch (_) {}
+          }
+          if (batch.length < 200) break;
+        }
       };
 
-      await Promise.all([
-        deleteAll(aircraft, base44.entities.Aircraft),
-        deleteAll(employees, base44.entities.Employee),
-        deleteAll(flights, base44.entities.Flight),
-        deleteAll(contracts, base44.entities.Contract),
-        deleteAll(transactions, base44.entities.Transaction),
-        deleteAll(logs, base44.entities.XPlaneLog),
-      ]);
+      await wipeEntity(base44.entities.Flight, { company_id: company.id });
+      await wipeEntity(base44.entities.Contract, { company_id: company.id });
+      await wipeEntity(base44.entities.Transaction, { company_id: company.id });
+      await wipeEntity(base44.entities.Employee, { company_id: company.id });
+      await wipeEntity(base44.entities.Aircraft, { company_id: company.id });
+      await wipeEntity(base44.entities.XPlaneLog, { company_id: company.id });
 
       await base44.entities.Company.update(company.id, {
         name: preservedName,
@@ -109,9 +106,32 @@ export default function Account() {
         total_flights: 0,
         total_passengers: 0,
         total_cargo_kg: 0,
+        active_loan: null,
+        overdraft_enabled: true,
+        current_maintenance_ratio: 0,
+        experience_points: 0,
         callsign: "",
         hub_airport: "",
         xplane_connection_status: "disconnected",
+      });
+
+      const templates = await base44.entities.AircraftTemplate.filter({ name: "Cessna 172 Skyhawk" });
+      const template = templates[0];
+      await base44.entities.Aircraft.create({
+        company_id: company.id,
+        name: "Cessna 172 Skyhawk",
+        registration: "RESET-001",
+        type: "small_prop",
+        passenger_capacity: 3,
+        cargo_capacity_kg: 100,
+        fuel_consumption_per_hour: 35,
+        range_nm: 640,
+        purchase_price: 425000,
+        maintenance_cost_per_hour: 25,
+        status: "available",
+        total_flight_hours: 0,
+        current_value: 425000,
+        image_url: template?.image_url
       });
     },
     onSuccess: () => {

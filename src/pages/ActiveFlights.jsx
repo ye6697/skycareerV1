@@ -383,6 +383,18 @@ export default function ActiveFlights() {
                     <>
                             <Button
                         onClick={() => {
+                          const penalty = contract?.payout * 0.3 || 5000;
+                          if (confirm(`${t('cancel_confirm', lang)} $${penalty.toLocaleString()}`)) {
+                            cancelFlightMutation.mutate({ contract, flight: null });
+                          }
+                        }}
+                        disabled={cancelFlightMutation.isPending}
+                        variant="destructive">
+
+                              {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
+                            </Button>
+                            <Button
+                        onClick={() => {
                           setSelectedContract(contract);
                           setIsAssignDialogOpen(true);
                         }}
