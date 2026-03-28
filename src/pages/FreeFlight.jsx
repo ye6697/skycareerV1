@@ -129,12 +129,22 @@ export default function FreeFlight() {
   useEffect(() => {
     if (!xplaneLog?.raw_data) return;
     const xp = xplaneLog.raw_data;
-    const simDisabledImpact = !!xp.sim_disabled && (
-      (!xp.on_ground && Number(xp.speed || 0) >= 90) ||
-      Math.abs(Number(xp.vertical_speed || 0)) >= 1200 ||
-      Number(xp.g_force || 0) >= 2.8
+    const severeDynamics = (
+      Math.abs(Number(xp.vertical_speed || 0)) >= 1400 ||
+      Number(xp.g_force || 0) >= 3.0
     );
-    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact);
+    const severeGroundImpact = !!xp.on_ground && (
+      Math.abs(Number(xp.touchdown_vspeed || xp.landing_vs || 0)) >= 1200 ||
+      Number(xp.landing_g_force || 0) >= 3.4 ||
+      severeDynamics
+    );
+    const crashSignal = !!(
+      xp.crash ||
+      (
+        xp.has_crashed &&
+        (severeDynamics || severeGroundImpact)
+      )
+    );
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
@@ -165,11 +175,20 @@ export default function FreeFlight() {
       let landingType = prev.landingType;
       let landingScoreChange = prev.landingScoreChange || 0;
       let landingGForceValue = prev.landingType ? prev.landingGForce : 0;
-      const touchdownVs = xp.landing_vs || xp.touchdown_vspeed || 0;
-      const hasTouchdownEvidence = (Math.abs(touchdownVs) > 50) || Number(xp.landing_g_force || 0) > 0;
+      const landingDataTrusted = !!(
+        xp.touchdown_detected ||
+        xp.landing_data_locked ||
+        xp.bridge_local_landing_locked ||
+        xp.landing_data_source === 'bridge_local'
+      );
+      const touchdownVsRaw = (xp.on_ground && newWasAirborne && landingDataTrusted)
+        ? (xp.touchdown_vspeed || xp.landing_vs || 0)
+        : 0;
+      const touchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(touchdownVsRaw || 0))));
+      const hasTouchdownEvidence = landingDataTrusted && ((touchdownVs > 50) || Number(xp.landing_g_force || 0) > 0);
 
       if (!prev.landingType && xp.on_ground && newWasAirborne && hasTouchdownEvidence) {
-        const lg = Number(xp.landing_g_force || 0);
+        const lg = Math.max(0, Math.min(6, Number(xp.landing_g_force || 0)));
         landingGForceValue = lg;
         if (lg < 0.5) { landingType = 'butter'; landingScoreChange = 40; }
         else if (lg < 1.0) { landingType = 'soft'; landingScoreChange = 20; }
@@ -177,6 +196,9 @@ export default function FreeFlight() {
         else if (lg < 2.0) { landingType = 'hard'; landingScoreChange = -30; }
         else { landingType = 'very_hard'; landingScoreChange = -50; }
       }
+      const nextLandingVs = prev.landingType
+        ? Number(prev.landingVs || 0)
+        : (hasTouchdownEvidence && touchdownVs > 0 ? touchdownVs : Number(prev.landingVs || 0));
 
       let baseScore = prev.flightScore;
       if (landingType && !prev.landingType) {
@@ -198,7 +220,7 @@ export default function FreeFlight() {
         gForce: currentGForce,
         maxGForce: newMaxGForce,
         landingGForce: landingGForceValue,
-        landingVs: hasTouchdownEvidence ? (xp.landing_vs || xp.touchdown_vspeed || prev.landingVs) : prev.landingVs,
+        landingVs: nextLandingVs,
         landingType,
         landingScoreChange,
         flightScore: baseScore,

@@ -1318,14 +1318,21 @@ Deno.serve(async (req) => {
     const rawFlapsOverspeedFlag = toBool(flaps_overspeed, false);
     const rawGearUpLandingFlag = toBool(gear_up_landing, false);
     const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
+    const hasCrashDynamicsNow =
+      Math.abs(Number(vertical_speed || 0)) >= 900 ||
+      Number(gForceCurrent || 0) >= 2.6 ||
+      (!on_ground && Number(speed || 0) > 140);
+    const hasOnGroundCrashDynamicsNow =
+      Math.abs(Number(vertical_speed || 0)) >= 1000 ||
+      Number(gForceCurrent || 0) >= 3.0;
     const rawCrashFlag = !!(
       crash ||
-      has_crashed ||
       data.crashed ||
       data.is_crashed ||
       data.sim_crashed ||
       hasBridgeCrashEvent ||
-      (toBool(crash_flag, false) && !on_ground)
+      (toBool(has_crashed, false) && (!on_ground ? hasCrashDynamicsNow : hasOnGroundCrashDynamicsNow)) ||
+      (toBool(crash_flag, false) && (!on_ground ? hasCrashDynamicsNow : hasOnGroundCrashDynamicsNow))
     );
     const prevTakeoffSuppress = (prevXd?.event_takeoff_suppress && typeof prevXd.event_takeoff_suppress === "object")
       ? prevXd.event_takeoff_suppress
@@ -1355,10 +1362,6 @@ Deno.serve(async (req) => {
     const harshControlsDetected = incidentArmed && (hasBridgeEventType("harsh_controls") || (rawHarshControlsFlag && !eventTakeoffSuppress.harsh_controls));
     const fuelEmergencyDetected = hasBeenAirborne && toBool(fuel_emergency, false);
 
-    const shouldSynthesizeTouchdownEvidence =
-      hasBeenAirborne &&
-      on_ground &&
-      Number(speed || 0) <= 30;
     const prevVerticalSpeed = Number(prevXd.vertical_speed ?? 0);
     const transitionTouchdownVspeed = justTouchedDown
       ? Math.max(
@@ -1383,24 +1386,30 @@ Deno.serve(async (req) => {
       ? (captureNowMs - landingCaptureStartedAtMs) <= 9000
       : false;
     const mergedTouchdownVspeedNum = Math.abs(Number(mergedTouchdownVspeed || 0));
-    const touchdownCandidate = mergedTouchdownVspeedNum > 0
+    const touchdownCandidateRaw = mergedTouchdownVspeedNum > 0
       ? mergedTouchdownVspeedNum
-      : (useBridgeLocalLanding
-          ? 0
-          : (transitionTouchdownVspeed > 0
-              ? transitionTouchdownVspeed
-              : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0)));
-    const effectiveTouchdownVspeed = landingCaptureActive
+      : (useBridgeLocalLanding ? 0 : transitionTouchdownVspeed);
+    const touchdownCandidate = Math.max(0, Math.min(2500, touchdownCandidateRaw));
+    const effectiveTouchdownVspeedGround = landingCaptureActive
       ? Math.max(Number(prevTouchdownVspeed || 0), touchdownCandidate)
       : ((Number(prevTouchdownVspeed || 0) > 0) ? Number(prevTouchdownVspeed || 0) : touchdownCandidate);
     const mergedLandingGNum = Number(mergedLandingG || 0);
     const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceCurrent) : 0;
-    const landingGCandidate = mergedLandingGNum > 0
+    const landingGCandidateRaw = mergedLandingGNum > 0
       ? mergedLandingGNum
       : (useBridgeLocalLanding ? 0 : transitionLandingG);
-    const effectiveLandingG = landingCaptureActive
+    const landingGCandidate = Math.max(0, Math.min(6, landingGCandidateRaw));
+    const effectiveLandingGGround = landingCaptureActive
       ? Math.max(Number(prevLandingG || 0), landingGCandidate)
       : ((Number(prevLandingG || 0) > 0) ? Number(prevLandingG || 0) : landingGCandidate);
+    const effectiveTouchdownVspeed = (hasBeenAirborne && on_ground) ? effectiveTouchdownVspeedGround : 0;
+    const effectiveLandingG = (hasBeenAirborne && on_ground) ? effectiveLandingGGround : 0;
+    const touchdownDetected = hasBeenAirborne && on_ground && (
+      justTouchedDown ||
+      landingCaptureActive ||
+      Math.abs(effectiveTouchdownVspeed) > 0 ||
+      effectiveLandingG > 0
+    );
     const landingDataLocked = bridgeLocalLandingLocked || (
       hasBeenAirborne &&
       on_ground &&
@@ -1410,9 +1419,13 @@ Deno.serve(async (req) => {
     const landingCaptureStartedAt = (hasBeenAirborne && on_ground && Number.isFinite(landingCaptureStartedAtMs))
       ? new Date(landingCaptureStartedAtMs).toISOString()
       : null;
-    const crashFromTouchdown = hasBeenAirborne && on_ground && (
-      Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 900 ||
-      Number(effectiveLandingG || 0) >= 2.9
+    const crashFromTouchdown = touchdownDetected && (
+      Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1200 ||
+      Number(effectiveLandingG || 0) >= 3.4 ||
+      (
+        Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1000 &&
+        Number(effectiveLandingG || 0) >= 2.8
+      )
     );
     const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceCurrent) >= 2.6));
     const prevCrashState = (!justLiftedOff && hasFreshAirborneState)
@@ -1434,7 +1447,14 @@ Deno.serve(async (req) => {
       : (effectiveRainDetected ? (prevRainIntensity ?? 0.10) : undefined);
     const effectiveBridgePostInterval = bridgePostIntervalMs ?? (Number(prevXd.bridge_post_interval_ms ?? 0) || null);
     const effectiveBridgeSampleInterval = bridgeSampleIntervalMs ?? (Number(prevXd.bridge_sample_interval_ms ?? 0) || null);
-    const resolvedAircraftIcao = canonicalIcao(aircraft_icao || prevXd.aircraft_icao || "");
+    const resolvedAircraftIcao = canonicalIcao(
+      aircraft_icao ||
+      prevXd.aircraft_icao ||
+      assignedAircraftType ||
+      prevXd.aircraft_type ||
+      gateMeta?.icao ||
+      ""
+    );
 
     const xplaneData = {
       simulator,
@@ -1468,6 +1488,7 @@ Deno.serve(async (req) => {
       landing_data_source: useBridgeLocalLanding ? "bridge_local" : (data.landing_data_source || null),
       bridge_local_landing_locked: useBridgeLocalLanding,
       landing_data_locked: landingDataLocked,
+      touchdown_detected: touchdownDetected,
       landing_capture_started_at: landingCaptureStartedAt,
       landing_data_timestamp: data.landing_data_timestamp || prevXd.landing_data_timestamp || null,
       landing_quality,

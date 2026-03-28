@@ -597,9 +597,17 @@ export default function FlightTracker() {
      // stelle sicher dass das crash-Event gesetzt ist
      if (finalFlightData.events && !finalFlightData.events.crash) {
       const latestXPlane = latestFlight?.xplane_data || activeFlight?.xplane_data;
+      const latestVsAbs = Math.abs(Number(latestXPlane?.vertical_speed || latestXPlane?.touchdown_vspeed || 0));
+      const latestG = Number(latestXPlane?.g_force || latestXPlane?.landing_g_force || 0);
       const trustedCrash = !!(
         latestXPlane?.crash ||
-        (latestXPlane?.has_crashed && latestXPlane?.was_airborne && latestXPlane?.on_ground)
+        (
+          latestXPlane?.has_crashed &&
+          (
+            (!latestXPlane?.on_ground && (latestVsAbs >= 1400 || latestG >= 3.0)) ||
+            (latestXPlane?.on_ground && (latestVsAbs >= 1700 || latestG >= 3.4))
+          )
+        )
       );
       if (trustedCrash) {
         finalFlightData = {
@@ -658,26 +666,40 @@ export default function FlightTracker() {
          }
        }
      }
+    const landingDataTrusted = !!(
+      xpData.touchdown_detected ||
+      xpData.landing_data_locked ||
+      xpData.bridge_local_landing_locked ||
+      xpData.landing_data_source === 'bridge_local' ||
+      liveData.touchdown_detected ||
+      liveData.landing_data_locked ||
+      liveData.bridge_local_landing_locked ||
+      liveData.landing_data_source === 'bridge_local'
+    );
     const resolvedLandingVs = nonZeroNumber(
-      xpData.touchdown_vspeed,
-      xpData.landing_vs,
-      liveData.touchdown_vspeed,
-      liveData.landing_vs,
+      ...(landingDataTrusted ? [
+        xpData.touchdown_vspeed,
+        xpData.landing_vs,
+        liveData.touchdown_vspeed,
+        liveData.landing_vs,
+      ] : []),
       finalFlightData.landingVs,
       finalFlightData.landing_vs
     );
     const resolvedLandingG = positiveNumber(
-      xpData.landing_g_force,
-      xpData.landingGForce,
-      liveData.landing_g_force,
-      liveData.landingGForce,
+      ...(landingDataTrusted ? [
+        xpData.landing_g_force,
+        xpData.landingGForce,
+        liveData.landing_g_force,
+        liveData.landingGForce,
+      ] : []),
       finalFlightData.landingGForce,
       finalFlightData.landing_g_force
     );
      finalFlightData = {
        ...finalFlightData,
-       landingVs: resolvedLandingVs || finalFlightData.landingVs || 0,
-       landingGForce: resolvedLandingG || finalFlightData.landingGForce || 0,
+       landingVs: Math.max(0, Math.min(2500, Math.abs(Number(resolvedLandingVs || finalFlightData.landingVs || 0)))),
+       landingGForce: Math.max(0, Math.min(6, Number(resolvedLandingG || finalFlightData.landingGForce || 0))),
      };
      const initialFuelKg = positiveNumber(
        xpData.initial_fuel_kg,
@@ -1235,12 +1257,22 @@ export default function FlightTracker() {
 
     const xp = xplaneLog.raw_data;
 
-    const simDisabledImpact = !!xp.sim_disabled && (
-      (!xp.on_ground && Number(xp.speed || 0) >= 90) ||
-      Math.abs(Number(xp.vertical_speed || 0)) >= 1200 ||
-      Number(xp.g_force || 0) >= 2.8
+    const severeDynamics = (
+      Math.abs(Number(xp.vertical_speed || 0)) >= 1400 ||
+      Number(xp.g_force || 0) >= 3.0
     );
-    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact);
+    const severeGroundImpact = !!xp.on_ground && (
+      Math.abs(Number(xp.touchdown_vspeed || xp.landing_vs || 0)) >= 1200 ||
+      Number(xp.landing_g_force || 0) >= 3.4 ||
+      severeDynamics
+    );
+    const crashSignal = !!(
+      xp.crash ||
+      (
+        xp.has_crashed &&
+        (severeDynamics || severeGroundImpact)
+      )
+    );
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
@@ -1306,24 +1338,38 @@ export default function FlightTracker() {
 
       // Landing detection based on vertical speed
       const currentSpeed = xp.speed || 0;
+      const landingDataTrusted = !!(
+        xp.touchdown_detected ||
+        xp.landing_data_locked ||
+        xp.bridge_local_landing_locked ||
+        xp.landing_data_source === 'bridge_local'
+      );
       // Ensure we capture landing VS properly - preserve after landing
-      const touchdownVs = prev.landingType 
+      const touchdownVsRaw = prev.landingType
         ? prev.landingVs  // Already landed - keep the captured value
-        : (xp.landing_vs || xp.touchdown_vspeed || 0);
+        : ((xp.on_ground && newWasAirborne && landingDataTrusted)
+            ? (xp.touchdown_vspeed || xp.landing_vs || 0)
+            : 0);
+      const touchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(touchdownVsRaw || 0))));
       // Landing G-force: Capture the ACTUAL g-force at touchdown moment
       // NOT the peak g-force during the entire flight
       // Once landed (landingType set), preserve the captured value
       let landingGForceValue;
       if (prev.landingType) {
         landingGForceValue = prev.landingGForce; // Already landed - keep captured value
-      } else if (xp.on_ground && newWasAirborne) {
+      } else if (xp.on_ground && newWasAirborne && landingDataTrusted) {
         // Use only measured touchdown G from backend/bridge and preserve once captured.
         const reportedLandingG = Number(xp.landing_g_force || 0);
-        landingGForceValue = reportedLandingG > 0 ? reportedLandingG : Number(prev.landingGForce || 0);
+        landingGForceValue = reportedLandingG > 0 ? Math.min(6, reportedLandingG) : Number(prev.landingGForce || 0);
       } else {
         // Still airborne (or false on_ground glitch) - do not synthesize landing G.
         landingGForceValue = 0;
       }
+      const nextLandingVs = prev.landingType
+        ? Number(prev.landingVs || 0)
+        : ((xp.on_ground && newWasAirborne && landingDataTrusted && touchdownVs > 0)
+            ? touchdownVs
+            : Number(prev.landingVs || 0));
 
       // Landing categories based on G-force only
       let landingType = prev.landingType;
@@ -1337,7 +1383,7 @@ export default function FlightTracker() {
        const currentAircraft = aircraft?.find(a => a.id === aircraftId);
        const aircraftPurchasePrice = currentAircraft?.purchase_price || 1000000; // fallback price if not found
 
-      if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
+      if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && landingDataTrusted && !prev.events.crash && !prev.landingType) {
         const gForce = landingGForceValue;
         // Revenue = contract payout (Gesamteinnahmen)
         const totalRevenue = contract?.payout || 0;
@@ -1484,7 +1530,7 @@ export default function FlightTracker() {
         gForce: currentGForce,
         maxGForce: newMaxGForce,
         landingGForce: landingGForceValue,
-        landingVs: touchdownVs !== 0 ? touchdownVs : prev.landingVs,
+        landingVs: nextLandingVs,
         landingType: landingType,
         landingScoreChange: landingScoreChange,
         landingMaintenanceCost: landingMaintenanceCost,

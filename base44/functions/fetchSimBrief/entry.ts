@@ -108,6 +108,13 @@ Deno.serve(async (req) => {
     const departure_elevation_ft = parseInt(origin.elevation || '0', 10) || null;
     const arrival_elevation_ft = parseInt(destination.elevation || '0', 10) || null;
 
+    const aircraftIcao =
+      general.icao_aircraft ||
+      general.aircraft_icao ||
+      general.aircraft_code ||
+      general.aircraft_type ||
+      '';
+
     const result = {
       source: 'simbrief',
       route_string: routeString,
@@ -123,7 +130,7 @@ Deno.serve(async (req) => {
       departure_elevation_ft,
       arrival_elevation_ft,
       cruise_altitude: parseInt(general.initial_altitude || '0', 10),
-      aircraft_icao: general.icao_airline || '',
+      aircraft_icao: String(aircraftIcao || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8),
       flight_number: general.flight_number || '',
       estimated_time_enroute: general.time_enroute || '',
       tow_kg,
@@ -135,6 +142,8 @@ Deno.serve(async (req) => {
       distance_nm: parseInt(general.route_distance || '0', 10),
       raw_general: {
         icao_airline: general.icao_airline,
+        icao_aircraft: general.icao_aircraft,
+        aircraft_type: general.aircraft_type,
         flight_number: general.flight_number,
         cruise_tas: general.cruise_tas,
         avg_wind_comp: general.avg_wind_comp,

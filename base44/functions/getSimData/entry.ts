@@ -89,6 +89,38 @@ Deno.serve(async (req) => {
       if (n <= 1) return n;
       return Math.min(1, n / 100);
     };
+    const normalizeIcao = (v) => {
+      const s = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!s) return '';
+      return s.slice(0, 8);
+    };
+    const inferIcaoFromText = (...values) => {
+      const combined = values
+        .map((v) => String(v || '').toUpperCase())
+        .join(' ');
+      const text = combined.replace(/[^A-Z0-9]/g, '');
+      if (!text) return null;
+      const aliases = [
+        [/A20N|A320NEO|AIRBUSA320|A320/, 'A320'],
+        [/A21N|A321NEO|AIRBUSA321|A321/, 'A321'],
+        [/A19N|A319NEO|AIRBUSA319|A319/, 'A319'],
+        [/B38M|B737MAX8|BOEING7378|B737800|737800|B738/, 'B738'],
+        [/B39M|B737MAX9|BOEING7379|B737900|737900|B739/, 'B739'],
+        [/B78X|B789|BOEING7879|B787900|787900/, 'B789'],
+        [/B788|BOEING7878|B787800|787800/, 'B788'],
+        [/B77W|B777300ER|B773/, 'B77W'],
+        [/C172|CESSNA172/, 'C172'],
+        [/C182|CESSNA182/, 'C182'],
+        [/TBM9|TBM930|TBM940/, 'TBM9'],
+        [/DA62/, 'DA62'],
+      ];
+      for (const [rx, code] of aliases) {
+        if (rx.test(text)) return code;
+      }
+      const fallback4 = text.match(/[A-Z][A-Z0-9]{3}/);
+      if (fallback4) return fallback4[0];
+      return null;
+    };
 
     // Merge: prefer live raw_data, fall back to xplane_data on active flight
     // Covers X-Plane 12, MSFS 2020, MSFS 2024 field name variations
@@ -207,9 +239,18 @@ Deno.serve(async (req) => {
       raw.atc_type, xd.atc_type,
       raw.icao_type, xd.icao_type
     );
-    const acIcao = acIcaoRaw
-      ? String(acIcaoRaw).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
-      : null;
+    const aircraftType = pickPreferred(
+      raw.aircraft_type, xd.aircraft_type,
+      raw.aircraftType, xd.aircraftType,
+      raw.aircraft_name, xd.aircraft_name,
+      raw.aircraft, xd.aircraft,
+      raw.model, xd.model,
+      raw.model_name, xd.model_name,
+      raw.title, xd.title
+    );
+    const acIcao = normalizeIcao(acIcaoRaw) ||
+      inferIcaoFromText(acIcaoRaw, aircraftType, xd.aircraft_type, raw.atc_model, raw.atc_type) ||
+      null;
     const fuelKg = pickPreferred(raw.fuel_kg, xd.fuel_kg);
     if (!estimated_weight && fuelKg && acIcao) {
       // Known OEW (Operating Empty Weight) in kg for common types
@@ -248,6 +289,7 @@ Deno.serve(async (req) => {
 
     const result = {
       aircraft_icao: acIcao,
+      aircraft_type: aircraftType || null,
       total_weight_kg: estimated_weight,
       oat_c: final_oat,
       ground_elevation_ft: final_elev,

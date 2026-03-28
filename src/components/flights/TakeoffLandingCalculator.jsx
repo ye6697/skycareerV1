@@ -65,6 +65,24 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     if (!raw) return null;
     const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && v !== '') return v; } return null; };
     const normIcao = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const inferIcaoFromText = (...vals) => {
+      const text = vals
+        .map((v) => String(v || '').toUpperCase())
+        .join(' ')
+        .replace(/[^A-Z0-9]/g, '');
+      if (!text) return null;
+      if (/A20N|A320NEO|AIRBUSA320|A320/.test(text)) return 'A320';
+      if (/A21N|A321NEO|AIRBUSA321|A321/.test(text)) return 'A321';
+      if (/A19N|A319NEO|AIRBUSA319|A319/.test(text)) return 'A319';
+      if (/B38M|B737MAX8|B737800|737800|B738/.test(text)) return 'B738';
+      if (/B39M|B737MAX9|B737900|737900|B739/.test(text)) return 'B739';
+      if (/B78X|B789|B787900|787900/.test(text)) return 'B789';
+      if (/B788|B787800|787800/.test(text)) return 'B788';
+      if (/C172|CESSNA172/.test(text)) return 'C172';
+      if (/TBM9|TBM930|TBM940/.test(text)) return 'TBM9';
+      const fallback = text.match(/[A-Z][A-Z0-9]{3}/);
+      return fallback ? fallback[0] : null;
+    };
 
     // Weight: try kg first, then convert from lbs
     let total_weight_kg = pick(raw.total_weight_kg, raw.gross_weight_kg, raw.weight_kg);
@@ -90,18 +108,28 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     }
     const wind_dir = pick(raw.wind_direction, raw.wind_dir, raw.wind_heading, raw.ambient_wind_direction, raw.wind_deg);
 
+    const aircraftType = pick(
+      raw.aircraft_type,
+      raw.aircraftType,
+      raw.aircraft_name,
+      raw.aircraft,
+      raw.model,
+      raw.model_name,
+      raw.title
+    );
+    const aircraftIcaoRaw = pick(
+      raw.aircraft_icao,
+      raw.aircraftIcao,
+      raw.atc_model,
+      raw.atc_type,
+      raw.icao_type,
+      raw.icao
+    );
+
     return {
       ...raw,
-      aircraft_icao: normIcao(
-        pick(
-          raw.aircraft_icao,
-          raw.aircraftIcao,
-          raw.atc_model,
-          raw.atc_type,
-          raw.icao_type,
-          raw.icao
-        )
-      ) || null,
+      aircraft_icao: normIcao(aircraftIcaoRaw) || inferIcaoFromText(aircraftIcaoRaw, aircraftType) || null,
+      aircraft_type: aircraftType || null,
       total_weight_kg,
       oat_c,
       baro_setting,
@@ -132,6 +160,12 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     }
   }, [xplaneData]);
 
+  useEffect(() => {
+    if (xplaneData) return;
+    if (simData) return;
+    loadFromSim();
+  }, [xplaneData, simData, loadFromSim]);
+
   const calculate = useCallback(async () => {
     if (calcRef.current) return;
     calcRef.current = true;
@@ -143,7 +177,14 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     const sd = simData || {};
     const sb = simbriefData || {};
 
-    const aircraftType = sd.aircraft_icao || sb.aircraft_icao || sb.raw_general?.icao_airline || 'unknown';
+    const aircraftType =
+      sd.aircraft_icao ||
+      sd.aircraft_type ||
+      sb.aircraft_icao ||
+      sb.raw_general?.icao_aircraft ||
+      sb.raw_general?.aircraft_icao ||
+      sb.raw_general?.aircraft_type ||
+      'unknown';
     const weightKg = sd.total_weight_kg || sb.tow_kg || null;
     const oatC = sd.oat_c ?? 15;
     const elevFt = sd.ground_elevation_ft ?? sd.altitude ?? 0;
