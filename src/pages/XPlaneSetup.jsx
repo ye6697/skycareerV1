@@ -429,8 +429,14 @@ export default function XPlaneSetup() {
     <div className="h-full min-h-0 overflow-y-auto bg-[radial-gradient(circle_at_18%_0%,#17345f_0%,#0b1a32_44%,#060c17_100%)] p-3 sm:p-5">
       <div className="mx-auto w-full max-w-7xl space-y-6">
         <Card className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-[linear-gradient(135deg,#0e2b56_0%,#15427b_58%,#1d4f93_100%)] text-white shadow-[0_24px_72px_rgba(6,18,36,0.48)]">
-          <div className="pointer-events-none absolute -right-10 -top-12 h-56 w-56 rounded-full bg-cyan-300/10 blur-2xl" />
-          <div className="pointer-events-none absolute right-20 top-8 h-28 w-28 rounded-full border border-cyan-100/15 bg-cyan-200/10" />
+          <div className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 sm:block">
+            <img
+              src="/skycareer-logo.ico"
+              alt=""
+              aria-hidden="true"
+              className="h-44 w-44 opacity-[0.14] [filter:drop-shadow(0_0_24px_rgba(147,197,253,0.35))]"
+            />
+          </div>
           <div className="relative p-5 sm:p-7">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold tracking-[0.16em] uppercase text-cyan-100">
               <Sparkles className="h-3.5 w-3.5" />
