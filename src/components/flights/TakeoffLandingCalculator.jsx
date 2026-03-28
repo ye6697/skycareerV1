@@ -64,7 +64,23 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
   const normalizeSimData = (raw) => {
     if (!raw) return null;
     const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && v !== '') return v; } return null; };
-    const normIcao = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const normIcao = (v) => {
+      const s = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!s) return '';
+      if (/A20N|A320NEO|AIRBUSA320|A320/.test(s)) return 'A320';
+      if (/A21N|A321NEO|AIRBUSA321|A321/.test(s)) return 'A321';
+      if (/A19N|A319NEO|AIRBUSA319|A319/.test(s)) return 'A319';
+      if (/B38M|B737MAX8|BOEING7378|B737800|737800|B738/.test(s)) return 'B738';
+      if (/B39M|B737MAX9|BOEING7379|B737900|737900|B739/.test(s)) return 'B739';
+      if (/B78X|B789|BOEING7879|B787900|787900/.test(s)) return 'B789';
+      if (/B788|BOEING7878|B787800|787800/.test(s)) return 'B788';
+      if (/C172|CESSNA172/.test(s)) return 'C172';
+      if (/C182|CESSNA182/.test(s)) return 'C182';
+      if (/TBM9|TBM930|TBM940/.test(s)) return 'TBM9';
+      if (/DA62/.test(s)) return 'DA62';
+      if (/^[A-Z][A-Z0-9]{2,4}$/.test(s) && /\d/.test(s)) return s;
+      return '';
+    };
     const inferIcaoFromText = (...vals) => {
       const text = vals
         .map((v) => String(v || '').toUpperCase())
@@ -80,8 +96,7 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
       if (/B788|B787800|787800/.test(text)) return 'B788';
       if (/C172|CESSNA172/.test(text)) return 'C172';
       if (/TBM9|TBM930|TBM940/.test(text)) return 'TBM9';
-      const fallback = text.match(/[A-Z][A-Z0-9]{3}/);
-      return fallback ? fallback[0] : null;
+      return null;
     };
 
     // Weight: try kg first, then convert from lbs

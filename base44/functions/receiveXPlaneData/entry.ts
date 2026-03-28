@@ -423,7 +423,8 @@ Deno.serve(async (req) => {
     const latitude = data.latitude ?? data.lat;
     const longitude = data.longitude ?? data.lon ?? data.lng;
     const on_ground = toBool(data.on_ground ?? data.onGround ?? data.sim_on_ground ?? data.isOnGround, false);
-    const touchdown_vspeed = data.touchdown_vspeed ?? data.touchdownVspeed ?? data.landing_vspeed ?? data.touchdown_vs ?? data.landing_vs;
+    // Do not alias generic landing_vs here; some bridges use it as current vertical speed (not touchdown value).
+    const touchdown_vspeed = data.touchdown_vspeed ?? data.touchdownVspeed ?? data.landing_vspeed ?? data.touchdown_vs;
     const landing_g_force = data.landing_g_force ?? data.landingGForce ?? data.touchdown_g ?? data.landing_g;
     // Events - support X-Plane datarefs AND MSFS SimConnect event names
     const tailstrike = data.tailstrike ?? data.tail_strike ?? data.tailStrike ?? false;
@@ -1044,7 +1045,7 @@ Deno.serve(async (req) => {
     const contractDeadlineMinutes = Number(contract?.deadline_minutes ?? prevXd.contract_deadline_minutes ?? 0) || null;
     const contractPayout = Number(contract?.payout ?? prevXd.contract_payout ?? 0) || null;
     const contractBonusPotential = Number(contract?.bonus_potential ?? prevXd.contract_bonus_potential ?? 0) || null;
-    const incomingTouchdownVspeed = Math.abs(Number(touchdown_vspeed ?? data.landing_vs ?? data.landingVs ?? 0));
+    const incomingTouchdownVspeed = Math.abs(Number(touchdown_vspeed ?? 0));
     const incomingLandingG = Number(landing_g_force ?? data.landingG ?? 0);
     const landingDataSource = String(data.landing_data_source || "").trim().toLowerCase();
     const bridgeLocalLandingLocked = toBool(data.bridge_local_landing_locked ?? data.landing_data_locked, false);
@@ -1319,12 +1320,11 @@ Deno.serve(async (req) => {
     const rawGearUpLandingFlag = toBool(gear_up_landing, false);
     const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
     const hasCrashDynamicsNow =
-      Math.abs(Number(vertical_speed || 0)) >= 900 ||
-      Number(gForceCurrent || 0) >= 2.6 ||
-      (!on_ground && Number(speed || 0) > 140);
+      Math.abs(Number(vertical_speed || 0)) >= 1700 ||
+      Number(gForceCurrent || 0) >= 3.4;
     const hasOnGroundCrashDynamicsNow =
-      Math.abs(Number(vertical_speed || 0)) >= 1000 ||
-      Number(gForceCurrent || 0) >= 3.0;
+      Math.abs(Number(vertical_speed || 0)) >= 1400 ||
+      Number(gForceCurrent || 0) >= 3.6;
     const rawCrashFlag = !!(
       crash ||
       data.crashed ||
@@ -1428,9 +1428,7 @@ Deno.serve(async (req) => {
       )
     );
     const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceCurrent) >= 2.6));
-    const prevCrashState = (!justLiftedOff && hasFreshAirborneState)
-      ? toBool(prevXd.crash ?? prevXd.has_crashed, false)
-      : false;
+    const prevCrashState = toBool(prevXd.crash ?? prevXd.has_crashed, false);
     const simDisabledCrashSignal = incidentArmed && toBool(sim_disabled, false) && (
       crashFromTouchdown ||
       Math.abs(Number(vertical_speed || 0)) >= 1800 ||
@@ -1439,7 +1437,7 @@ Deno.serve(async (req) => {
     const crashSignalTrusted = incidentArmed
       ? (((rawCrashFlag && !eventTakeoffSuppress.crash) || simDisabledCrashSignal))
       : false;
-    const isCrash = !!(crashSignalTrusted || crashFromTouchdown || prevCrashState);
+    const isCrash = !!(crashSignalTrusted || crashFromTouchdown);
     const prevRainIntensity = asFinite(prevXd.rain_intensity ?? prevXd.precipitation ?? prevXd.rain);
     const effectiveRainDetected = !!(rain_detected || has_rain_mask || has_convective_mask || prevXd.rain_detected);
     const effectiveRainIntensity = rain_intensity !== undefined
@@ -1673,6 +1671,7 @@ Deno.serve(async (req) => {
           "tailstrike",
           "stall",
           "overstress",
+          "high_g_force",
           "overspeed",
           "flaps_overspeed",
           "gear_up_landing",
@@ -1764,6 +1763,17 @@ Deno.serve(async (req) => {
             force: !!(overstressDetected && !prevXd.overstress),
             cooldownSec: 14,
             minDistanceNm: 0.2,
+          });
+        }
+        const prevMaxGAbs = Math.abs(Number(prevXd.max_g_force ?? prevXd.g_force ?? 0));
+        const curMaxGAbs = Math.abs(Number(max_g_force || gForceCurrent || 0));
+        if (curMaxGAbs >= 1.5) {
+          const crossedHighGThreshold = prevMaxGAbs < 1.5;
+          const crossedHigherBand = Math.floor(curMaxGAbs / 0.25) > Math.floor(prevMaxGAbs / 0.25);
+          appendEvent("high_g_force", { g: curMaxGAbs, val: Number(curMaxGAbs.toFixed(2)) }, {
+            force: crossedHighGThreshold || crossedHigherBand,
+            cooldownSec: 20,
+            minDistanceNm: 0.15,
           });
         }
         if (overspeedDetected) {

@@ -129,12 +129,18 @@ export default function FreeFlight() {
   useEffect(() => {
     if (!xplaneLog?.raw_data) return;
     const xp = xplaneLog.raw_data;
+    const landingDataTrustedForCrash = !!(
+      xp.touchdown_detected ||
+      xp.landing_data_locked ||
+      xp.bridge_local_landing_locked ||
+      xp.landing_data_source === 'bridge_local'
+    );
     const severeDynamics = (
       Math.abs(Number(xp.vertical_speed || 0)) >= 1400 ||
       Number(xp.g_force || 0) >= 3.0
     );
-    const severeGroundImpact = !!xp.on_ground && (
-      Math.abs(Number(xp.touchdown_vspeed || xp.landing_vs || 0)) >= 1200 ||
+    const severeGroundImpact = !!xp.on_ground && landingDataTrustedForCrash && (
+      Math.abs(Number(xp.touchdown_vspeed || 0)) >= 1200 ||
       Number(xp.landing_g_force || 0) >= 3.4 ||
       severeDynamics
     );
@@ -182,7 +188,7 @@ export default function FreeFlight() {
         xp.landing_data_source === 'bridge_local'
       );
       const touchdownVsRaw = (xp.on_ground && newWasAirborne && landingDataTrusted)
-        ? (xp.touchdown_vspeed || xp.landing_vs || 0)
+        ? (xp.touchdown_vspeed || 0)
         : 0;
       const touchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(touchdownVsRaw || 0))));
       const hasTouchdownEvidence = landingDataTrusted && ((touchdownVs > 50) || Number(xp.landing_g_force || 0) > 0);

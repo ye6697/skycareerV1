@@ -780,7 +780,7 @@ function update(d) {
   if (!staticMode) {
     layers._liveIncidentLog = Array.isArray(layers._liveIncidentLog) ? layers._liveIncidentLog : [];
     layers._liveIncidentState = layers._liveIncidentState || {};
-    var liveIncidentTypes = ['crash', 'tailstrike', 'stall', 'overstress', 'overspeed', 'flaps_overspeed', 'gear_up_landing', 'harsh_controls', 'touchdown'];
+    var liveIncidentTypes = ['crash', 'tailstrike', 'stall', 'overstress', 'high_g_force', 'overspeed', 'flaps_overspeed', 'gear_up_landing', 'harsh_controls', 'touchdown'];
     if (!live || !live.wasAirborne) {
       layers._liveIncidentLog = [];
       layers._liveIncidentState = {};
@@ -828,6 +828,7 @@ function update(d) {
     stall: { cooldownSec: 36000, minNm: 9999, single: true },
     gear_up_landing: { cooldownSec: 36000, minNm: 9999, single: true },
     overstress: { cooldownSec: 36000, minNm: 9999, single: true },
+    high_g_force: { cooldownSec: 36000, minNm: 9999, single: true },
     overspeed: { cooldownSec: 36000, minNm: 9999, single: true },
     flaps_overspeed: { cooldownSec: 36000, minNm: 9999, single: true },
     harsh_controls: { cooldownSec: 36000, minNm: 9999, single: true },
@@ -845,6 +846,7 @@ function update(d) {
     tailstrike: true,
     stall: true,
     overstress: true,
+    high_g_force: true,
     overspeed: true,
     flaps_overspeed: true,
     gear_up_landing: true,
@@ -914,6 +916,7 @@ function update(d) {
       tailstrike: {icon:'!',color:'#f87171',bg:'rgba(127,29,29,0.85)',label:'TAILSTRIKE'},
       stall: {icon:'!',color:'#f87171',bg:'rgba(127,29,29,0.85)',label:'STALL'},
       overstress: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSTRESS'},
+      high_g_force: {icon:'G',color:'#f59e0b',bg:'rgba(120,53,15,0.85)',label:'HIGH G'},
       overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSPEED'},
       flaps_overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'FLAP OVSPD'},
       gear_up_landing: {icon:'!',color:'#f43f5e',bg:'rgba(131,24,67,0.90)',label:'GEAR-UP LDG'},
