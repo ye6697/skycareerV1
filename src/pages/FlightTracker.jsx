@@ -1235,7 +1235,9 @@ export default function FlightTracker() {
         Number.isFinite(backendAirborneMs) &&
         backendAirborneMs >= (sessionStartMs - 5000);
       const backendAirborneArmed = backendAirborneInSession || (!xp.on_ground && !!xp.completion_armed);
-      const newWasAirborne = prev.wasAirborne || airborneEvidence || backendAirborneArmed;
+      // Never arm airborne from backend flags while currently on ground.
+      // This blocks stale session flags from instantly completing a new flight.
+      const newWasAirborne = prev.wasAirborne || airborneEvidence || (!xp.on_ground && backendAirborneArmed);
 
       // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
       if (!newWasAirborne) {
@@ -1496,28 +1498,31 @@ export default function FlightTracker() {
     // Erlaube Abschluss in ALLEN aktiven Flugphasen (takeoff, cruise, landing)
     const isActivePhase = flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing';
     
+    // Use the freshest synchronized state (ref) to avoid stale React-state races.
+    const latestFlightData = flightDataRef.current || flightData;
+
     // flightStartTime kann null sein wenn der Flug wiederhergestellt wurde - dann setze es jetzt
-    if (flightData.wasAirborne && !flightStartTime) {
+    if (latestFlightData.wasAirborne && !flightStartTime) {
       setFlightStartTime(Date.now());
     }
     
     // Auto-complete trigger: once aircraft was airborne, on_ground is enough.
-    const isReadyToComplete = xp.on_ground && flightData.wasAirborne;
+    const isReadyToComplete = xp.on_ground && latestFlightData.wasAirborne;
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
       // Check distance to arrival airport (>=10 NM without emergency = failed)
       const simbriefArr = xp.simbrief_arrival_coords || xplaneLog?.raw_data?.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
       const contractArrival = getAirportCoords(contract?.arrival_airport);
       const arrivalPos = pickFirstValidLatLon([
-        [flightData.arrival_lat, flightData.arrival_lon],
-        [xp.arrival_lat, xp.arrival_lon],
-        [simbriefArr?.lat, simbriefArr?.lon],
-        [simbriefArr?.latitude, simbriefArr?.longitude],
-        [contractArrival?.lat, contractArrival?.lon],
-      ]);
-      const currentPos = pickFirstValidLatLon([
-        [xp.latitude, xp.longitude],
-        [flightData.latitude, flightData.longitude],
-      ]);
+            [latestFlightData.arrival_lat, latestFlightData.arrival_lon],
+            [xp.arrival_lat, xp.arrival_lon],
+            [simbriefArr?.lat, simbriefArr?.lon],
+            [simbriefArr?.latitude, simbriefArr?.longitude],
+            [contractArrival?.lat, contractArrival?.lon],
+          ]);
+          const currentPos = pickFirstValidLatLon([
+            [xp.latitude, xp.longitude],
+            [latestFlightData.latitude, latestFlightData.longitude],
+          ]);
       const dArr = (arrivalPos.valid && currentPos.valid)
         ? calculateHaversineDistance(currentPos.lat, currentPos.lon, arrivalPos.lat, arrivalPos.lon)
         : 0;
@@ -1538,7 +1543,7 @@ export default function FlightTracker() {
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
-    if (flightData.events.crash && flightData.wasAirborne && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
+    if (latestFlightData.events.crash && latestFlightData.wasAirborne && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
       setShowAutoCompleteOverlay(true);
