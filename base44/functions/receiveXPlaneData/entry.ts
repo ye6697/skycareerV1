@@ -474,7 +474,7 @@ Deno.serve(async (req) => {
     const hasCrashFailure = Array.isArray(data.active_failures) && data.active_failures.some((f) =>
       /crash/i.test(String(f?.name || f?.name_de || ""))
     );
-    const isCrashSignal = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || sim_disabled || hasCrashFailure);
+    const explicitCrashSignal = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || hasCrashFailure);
     const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const asFinite = (v) => {
@@ -663,6 +663,22 @@ Deno.serve(async (req) => {
       const n = normalizeIcaoCode(v);
       if (!n) return "";
       if (icaoAliasMap[n]) return icaoAliasMap[n];
+      const patternAliases = [
+        [/B38M|B738|7378|B737800/, "B738"],
+        [/B39M|B739|7379|B737900/, "B739"],
+        [/B737|7377|B737700/, "B737"],
+        [/B78X|B789|7879|B787900/, "B789"],
+        [/B788|7878|B787800/, "B788"],
+        [/A20N|A320NEO|A320/, "A320"],
+        [/A21N|A321NEO|A321/, "A321"],
+        [/A19N|A319NEO|A319/, "A319"],
+        [/C172|CESSNA172/, "C172"],
+        [/DA62/, "DA62"],
+        [/TBM9|TBM930|TBM940/, "TBM9"],
+      ];
+      for (const [rx, code] of patternAliases) {
+        if (rx.test(n)) return code;
+      }
       const four = n.match(/^[A-Z0-9]{4}/);
       if (four) return four[0];
       return n;
@@ -900,8 +916,8 @@ Deno.serve(async (req) => {
         engines_running,
         pitch,
         ias,
-        crash: isCrashSignal,
-        has_crashed: isCrashSignal,
+        crash: explicitCrashSignal,
+        has_crashed: explicitCrashSignal,
         crash_flag,
         sim_disabled,
         oat_c: derivedWeather.oat_c ?? null,
@@ -1294,10 +1310,17 @@ Deno.serve(async (req) => {
     );
     const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceEffective) >= 2.6));
     const prevCrashState = hasFreshAirborneState ? toBool(prevXd.crash ?? prevXd.has_crashed, false) : false;
-    const crashSignalTrusted = incidentArmed ? isCrashSignal : false;
+    const simDisabledCrashSignal = incidentArmed && toBool(sim_disabled, false) && (
+      crashFromTouchdown ||
+      (!on_ground && Number(speed || 0) >= 90) ||
+      Math.abs(Number(vertical_speed || 0)) >= 1200 ||
+      Number(gForceEffective || 0) >= 2.8
+    );
+    const crashSignalTrusted = incidentArmed ? (explicitCrashSignal || simDisabledCrashSignal) : false;
     const isCrash = !!(crashSignalTrusted || crashFromTouchdown || prevCrashState);
     const effectiveBridgePostInterval = bridgePostIntervalMs ?? (Number(prevXd.bridge_post_interval_ms ?? 0) || null);
     const effectiveBridgeSampleInterval = bridgeSampleIntervalMs ?? (Number(prevXd.bridge_sample_interval_ms ?? 0) || null);
+    const resolvedAircraftIcao = canonicalIcao(aircraft_icao || prevXd.aircraft_icao || "");
 
     const xplaneData = {
       simulator,
@@ -1376,7 +1399,8 @@ Deno.serve(async (req) => {
       precip_state: precip_state !== undefined ? precip_state : null,
       turbulence: turbulence !== undefined ? turbulence : null,
       turbulence_intensity: turbulence !== undefined ? turbulence : null,
-      aircraft_icao: aircraft_icao || (prevXd.aircraft_icao || null),
+      aircraft_icao: resolvedAircraftIcao || aircraft_icao || (prevXd.aircraft_icao || null),
+      aircraft_icao_raw: aircraft_icao || (prevXd.aircraft_icao_raw || null),
       aircraft_type: assignedAircraftType || (prevXd.aircraft_type || null),
       reference_refresh_ms: shouldRefreshReferenceData ? Date.now() : (referenceRefreshMsPrev || Date.now()),
       contract_departure_airport: contractDepartureAirport,

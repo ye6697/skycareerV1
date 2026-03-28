@@ -785,7 +785,10 @@ function update(d) {
         layers._liveIncidentLog = layers._liveIncidentLog.slice(-180);
       }
     }
-    evtLogRaw = layers._liveIncidentLog;
+    // Prefer backend log in live mode (contains control-surface events like flaps/gear).
+    // Fall back to incident-only local log if backend log is temporarily empty.
+    var liveBackendEvtLog = Array.isArray(d.flightEventsLog) ? d.flightEventsLog : [];
+    evtLogRaw = liveBackendEvtLog.length > 0 ? liveBackendEvtLog : layers._liveIncidentLog;
   } else {
     evtLogRaw = Array.isArray(d.flightEventsLog) ? d.flightEventsLog : [];
   }
@@ -807,14 +810,14 @@ function update(d) {
     flaps_overspeed: { cooldownSec: 36000, minNm: 9999, single: true },
     harsh_controls: { cooldownSec: 36000, minNm: 9999, single: true },
     touchdown: { cooldownSec: 36000, minNm: 9999, single: true },
-    flaps: { cooldownSec: 8, minNm: 0.08 },
-    gear_up: { cooldownSec: 8, minNm: 0.08 },
-    gear_down: { cooldownSec: 8, minNm: 0.08 },
-    spoiler_on: { cooldownSec: 8, minNm: 0.08 },
-    spoiler_off: { cooldownSec: 8, minNm: 0.08 },
+    flaps: { cooldownSec: 3, minNm: 0.005 },
+    gear_up: { cooldownSec: 3, minNm: 0.005 },
+    gear_down: { cooldownSec: 3, minNm: 0.005 },
+    spoiler_on: { cooldownSec: 3, minNm: 0.005 },
+    spoiler_off: { cooldownSec: 3, minNm: 0.005 },
     _default: { cooldownSec: 60, minNm: 0.5 }
   };
-  // Map markers should show only real incidents (no control-surface/noise events).
+  // Map markers: include incidents + control-surface transitions for full flight timeline.
   var markerAllowedTypes = {
     crash: true,
     tailstrike: true,
@@ -824,7 +827,12 @@ function update(d) {
     flaps_overspeed: true,
     gear_up_landing: true,
     harsh_controls: true,
-    touchdown: true
+    touchdown: true,
+    flaps: true,
+    gear_up: true,
+    gear_down: true,
+    spoiler_on: true,
+    spoiler_off: true
   };
   var dedupeEventsForMap = function(list) {
     var byType = {};

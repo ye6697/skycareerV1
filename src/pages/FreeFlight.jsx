@@ -129,7 +129,12 @@ export default function FreeFlight() {
   useEffect(() => {
     if (!xplaneLog?.raw_data) return;
     const xp = xplaneLog.raw_data;
-    const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || xp.sim_disabled);
+    const simDisabledImpact = !!xp.sim_disabled && (
+      (!xp.on_ground && Number(xp.speed || 0) >= 90) ||
+      Math.abs(Number(xp.vertical_speed || 0)) >= 1200 ||
+      Number(xp.g_force || 0) >= 2.8
+    );
+    const crashSignal = !!(xp.has_crashed || xp.crash || xp.crash_flag || simDisabledImpact);
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
