@@ -596,15 +596,18 @@ export default function FlightTracker() {
      // KRITISCH: Wenn Crash erkannt wurde (egal ob im State oder via has_crashed), 
      // stelle sicher dass das crash-Event gesetzt ist
      if (finalFlightData.events && !finalFlightData.events.crash) {
-       // Prüfe ob ein Crash über andere Wege erkannt wurde
-       const latestXPlane = latestFlight?.xplane_data || activeFlight?.xplane_data;
-       if (latestXPlane?.has_crashed) {
-         finalFlightData = {
-           ...finalFlightData,
-           events: { ...finalFlightData.events, crash: true }
-         };
-       }
-     }
+      const latestXPlane = latestFlight?.xplane_data || activeFlight?.xplane_data;
+      const trustedCrash = !!(
+        latestXPlane?.crash ||
+        (latestXPlane?.has_crashed && latestXPlane?.was_airborne && latestXPlane?.on_ground)
+      );
+      if (trustedCrash) {
+        finalFlightData = {
+          ...finalFlightData,
+          events: { ...finalFlightData.events, crash: true }
+        };
+      }
+    }
      
      // Realistic cost calculations based on aviation industry
      // Use actual X-Plane fuel data: initial_fuel_kg - current fuel_kg
@@ -1237,7 +1240,7 @@ export default function FlightTracker() {
       Math.abs(Number(xp.vertical_speed || 0)) >= 1200 ||
       Number(xp.g_force || 0) >= 2.8
     );
-    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact || (!!xp.completion_armed && xp.crash_flag));
+    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact);
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;

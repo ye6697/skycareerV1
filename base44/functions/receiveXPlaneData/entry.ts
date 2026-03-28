@@ -439,8 +439,28 @@ Deno.serve(async (req) => {
     const has_crashed = data.has_crashed ?? data.hasCrashed ?? data.is_crashed ?? data.sim_crashed ?? false;
     const overspeed = data.overspeed ?? data.overSpeed ?? data.vmo_exceeded ?? data.over_speed ?? false;
     const gear_down = data.gear_down ?? data.gearDown ?? data.gear_extended;
-    // flap_ratio: preserve 0 as valid value (don't use || which treats 0 as falsy)
-    const flap_ratio = data.flap_ratio ?? data.flapRatio ?? data.flap_position ?? data.flapPosition ?? 0;
+    const normalizeControlRatio = (value, fallback = 0) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      const ratio = n > 1.5 ? (n / 100) : n;
+      return Math.max(0, Math.min(1, ratio));
+    };
+    // flap_ratio: keep 0 as valid value and normalize percent-based bridges to 0..1.
+    const flap_ratio = normalizeControlRatio(
+      data.flap_ratio ?? data.flapRatio ?? data.flap_position ?? data.flapPosition ?? data.flaps ?? data.flaps_position,
+      0
+    );
+    const speedbrakeRaw = data.speedbrake ??
+      data.speed_brake ??
+      data.speedBrake ??
+      data.spoiler ??
+      data.spoilers ??
+      data.spoilers_handle_position ??
+      data.spoiler_handle_position ??
+      data.speed_brake_position;
+    const speedbrake = speedbrakeRaw === undefined || speedbrakeRaw === null
+      ? null
+      : normalizeControlRatio(speedbrakeRaw, 0);
     const pitch = data.pitch ?? data.pitch_angle ?? data.pitchAngle;
     const ias = data.ias ?? data.indicated_airspeed ?? data.indicatedAirspeed;
     // Legacy fields from old plugins
@@ -472,11 +492,12 @@ Deno.serve(async (req) => {
     // MSFS crash detection: support multiple field names + bridge fallbacks
     const crash_flag = data.crash_flag ?? data.crashFlag ?? data.crashflag ?? false;
     const sim_disabled = data.sim_disabled ?? data.simDisabled ?? data.sim_is_disabled ?? data.simDisabledFlag ?? false;
-    const hasCrashFailure = Array.isArray(data.active_failures) && data.active_failures.some((f) =>
-      /crash/i.test(String(f?.name || f?.name_de || ""))
-    );
-    const explicitCrashSignal = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || crash_flag || hasCrashFailure);
-    const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_type || data.icao_type;
+    const hasBridgeCrashEvent = Array.isArray(incomingBridgeEventLog) && incomingBridgeEventLog.some((evt) => {
+      const tp = String(evt?.type || evt?.event || evt?.name || evt?.code || "").toLowerCase();
+      return tp === "crash" || tp === "crashed" || tp === "has_crashed";
+    });
+    const explicitCrashSignal = !!(crash || has_crashed || data.crashed || data.is_crashed || data.sim_crashed || hasBridgeCrashEvent);
+    const aircraft_icao = data.aircraft_icao || data.aircraftIcao || data.atc_model || data.atc_type || data.icao_type;
     const normalizeIcaoCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const asFinite = (v) => {
       const n = Number(v);
@@ -503,7 +524,9 @@ Deno.serve(async (req) => {
         data.precipitation_rate
       );
       const hasRainMask = precip_state !== undefined && (precip_state & 4) === 4;
+      const hasConvectiveMask = precip_state !== undefined && (((precip_state & 8) === 8) || ((precip_state & 16) === 16));
       let rain_intensity = asFinite(data.rain_intensity ?? data.precipitation ?? data.rain);
+      const rain_detected_flag = toBool(data.rain_detected ?? data.rainDetected ?? data.precip_detected, false);
       const wind_speed_num = asFinite(
         data.wind_speed_kts ??
         data.wind_speed ??
@@ -543,6 +566,10 @@ Deno.serve(async (req) => {
         const gustBased = gustSpread !== undefined ? Math.min(1, 0.10 + (gustSpread / 35)) : undefined;
         const estimated = Math.max(windBased ?? 0, gustBased ?? 0);
         rain_intensity = estimated > 0 ? estimated : 0.10;
+      }
+      if (rain_intensity === undefined && (rain_detected_flag || hasConvectiveMask)) {
+        const windBased = wind_speed_num !== undefined ? Math.min(1, 0.10 + (wind_speed_num / 90)) : 0;
+        rain_intensity = Math.max(0.10, windBased);
       }
       if (rain_intensity !== undefined && rain_intensity > 1) {
         rain_intensity = Math.min(1, rain_intensity / 100);
@@ -589,7 +616,9 @@ Deno.serve(async (req) => {
         turbulence = 0;
       }
       const rain_detected = !!(
+        rain_detected_flag ||
         hasRainMask ||
+        hasConvectiveMask ||
         (precip_rate !== undefined && precip_rate > 0) ||
         (rain_intensity !== undefined && rain_intensity > 0.01)
       );
@@ -601,6 +630,8 @@ Deno.serve(async (req) => {
         precip_rate,
         rain_intensity,
         rain_detected,
+        has_rain_mask: hasRainMask,
+        has_convective_mask: hasConvectiveMask,
         turbulence,
         ground_elevation_ft,
         baro_setting,
@@ -919,20 +950,23 @@ Deno.serve(async (req) => {
         ias,
         crash: explicitCrashSignal,
         has_crashed: explicitCrashSignal,
-        crash_flag,
+        crash_flag: explicitCrashSignal,
         sim_disabled,
+        flap_ratio,
+        speedbrake,
+        aircraft_icao: aircraft_icao || null,
         oat_c: derivedWeather.oat_c ?? null,
         tat_c: derivedWeather.tat_c ?? null,
-      rain_intensity: derivedWeather.rain_intensity ?? null,
-      rain_detected: derivedWeather.rain_detected ?? false,
-      precipitation: derivedWeather.rain_intensity ?? null,
-      precip_rate: derivedWeather.precip_rate ?? null,
-      precip_state: derivedWeather.precip_state ?? null,
-      turbulence: derivedWeather.turbulence ?? null,
-      turbulence_intensity: derivedWeather.turbulence ?? null,
-      wind_speed_kts: derivedWeather.wind_speed_kts ?? null,
-      wind_gust_kts: derivedWeather.wind_gust_kts ?? null,
-      wind_direction: derivedWeather.wind_direction ?? null,
+        rain_intensity: derivedWeather.rain_intensity ?? null,
+        rain_detected: derivedWeather.rain_detected ?? false,
+        precipitation: derivedWeather.rain_intensity ?? null,
+        precip_rate: derivedWeather.precip_rate ?? null,
+        precip_state: derivedWeather.precip_state ?? null,
+        turbulence: derivedWeather.turbulence ?? null,
+        turbulence_intensity: derivedWeather.turbulence ?? null,
+        wind_speed_kts: derivedWeather.wind_speed_kts ?? null,
+        wind_gust_kts: derivedWeather.wind_gust_kts ?? null,
+        wind_direction: derivedWeather.wind_direction ?? null,
       };
       // No active flight - log to XPlaneLog so debug page can show data
       base44.asServiceRole.entities.XPlaneLog.create({
@@ -1054,6 +1088,8 @@ Deno.serve(async (req) => {
       precip_rate,
       rain_intensity,
       rain_detected,
+      has_rain_mask,
+      has_convective_mask,
       turbulence,
       ground_elevation_ft,
       baro_setting,
@@ -1282,7 +1318,15 @@ Deno.serve(async (req) => {
     const rawFlapsOverspeedFlag = toBool(flaps_overspeed, false);
     const rawGearUpLandingFlag = toBool(gear_up_landing, false);
     const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
-    const rawCrashFlag = !!(crash || has_crashed || crash_flag || hasCrashFailure);
+    const rawCrashFlag = !!(
+      crash ||
+      has_crashed ||
+      data.crashed ||
+      data.is_crashed ||
+      data.sim_crashed ||
+      hasBridgeCrashEvent ||
+      (toBool(crash_flag, false) && !on_ground)
+    );
     const prevTakeoffSuppress = (prevXd?.event_takeoff_suppress && typeof prevXd.event_takeoff_suppress === "object")
       ? prevXd.event_takeoff_suppress
       : {};
@@ -1383,6 +1427,11 @@ Deno.serve(async (req) => {
       ? (((rawCrashFlag && !eventTakeoffSuppress.crash) || simDisabledCrashSignal))
       : false;
     const isCrash = !!(crashSignalTrusted || crashFromTouchdown || prevCrashState);
+    const prevRainIntensity = asFinite(prevXd.rain_intensity ?? prevXd.precipitation ?? prevXd.rain);
+    const effectiveRainDetected = !!(rain_detected || has_rain_mask || has_convective_mask || prevXd.rain_detected);
+    const effectiveRainIntensity = rain_intensity !== undefined
+      ? rain_intensity
+      : (effectiveRainDetected ? (prevRainIntensity ?? 0.10) : undefined);
     const effectiveBridgePostInterval = bridgePostIntervalMs ?? (Number(prevXd.bridge_post_interval_ms ?? 0) || null);
     const effectiveBridgeSampleInterval = bridgeSampleIntervalMs ?? (Number(prevXd.bridge_sample_interval_ms ?? 0) || null);
     const resolvedAircraftIcao = canonicalIcao(aircraft_icao || prevXd.aircraft_icao || "");
@@ -1461,9 +1510,9 @@ Deno.serve(async (req) => {
       wind_speed_kts: wind_speed_kts !== undefined ? wind_speed_kts : (prevXd.wind_speed_kts ?? null),
       wind_gust_kts: wind_gust_kts !== undefined ? wind_gust_kts : (prevXd.wind_gust_kts ?? null),
       wind_direction: wind_direction !== undefined ? wind_direction : (prevXd.wind_direction ?? null),
-      rain_intensity: rain_intensity !== undefined ? rain_intensity : null,
-      rain_detected: rain_detected !== undefined ? rain_detected : (prevXd.rain_detected ?? false),
-      precipitation: rain_intensity !== undefined ? rain_intensity : null,
+      rain_intensity: effectiveRainIntensity !== undefined ? effectiveRainIntensity : null,
+      rain_detected: effectiveRainDetected,
+      precipitation: effectiveRainIntensity !== undefined ? effectiveRainIntensity : null,
       precip_rate: precip_rate !== undefined ? precip_rate : null,
       precip_state: precip_state !== undefined ? precip_state : null,
       turbulence: turbulence !== undefined ? turbulence : null,
@@ -1659,13 +1708,13 @@ Deno.serve(async (req) => {
         if (prevFlap !== undefined && prevFlap !== null) {
           const prevPct = Math.round(Number(prevFlap) * 100);
           const curPct = Math.round(curFlap * 100);
-          if (Math.abs(prevPct - curPct) >= 4) {
+          if (Math.abs(prevPct - curPct) >= 2) {
             appendEvent("flaps", { val: curPct }, { force: true });
           }
         }
 
         const prevSpeedbrake = prevXd.speedbrake;
-        const curSpeedbrake = data.speedbrake ?? data.speed_brake ?? data.speedBrake ?? data.spoiler ?? null;
+        const curSpeedbrake = speedbrake;
         if (curSpeedbrake !== null && curSpeedbrake !== undefined) {
           const prevSb = Number(prevSpeedbrake || 0) > 0.1;
           const curSb = Number(curSpeedbrake) > 0.1;
@@ -1728,7 +1777,7 @@ Deno.serve(async (req) => {
         return merged.length > 650 ? merged.slice(-650) : merged;
       })(),
       // Speedbrake state for change detection
-      speedbrake: data.speedbrake ?? data.speed_brake ?? data.speedBrake ?? data.spoiler ?? (prevXd.speedbrake ?? null),
+      speedbrake: speedbrake ?? (prevXd.speedbrake ?? null),
       // Telemetry history for post-flight profile chart.
       // Sample close to bridge post interval so spikes are less likely to disappear.
       telemetry_history: (() => {

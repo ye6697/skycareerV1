@@ -180,8 +180,16 @@ Deno.serve(async (req) => {
     // For active flights, xplane_data is fresher than XPlaneLog.raw_data.
     // Prefer xplane_data during in-flight tracking to avoid stale telemetry.
     const hasActiveFlight = !!flight;
-    const pickPreferred = (rawVal, xdVal) =>
-      hasActiveFlight ? pick(xdVal, rawVal) : pick(rawVal, xdVal);
+    const pickPreferred = (...vals) => {
+      if (!vals || vals.length === 0) return null;
+      const rawVals = [];
+      const xdVals = [];
+      for (let i = 0; i < vals.length; i += 2) {
+        rawVals.push(vals[i]);
+        xdVals.push(vals[i + 1]);
+      }
+      return hasActiveFlight ? pick(...xdVals, ...rawVals) : pick(...rawVals, ...xdVals);
+    };
     const final_weight = pickPreferred(total_weight_kg, pick(xd.total_weight_kg)) ?? null;
     const final_oat = pickPreferred(oat_c, pick(xd.oat_c)) ?? null;
     const final_baro = pickPreferred(baro_setting, pick(xd.baro_setting)) ?? null;
@@ -192,7 +200,16 @@ Deno.serve(async (req) => {
     // If plugin doesn't send weight but sends fuel_kg + aircraft_icao, estimate GWT
     // by looking up the aircraft's OEW (operating empty weight) from known types
     let estimated_weight = final_weight;
-    const acIcao = pickPreferred(raw.aircraft_icao, xd.aircraft_icao);
+    const acIcaoRaw = pickPreferred(
+      raw.aircraft_icao, xd.aircraft_icao,
+      raw.aircraftIcao, xd.aircraftIcao,
+      raw.atc_model, xd.atc_model,
+      raw.atc_type, xd.atc_type,
+      raw.icao_type, xd.icao_type
+    );
+    const acIcao = acIcaoRaw
+      ? String(acIcaoRaw).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+      : null;
     const fuelKg = pickPreferred(raw.fuel_kg, xd.fuel_kg);
     if (!estimated_weight && fuelKg && acIcao) {
       // Known OEW (Operating Empty Weight) in kg for common types

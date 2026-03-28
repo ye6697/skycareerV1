@@ -480,11 +480,20 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
 
   var tat = pickFinite(fd.tat_c, fd.tat, fd.total_air_temp_c, fd.total_air_temperature);
   var oat = pickFinite(fd.oat_c, fd.ambient_temperature);
+  var precipState = pickFinite(fd.precip_state, fd.ambient_precip_state, fd.precipitation_state);
+  var hasRainMask = precipState !== null && ((Math.round(precipState) & 4) === 4);
+  var hasConvectiveMask = precipState !== null && (((Math.round(precipState) & 8) === 8) || ((Math.round(precipState) & 16) === 16));
+  var rainDetectedFlag = !!fd.rain_detected;
   var rain = norm01(pickFinite(fd.rain_intensity, fd.precipitation, fd.rain, fd.precip_rate));
   var turb = norm01(pickFinite(fd.turbulence, fd.turbulence_intensity, fd.sim_weather_turbulence));
   var windSpd = pickFinite(fd.wind_speed_kts, fd.wind_speed, fd.ambient_wind_velocity);
   var windDir = pickFinite(fd.wind_direction, fd.ambient_wind_direction);
   var baro = pickFinite(fd.baro_setting, fd.kohlsman_setting_mb);
+  if ((rain === null || rain < 0.01) && (rainDetectedFlag || hasRainMask || hasConvectiveMask)) {
+    var windHint = windSpd !== null ? Math.min(1, Math.max(0.1, windSpd / 85)) : 0.1;
+    var turbHint = turb !== null ? Math.min(1, Math.max(0.1, turb * 0.65)) : 0.1;
+    rain = Math.max(0.1, windHint, turbHint);
+  }
 
   // Rain visual effects
   updateRainOverlay(weatherOn, rain);
@@ -509,7 +518,13 @@ function updateWeatherOverlay(weatherOn, fd, curPos) {
     '</div>';
 
   // Realistic rain cells within 60 NM radius
-  updateRainCells(weatherOn && rain !== null && rain > 0.01, rain, curPos);
+  updateRainCells(
+    weatherOn && ((rain !== null && rain > 0.01) || (turb !== null && turb > 0.45) || hasConvectiveMask),
+    rain,
+    curPos,
+    turb,
+    hasConvectiveMask
+  );
 
   if (turb !== null && turb > 0.01) {
     var turbRadius = 1200 + (turb * 7000);
@@ -564,8 +579,15 @@ function generateRainCellPositions(lat, lon, rain, epoch) {
   return cells;
 }
 
-function updateRainCells(active, rain, curPos) {
-  if (!active || !curPos || rain === null || rain < 0.01) {
+function updateRainCells(active, rain, curPos, turb, hasConvectiveMask) {
+  var rainLevel = rain;
+  if ((rainLevel === null || rainLevel < 0.01) && hasConvectiveMask) {
+    rainLevel = 0.22;
+  }
+  if ((rainLevel === null || rainLevel < 0.01) && turb !== null && turb > 0.45) {
+    rainLevel = Math.min(0.55, 0.10 + (turb * 0.6));
+  }
+  if (!active || !curPos || rainLevel === null || rainLevel < 0.01) {
     layers.rainCellsGroup.clearLayers();
     rainCellCache = [];
     rainSeedEpoch = 0;
@@ -575,7 +597,7 @@ function updateRainCells(active, rain, curPos) {
   var newEpoch = Math.floor(Date.now() / 10000);
   if (newEpoch !== rainSeedEpoch || rainCellCache.length === 0) {
     rainSeedEpoch = newEpoch;
-    rainCellCache = generateRainCellPositions(curPos[0], curPos[1], rain, newEpoch);
+    rainCellCache = generateRainCellPositions(curPos[0], curPos[1], rainLevel, newEpoch);
   }
   layers.rainCellsGroup.clearLayers();
   for (var i = 0; i < rainCellCache.length; i++) {

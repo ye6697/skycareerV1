@@ -64,6 +64,7 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
   const normalizeSimData = (raw) => {
     if (!raw) return null;
     const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && v !== '') return v; } return null; };
+    const normIcao = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
 
     // Weight: try kg first, then convert from lbs
     let total_weight_kg = pick(raw.total_weight_kg, raw.gross_weight_kg, raw.weight_kg);
@@ -91,7 +92,16 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
 
     return {
       ...raw,
-      aircraft_icao: pick(raw.aircraft_icao),
+      aircraft_icao: normIcao(
+        pick(
+          raw.aircraft_icao,
+          raw.aircraftIcao,
+          raw.atc_model,
+          raw.atc_type,
+          raw.icao_type,
+          raw.icao
+        )
+      ) || null,
       total_weight_kg,
       oat_c,
       baro_setting,
