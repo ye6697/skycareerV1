@@ -120,6 +120,7 @@ export default function FlightTracker() {
   const [dataLatency, setDataLatency] = useState(null); // ms between two received updates
   const [dataAge, setDataAge] = useState(null); // ms since last data received (live ticker)
   const lastDataReceivedRef = React.useRef(null);
+  const [localMapPath, setLocalMapPath] = useState([]);
   const ingestLiveXplaneData = React.useCallback((xpData, sourceDate) => {
     if (!xpData) return;
     const ts = xpData.timestamp || sourceDate;
@@ -165,6 +166,27 @@ export default function FlightTracker() {
     };
     fetchInitial();
   }, [activeFlightId, flightPhase, ingestLiveXplaneData]);
+
+  useEffect(() => {
+    setLocalMapPath([]);
+  }, [activeFlightId]);
+
+  useEffect(() => {
+    const xp = xplaneLog?.raw_data;
+    if (!xp) return;
+    const lat = Number(xp.latitude);
+    const lon = Number(xp.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || (Math.abs(lat) < 0.5 && Math.abs(lon) < 0.5)) return;
+    setLocalMapPath((prev) => {
+      const last = prev.length > 0 ? prev[prev.length - 1] : null;
+      const threshold = xp.on_ground ? 0.0002 : 0.0008;
+      if (last && Math.abs(last[0] - lat) < threshold && Math.abs(last[1] - lon) < threshold) {
+        return prev;
+      }
+      const next = [...prev, [lat, lon]];
+      return next.length > 2600 ? next.slice(-2600) : next;
+    });
+  }, [xplaneLog?.raw_data?.latitude, xplaneLog?.raw_data?.longitude, xplaneLog?.raw_data?.on_ground]);
 
   // Real-time subscription – receives updates instantly when backend writes new xplane_data
   useEffect(() => {
@@ -633,22 +655,22 @@ export default function FlightTracker() {
          }
        }
      }
-     const resolvedLandingVs = nonZeroNumber(
-       finalFlightData.landingVs,
-       finalFlightData.landing_vs,
-       liveData.touchdown_vspeed,
-       liveData.landing_vs,
-       xpData.touchdown_vspeed,
-       xpData.landing_vs
-     );
-     const resolvedLandingG = positiveNumber(
-       finalFlightData.landingGForce,
-       finalFlightData.landing_g_force,
-       liveData.landing_g_force,
-       liveData.landingGForce,
-       xpData.landing_g_force,
-       xpData.landingGForce
-     );
+    const resolvedLandingVs = nonZeroNumber(
+      xpData.touchdown_vspeed,
+      xpData.landing_vs,
+      liveData.touchdown_vspeed,
+      liveData.landing_vs,
+      finalFlightData.landingVs,
+      finalFlightData.landing_vs
+    );
+    const resolvedLandingG = positiveNumber(
+      xpData.landing_g_force,
+      xpData.landingGForce,
+      liveData.landing_g_force,
+      liveData.landingGForce,
+      finalFlightData.landingGForce,
+      finalFlightData.landing_g_force
+    );
      finalFlightData = {
        ...finalFlightData,
        landingVs: resolvedLandingVs || finalFlightData.landingVs || 0,
@@ -1215,11 +1237,7 @@ export default function FlightTracker() {
       Math.abs(Number(xp.vertical_speed || 0)) >= 1200 ||
       Number(xp.g_force || 0) >= 2.8
     );
-    const bridgeCrashEvent = Array.isArray(xp.bridge_event_log) && xp.bridge_event_log.some((evt) => {
-      const tp = String(evt?.type || evt?.event || evt?.name || evt?.code || "").toLowerCase();
-      return tp === "crash" || tp === "crashed" || tp === "has_crashed";
-    });
-    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact || (!!xp.completion_armed && (xp.crash_flag || bridgeCrashEvent)));
+    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact || (!!xp.completion_armed && xp.crash_flag));
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
@@ -1641,10 +1659,12 @@ export default function FlightTracker() {
   const distanceInfo = calculateDistanceInfo();
   const distanceProgress = distanceInfo.progress;
   const liveXpd = (flight || existingFlight)?.xplane_data || {};
-  const mapFlightPath =
-    (Array.isArray(xplaneLog?.raw_data?.flight_path) && xplaneLog.raw_data.flight_path.length > 0)
-      ? xplaneLog.raw_data.flight_path
-      : (Array.isArray(liveXpd.flight_path) ? liveXpd.flight_path : []);
+  const backendMapPath = (Array.isArray(xplaneLog?.raw_data?.flight_path) && xplaneLog.raw_data.flight_path.length > 0)
+    ? xplaneLog.raw_data.flight_path
+    : (Array.isArray(liveXpd.flight_path) ? liveXpd.flight_path : []);
+  const mapFlightPath = (Array.isArray(backendMapPath) && backendMapPath.length >= localMapPath.length)
+    ? backendMapPath
+    : localMapPath;
   const mapFlightEventsLog = (() => {
     const rawLog = xplaneLog?.raw_data?.flight_events_log;
     if (Array.isArray(rawLog) && rawLog.length > 0) return rawLog;

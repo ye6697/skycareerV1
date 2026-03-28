@@ -411,13 +411,14 @@ Deno.serve(async (req) => {
     const g_force_window_peak = data.g_force_window_peak ?? data.g_peak_window ?? data.window_peak_g;
     const gForceNumeric = Number(g_force ?? 1);
     const gForceWindowPeakNumeric = Number(g_force_window_peak ?? 0);
-    const gForceEffective = Math.max(
-      Number.isFinite(gForceNumeric) ? gForceNumeric : 1,
+    const gForceCurrent = Number.isFinite(gForceNumeric) ? gForceNumeric : 1;
+    const gForcePeakForStats = Math.max(
+      gForceCurrent,
       Number.isFinite(gForceWindowPeakNumeric) ? gForceWindowPeakNumeric : 0
     );
     const max_g_force = Math.max(
       Number(data.max_g_force ?? data.maxGForce ?? data.max_g ?? data.peakG ?? 0) || 0,
-      gForceEffective
+      gForcePeakForStats
     );
     const latitude = data.latitude ?? data.lat;
     const longitude = data.longitude ?? data.lon ?? data.lng;
@@ -1329,31 +1330,54 @@ Deno.serve(async (req) => {
           )
         )
       : 0;
-    const effectiveTouchdownVspeed = Math.abs(Number(mergedTouchdownVspeed || 0)) > 0
-      ? Number(mergedTouchdownVspeed || 0)
+    const captureNowMs = Date.now();
+    const prevLandingCaptureStartedAtMs = Date.parse(String(prevXd.landing_capture_started_at || ""));
+    const landingCaptureStartedAtMs = justTouchedDown
+      ? captureNowMs
+      : (Number.isFinite(prevLandingCaptureStartedAtMs) ? prevLandingCaptureStartedAtMs : NaN);
+    const landingCaptureActive = hasBeenAirborne && on_ground && Number.isFinite(landingCaptureStartedAtMs)
+      ? (captureNowMs - landingCaptureStartedAtMs) <= 9000
+      : false;
+    const mergedTouchdownVspeedNum = Math.abs(Number(mergedTouchdownVspeed || 0));
+    const touchdownCandidate = mergedTouchdownVspeedNum > 0
+      ? mergedTouchdownVspeedNum
       : (useBridgeLocalLanding
           ? 0
           : (transitionTouchdownVspeed > 0
               ? transitionTouchdownVspeed
               : (shouldSynthesizeTouchdownEvidence ? Math.max(60, Math.abs(Number(vertical_speed || 0))) : 0)));
+    const effectiveTouchdownVspeed = landingCaptureActive
+      ? Math.max(Number(prevTouchdownVspeed || 0), touchdownCandidate)
+      : ((Number(prevTouchdownVspeed || 0) > 0) ? Number(prevTouchdownVspeed || 0) : touchdownCandidate);
     const mergedLandingGNum = Number(mergedLandingG || 0);
-    const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceEffective) : 0;
-    const effectiveLandingG = mergedLandingGNum > 0
+    const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceCurrent) : 0;
+    const landingGCandidate = mergedLandingGNum > 0
       ? mergedLandingGNum
       : (useBridgeLocalLanding ? 0 : transitionLandingG);
+    const effectiveLandingG = landingCaptureActive
+      ? Math.max(Number(prevLandingG || 0), landingGCandidate)
+      : ((Number(prevLandingG || 0) > 0) ? Number(prevLandingG || 0) : landingGCandidate);
+    const landingDataLocked = bridgeLocalLandingLocked || (
+      hasBeenAirborne &&
+      on_ground &&
+      !landingCaptureActive &&
+      (Math.abs(Number(effectiveTouchdownVspeed || 0)) > 0 || Number(effectiveLandingG || 0) > 0)
+    );
+    const landingCaptureStartedAt = (hasBeenAirborne && on_ground && Number.isFinite(landingCaptureStartedAtMs))
+      ? new Date(landingCaptureStartedAtMs).toISOString()
+      : null;
     const crashFromTouchdown = hasBeenAirborne && on_ground && (
       Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 900 ||
       Number(effectiveLandingG || 0) >= 2.9
     );
-    const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceEffective) >= 2.6));
+    const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceCurrent) >= 2.6));
     const prevCrashState = (!justLiftedOff && hasFreshAirborneState)
       ? toBool(prevXd.crash ?? prevXd.has_crashed, false)
       : false;
     const simDisabledCrashSignal = incidentArmed && toBool(sim_disabled, false) && (
       crashFromTouchdown ||
-      (!on_ground && Number(speed || 0) >= 90) ||
-      Math.abs(Number(vertical_speed || 0)) >= 1200 ||
-      Number(gForceEffective || 0) >= 2.8
+      Math.abs(Number(vertical_speed || 0)) >= 1800 ||
+      Number(gForceCurrent || 0) >= 3.2
     );
     const crashSignalTrusted = incidentArmed
       ? (((rawCrashFlag && !eventTakeoffSuppress.crash) || simDisabledCrashSignal))
@@ -1377,7 +1401,7 @@ Deno.serve(async (req) => {
       initial_fuel_kg,
       fuel_burn_rate_kgph: fuelBurnRateKgph > 0 ? Number(fuelBurnRateKgph.toFixed(1)) : 0,
       fuel_burn_rate_lph: fuelBurnRateLph > 0 ? Number(fuelBurnRateLph.toFixed(1)) : 0,
-      g_force: gForceEffective,
+      g_force: gForceCurrent,
       max_g_force,
       g_force_window_peak: Number.isFinite(gForceWindowPeakNumeric) ? gForceWindowPeakNumeric : null,
       vertical_speed_window_min: Number(vertical_speed_window_min ?? 0) || 0,
@@ -1394,6 +1418,8 @@ Deno.serve(async (req) => {
       landing_g_force: effectiveLandingG,
       landing_data_source: useBridgeLocalLanding ? "bridge_local" : (data.landing_data_source || null),
       bridge_local_landing_locked: useBridgeLocalLanding,
+      landing_data_locked: landingDataLocked,
+      landing_capture_started_at: landingCaptureStartedAt,
       landing_data_timestamp: data.landing_data_timestamp || prevXd.landing_data_timestamp || null,
       landing_quality,
       gear_down: gear_down !== undefined ? gear_down : true,
@@ -1486,7 +1512,7 @@ Deno.serve(async (req) => {
         const fallbackAlt = Math.round(Number(altitude || 0));
         const fallbackSpd = Math.round(Number(speed || 0));
         const fallbackVs = Math.round(Number(vertical_speed || 0));
-        const fallbackG = Number((Number(gForceEffective || 1) || 1).toFixed(2));
+        const fallbackG = Number((Number(gForceCurrent || 1) || 1).toFixed(2));
 
         const appendEvent = (type, payload = {}, options = {}) => {
           if (!type) return false;
@@ -1720,7 +1746,7 @@ Deno.serve(async (req) => {
             spd: Math.round(speed || 0),
             ias: Math.round(ias || 0),
             vs: Math.round(vertical_speed || 0),
-            g: Number((gForceEffective || 1).toFixed(2)),
+            g: Number((gForceCurrent || 1).toFixed(2)),
             lat: Number.isFinite(Number(latitude)) ? Number(latitude) : null,
             lon: Number.isFinite(Number(longitude)) ? Number(longitude) : null,
             hdg: Number.isFinite(Number(heading)) ? Math.round(Number(heading)) : null,

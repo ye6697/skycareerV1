@@ -134,11 +134,7 @@ export default function FreeFlight() {
       Math.abs(Number(xp.vertical_speed || 0)) >= 1200 ||
       Number(xp.g_force || 0) >= 2.8
     );
-    const bridgeCrashEvent = Array.isArray(xp.bridge_event_log) && xp.bridge_event_log.some((evt) => {
-      const tp = String(evt?.type || evt?.event || evt?.name || evt?.code || "").toLowerCase();
-      return tp === "crash" || tp === "crashed" || tp === "has_crashed";
-    });
-    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact || (!!xp.completion_armed && (xp.crash_flag || bridgeCrashEvent)));
+    const crashSignal = !!(xp.has_crashed || xp.crash || simDisabledImpact || (!!xp.completion_armed && xp.crash_flag));
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
