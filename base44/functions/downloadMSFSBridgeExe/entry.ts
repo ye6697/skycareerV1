@@ -3,10 +3,16 @@ import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://aero-career-pilot.base44.app/api/functions/receiveXPlaneData';
 const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
+const ROOT_LEVEL_FILES = new Set([
+  'skycareerbridgeinstaller.exe',
+  'skycareerbridgeuninstaller.exe',
+]);
 const BRIDGE_ROOT_README = `SkyCareer MSFS Bridge
 
-1) Open folder: ${BRIDGE_PACKAGE_DIR}
-2) Start: SkyCareerMsfsBridge.exe
+1) Run: SkyCareerBridgeInstaller.exe (recommended)
+2) If needed, remove everything with: SkyCareerBridgeUninstaller.exe
+3) Bridge runtime files are inside the folder: ${BRIDGE_PACKAGE_DIR}
+4) Direct start (without installer): open ${BRIDGE_PACKAGE_DIR} and run SkyCareerMsfsBridge.exe
 `;
 const BRIDGE_ZIP_CANDIDATES = [
   new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
@@ -144,7 +150,9 @@ Deno.serve(async (req) => {
         : targetName;
       if (!relativeName) continue;
       const fileName = basename(relativeName).toLowerCase();
-      const packagedName = `${BRIDGE_PACKAGE_DIR}/${relativeName}`;
+      const packagedName = ROOT_LEVEL_FILES.has(fileName)
+        ? basename(relativeName)
+        : `${BRIDGE_PACKAGE_DIR}/${relativeName}`;
 
       if (fileName === 'skycareermsfsbridge.exe.config') {
         const configText = await file.async('string');
