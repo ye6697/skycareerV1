@@ -1301,6 +1301,8 @@ Deno.serve(async (req) => {
 
     const xplaneData = {
       simulator,
+      flight_id: flight.id,
+      contract_id: flight.contract_id || null,
       altitude,
       speed,
       vertical_speed,

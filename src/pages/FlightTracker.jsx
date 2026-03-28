@@ -270,9 +270,38 @@ export default function FlightTracker() {
   useEffect(() => {
     if (flightPhase === 'completed') return;
     if (!company?.id || !activeFlightId) return;
+    const activeFl = flight || existingFlight;
+    const sessionStartMs = Date.parse(String(activeFl?.departure_time || activeFl?.created_date || ""));
+
+    const matchesActiveSession = (logEntry) => {
+      const raw = logEntry?.raw_data || {};
+      const logFlightId = raw?.flight_id || null;
+      const logContractId = raw?.contract_id || null;
+
+      if (logFlightId) {
+        return String(logFlightId) === String(activeFlightId);
+      }
+      if (logContractId && contractIdFromUrl) {
+        return String(logContractId) === String(contractIdFromUrl);
+      }
+      // Backward compatibility for older logs without IDs:
+      // only accept logs from this flight session time window.
+      const logTsMs = Date.parse(String(
+        raw?.airborne_started_at ||
+        raw?.completion_armed_at ||
+        raw?.timestamp ||
+        logEntry?.created_date ||
+        ""
+      ));
+      if (Number.isFinite(sessionStartMs) && Number.isFinite(logTsMs)) {
+        return logTsMs >= (sessionStartMs - 15000);
+      }
+      return false;
+    };
 
     const applyLog = (logEntry) => {
       if (!logEntry?.raw_data) return;
+      if (!matchesActiveSession(logEntry)) return;
       ingestLiveXplaneData(logEntry.raw_data, logEntry.created_date || logEntry.updated_date);
     };
 
@@ -284,9 +313,10 @@ export default function FlightTracker() {
         const logs = await base44.entities.XPlaneLog.filter(
           { company_id: company.id, has_active_flight: true },
           '-created_date',
-          1
+          10
         );
-        if (logs[0]) applyLog(logs[0]);
+        const boundLog = logs.find(matchesActiveSession);
+        if (boundLog) applyLog(boundLog);
       } catch (_) {}
     };
     prime();
@@ -306,9 +336,10 @@ export default function FlightTracker() {
         const logs = await base44.entities.XPlaneLog.filter(
           { company_id: company.id, has_active_flight: true },
           '-created_date',
-          1
+          10
         );
-        if (logs[0]) applyLog(logs[0]);
+        const boundLog = logs.find(matchesActiveSession);
+        if (boundLog) applyLog(boundLog);
       } catch (_) {}
       pollInFlight = false;
     }, 1000);
@@ -319,7 +350,7 @@ export default function FlightTracker() {
       }
       clearInterval(poll);
     };
-  }, [company?.id, activeFlightId, flightPhase, ingestLiveXplaneData]);
+  }, [company?.id, activeFlightId, contractIdFromUrl, flightPhase, ingestLiveXplaneData, flight, existingFlight]);
 
   const { data: aircraft } = useQuery({
     queryKey: ['aircraft'],
@@ -1190,7 +1221,20 @@ export default function FlightTracker() {
         Number(xp.speed || 0) > 35 ||
         Math.abs(Number(xp.vertical_speed || 0)) > 200
       );
-      const backendAirborneArmed = !!(xp.completion_armed || xp.was_airborne);
+      const activeFlight = flight || existingFlight;
+      const parseMs = (v) => {
+        const ms = Date.parse(String(v || ""));
+        return Number.isFinite(ms) ? ms : NaN;
+      };
+      const sessionStartMs = parseMs(activeFlight?.departure_time || activeFlight?.created_date);
+      const backendAirborneMs = parseMs(xp.airborne_started_at || xp.completion_armed_at);
+      const backendAirborneFlags = !!(xp.completion_armed || xp.was_airborne);
+      const backendAirborneInSession =
+        backendAirborneFlags &&
+        Number.isFinite(sessionStartMs) &&
+        Number.isFinite(backendAirborneMs) &&
+        backendAirborneMs >= (sessionStartMs - 5000);
+      const backendAirborneArmed = backendAirborneInSession || (!xp.on_ground && !!xp.completion_armed);
       const newWasAirborne = prev.wasAirborne || airborneEvidence || backendAirborneArmed;
 
       // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
