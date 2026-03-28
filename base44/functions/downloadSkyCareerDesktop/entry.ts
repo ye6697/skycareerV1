@@ -16,6 +16,8 @@ const DESKTOP_ZIP_CANDIDATES = [
 ];
 
 const BRIDGE_ZIP_CANDIDATES = [
+  new URL('./assets/SkyCareer_MSFS_Bridge_Payload.zip', import.meta.url),
+  new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Payload.zip', import.meta.url),
   new URL('./assets/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
   new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
   new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
