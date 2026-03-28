@@ -1,28 +1,184 @@
 import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import {
-  Plane,
   Download,
-  Settings,
-  CheckCircle,
-  Code,
   ExternalLink,
-  Wifi,
   Copy,
   Check,
-  Loader2
+  Loader2,
+  Sparkles,
+  ShieldCheck,
+  Radio,
+  Wrench,
+  Rocket,
+  Gauge,
+  Bug
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
-import { t } from "@/components/i18n/translations";
+
+const COPY = {
+  en: {
+    title: 'SkyCareer Setup Center',
+    subtitle: 'Install and operate the official SkyCareer connectors for MSFS 2020/2024 and X-Plane 12 with a clear, production-ready workflow.',
+    badge: 'Setup & Connectivity',
+    downloadError: 'Download failed. Please try again.',
+    loading: 'Loading...',
+    copy: 'Copy',
+    copied: 'Copied',
+
+    step1Title: '1. Download Connector Packages',
+    step1Desc: 'For MSFS, use the bootstrap package. It includes only SC Installer, SC Uninstaller, and README. The installer downloads the full runtime automatically during installation.',
+
+    msfsTitle: 'MSFS 2020/2024 Bridge Suite (Windows)',
+    msfsDesc: 'Recommended deployment path for MSFS. Includes SC Installer and SC Uninstaller as your official bridge lifecycle tools.',
+    msfsBtn: 'Download MSFS Bridge Package',
+    msfsTabletBtn: 'Download MSFS In-Game Tablet (WebView)',
+
+    msfsPyTitle: 'MSFS Python Bridge (Advanced Fallback)',
+    msfsPyDesc: 'Manual fallback path for advanced users. Requires Python 3 and python-simconnect.',
+    msfsPyBtn: 'Download Python Bridge',
+    msfsPyUsage: 'Usage: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (or msfs2024)',
+
+    xpTitle: 'X-Plane 12 Integration Options',
+    luaTitle: 'FlyWithLua Script (Recommended)',
+    luaDesc: 'Fastest setup path for X-Plane 12. Download the script and place it into the FlyWithLua Scripts folder.',
+    luaBtn: 'Download SkyCareer.lua',
+    luaReq: 'Requirement: FlyWithLua plugin',
+    luaLink: 'Download FlyWithLua',
+
+    pyTitle: 'XPPython3 Plugin (Alternative Path)',
+    pyDesc: 'Alternative integration via XPPython3 when FlyWithLua is not preferred.',
+    pyBtn: 'Download Python Plugin (.txt)',
+    pyReq: 'Requirement: XPPython3',
+    pyLink: 'Download XPPython3',
+
+    step2Title: '2. Installation Workflow',
+    step2Desc: 'Follow the platform-specific installation path below.',
+    installMsfsTitle: 'MSFS 2020/2024',
+    installMsfs1: 'Extract the ZIP and run SC Installer.exe.',
+    installMsfs2: 'Click Install Bridge. The installer downloads and deploys the full bridge runtime.',
+    installMsfs3: 'Start MSFS, then launch SkyCareerMsfsBridge.exe from the installation folder if needed.',
+    installMsfs4: 'Optional: extract the tablet package and copy it to Community folder.',
+
+    installXpTitle: 'X-Plane 12',
+    installXpLua1: 'Install FlyWithLua (if missing).',
+    installXpLua2: 'Copy SkyCareer.lua to X-Plane 12/Resources/plugins/FlyWithLua/Scripts/.',
+    installXpLua3: 'Restart X-Plane 12.',
+    installXpPy1: 'Install XPPython3.',
+    installXpPy2: 'Create X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/.',
+    installXpPy3: 'Copy PI_SkyCareer.py and README.md from the downloaded text package.',
+
+    step3Title: '3. Validate Account Binding',
+    step3Desc: 'Your connector package is personalized. API key and telemetry endpoint are mapped to your SkyCareer account.',
+    apiKey: 'Personal API key',
+    endpoint: 'Telemetry endpoint',
+    keyNote: 'This API key remains stable for your company profile and is preconfigured in generated connector downloads.',
+
+    step4Title: '4. Flight Operations Flow',
+    step4Desc: 'Recommended operating sequence for reliable live tracking and automatic completion.',
+    flow1: 'Open a contract in SkyCareer and click Start Flight.',
+    flow2: 'Load the matching aircraft and departure airport in your simulator.',
+    flow3: 'After takeoff, telemetry starts sending automatically.',
+    flow4: 'After landing and shutdown, the flight result is finalized automatically.',
+
+    techTitle: 'Telemetry Architecture',
+    techDesc: 'Core datapoints and connector behavior monitored throughout each flight.',
+    freq: 'Sampling interval: 200 ms, transmit loop: 2 s',
+    protocol: 'Protocol: HTTPS function endpoint',
+    simulators: 'Supported: X-Plane 12, MSFS 2020, MSFS 2024',
+
+    helpTitle: 'Diagnostics Checklist',
+    help1: 'Simulator is running before connector/plugin starts',
+    help2: 'Active SkyCareer flight is started',
+    help3: 'Firewall allows outbound HTTPS',
+    help4: 'Installed files are in correct simulator folders',
+    help5: 'Reset path: run SC Uninstaller, then reinstall via SC Installer'
+  },
+  de: {
+    title: 'SkyCareer Setup Center',
+    subtitle: 'Installiere die offiziellen SkyCareer-Connectoren fuer MSFS 2020/2024 und X-Plane 12 mit einem klaren, professionellen Ablauf.',
+    badge: 'Setup & Verbindung',
+    downloadError: 'Download fehlgeschlagen. Bitte erneut versuchen.',
+    loading: 'Laedt...',
+    copy: 'Kopieren',
+    copied: 'Kopiert',
+
+    step1Title: '1. Connector-Pakete herunterladen',
+    step1Desc: 'Fuer MSFS nutzt du das Bootstrap-Paket. Es enthaelt nur SC Installer, SC Uninstaller und README. Der Installer laedt die komplette Runtime waehrend der Installation automatisch nach.',
+
+    msfsTitle: 'MSFS 2020/2024 Bridge Suite (Windows)',
+    msfsDesc: 'Empfohlener Deployment-Weg fuer MSFS. Enthalten sind SC Installer und SC Uninstaller als offizieller Lifecycle-Flow.',
+    msfsBtn: 'MSFS Paket herunterladen',
+    msfsTabletBtn: 'MSFS Ingame Tablet (WebView) herunterladen',
+
+    msfsPyTitle: 'MSFS Python Bridge (Advanced Fallback)',
+    msfsPyDesc: 'Manueller Fallback fuer fortgeschrittene Nutzer. Benoetigt Python 3 und python-simconnect.',
+    msfsPyBtn: 'Python Bridge herunterladen',
+    msfsPyUsage: 'Nutzung: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (oder msfs2024)',
+
+    xpTitle: 'X-Plane 12 Integrationsoptionen',
+    luaTitle: 'FlyWithLua Script (Empfohlen)',
+    luaDesc: 'Schnellster Setup-Weg fuer X-Plane 12. Script herunterladen und in den FlyWithLua-Scripts-Ordner legen.',
+    luaBtn: 'SkyCareer.lua herunterladen',
+    luaReq: 'Voraussetzung: FlyWithLua Plugin',
+    luaLink: 'FlyWithLua herunterladen',
+
+    pyTitle: 'XPPython3 Plugin (Alternative)',
+    pyDesc: 'Alternative Integration ueber XPPython3, wenn FlyWithLua nicht bevorzugt wird.',
+    pyBtn: 'Python Plugin herunterladen (.txt)',
+    pyReq: 'Voraussetzung: XPPython3',
+    pyLink: 'XPPython3 herunterladen',
+
+    step2Title: '2. Installationsablauf',
+    step2Desc: 'Folge dem plattformspezifischen Installationsweg unten.',
+    installMsfsTitle: 'MSFS 2020/2024',
+    installMsfs1: 'ZIP entpacken und SC Installer.exe starten.',
+    installMsfs2: 'Auf Install Bridge klicken. Der Installer laedt und deployt die komplette Bridge-Runtime.',
+    installMsfs3: 'MSFS starten und bei Bedarf SkyCareerMsfsBridge.exe am Installationsort ausfuehren.',
+    installMsfs4: 'Optional: Tablet-Paket entpacken und in den Community-Ordner kopieren.',
+
+    installXpTitle: 'X-Plane 12',
+    installXpLua1: 'FlyWithLua installieren (falls nicht vorhanden).',
+    installXpLua2: 'SkyCareer.lua nach X-Plane 12/Resources/plugins/FlyWithLua/Scripts/ kopieren.',
+    installXpLua3: 'X-Plane 12 neu starten.',
+    installXpPy1: 'XPPython3 installieren.',
+    installXpPy2: 'X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/ erstellen.',
+    installXpPy3: 'PI_SkyCareer.py und README.md aus dem Textpaket uebernehmen.',
+
+    step3Title: '3. Account-Bindung pruefen',
+    step3Desc: 'Dein Connector-Paket ist personalisiert. API-Key und Telemetry-Endpoint sind mit deinem SkyCareer-Account verknuepft.',
+    apiKey: 'Persoenlicher API-Key',
+    endpoint: 'Telemetry Endpoint',
+    keyNote: 'Dieser API-Key bleibt fuer dein Firmenprofil stabil und ist in generierten Connector-Downloads vorkonfiguriert.',
+
+    step4Title: '4. Flugablauf im Betrieb',
+    step4Desc: 'Empfohlene Reihenfolge fuer zuverlaessiges Live-Tracking und automatischen Abschluss.',
+    flow1: 'In SkyCareer Auftrag starten und auf Start Flight klicken.',
+    flow2: 'Im Simulator passendes Flugzeug und Startflughafen laden.',
+    flow3: 'Nach dem Abheben startet die Telemetrieuebertragung automatisch.',
+    flow4: 'Nach Landung und Shutdown wird das Flugergebnis automatisch abgeschlossen.',
+
+    techTitle: 'Telemetry-Architektur',
+    techDesc: 'Zentrale Datenpunkte und Connector-Verhalten waehrend des Flugbetriebs.',
+    freq: 'Sampling-Intervall: 200 ms, Sende-Loop: 2 s',
+    protocol: 'Protokoll: HTTPS Function Endpoint',
+    simulators: 'Unterstuetzt: X-Plane 12, MSFS 2020, MSFS 2024',
+
+    helpTitle: 'Diagnose-Checkliste',
+    help1: 'Simulator laeuft bevor Connector/Plugin gestartet wird',
+    help2: 'Aktiver SkyCareer-Flug wurde gestartet',
+    help3: 'Firewall erlaubt ausgehendes HTTPS',
+    help4: 'Installierte Dateien liegen in den korrekten Ordnern',
+    help5: 'Reset-Weg: SC Uninstaller ausfuehren und danach per SC Installer neu installieren'
+  }
+};
 
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
-  const DOWNLOAD_CACHE_BUST = '20260327v1';
+  const text = COPY[lang] || COPY.en;
+  const DOWNLOAD_CACHE_BUST = '20260328v2';
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
@@ -31,8 +187,12 @@ export default function XPlaneSetup() {
 
   React.useEffect(() => {
     const ensureApiKey = async () => {
-      const response = await base44.functions.invoke('ensureApiKey', {});
-      setApiKey(response.data.api_key);
+      try {
+        const response = await base44.functions.invoke('ensureApiKey', {});
+        setApiKey(response.data.api_key);
+      } catch {
+        setApiKey(null);
+      }
     };
     ensureApiKey();
   }, []);
@@ -40,63 +200,13 @@ export default function XPlaneSetup() {
   const copyApiKey = () => {
     navigator.clipboard.writeText(apiKey || '');
     setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
+    setTimeout(() => setCopiedKey(false), 1800);
   };
 
   const copyEndpoint = () => {
     navigator.clipboard.writeText(endpoint);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const downloadLua = async () => {
-    setDownloading(true);
-    try {
-      const response = await base44.functions.invoke('downloadFlyWithLua', {
-        endpoint
-      });
-      
-      const blob = new Blob([response.data], { type: 'text/x-lua' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'SkyCareer.lua';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-      
-
-    } catch (error) {
-      console.error('Error downloading Lua script:', error);
-      alert(t('xps_download_error', lang));
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const downloadPython = async () => {
-    setDownloading(true);
-    try {
-      const response = await base44.functions.invoke('downloadPythonPlugin', {
-        endpoint
-      });
-      
-      const blob = new Blob([response.data], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'SkyCareer-Python-Plugin.txt';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-    } catch (error) {
-      console.error('Error downloading Python plugin:', error);
-      alert(t('xps_download_error', lang));
-    } finally {
-      setDownloading(false);
-    }
+    setTimeout(() => setCopied(false), 1800);
   };
 
   const decodeBase64Zip = (base64) => {
@@ -120,21 +230,43 @@ export default function XPlaneSetup() {
     a.remove();
   };
 
-  const downloadZipFromFunction = async (functionName, defaultFilename) => {
+  const downloadLua = async () => {
     setDownloading(true);
     try {
-      const response = await base44.functions.invoke(functionName, {});
-      const base64 = response?.data?.base64;
-      if (!base64) {
-        throw new Error('No base64 payload returned');
-      }
-      const bytes = decodeBase64Zip(base64);
-      const fileName = response?.data?.filename || defaultFilename;
-
-      triggerZipDownload(bytes, fileName);
+      const response = await base44.functions.invoke('downloadFlyWithLua', { endpoint });
+      const blob = new Blob([response.data], { type: 'text/x-lua' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'SkyCareer.lua';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
     } catch (error) {
-      console.error(`Error downloading ${functionName}:`, error);
-      alert(t('xps_download_error', lang));
+      console.error('Error downloading Lua script:', error);
+      alert(text.downloadError);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadPython = async () => {
+    setDownloading(true);
+    try {
+      const response = await base44.functions.invoke('downloadPythonPlugin', { endpoint });
+      const blob = new Blob([response.data], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'SkyCareer-Python-Plugin.txt';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (error) {
+      console.error('Error downloading Python plugin:', error);
+      alert(text.downloadError);
     } finally {
       setDownloading(false);
     }
@@ -191,7 +323,7 @@ export default function XPlaneSetup() {
       triggerZipDownload(bytes, file);
     } catch (error) {
       console.error(`Error downloading ${file}:`, error);
-      alert(t('xps_download_error', lang));
+      alert(text.downloadError);
     } finally {
       setDownloading(false);
     }
@@ -205,7 +337,6 @@ export default function XPlaneSetup() {
       let fileName = targetFile;
       let lastError = null;
 
-      // 1) Preferred path: personalized bridge zip from function (API key + LoopInterval).
       try {
         const response = await base44.functions.invoke('downloadMSFSBridgeExe', {});
         const base64 = response?.data?.base64;
@@ -219,7 +350,6 @@ export default function XPlaneSetup() {
         lastError = fnError?.message || String(fnError);
       }
 
-      // 2) Fallback: static zip from public downloads.
       if (!bytes) {
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
@@ -258,7 +388,7 @@ export default function XPlaneSetup() {
       triggerZipDownload(bytes, fileName);
     } catch (error) {
       console.error('Error downloading SkyCareer MSFS bridge:', error);
-      alert(t('xps_download_error', lang));
+      alert(text.downloadError);
     } finally {
       setDownloading(false);
     }
@@ -271,10 +401,7 @@ export default function XPlaneSetup() {
   const downloadMsfsBridge = async () => {
     setDownloading(true);
     try {
-      const response = await base44.functions.invoke('downloadMSFSBridge', {
-        endpoint
-      });
-      
+      const response = await base44.functions.invoke('downloadMSFSBridge', { endpoint });
       const blob = new Blob([response.data], { type: 'text/x-python' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -286,502 +413,222 @@ export default function XPlaneSetup() {
       a.remove();
     } catch (error) {
       console.error('Error downloading MSFS Bridge:', error);
-      alert(t('xps_download_error', lang));
+      alert(text.downloadError);
     } finally {
       setDownloading(false);
     }
   };
 
+  const featureChips = lang === 'de'
+    ? ['Position / Hoehe / Speed', 'G-Loads und Touchdown', 'Crash / Stall / Overspeed', 'Fuel und Engine-State', 'Auto Flight Completion', 'Live Event Tracking', 'Landing VS / Landing G', 'Maintenance und Reputation']
+    : ['Position / Altitude / Speed', 'G-loads and Touchdown', 'Crash / Stall / Overspeed', 'Fuel and Engine State', 'Auto Flight Completion', 'Live Event Tracking', 'Landing VS / Landing G', 'Maintenance and Reputation'];
+
+  const isBusy = downloading;
+
   return (
-    <div className="h-full flex flex-col gap-2">
-      {/* Zibo Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
-        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('xps_title', lang)}</div>
-      </div>
+    <div className="h-full min-h-0 overflow-y-auto bg-[radial-gradient(circle_at_18%_0%,#17345f_0%,#0b1a32_44%,#060c17_100%)] p-3 sm:p-5">
+      <div className="mx-auto w-full max-w-7xl space-y-6">
+        <Card className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-[linear-gradient(135deg,#0e2b56_0%,#15427b_58%,#1d4f93_100%)] text-white shadow-[0_24px_72px_rgba(6,18,36,0.48)]">
+          <div className="pointer-events-none absolute -right-10 -top-12 h-56 w-56 rounded-full bg-cyan-300/10 blur-2xl" />
+          <div className="pointer-events-none absolute right-20 top-8 h-28 w-28 rounded-full border border-cyan-100/15 bg-cyan-200/10" />
+          <div className="relative p-5 sm:p-7">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold tracking-[0.16em] uppercase text-cyan-100">
+              <Sparkles className="h-3.5 w-3.5" />
+              {text.badge}
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{text.title}</h1>
+            <p className="mt-2 max-w-4xl text-sm sm:text-base text-cyan-100/90 leading-relaxed">{text.subtitle}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">MSFS 2020/2024</span>
+              <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">X-Plane 12</span>
+              <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">Account-bound API</span>
+            </div>
+          </div>
+        </Card>
 
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Setup Steps */}
-        <div className="space-y-6">
-          {/* Step 1 */}
-          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold text-sm sm:text-base">1</span>
+        <Card className="rounded-3xl border border-slate-700/70 bg-slate-900/72 p-4 sm:p-5 text-slate-100 shadow-[0_14px_48px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-300 mb-3">
+            <Radio className="h-4 w-4 text-cyan-300" />
+            {text.step1Title}
+          </div>
+          <p className="text-sm text-slate-300 leading-relaxed mb-4">{text.step1Desc}</p>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-cyan-700/40 bg-gradient-to-b from-cyan-950/42 via-slate-900/75 to-slate-950/75 p-4 sm:p-5">
+              <h3 className="text-lg font-semibold text-cyan-200 mb-2">{text.msfsTitle}</h3>
+              <p className="text-sm text-slate-300 mb-4">{text.msfsDesc}</p>
+              <div className="space-y-2.5">
+                <Button className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-900/30" onClick={downloadSkyCareerDesktop} disabled={isBusy}>
+                  {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                  {isBusy ? text.loading : text.msfsBtn}
+                </Button>
+                <Button className="w-full bg-slate-700/95 hover:bg-slate-600 text-slate-100" onClick={downloadMsfsTablet} disabled={isBusy}>
+                  {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                  {isBusy ? text.loading : text.msfsTabletBtn}
+                </Button>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step1', lang)}</h3>
-                <p className="text-sm text-slate-400 mb-4 break-words">
-                  {t('xps_step1_desc', lang)}
-                </p>
-                <div className="space-y-4">
-                  {/* FlyWithLua Option - Empfohlen */}
-                  <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">
-                        {t('xps_recommended', lang)}
-                      </div>
-                      <h4 className="text-white font-semibold">{t('xps_lua_title', lang)}</h4>
-                    </div>
-                    <p className="text-sm text-slate-400 mb-3 break-words">
-                      {t('xps_lua_desc', lang)}
-                    </p>
-                    <Button 
-                      className="bg-emerald-600 hover:bg-emerald-700 w-full whitespace-normal h-auto py-2"
-                      onClick={downloadLua}
-                      disabled={downloading}
-                    >
-                      {downloading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
-                          {t('xps_loading', lang)}
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          {t('xps_lua_download', lang)}
-                        </>
-                      )}
-                    </Button>
-                    <div className="mt-3 bg-slate-900 rounded-lg p-3 space-y-2 text-xs">
-                      <p className="text-slate-300"><strong>{t('xps_lua_req', lang)}</strong></p>
-                      <a 
-                        href="https://forums.x-plane.org/index.php?/files/file/38445-flywithlua-ng-next-generation-edition-for-x-plane-11-win-lin-mac/"
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-                      >
-                        {t('xps_lua_link', lang)}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
+
+              <div className="mt-4 rounded-xl border border-amber-700/45 bg-amber-900/18 p-3">
+                <p className="text-sm font-semibold text-amber-200 mb-1">{text.msfsPyTitle}</p>
+                <p className="text-xs text-slate-300 mb-2">{text.msfsPyDesc}</p>
+                <Button className="w-full bg-amber-700 hover:bg-amber-600 text-white shadow-md shadow-amber-950/35" onClick={downloadMsfsBridge} disabled={isBusy}>
+                  {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                  {isBusy ? text.loading : text.msfsPyBtn}
+                </Button>
+                <p className="mt-2 text-[11px] text-slate-400">{text.msfsPyUsage}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-700/35 bg-gradient-to-b from-emerald-950/40 via-slate-900/75 to-slate-950/75 p-4 sm:p-5">
+              <h3 className="text-lg font-semibold text-emerald-200 mb-2">{text.xpTitle}</h3>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-emerald-700/30 bg-slate-950/60 p-3">
+                  <p className="text-sm font-semibold text-emerald-200 mb-1">{text.luaTitle}</p>
+                  <p className="text-xs text-slate-300 mb-2">{text.luaDesc}</p>
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/35" onClick={downloadLua} disabled={isBusy}>
+                    {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                    {isBusy ? text.loading : text.luaBtn}
+                  </Button>
+                  <div className="mt-2 text-xs text-slate-400">
+                    <span className="font-semibold text-slate-300">{text.luaReq}</span>
+                    <a href="https://forums.x-plane.org/index.php?/files/file/38445-flywithlua-ng-next-generation-edition-for-x-plane-11-win-lin-mac/" target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200">
+                      {text.luaLink}<ExternalLink className="h-3 w-3" />
+                    </a>
                   </div>
+                </div>
 
-                  {/* OR Divider */}
-                  <div className="flex items-center gap-3 my-2">
-                    <div className="flex-1 h-px bg-slate-600" />
-                    <span className="text-amber-400 font-bold text-sm tracking-widest uppercase px-3 py-1 bg-amber-400/10 border border-amber-400/30 rounded-full">{t('xps_or', lang)}</span>
-                    <div className="flex-1 h-px bg-slate-600" />
-                  </div>
-
-                  {/* Python Option */}
-                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <h4 className="text-white font-semibold mb-2">{t('xps_py_title', lang)}</h4>
-                    <p className="text-sm text-slate-400 mb-3 break-words">
-                      {t('xps_py_desc', lang)}
-                    </p>
-                    <Button 
-                      className="w-full bg-black hover:bg-black/80 text-white border border-slate-600 whitespace-normal h-auto py-2"
-                      onClick={downloadPython}
-                      disabled={downloading}
-                    >
-                      {downloading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
-                          {t('xps_loading', lang)}
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          {t('xps_py_download', lang)}
-                        </>
-                      )}
-                    </Button>
-                    <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
-                      <p className="text-slate-300"><strong>{t('xps_py_req', lang)}</strong></p>
-                      <a 
-                        href="https://xppython3.readthedocs.io"
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                      >
-                        {t('xps_py_link', lang)}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* OR Divider */}
-                  <div className="flex items-center gap-3 my-2">
-                    <div className="flex-1 h-px bg-slate-600" />
-                    <span className="text-cyan-400 font-bold text-sm tracking-widest uppercase px-3 py-1 bg-cyan-400/10 border border-cyan-400/30 rounded-full">
-                      {lang === 'de' ? 'oder MSFS' : 'or MSFS'}
-                    </span>
-                    <div className="flex-1 h-px bg-slate-600" />
-                  </div>
-
-                  {/* MSFS Option */}
-                  <div className="bg-cyan-900/10 border border-cyan-700/40 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="px-2 py-0.5 bg-cyan-600 text-white text-xs font-bold rounded">
-                        {lang === 'de' ? 'NEU' : 'NEW'}
-                      </div>
-                      <h4 className="text-white font-semibold">
-                        {lang === 'de' ? 'SkyCareer MSFS Bridge (Windows)' : 'SkyCareer MSFS Bridge (Windows)'}
-                      </h4>
-                    </div>
-                    <p className="text-sm text-slate-400 mb-3 break-words">
-                      {lang === 'de'
-                        ? 'MSFS SimConnect-Bridge als ZIP. Start direkt mit SkyCareerMsfsBridge.exe.'
-                        : 'MSFS SimConnect bridge ZIP. Start directly with SkyCareerMsfsBridge.exe.'}
-                    </p>
-                    <Button
-                      className="w-full bg-cyan-600 hover:bg-cyan-700 whitespace-normal h-auto py-2"
-                      onClick={downloadSkyCareerDesktop}
-                      disabled={downloading}
-                    >
-                      {downloading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
-                          {t('xps_loading', lang)}
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          {lang === 'de' ? 'MSFS Bridge (Windows) herunterladen' : 'Download MSFS Bridge (Windows)'}
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      className="w-full mt-2 bg-slate-700 hover:bg-slate-600 whitespace-normal h-auto py-2"
-                      onClick={downloadMsfsTablet}
-                      disabled={downloading}
-                    >
-                      {downloading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
-                          {t('xps_loading', lang)}
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                          {lang === 'de' ? 'MSFS Ingame Tablet (WebView) herunterladen' : 'Download MSFS ingame tablet (WebView)'}
-                        </>
-                      )}
-                    </Button>
-
-                    {/* Standalone MSFS Python Bridge */}
-                    <div className="mt-3 bg-amber-900/20 border border-amber-700/40 rounded-lg p-3">
-                      <p className="text-amber-300 text-xs font-bold mb-2">
-                        {lang === 'de' ? '🐍 Alternative: Standalone Python Bridge' : '🐍 Alternative: Standalone Python Bridge'}
-                      </p>
-                      <p className="text-xs text-slate-400 mb-2">
-                        {lang === 'de'
-                          ? 'Leichtgewichtige Python-Bridge für MSFS 2020/2024. Erkennt Stall, Overspeed, Crash, Tailstrike, Flaps-Overspeed, Gear-Up-Landing und Touchdown-Daten. Benötigt Python 3 + python-simconnect.'
-                          : 'Lightweight Python bridge for MSFS 2020/2024. Detects stall, overspeed, crash, tailstrike, flaps overspeed, gear-up landing, and touchdown data. Requires Python 3 + python-simconnect.'}
-                      </p>
-                      <Button
-                        className="w-full bg-amber-700 hover:bg-amber-600 text-white whitespace-normal h-auto py-2 text-xs"
-                        onClick={downloadMsfsBridge}
-                        disabled={downloading}
-                      >
-                        {downloading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
-                            {t('xps_loading', lang)}
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4 mr-2 flex-shrink-0" />
-                            {lang === 'de' ? 'MSFS Bridge (Python) herunterladen' : 'Download MSFS Bridge (Python)'}
-                          </>
-                        )}
-                      </Button>
-                      <p className="text-[10px] text-slate-500 mt-1.5">
-                        {lang === 'de'
-                          ? 'Nutzung: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (oder msfs2024)'
-                          : 'Usage: python SkyCareer_MSFS_Bridge.py --sim msfs2020 (or msfs2024)'}
-                      </p>
-                    </div>
-
-                    <div className="mt-3 bg-slate-950 rounded-lg p-3 space-y-2 text-xs">
-                      <p className="text-slate-300">
-                        <strong>{lang === 'de' ? 'Benoetigt:' : 'Requires:'}</strong> WebView2 Runtime (meist schon installiert)
-                      </p>
-                      <p className="text-slate-400">
-                        {lang === 'de'
-                          ? 'Bridge-ZIP: entpacken, Ordner "SkyCareer_MSFS_Bridge" oeffnen und SkyCareerMsfsBridge.exe starten.'
-                          : 'Bridge ZIP: unzip, open folder "SkyCareer_MSFS_Bridge", and run SkyCareerMsfsBridge.exe.'}
-                      </p>
-                    </div>
+                <div className="rounded-xl border border-blue-700/35 bg-slate-950/60 p-3">
+                  <p className="text-sm font-semibold text-blue-200 mb-1">{text.pyTitle}</p>
+                  <p className="text-xs text-slate-300 mb-2">{text.pyDesc}</p>
+                  <Button className="w-full bg-blue-700 hover:bg-blue-600 text-white shadow-md shadow-blue-950/35" onClick={downloadPython} disabled={isBusy}>
+                    {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                    {isBusy ? text.loading : text.pyBtn}
+                  </Button>
+                  <div className="mt-2 text-xs text-slate-400">
+                    <span className="font-semibold text-slate-300">{text.pyReq}</span>
+                    <a href="https://xppython3.readthedocs.io" target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-1 text-blue-300 hover:text-blue-200">
+                      {text.pyLink}<ExternalLink className="h-3 w-3" />
+                    </a>
                   </div>
                 </div>
               </div>
             </div>
-          </Card>
+          </div>
+        </Card>
 
-          {/* Step 2 */}
-          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold text-sm sm:text-base">2</span>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          <Card className="rounded-3xl border border-slate-700/70 bg-slate-900/72 p-4 sm:p-5 text-slate-100 shadow-[0_14px_48px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-300 mb-3">
+              <Wrench className="h-4 w-4 text-cyan-300" />
+              {text.step2Title}
+            </div>
+            <p className="text-sm text-slate-300 mb-3">{text.step2Desc}</p>
+
+            <div className="space-y-3">
+              <div className="rounded-xl border border-cyan-800/45 bg-cyan-950/20 p-3">
+                <p className="text-sm font-semibold text-cyan-200 mb-2">{text.installMsfsTitle}</p>
+                <ul className="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                  <li>1. {text.installMsfs1}</li>
+                  <li>2. {text.installMsfs2}</li>
+                  <li>3. {text.installMsfs3}</li>
+                  <li>4. {text.installMsfs4}</li>
+                </ul>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step2', lang)}</h3>
-                <p className="text-sm text-slate-400 mb-4 break-words">
-                  {t('xps_step2_desc', lang)}
-                </p>
-                <div className="space-y-4">
-                  {/* FlyWithLua Installation */}
-                  <div className="bg-emerald-900/10 border border-emerald-700/30 rounded-lg p-4">
-                    <h4 className="text-emerald-400 font-semibold mb-3">{t('xps_lua_title', lang)}</h4>
-                    <div className="space-y-3 text-sm">
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'Installiere FlyWithLua (falls noch nicht vorhanden)' : 'Install FlyWithLua (if not already installed)'}</p>
-                        <p className="text-xs text-slate-400">{lang === 'de' ? 'Nach' : 'To'}:</p>
-                        <code className="text-xs text-emerald-400 block mt-1 break-all">X-Plane 12/Resources/plugins/FlyWithLua/</code>
-                      </div>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'Kopiere SkyCareer.lua' : 'Copy SkyCareer.lua'}</p>
-                        <p className="text-xs text-slate-400">{lang === 'de' ? 'Nach' : 'To'}:</p>
-                        <code className="text-xs text-emerald-400 block mt-1 break-all">X-Plane 12/Resources/plugins/FlyWithLua/Scripts/</code>
-                      </div>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'Starte X-Plane 12 neu' : 'Restart X-Plane 12'}</p>
-                        <p className="text-xs text-slate-400">{lang === 'de' ? 'Das Script wird automatisch geladen' : 'The script will be loaded automatically'}</p>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Python Installation */}
-                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <h4 className="text-slate-400 font-semibold mb-3">{t('xps_py_title', lang)}</h4>
-                    <div className="space-y-3 text-sm">
-                      <div className="bg-slate-950 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'Installiere XPPython3' : 'Install XPPython3'}</p>
-                        <code className="text-xs text-blue-400 block mt-1 break-all">X-Plane 12/Resources/plugins/XPPython3/</code>
-                      </div>
-                      <div className="bg-slate-950 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'Erstelle Ordner "SkyCareer"' : 'Create folder "SkyCareer"'}</p>
-                        <code className="text-xs text-blue-400 block mt-1 break-all">X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/</code>
-                      </div>
-                      <div className="bg-slate-950 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">3. {lang === 'de' ? 'Kopiere die Dateien aus der .txt in den Ordner' : 'Copy the files from the .txt into the folder'}</p>
-                        <p className="text-xs text-slate-400">PI_SkyCareer.py {lang === 'de' ? 'und' : 'and'} README.md</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* MSFS Installation */}
-                  <div className="bg-cyan-900/10 border border-cyan-700/30 rounded-lg p-4">
-                    <h4 className="text-cyan-300 font-semibold mb-3">
-                      {lang === 'de' ? 'MSFS 2020/2024 Installation' : 'MSFS 2020/2024 installation'}
-                    </h4>
-                    <div className="space-y-3 text-sm">
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">1. {lang === 'de' ? 'ZIP entpacken und Ordner "SkyCareer_MSFS_Bridge" oeffnen' : 'Extract ZIP and open folder "SkyCareer_MSFS_Bridge"'}</p>
-                      </div>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">2. {lang === 'de' ? 'MSFS starten' : 'Start MSFS'}</p>
-                      </div>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">
-                          3. {lang === 'de'
-                            ? 'SkyCareer_MSFS_Bridge/SkyCareerMsfsBridge.exe starten'
-                            : 'Start SkyCareer_MSFS_Bridge/SkyCareerMsfsBridge.exe'}
-                        </p>
-                      </div>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <p className="text-slate-300 mb-2">
-                          4. {lang === 'de'
-                            ? 'Optional: Ingame-Tablet ZIP entpacken und Ordner SkyCareer_MSFS_Ingame_Tablet in den Community-Ordner kopieren'
-                            : 'Optional: Extract ingame tablet ZIP and copy SkyCareer_MSFS_Ingame_Tablet folder to Community'}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {lang === 'de'
-                            ? 'Im Simulator ueber Toolbar-Icon SkyCareer oeffnen. 3D-Template liegt im Paket unter html_ui/SkyCareerTablet3D.'
-                            : 'Open it via toolbar icon SkyCareer. 3D template is inside the package at html_ui/SkyCareerTablet3D.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="rounded-xl border border-emerald-800/45 bg-emerald-950/20 p-3">
+                <p className="text-sm font-semibold text-emerald-200 mb-2">{text.installXpTitle}</p>
+                <ul className="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                  <li>{text.installXpLua1}</li>
+                  <li>{text.installXpLua2}</li>
+                  <li>{text.installXpLua3}</li>
+                  <li className="pt-1">{text.installXpPy1}</li>
+                  <li>{text.installXpPy2}</li>
+                  <li>{text.installXpPy3}</li>
+                </ul>
               </div>
             </div>
           </Card>
 
-          {/* Step 3 */}
-          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold text-sm sm:text-base">3</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step3', lang)}</h3>
-                <p className="text-sm text-slate-400 mb-4 break-words">
-                  {t('xps_step3_desc', lang)}
-                </p>
-                <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                   <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                   <p className="text-emerald-300 font-medium text-sm break-words">{t('xps_auto_configured', lang)}</p>
-                  </div>
-                  <p className="text-sm text-slate-400 mb-3">
-                    {t('xps_api_key_info', lang)}
-                  </p>
-                  <div className="bg-slate-900 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-slate-400">{t('xps_your_api_key', lang)}</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={copyApiKey}
-                        className="h-6 px-2 text-xs"
-                      >
-                        {copiedKey ? (
-                          <>
-                            <Check className="w-3 h-3 mr-1" />
-                            {t('xps_copied', lang)}
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3 mr-1" />
-                            {t('xps_copy', lang)}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    <code className="text-emerald-400 text-sm font-mono break-all block">
-                      {apiKey || t('xps_loading', lang)}
-                    </code>
-                    <p className="text-xs text-slate-500 mt-2">
-                      {t('xps_key_note', lang)}
-                    </p>
-                  </div>
+          <Card className="rounded-3xl border border-slate-700/70 bg-slate-900/72 p-4 sm:p-5 text-slate-100 shadow-[0_14px_48px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-300 mb-3">
+              <ShieldCheck className="h-4 w-4 text-cyan-300" />
+              {text.step3Title}
+            </div>
+            <p className="text-sm text-slate-300 mb-3">{text.step3Desc}</p>
+
+            <div className="space-y-3">
+              <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs text-slate-400">{text.apiKey}</p>
+                  <Button variant="ghost" size="sm" onClick={copyApiKey} className="h-7 px-2 text-xs text-slate-200 hover:text-white">
+                    {copiedKey ? <><Check className="w-3 h-3 mr-1" />{text.copied}</> : <><Copy className="w-3 h-3 mr-1" />{text.copy}</>}
+                  </Button>
                 </div>
+                <code className="block break-all text-sm text-emerald-300">{apiKey || text.loading}</code>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs text-slate-400">{text.endpoint}</p>
+                  <Button variant="ghost" size="sm" onClick={copyEndpoint} className="h-7 px-2 text-xs text-slate-200 hover:text-white">
+                    {copied ? <><Check className="w-3 h-3 mr-1" />{text.copied}</> : <><Copy className="w-3 h-3 mr-1" />{text.copy}</>}
+                  </Button>
+                </div>
+                <code className="block break-all text-xs text-cyan-300">{endpoint}</code>
               </div>
             </div>
-          </Card>
 
-          {/* Step 4 */}
-          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold text-sm sm:text-base">4</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-white mb-2">{t('xps_step4', lang)}</h3>
-                <p className="text-sm text-slate-400 mb-4 break-words">
-                  {t('xps_step4_desc', lang)}
-                </p>
-                <div className="space-y-3 text-sm">
-                  <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-slate-300 mb-2">1. {t('xps_fly1', lang)}</p>
-                    <p className="text-xs text-slate-400">{t('xps_fly1_sub', lang)}</p>
-                  </div>
-                  <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-slate-300 mb-2">2. {t('xps_fly2', lang)}</p>
-                    <p className="text-xs text-slate-400">{t('xps_fly2_sub', lang)}</p>
-                  </div>
-                  <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3">
-                    <p className="text-amber-300 font-medium mb-1">⏳ {t('xps_fly_wait', lang)}</p>
-                    <p className="text-xs text-slate-400">
-                      {t('xps_fly_wait_desc', lang)}
-                    </p>
-                  </div>
-                  <div className="bg-slate-900 rounded-lg p-3">
-                    <p className="text-slate-300 mb-2">3. {t('xps_fly3', lang)}</p>
-                    <p className="text-xs text-slate-400">{t('xps_fly3_sub', lang)}</p>
-                  </div>
-                  <div className="bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-3">
-                    <p className="text-emerald-300 font-medium mb-1">✈️ {t('xps_fly_auto', lang)}</p>
-                    <p className="text-xs text-slate-400">
-                      {t('xps_fly_auto_desc', lang)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <p className="mt-3 text-xs text-slate-400">{text.keyNote}</p>
           </Card>
+        </div>
 
-          {/* Features */}
-          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Wifi className="w-5 h-5 text-blue-400" />
-              {t('xps_data_title', lang)}
+        <Card className="rounded-3xl border border-slate-700/70 bg-slate-900/72 p-4 sm:p-5 text-slate-100 shadow-[0_14px_48px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-300 mb-3">
+            <Rocket className="h-4 w-4 text-cyan-300" />
+            {text.step4Title}
+          </div>
+          <p className="text-sm text-slate-300 mb-3">{text.step4Desc}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            {[text.flow1, text.flow2, text.flow3, text.flow4].map((item, idx) => (
+              <div key={idx} className="rounded-xl border border-slate-700 bg-slate-950/65 p-3 text-slate-300">
+                {idx + 1}. {item}
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          <Card className="rounded-3xl border border-slate-700/70 bg-slate-900/72 p-4 sm:p-5 text-slate-100 shadow-[0_14px_48px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+            <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              <Gauge className="h-5 w-5 text-cyan-300" />
+              {text.techTitle}
             </h3>
-            <p className="text-sm text-slate-400 mb-4">{t('xps_data_desc', lang)}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {(lang === 'de' ? [
-                'Höhe (ft)', 'Geschwindigkeit (kts)', 'Vertikalgeschwindigkeit (ft/min)',
-                'Kurs / Heading', 'Treibstoffstand (%)', 'Treibstoff (kg)',
-                'G-Kräfte (aktuell)', 'Max G-Kräfte', 'Lande-G-Kraft',
-                'Position (Lat/Lon)', 'Bodenkontakt', 'Parkbremse',
-                'Triebwerksstatus', 'Tailstrike-Erkennung', 'Strömungsabriss (Stall)',
-                'Strukturbelastung (Overstress)', 'Overspeed', 'Klappen-Overspeed',
-                'Treibstoff-Notstand', 'Fahrwerk-Status', 'Crash-Erkennung',
-                'Steuerinput-Intensität', 'Lande-Vertikalgeschw.', 'Abflug-Koordinaten',
-                'Ziel-Koordinaten', 'Flug-Score (0-100)', 'Reputation',
-                'Wartungskosten (live)', 'Landequalitäts-Typ', 'Lande-Bonus'
-              ] : [
-                'Altitude (ft)', 'Speed (kts)', 'Vertical Speed (ft/min)',
-                'Heading', 'Fuel Level (%)', 'Fuel (kg)',
-                'G-Forces (current)', 'Max G-Forces', 'Landing G-Force',
-                'Position (Lat/Lon)', 'Ground Contact', 'Parking Brake',
-                'Engine Status', 'Tailstrike Detection', 'Stall Detection',
-                'Structural Stress', 'Overspeed', 'Flaps Overspeed',
-                'Fuel Emergency', 'Gear Status', 'Crash Detection',
-                'Control Input Intensity', 'Landing V/S', 'Departure Coordinates',
-                'Destination Coordinates', 'Flight Score (0-100)', 'Reputation',
-                'Maintenance Cost (live)', 'Landing Quality Type', 'Landing Bonus'
-              ]).map((feature, index) => (
-                <div key={index} className="flex items-center gap-2 text-slate-300 py-1">
-                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                  <span className="text-xs sm:text-sm">{feature}</span>
+            <p className="text-sm text-slate-300 mb-3">{text.techDesc}</p>
+            <div className="mb-3 space-y-1 text-xs text-slate-300">
+              <p>{text.freq}</p>
+              <p>{text.protocol}</p>
+              <p>{text.simulators}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {featureChips.map((feature, idx) => (
+                <div key={idx} className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-2.5 py-1.5 text-xs text-emerald-200">
+                  {feature}
                 </div>
               ))}
             </div>
           </Card>
 
-          {/* Technical Details */}
-          <Card className="p-4 sm:p-6 bg-slate-800 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Code className="w-5 h-5 text-purple-400" />
-              {t('xps_tech_title', lang)}
+          <Card className="rounded-3xl border border-blue-700/45 bg-gradient-to-b from-blue-950/28 to-slate-900/72 p-4 sm:p-5 text-slate-100 shadow-[0_14px_48px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+            <h3 className="text-lg font-semibold text-blue-200 mb-2 flex items-center gap-2">
+              <Bug className="h-5 w-5 text-blue-300" />
+              {text.helpTitle}
             </h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <span className="text-slate-400">{t('xps_protocol', lang)}:</span>
-                <span className="ml-2 text-white">HTTPS POST</span>
-              </div>
-              <div>
-                <span className="text-slate-400">{t('xps_frequency', lang)}:</span>
-                <span className="ml-2 text-white">1 Hz ({lang === 'de' ? 'jede Sekunde' : 'every second'})</span>
-              </div>
-              <div>
-                <span className="text-slate-400">{t('xps_auto_complete', lang)}:</span>
-                <span className="ml-2 text-white">{lang === 'de' ? 'Ja (bei Parkposition + Parkbremse + Triebwerke aus)' : 'Yes (at parking + parking brake + engines off)'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">{t('xps_requirements', lang)}:</span>
-                <span className="ml-2 text-white">X-Plane 12.0+, MSFS 2020, MSFS 2024</span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Help */}
-          <Card className="p-4 sm:p-6 bg-blue-900/20 border border-blue-700/50">
-            <h3 className="text-lg font-semibold text-blue-300 mb-2">{t('xps_help_title', lang)}</h3>
-            <p className="text-slate-300 text-sm mb-4">
-              {t('xps_help_desc', lang)}
-            </p>
-            <ul className="space-y-2 text-sm text-slate-300">
-              {lang === 'de' ? (
-                <>
-                  <li>• X-Plane 12 oder MSFS 2020/2024 ist geöffnet</li>
-                  <li>• Das Plugin/Bridge-Skript ist korrekt installiert und gestartet</li>
-                  <li>• Der API-Endpoint ist korrekt konfiguriert</li>
-                  <li>• Du hast einen aktiven Flug in SkyCareer gestartet</li>
-                  <li>• Deine Firewall blockiert keine Verbindungen</li>
-                </>
-              ) : (
-                <>
-                  <li>• X-Plane 12 or MSFS 2020/2024 is open</li>
-                  <li>• The plugin/bridge script is correctly installed and running</li>
-                  <li>• The API endpoint is correctly configured</li>
-                  <li>• You have an active flight in SkyCareer</li>
-                  <li>• Your firewall is not blocking connections</li>
-                </>
-              )}
+            <ul className="space-y-2 text-sm text-slate-200 leading-relaxed">
+              <li>- {text.help1}</li>
+              <li>- {text.help2}</li>
+              <li>- {text.help3}</li>
+              <li>- {text.help4}</li>
+              <li>- {text.help5}</li>
             </ul>
           </Card>
         </div>
