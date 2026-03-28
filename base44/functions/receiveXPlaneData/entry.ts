@@ -1246,8 +1246,11 @@ Deno.serve(async (req) => {
 
     // Build a LEAN xplane_data object - only current sensor readings
     // No merging with previous data (the frontend tracks accumulated state)
+    const justLiftedOff = !on_ground && prevOnGround;
     const airborneStartedAt = (!on_ground && altitude > 10)
-      ? (prevAirborneStartedAt || new Date().toISOString())
+      ? (justLiftedOff
+          ? new Date().toISOString()
+          : (prevAirborneStartedAt || new Date().toISOString()))
       : prevAirborneStartedAt;
     const airborneStartedAtMs = Date.parse(String(airborneStartedAt || ""));
     const airborneDurationSec = Number.isFinite(airborneStartedAtMs)
@@ -1265,12 +1268,43 @@ Deno.serve(async (req) => {
       ? (prevCompletionArmedAt || new Date().toISOString())
       : ((on_ground && !hasBeenAirborne) ? null : prevCompletionArmedAt);
     const incidentArmed = hasBeenAirborne || completionArmed;
-    const tailstrikeDetected = incidentArmed && toBool(tailstrike, false);
-    const stallDetected = incidentArmed && !!(stall || is_in_stall || stall_warning || override_alpha);
-    const overspeedDetected = incidentArmed && toBool(overspeed, false);
-    const flapsOverspeedDetected = incidentArmed && toBool(flaps_overspeed, false);
-    const gearUpLandingDetected = incidentArmed && toBool(gear_up_landing, false);
-    const harshControlsDetected = incidentArmed && toBool(data.harsh_controls || data.harshControls, false);
+    const normalizedBridgeEventTypes = new Set(
+      (Array.isArray(incomingBridgeEventLog) ? incomingBridgeEventLog : [])
+        .map((evt) => toHudAscii(evt?.type || evt?.event || evt?.name || evt?.code || "", ""))
+        .map((evtTypeRaw) => String(evtTypeRaw || "").toLowerCase().replace(/[^a-z0-9_]/g, "_").trim())
+        .filter(Boolean)
+    );
+    const hasBridgeEventType = (tp) => normalizedBridgeEventTypes.has(String(tp || "").toLowerCase());
+    const rawTailstrikeFlag = toBool(tailstrike, false);
+    const rawStallFlag = !!(stall || is_in_stall || stall_warning || override_alpha);
+    const rawOverspeedFlag = toBool(overspeed, false);
+    const rawFlapsOverspeedFlag = toBool(flaps_overspeed, false);
+    const rawGearUpLandingFlag = toBool(gear_up_landing, false);
+    const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
+    const prevTakeoffSuppress = (prevXd?.event_takeoff_suppress && typeof prevXd.event_takeoff_suppress === "object")
+      ? prevXd.event_takeoff_suppress
+      : {};
+    const eventTakeoffSuppress = {
+      tailstrike: justLiftedOff ? rawTailstrikeFlag : toBool(prevTakeoffSuppress.tailstrike, false),
+      stall: justLiftedOff ? rawStallFlag : toBool(prevTakeoffSuppress.stall, false),
+      overspeed: justLiftedOff ? rawOverspeedFlag : toBool(prevTakeoffSuppress.overspeed, false),
+      flaps_overspeed: justLiftedOff ? rawFlapsOverspeedFlag : toBool(prevTakeoffSuppress.flaps_overspeed, false),
+      gear_up_landing: justLiftedOff ? rawGearUpLandingFlag : toBool(prevTakeoffSuppress.gear_up_landing, false),
+      harsh_controls: justLiftedOff ? rawHarshControlsFlag : toBool(prevTakeoffSuppress.harsh_controls, false),
+    };
+    if (!rawTailstrikeFlag) eventTakeoffSuppress.tailstrike = false;
+    if (!rawStallFlag) eventTakeoffSuppress.stall = false;
+    if (!rawOverspeedFlag) eventTakeoffSuppress.overspeed = false;
+    if (!rawFlapsOverspeedFlag) eventTakeoffSuppress.flaps_overspeed = false;
+    if (!rawGearUpLandingFlag) eventTakeoffSuppress.gear_up_landing = false;
+    if (!rawHarshControlsFlag) eventTakeoffSuppress.harsh_controls = false;
+
+    const tailstrikeDetected = incidentArmed && (hasBridgeEventType("tailstrike") || (rawTailstrikeFlag && !eventTakeoffSuppress.tailstrike));
+    const stallDetected = incidentArmed && (hasBridgeEventType("stall") || (rawStallFlag && !eventTakeoffSuppress.stall));
+    const overspeedDetected = incidentArmed && (hasBridgeEventType("overspeed") || (rawOverspeedFlag && !eventTakeoffSuppress.overspeed));
+    const flapsOverspeedDetected = incidentArmed && (hasBridgeEventType("flaps_overspeed") || (rawFlapsOverspeedFlag && !eventTakeoffSuppress.flaps_overspeed));
+    const gearUpLandingDetected = incidentArmed && (hasBridgeEventType("gear_up_landing") || (rawGearUpLandingFlag && !eventTakeoffSuppress.gear_up_landing));
+    const harshControlsDetected = incidentArmed && (hasBridgeEventType("harsh_controls") || (rawHarshControlsFlag && !eventTakeoffSuppress.harsh_controls));
     const fuelEmergencyDetected = hasBeenAirborne && toBool(fuel_emergency, false);
 
     const shouldSynthesizeTouchdownEvidence =
@@ -1309,7 +1343,9 @@ Deno.serve(async (req) => {
       Number(effectiveLandingG || 0) >= 2.9
     );
     const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceEffective) >= 2.6));
-    const prevCrashState = hasFreshAirborneState ? toBool(prevXd.crash ?? prevXd.has_crashed, false) : false;
+    const prevCrashState = (!justLiftedOff && hasFreshAirborneState)
+      ? toBool(prevXd.crash ?? prevXd.has_crashed, false)
+      : false;
     const simDisabledCrashSignal = incidentArmed && toBool(sim_disabled, false) && (
       crashFromTouchdown ||
       (!on_ground && Number(speed || 0) >= 90) ||
@@ -1374,6 +1410,7 @@ Deno.serve(async (req) => {
       crash_flag: !!crash_flag,
       sim_disabled: !!sim_disabled,
       harsh_controls: harshControlsDetected,
+      event_takeoff_suppress: eventTakeoffSuppress,
       was_airborne: hasBeenAirborne,
       airborne_started_at: airborneStartedAt,
       completion_armed: completionArmed,
@@ -1422,7 +1459,9 @@ Deno.serve(async (req) => {
       flight_path: newPath,
       // Flight events log for map markers (gear, flaps, speedbrake, incidents)
       flight_events_log: (() => {
-        const prevLog = Array.isArray(prevXd.flight_events_log) ? prevXd.flight_events_log : [];
+        const prevLog = justLiftedOff
+          ? []
+          : (Array.isArray(prevXd.flight_events_log) ? prevXd.flight_events_log : []);
         if (!hasBeenAirborne) return prevLog;
         if (!hasValidCoords && incomingBridgeEventLog.length === 0) return prevLog;
 
@@ -1943,14 +1982,14 @@ Deno.serve(async (req) => {
     const mergedScorePacket = {
       max_g_force: Math.max(Number(max_g_force || 0), Number(prev.max_g_force || 0)),
       landing_g_force: Number(effectiveLandingG ?? prev.landing_g_force ?? 0),
-      tailstrike: !!(tailstrikeDetected || prev.tailstrike),
-      stall: !!(stallDetected || prev.stall || prev.is_in_stall || prev.stall_warning || prev.override_alpha),
-      overstress: !!(overstressDetected || prev.overstress),
-      overspeed: !!(overspeedDetected || prev.overspeed),
-      flaps_overspeed: !!(flapsOverspeedDetected || prev.flaps_overspeed),
-      gear_up_landing: !!(gearUpLandingDetected || prev.gear_up_landing),
-      crash: !!(isCrash || prev.crash || prev.has_crashed),
-      has_crashed: !!(isCrash || prev.has_crashed || prev.crash),
+      tailstrike: !!tailstrikeDetected,
+      stall: !!stallDetected,
+      overstress: !!overstressDetected,
+      overspeed: !!overspeedDetected,
+      flaps_overspeed: !!flapsOverspeedDetected,
+      gear_up_landing: !!gearUpLandingDetected,
+      crash: !!isCrash,
+      has_crashed: !!isCrash,
     };
     const liveScore = computeLiveScore(mergedScorePacket);
 
