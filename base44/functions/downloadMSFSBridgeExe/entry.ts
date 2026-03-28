@@ -14,6 +14,7 @@ const BRIDGE_ZIP_CANDIDATES = [
   new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
   new URL('./assets/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
 ];
+const GITHUB_MEDIA_BASE = 'https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads';
 
 function toBase64(bytes: Uint8Array) {
   let binary = '';
@@ -25,12 +26,41 @@ function toBase64(bytes: Uint8Array) {
   return btoa(binary);
 }
 
+function isLikelyLfsPointer(bytes: Uint8Array) {
+  const head = new TextDecoder().decode(bytes.subarray(0, Math.min(bytes.length, 120)));
+  return head.includes('git-lfs.github.com/spec/v1');
+}
+
+function candidateFileName(candidate: URL) {
+  return candidate.pathname.split('/').pop() || '';
+}
+
+async function fetchFromGithubMedia(fileName: string) {
+  if (!fileName) {
+    throw new Error('Missing download filename');
+  }
+  const res = await fetch(`${GITHUB_MEDIA_BASE}/${encodeURIComponent(fileName)}`);
+  if (!res.ok) {
+    throw new Error(`GitHub media download failed: HTTP ${res.status}`);
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
 async function readFirstAvailable(candidates: URL[]) {
   for (const candidate of candidates) {
     try {
-      return await Deno.readFile(candidate);
+      const bytes = await Deno.readFile(candidate);
+      if (isLikelyLfsPointer(bytes)) {
+        return await fetchFromGithubMedia(candidateFileName(candidate));
+      }
+      return bytes;
     } catch {
       // try next
+      try {
+        return await fetchFromGithubMedia(candidateFileName(candidate));
+      } catch {
+        // keep trying candidates
+      }
     }
   }
   throw new Error('Bridge zip asset not found');
