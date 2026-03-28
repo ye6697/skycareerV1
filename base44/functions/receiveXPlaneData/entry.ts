@@ -1598,15 +1598,24 @@ Deno.serve(async (req) => {
           const force = !!options.force;
           const cooldownSec = Number(options.cooldownSec ?? 0);
           const minDistanceNm = Number(options.minDistanceNm ?? 0);
+          const strictTypeCooldown = eventType !== "flaps";
+
+          let lastSame = null;
+          for (let i = merged.length - 1; i >= 0; i--) {
+            if (String(merged[i]?.type || '').toLowerCase() === eventType) {
+              lastSame = merged[i];
+              break;
+            }
+          }
+          if (lastSame) {
+            const lastTs = Date.parse(String(lastSame?.t || ''));
+            // User rule: same event/incident only again after >=10s (except flaps).
+            if (strictTypeCooldown && Number.isFinite(lastTs) && (nowMs - lastTs) < 10000) {
+              return false;
+            }
+          }
 
           if (!force) {
-            let lastSame = null;
-            for (let i = merged.length - 1; i >= 0; i--) {
-              if (String(merged[i]?.type || '').toLowerCase() === eventType) {
-                lastSame = merged[i];
-                break;
-              }
-            }
             if (lastSame) {
               const lastTs = Date.parse(String(lastSame?.t || ''));
               if (Number.isFinite(lastTs) && cooldownSec > 0 && (nowMs - lastTs) < (cooldownSec * 1000)) {
@@ -1709,8 +1718,8 @@ Deno.serve(async (req) => {
             if (!isCrash) continue;
             appendEvent("crash", eventItem, {
               force: !!(isCrash && !prevCrashState),
-              cooldownSec: 36000,
-              minDistanceNm: 9999,
+              cooldownSec: 10,
+              minDistanceNm: 0.05,
             });
             continue;
           }
@@ -1805,8 +1814,8 @@ Deno.serve(async (req) => {
         if (isCrash) {
           appendEvent("crash", {}, {
             force: !!(isCrash && !prevCrashState),
-            cooldownSec: 36000,
-            minDistanceNm: 9999,
+            cooldownSec: 10,
+            minDistanceNm: 0.05,
           });
         }
 

@@ -860,6 +860,7 @@ function update(d) {
   };
   var dedupeEventsForMap = function(list) {
     var byType = {};
+    var lastTypeTs = {};
     var seen = new Set();
     var out = [];
     for (var i = 0; i < list.length; i++) {
@@ -873,9 +874,12 @@ function update(d) {
 
       var tsRaw = Date.parse(String(src.t || src.timestamp || ''));
       var ts = Number.isFinite(tsRaw) ? tsRaw : (i * 1000);
-      var timeBucket = Number.isFinite(tsRaw) ? Math.floor(ts / 10000) : i;
-      var bucketSig = tp + '|' + lat.toFixed(4) + '|' + lon.toFixed(4) + '|' + timeBucket;
+      var bucketSig = tp + '|' + lat.toFixed(5) + '|' + lon.toFixed(5) + '|' + Math.floor(ts / 1000);
       if (seen.has(bucketSig)) continue;
+      if (tp !== 'flaps') {
+        var prevTypeTs = Number(lastTypeTs[tp] || 0);
+        if (prevTypeTs > 0 && (ts - prevTypeTs) < 10000) continue;
+      }
 
       var cfg = dedupeCfg[tp] || dedupeCfg._default;
       var prev = byType[tp];
@@ -883,12 +887,13 @@ function update(d) {
         if (cfg.single) continue;
         var dtSec = Math.abs(ts - prev.ts) / 1000;
         var movedNm = haversineNm(prev.lat, prev.lon, lat, lon);
-        if (dtSec < cfg.cooldownSec && movedNm < cfg.minNm) {
+        if (tp === 'flaps' && dtSec < cfg.cooldownSec && movedNm < cfg.minNm) {
           continue;
         }
       }
 
       seen.add(bucketSig);
+      lastTypeTs[tp] = ts;
       byType[tp] = { ts: ts, lat: lat, lon: lon };
       out.push({
         ...src,
