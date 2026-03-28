@@ -1636,6 +1636,22 @@ export default function FlightTracker() {
 
   const distanceInfo = calculateDistanceInfo();
   const distanceProgress = distanceInfo.progress;
+  const liveXpd = (flight || existingFlight)?.xplane_data || {};
+  const mapFlightPath =
+    (Array.isArray(xplaneLog?.raw_data?.flight_path) && xplaneLog.raw_data.flight_path.length > 0)
+      ? xplaneLog.raw_data.flight_path
+      : (Array.isArray(liveXpd.flight_path) ? liveXpd.flight_path : []);
+  const mapFlightEventsLog = (() => {
+    const rawLog = xplaneLog?.raw_data?.flight_events_log;
+    if (Array.isArray(rawLog) && rawLog.length > 0) return rawLog;
+    const xpdLog = liveXpd?.flight_events_log;
+    if (Array.isArray(xpdLog) && xpdLog.length > 0) return xpdLog;
+    const rawBridgeLog = xplaneLog?.raw_data?.bridge_event_log;
+    if (Array.isArray(rawBridgeLog) && rawBridgeLog.length > 0) return rawBridgeLog;
+    const xpdBridgeLog = liveXpd?.bridge_event_log;
+    if (Array.isArray(xpdBridgeLog) && xpdBridgeLog.length > 0) return xpdBridgeLog;
+    return [];
+  })();
 
   if (flightPhase === 'preflight' && !contract) {
     return (
@@ -2194,8 +2210,8 @@ export default function FlightTracker() {
               contract={contract}
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
               routeWaypoints={simbriefRoute?.waypoints || []}
-              flightPath={xplaneLog?.raw_data?.flight_path || []}
-              flightEventsLog={xplaneLog?.raw_data?.flight_events_log || []}
+              flightPath={mapFlightPath}
+              flightEventsLog={mapFlightEventsLog}
               departureRunway={simbriefRoute?.departure_runway}
               arrivalRunway={simbriefRoute?.arrival_runway}
               departureCoords={simbriefRoute?.departure_coords}

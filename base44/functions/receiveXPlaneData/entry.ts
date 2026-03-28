@@ -1566,41 +1566,55 @@ Deno.serve(async (req) => {
         }
 
         const stallNow = stallDetected;
-        appendEvent("tailstrike", {}, {
-          force: !!(tailstrikeDetected && !prevXd.tailstrike),
-          cooldownSec: 60,
-          minDistanceNm: 0.4,
-        });
-        appendEvent("stall", {}, {
-          force: !!(stallNow && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning),
-          cooldownSec: 16,
-          minDistanceNm: 0.25,
-        });
-        appendEvent("overstress", {}, {
-          force: !!(overstressDetected && !prevXd.overstress),
-          cooldownSec: 14,
-          minDistanceNm: 0.2,
-        });
-        appendEvent("overspeed", {}, {
-          force: !!(overspeedDetected && !prevXd.overspeed),
-          cooldownSec: 14,
-          minDistanceNm: 0.2,
-        });
-        appendEvent("flaps_overspeed", {}, {
-          force: !!(flapsOverspeedDetected && !prevXd.flaps_overspeed),
-          cooldownSec: 20,
-          minDistanceNm: 0.2,
-        });
-        appendEvent("gear_up_landing", {}, {
-          force: !!(gearUpLandingDetected && !prevXd.gear_up_landing),
-          cooldownSec: 120,
-          minDistanceNm: 0.1,
-        });
-        appendEvent("crash", {}, {
-          force: !!(isCrash && !prevCrashState),
-          cooldownSec: 36000,
-          minDistanceNm: 9999,
-        });
+        if (tailstrikeDetected) {
+          appendEvent("tailstrike", {}, {
+            force: !!(tailstrikeDetected && !prevXd.tailstrike),
+            cooldownSec: 60,
+            minDistanceNm: 0.4,
+          });
+        }
+        if (stallNow) {
+          appendEvent("stall", {}, {
+            force: !!(stallNow && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning),
+            cooldownSec: 16,
+            minDistanceNm: 0.25,
+          });
+        }
+        if (overstressDetected) {
+          appendEvent("overstress", {}, {
+            force: !!(overstressDetected && !prevXd.overstress),
+            cooldownSec: 14,
+            minDistanceNm: 0.2,
+          });
+        }
+        if (overspeedDetected) {
+          appendEvent("overspeed", {}, {
+            force: !!(overspeedDetected && !prevXd.overspeed),
+            cooldownSec: 14,
+            minDistanceNm: 0.2,
+          });
+        }
+        if (flapsOverspeedDetected) {
+          appendEvent("flaps_overspeed", {}, {
+            force: !!(flapsOverspeedDetected && !prevXd.flaps_overspeed),
+            cooldownSec: 20,
+            minDistanceNm: 0.2,
+          });
+        }
+        if (gearUpLandingDetected) {
+          appendEvent("gear_up_landing", {}, {
+            force: !!(gearUpLandingDetected && !prevXd.gear_up_landing),
+            cooldownSec: 120,
+            minDistanceNm: 0.1,
+          });
+        }
+        if (isCrash) {
+          appendEvent("crash", {}, {
+            force: !!(isCrash && !prevCrashState),
+            cooldownSec: 36000,
+            minDistanceNm: 9999,
+          });
+        }
 
         return merged.length > 650 ? merged.slice(-650) : merged;
       })(),
