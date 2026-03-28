@@ -1,64 +1,307 @@
-// Generates passenger comments based on flight score and events
+// Generates passenger comments based on score, landing quality and incidents.
+// This generator creates a very large variant space (>1000 combinations).
 export function generatePassengerComments(score, data) {
-  const pickRandom = (arr, n) => {
-    const shuffled = [...arr].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(n, arr.length));
-  };
-
   const comments = [];
 
-  if (data.events.crash) {
-    return pickRandom([
-      "Flugzeug zerstört! Nie wieder mit dieser Airline!",
-      "Das war die schlimmste Erfahrung meines Lebens.",
-      "Ich bin froh, dass ich überlebt habe...",
-      "Meine Familie wird von meinem Anwalt hören!",
-      "Ich zittere immer noch am ganzen Körper.",
-      "Das war kein Flug, das war ein Albtraum!",
-      "Ich habe mein Testament geschrieben während wir gefallen sind.",
-      "Die Sauerstoffmasken sind runtergefallen - totale Panik!",
-      "Mein Leben ist an mir vorbeigeflogen. Buchstäblich.",
-      "Ich werde nie wieder ein Flugzeug betreten!",
-      "Haben die überhaupt einen Pilotenschein?!",
-      "Das war versuchter Mord mit einem Flugzeug!",
-      "Meine Kinder haben geweint, meine Frau hat geschrien.",
-      "Der Aufprall war so heftig, mein Handy ist zerbrochen.",
-      "Ich brauche jetzt erstmal eine Therapie.",
-    ], 4);
+  const pickRandom = (arr, n) => {
+    if (!Array.isArray(arr) || arr.length === 0 || n <= 0) return [];
+    const copy = [...arr];
+    const out = [];
+    const take = Math.min(n, copy.length);
+    for (let i = 0; i < take; i++) {
+      const idx = Math.floor(Math.random() * copy.length);
+      out.push(copy[idx]);
+      copy.splice(idx, 1);
+    }
+    return out;
+  };
+
+  const buildVariants = (openers, topics, details, closers, max = 120) => {
+    const out = [];
+    for (const a of openers) {
+      for (const b of topics) {
+        for (const c of details) {
+          for (const d of closers) {
+            out.push(`${a} ${b} ${c} ${d}`.replace(/\s+/g, " ").trim());
+          }
+        }
+      }
+    }
+    if (out.length <= max) return out;
+    return pickRandom(out, max);
+  };
+
+  // Crash path stays explicit and severe.
+  if (data?.events?.crash) {
+    const crashOpeners = [
+      "Das war ein absoluter Albtraum.",
+      "Ich habe echte Panik erlebt.",
+      "So einen Flug habe ich noch nie erlebt.",
+      "Das war lebensgefaehrlich.",
+      "Wir hatten Todesangst in der Kabine.",
+      "Ich bin immer noch komplett geschockt.",
+    ];
+    const crashTopics = [
+      "Der Flug wirkte zu keinem Zeitpunkt stabil.",
+      "Die Situation an Bord war chaotisch.",
+      "Alle Passagiere waren in Alarmbereitschaft.",
+      "Niemand fuehlte sich sicher.",
+      "Das Vertrauen in die Crew war weg.",
+      "Es gab nur noch Angst statt Kontrolle.",
+    ];
+    const crashDetails = [
+      "Ich werde das sofort offiziell melden.",
+      "Ich will eine vollstaendige Untersuchung.",
+      "So etwas darf nicht noch einmal passieren.",
+      "Ich fordere eine sofortige Entschaedigung.",
+      "Das war keine vertretbare Flugfuehrung.",
+      "Ich werde definitiv nie wieder hier buchen.",
+    ];
+    const crashClosers = [
+      "Unfassbar.",
+      "Nie wieder.",
+      "Absolut inakzeptabel.",
+      "Das geht gar nicht.",
+      "Vollkommen unverantwortlich.",
+      "Das war zu viel.",
+    ];
+
+    const crashPool = buildVariants(crashOpeners, crashTopics, crashDetails, crashClosers, 240);
+    return pickRandom(crashPool, 6);
   }
 
-  const butterPool = ["Butterweiche Landung! Das war professionell!","Ich habe kaum bemerkt, dass wir gelandet sind - perfekt!","So muss eine Landung sein! Chapeau, Kapitän!","Mein Kaffee stand noch aufrecht - unglaublich sanft!","Ich dachte, wir fliegen noch - erst als die Bremsen kamen, merkte ich es.","Das war die sanfteste Landung meines Lebens!","Wie auf einer Wolke gelandet. Meisterleistung!","Der Pilot könnte auch eine Feder landen, ohne sie zu knicken.","Standing Ovation in der Kabine! Alle haben geklatscht!","Meine Oma hätte nicht gemerkt, dass wir gelandet sind.","Wie Butter auf heißem Toast - perfekt!","Die Landung war so sanft, mein Baby hat weitergeschlafen.","Besser als jeder Langstreckenflug, den ich je hatte!","Ich glaube, der Pilot hat ein Gefühl wie ein Chirurg."];
-  const softPool = ["Sehr sanfte Landung, ausgezeichnet!","Der Pilot weiß, wie man landen muss.","Angenehme Landung, meine Kinder haben nicht mal aufgewacht.","Gute Landung! Kaum Erschütterung.","Sanftes Aufsetzen - genau so soll es sein.","Professionelle Landung, ich bin beeindruckt.","Man merkt, dass der Pilot Erfahrung hat.","Angenehm sanft, wie auf einer Matratze gelandet.","Schöne Landung, da kann man sich wohlfühlen.","Nicht ganz Butter, aber sehr nah dran!","Guter Pilot - die Landung war toll."];
-  const acceptablePool = ["Ganz normale Landung, nichts besonderes.","Alles in Ordnung, solide gelandet.","Standard-Landung, kein Grund zur Beschwerde.","Okay, hat funktioniert. Mehr gibt's nicht zu sagen.","Normale Landung - nicht schlecht, nicht überragend.","Bin heil angekommen, das zählt.","Durchschnittliche Landung, alles im Rahmen.","Passt schon, war jetzt nicht außergewöhnlich.","Solide Arbeit, man hat den Boden gespürt.","In Ordnung. Würde wieder fliegen."];
-  const hardPool = ["Die Landung war ziemlich hart...","Mein Getränk ist umgekippt!","Mein Rücken tut weh nach dieser Landung.","Das Fahrwerk hat laut geknallt - war das normal?!","Autsch! Das hat ordentlich gerüttelt.","Mein Gepäck ist im Fach verrutscht bei dem Aufprall.","Ich hoffe, das Flugzeug hat das überlebt...","Da hat wohl jemand den Boden verwechselt mit einer Landebahn.","Mein Nacken tut weh - das war zu hart!","Haben wir auf der Landebahn oder daneben aufgesetzt?","Das war eher ein Aufprall als eine Landung.","Meine Zähne haben geklickert bei dem Stoß!","Der Steward hat seinen Trolley verloren bei der Landung.","Ich glaube, mein Koffer ist jetzt flacher als vorher."];
-  const veryHardPool = ["Das war eine brutale Landung!","Ich bin mir nicht sicher, ob das sicher war.","Mein Gepäck ist aus dem Fach gefallen!","Sind die Reifen noch dran?!","Das Flugzeug hat gezittert wie verrückt!","Mein Sitz hat sich verschoben - das geht doch nicht!","Ich habe mir den Kopf am Vordersitz gestoßen!","Das war keine Landung, das war ein kontrollierter Absturz!","Die Sauerstoffmasken sind fast runtergefallen!","Meine Knie sind blau von dem Aufprall!","Hat der Pilot die Landung in einer Simulation gelernt?!","Ich brauche nach dieser Landung einen Chiropraktiker.","Das Flugzeug braucht definitiv eine Inspektion nach dem..."];
+  const qualityOpeners = [
+    "Aus Passagiersicht:",
+    "Mein Eindruck:",
+    "Fazit aus der Kabine:",
+    "Persoenliche Bewertung:",
+    "Rueckmeldung zum Flug:",
+    "Kurz gesagt:",
+    "Unterm Strich:",
+    "Mein Gesamtbild:",
+  ];
 
-  if (data.landingType === 'butter') comments.push(...pickRandom(butterPool, 3));
-  else if (data.landingType === 'soft') comments.push(...pickRandom(softPool, 2));
-  else if (data.landingType === 'acceptable') comments.push(...pickRandom(acceptablePool, 2));
-  else if (data.landingType === 'hard') comments.push(...pickRandom(hardPool, 3));
-  else if (data.landingType === 'very_hard') comments.push(...pickRandom(veryHardPool, 3));
+  const qualityClosersGood = [
+    "Gerne wieder.",
+    "Sehr ueberzeugend.",
+    "Danke fuer den angenehmen Flug.",
+    "Das war professionell.",
+    "Weiter so.",
+    "Top Leistung.",
+    "Starker Auftritt der Crew.",
+  ];
 
-  if (data.maxGForce > 2.5) comments.push(...pickRandom(["Mir wurde bei den extremen Manövern richtig schlecht.","Ich dachte, ich bin in einer Achterbahn und nicht im Flugzeug!","Mein Magen hat sich mehrfach umgedreht.","Die Kinder neben mir haben alle geweint.","Ich habe in die Tüte gegeben, kein Scherz.","So viel G-Kraft habe ich nicht mal im Freizeitpark erlebt!"], 2));
-  else if (data.maxGForce > 2.0) comments.push(...pickRandom(["Die Manöver waren viel zu heftig für einen normalen Flug.","Bei den Kurven hat es mich ordentlich in den Sitz gedrückt.","Die Turbulenz war heftig - oder war das der Pilot?","Mein Getränk ist bei einem Manöver komplett ausgelaufen."], 1));
-  else if (data.maxGForce > 1.8) comments.push(...pickRandom(["Es war ziemlich wackelig während des Fluges.","Ein paar Turbulenzen, aber ging gerade so.","Etwas unruhig zwischendurch, aber überlebbar."], 1));
-  else if (data.maxGForce < 1.2) comments.push(...pickRandom(["Sehr angenehmer, sanfter Flug. Wie auf Wolken!","Ruhigster Flug, den ich je hatte!","Null Turbulenzen, absolut genial!","Ich konnte in Ruhe lesen, so ruhig war der Flug.","Traumhaft ruhig - wie im Schlafwagen!"], 2));
-  else if (data.maxGForce < 1.3) comments.push(...pickRandom(["Ruhiger Flug, gut gemacht.","Kaum Turbulenzen, angenehm.","Entspannter Flug, gerne wieder."], 1));
+  const qualityClosersMid = [
+    "In Ordnung insgesamt.",
+    "Kann man so machen.",
+    "War okay.",
+    "Mit Luft nach oben.",
+    "Nicht perfekt, aber akzeptabel.",
+    "Durchschnittlich.",
+    "Stabil, aber nicht besonders.",
+  ];
 
-  if (score >= 95) comments.push(...pickRandom(["Perfekter Flug! Werde diese Airline weiterempfehlen!","5 Sterne! Besser geht es nicht.","Absolut erstklassig! Buche sofort den nächsten Flug!","Das war Premium-Service - besser als manche Businessclass!","Wow, diese Airline hat mich überzeugt!","Von der Begrüßung bis zur Landung: makellos.","Mein neuer Favorit unter den Airlines!","Ich bin begeistert. Perfekt von Anfang bis Ende."], 2));
-  else if (score >= 85) comments.push(...pickRandom(["Sehr guter Service, gerne wieder.","Professionelle Crew, angenehmer Flug.","Guter Flug, keine Beschwerden!","Empfehlenswert! Gutes Preis-Leistungs-Verhältnis.","Solider Service, kompetente Crew.","War ein schöner Flug, vielen Dank!","4 Sterne - fast perfekt!"], 2));
-  else if (score >= 70) comments.push(...pickRandom(["Solider Flug, nichts zu beanstanden.","War in Ordnung, durchschnittlich halt.","Ging so - weder gut noch schlecht.","Mittelmaß, aber akzeptabel.","Okay, aber ich habe schon bessere Flüge erlebt."], 1));
-  else if (score >= 50) comments.push(...pickRandom(["Es war okay, aber es gibt Verbesserungspotenzial.","Nicht der beste Flug, den ich je hatte...","Naja, angekommen sind wir immerhin.","Könnte definitiv besser sein.","Bin nicht wirklich zufrieden mit dem Flug.","Mal schauen, ob ich nächstes Mal eine andere Airline nehme."], 2));
-  else if (score >= 30) comments.push(...pickRandom(["Ich buche nie wieder bei dieser Airline.","Katastrophal. Ich habe Angst gehabt.","Das war eine Zumutung für jeden Passagier.","Unfassbar schlecht. Null Professionalität!","Meine schlechteste Flugerfahrung überhaupt.","Ich verlange eine Rückerstattung!"], 2));
-  else comments.push(...pickRandom(["Nie wieder! Das war lebensgefährlich!","Ich stelle eine Beschwerde bei der Luftfahrtbehörde!","Die sollten den Pilotenschein abgeben!","Dieser Airline gehört die Lizenz entzogen!","Das war eine Gefährdung aller Passagiere!","Ich kann nicht glauben, dass das legal war."], 2));
+  const qualityClosersBad = [
+    "Da muss mehr Qualitaet her.",
+    "Das war nicht ueberzeugend.",
+    "Ich bin unzufrieden.",
+    "Bitte deutlich verbessern.",
+    "So fuehlte es sich nicht gut an.",
+    "Das war eher schwach.",
+    "Beim naechsten Mal bitte besser.",
+  ];
 
-  if (data.events.tailstrike) comments.push(...pickRandom(["Ich habe gehört, wie das Heck aufgesetzt hat - furchtbar!","Beim Start hat es laut gekracht am Heck...","Was war das für ein Geräusch hinten?! Das klang nach Metall!","Das Heck hat den Boden berührt - das ist doch gefährlich!","Ein lauter Schlag am Heck - ich dachte, wir brechen auseinander!"], 2));
-  if (data.events.stall) comments.push(...pickRandom(["Das Flugzeug ist plötzlich abgesackt! Panik an Bord!","Strömungsabriss?! Das darf nicht passieren!","Wir sind plötzlich gefallen wie ein Stein!","Für einen Moment dachte ich, das war's...","Alle haben geschrien, als das Flugzeug absackte!","Mein Herz hat ausgesetzt, als wir plötzlich gefallen sind!"], 2));
-  if (data.events.overstress) comments.push(...pickRandom(["Das Flugzeug hat beängstigende Geräusche gemacht...","Es hat geknackt und geächzt - das kann nicht normal sein!","Die Tragflächen haben sich so stark gebogen, ich hatte Angst!","Das Flugzeug hat gezittert wie verrückt!"], 1));
-  if (data.events.flaps_overspeed) comments.push(...pickRandom(["Die Klappen haben komische Geräusche gemacht bei der Geschwindigkeit.","Irgendwas an den Flügeln hat laut gerattert...","Das klang, als würde etwas am Flügel abreißen!","Warum waren die Klappen bei dieser Geschwindigkeit draußen?!"], 1));
-  if (data.events.hard_landing) comments.push(...pickRandom(["Meine Knochen vibrieren noch von dieser Landung.","Bei der Landung habe ich meinen Kaffee verloren.","Das Fahrwerk hat laut gescheppert!","Mein ganzer Körper tut weh nach dieser Landung.","Hat der Pilot die Landebahn treffen wollen oder den Planeten?"], 1));
-  if (data.events.fuel_emergency && data.fuel < 3) comments.push(...pickRandom(["Wir hatten kaum noch Treibstoff?! Das ist unverantwortlich!","Der Pilot hat es auf den letzten Tropfen ankommen lassen!","Fast kein Sprit mehr?! Das ist doch wahnsinnig!","Ich habe gehört, dass wir fast keinen Treibstoff mehr hatten!"], 1));
-  if (data.events.gear_up_landing) comments.push(...pickRandom(["Er ist OHNE Fahrwerk gelandet?! Unfassbar!","Die Funken auf der Landebahn werde ich nie vergessen!","Bauchlanden ist für mich ab heute kein Fremdwort mehr.","Das Kreischen des Metalls auf dem Asphalt... schrecklich!"], 1));
+  const landingByType = {
+    butter: {
+      topics: ["die Landung war aussergewoehnlich sanft,", "das Aufsetzen war praktisch nicht spuerbar,", "die Landung fuehlte sich wie auf Schienen an,", "Touchdown war perfekt kontrolliert,"],
+      details: ["kein Ruck, kein Stoeren.", "Kaffee blieb ruhig stehen.", "man merkte sofort echte Praezision.", "das war Premium-Niveau."],
+      closers: qualityClosersGood,
+      count: 4,
+    },
+    soft: {
+      topics: ["die Landung war angenehm weich,", "der Touchdown war sauber,", "das Aufsetzen war ruhig und sicher,", "die Landung fuehlte sich sehr solide an,"],
+      details: ["keine harte Belastung in der Kabine.", "sehr ordentliche Flugfuehrung.", "das wirkte professionell.", "gut abgestimmt bis zum Ende."],
+      closers: qualityClosersGood,
+      count: 3,
+    },
+    acceptable: {
+      topics: ["die Landung war okay,", "das Aufsetzen war im Rahmen,", "der Abschluss war durchschnittlich,", "insgesamt war die Landung solide,"],
+      details: ["man hat den Boden deutlich gemerkt.", "kein Highlight, aber vertretbar.", "das ging in Ordnung.", "aus Passagiersicht akzeptabel."],
+      closers: qualityClosersMid,
+      count: 2,
+    },
+    hard: {
+      topics: ["die Landung war deutlich zu hart,", "der Touchdown war unangenehm,", "das Aufsetzen war heftig spuerrbar,", "das Fahrwerk wurde stark belastet,"],
+      details: ["Getraenke und Gepaeck sind verrutscht.", "die Kabine hat klar reagiert.", "das war grenzwertig.", "so fuehlt sich keine gute Landung an."],
+      closers: qualityClosersBad,
+      count: 3,
+    },
+    very_hard: {
+      topics: ["die Landung war extrem hart,", "der Aufprall war schockierend,", "das Aufsetzen war brutal,", "das fuehlte sich fast wie ein Einschlag an,"],
+      details: ["mehrere Passagiere waren verunsichert.", "das war sicherheitskritisch gefuehlt.", "so etwas darf nicht normal sein.", "das war fuer die Kabine zu viel."],
+      closers: qualityClosersBad,
+      count: 4,
+    },
+  };
 
-  return comments;
+  const landingCfg = landingByType[data?.landingType] || null;
+  if (landingCfg) {
+    const landingPool = buildVariants(
+      qualityOpeners,
+      landingCfg.topics,
+      landingCfg.details,
+      landingCfg.closers,
+      320
+    );
+    comments.push(...pickRandom(landingPool, landingCfg.count));
+  }
+
+  // G-force reaction comments
+  const maxG = Number(data?.maxGForce || 1.0);
+  if (maxG > 2.5) {
+    const gPool = buildVariants(
+      ["Die Manoever waehrend des Fluges waren sehr extrem,", "Die Belastung war fuer Passagiere deutlich zu hoch,", "Bei den Bewegungen in der Luft wurde es kritisch,"],
+      ["man wurde stark in den Sitz gedrueckt,", "die Kabine war sehr unruhig,", "viele waren koerperlich ueberfordert,"],
+      ["mir wurde richtig unwohl.", "mehrere Passagiere hatten Angst.", "das fuehlte sich nicht mehr normal an."],
+      qualityClosersBad,
+      180
+    );
+    comments.push(...pickRandom(gPool, 2));
+  } else if (maxG < 1.25) {
+    const smoothPool = buildVariants(
+      ["Der Flug war sehr ruhig,", "Die Kabinenruhe war auffallend gut,", "Angenehmes Fluggefuehl insgesamt,"],
+      ["kaum Stoerungen waehrend der Reise,", "stabile Fluglage ueber lange Phasen,", "sehr gleichmaessige Bewegungen,"],
+      ["man konnte entspannt bleiben.", "ideal fuer entspanntes Reisen.", "das war sehr komfortabel."],
+      qualityClosersGood,
+      180
+    );
+    comments.push(...pickRandom(smoothPool, 2));
+  } else {
+    const normalPool = buildVariants(
+      ["Flugverlauf insgesamt normal,", "Die Stabilitaet war mittelmaessig,", "Kabinenkomfort war okay,"],
+      ["ein paar unruhige Momente,", "zeitweise merklich Bewegung,", "insgesamt vertretbar,"],
+      ["kein Drama, aber nicht ganz smooth.", "mit kleinen Stoerungen im Verlauf.", "durchschnittliches Fluggefuehl."],
+      qualityClosersMid,
+      180
+    );
+    comments.push(...pickRandom(normalPool, 1));
+  }
+
+  // Score-driven generic sentiment
+  const scoreBand = Number(score || 0);
+  const scoreHighPool = buildVariants(
+    ["Servicebewertung:", "Gesamteindruck:", "Reiseerlebnis:"],
+    ["Crew wirkte vorbereitet,", "Ablauf war professionell,", "Kommunikation war klar,"],
+    ["das Gesamtpaket passt.", "das fuehlte sich hochwertig an.", "ich war zufrieden."],
+    qualityClosersGood,
+    180
+  );
+  const scoreMidPool = buildVariants(
+    ["Servicebewertung:", "Gesamteindruck:", "Reiseerlebnis:"],
+    ["Crew war solide,", "Ablauf war brauchbar,", "Kommunikation war okay,"],
+    ["es war durchschnittlich.", "hier ist Potenzial offen.", "mit gemischtem Eindruck."],
+    qualityClosersMid,
+    180
+  );
+  const scoreLowPool = buildVariants(
+    ["Servicebewertung:", "Gesamteindruck:", "Reiseerlebnis:"],
+    ["Crew wirkte gestresst,", "Ablauf war holprig,", "Kommunikation war unklar,"],
+    ["das war nicht ueberzeugend.", "das muss besser werden.", "ich wuerde das so nicht empfehlen."],
+    qualityClosersBad,
+    180
+  );
+
+  if (scoreBand >= 90) comments.push(...pickRandom(scoreHighPool, 2));
+  else if (scoreBand >= 70) comments.push(...pickRandom(scoreMidPool, 2));
+  else comments.push(...pickRandom(scoreLowPool, 2));
+
+  // Incident-specific comments
+  const incidentTemplates = {
+    tailstrike: buildVariants(
+      ["Beim Heckkontakt gab es einen Schreckmoment,", "Das Heckereignis war klar spuerbar,", "Beim Kontakt am Heck wurde es laut,"],
+      ["deutlicher Schlag im Rumpf,", "ungewoehnliche Geraeusche hinten,", "spuerbarer Stoerimpuls in der Kabine,"],
+      ["das wirkte riskant.", "das hat Vertrauen gekostet.", "so etwas verunsichert."],
+      qualityClosersBad,
+      90
+    ),
+    stall: buildVariants(
+      ["Beim Stroemungsabriss war kurz Panik,", "Der Stall-Moment war deutlich merkbar,", "Beim Absacken wurde es unruhig,"],
+      ["starker Unsicherheitsmoment an Bord,", "mehrere Passagiere erschraken,", "das fuehlte sich gefaehrlich an,"],
+      ["bitte vermeiden.", "das war kritisch.", "so etwas darf nicht passieren."],
+      qualityClosersBad,
+      90
+    ),
+    overstress: buildVariants(
+      ["Bei hoher Strukturbelastung wirkte alles angespannt,", "In der Belastungsphase war es beunruhigend,", "Bei den starken Kraeften gab es deutliche Reaktionen,"],
+      ["spuerbares Zittern in der Kabine,", "ungewohnte Belastung fuer Passagiere,", "klarer Stressmoment im Flugzeug,"],
+      ["das war zu viel.", "hier braucht es mehr Reserve.", "bitte sicherer fliegen."],
+      qualityClosersBad,
+      90
+    ),
+    flaps_overspeed: buildVariants(
+      ["Bei den Klappen gab es auffaellige Geraeusche,", "Die Fluegelkonfiguration wirkte nicht passend,", "In der Flaps-Phase fuehlte es sich falsch an,"],
+      ["deutliches Rattern an den Flaechen,", "ungewoehnlicher Luftstrom und Vibrationen,", "klarer Belastungsmoment am Fluegel,"],
+      ["das sollte sauberer laufen.", "das braucht bessere Konfiguration.", "das war unangenehm."],
+      qualityClosersBad,
+      90
+    ),
+    gear_up_landing: buildVariants(
+      ["Die Landung ohne ausgefahrenes Fahrwerk war extrem,", "Beim Gear-Up-Moment war totale Anspannung,", "Das Ereignis bei der Landung war erschreckend,"],
+      ["starke Reibgeraeusche und Stress,", "deutliches Risiko fuer alle an Bord,", "eine Situation, die niemand erleben will,"],
+      ["nie wieder.", "unbedingt verhindern.", "das war inakzeptabel."],
+      qualityClosersBad,
+      90
+    ),
+    hard_landing: buildVariants(
+      ["Die harte Landung war sehr unangenehm,", "Beim harten Aufsetzen gab es einen starken Ruck,", "Der Touchdown war klar ueber der Komfortgrenze,"],
+      ["mehrere Personen wurden durchgeschuettelt,", "Getraenke und Gepaeck waren betroffen,", "die Kabine hat es deutlich gemerkt,"],
+      ["bitte sanfter landen.", "das muss besser abgefangen werden.", "da ist Verbesserungsbedarf."],
+      qualityClosersBad,
+      90
+    ),
+    fuel_emergency: buildVariants(
+      ["Die Treibstoffsituation war beunruhigend,", "Die Fuel-Reserve wirkte zu knapp geplant,", "Das Thema Resttreibstoff war kritisch,"],
+      ["spuerbarer Druck bei der Ankunft,", "das fuehlte sich nicht komfortabel an,", "Passagiere waren verunsichert,"],
+      ["hier braucht es mehr Puffer.", "bitte konservativer planen.", "das war riskant."],
+      qualityClosersBad,
+      90
+    ),
+  };
+
+  if (data?.events?.tailstrike) comments.push(...pickRandom(incidentTemplates.tailstrike, 1));
+  if (data?.events?.stall) comments.push(...pickRandom(incidentTemplates.stall, 1));
+  if (data?.events?.overstress) comments.push(...pickRandom(incidentTemplates.overstress, 1));
+  if (data?.events?.flaps_overspeed) comments.push(...pickRandom(incidentTemplates.flaps_overspeed, 1));
+  if (data?.events?.gear_up_landing) comments.push(...pickRandom(incidentTemplates.gear_up_landing, 1));
+  if (data?.events?.hard_landing) comments.push(...pickRandom(incidentTemplates.hard_landing, 1));
+  if (data?.events?.fuel_emergency && Number(data?.fuel || 100) < 5) comments.push(...pickRandom(incidentTemplates.fuel_emergency, 1));
+
+  // De-duplicate and cap output count for UI readability.
+  const unique = [];
+  const seen = new Set();
+  for (const c of comments) {
+    const k = String(c || "").trim();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    unique.push(k);
+  }
+
+  const minOutput = 4;
+  const targetOutput = 8;
+  if (unique.length < minOutput) {
+    unique.push(
+      ...pickRandom(
+        buildVariants(
+          ["Gesamtfazit:", "Kurzfazit:", "Aus Passagiersicht:"],
+          ["der Flug war nachvollziehbar,", "der Ablauf war klar,", "die Reise war insgesamt stimmig,"],
+          ["ankommen stand im Fokus.", "das Ergebnis passt im Kern.", "insgesamt vertretbar."],
+          qualityClosersMid,
+          80
+        ),
+        minOutput - unique.length
+      )
+    );
+  }
+
+  return unique.slice(0, targetOutput);
 }

@@ -168,17 +168,65 @@ function randomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function generateContract(companyId, aircraftType, companyLevel) {
-  const depAirport = randomItem(airports);
-  let arrAirport = randomItem(airports);
-  while (arrAirport.icao === depAirport.icao) {
-    arrAirport = randomItem(airports);
+function routeKeyFromIcao(depIcao, arrIcao) {
+  if (!depIcao || !arrIcao) return null;
+  return `${String(depIcao).toUpperCase()}->${String(arrIcao).toUpperCase()}`;
+}
+
+function pickDepartureAirport(departureUsage) {
+  if (!departureUsage || departureUsage.size === 0) return randomItem(airports);
+  const shuffled = [...airports].sort(() => Math.random() - 0.5);
+  shuffled.sort((a, b) => (departureUsage.get(a.icao) || 0) - (departureUsage.get(b.icao) || 0));
+  const candidatePool = shuffled.slice(0, Math.max(12, Math.floor(shuffled.length * 0.2)));
+  return randomItem(candidatePool);
+}
+
+function pickRouteForContract(aircraftRange, options = {}) {
+  const blockedPairs = options.blockedPairs || new Set();
+  const departureUsage = options.departureUsage || new Map();
+  const maxDepartureReuse = options.maxDepartureReuse || 2;
+
+  const phases = [
+    { respectDepartureLimit: true, respectPairBlacklist: true, attempts: 240 },
+    { respectDepartureLimit: false, respectPairBlacklist: true, attempts: 160 },
+    { respectDepartureLimit: false, respectPairBlacklist: false, attempts: 120 }
+  ];
+
+  for (const phase of phases) {
+    for (let i = 0; i < phase.attempts; i++) {
+      const depAirport = pickDepartureAirport(departureUsage);
+      const depCount = departureUsage.get(depAirport.icao) || 0;
+      if (phase.respectDepartureLimit && depCount >= maxDepartureReuse) continue;
+
+      const arrAirport = randomItem(airports);
+      if (arrAirport.icao === depAirport.icao) continue;
+
+      const distance = calculateDistance(depAirport.lat, depAirport.lon, arrAirport.lat, arrAirport.lon);
+      if (distance > aircraftRange) continue;
+
+      const pairKey = routeKeyFromIcao(depAirport.icao, arrAirport.icao);
+      if (phase.respectPairBlacklist && pairKey && blockedPairs.has(pairKey)) continue;
+
+      return { depAirport, arrAirport, distance, pairKey };
+    }
   }
 
-  const distance = calculateDistance(depAirport.lat, depAirport.lon, arrAirport.lat, arrAirport.lon);
-  
-  // Only generate if distance is within aircraft range
-  if (distance > aircraftType.range) return null;
+  return null;
+}
+
+function rememberRoute(contract, blockedPairs, departureUsage) {
+  const key = routeKeyFromIcao(contract?.departure_airport, contract?.arrival_airport);
+  if (key) blockedPairs.add(key);
+  if (contract?.departure_airport) {
+    const current = departureUsage.get(contract.departure_airport) || 0;
+    departureUsage.set(contract.departure_airport, current + 1);
+  }
+}
+
+function generateContract(companyId, aircraftType, companyLevel, options = {}) {
+  const route = pickRouteForContract(aircraftType.range, options);
+  if (!route) return null;
+  const { depAirport, arrAirport, distance } = route;
 
   const contractType = randomItem(contractTypes);
   
@@ -290,9 +338,27 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Flugzeuge vorhanden' }, { status: 400 });
     }
 
-    // Delete old available contracts (all at once, parallel)
-    const oldContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id, status: 'available' });
+    const existingContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });
+    const oldContracts = existingContracts.filter(c => c.status === 'available');
     await Promise.all(oldContracts.map(old => base44.asServiceRole.entities.Contract.delete(old.id)));
+
+    // Seed anti-repeat memory with recent contracts for route variety.
+    const sortedRecent = [...existingContracts].sort((a, b) => {
+      const aTs = new Date(a.updated_date || a.created_date || 0).getTime();
+      const bTs = new Date(b.updated_date || b.created_date || 0).getTime();
+      return bTs - aTs;
+    });
+    const recentSlice = sortedRecent.slice(0, 120);
+    const usedRoutePairs = new Set(
+      recentSlice
+        .map(c => routeKeyFromIcao(c.departure_airport, c.arrival_airport))
+        .filter(Boolean)
+    );
+    const departureUsage = new Map();
+    for (const c of recentSlice.slice(0, 60)) {
+      if (!c?.departure_airport) continue;
+      departureUsage.set(c.departure_airport, (departureUsage.get(c.departure_airport) || 0) + 1);
+    }
 
     // Get the types the user owns
     const ownedTypes = [...new Set(availableAircraft.map(a => a.type))];
@@ -307,7 +373,11 @@ Deno.serve(async (req) => {
     while (compatibleContracts.length < 4 && attempts < 80) {
       attempts++;
       const acType = randomItem(ownedTypeSpecs);
-      const contract = generateContract(company.id, acType, company.level || 1);
+      const contract = generateContract(company.id, acType, company.level || 1, {
+        blockedPairs: usedRoutePairs,
+        departureUsage,
+        maxDepartureReuse: 2
+      });
       if (contract) {
         // Apply distance filter
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
@@ -318,7 +388,10 @@ Deno.serve(async (req) => {
           const passengerMatch = !contract.passenger_count || (plane.passenger_capacity && plane.passenger_capacity >= contract.passenger_count);
           return typeMatch && cargoMatch && rangeMatch && passengerMatch;
         });
-        if (canFulfill) compatibleContracts.push(contract);
+        if (canFulfill) {
+          compatibleContracts.push(contract);
+          rememberRoute(contract, usedRoutePairs, departureUsage);
+        }
       }
     }
 
@@ -328,14 +401,23 @@ Deno.serve(async (req) => {
       attempts++;
       if (notOwnedTypeSpecs.length > 0) {
         const acType = randomItem(notOwnedTypeSpecs);
-        const contract = generateContract(company.id, acType, company.level || 1);
+        const contract = generateContract(company.id, acType, company.level || 1, {
+          blockedPairs: usedRoutePairs,
+          departureUsage,
+          maxDepartureReuse: 2
+        });
         if (contract) {
           if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
           incompatibleContracts.push(contract);
+          rememberRoute(contract, usedRoutePairs, departureUsage);
         }
       } else {
         const acType = randomItem(ownedTypeSpecs);
-        const contract = generateContract(company.id, acType, company.level || 1);
+        const contract = generateContract(company.id, acType, company.level || 1, {
+          blockedPairs: usedRoutePairs,
+          departureUsage,
+          maxDepartureReuse: 2
+        });
         if (contract) {
           const maxRange = Math.max(...availableAircraft.map(a => a.range_nm || 0));
           const maxCargo = Math.max(...availableAircraft.map(a => a.cargo_capacity_kg || 0));
@@ -346,6 +428,7 @@ Deno.serve(async (req) => {
           else contract.passenger_count = maxPax + 50;
           contract.title = contract.title + " (Spezial)";
           incompatibleContracts.push(contract);
+          rememberRoute(contract, usedRoutePairs, departureUsage);
         }
       }
     }
