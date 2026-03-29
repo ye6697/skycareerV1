@@ -1757,23 +1757,26 @@ Deno.serve(async (req) => {
         }
 
         const stallNow = stallDetected;
-        if (tailstrikeDetected) {
+        const isNewTailstrikeEvent = !!(tailstrikeDetected && !prevXd.tailstrike);
+        if (isNewTailstrikeEvent) {
           appendEvent("tailstrike", {}, {
-            force: !!(tailstrikeDetected && !prevXd.tailstrike),
+            force: true,
             cooldownSec: 10,
             minDistanceNm: 0.05,
           });
         }
-        if (stallNow) {
+        const isNewStallEvent = !!(stallNow && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning);
+        if (isNewStallEvent) {
           appendEvent("stall", {}, {
-            force: !!(stallNow && !prevXd.stall && !prevXd.is_in_stall && !prevXd.stall_warning),
+            force: true,
             cooldownSec: 10,
             minDistanceNm: 0.05,
           });
         }
-        if (overstressDetected) {
+        const isNewOverstressEvent = !!(overstressDetected && !prevXd.overstress);
+        if (isNewOverstressEvent) {
           appendEvent("overstress", {}, {
-            force: !!(overstressDetected && !prevXd.overstress),
+            force: true,
             cooldownSec: 10,
             minDistanceNm: 0.05,
           });
@@ -1791,30 +1794,34 @@ Deno.serve(async (req) => {
             });
           }
         }
-        if (overspeedDetected) {
+        const isNewOverspeedEvent = !!(overspeedDetected && !prevXd.overspeed);
+        if (isNewOverspeedEvent) {
           appendEvent("overspeed", {}, {
-            force: !!(overspeedDetected && !prevXd.overspeed),
+            force: true,
             cooldownSec: 10,
             minDistanceNm: 0.05,
           });
         }
-        if (flapsOverspeedDetected) {
+        const isNewFlapsOverspeedEvent = !!(flapsOverspeedDetected && !prevXd.flaps_overspeed);
+        if (isNewFlapsOverspeedEvent) {
           appendEvent("flaps_overspeed", {}, {
-            force: !!(flapsOverspeedDetected && !prevXd.flaps_overspeed),
+            force: true,
             cooldownSec: 10,
             minDistanceNm: 0.05,
           });
         }
-        if (gearUpLandingDetected) {
+        const isNewGearUpLandingEvent = !!(gearUpLandingDetected && !prevXd.gear_up_landing);
+        if (isNewGearUpLandingEvent) {
           appendEvent("gear_up_landing", {}, {
-            force: !!(gearUpLandingDetected && !prevXd.gear_up_landing),
+            force: true,
             cooldownSec: 10,
             minDistanceNm: 0.05,
           });
         }
-        if (isCrash) {
+        const isNewCrashEvent = !!(isCrash && !prevCrashState);
+        if (isNewCrashEvent) {
           appendEvent("crash", {}, {
-            force: !!(isCrash && !prevCrashState),
+            force: true,
             cooldownSec: 10,
             minDistanceNm: 0.05,
           });
