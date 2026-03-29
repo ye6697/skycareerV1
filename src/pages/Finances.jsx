@@ -31,6 +31,7 @@ import {
 import StatCard from "@/components/dashboard/StatCard";
 import CreditInfoCard from "@/components/finance/CreditInfoCard";
 import LevelBonusInfo from "@/components/finance/LevelBonusInfo";
+import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -203,6 +204,8 @@ export default function Finances() {
       <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
         <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('finances', lang)}</div>
       </div>
+
+      <InsolvencyBanner />
 
       <div className="flex-1 overflow-y-auto min-h-0">
         {/* Stats Grid */}

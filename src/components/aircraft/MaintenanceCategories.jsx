@@ -3,9 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Wrench, Cog, Gauge, CircuitBoard, Shield, Plane, Zap, Wind, AlertTriangle, Info } from "lucide-react";
+import { Wrench, Cog, Gauge, CircuitBoard, Shield, Plane, Zap, Wind, AlertTriangle, Info, Skull } from "lucide-react";
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { isAtOverdraftLimit } from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t as tl } from "@/components/i18n/translations";
 import {
@@ -48,6 +49,22 @@ export default function MaintenanceCategories({ aircraft }) {
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
   const categories = getCategories(lang);
+
+  const { data: companyForLimit } = useQuery({
+    queryKey: ['company-maint-limit'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      return companies[0] || null;
+    },
+    staleTime: 30000,
+  });
+  const overdraftBlocked = isAtOverdraftLimit(companyForLimit);
   const cats = aircraft.maintenance_categories || {};
   const purchasePrice = aircraft.purchase_price || 100000;
   const currentValue = aircraft.current_value || purchasePrice;
@@ -220,7 +237,7 @@ export default function MaintenanceCategories({ aircraft }) {
                   size="sm" 
                   className="h-6 px-2 text-xs bg-amber-600 hover:bg-amber-700 shrink-0"
                   onClick={() => repairCategoryMutation.mutate(cat.key)}
-                  disabled={repairCategoryMutation.isPending}
+                  disabled={repairCategoryMutation.isPending || overdraftBlocked}
                 >
                   ${cost.toLocaleString()}
                 </Button>
@@ -230,13 +247,23 @@ export default function MaintenanceCategories({ aircraft }) {
         })}
       </div>
 
+      {/* Overdraft block warning */}
+      {overdraftBlocked && totalCost > 0 && (
+        <div className="p-2 bg-red-950/50 border border-red-700/50 rounded flex items-center gap-2">
+          <Skull className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-xs text-red-400">
+            {lang === 'de' ? 'Dispo-Limit erreicht – Wartung nicht möglich!' : 'Overdraft limit reached – maintenance blocked!'}
+          </p>
+        </div>
+      )}
+
       {/* Repair All button */}
       {totalCost > 0 && (
         <Button 
           className={`w-full ${needsMaintenance ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
           size="sm"
           onClick={() => repairAllMutation.mutate()}
-          disabled={repairAllMutation.isPending}
+          disabled={repairAllMutation.isPending || overdraftBlocked}
         >
           <Wrench className="w-4 h-4 mr-1" />
           {repairAllMutation.isPending ? tl('waiting', lang) : `${tl('repair_all', lang)} ($${totalCost.toLocaleString()})`}

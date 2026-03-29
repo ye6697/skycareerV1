@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import StatCard from "@/components/dashboard/StatCard";
+import InsolvencyBanner from "@/components/InsolvencyBanner";
 import ReputationGauge from "@/components/dashboard/ReputationGauge";
 import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
 import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
@@ -221,6 +222,8 @@ export default function Dashboard() {
 
   return (
     <div className="h-full flex flex-col gap-3 max-w-5xl mx-auto">
+      <InsolvencyBanner />
+
       {/* Zibo Style Top Bar Info */}
       <div className="grid grid-cols-4 gap-2">
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
