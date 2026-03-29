@@ -31,6 +31,38 @@ export function generatePassengerComments(score, data) {
     return pickRandom(out, max);
   };
 
+  const shuffle = (arr) => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const diversifyComment = (text) => {
+    if (!text) return "";
+    const lexicon = [
+      [/\binsgesamt\b/gi, ["unter dem Strich", "in Summe", "gesamt betrachtet"]],
+      [/\bokay\b/gi, ["solide", "brauchbar", "vertretbar"]],
+      [/\bprofessionell\b/gi, ["souveraen", "routiniert", "fachlich stark"]],
+      [/\bangenehm\b/gi, ["komfortabel", "entspannt", "wohltuend"]],
+      [/\bunruhig\b/gi, ["wackelig", "nervoes", "instabil"]],
+      [/\bdeutlich\b/gi, ["klar", "spuerbar", "offensichtlich"]],
+      [/\bsehr\b/gi, ["wirklich", "spuerbar", "auffallend"]],
+    ];
+    let output = String(text).trim();
+    for (const [rx, options] of shuffle(lexicon).slice(0, 3)) {
+      if (rx.test(output)) {
+        const replacement = options[Math.floor(Math.random() * options.length)];
+        output = output.replace(rx, replacement);
+      }
+    }
+    if (Math.random() < 0.2) output = `Ehrlich gesagt: ${output}`;
+    else if (Math.random() < 0.2) output = `Kabinenfazit: ${output}`;
+    return output.replace(/\s+/g, " ").trim();
+  };
+
   // Crash path stays explicit and severe.
   if (data?.events?.crash) {
     const crashOpeners = [
@@ -280,7 +312,7 @@ export function generatePassengerComments(score, data) {
   const unique = [];
   const seen = new Set();
   for (const c of comments) {
-    const k = String(c || "").trim();
+    const k = diversifyComment(c);
     if (!k || seen.has(k)) continue;
     seen.add(k);
     unique.push(k);
