@@ -90,11 +90,11 @@ function LayoutInner({ children, currentPageName }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-cyan-900 flex flex-col">
       {/* Universal Zibo-style Top Bar */}
-      <div className="h-10 bg-slate-900 border-b border-cyan-900/50 flex items-center justify-between px-3 sticky top-0 z-50 flex-shrink-0 shadow-md">
+      <div className="min-h-[48px] sm:h-10 bg-slate-900 border-b border-cyan-900/50 flex items-center justify-between px-2 sm:px-3 sticky top-0 z-50 flex-shrink-0 shadow-md">
         <div className="flex items-center gap-3">
           {currentPageName !== "Dashboard" && (
             <Link to={createPageUrl("Dashboard")}>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50">
+              <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 h-9 sm:h-7 px-3 sm:px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-xs sm:text-[10px] uppercase border border-cyan-900/50">
                 ◀ HOME
               </Button>
             </Link>
@@ -109,7 +109,7 @@ function LayoutInner({ children, currentPageName }) {
           <span className="text-[10px] font-mono text-slate-400 hidden sm:inline-block bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
              XP: {company?.experience_points || 0} | ${company?.balance?.toLocaleString() || 0}
           </span>
-          <button onClick={() => setLang(lang === 'en' ? 'de' : 'en')} className="text-[10px] font-mono font-bold text-cyan-400 uppercase border border-cyan-800 px-1.5 py-0.5 rounded bg-cyan-950/30 hover:bg-cyan-900/50 transition-colors">
+          <button onClick={() => setLang(lang === 'en' ? 'de' : 'en')} className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 h-9 sm:h-auto px-3 sm:px-1.5 py-1 sm:py-0.5 text-xs sm:text-[10px] font-mono font-bold text-cyan-400 uppercase border border-cyan-800 rounded bg-cyan-950/30 hover:bg-cyan-900/50 transition-colors relative z-10">
             {lang}
           </button>
         </div>
