@@ -34,7 +34,6 @@ import {
   DollarSign,
   User } from
 "lucide-react";
-import InsolvencyBanner from "@/components/InsolvencyBanner";
 
 export default function ActiveFlights() {
   const queryClient = useQueryClient();
@@ -48,37 +47,51 @@ export default function ActiveFlights() {
     loadmaster: ''
   });
 
-  const { data: contracts = [] } = useQuery({
-    queryKey: ['contracts', 'accepted'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'accepted' })
-  });
-
-  const { data: inProgressContracts = [] } = useQuery({
-    queryKey: ['contracts', 'in_progress'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'in_progress' })
-  });
-
-  const { data: completedContracts = [] } = useQuery({
-    queryKey: ['contracts', 'completed'],
-    queryFn: () => base44.entities.Contract.filter({ status: 'completed' })
-  });
-
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'available'],
-    queryFn: () => base44.entities.Aircraft.filter({ status: 'available' })
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available'],
-    queryFn: () => base44.entities.Employee.filter({ status: 'available' })
-  });
-
   const { data: company } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const companies = await base44.entities.Company.list();
-      return companies[0];
-    }
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      if (cid) {
+        const companies = await base44.entities.Company.filter({ id: cid });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      return companies[0] || null;
+    },
+    staleTime: 60000,
+  });
+
+  const companyId = company?.id;
+
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['contracts', 'accepted', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'accepted' }),
+    enabled: !!companyId,
+  });
+
+  const { data: inProgressContracts = [] } = useQuery({
+    queryKey: ['contracts', 'in_progress', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'in_progress' }),
+    enabled: !!companyId,
+  });
+
+  const { data: completedContracts = [] } = useQuery({
+    queryKey: ['contracts', 'completed', companyId],
+    queryFn: () => base44.entities.Contract.filter({ company_id: companyId, status: 'completed' }),
+    enabled: !!companyId,
+  });
+
+  const { data: aircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'available', companyId],
+    queryFn: () => base44.entities.Aircraft.filter({ company_id: companyId, status: 'available' }),
+    enabled: !!companyId,
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'available', companyId],
+    queryFn: () => base44.entities.Employee.filter({ company_id: companyId, status: 'available' }),
+    enabled: !!companyId,
   });
 
   const startFlightMutation = useMutation({
@@ -100,10 +113,11 @@ export default function ActiveFlights() {
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
+        company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
         crew: Object.entries(selectedCrew).
-        filter(([_, id]) => id).
+        filter(([_, id]) => id && id !== '__none__').
         map(([role, id]) => ({ role, employee_id: id })),
         departure_time: new Date().toISOString(),
         status: 'in_flight'
@@ -117,7 +131,7 @@ export default function ActiveFlights() {
 
       // Update crew status
       for (const [role, id] of Object.entries(selectedCrew)) {
-        if (id) {
+        if (id && id !== '__none__') {
           await base44.entities.Employee.update(id, { status: 'on_duty' });
         }
       }
@@ -174,13 +188,13 @@ export default function ActiveFlights() {
     if (!contract?.required_crew) return true;
 
     for (const [role, required] of Object.entries(contract.required_crew)) {
-      if (required > 0 && !selectedCrew[role]) return false;
+      if (required > 0 && (!selectedCrew[role] || selectedCrew[role] === '__none__')) return false;
     }
     return true;
   };
 
   const canStartFlight = () => {
-    return selectedAircraft && isCrewComplete(selectedContract);
+    return selectedAircraft && selectedAircraft !== '__none__' && isCrewComplete(selectedContract);
   };
 
   const getRoleLabel = (role) => {
@@ -208,8 +222,6 @@ export default function ActiveFlights() {
           <h1 className="text-3xl font-bold text-white">Aktive Flüge</h1>
           <p className="text-slate-400">Bereite Flüge vor und starte sie mit X-Plane 12</p>
         </motion.div>
-
-        <div className="mb-4"><InsolvencyBanner /></div>
 
         {/* Connection Status */}
         <Card className="p-4 mb-6 bg-slate-900 text-white">
@@ -456,45 +468,44 @@ export default function ActiveFlights() {
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-slate-200">
             <DialogHeader>
-              <DialogTitle>Flug vorbereiten: {selectedContract?.title}</DialogTitle>
+              <DialogTitle className="text-white">Flug vorbereiten: {selectedContract?.title}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Aircraft Selection */}
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Plane className="w-4 h-4" />
+                <Label className="flex items-center gap-2 text-slate-300">
+                  <Plane className="w-4 h-4 text-cyan-400" />
                   Flugzeug auswählen
                 </Label>
                 <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
                     <SelectValue placeholder="Flugzeug wählen..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-slate-800 border-slate-600">
                     {aircraft.filter((ac) => {
-                      // Filter to only show compatible aircraft
                       const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
                       const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
                       const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
                       return passengerOk && cargoOk && rangeOk;
                     }).map((ac) =>
-                    <SelectItem key={ac.id} value={ac.id}>
+                    <SelectItem key={ac.id} value={ac.id} className="text-slate-200">
                         {ac.name} ({ac.registration}) - {ac.passenger_capacity} Sitze
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
                 {aircraft.length === 0 &&
-                <p className="text-sm text-red-500">Kein verfügbares Flugzeug!</p>
+                <p className="text-sm text-red-400">Kein verfügbares Flugzeug!</p>
                 }
               </div>
 
               {/* Crew Selection */}
-              <div className="space-y-4">
-                <Label className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2 text-slate-300">
+                  <Users className="w-4 h-4 text-cyan-400" />
                   Crew zuweisen
                 </Label>
 
@@ -505,35 +516,36 @@ export default function ActiveFlights() {
                   if (required === 0 && roleEmployees.length === 0) return null;
 
                   return (
-                    <div key={role} className="flex items-center gap-4">
-                      <div className="w-40">
-                        <span className="text-sm font-medium">
+                    <div key={role} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                      <div className="sm:w-36 shrink-0">
+                        <span className="text-sm font-medium text-slate-300">
                           {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-100 ml-1">*</span>}
+                          {required > 0 && <span className="text-red-400 ml-1">*</span>}
                         </span>
                       </div>
                       <Select
-                        value={selectedCrew[role]}
-                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value })}>
-
-                        <SelectTrigger className="flex-1">
+                        value={selectedCrew[role] || '__none__'}
+                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value === '__none__' ? '' : value })}>
+                        <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white">
                           <SelectValue placeholder={`${getRoleLabel(role)} wählen...`} />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={null}>-- Nicht zuweisen --</SelectItem>
+                        <SelectContent className="bg-slate-800 border-slate-600">
+                          <SelectItem value="__none__" className="text-slate-400">-- Nicht zuweisen --</SelectItem>
                           {roleEmployees.map((emp) =>
-                          <SelectItem key={emp.id} value={emp.id}>
+                          <SelectItem key={emp.id} value={emp.id} className="text-slate-200">
                               {emp.name} (Skill: {emp.skill_rating})
                             </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
-                      {required > 0 && !selectedCrew[role] &&
-                      <AlertCircle className="w-5 h-5 text-amber-100" />
-                      }
-                      {selectedCrew[role] &&
-                      <CheckCircle className="w-5 h-5 text-emerald-100" />
-                      }
+                      <div className="hidden sm:block w-5">
+                        {required > 0 && (!selectedCrew[role] || selectedCrew[role] === '__none__') &&
+                        <AlertCircle className="w-5 h-5 text-amber-400" />
+                        }
+                        {selectedCrew[role] && selectedCrew[role] !== '__none__' &&
+                        <CheckCircle className="w-5 h-5 text-emerald-400" />
+                        }
+                      </div>
                     </div>);
 
                 })}
@@ -541,11 +553,11 @@ export default function ActiveFlights() {
 
               {/* Warning */}
               {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-950/50 border border-amber-700/50 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-800">Unvollständige Crew</p>
-                    <p className="text-sm text-amber-700">
+                    <p className="font-medium text-amber-300">Unvollständige Crew</p>
+                    <p className="text-sm text-amber-400/80">
                       Für diesen Auftrag wird eine vollständige Crew benötigt. Stelle fehlende Positionen ein.
                     </p>
                   </div>
@@ -553,8 +565,8 @@ export default function ActiveFlights() {
               }
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)} className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white">
                 Abbrechen
               </Button>
               <Button
