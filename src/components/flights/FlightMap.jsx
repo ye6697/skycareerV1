@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -159,9 +159,9 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   }, [isFullscreen]);
 
   const fd = flightData || {};
-  const hasPosition = fd.latitude !== 0 || fd.longitude !== 0;
-  const hasDep = fd.departure_lat !== 0 || fd.departure_lon !== 0;
-  const hasArr = fd.arrival_lat !== 0 || fd.arrival_lon !== 0;
+  const hasPosition = fd.latitude != null && fd.longitude != null && !(fd.latitude === 0 && fd.longitude === 0);
+  const hasDep = fd.departure_lat != null && fd.departure_lon != null && !(fd.departure_lat === 0 && fd.departure_lon === 0);
+  const hasArr = fd.arrival_lat != null && fd.arrival_lon != null && !(fd.arrival_lat === 0 && fd.arrival_lon === 0);
 
   // Derive departure position: prefer explicit coords from route API, then X-Plane data, then first waypoint
   let depPos = null;
@@ -219,8 +219,16 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
   let bounds = null;
   const allPoints = [...routePoints, ...flownPoints];
   if (curPos) allPoints.push(curPos);
-  if (allPoints.length >= 2) {
-    bounds = L.latLngBounds(allPoints);
+  
+  const validBoundsPoints = allPoints.filter(p => 
+    p && (
+      (Array.isArray(p) && p[0] != null && p[1] != null) || 
+      (p.lat != null && (p.lon != null || p.lng != null))
+    )
+  );
+  
+  if (validBoundsPoints.length >= 2) {
+    bounds = L.latLngBounds(validBoundsPoints);
   }
 
   // Calculate distance to next waypoint and to arrival (live mode)
@@ -320,6 +328,16 @@ export default function FlightMap({ flightData, contract, waypoints = [], routeW
           attributionControl={false}
         >
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          {/* Real-time weather overlay from OpenWeatherMap (no API key needed for tiles) */}
+          <TileLayer
+            url="https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=439d4b804bc8187953eb36d2a8c26a02"
+            opacity={0.5}
+            attribution="Weather © OpenWeatherMap"
+          />
+          <TileLayer
+            url="https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=439d4b804bc8187953eb36d2a8c26a02"
+            opacity={0.35}
+          />
           <MapRefSetter mapRef={mapInstanceRef} />
           <MapController center={staticMode ? null : (curPos || null)} bounds={bounds} />
 

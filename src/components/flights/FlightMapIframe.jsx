@@ -13,6 +13,7 @@ export default function FlightMapIframe({
   departureCoords = null, arrivalCoords = null,
   liveFlightData = null,
   onViewModeChange = null,
+  flightEventsLog = [],
 }) {
   const { lang } = useLanguage();
   const iframeRef = useRef(null);
@@ -38,10 +39,10 @@ export default function FlightMapIframe({
       payload: {
         flightData, contract, waypoints, routeWaypoints, staticMode,
         flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords,
-        viewMode, liveFlightData, lang, weatherOn
+        viewMode, liveFlightData, lang, weatherOn, flightEventsLog
       }
     }, '*');
-  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang, weatherOn]);
+  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang, weatherOn, flightEventsLog]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -172,6 +173,13 @@ function buildIframeHtml() {
   .wpl-route { color:#c4b5fd; border:1px solid #6d28d9; }
   .leaflet-tooltip.clean-tooltip { background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; }
   .leaflet-tooltip.clean-tooltip::before { display:none !important; }
+  .evt-marker { display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:bold; font-family:'Courier New',monospace; cursor:pointer; }
+  .leaflet-div-icon { background:transparent !important; border:none !important; }
+  .evt-marker-wrap { pointer-events:auto !important; cursor:pointer !important; }
+  .evt-label { font-size:10px; font-family:'Courier New',monospace; padding:1px 5px; border-radius:3px; background:rgba(15,23,42,0.92); white-space:nowrap; letter-spacing:0.3px; }
+  .dark-popup .leaflet-popup-content-wrapper { background:transparent; border:none; box-shadow:none; padding:0; border-radius:6px; }
+  .dark-popup .leaflet-popup-content { margin:0; }
+  .dark-popup .leaflet-popup-tip { background:#0f172a; }
 
   /* HUD overlay - top center, enlarged in fullscreen */
   #hud-top { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; gap:6px; pointer-events:none; }
@@ -193,17 +201,53 @@ function buildIframeHtml() {
   #events-overlay .ev-item { font-size:13px; color:#fca5a5; padding:2px 0; display:flex; align-items:center; gap:6px; }
   #events-overlay .ev-detail { font-size:11px; color:#94a3b8; margin-left:11px; padding:1px 0; }
   #events-overlay .ev-dot { width:6px; height:6px; border-radius:50%; background:#f87171; flex-shrink:0; }
+  #weather-overlay { position:absolute; top:12px; right:12px; z-index:1000; pointer-events:none; display:none; }
+  #weather-overlay .wx-card { background:rgba(10,20,40,0.88); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:8px 10px; font-family:'Courier New',monospace; min-width:220px; }
+  #weather-overlay .wx-title { color:#7dd3fc; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:6px; font-weight:bold; }
+  #weather-overlay .wx-row { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#cbd5e1; line-height:1.35; }
+  #weather-overlay .wx-val { color:#f8fafc; font-weight:bold; }
+  #weather-overlay .wx-wind-arrow { display:inline-block; transition:transform 0.3s ease; }
+  #weather-overlay .wx-precip-bar { height:4px; border-radius:2px; margin-top:3px; transition:width 0.3s, background 0.3s; }
+
+  /* Rain drops overlay */
+  #rain-overlay { position:absolute; top:0; left:0; width:100%; height:100%; z-index:800; pointer-events:none; overflow:hidden; display:none; }
+  .rain-drop { position:absolute; width:2px; border-radius:1px; opacity:0.7; animation:rain-fall linear infinite; }
+  @keyframes rain-fall { 0% { transform:translateY(-20px); opacity:0.7; } 100% { transform:translateY(100vh); opacity:0; } }
+
+  /* Wind overlay */
+  #wind-overlay { position:absolute; bottom:60px; right:12px; z-index:1000; pointer-events:none; display:none; }
+  #wind-overlay .wind-card { background:rgba(10,20,40,0.85); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.3); border-radius:50%; width:80px; height:80px; display:flex; align-items:center; justify-content:center; position:relative; }
+  #wind-overlay .wind-label { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:10px; color:#94a3b8; font-family:'Courier New',monospace; white-space:nowrap; }
 </style>
 </head><body>
 <div id="map"></div>
 <div id="hud-top" style="display:none;"></div>
 <div id="events-overlay" style="display:none;"></div>
+<div id="weather-overlay" style="display:none;"></div>
+<div id="rain-overlay" style="display:none;"></div>
+<div id="wind-overlay" style="display:none;"></div>
 <script>
 var map = L.map('map', { zoomControl: false, attributionControl: false, tap: true, center: [50, 10], zoom: 5, fadeAnimation: false, markerZoomAnimation: false, zoomAnimation: false });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 setTimeout(function(){ map.invalidateSize(); }, 100);
 
-var layers = { route: null, routeGlow: null, flown: null, dep: null, arr: null, aircraft: null, wpGroup: L.layerGroup().addTo(map), depRwyLine: null, arrRwyLine: null, weather: null };
+var layers = {
+  route: null,
+  routeGlow: null,
+  flown: null,
+  dep: null,
+  arr: null,
+  aircraft: null,
+  wpGroup: L.layerGroup().addTo(map),
+  evtGroup: L.layerGroup().addTo(map),
+  depRwyLine: null,
+  arrRwyLine: null,
+  weatherClouds: null,
+  weatherPrecip: null,
+  weatherRainRing: null,
+  weatherTurbRing: null,
+  rainCellsGroup: L.layerGroup().addTo(map)
+};
 var boundsSet = false;
 var userInteracting = false;
 var interactionTimeout = null;
@@ -334,13 +378,276 @@ function updateEvents(evts) {
   el.innerHTML = html;
 }
 
+function pickFinite() {
+  for (var i = 0; i < arguments.length; i++) {
+    var n = Number(arguments[i]);
+    if (isFinite(n)) return n;
+  }
+  return null;
+}
+
+function norm01(v) {
+  if (v === null || v === undefined) return null;
+  var n = Number(v);
+  if (!isFinite(n)) return null;
+  if (n > 1) n = n / 100;
+  if (n < 0) n = 0;
+  if (n > 1) n = 1;
+  return n;
+}
+
+function turbColor(t) {
+  if (t < 0.2) return '#34d399';
+  if (t < 0.4) return '#facc15';
+  if (t < 0.7) return '#f97316';
+  return '#ef4444';
+}
+
+function rainColor(intensity) {
+  if (intensity < 0.2) return '#60a5fa'; // light blue
+  if (intensity < 0.5) return '#3b82f6'; // medium blue
+  if (intensity < 0.75) return '#f59e0b'; // amber (heavy)
+  return '#ef4444'; // red (extreme)
+}
+
+function precipLabel(rain) {
+  if (rain < 0.1) return 'Light';
+  if (rain < 0.3) return 'Moderate';
+  if (rain < 0.6) return 'Heavy';
+  return 'Extreme';
+}
+
+function updateRainOverlay(weatherOn, rain) {
+  var el = document.getElementById('rain-overlay');
+  if (!el) return;
+  if (!weatherOn || rain === null || rain < 0.02) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  el.style.display = 'block';
+  // Number of drops scales with intensity
+  var dropCount = Math.round(20 + rain * 180);
+  var color = rainColor(rain);
+  var html = '';
+  for (var i = 0; i < dropCount; i++) {
+    var left = Math.random() * 100;
+    var delay = Math.random() * 2;
+    var dur = 0.6 + Math.random() * 0.8 - (rain * 0.3); // faster in heavy rain
+    var h = 8 + Math.random() * 12 + rain * 10;
+    var opacity = 0.3 + rain * 0.5;
+    html += '<div class="rain-drop" style="left:'+left.toFixed(1)+'%;height:'+h.toFixed(0)+'px;background:'+color+';opacity:'+opacity.toFixed(2)+';animation-duration:'+dur.toFixed(2)+'s;animation-delay:'+delay.toFixed(2)+'s;"></div>';
+  }
+  el.innerHTML = html;
+}
+
+function updateWindOverlay(weatherOn, fd) {
+  var el = document.getElementById('wind-overlay');
+  if (!el) return;
+  var windSpd = pickFinite(fd.wind_speed_kts, fd.wind_speed, fd.ambient_wind_velocity);
+  var windDir = pickFinite(fd.wind_direction, fd.ambient_wind_direction);
+  if (!weatherOn || windSpd === null || windSpd < 1) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  // Color based on wind strength
+  var wCol = windSpd < 15 ? '#34d399' : windSpd < 30 ? '#fbbf24' : windSpd < 50 ? '#f97316' : '#ef4444';
+  // Arrow length scales with wind speed
+  var arrowLen = Math.min(30, 12 + windSpd * 0.4);
+  var rot = windDir !== null ? windDir : 0;
+  // SVG arrow pointing up (north), rotated by wind direction (FROM direction, so arrow points the way wind blows)
+  var svg = '<svg width="60" height="60" viewBox="0 0 60 60" style="transform:rotate('+(rot+180)+'deg);transition:transform 0.5s;">' +
+    '<line x1="30" y1="'+(30+arrowLen)+'" x2="30" y2="'+(30-arrowLen)+'" stroke="'+wCol+'" stroke-width="3" stroke-linecap="round"/>' +
+    '<polygon points="30,'+(30-arrowLen-4)+' '+(30-6)+','+(30-arrowLen+6)+' '+(30+6)+','+(30-arrowLen+6)+'" fill="'+wCol+'"/>' +
+    '</svg>';
+  el.innerHTML = '<div class="wind-card" style="border-color:'+wCol+'44;">' + svg + '</div>' +
+    '<div class="wind-label" style="color:'+wCol+'">' + Math.round(windSpd) + ' kts' + (windDir !== null ? ' / ' + Math.round(windDir) + '°' : '') + '</div>';
+}
+
+function updateWeatherOverlay(weatherOn, fd, curPos) {
+  var panel = document.getElementById('weather-overlay');
+  if (!panel) return;
+
+  if (!weatherOn || !curPos) {
+    panel.style.display = 'none';
+    if (layers.weatherTurbRing) { map.removeLayer(layers.weatherTurbRing); layers.weatherTurbRing = null; }
+    updateRainCells(false, null, null);
+    updateRainOverlay(false, null);
+    updateWindOverlay(false, fd);
+    return;
+  }
+
+  var tat = pickFinite(fd.tat_c, fd.tat, fd.total_air_temp_c, fd.total_air_temperature);
+  var oat = pickFinite(fd.oat_c, fd.ambient_temperature);
+  var precipState = pickFinite(fd.precip_state, fd.ambient_precip_state, fd.precipitation_state);
+  var hasRainMask = precipState !== null && ((Math.round(precipState) & 4) === 4);
+  var hasConvectiveMask = precipState !== null && (((Math.round(precipState) & 8) === 8) || ((Math.round(precipState) & 16) === 16));
+  var rainDetectedFlag = !!fd.rain_detected;
+  var rain = norm01(pickFinite(fd.rain_intensity, fd.precipitation, fd.rain, fd.precip_rate));
+  var turb = norm01(pickFinite(fd.turbulence, fd.turbulence_intensity, fd.sim_weather_turbulence));
+  var windSpd = pickFinite(fd.wind_speed_kts, fd.wind_speed, fd.ambient_wind_velocity);
+  var windDir = pickFinite(fd.wind_direction, fd.ambient_wind_direction);
+  var baro = pickFinite(fd.baro_setting, fd.kohlsman_setting_mb);
+  if ((rain === null || rain < 0.01) && (rainDetectedFlag || hasRainMask || hasConvectiveMask)) {
+    var windHint = windSpd !== null ? Math.min(1, Math.max(0.1, windSpd / 85)) : 0.1;
+    var turbHint = turb !== null ? Math.min(1, Math.max(0.1, turb * 0.65)) : 0.1;
+    rain = Math.max(0.1, windHint, turbHint);
+  }
+
+  // Rain visual effects
+  updateRainOverlay(weatherOn, rain);
+  updateWindOverlay(weatherOn, fd);
+
+  panel.style.display = 'block';
+  var rCol = rain !== null ? rainColor(rain) : '#64748b';
+  var rLabel = rain !== null ? precipLabel(rain) : '--';
+  var wCol = windSpd !== null ? (windSpd < 15 ? '#34d399' : windSpd < 30 ? '#fbbf24' : '#f97316') : '#64748b';
+  var windArrow = windDir !== null ? '<span class="wx-wind-arrow" style="transform:rotate('+(windDir+180)+'deg);color:'+wCol+';">↑</span> ' : '';
+
+  panel.innerHTML =
+    '<div class="wx-card">' +
+      '<div class="wx-title">☁ WEATHER</div>' +
+      (oat !== null ? '<div class="wx-row"><span>OAT</span><span class="wx-val">' + Math.round(oat) + '°C</span></div>' : '') +
+      (tat !== null ? '<div class="wx-row"><span>TAT</span><span class="wx-val">' + Math.round(tat) + '°C</span></div>' : '') +
+      (baro !== null ? '<div class="wx-row"><span>QNH</span><span class="wx-val">' + Math.round(baro) + ' mb</span></div>' : '') +
+      '<div class="wx-row"><span>Wind</span><span class="wx-val" style="color:'+wCol+'">' + windArrow + (windSpd !== null ? Math.round(windSpd) + ' kts' : '--') + (windDir !== null ? ' / ' + Math.round(windDir) + '°' : '') + '</span></div>' +
+      '<div class="wx-row"><span>Precip</span><span class="wx-val" style="color:'+rCol+'">' + rLabel + (rain !== null && rain > 0 ? ' (' + Math.round(rain*100) + '%)' : '') + '</span></div>' +
+      (rain !== null && rain > 0 ? '<div class="wx-precip-bar" style="width:'+Math.round(rain*100)+'%;background:'+rCol+';"></div>' : '') +
+      '<div class="wx-row"><span>Turb</span><span class="wx-val" style="color:'+turbColor(turb || 0)+'">' + (turb !== null ? Math.round(turb*100)+'%' : '--') + '</span></div>' +
+    '</div>';
+
+  // Realistic rain cells within 60 NM radius
+  updateRainCells(
+    weatherOn && ((rain !== null && rain > 0.01) || (turb !== null && turb > 0.45) || hasConvectiveMask),
+    rain,
+    curPos,
+    turb,
+    hasConvectiveMask
+  );
+
+  if (turb !== null && turb > 0.01) {
+    var turbRadius = 1200 + (turb * 7000);
+    var tColor = turbColor(turb);
+    if (!layers.weatherTurbRing) {
+      layers.weatherTurbRing = L.circle(curPos, {
+        radius: turbRadius,
+        color: tColor,
+        weight: 2,
+        fillColor: tColor,
+        fillOpacity: 0.02 + (turb * 0.08),
+        dashArray: '8,4'
+      }).addTo(map);
+    } else {
+      layers.weatherTurbRing.setLatLng(curPos);
+      layers.weatherTurbRing.setRadius(turbRadius);
+      layers.weatherTurbRing.setStyle({
+        color: tColor,
+        fillColor: tColor,
+        fillOpacity: 0.02 + (turb * 0.08)
+      });
+    }
+  } else if (layers.weatherTurbRing) {
+    map.removeLayer(layers.weatherTurbRing);
+    layers.weatherTurbRing = null;
+  }
+}
+
+// Seeded PRNG for deterministic rain cell positions (changes every ~10s)
+var rainSeedEpoch = 0;
+var rainCellCache = [];
+function seededRandom(seed) { var x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+function generateRainCellPositions(lat, lon, rain, epoch) {
+  // Number of cells scales with rain intensity: 4-18 cells
+  var cellCount = Math.round(4 + rain * 14);
+  var cells = [];
+  var NM60_DEG = 60 / 60; // 60 NM in degrees latitude (~1 degree)
+  for (var i = 0; i < cellCount; i++) {
+    var s = epoch * 100 + i;
+    // Random angle and distance within 60 NM
+    var angle = seededRandom(s) * 2 * Math.PI;
+    var dist = (0.15 + seededRandom(s + 1) * 0.85) * NM60_DEG; // 15%-100% of 60NM
+    var cLat = lat + dist * Math.cos(angle);
+    var cLon = lon + dist * Math.sin(angle) / Math.cos(lat * Math.PI / 180);
+    // Cell size: 3-15 NM radius, heavier rain = bigger cells
+    var cellRadiusNm = 3 + seededRandom(s + 2) * 12 * rain;
+    var cellRadiusM = cellRadiusNm * 1852;
+    // Cell intensity varies: 40%-120% of base rain
+    var cellIntensity = Math.min(1, rain * (0.4 + seededRandom(s + 3) * 0.8));
+    cells.push({ lat: cLat, lon: cLon, radius: cellRadiusM, intensity: cellIntensity });
+  }
+  return cells;
+}
+
+function updateRainCells(active, rain, curPos, turb, hasConvectiveMask) {
+  var rainLevel = rain;
+  if ((rainLevel === null || rainLevel < 0.01) && hasConvectiveMask) {
+    rainLevel = 0.22;
+  }
+  if ((rainLevel === null || rainLevel < 0.01) && turb !== null && turb > 0.45) {
+    rainLevel = Math.min(0.55, 0.10 + (turb * 0.6));
+  }
+  if (!active || !curPos || rainLevel === null || rainLevel < 0.01) {
+    layers.rainCellsGroup.clearLayers();
+    rainCellCache = [];
+    rainSeedEpoch = 0;
+    return;
+  }
+  // Regenerate cell positions every ~10 seconds (slow drift)
+  var newEpoch = Math.floor(Date.now() / 10000);
+  if (newEpoch !== rainSeedEpoch || rainCellCache.length === 0) {
+    rainSeedEpoch = newEpoch;
+    rainCellCache = generateRainCellPositions(curPos[0], curPos[1], rainLevel, newEpoch);
+  }
+  layers.rainCellsGroup.clearLayers();
+  for (var i = 0; i < rainCellCache.length; i++) {
+    var c = rainCellCache[i];
+    var col = rainColor(c.intensity);
+    var fillOp = 0.08 + c.intensity * 0.22;
+    // Each rain cell is an irregular shape approximated by an ellipse (circle with slight offset)
+    L.circle([c.lat, c.lon], {
+      radius: c.radius,
+      color: col,
+      weight: 1,
+      fillColor: col,
+      fillOpacity: fillOp,
+      dashArray: null,
+      interactive: false
+    }).addTo(layers.rainCellsGroup);
+    // Add a smaller core for heavier cells
+    if (c.intensity > 0.3) {
+      L.circle([c.lat, c.lon], {
+        radius: c.radius * 0.4,
+        color: col,
+        weight: 0,
+        fillColor: col,
+        fillOpacity: fillOp * 1.5,
+        interactive: false
+      }).addTo(layers.rainCellsGroup);
+    }
+  }
+}
+
 function update(d) {
   var fd = d.flightData || {};
   lastFd = fd;
   var contract = d.contract;
   var waypoints = (d.waypoints || []).filter(function(w){return w.lat && w.lon;});
   var routeWaypoints = (d.routeWaypoints || []).filter(function(w){return w.lat && w.lon;});
-  var flightPath = d.flightPath || [];
+  var rawFlightPath = d.flightPath || [];
+  var flightPath = (Array.isArray(rawFlightPath) ? rawFlightPath : [])
+    .map(function(p){
+      if (Array.isArray(p) && p.length >= 2) return [Number(p[0]), Number(p[1])];
+      if (p && typeof p === 'object') {
+        var la = Number(p.lat ?? p.latitude);
+        var lo = Number(p.lon ?? p.lng ?? p.longitude);
+        return [la, lo];
+      }
+      return null;
+    })
+    .filter(function(p){
+      return p && isFinite(p[0]) && isFinite(p[1]) && !(p[0] === 0 && p[1] === 0);
+    });
   var staticMode = d.staticMode;
   var depCoords = d.departureCoords;
   var arrCoords = d.arrivalCoords;
@@ -352,12 +659,18 @@ function update(d) {
   if (d.lang) currentLang = d.lang;
 
   // Weather layer toggle
-  if (d.weatherOn && !layers.weather) {
-    layers.weather = L.tileLayer('https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2', { maxZoom: 18, opacity: 0.5 });
-    layers.weather.addTo(map);
-  } else if (!d.weatherOn && layers.weather) {
-    map.removeLayer(layers.weather);
-    layers.weather = null;
+  if (d.weatherOn) {
+    if (!layers.weatherClouds) {
+      layers.weatherClouds = L.tileLayer('https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2', { maxZoom: 18, opacity: 0.45 });
+    }
+    if (!layers.weatherPrecip) {
+      layers.weatherPrecip = L.tileLayer('https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2', { maxZoom: 18, opacity: 0.55 });
+    }
+    if (!map.hasLayer(layers.weatherClouds)) layers.weatherClouds.addTo(map);
+    if (!map.hasLayer(layers.weatherPrecip)) layers.weatherPrecip.addTo(map);
+  } else {
+    if (layers.weatherClouds && map.hasLayer(layers.weatherClouds)) map.removeLayer(layers.weatherClouds);
+    if (layers.weatherPrecip && map.hasLayer(layers.weatherPrecip)) map.removeLayer(layers.weatherPrecip);
   }
 
   var hasPos = fd.latitude !== 0 || fd.longitude !== 0;
@@ -375,6 +688,10 @@ function update(d) {
   else if (routeWaypoints.length > 0) { var lw = routeWaypoints[routeWaypoints.length-1]; if(lw.lat&&lw.lon) arrPos=[lw.lat,lw.lon]; }
 
   var curPos = hasPos ? [fd.latitude, fd.longitude] : null;
+  // Merge weather data from liveFlightData into fd for weather overlay
+  var wxFd = Object.assign({}, fd);
+  if (live && live.weather) { Object.assign(wxFd, live.weather); }
+  updateWeatherOverlay(d.weatherOn, wxFd, curPos);
 
   var routeSource = routeWaypoints.length > 0 ? routeWaypoints : waypoints;
 
@@ -429,6 +746,7 @@ function update(d) {
     }
   }
 
+  var showWpLabels = map.getZoom() >= 10;
   layers.wpGroup.clearLayers();
   if (waypoints.length > 0) {
     waypoints.forEach(function(wp, i) {
@@ -439,16 +757,229 @@ function update(d) {
         else if(wbs===closestSegIdx&&haversineNm(rp[wbs][0],rp[wbs][1],wp.lat,wp.lon)<haversineNm(rp[wbs][0],rp[wbs][1],curPos[0],curPos[1])) passed=true;
       }
       var m = L.marker([wp.lat, wp.lon], { icon: wpIcon(wp.is_active, passed) }).addTo(layers.wpGroup);
-      var cls = passed ? 'wpl wpl-fms-passed' : (wp.is_active ? 'wpl wpl-fms-active' : 'wpl wpl-fms');
-      var txt = (wp.is_active ? '▸ ' : '') + (wp.name || 'WPT '+(i+1)) + (wp.alt > 0 ? ' FL'+Math.round(wp.alt/100) : '');
-      m.bindTooltip('<span class="'+cls+'">'+txt+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      if (showWpLabels) {
+        var cls = passed ? 'wpl wpl-fms-passed' : (wp.is_active ? 'wpl wpl-fms-active' : 'wpl wpl-fms');
+        var txt = (wp.is_active ? '▸ ' : '') + (wp.name || 'WPT '+(i+1)) + (wp.alt > 0 ? ' FL'+Math.round(wp.alt/100) : '');
+        m.bindTooltip('<span class="'+cls+'">'+txt+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      }
     });
   }
   if (routeWaypoints.length > 0) {
     routeWaypoints.forEach(function(wp) {
       var m = L.marker([wp.lat, wp.lon], { icon: routeWpIcon }).addTo(layers.wpGroup);
-      m.bindTooltip('<span class="wpl wpl-route">'+wp.name+(wp.alt>0?' FL'+Math.round(wp.alt/100):'')+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      if (showWpLabels) {
+        m.bindTooltip('<span class="wpl wpl-route">'+wp.name+(wp.alt>0?' FL'+Math.round(wp.alt/100):'')+'</span>', { permanent:true, direction:'top', offset:[0,-6], className:'clean-tooltip' });
+      }
     });
+  }
+
+  // Flight events log markers.
+  // Live mode: derive marker points from trusted live event flags (same source as side panels).
+  // Static mode: use stored historical event log from backend.
+  var evtLogRaw = [];
+  if (!staticMode) {
+    layers._liveIncidentLog = Array.isArray(layers._liveIncidentLog) ? layers._liveIncidentLog : [];
+    layers._liveIncidentState = layers._liveIncidentState || {};
+    var liveIncidentTypes = ['crash', 'tailstrike', 'stall', 'overstress', 'high_g_force', 'overspeed', 'flaps_overspeed', 'gear_up_landing', 'harsh_controls', 'touchdown'];
+    if (!live || !live.wasAirborne) {
+      layers._liveIncidentLog = [];
+      layers._liveIncidentState = {};
+    } else if (curPos && live.events) {
+      for (var li = 0; li < liveIncidentTypes.length; li++) {
+        var lType = liveIncidentTypes[li];
+        var isNowOn = !!live.events[lType];
+        var wasOn = !!layers._liveIncidentState[lType];
+        if (isNowOn && !wasOn) {
+          layers._liveIncidentLog.push({
+            type: lType,
+            lat: Number(curPos[0]),
+            lon: Number(curPos[1]),
+            alt: Number(fd.altitude || 0),
+            spd: Number(fd.speed || 0),
+            vs: Number(fd.verticalSpeed || 0),
+            g: Number((live.gForce || fd.gForce || 1).toFixed ? (live.gForce || fd.gForce || 1).toFixed(2) : (live.gForce || fd.gForce || 1)),
+            t: new Date().toISOString()
+          });
+        }
+        layers._liveIncidentState[lType] = isNowOn;
+      }
+      if (layers._liveIncidentLog.length > 180) {
+        layers._liveIncidentLog = layers._liveIncidentLog.slice(-180);
+      }
+    }
+    // Prefer backend log in live mode (contains control-surface events like flaps/gear).
+    // Fall back to incident-only local log if backend log is temporarily empty.
+    var liveBackendEvtLog = Array.isArray(d.flightEventsLog) ? d.flightEventsLog : [];
+    evtLogRaw = liveBackendEvtLog.length > 0 ? liveBackendEvtLog : layers._liveIncidentLog;
+  } else {
+    evtLogRaw = Array.isArray(d.flightEventsLog) ? d.flightEventsLog : [];
+  }
+  var normalizeEvtType = function(v) {
+    var tp = String(v || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (!tp) return '';
+    if (tp === 'crashed' || tp === 'has_crashed') return 'crash';
+    if (tp === 'spoiler' || tp === 'speedbrake_on') return 'spoiler_on';
+    if (tp === 'speedbrake_off') return 'spoiler_off';
+    return tp;
+  };
+  var dedupeCfg = {
+    crash: { cooldownSec: 10, minNm: 0.02 },
+    tailstrike: { cooldownSec: 10, minNm: 0.02 },
+    stall: { cooldownSec: 10, minNm: 0.02 },
+    gear_up_landing: { cooldownSec: 10, minNm: 0.02 },
+    overstress: { cooldownSec: 10, minNm: 0.02 },
+    high_g_force: { cooldownSec: 10, minNm: 0.02 },
+    overspeed: { cooldownSec: 10, minNm: 0.02 },
+    flaps_overspeed: { cooldownSec: 10, minNm: 0.02 },
+    harsh_controls: { cooldownSec: 10, minNm: 0.02 },
+    touchdown: { cooldownSec: 10, minNm: 0.02 },
+    flaps: { cooldownSec: 3, minNm: 0.005 },
+    gear_up: { cooldownSec: 3, minNm: 0.005 },
+    gear_down: { cooldownSec: 3, minNm: 0.005 },
+    spoiler_on: { cooldownSec: 3, minNm: 0.005 },
+    spoiler_off: { cooldownSec: 3, minNm: 0.005 },
+    _default: { cooldownSec: 60, minNm: 0.5 }
+  };
+  // Map markers: include incidents + control-surface transitions for full flight timeline.
+  var markerAllowedTypes = {
+    crash: true,
+    tailstrike: true,
+    stall: true,
+    overstress: true,
+    high_g_force: true,
+    overspeed: true,
+    flaps_overspeed: true,
+    gear_up_landing: true,
+    harsh_controls: true,
+    touchdown: true,
+    flaps: true,
+    gear_up: true,
+    gear_down: true,
+    spoiler_on: true,
+    spoiler_off: true
+  };
+  var dedupeEventsForMap = function(list) {
+    if (staticMode) {
+      // Results page: keep historical timeline dense.
+      // Only remove true duplicates, do not apply aggressive cooldown filtering.
+      var staticSeen = new Set();
+      var staticOut = [];
+      for (var si = 0; si < list.length; si++) {
+        var s = list[si] || {};
+        var slat = Number(s.lat);
+        var slon = Number(s.lon);
+        if (!Number.isFinite(slat) || !Number.isFinite(slon)) continue;
+        var stp = normalizeEvtType(s.type || s.event || s.name);
+        if (!stp || !markerAllowedTypes[stp]) continue;
+        var stsRaw = Date.parse(String(s.t || s.timestamp || ''));
+        var sts = Number.isFinite(stsRaw) ? stsRaw : (si * 1000);
+        var sval = (s.val !== undefined && s.val !== null) ? String(s.val) : '';
+        var ssig = stp + '|' + slat.toFixed(5) + '|' + slon.toFixed(5) + '|' + Math.floor(sts / 1000) + '|' + sval;
+        if (staticSeen.has(ssig)) continue;
+        staticSeen.add(ssig);
+        staticOut.push({
+          ...s,
+          type: stp,
+          lat: slat,
+          lon: slon,
+          t: Number.isFinite(stsRaw) ? new Date(stsRaw).toISOString() : (s.t || s.timestamp || null)
+        });
+      }
+      return staticOut.length > 360 ? staticOut.slice(-360) : staticOut;
+    }
+
+    var byType = {};
+    var lastTypeTs = {};
+    var seen = new Set();
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var src = list[i] || {};
+      var lat = Number(src.lat);
+      var lon = Number(src.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      var tp = normalizeEvtType(src.type || src.event || src.name);
+      if (!tp) continue;
+      if (!markerAllowedTypes[tp]) continue;
+
+      var tsRaw = Date.parse(String(src.t || src.timestamp || ''));
+      var ts = Number.isFinite(tsRaw) ? tsRaw : (i * 1000);
+      var bucketSig = tp + '|' + lat.toFixed(5) + '|' + lon.toFixed(5) + '|' + Math.floor(ts / 1000);
+      if (seen.has(bucketSig)) continue;
+      if (tp !== 'flaps') {
+        var prevTypeTs = Number(lastTypeTs[tp] || 0);
+        if (prevTypeTs > 0 && (ts - prevTypeTs) < 10000) continue;
+      }
+
+      var cfg = dedupeCfg[tp] || dedupeCfg._default;
+      var prev = byType[tp];
+      if (prev) {
+        if (cfg.single) continue;
+        var dtSec = Math.abs(ts - prev.ts) / 1000;
+        var movedNm = haversineNm(prev.lat, prev.lon, lat, lon);
+        if (tp === 'flaps' && dtSec < cfg.cooldownSec && movedNm < cfg.minNm) {
+          continue;
+        }
+      }
+
+      seen.add(bucketSig);
+      lastTypeTs[tp] = ts;
+      byType[tp] = { ts: ts, lat: lat, lon: lon };
+      out.push({
+        ...src,
+        type: tp,
+        lat: lat,
+        lon: lon,
+        t: Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : (src.t || src.timestamp || null)
+      });
+    }
+    return out.length > 180 ? out.slice(-180) : out;
+  };
+  var evtLog = dedupeEventsForMap(evtLogRaw);
+  var lastEvt = evtLog.length ? evtLog[evtLog.length - 1] : null;
+  var evtSignature = evtLog.length + '|' + (lastEvt ? ((lastEvt.type||'') + '|' + (lastEvt.t||'') + '|' + (lastEvt.lat||'') + '|' + (lastEvt.lon||'')) : '');
+  if (evtLog.length !== layers._lastEvtCount || evtSignature !== layers._lastEvtSignature) {
+    layers._lastEvtCount = evtLog.length;
+    layers._lastEvtSignature = evtSignature;
+    layers.evtGroup.clearLayers();
+    var evtCfg = {
+      gear_down: {icon:'▼',color:'#22d3ee',bg:'rgba(6,78,107,0.85)',label:'GEAR DN'},
+      gear_up: {icon:'▲',color:'#22d3ee',bg:'rgba(6,78,107,0.85)',label:'GEAR UP'},
+      flaps: {icon:'F',color:'#a78bfa',bg:'rgba(76,29,149,0.85)',label:'FLAPS'},
+      spoiler_on: {icon:'S',color:'#fbbf24',bg:'rgba(120,53,15,0.85)',label:'SPD BRK'},
+      spoiler_off: {icon:'S',color:'#64748b',bg:'rgba(30,41,59,0.85)',label:'SPD BRK OFF'},
+      tailstrike: {icon:'!',color:'#f87171',bg:'rgba(127,29,29,0.85)',label:'TAILSTRIKE'},
+      stall: {icon:'!',color:'#f87171',bg:'rgba(127,29,29,0.85)',label:'STALL'},
+      overstress: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSTRESS'},
+      high_g_force: {icon:'G',color:'#f59e0b',bg:'rgba(120,53,15,0.85)',label:'HIGH G'},
+      overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'OVERSPEED'},
+      flaps_overspeed: {icon:'!',color:'#fb923c',bg:'rgba(124,45,18,0.85)',label:'FLAP OVSPD'},
+      gear_up_landing: {icon:'!',color:'#f43f5e',bg:'rgba(131,24,67,0.90)',label:'GEAR-UP LDG'},
+      harsh_controls: {icon:'!',color:'#f59e0b',bg:'rgba(120,53,15,0.85)',label:'HARSH CTRL'},
+      crash: {icon:'✕',color:'#ef4444',bg:'rgba(127,29,29,0.95)',label:'CRASH'}
+    };
+    for (var ei = 0; ei < evtLog.length; ei++) {
+      var ev = evtLog[ei];
+      var evLat = Number(ev.lat), evLon = Number(ev.lon);
+      if (!Number.isFinite(evLat) || !Number.isFinite(evLon)) continue;
+      var cfg = evtCfg[ev.type] || {icon:'•',color:'#94a3b8',bg:'rgba(30,41,59,0.85)',label:ev.type};
+      var lbl = cfg.label;
+      if (ev.type === 'flaps' && ev.val !== undefined) lbl = 'FLAPS ' + ev.val + '%';
+      var sz = (ev.type === 'crash' || ev.type === 'tailstrike' || ev.type === 'stall') ? 20 : 16;
+      var evIcon = L.divIcon({
+        html: '<div class="evt-marker evt-marker-wrap" style="width:'+sz+'px;height:'+sz+'px;background:'+cfg.bg+';border:1.5px solid '+cfg.color+';color:'+cfg.color+';box-shadow:0 0 6px '+cfg.color+'44;">'+cfg.icon+'</div>',
+        className:'evt-marker-wrap', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
+      });
+      var evM = L.marker([evLat, evLon], { icon: evIcon, zIndexOffset: 500, interactive: true, bubblingMouseEvents: false }).addTo(layers.evtGroup);
+      var popupHtml = '<div style="background:#0f172a;color:#e2e8f0;padding:8px 12px;border-radius:6px;border:1px solid '+cfg.color+'66;font-family:Courier New,monospace;font-size:12px;min-width:140px;">' +
+        '<div style="color:'+cfg.color+';font-weight:bold;font-size:13px;margin-bottom:4px;">'+cfg.icon+' '+lbl+'</div>' +
+        (ev.alt ? '<div style="color:#94a3b8;font-size:11px;">ALT: '+Math.round(ev.alt).toLocaleString()+' ft</div>' : '') +
+        (ev.spd ? '<div style="color:#94a3b8;font-size:11px;">SPD: '+Math.round(ev.spd)+' kts</div>' : '') +
+        (ev.gs ? '<div style="color:#94a3b8;font-size:11px;">GS: '+Math.round(ev.gs)+' kts</div>' : '') +
+        (ev.vs ? '<div style="color:#94a3b8;font-size:11px;">V/S: '+Math.round(ev.vs)+' ft/min</div>' : '') +
+        (ev.g ? '<div style="color:#94a3b8;font-size:11px;">G: '+Number(ev.g).toFixed(2)+'</div>' : '') +
+        '</div>';
+      evM.bindPopup(popupHtml, { className: 'dark-popup', closeButton: false, offset: [0, -sz/2], autoClose: false, closeOnClick: false });
+    }
   }
 
   // Aircraft marker

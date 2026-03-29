@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { getAirportCoords } from "@/utils/airportCoordinates";
 import {
   Plane,
   PlaneTakeoff,
@@ -27,8 +28,11 @@ import {
 
 import FlightRating from "@/components/flights/FlightRating";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
+import FuelPrediction from "@/components/flights/FuelPrediction";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import SimBriefImport from "@/components/flights/SimBriefImport";
+import WeatherDisplay from "@/components/flights/WeatherDisplay";
+import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -39,331 +43,36 @@ export default function FlightTracker() {
   const { lang } = useLanguage();
 
   const [flightPhase, setFlightPhase] = useState('preflight');
-  const [viewMode, setViewMode] = useState('fplan'); // 'fplan' or 'follow'
+  const [viewMode, setViewMode] = useState('fplan');
   const [flight, setFlight] = useState(null);
   const [flightStartTime, setFlightStartTime] = useState(null);
   const [flightDurationSeconds, setFlightDurationSeconds] = useState(0);
   const [processedGLevels, setProcessedGLevels] = useState(new Set());
   const [isCompletingFlight, setIsCompletingFlight] = useState(false);
-  const [flightStartedAt, setFlightStartedAt] = useState(null); // Timestamp when flight was started, to ignore old logs
+  const [showAutoCompleteOverlay, setShowAutoCompleteOverlay] = useState(false);
+  const [flightStartedAt, setFlightStartedAt] = useState(null);
+  const [emergencyLanding, setEmergencyLanding] = useState(false);
   const flightDataRef = React.useRef(null);
+  const autoCompleteTimeoutRef = useRef(null);
 
-  // Parse URL parameters for contractId
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
 
   const [flightData, setFlightData] = useState({
-    altitude: 0,
-    speed: 0,
-    verticalSpeed: 0,
-    heading: 0,
-    fuel: 100,
-    fuelKg: 0,
-    gForce: 1.0,
-    maxGForce: 1.0,
-    landingGForce: 0,
-    landingVs: 0,
-    landingType: null,
-    landingScoreChange: 0,
-    landingMaintenanceCost: 0,
-    landingBonus: 0,
-    flightScore: 100,
-    maintenanceCost: 0,
-    reputation: 'EXCELLENT',
-    latitude: 0,
-    longitude: 0,
+    altitude: 0, speed: 0, verticalSpeed: 0, heading: 0,
+    fuel: 100, fuelKg: 0, gForce: 1.0, maxGForce: 1.0,
+    landingGForce: 0, landingVs: 0, landingType: null,
+    landingScoreChange: 0, landingMaintenanceCost: 0, landingBonus: 0,
+    flightScore: 100, maintenanceCost: 0, reputation: 'EXCELLENT',
+    latitude: 0, longitude: 0,
     events: {
-      tailstrike: false,
-      stall: false,
-      overstress: false,
-      overspeed: false,
-      flaps_overspeed: false,
-      fuel_emergency: false,
-      gear_up_landing: false,
-      crash: false,
-      harsh_controls: false,
-      high_g_force: false,
-      hard_landing: false
-      },
-    maxControlInput: 0,
-    departure_lat: 0,
-    departure_lon: 0,
-    arrival_lat: 0,
-    arrival_lon: 0,
-    wasAirborne: false,
-    previousSpeed: 0
+      tailstrike: false, stall: false, overstress: false, overspeed: false,
+      flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
+      crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
+    },
+    maxControlInput: 0, departure_lat: 0, departure_lon: 0,
+    arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0
   });
-
-  const generateComments = (score, data) => {
-    // Helper: pick N random items from an array
-    const pickRandom = (arr, n) => {
-      const shuffled = [...arr].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, Math.min(n, arr.length));
-    };
-
-    const comments = [];
-    
-    if (data.events.crash) {
-      const crashPool = [
-        "Flugzeug zerstört! Nie wieder mit dieser Airline!",
-        "Das war die schlimmste Erfahrung meines Lebens.",
-        "Ich bin froh, dass ich überlebt habe...",
-        "Meine Familie wird von meinem Anwalt hören!",
-        "Ich zittere immer noch am ganzen Körper.",
-        "Das war kein Flug, das war ein Albtraum!",
-        "Ich habe mein Testament geschrieben während wir gefallen sind.",
-        "Die Sauerstoffmasken sind runtergefallen - totale Panik!",
-        "Mein Leben ist an mir vorbeigeflogen. Buchstäblich.",
-        "Ich werde nie wieder ein Flugzeug betreten!",
-        "Haben die überhaupt einen Pilotenschein?!",
-        "Das war versuchter Mord mit einem Flugzeug!",
-        "Meine Kinder haben geweint, meine Frau hat geschrien.",
-        "Der Aufprall war so heftig, mein Handy ist zerbrochen.",
-        "Ich brauche jetzt erstmal eine Therapie.",
-      ];
-      return pickRandom(crashPool, 4);
-    }
-
-    // Landing quality-based comments
-    const butterPool = [
-      "Butterweiche Landung! Das war professionell!",
-      "Ich habe kaum bemerkt, dass wir gelandet sind - perfekt!",
-      "So muss eine Landung sein! Chapeau, Kapitän!",
-      "Mein Kaffee stand noch aufrecht - unglaublich sanft!",
-      "Ich dachte, wir fliegen noch - erst als die Bremsen kamen, merkte ich es.",
-      "Das war die sanfteste Landung meines Lebens!",
-      "Wie auf einer Wolke gelandet. Meisterleistung!",
-      "Der Pilot könnte auch eine Feder landen, ohne sie zu knicken.",
-      "Standing Ovation in der Kabine! Alle haben geklatscht!",
-      "Meine Oma hätte nicht gemerkt, dass wir gelandet sind.",
-      "Wie Butter auf heißem Toast - perfekt!",
-      "Die Landung war so sanft, mein Baby hat weitergeschlafen.",
-      "Besser als jeder Langstreckenflug, den ich je hatte!",
-      "Ich glaube, der Pilot hat ein Gefühl wie ein Chirurg.",
-    ];
-
-    const softPool = [
-      "Sehr sanfte Landung, ausgezeichnet!",
-      "Der Pilot weiß, wie man landen muss.",
-      "Angenehme Landung, meine Kinder haben nicht mal aufgewacht.",
-      "Gute Landung! Kaum Erschütterung.",
-      "Sanftes Aufsetzen - genau so soll es sein.",
-      "Professionelle Landung, ich bin beeindruckt.",
-      "Man merkt, dass der Pilot Erfahrung hat.",
-      "Angenehm sanft, wie auf einer Matratze gelandet.",
-      "Schöne Landung, da kann man sich wohlfühlen.",
-      "Nicht ganz Butter, aber sehr nah dran!",
-      "Guter Pilot - die Landung war toll.",
-    ];
-
-    const acceptablePool = [
-      "Ganz normale Landung, nichts besonderes.",
-      "Alles in Ordnung, solide gelandet.",
-      "Standard-Landung, kein Grund zur Beschwerde.",
-      "Okay, hat funktioniert. Mehr gibt's nicht zu sagen.",
-      "Normale Landung - nicht schlecht, nicht überragend.",
-      "Bin heil angekommen, das zählt.",
-      "Durchschnittliche Landung, alles im Rahmen.",
-      "Passt schon, war jetzt nicht außergewöhnlich.",
-      "Solide Arbeit, man hat den Boden gespürt.",
-      "In Ordnung. Würde wieder fliegen.",
-    ];
-
-    const hardPool = [
-      "Die Landung war ziemlich hart...",
-      "Mein Getränk ist umgekippt!",
-      "Mein Rücken tut weh nach dieser Landung.",
-      "Das Fahrwerk hat laut geknallt - war das normal?!",
-      "Autsch! Das hat ordentlich gerüttelt.",
-      "Mein Gepäck ist im Fach verrutscht bei dem Aufprall.",
-      "Ich hoffe, das Flugzeug hat das überlebt...",
-      "Da hat wohl jemand den Boden verwechselt mit einer Landebahn.",
-      "Mein Nacken tut weh - das war zu hart!",
-      "Haben wir auf der Landebahn oder daneben aufgesetzt?",
-      "Das war eher ein Aufprall als eine Landung.",
-      "Meine Zähne haben geklickert bei dem Stoß!",
-      "Der Steward hat seinen Trolley verloren bei der Landung.",
-      "Ich glaube, mein Koffer ist jetzt flacher als vorher.",
-    ];
-
-    const veryHardPool = [
-      "Das war eine brutale Landung!",
-      "Ich bin mir nicht sicher, ob das sicher war.",
-      "Mein Gepäck ist aus dem Fach gefallen!",
-      "Sind die Reifen noch dran?!",
-      "Das Flugzeug hat gezittert wie verrückt!",
-      "Mein Sitz hat sich verschoben - das geht doch nicht!",
-      "Ich habe mir den Kopf am Vordersitz gestoßen!",
-      "Das war keine Landung, das war ein kontrollierter Absturz!",
-      "Die Sauerstoffmasken sind fast runtergefallen!",
-      "Meine Knie sind blau von dem Aufprall!",
-      "Hat der Pilot die Landung in einer Simulation gelernt?!",
-      "Ich brauche nach dieser Landung einen Chiropraktiker.",
-      "Das Flugzeug braucht definitiv eine Inspektion nach dem...",
-    ];
-
-    if (data.landingType === 'butter') comments.push(...pickRandom(butterPool, 3));
-    else if (data.landingType === 'soft') comments.push(...pickRandom(softPool, 2));
-    else if (data.landingType === 'acceptable') comments.push(...pickRandom(acceptablePool, 2));
-    else if (data.landingType === 'hard') comments.push(...pickRandom(hardPool, 3));
-    else if (data.landingType === 'very_hard') comments.push(...pickRandom(veryHardPool, 3));
-
-    // G-force based comments
-    const gExtremePool = [
-      "Mir wurde bei den extremen Manövern richtig schlecht.",
-      "Ich dachte, ich bin in einer Achterbahn und nicht im Flugzeug!",
-      "Mein Magen hat sich mehrfach umgedreht.",
-      "Die Kinder neben mir haben alle geweint.",
-      "Ich habe in die Tüte gegeben, kein Scherz.",
-      "So viel G-Kraft habe ich nicht mal im Freizeitpark erlebt!",
-    ];
-    const gHighPool = [
-      "Die Manöver waren viel zu heftig für einen normalen Flug.",
-      "Bei den Kurven hat es mich ordentlich in den Sitz gedrückt.",
-      "Die Turbulenz war heftig - oder war das der Pilot?",
-      "Mein Getränk ist bei einem Manöver komplett ausgelaufen.",
-    ];
-    const gModeratePool = [
-      "Es war ziemlich wackelig während des Fluges.",
-      "Ein paar Turbulenzen, aber ging gerade so.",
-      "Etwas unruhig zwischendurch, aber überlebbar.",
-    ];
-    const gSmoothPool = [
-      "Sehr angenehmer, sanfter Flug. Wie auf Wolken!",
-      "Ruhigster Flug, den ich je hatte!",
-      "Null Turbulenzen, absolut genial!",
-      "Ich konnte in Ruhe lesen, so ruhig war der Flug.",
-      "Traumhaft ruhig - wie im Schlafwagen!",
-    ];
-    const gGoodPool = [
-      "Ruhiger Flug, gut gemacht.",
-      "Kaum Turbulenzen, angenehm.",
-      "Entspannter Flug, gerne wieder.",
-    ];
-
-    if (data.maxGForce > 2.5) comments.push(...pickRandom(gExtremePool, 2));
-    else if (data.maxGForce > 2.0) comments.push(...pickRandom(gHighPool, 1));
-    else if (data.maxGForce > 1.8) comments.push(...pickRandom(gModeratePool, 1));
-    else if (data.maxGForce < 1.2) comments.push(...pickRandom(gSmoothPool, 2));
-    else if (data.maxGForce < 1.3) comments.push(...pickRandom(gGoodPool, 1));
-
-    // Overall score-based comments
-    const score95Pool = [
-      "Perfekter Flug! Werde diese Airline weiterempfehlen!",
-      "5 Sterne! Besser geht es nicht.",
-      "Absolut erstklassig! Buche sofort den nächsten Flug!",
-      "Das war Premium-Service - besser als manche Businessclass!",
-      "Wow, diese Airline hat mich überzeugt!",
-      "Von der Begrüßung bis zur Landung: makellos.",
-      "Mein neuer Favorit unter den Airlines!",
-      "Ich bin begeistert. Perfekt von Anfang bis Ende.",
-    ];
-    const score85Pool = [
-      "Sehr guter Service, gerne wieder.",
-      "Professionelle Crew, angenehmer Flug.",
-      "Guter Flug, keine Beschwerden!",
-      "Empfehlenswert! Gutes Preis-Leistungs-Verhältnis.",
-      "Solider Service, kompetente Crew.",
-      "War ein schöner Flug, vielen Dank!",
-      "4 Sterne - fast perfekt!",
-    ];
-    const score70Pool = [
-      "Solider Flug, nichts zu beanstanden.",
-      "War in Ordnung, durchschnittlich halt.",
-      "Ging so - weder gut noch schlecht.",
-      "Mittelmaß, aber akzeptabel.",
-      "Okay, aber ich habe schon bessere Flüge erlebt.",
-    ];
-    const score50Pool = [
-      "Es war okay, aber es gibt Verbesserungspotenzial.",
-      "Nicht der beste Flug, den ich je hatte...",
-      "Naja, angekommen sind wir immerhin.",
-      "Könnte definitiv besser sein.",
-      "Bin nicht wirklich zufrieden mit dem Flug.",
-      "Mal schauen, ob ich nächstes Mal eine andere Airline nehme.",
-    ];
-    const score30Pool = [
-      "Ich buche nie wieder bei dieser Airline.",
-      "Katastrophal. Ich habe Angst gehabt.",
-      "Das war eine Zumutung für jeden Passagier.",
-      "Unfassbar schlecht. Null Professionalität!",
-      "Meine schlechteste Flugerfahrung überhaupt.",
-      "Ich verlange eine Rückerstattung!",
-    ];
-    const scoreWorstPool = [
-      "Nie wieder! Das war lebensgefährlich!",
-      "Ich stelle eine Beschwerde bei der Luftfahrtbehörde!",
-      "Die sollten den Pilotenschein abgeben!",
-      "Dieser Airline gehört die Lizenz entzogen!",
-      "Das war eine Gefährdung aller Passagiere!",
-      "Ich kann nicht glauben, dass das legal war.",
-    ];
-
-    if (score >= 95) comments.push(...pickRandom(score95Pool, 2));
-    else if (score >= 85) comments.push(...pickRandom(score85Pool, 2));
-    else if (score >= 70) comments.push(...pickRandom(score70Pool, 1));
-    else if (score >= 50) comments.push(...pickRandom(score50Pool, 2));
-    else if (score >= 30) comments.push(...pickRandom(score30Pool, 2));
-    else comments.push(...pickRandom(scoreWorstPool, 2));
-
-    // Event-based comments
-    const tailstrikePool = [
-      "Ich habe gehört, wie das Heck aufgesetzt hat - furchtbar!",
-      "Beim Start hat es laut gekracht am Heck...",
-      "Was war das für ein Geräusch hinten?! Das klang nach Metall!",
-      "Das Heck hat den Boden berührt - das ist doch gefährlich!",
-      "Ein lauter Schlag am Heck - ich dachte, wir brechen auseinander!",
-    ];
-    const stallPool = [
-      "Das Flugzeug ist plötzlich abgesackt! Panik an Bord!",
-      "Strömungsabriss?! Das darf nicht passieren!",
-      "Wir sind plötzlich gefallen wie ein Stein!",
-      "Für einen Moment dachte ich, das war's...",
-      "Alle haben geschrien, als das Flugzeug absackte!",
-      "Mein Herz hat ausgesetzt, als wir plötzlich gefallen sind!",
-    ];
-    const overstressPool = [
-      "Das Flugzeug hat beängstigende Geräusche gemacht...",
-      "Es hat geknackt und geächzt - das kann nicht normal sein!",
-      "Die Tragflächen haben sich so stark gebogen, ich hatte Angst!",
-      "Das Flugzeug hat gezittert wie verrückt!",
-    ];
-    const flapsPool = [
-      "Die Klappen haben komische Geräusche gemacht bei der Geschwindigkeit.",
-      "Irgendwas an den Flügeln hat laut gerattert...",
-      "Das klang, als würde etwas am Flügel abreißen!",
-      "Warum waren die Klappen bei dieser Geschwindigkeit draußen?!",
-    ];
-    const hardLandingPool = [
-      "Meine Knochen vibrieren noch von dieser Landung.",
-      "Bei der Landung habe ich meinen Kaffee verloren.",
-      "Das Fahrwerk hat laut gescheppert!",
-      "Mein ganzer Körper tut weh nach dieser Landung.",
-      "Hat der Pilot die Landebahn treffen wollen oder den Planeten?",
-    ];
-    const fuelPool = [
-      "Wir hatten kaum noch Treibstoff?! Das ist unverantwortlich!",
-      "Der Pilot hat es auf den letzten Tropfen ankommen lassen!",
-      "Fast kein Sprit mehr?! Das ist doch wahnsinnig!",
-      "Ich habe gehört, dass wir fast keinen Treibstoff mehr hatten!",
-    ];
-    const gearUpPool = [
-      "Er ist OHNE Fahrwerk gelandet?! Unfassbar!",
-      "Die Funken auf der Landebahn werde ich nie vergessen!",
-      "Bauchlanden ist für mich ab heute kein Fremdwort mehr.",
-      "Das Kreischen des Metalls auf dem Asphalt... schrecklich!",
-    ];
-
-    if (data.events.tailstrike) comments.push(...pickRandom(tailstrikePool, 2));
-    if (data.events.stall) comments.push(...pickRandom(stallPool, 2));
-    if (data.events.overstress) comments.push(...pickRandom(overstressPool, 1));
-    if (data.events.flaps_overspeed) comments.push(...pickRandom(flapsPool, 1));
-    if (data.events.hard_landing) comments.push(...pickRandom(hardLandingPool, 1));
-    if (data.events.fuel_emergency && data.fuel < 3) comments.push(...pickRandom(fuelPool, 1));
-    if (data.events.gear_up_landing) comments.push(...pickRandom(gearUpPool, 1));
-
-    return comments;
-  };
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractIdFromUrl],
@@ -411,6 +120,26 @@ export default function FlightTracker() {
   const [dataLatency, setDataLatency] = useState(null); // ms between two received updates
   const [dataAge, setDataAge] = useState(null); // ms since last data received (live ticker)
   const lastDataReceivedRef = React.useRef(null);
+  const [localMapPath, setLocalMapPath] = useState([]);
+  const ingestLiveXplaneData = React.useCallback((xpData, sourceDate) => {
+    if (!xpData) return;
+    const ts = xpData.timestamp || sourceDate;
+    const prevTs = lastXplaneTimestampRef.current;
+    if (ts && prevTs && ts === prevTs) return;
+
+    const nextMs = Date.parse(ts || '');
+    const prevMs = Date.parse(prevTs || '');
+    // Ignore stale packets so slower channels cannot overwrite fresher telemetry.
+    if (Number.isFinite(nextMs) && Number.isFinite(prevMs) && nextMs <= prevMs) return;
+
+    lastXplaneTimestampRef.current = ts || prevTs || new Date().toISOString();
+    const now = Date.now();
+    if (lastDataReceivedRef.current) {
+      setDataLatency(now - lastDataReceivedRef.current);
+    }
+    lastDataReceivedRef.current = now;
+    setXplaneLog({ raw_data: xpData, created_date: sourceDate || ts || new Date().toISOString() });
+  }, []);
   
   // Live ticker: shows how long ago the last data arrived (updates every 200ms)
   useEffect(() => {
@@ -432,35 +161,39 @@ export default function FlightTracker() {
       const flights = await base44.entities.Flight.filter({ id: activeFlightId });
       const currentFlight = flights[0];
       if (currentFlight?.xplane_data) {
-        const ts = currentFlight.xplane_data.timestamp || currentFlight.updated_date;
-        lastXplaneTimestampRef.current = ts;
-        setXplaneLog({ raw_data: currentFlight.xplane_data, created_date: currentFlight.updated_date });
+        ingestLiveXplaneData(currentFlight.xplane_data, currentFlight.updated_date);
       }
     };
     fetchInitial();
-  }, [activeFlightId, flightPhase]);
+  }, [activeFlightId, flightPhase, ingestLiveXplaneData]);
+
+  useEffect(() => {
+    setLocalMapPath([]);
+  }, [activeFlightId]);
+
+  useEffect(() => {
+    const xp = xplaneLog?.raw_data;
+    if (!xp) return;
+    const lat = Number(xp.latitude);
+    const lon = Number(xp.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || (Math.abs(lat) < 0.5 && Math.abs(lon) < 0.5)) return;
+    setLocalMapPath((prev) => {
+      const last = prev.length > 0 ? prev[prev.length - 1] : null;
+      const threshold = xp.on_ground ? 0.0002 : 0.0008;
+      if (last && Math.abs(last[0] - lat) < threshold && Math.abs(last[1] - lon) < threshold) {
+        return prev;
+      }
+      const next = [...prev, [lat, lon]];
+      return next.length > 2600 ? next.slice(-2600) : next;
+    });
+  }, [xplaneLog?.raw_data?.latitude, xplaneLog?.raw_data?.longitude, xplaneLog?.raw_data?.on_ground]);
 
   // Real-time subscription – receives updates instantly when backend writes new xplane_data
   useEffect(() => {
     if (flightPhase === 'completed') return;
     if (!activeFlightId) return;
     
-    let subscriptionActive = false;
     let lastSubEventTime = 0;
-    let subReconnectTimer = null;
-    
-    const updateData = (xpData, updDate) => {
-      const ts = xpData.timestamp || updDate;
-      if (ts !== lastXplaneTimestampRef.current) {
-        lastXplaneTimestampRef.current = ts;
-        const now = Date.now();
-        if (lastDataReceivedRef.current) {
-          setDataLatency(now - lastDataReceivedRef.current);
-        }
-        lastDataReceivedRef.current = now;
-        setXplaneLog({ raw_data: xpData, created_date: updDate });
-      }
-    };
     
     // Setup subscription with automatic reconnect
     let unsubscribe = null;
@@ -470,35 +203,33 @@ export default function FlightTracker() {
       }
       unsubscribe = base44.entities.Flight.subscribe((event) => {
         if (event.type === 'update' && event.id === activeFlightId && event.data?.xplane_data) {
-          subscriptionActive = true;
           lastSubEventTime = Date.now();
-          updateData(event.data.xplane_data, event.data.updated_date);
+          ingestLiveXplaneData(event.data.xplane_data, event.data.updated_date);
         }
       });
     };
     
     setupSubscription();
     
-    // Monitor subscription health: if no events for 5s despite active flight, reconnect
+    // Monitor subscription health: if no events for >3s despite active flight, reconnect quickly
     const healthCheck = setInterval(() => {
-      if (lastSubEventTime > 0 && (Date.now() - lastSubEventTime) > 5000) {
-        subscriptionActive = false;
+      if (lastSubEventTime > 0 && (Date.now() - lastSubEventTime) > 3000) {
         setupSubscription();
       }
-    }, 3000);
+    }, 2000);
     
-    // Polling fallback: polls at 1.5s but only when subscription isn't delivering
+    // Polling fallback: polls at 1.0s but only when subscription isn't delivering
     let pollInFlight = false;
     const pollInterval = setInterval(async () => {
       if (pollInFlight) return;
-      // Skip poll if subscription delivered recently (< 1.2s)
-      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 1200) return;
+      // Skip poll if subscription delivered very recently (< 0.9s)
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 900) return;
       pollInFlight = true;
       try {
         const flights = await base44.entities.Flight.filter({ id: activeFlightId });
         const f = flights[0];
         if (f?.xplane_data) {
-          updateData(f.xplane_data, f.updated_date);
+          ingestLiveXplaneData(f.xplane_data, f.updated_date);
         }
       } catch (_) {}
       pollInFlight = false;
@@ -508,9 +239,8 @@ export default function FlightTracker() {
       if (unsubscribe) try { unsubscribe(); } catch (_) {}
       clearInterval(pollInterval);
       clearInterval(healthCheck);
-      if (subReconnectTimer) clearTimeout(subReconnectTimer);
     };
-  }, [activeFlightId, flightPhase]);
+  }, [activeFlightId, flightPhase, ingestLiveXplaneData]);
 
   // Restore flight data and phase from existing flight
   useEffect(() => {
@@ -529,9 +259,9 @@ export default function FlightTracker() {
         landingMaintenanceCost: 0, landingBonus: 0, flightScore: 100,
         maintenanceCost: 0, reputation: 'EXCELLENT', latitude: 0, longitude: 0,
         events: {
-          tailstrike: false, stall: false, overstress: false,
+          tailstrike: false, stall: false, overstress: false, overspeed: false,
           flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
-          crash: false, harsh_controls: false, high_g_force: false, hard_landing: false
+          crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
         },
         maxControlInput: 0, departure_lat: 0, departure_lon: 0,
         arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0, landingType: null
@@ -556,6 +286,93 @@ export default function FlightTracker() {
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
+
+  // Faster live source: consume XPlaneLog stream directly (written every ~2s),
+  // so UI does not wait for slower Flight record propagation.
+  useEffect(() => {
+    if (flightPhase === 'completed') return;
+    if (!company?.id || !activeFlightId) return;
+    const activeFl = flight || existingFlight;
+    const sessionStartMs = Date.parse(String(activeFl?.departure_time || activeFl?.created_date || ""));
+
+    const matchesActiveSession = (logEntry) => {
+      const raw = logEntry?.raw_data || {};
+      const logFlightId = raw?.flight_id || null;
+      const logContractId = raw?.contract_id || null;
+
+      if (logFlightId) {
+        return String(logFlightId) === String(activeFlightId);
+      }
+      if (logContractId && contractIdFromUrl) {
+        return String(logContractId) === String(contractIdFromUrl);
+      }
+      // Backward compatibility for older logs without IDs:
+      // only accept logs from this flight session time window.
+      const logTsMs = Date.parse(String(
+        raw?.airborne_started_at ||
+        raw?.completion_armed_at ||
+        raw?.timestamp ||
+        logEntry?.created_date ||
+        ""
+      ));
+      if (Number.isFinite(sessionStartMs) && Number.isFinite(logTsMs)) {
+        return logTsMs >= (sessionStartMs - 15000);
+      }
+      return false;
+    };
+
+    const applyLog = (logEntry) => {
+      if (!logEntry?.raw_data) return;
+      if (!matchesActiveSession(logEntry)) return;
+      ingestLiveXplaneData(logEntry.raw_data, logEntry.created_date || logEntry.updated_date);
+    };
+
+    let unsub = null;
+    let pollInFlight = false;
+
+    const prime = async () => {
+      try {
+        const logs = await base44.entities.XPlaneLog.filter(
+          { company_id: company.id, has_active_flight: true },
+          '-created_date',
+          10
+        );
+        const boundLog = logs.find(matchesActiveSession);
+        if (boundLog) applyLog(boundLog);
+      } catch (_) {}
+    };
+    prime();
+
+    unsub = base44.entities.XPlaneLog.subscribe((event) => {
+      if (event.type !== 'create' && event.type !== 'update') return;
+      if (event.data?.company_id !== company.id) return;
+      if (!event.data?.has_active_flight) return;
+      applyLog(event.data);
+    });
+
+    const poll = setInterval(async () => {
+      if (pollInFlight) return;
+      if (lastDataReceivedRef.current && (Date.now() - lastDataReceivedRef.current) < 1200) return;
+      pollInFlight = true;
+      try {
+        const logs = await base44.entities.XPlaneLog.filter(
+          { company_id: company.id, has_active_flight: true },
+          '-created_date',
+          10
+        );
+        const boundLog = logs.find(matchesActiveSession);
+        if (boundLog) applyLog(boundLog);
+      } catch (_) {}
+      pollInFlight = false;
+    }, 1000);
+
+    return () => {
+      if (unsub) {
+        try { unsub(); } catch (_) {}
+      }
+      clearInterval(poll);
+    };
+  }, [company?.id, activeFlightId, contractIdFromUrl, flightPhase, ingestLiveXplaneData, flight, existingFlight]);
 
   const { data: aircraft } = useQuery({
     queryKey: ['aircraft'],
@@ -598,6 +415,18 @@ export default function FlightTracker() {
     }
   }, [contractIdFromUrl]);
 
+  const pickFirstValidLatLon = (pairs = []) => {
+    for (const pair of pairs) {
+      if (!Array.isArray(pair) || pair.length < 2) continue;
+      const lat = Number(pair[0]);
+      const lon = Number(pair[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      if (lat === 0 && lon === 0) continue;
+      return { lat, lon, valid: true };
+    }
+    return { lat: 0, lon: 0, valid: false };
+  };
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Verwende den existierenden Flight oder erstelle einen neuen (sollte nicht passieren)
@@ -623,6 +452,7 @@ export default function FlightTracker() {
       setFlightDurationSeconds(0);
       setProcessedGLevels(new Set());
       setIsCompletingFlight(false);
+      setShowAutoCompleteOverlay(false);
       // Merke Zeitpunkt des Flugstarts, um alte X-Plane Logs zu ignorieren
       setFlightStartedAt(Date.now());
       
@@ -650,13 +480,9 @@ export default function FlightTracker() {
           tailstrike: false,
           stall: false,
           overstress: false,
-          flaps_overspeed: false,
-          fuel_emergency: false,
-          gear_up_landing: false,
-          crash: false,
-          harsh_controls: false,
-          high_g_force: false,
-          hard_landing: false
+          overspeed: false,
+          flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
+          crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
         },
         maxControlInput: 0,
         departure_lat: 0,
@@ -754,28 +580,145 @@ export default function FlightTracker() {
      if (!aircraft || aircraft.length === 0) {
        throw new Error('Flugzeugdaten nicht geladen');
      }
+
+     // Pull latest flight snapshot first so completion uses freshest touchdown values.
+     let latestFlight = activeFlight;
+     try {
+       const latestFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
+       if (latestFlights?.[0]) latestFlight = latestFlights[0];
+     } catch (_) {
+       // no-op: fallback to current activeFlight snapshot
+     }
      
      // Use the latest flightData from ref to ensure all events are captured
      let finalFlightData = flightDataRef.current || flightData;
      
      // KRITISCH: Wenn Crash erkannt wurde (egal ob im State oder via has_crashed), 
      // stelle sicher dass das crash-Event gesetzt ist
-     if (finalFlightData.events && !finalFlightData.events.crash) {
-       // Prüfe ob ein Crash über andere Wege erkannt wurde
-       const latestXPlane = activeFlight?.xplane_data;
-       if (latestXPlane?.has_crashed) {
-         finalFlightData = {
-           ...finalFlightData,
-           events: { ...finalFlightData.events, crash: true }
-         };
-       }
-     }
+    if (finalFlightData.events && !finalFlightData.events.crash) {
+     const latestXPlane = latestFlight?.xplane_data || activeFlight?.xplane_data;
+      const trustedCrash = !!latestXPlane?.crash;
+      if (trustedCrash) {
+        finalFlightData = {
+          ...finalFlightData,
+          events: { ...finalFlightData.events, crash: true }
+        };
+      }
+    }
      
      // Realistic cost calculations based on aviation industry
      // Use actual X-Plane fuel data: initial_fuel_kg - current fuel_kg
-     const xpData = activeFlight?.xplane_data || {};
-     const initialFuelKg = xpData.initial_fuel_kg || 0;
-     const currentFuelKg = finalFlightData.fuelKg || xpData.fuel_kg || 0;
+     const liveData = xplaneLog?.raw_data || {};
+     const nonZeroNumber = (...values) => {
+       for (const value of values) {
+         const num = Number(value);
+         if (Number.isFinite(num) && Math.abs(num) > 0) return num;
+       }
+       return 0;
+     };
+     const positiveNumber = (...values) => {
+       for (const value of values) {
+         const num = Number(value);
+         if (Number.isFinite(num) && num > 0) return num;
+       }
+       return 0;
+     };
+     let xpData = latestFlight?.xplane_data || activeFlight?.xplane_data || {};
+     const hasAnyTouchdownValues = (packet = {}) => {
+       const vs = nonZeroNumber(packet.touchdown_vspeed);
+       const g = positiveNumber(packet.landing_g_force, packet.landingGForce);
+       return Math.abs(vs) > 0 || g > 0;
+     };
+     const localHasTouchdownValues = Math.abs(nonZeroNumber(finalFlightData.landingVs, finalFlightData.landing_vs)) > 0
+       || positiveNumber(finalFlightData.landingGForce, finalFlightData.landing_g_force) > 0;
+     const shouldWaitForTouchdownData =
+       !localHasTouchdownValues &&
+       !hasAnyTouchdownValues(xpData) &&
+       !!(finalFlightData.wasAirborne || xpData.was_airborne || liveData.was_airborne) &&
+       !!(xpData.on_ground || liveData.on_ground);
+     if (shouldWaitForTouchdownData) {
+       for (let attempt = 0; attempt < 6; attempt++) {
+         try {
+           const polledFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
+           if (polledFlights?.[0]) {
+             latestFlight = polledFlights[0];
+             xpData = latestFlight?.xplane_data || xpData;
+             if (hasAnyTouchdownValues(xpData)) {
+               break;
+             }
+           }
+         } catch (_) {
+           // continue waiting with current snapshot
+         }
+         if (attempt < 5) {
+           await new Promise((resolve) => setTimeout(resolve, 700));
+         }
+       }
+     }
+    const landingDataTrusted = !!(
+      xpData.touchdown_detected ||
+      xpData.landing_data_locked ||
+      xpData.bridge_local_landing_locked ||
+      xpData.landing_data_source === 'bridge_local' ||
+      liveData.touchdown_detected ||
+      liveData.landing_data_locked ||
+      liveData.bridge_local_landing_locked ||
+      liveData.landing_data_source === 'bridge_local'
+    );
+    const resolvedLandingVs = nonZeroNumber(
+      ...(landingDataTrusted ? [
+        xpData.touchdown_vspeed,
+        liveData.touchdown_vspeed,
+      ] : []),
+      finalFlightData.landingVs,
+      finalFlightData.landing_vs
+    );
+    const resolvedLandingG = positiveNumber(
+      ...(landingDataTrusted ? [
+        xpData.landing_g_force,
+        xpData.landingGForce,
+        liveData.landing_g_force,
+        liveData.landingGForce,
+      ] : []),
+      finalFlightData.landingGForce,
+      finalFlightData.landing_g_force
+    );
+     finalFlightData = {
+       ...finalFlightData,
+       landingVs: Math.max(0, Math.min(2500, Math.abs(Number(resolvedLandingVs || finalFlightData.landingVs || 0)))),
+       landingGForce: Math.max(0, Math.min(6, Number(resolvedLandingG || finalFlightData.landingGForce || 0))),
+     };
+     const initialFuelKg = positiveNumber(
+       xpData.initial_fuel_kg,
+       liveData.initial_fuel_kg
+     );
+     let currentFuelKg = positiveNumber(
+       finalFlightData.fuelKg,
+       liveData.fuel_kg,
+       liveData.last_valid_fuel_kg,
+       xpData.fuel_kg,
+       xpData.last_valid_fuel_kg
+     );
+     const fuelPct = Math.max(
+       0,
+       Math.min(100, Number(nonZeroNumber(finalFlightData.fuel, liveData.fuel_percentage, xpData.fuel_percentage) || 0))
+     );
+     const pctDerivedFuelKg = (initialFuelKg > 0 && fuelPct > 0)
+       ? ((initialFuelKg * fuelPct) / 100)
+       : 0;
+     if (initialFuelKg > 0 && pctDerivedFuelKg > 0) {
+       if (currentFuelKg <= 0) {
+         currentFuelKg = pctDerivedFuelKg;
+       } else {
+         const maxDriftKg = initialFuelKg * 0.55;
+         if (Math.abs(currentFuelKg - pctDerivedFuelKg) > maxDriftKg) {
+           currentFuelKg = pctDerivedFuelKg;
+         }
+       }
+     }
+     if (initialFuelKg > 0) {
+       currentFuelKg = Math.min(currentFuelKg, initialFuelKg);
+     }
      const fuelUsedKg = Math.max(0, initialFuelKg - currentFuelKg);
      const fuelUsed = fuelUsedKg * 1.25; // kg -> liters (Jet-A density ~0.8 kg/L, so 1kg ≈ 1.25L)
      const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
@@ -827,8 +770,51 @@ export default function FlightTracker() {
      // Landing and airport fees
      const airportFee = 150;
 
-      // Check for crash
-      const hasCrashed = finalFlightData.events.crash;
+     // Check for crash or off-airport landing (>=10 NM from arrival airport)
+      const backendCrashAtCompletion = !!xpData.crash;
+      const hasCrashed = backendCrashAtCompletion;
+      if (finalFlightData.events?.crash !== hasCrashed) {
+        finalFlightData = {
+          ...finalFlightData,
+          events: { ...(finalFlightData.events || {}), crash: hasCrashed }
+        };
+      }
+      const simbriefArrival = xpData.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
+      const contractArrival = getAirportCoords(contract?.arrival_airport);
+      const lastPathPoint = Array.isArray(xpData.flight_path) && xpData.flight_path.length > 0
+        ? xpData.flight_path[xpData.flight_path.length - 1]
+        : null;
+      const arrivalPos = pickFirstValidLatLon([
+        [finalFlightData.arrival_lat, finalFlightData.arrival_lon],
+        [xpData.arrival_lat, xpData.arrival_lon],
+        [simbriefArrival?.lat, simbriefArrival?.lon],
+        [simbriefArrival?.latitude, simbriefArrival?.longitude],
+        [contractArrival?.lat, contractArrival?.lon],
+      ]);
+      const currentPos = pickFirstValidLatLon([
+        [finalFlightData.latitude, finalFlightData.longitude],
+        [xpData.latitude, xpData.longitude],
+        [Array.isArray(lastPathPoint) ? lastPathPoint[0] : null, Array.isArray(lastPathPoint) ? lastPathPoint[1] : null],
+      ]);
+      const arrivalLat = arrivalPos.lat;
+      const arrivalLon = arrivalPos.lon;
+      const currentLat = currentPos.lat;
+      const currentLon = currentPos.lon;
+      const hasArrivalCoords = arrivalPos.valid;
+      const hasCurrentCoords = currentPos.valid;
+      const arrivalDistanceNm = (hasArrivalCoords && hasCurrentCoords)
+        ? calculateHaversineDistance(currentLat, currentLon, arrivalLat, arrivalLon)
+        : 0;
+      const landedTooFarFromArrival = (hasArrivalCoords && hasCurrentCoords) && arrivalDistanceNm >= 10;
+      const emergencyOffAirportCompletion = landedTooFarFromArrival && !!emergencyLanding && !hasCrashed;
+      const wrongAirport = !!(finalFlightData.events.wrong_airport || (landedTooFarFromArrival && !emergencyLanding));
+      if (wrongAirport && !finalFlightData.events.wrong_airport) {
+        finalFlightData = {
+          ...finalFlightData,
+          events: { ...finalFlightData.events, wrong_airport: true }
+        };
+      }
+      const emergencyScorePenalty = emergencyOffAirportCompletion ? 30 : 0;
 
      // Bei Crash: KEIN Payout und KEIN Bonus
      let revenue = 0;
@@ -836,7 +822,10 @@ export default function FlightTracker() {
      let landingPenaltyUsed = 0;
      // Calculate crew bonus based on attributes
      let crewBonusAmount = 0;
-     if (!hasCrashed) {
+     if (!hasCrashed && !wrongAirport) {
+       if (emergencyOffAirportCompletion) {
+         revenue = Math.round((contract?.payout || 0) * 0.30);
+       } else {
        const activeFl = flight || existingFlight;
        if (activeFl?.crew && Array.isArray(activeFl.crew)) {
          // Fetch crew member details for attribute bonuses
@@ -869,6 +858,7 @@ export default function FlightTracker() {
        }
        // Add time bonus + crew bonus
        revenue += timeBonus + crewBonusAmount;
+       }
      }
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
@@ -915,18 +905,11 @@ export default function FlightTracker() {
               }
             }
             
-            const scoreWithTime = hasCrashed ? 0 : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange));
+            const scoreWithTime = (hasCrashed || wrongAirport)
+              ? 0
+              : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange - emergencyScorePenalty));
 
-            console.log('🎯 SCORE BERECHNUNG:', {
-             baseScore: finalFlightData.flightScore,
-             adjustedFlightScore,
-             landingScoreChange,
-             timeScoreChange,
-             finalScoreWithTime: scoreWithTime,
-             hasCrashed,
-             events: finalFlightData.events,
-             landingType: finalFlightData.landingType
-            });
+            console.log('🎯 SCORE:', { adj: adjustedFlightScore, time: timeScoreChange, final: scoreWithTime, crash: hasCrashed });
 
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
@@ -946,59 +929,124 @@ export default function FlightTracker() {
               totalMaintenanceCostWithCrash
             });
             
+            // Fetch LATEST xplane_data from DB (local state may be stale, missing current flight_path)
+            let existingXpData = activeFlight?.xplane_data || {};
+            const freshFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
+            if (freshFlights[0]?.xplane_data) {
+              existingXpData = freshFlights[0].xplane_data;
+              xpData = freshFlights[0].xplane_data;
+            }
+            const liveXpData = xplaneLog?.raw_data || {};
+            const preservedFlightPath = xpData.flight_path || finalFlightData.flight_path || existingXpData.flight_path || liveXpData.flight_path || [];
+            const preservedFlightEventsLog = xpData.flight_events_log || finalFlightData.flight_events_log || existingXpData.flight_events_log || liveXpData.flight_events_log || [];
+            const preservedBridgeEventLog = xpData.bridge_event_log || finalFlightData.bridge_event_log || existingXpData.bridge_event_log || liveXpData.bridge_event_log || [];
+            const preservedTelemetryHistory = xpData.telemetry_history || existingXpData.telemetry_history || liveXpData.telemetry_history || [];
+            const preservedFmsWaypoints = xpData.fms_waypoints || existingXpData.fms_waypoints || liveXpData.fms_waypoints || [];
+            const preservedSimbriefWaypoints = xpData.simbrief_waypoints || existingXpData.simbrief_waypoints || liveXpData.simbrief_waypoints || [];
+            const preservedSimbriefRouteString = xpData.simbrief_route_string || existingXpData.simbrief_route_string || liveXpData.simbrief_route_string || null;
+            const preservedSimbriefDepCoords = xpData.simbrief_departure_coords || existingXpData.simbrief_departure_coords || liveXpData.simbrief_departure_coords || null;
+            const preservedSimbriefArrCoords = xpData.simbrief_arrival_coords || existingXpData.simbrief_arrival_coords || liveXpData.simbrief_arrival_coords || null;
+            const existingLandingTrusted = !!(
+              existingXpData.touchdown_detected ||
+              existingXpData.landing_data_locked ||
+              existingXpData.bridge_local_landing_locked ||
+              existingXpData.landing_data_source === 'bridge_local'
+            );
+            const saveLandingTrusted = landingDataTrusted || existingLandingTrusted;
+            const localLandingVs = landingDataTrusted ? Number(finalFlightData.landingVs || 0) : 0;
+            const localLandingG = landingDataTrusted ? Number(finalFlightData.landingGForce || 0) : 0;
+            const resolvedTouchdownForSave = saveLandingTrusted
+              ? (localLandingVs > 0
+                  ? localLandingVs
+                  : Number(xpData.touchdown_vspeed || liveData.touchdown_vspeed || existingXpData.touchdown_vspeed || 0))
+              : 0;
+            const resolvedLandingGForSave = saveLandingTrusted
+              ? (localLandingG > 0
+                  ? localLandingG
+                  : Number(
+                      xpData.landing_g_force ||
+                      xpData.landingGForce ||
+                      liveData.landing_g_force ||
+                      liveData.landingGForce ||
+                      existingXpData.landing_g_force ||
+                      existingXpData.landingGForce ||
+                      0
+                    ))
+              : 0;
+            const storedTouchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(resolvedTouchdownForSave || 0))));
+            const storedLandingG = Math.max(0, Math.min(6, Number(resolvedLandingGForSave || 0)));
+            const hasCrashedFinal = hasCrashed;
+
             await base44.entities.Flight.update(activeFlight.id, {
-              status: hasCrashed ? 'failed' : 'completed',
-              arrival_time: new Date().toISOString(),
-              flight_score: scoreWithTime,
-              takeoff_rating: scoreToRating(scoreWithTime),
-              flight_rating: scoreToRating(scoreWithTime),
-              landing_rating: scoreToRating(scoreWithTime),
-              overall_rating: scoreToRating(scoreWithTime),
-              landing_vs: finalFlightData.landingVs,
-              max_g_force: finalFlightData.maxGForce,
-              fuel_used_liters: fuelUsed,
-              fuel_cost: fuelCost,
-              crew_cost: crewCost,
-              maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
-              flight_duration_hours: flightHours,
-              revenue,
-              profit,
-              passenger_comments: generateComments(scoreWithTime, finalFlightData),
-              xplane_data: {
-                ...finalFlightData,
-                final_score: scoreWithTime,
-                flightHours,
-                timeScoreChange,
-                timeBonus,
-                madeDeadline,
-                deadlineMinutes,
-                totalRevenue: contract?.payout || 0,
-                landingBonus: landingBonusUsed,
-                landingPenalty: landingPenaltyUsed,
-                levelBonus: levelBonus,
-                levelBonusPercent: levelBonusPercent * 100,
-                companyLevel: company?.level || 1,
-                crewBonus: crewBonusAmount,
-                events: finalFlightData.events,
-                crashMaintenanceCost: crashMaintenanceCost
-              }
-            });
+               status: (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed',
+               arrival_time: new Date().toISOString(),
+               flight_score: scoreWithTime,
+               takeoff_rating: scoreToRating(scoreWithTime),
+               flight_rating: scoreToRating(scoreWithTime),
+               landing_rating: scoreToRating(scoreWithTime),
+               overall_rating: scoreToRating(scoreWithTime),
+               landing_vs: storedTouchdownVs,
+               max_g_force: finalFlightData.maxGForce,
+               fuel_used_liters: fuelUsed,
+               fuel_cost: fuelCost,
+               crew_cost: crewCost,
+               maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
+               flight_duration_hours: flightHours,
+               revenue,
+               profit,
+               passenger_comments: generatePassengerComments(scoreWithTime, finalFlightData),
+               xplane_data: {
+                 ...finalFlightData,
+                 landing_g_force: storedLandingG,
+                 touchdown_vspeed: storedTouchdownVs,
+                 touchdown_detected: saveLandingTrusted && (storedTouchdownVs > 0 || storedLandingG > 0),
+                 flight_path: preservedFlightPath,
+                 flight_events_log: preservedFlightEventsLog,
+                 bridge_event_log: preservedBridgeEventLog,
+                 telemetry_history: preservedTelemetryHistory,
+                 fms_waypoints: preservedFmsWaypoints,
+                 simbrief_waypoints: preservedSimbriefWaypoints,
+                 simbrief_route_string: preservedSimbriefRouteString,
+                 simbrief_departure_coords: preservedSimbriefDepCoords,
+                 simbrief_arrival_coords: preservedSimbriefArrCoords,
+                 departure_lat: existingXpData.departure_lat || finalFlightData.departure_lat || 0,
+                 departure_lon: existingXpData.departure_lon || finalFlightData.departure_lon || 0,
+                 arrival_lat: existingXpData.arrival_lat || finalFlightData.arrival_lat || 0,
+                 arrival_lon: existingXpData.arrival_lon || finalFlightData.arrival_lon || 0,
+                 // Completion metadata
+                 final_score: scoreWithTime,
+                 flightHours,
+                 timeScoreChange,
+                 timeBonus,
+                 madeDeadline,
+                 deadlineMinutes,
+                 totalRevenue: contract?.payout || 0,
+                 landingBonus: landingBonusUsed,
+                 landingPenalty: landingPenaltyUsed,
+                 levelBonus: levelBonus,
+                 levelBonusPercent: levelBonusPercent * 100,
+                 companyLevel: company?.level || 1,
+                 crewBonus: crewBonusAmount,
+                 arrival_distance_nm: hasArrivalCoords && hasCurrentCoords ? Math.round(arrivalDistanceNm * 10) / 10 : null,
+                 landed_too_far_from_arrival: landedTooFarFromArrival,
+                 emergency_landing_declared: !!emergencyLanding,
+                 emergency_off_airport_completion: emergencyOffAirportCompletion,
+                 emergency_score_penalty: emergencyScorePenalty,
+                 emergency_payout_factor: emergencyOffAirportCompletion ? 0.3 : 1.0,
+                 events: finalFlightData.events,
+                 crashMaintenanceCost: crashMaintenanceCost
+               }
+             });
 
             // Update contract
-            console.log('Aktualisiere Contract Status:', activeFlight.contract_id, hasCrashed ? 'failed' : 'completed');
-            await base44.entities.Contract.update(activeFlight.contract_id, { status: hasCrashed ? 'failed' : 'completed' });
+            console.log('Aktualisiere Contract Status:', activeFlight.contract_id, (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed');
+            await base44.entities.Contract.update(activeFlight.contract_id, { status: (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed' });
 
             // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
             const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostWithCrash;
 
-            console.log('Wartungskosten Update:', {
-              currentAccumulatedCost,
-              flightMaintenanceCost: finalFlightData.maintenanceCost,
-              crashMaintenanceCost,
-              totalMaintenanceCostWithCrash,
-              newAccumulatedCost
-            });
+            console.log('Wartungskosten Update:', { currentAccumulatedCost, totalMaintenanceCostWithCrash, newAccumulatedCost });
 
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (activeFlight?.aircraft_id) {
@@ -1103,7 +1151,7 @@ export default function FlightTracker() {
             // Update company - only deduct direct costs (fuel, crew, airport)
             if (company) {
               // Reputation based on score (0-100)
-              const reputationChange = hasCrashed ? -10 : Math.round((scoreWithTime - 85) / 5);
+              const reputationChange = (hasCrashed || wrongAirport) ? -10 : Math.round((scoreWithTime - 85) / 5);
               
               // XP and Level system with level-up bonus
               const calculateXPForLevel = (level) => Math.round(100 * Math.pow(1.1, level - 1));
@@ -1174,6 +1222,7 @@ export default function FlightTracker() {
       // Wenn null zurückgegeben wurde, war die Mutation bereits in Bearbeitung
       if (!updatedFlight) {
         console.log('⚠️ Keine Daten - Flug wurde bereits abgeschlossen');
+        setShowAutoCompleteOverlay(false);
         return;
       }
 
@@ -1198,8 +1247,17 @@ export default function FlightTracker() {
     onError: (error) => {
       console.error('❌ FEHLER BEIM FLUGABSCHLUSS:', error);
       setIsCompletingFlight(false);
+      setShowAutoCompleteOverlay(false);
     }
   });
+
+  useEffect(() => {
+    return () => {
+      if (autoCompleteTimeoutRef.current) {
+        clearTimeout(autoCompleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Update flight duration every second
   useEffect(() => {
@@ -1229,23 +1287,36 @@ export default function FlightTracker() {
 
     const xp = xplaneLog.raw_data;
 
-    // Check for crash via X-Plane dataref - NUR wenn wasAirborne
-    if (xp.has_crashed && flightData.wasAirborne) {
-    setFlightData(prev => ({
-      ...prev,
-      events: {
-        ...prev.events,
-        crash: true
-      }
-    }));
-    }
+    // Backend already publishes trusted crash state in xp.crash.
+    // Avoid re-inferring crashes here from transient dynamics.
+    const crashSignal = !!xp.crash;
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;
       const newMaxControlInput = Math.max(prev.maxControlInput, xp.control_input || 0);
 
-      // Track if aircraft was airborne
-      const newWasAirborne = prev.wasAirborne || (!xp.on_ground && xp.altitude > 10);
+      // Track airborne state for THIS contract only; ignore stale payload flags.
+      const airborneEvidence = !xp.on_ground && (
+        Number(xp.speed || 0) > 35 ||
+        Math.abs(Number(xp.vertical_speed || 0)) > 200
+      );
+      const activeFlight = flight || existingFlight;
+      const parseMs = (v) => {
+        const ms = Date.parse(String(v || ""));
+        return Number.isFinite(ms) ? ms : NaN;
+      };
+      const sessionStartMs = parseMs(activeFlight?.departure_time || activeFlight?.created_date);
+      const backendAirborneMs = parseMs(xp.airborne_started_at || xp.completion_armed_at);
+      const backendAirborneFlags = !!(xp.completion_armed || xp.was_airborne);
+      const backendAirborneInSession =
+        backendAirborneFlags &&
+        Number.isFinite(sessionStartMs) &&
+        Number.isFinite(backendAirborneMs) &&
+        backendAirborneMs >= (sessionStartMs - 5000);
+      const backendAirborneArmed = backendAirborneInSession || (!xp.on_ground && !!xp.completion_armed);
+      // Never arm airborne from backend flags while currently on ground.
+      // This blocks stale session flags from instantly completing a new flight.
+      const newWasAirborne = prev.wasAirborne || airborneEvidence || (!xp.on_ground && backendAirborneArmed);
 
       // KRITISCH: Solange nicht abgehoben, keine Events/Kosten/Scores verarbeiten
       if (!newWasAirborne) {
@@ -1268,6 +1339,11 @@ export default function FlightTracker() {
           departure_lon: prev.departure_lon || xp.departure_lon || curLon || 0,
           arrival_lat: prev.arrival_lat || xp.arrival_lat || 0,
           arrival_lon: prev.arrival_lon || xp.arrival_lon || 0,
+          events: {
+            tailstrike: false, stall: false, overstress: false, overspeed: false,
+            flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
+            crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
+          },
           wasAirborne: false,
         };
         flightDataRef.current = groundData;
@@ -1279,24 +1355,38 @@ export default function FlightTracker() {
 
       // Landing detection based on vertical speed
       const currentSpeed = xp.speed || 0;
+      const landingDataTrusted = !!(
+        xp.touchdown_detected ||
+        xp.landing_data_locked ||
+        xp.bridge_local_landing_locked ||
+        xp.landing_data_source === 'bridge_local'
+      );
       // Ensure we capture landing VS properly - preserve after landing
-      const touchdownVs = prev.landingType 
+      const touchdownVsRaw = prev.landingType
         ? prev.landingVs  // Already landed - keep the captured value
-        : (xp.landing_vs || xp.touchdown_vspeed || 0);
+        : ((xp.on_ground && newWasAirborne && landingDataTrusted)
+            ? (xp.touchdown_vspeed || 0)
+            : 0);
+      const touchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(touchdownVsRaw || 0))));
       // Landing G-force: Capture the ACTUAL g-force at touchdown moment
       // NOT the peak g-force during the entire flight
       // Once landed (landingType set), preserve the captured value
       let landingGForceValue;
       if (prev.landingType) {
         landingGForceValue = prev.landingGForce; // Already landed - keep captured value
-      } else if (xp.on_ground && newWasAirborne) {
-        // At the moment of touchdown: prefer landing_g_force from plugin (actual touchdown G),
-        // then current g_force, but NOT previous peak g_force
-        landingGForceValue = xp.landing_g_force || currentGForce;
+      } else if (xp.on_ground && newWasAirborne && landingDataTrusted) {
+        // Use only measured touchdown G from backend/bridge and preserve once captured.
+        const reportedLandingG = Number(xp.landing_g_force || 0);
+        landingGForceValue = reportedLandingG > 0 ? Math.min(6, reportedLandingG) : Number(prev.landingGForce || 0);
       } else {
-        // Still airborne - don't accumulate peak, just track current for display
+        // Still airborne (or false on_ground glitch) - do not synthesize landing G.
         landingGForceValue = 0;
       }
+      const nextLandingVs = prev.landingType
+        ? Number(prev.landingVs || 0)
+        : ((xp.on_ground && newWasAirborne && landingDataTrusted && touchdownVs > 0)
+            ? touchdownVs
+            : Number(prev.landingVs || 0));
 
       // Landing categories based on G-force only
       let landingType = prev.landingType;
@@ -1310,7 +1400,7 @@ export default function FlightTracker() {
        const currentAircraft = aircraft?.find(a => a.id === aircraftId);
        const aircraftPurchasePrice = currentAircraft?.purchase_price || 1000000; // fallback price if not found
 
-      if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && !prev.events.crash && !prev.landingType) {
+      if (landingGForceValue > 0 && xp.on_ground && newWasAirborne && landingDataTrusted && !prev.events.crash && !prev.landingType) {
         const gForce = landingGForceValue;
         // Revenue = contract payout (Gesamteinnahmen)
         const totalRevenue = contract?.payout || 0;
@@ -1345,7 +1435,8 @@ export default function FlightTracker() {
       }
 
       // Crash nur wenn tatsächlich abgehoben war
-      const isCrash = (landingType === 'crash' || prev.events.crash || (xp.has_crashed && newWasAirborne)) && newWasAirborne;
+      const isCrashArmed = newWasAirborne;
+      const isCrash = (landingType === 'crash' || prev.events.crash || (crashSignal && isCrashArmed)) && isCrashArmed;
       
       // Calculate score penalties - only deduct when NEW event occurs
       let baseScore = prev.flightScore;
@@ -1442,6 +1533,10 @@ export default function FlightTracker() {
       const arrLat = prev.arrival_lat || xp.arrival_lat || 0;
       const arrLon = prev.arrival_lon || xp.arrival_lon || 0;
       
+      // Merge events: backend xplane_data events are authoritative (once true, always true)
+      // Local detection adds to them but never overrides true->false
+      const mergedEvents = { tailstrike: !!(xp.tailstrike || prev.events.tailstrike), stall: !!(xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha || prev.events.stall), overstress: !!(xp.overstress || prev.events.overstress), overspeed: !!(xp.overspeed || prev.events.overspeed), flaps_overspeed: !!(flapsOverspeedDetected || xp.flaps_overspeed || prev.events.flaps_overspeed), fuel_emergency: !!(xp.fuel_emergency || prev.events.fuel_emergency), gear_up_landing: !!(xp.gear_up_landing || prev.events.gear_up_landing), crash: !!isCrash, harsh_controls: !!(xp.harsh_controls || prev.events.harsh_controls), high_g_force: !!(newMaxGForce >= 1.5 || prev.events.high_g_force), hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing), wrong_airport: !!(prev.events.wrong_airport) };
+
       const newData = {
         altitude: xp.altitude || prev.altitude,
         speed: xp.speed || prev.speed,
@@ -1452,7 +1547,7 @@ export default function FlightTracker() {
         gForce: currentGForce,
         maxGForce: newMaxGForce,
         landingGForce: landingGForceValue,
-        landingVs: touchdownVs !== 0 ? touchdownVs : prev.landingVs,
+        landingVs: nextLandingVs,
         landingType: landingType,
         landingScoreChange: landingScoreChange,
         landingMaintenanceCost: landingMaintenanceCost,
@@ -1466,19 +1561,7 @@ export default function FlightTracker() {
         departure_lon: depLon,
         arrival_lat: arrLat,
         arrival_lon: arrLon,
-        events: {
-         tailstrike: xp.tailstrike || prev.events.tailstrike,
-         stall: (xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha) || prev.events.stall,
-         overstress: xp.overstress || prev.events.overstress,
-          overspeed: xp.overspeed || prev.events.overspeed,
-          flaps_overspeed: flapsOverspeedDetected || prev.events.flaps_overspeed,
-          fuel_emergency: xp.fuel_emergency || prev.events.fuel_emergency,
-          gear_up_landing: xp.gear_up_landing || prev.events.gear_up_landing,
-          crash: isCrash,
-          harsh_controls: xp.harsh_controls || prev.events.harsh_controls,
-          high_g_force: newMaxGForce >= 1.5 || prev.events.high_g_force,
-          hard_landing: landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing
-        },
+        events: mergedEvents,
         maxControlInput: newMaxControlInput,
         wasAirborne: newWasAirborne,
         previousSpeed: currentSpeed
@@ -1486,21 +1569,8 @@ export default function FlightTracker() {
       
 
 
-      // Update ref with latest data
       flightDataRef.current = newData;
-
-      // Update processed G levels if we processed new ones
-      if (newMaxGForce >= 1.5) {
-       const currentGLevel = Math.floor(newMaxGForce);
-       setProcessedGLevels(prev => {
-         const updated = new Set(prev);
-         for (let gLevel = 2; gLevel <= currentGLevel; gLevel++) {
-           updated.add(gLevel);
-         }
-         return updated;
-       });
-      }
-
+      if (newMaxGForce >= 1.5) { const cl = Math.floor(newMaxGForce); setProcessedGLevels(p => { const u = new Set(p); for (let g = 2; g <= cl; g++) u.add(g); return u; }); }
       return newData;
       });
 
@@ -1521,35 +1591,64 @@ export default function FlightTracker() {
     // Erlaube Abschluss in ALLEN aktiven Flugphasen (takeoff, cruise, landing)
     const isActivePhase = flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing';
     
+    // Use the freshest synchronized state (ref) to avoid stale React-state races.
+    const latestFlightData = flightDataRef.current || flightData;
+
     // flightStartTime kann null sein wenn der Flug wiederhergestellt wurde - dann setze es jetzt
-    if (flightData.wasAirborne && !flightStartTime) {
+    if (latestFlightData.wasAirborne && !flightStartTime) {
       setFlightStartTime(Date.now());
     }
     
-    // Landing detection: aircraft was airborne, is now on ground, in any active flight phase
-    // Also detect "ready_to_complete" status from backend (parked with engines off + parking brake)
-    const isReadyToComplete = xp.on_ground && flightData.wasAirborne;
+    // Auto-complete trigger: require backend arming to avoid stale on_ground completions right after takeoff.
+    const isReadyToComplete = xp.on_ground && latestFlightData.wasAirborne && !!xp.completion_armed;
     if (isReadyToComplete && (flightPhase === 'takeoff' || flightPhase === 'cruise' || flightPhase === 'landing') && !completeFlightMutation.isPending && !isCompletingFlight) {
-      console.log('🛬 LANDUNG ERKANNT (on_ground + ' + flightPhase + ' phase) - Warte auf Flugabschluss');
+      // Check distance to arrival airport (>=10 NM without emergency = failed)
+      const simbriefArr = xp.simbrief_arrival_coords || xplaneLog?.raw_data?.simbrief_arrival_coords || simbriefRoute?.arrival_coords || null;
+      const contractArrival = getAirportCoords(contract?.arrival_airport);
+      const arrivalPos = pickFirstValidLatLon([
+            [latestFlightData.arrival_lat, latestFlightData.arrival_lon],
+            [xp.arrival_lat, xp.arrival_lon],
+            [simbriefArr?.lat, simbriefArr?.lon],
+            [simbriefArr?.latitude, simbriefArr?.longitude],
+            [contractArrival?.lat, contractArrival?.lon],
+          ]);
+          const currentPos = pickFirstValidLatLon([
+            [xp.latitude, xp.longitude],
+            [latestFlightData.latitude, latestFlightData.longitude],
+          ]);
+      const dArr = (arrivalPos.valid && currentPos.valid)
+        ? calculateHaversineDistance(currentPos.lat, currentPos.lon, arrivalPos.lat, arrivalPos.lon)
+        : 0;
+      if (arrivalPos.valid && currentPos.valid && dArr >= 10 && !emergencyLanding) {
+        console.log(`🚨 WRONG AIRPORT (${Math.round(dArr)} NM) - FAILED`);
+        setFlightData(prev => { const u = { ...prev, events: { ...prev.events, wrong_airport: true }, flightScore: 0 }; flightDataRef.current = u; return u; });
+      }
       setFlightPhase('completed');
-      // Delay to ensure the landing score/bonus state update is committed via flightDataRef
-      setTimeout(() => {
+      setShowAutoCompleteOverlay(true);
+      // Keep a buffer >= bridge send interval so touchdown VS/G reaches backend before completion.
+      if (autoCompleteTimeoutRef.current) {
+        clearTimeout(autoCompleteTimeoutRef.current);
+      }
+      autoCompleteTimeoutRef.current = setTimeout(() => {
+        autoCompleteTimeoutRef.current = null;
         completeFlightMutation.mutate();
-      }, 500);
+      }, 3200);
     }
 
     // Auto-complete flight on crash - NUR wenn bereits abgehoben
-    if (flightData.events.crash && flightData.wasAirborne && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
+    if (latestFlightData.events.crash && latestFlightData.wasAirborne && isActivePhase && !completeFlightMutation.isPending && !isCompletingFlight) {
       console.log('💥 CRASH ERKANNT - Starte Flugabschluss');
       setFlightPhase('completed');
-      setTimeout(() => {
+      setShowAutoCompleteOverlay(true);
+      if (autoCompleteTimeoutRef.current) {
+        clearTimeout(autoCompleteTimeoutRef.current);
+      }
+      autoCompleteTimeoutRef.current = setTimeout(() => {
+        autoCompleteTimeoutRef.current = null;
         completeFlightMutation.mutate();
       }, 200);
     }
-  }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime]);
-
-  // FailuresCard removed - failures are shown in the Events section above
-  // No extra DB queries needed
+  }, [xplaneLog, flight, existingFlight, flightPhase, completeFlightMutation, flightData.altitude, flightData.wasAirborne, flightData.events.crash, flightStartedAt, flightStartTime, emergencyLanding, simbriefRoute]);
 
   const phaseLabels = {
     preflight: t('preflight', lang),
@@ -1573,61 +1672,76 @@ export default function FlightTracker() {
 
   const calculateDistanceInfo = () => {
     if (!contract || flightPhase === 'preflight') return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
-    
-    const hasCurrentPos = (flightData.latitude !== 0 || flightData.longitude !== 0);
-    const hasArrivalCoords = flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0;
-    const hasDepartureCoords = flightData.departure_lat !== 0 || flightData.departure_lon !== 0;
-    
-    if (hasCurrentPos) {
-      // Total route distance: prefer calculated from departure->arrival coords, fallback to contract distance_nm
-      let totalDistance = contract?.distance_nm || 0;
-      
-      if (hasArrivalCoords) {
-        // We have arrival coordinates - calculate remaining distance directly
-        const remainingDistance = calculateHaversineDistance(
-          flightData.latitude, flightData.longitude,
-          flightData.arrival_lat, flightData.arrival_lon
-        );
-        
-        if (hasDepartureCoords) {
-          totalDistance = calculateHaversineDistance(
-            flightData.departure_lat, flightData.departure_lon,
-            flightData.arrival_lat, flightData.arrival_lon
-          );
+    const hasPos = flightData.latitude !== 0 || flightData.longitude !== 0;
+    // Use SimBrief route if available
+    const xpd = (flight || existingFlight)?.xplane_data || {};
+    const sbWps = simbriefRoute?.waypoints || xpd.simbrief_waypoints || [];
+    const sbDep = simbriefRoute?.departure_coords || xpd.simbrief_departure_coords;
+    const sbArr = simbriefRoute?.arrival_coords || xpd.simbrief_arrival_coords;
+    if (sbWps.length >= 2 && hasPos) {
+      const pts = [];
+      if (sbDep?.lat && sbDep?.lon) pts.push({ lat: +sbDep.lat, lon: +sbDep.lon });
+      sbWps.forEach(wp => { const la = +wp?.lat, lo = +wp?.lon; if (Number.isFinite(la) && Number.isFinite(lo)) pts.push({ lat: la, lon: lo }); });
+      if (sbArr?.lat && sbArr?.lon) pts.push({ lat: +sbArr.lat, lon: +sbArr.lon });
+      if (pts.length >= 2) {
+        let totalNm = 0;
+        for (let i = 0; i < pts.length - 1; i++) totalNm += calculateHaversineDistance(pts[i].lat, pts[i].lon, pts[i+1].lat, pts[i+1].lon);
+        let minD = Infinity, cIdx = 0, cFrac = 0;
+        for (let i = 0; i < pts.length - 1; i++) {
+          const sL = calculateHaversineDistance(pts[i].lat, pts[i].lon, pts[i+1].lat, pts[i+1].lon);
+          if (sL < 0.1) continue;
+          const dA = calculateHaversineDistance(pts[i].lat, pts[i].lon, flightData.latitude, flightData.longitude);
+          const dB = calculateHaversineDistance(pts[i+1].lat, pts[i+1].lon, flightData.latitude, flightData.longitude);
+          let f = (dA*dA - dB*dB + sL*sL) / (2*sL*sL); f = Math.max(0, Math.min(1, f));
+          const pLat = pts[i].lat + f*(pts[i+1].lat-pts[i].lat), pLon = pts[i].lon + f*(pts[i+1].lon-pts[i].lon);
+          const d = calculateHaversineDistance(flightData.latitude, flightData.longitude, pLat, pLon);
+          if (d < minD) { minD = d; cIdx = i; cFrac = f; }
         }
-        
-        if (totalDistance <= 0) totalDistance = contract?.distance_nm || remainingDistance;
-        
-        const progress = ((totalDistance - remainingDistance) / totalDistance) * 100;
-        return { 
-          progress: Math.max(0, Math.min(100, progress)), 
-          remainingNm: Math.max(0, Math.round(remainingDistance)),
-          totalNm: Math.round(totalDistance)
-        };
-      }
-      
-      // No arrival coords but have current position and departure coords
-      // Estimate progress based on distance from departure vs total contract distance
-      if (hasDepartureCoords && totalDistance > 0) {
-        const flownDistance = calculateHaversineDistance(
-          flightData.departure_lat, flightData.departure_lon,
-          flightData.latitude, flightData.longitude
-        );
-        const remainingDistance = Math.max(0, totalDistance - flownDistance);
-        const progress = (flownDistance / totalDistance) * 100;
-        return {
-          progress: Math.max(0, Math.min(100, progress)),
-          remainingNm: Math.max(0, Math.round(remainingDistance)),
-          totalNm: Math.round(totalDistance)
-        };
+        const cSL = calculateHaversineDistance(pts[cIdx].lat, pts[cIdx].lon, pts[cIdx+1].lat, pts[cIdx+1].lon);
+        let rem = cSL * (1 - cFrac);
+        for (let j = cIdx + 1; j < pts.length - 1; j++) rem += calculateHaversineDistance(pts[j].lat, pts[j].lon, pts[j+1].lat, pts[j+1].lon);
+        const flown = Math.max(0, totalNm - rem);
+        return { progress: Math.max(0, Math.min(100, totalNm > 0 ? (flown / totalNm) * 100 : 0)), remainingNm: Math.max(0, Math.round(rem)), totalNm: Math.round(totalNm) };
       }
     }
-    
+    // Fallback: direct line
+    const hasArr = flightData.arrival_lat !== 0 || flightData.arrival_lon !== 0;
+    const hasDep = flightData.departure_lat !== 0 || flightData.departure_lon !== 0;
+    if (hasPos && hasArr) {
+      const rem = calculateHaversineDistance(flightData.latitude, flightData.longitude, flightData.arrival_lat, flightData.arrival_lon);
+      let tot = contract?.distance_nm || 0;
+      if (hasDep) tot = calculateHaversineDistance(flightData.departure_lat, flightData.departure_lon, flightData.arrival_lat, flightData.arrival_lon);
+      if (tot <= 0) tot = contract?.distance_nm || rem;
+      return { progress: Math.max(0, Math.min(100, ((tot - rem) / tot) * 100)), remainingNm: Math.max(0, Math.round(rem)), totalNm: Math.round(tot) };
+    }
+    if (hasPos && hasDep && (contract?.distance_nm || 0) > 0) {
+      const flown = calculateHaversineDistance(flightData.departure_lat, flightData.departure_lon, flightData.latitude, flightData.longitude);
+      const tot = contract.distance_nm;
+      return { progress: Math.max(0, Math.min(100, (flown / tot) * 100)), remainingNm: Math.max(0, Math.round(tot - flown)), totalNm: Math.round(tot) };
+    }
     return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
   };
 
   const distanceInfo = calculateDistanceInfo();
   const distanceProgress = distanceInfo.progress;
+  const liveXpd = (flight || existingFlight)?.xplane_data || {};
+  const backendMapPath = (Array.isArray(xplaneLog?.raw_data?.flight_path) && xplaneLog.raw_data.flight_path.length > 0)
+    ? xplaneLog.raw_data.flight_path
+    : (Array.isArray(liveXpd.flight_path) ? liveXpd.flight_path : []);
+  const mapFlightPath = (Array.isArray(backendMapPath) && backendMapPath.length >= localMapPath.length)
+    ? backendMapPath
+    : localMapPath;
+  const mapFlightEventsLog = (() => {
+    const rawLog = xplaneLog?.raw_data?.flight_events_log;
+    if (Array.isArray(rawLog) && rawLog.length > 0) return rawLog;
+    const xpdLog = liveXpd?.flight_events_log;
+    if (Array.isArray(xpdLog) && xpdLog.length > 0) return xpdLog;
+    const rawBridgeLog = xplaneLog?.raw_data?.bridge_event_log;
+    if (Array.isArray(rawBridgeLog) && rawBridgeLog.length > 0) return rawBridgeLog;
+    const xpdBridgeLog = liveXpd?.bridge_event_log;
+    if (Array.isArray(xpdBridgeLog) && xpdBridgeLog.length > 0) return xpdBridgeLog;
+    return [];
+  })();
 
   if (flightPhase === 'preflight' && !contract) {
     return (
@@ -1647,68 +1761,69 @@ export default function FlightTracker() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Flight Header */}
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost"
+            onClick={() => navigate(createPageUrl("ActiveFlights"))}
+            className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50"
+          >
+            ◀ {t('back', lang)}
+          </Button>
+          <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{contract ? contract.title : 'Flight Tracker'}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {contract && (
+            <div className="flex items-center gap-2 sm:gap-4 text-slate-400 text-[10px] font-mono uppercase bg-slate-950 px-2 py-1 rounded border border-slate-800">
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-cyan-600" />
+                {contract.departure_airport}
+              </span>
+              <span>→</span>
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-cyan-600" />
+                {contract.arrival_airport}
+              </span>
+            </div>
+          )}
+          {company?.xplane_connection_status === 'connected' && (
+            <Badge className="bg-emerald-900/40 text-emerald-400 border-emerald-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              {xplaneLog?.raw_data?.simulator === 'msfs' ? 'MSFS Live' :
+               xplaneLog?.raw_data?.simulator === 'msfs2024' ? 'MSFS 2024 Live' :
+               xplaneLog?.raw_data?.simulator === 'xplane' || xplaneLog?.raw_data?.simulator === 'xplane12' ? 'X-Plane Live' :
+               xplaneLog?.raw_data?.simulator ? `${xplaneLog.raw_data.simulator} Live` : 'Sim Live'}
+            </Badge>
+          )}
+          <Badge className={`h-7 rounded text-[10px] font-mono uppercase ${
+            flightPhase === 'completed' 
+              ? 'bg-emerald-900/40 text-emerald-400 border-emerald-700/50'
+              : 'bg-blue-900/40 text-blue-400 border-blue-700/50'
+          }`}>
+            {phaseLabels[flightPhase]}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Tab Warning */}
         {flightPhase !== 'preflight' && flightPhase !== 'completed' && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-center gap-3"
-          >
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-            <p className="text-sm text-amber-300">
+          <div className="mb-2 p-2 bg-amber-950/30 border border-amber-900/50 rounded flex items-center gap-2">
+            <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+            <p className="text-[10px] font-mono text-amber-200">
               {t('tab_warning', lang)}
             </p>
-          </motion.div>
+          </div>
         )}
 
         {contract && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h1 className="text-2xl font-bold">{contract.title}</h1>
-                <div className="flex items-center gap-4 mt-2 text-slate-400">
-                  <span className="flex items-center gap-1 font-mono">
-                    <MapPin className="w-4 h-4" />
-                    {contract.departure_airport}
-                  </span>
-                  <span>→</span>
-                  <span className="flex items-center gap-1 font-mono">
-                    <MapPin className="w-4 h-4" />
-                    {contract.arrival_airport}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-              {company?.xplane_connection_status === 'connected' && (
-                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  X-Plane Live
-                </Badge>
-              )}
-              <Badge className={`px-4 py-2 text-lg ${
-                flightPhase === 'completed' 
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-              }`}>
-                {phaseLabels[flightPhase]}
-              </Badge>
-            </div>
-            </div>
-          </div>
-
-          {/* Progress */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2 text-sm">
+          <div className="mb-6">
+            {/* Progress */}
+            <div className="flex items-center justify-between mb-2 text-sm font-mono uppercase text-cyan-500">
               <span className="flex items-center gap-2">
-                <PlaneTakeoff className="w-4 h-4 text-blue-400" />
+                <PlaneTakeoff className="w-4 h-4 text-cyan-400" />
                 {contract.departure_airport}
               </span>
               <span className="flex items-center gap-2">
@@ -1716,16 +1831,15 @@ export default function FlightTracker() {
                 {contract.arrival_airport}
               </span>
             </div>
-            <Progress value={distanceProgress} className="h-2 bg-slate-700" />
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+            <Progress value={distanceProgress} className="h-3 bg-slate-800" />
+            <div className="mt-2 flex items-center justify-between text-xs font-mono text-slate-400 uppercase">
               <span>{Math.round(distanceInfo.totalNm - distanceInfo.remainingNm)} NM {t('flown', lang)}</span>
-              <span className="font-mono font-semibold text-blue-400">
+              <span className="font-bold text-cyan-400 text-sm">
                 {distanceInfo.remainingNm} NM
               </span>
               <span>{distanceInfo.totalNm} NM {t('total', lang)}</span>
             </div>
           </div>
-        </motion.div>
         )}
 
         {!contract && (
@@ -1743,26 +1857,26 @@ export default function FlightTracker() {
             <div className="lg:col-span-2 space-y-6">
                 {/* Main Instruments */}
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-400">
                 <Gauge className="w-5 h-5 text-blue-400" />
                 {t('flight_data', lang)}
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('altitude', lang)}</p>
                   <p className="text-2xl font-mono font-bold text-blue-400">
                     {Math.round(flightData.altitude).toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-500">ft</p>
                 </div>
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('speed', lang)}</p>
                   <p className="text-2xl font-mono font-bold text-emerald-400">
                     {Math.round(flightData.speed)}
                   </p>
                   <p className="text-xs text-slate-500">kts TAS</p>
                 </div>
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('vertical_speed', lang)}</p>
                   <p className={`text-2xl font-mono font-bold ${
                     flightData.verticalSpeed > 0 ? 'text-emerald-400' : 'text-amber-400'
@@ -1772,7 +1886,7 @@ export default function FlightTracker() {
                   </p>
                   <p className="text-xs text-slate-500">ft/min</p>
                 </div>
-                <div className="p-4 bg-slate-900 rounded-lg text-center">
+                <div className="p-4 bg-slate-800 rounded-lg text-center">
                   <p className="text-slate-400 text-sm mb-1">{t('g_force', lang)}</p>
                   <p className={`text-2xl font-mono font-bold ${
                     flightData.gForce < 1.3 ? 'text-emerald-400' :
@@ -1789,7 +1903,7 @@ export default function FlightTracker() {
             {/* Deadline Timer */}
             {flightPhase !== 'preflight' && flightStartTime && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-400">
                   <Timer className="w-5 h-5 text-amber-400" />
                   Deadline
                 </h3>
@@ -1853,42 +1967,21 @@ export default function FlightTracker() {
               </Card>
             )}
 
-            {/* Fuel & Status */}
-            <Card className="p-6 bg-slate-800/50 border-slate-700">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Fuel className="w-5 h-5 text-amber-400" />
-                  {t('fuel_title', lang)}
-                </h3>
-                <span className="text-amber-400 font-mono">{Math.round(flightData.fuel)}%</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-slate-900 rounded text-center">
-                  <p className="text-xs text-slate-400">{t('percent', lang)}</p>
-                  <p className="text-lg font-mono font-bold text-amber-400">
-                    {Math.round(flightData.fuel)}%
-                  </p>
-                </div>
-                <div className="p-2 bg-slate-900 rounded text-center">
-                  <p className="text-xs text-slate-400">{t('remaining', lang)}</p>
-                  <p className="text-lg font-mono font-bold text-amber-400">
-                    {Math.round(flightData.fuelKg).toLocaleString()} kg
-                  </p>
-                </div>
-              </div>
-              {flightData.fuel < 3 && (
-                <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
-                  <AlertTriangle className="w-4 h-4" />
-                  {t('fuel_emergency', lang)}
-                </div>
-              )}
-            </Card>
+            {/* Fuel & Status with Arrival Prediction */}
+            <FuelPrediction
+              flightData={flightData}
+              flightStartTime={flightStartTime}
+              distanceInfo={distanceInfo}
+              flight={flight}
+              existingFlight={existingFlight}
+              xplaneRawData={xplaneLog?.raw_data || null}
+            />
 
             {/* Flight Score & Events */}
             {flightPhase !== 'preflight' && (
-              <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Star className="w-5 h-5 text-amber-400" />
+              <Card className="p-6 bg-slate-950/80 border-slate-700">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-cyan-400">
+                  <Star className="w-5 h-5 text-cyan-400" />
                   {t('flight_score', lang)}
                 </h3>
                 <div className="space-y-3">
@@ -1993,10 +2086,10 @@ export default function FlightTracker() {
                           </div>
                         )}
                         {flightData.events.hard_landing === true && (
-                          <div className="text-xs text-red-400 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" />
-                            {t('hard_landing', lang)}
-                          </div>
+                          <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{t('hard_landing', lang)}</div>
+                        )}
+                        {flightData.events.wrong_airport === true && (
+                          <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Falscher Flughafen! (>=10 NM)' : 'Wrong airport! (>=10 NM)'}</div>
                         )}
                         </div>
                         </div>
@@ -2008,8 +2101,7 @@ export default function FlightTracker() {
             {/* Controls */}
             {flightPhase !== 'completed' && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">{t('flight_control', lang)}</h3>
-                
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-emerald-400"><PlaneTakeoff className="w-5 h-5 text-emerald-400" />{t('flight_control', lang)}</h3>
                 {flightPhase === 'preflight' && (
                   <div className="space-y-4">
                     <Button 
@@ -2062,16 +2154,20 @@ export default function FlightTracker() {
                       {flightPhase === 'cruise' && t('flight_controlled_xplane', lang)}
                       {flightPhase === 'landing' && t('land_and_park', lang)}
                     </p>
-                    <Button 
-                      onClick={() => {
-                        if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) {
-                          cancelFlightMutation.mutate();
-                        }
-                      }}
-                      disabled={cancelFlightMutation.isPending}
-                      variant="destructive"
-                      className="w-full"
-                    >
+                    {/* Emergency Landing Button */}
+                    {flightData.wasAirborne && !emergencyLanding && (
+                      <Button onClick={() => { setEmergencyLanding(true); }} className="w-full bg-amber-700 hover:bg-amber-600 text-white">
+                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        {lang === 'de' ? 'Notlandung erklären' : 'Declare Emergency Landing'}
+                      </Button>
+                    )}
+                    {emergencyLanding && (
+                      <div className="p-2 bg-amber-900/30 border border-amber-700/50 rounded text-xs text-amber-300 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        {lang === 'de' ? 'Notlandung erklaert - Landung >=10 NM entfernt erlaubt, aber -30 Score und nur 30% Payout' : 'Emergency declared - off-airport landing >=10 NM allowed, but -30 score and only 30% payout'}
+                      </div>
+                    )}
+                    <Button onClick={() => { if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) cancelFlightMutation.mutate(); }} disabled={cancelFlightMutation.isPending} variant="destructive" className="w-full">
                       {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
                     </Button>
                   </div>
@@ -2087,15 +2183,25 @@ export default function FlightTracker() {
                 <FlightRating 
                   flight={(() => {
                     const xpd = (flight || existingFlight)?.xplane_data || {};
-                    const initFuel = xpd.initial_fuel_kg || 0;
-                    const curFuel = flightData.fuelKg || 0;
+                    const initFuel = Number(xpd.initial_fuel_kg || 0);
+                    let curFuel = Number(flightData.fuelKg || xpd.fuel_kg || xpd.last_valid_fuel_kg || 0);
+                    const fuelPct = Number(flightData.fuel || xpd.fuel_percentage || 0);
+                    if (initFuel > 0 && fuelPct > 0 && fuelPct <= 100) {
+                      const pctDerived = (initFuel * fuelPct) / 100;
+                      if (curFuel <= 0 || Math.abs(curFuel - pctDerived) > (initFuel * 0.55)) {
+                        curFuel = pctDerived;
+                      }
+                    }
+                    if (initFuel > 0) {
+                      curFuel = Math.min(curFuel, initFuel);
+                    }
                     const fuelUsedKg = Math.max(0, initFuel - curFuel);
                     const fuelUsed = fuelUsedKg * 1.25;
                     const fuelCost = fuelUsed * 1.2;
                     const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
                     const crewCost = flightHours * 250;
                     const airportFee = 150;
-                    const isCrashed = flightData.events.crash;
+                    const isCrashed = flightData.events.crash || flightData.events.wrong_airport;
                     let revenue = 0;
                     if (!isCrashed) {
                       revenue = contract?.payout || 0;
@@ -2111,7 +2217,7 @@ export default function FlightTracker() {
                       max_g_force: flightData.maxGForce,
                       fuel_used_liters: fuelUsed,
                       flight_duration_hours: flightHours,
-                      passenger_comments: generateComments(flightData.flightScore, flightData),
+                      passenger_comments: generatePassengerComments(flightData.flightScore, flightData),
                       xplane_data: {
                         final_score: flightData.flightScore,
                         landingGForce: flightData.landingGForce,
@@ -2155,7 +2261,7 @@ export default function FlightTracker() {
             ) : (
               <>
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-400">
                   <Star className="w-5 h-5 text-amber-400" />
                   {t('passenger_satisfaction', lang)}
                 </h3>
@@ -2176,43 +2282,10 @@ export default function FlightTracker() {
                 </div>
               </Card>
 
-              {/* Active Failures removed - shown in Events section */}
+              {/* Weather Display */}
+              <WeatherDisplay raw={xplaneLog?.raw_data} />
 
-              {/* Compact Raw X-Plane Data */}
-              {xplaneLog?.raw_data && (
-                <Card className="p-4 bg-slate-800/50 border-slate-700">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center justify-between text-slate-400">
-                    <span className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-blue-400" />
-                      {t('xplane_raw_data', lang)}
-                    </span>
-                    {dataAge !== null && (
-                      <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                        dataAge < 2000 ? 'bg-emerald-500/20 text-emerald-400' :
-                        dataAge < 5000 ? 'bg-amber-500/20 text-amber-400' :
-                        'bg-red-500/20 text-red-400'
-                      }`}>
-                        {dataLatency ? `Δ${(dataLatency / 1000).toFixed(1)}s` : ''} | {(dataAge / 1000).toFixed(1)}s ago
-                      </span>
-                    )}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-mono">
-                    {Object.entries(xplaneLog.raw_data)
-                      .filter(([key]) => !['departure_lat','departure_lon','arrival_lat','arrival_lon'].includes(key))
-                      .map(([key, value]) => (
-                      <div key={key} className="flex justify-between gap-1 py-0.5 border-b border-slate-700/50">
-                        <span className="text-slate-500 truncate">{key}</span>
-                        <span className="text-slate-300 shrink-0">
-                          {typeof value === 'number' ? value.toFixed(2) : 
-                           typeof value === 'boolean' ? (value ? '✓' : '✗') :
-                           typeof value === 'object' ? '{}' :
-                           String(value).substring(0, 12)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
+              {/* Raw X-Plane Data - moved to XPlaneDebug page */}
               </>
             )}
           </div>
@@ -2227,26 +2300,34 @@ export default function FlightTracker() {
               contract={contract}
               waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
               routeWaypoints={simbriefRoute?.waypoints || []}
-              flightPath={xplaneLog?.raw_data?.flight_path || []}
+              flightPath={mapFlightPath}
+              flightEventsLog={mapFlightEventsLog}
               departureRunway={simbriefRoute?.departure_runway}
               arrivalRunway={simbriefRoute?.arrival_runway}
               departureCoords={simbriefRoute?.departure_coords}
               arrivalCoords={simbriefRoute?.arrival_coords}
               onViewModeChange={null}
               liveFlightData={{
-                gForce: flightData.gForce,
-                maxGForce: flightData.maxGForce,
-                fuelPercent: flightData.fuel,
-                fuelKg: flightData.fuelKg,
-                flightScore: flightData.flightScore,
-                events: flightData.events
+                gForce: flightData.gForce, maxGForce: flightData.maxGForce,
+                fuelPercent: flightData.fuel, fuelKg: flightData.fuelKg,
+                flightScore: flightData.flightScore, events: flightData.events, wasAirborne: flightData.wasAirborne,
+                weather: xplaneLog?.raw_data ? { wind_speed_kts: xplaneLog.raw_data.wind_speed_kts, wind_direction: xplaneLog.raw_data.wind_direction, rain_intensity: xplaneLog.raw_data.rain_intensity, precipitation: xplaneLog.raw_data.precipitation, precip_rate: xplaneLog.raw_data.precip_rate, oat_c: xplaneLog.raw_data.oat_c, tat_c: xplaneLog.raw_data.tat_c, baro_setting: xplaneLog.raw_data.baro_setting, turbulence: xplaneLog.raw_data.turbulence } : null
               }}
             />
             <SimBriefImport
               key={`simbrief-${contractIdFromUrl}`}
               contract={contract}
               onRouteLoaded={(data) => {
-                setSimbriefRoute(data);
+                const normalizedSimbrief = {
+                  ...(data || {}),
+                  aircraft_icao:
+                    data?.aircraft_icao ||
+                    data?.raw_general?.icao_aircraft ||
+                    data?.raw_general?.aircraft_icao ||
+                    data?.raw_general?.aircraft_type ||
+                    null
+                };
+                setSimbriefRoute(normalizedSimbrief);
                 if (activeFlightId && data?.waypoints?.length) {
                   // Persist SimBrief route on the active flight so backend/plugin can reuse it for HUD distance.
                   base44.entities.Flight.update(activeFlightId, {
@@ -2270,6 +2351,32 @@ export default function FlightTracker() {
           </div>
         )}
       </div>
+      <AnimatePresence>
+        {showAutoCompleteOverlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <div className="w-full max-w-xl text-center bg-slate-900/90 border border-cyan-800/50 rounded-2xl p-8 shadow-2xl">
+              <motion.div
+                className="w-16 h-16 mx-auto mb-6 rounded-full border-4 border-cyan-700/40 border-t-cyan-300"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+              <h2 className="text-2xl font-bold text-cyan-300 mb-3">
+                {lang === 'de' ? 'Flug wird automatisch abgeschlossen' : 'Auto-completing flight'}
+              </h2>
+              <p className="text-slate-300 text-base">
+                {lang === 'de'
+                  ? 'Bitte warten. Du wirst automatisch zur Ergebnisseite weitergeleitet.'
+                  : 'Please wait. You will be redirected to the results page automatically.'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

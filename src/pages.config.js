@@ -59,12 +59,16 @@ import Employees from './pages/Employees';
 import Finances from './pages/Finances';
 import Fleet from './pages/Fleet';
 import FlightHistory from './pages/FlightHistory';
+import FlightMap from './pages/FlightMap';
 import FlightTracker from './pages/FlightTracker';
+import FreeFlight from './pages/FreeFlight';
 import GameSettingsAdmin from './pages/GameSettingsAdmin';
 import Landing from './pages/Landing';
+import PerformanceCalculator from './pages/PerformanceCalculator';
 import Setup from './pages/Setup';
 import XPlaneDebug from './pages/XPlaneDebug';
 import XPlaneSetup from './pages/XPlaneSetup';
+import Leaderboard from './pages/Leaderboard';
 import __Layout from './Layout.jsx';
 
 
@@ -81,9 +85,13 @@ export const PAGES = {
     "Finances": Finances,
     "Fleet": Fleet,
     "FlightHistory": FlightHistory,
+    "FlightMap": FlightMap,
     "FlightTracker": FlightTracker,
+    "FreeFlight": FreeFlight,
     "GameSettingsAdmin": GameSettingsAdmin,
     "Landing": Landing,
+    "Leaderboard": Leaderboard,
+    "PerformanceCalculator": PerformanceCalculator,
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,

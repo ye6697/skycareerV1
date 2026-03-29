@@ -21,7 +21,8 @@ import {
         ChevronRight,
         Activity,
         Star,
-        Globe
+        Globe,
+        Trophy
       } from "lucide-react";
 
 function getNavItems(lang) {
@@ -35,6 +36,7 @@ function getNavItems(lang) {
     { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory" },
     { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup" },
     { name: t('nav_xplane_debug', lang), icon: Activity, path: "XPlaneDebug" },
+    { name: lang === 'de' ? 'Ranking' : 'Leaderboard', icon: Trophy, path: "Leaderboard" },
     { name: t('account', lang), icon: Settings, path: "Account" },
     { name: t('nav_game_settings', lang), icon: Settings, path: "GameSettingsAdmin", adminOnly: true },
     { name: t('nav_aircraft_images', lang), icon: Plane, path: "AdminAircraftImages", adminOnly: true },

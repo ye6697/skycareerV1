@@ -91,6 +91,30 @@ Deno.serve(async (req) => {
     const arrLat = parseFloat(destination.pos_lat);
     const arrLon = parseFloat(destination.pos_long);
 
+    // Extract weights from SimBrief (in kg or lbs -> convert)
+    const weights = data.weights || {};
+    const parseWeight = (val) => { const n = parseInt(val, 10); return isNaN(n) ? null : n; };
+    // SimBrief weights are typically in the unit set by the user (check units field)
+    const weightUnit = (data.params?.units || '').toLowerCase();
+    const toKg = (val) => {
+      const n = parseWeight(val);
+      if (n === null) return null;
+      return weightUnit === 'lbs' ? Math.round(n * 0.453592) : n;
+    };
+    const tow_kg = toKg(weights.est_tow) || toKg(weights.max_tow) || null;
+    const ldw_kg = toKg(weights.est_ldw) || toKg(weights.est_zfw) || null;
+
+    // Extract airport elevations (SimBrief provides in feet)
+    const departure_elevation_ft = parseInt(origin.elevation || '0', 10) || null;
+    const arrival_elevation_ft = parseInt(destination.elevation || '0', 10) || null;
+
+    const aircraftIcao =
+      general.icao_aircraft ||
+      general.aircraft_icao ||
+      general.aircraft_code ||
+      general.aircraft_type ||
+      '';
+
     const result = {
       source: 'simbrief',
       route_string: routeString,
@@ -103,10 +127,14 @@ Deno.serve(async (req) => {
       arrival_rwy_length_m: destination.plan_rwy_length ? Math.round(parseInt(destination.plan_rwy_length, 10) * 0.3048) : null,
       departure_coords: (!isNaN(depLat) && !isNaN(depLon)) ? { lat: depLat, lon: depLon } : null,
       arrival_coords: (!isNaN(arrLat) && !isNaN(arrLon)) ? { lat: arrLat, lon: arrLon } : null,
+      departure_elevation_ft,
+      arrival_elevation_ft,
       cruise_altitude: parseInt(general.initial_altitude || '0', 10),
-      aircraft_icao: general.icao_airline || '',
+      aircraft_icao: String(aircraftIcao || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8),
       flight_number: general.flight_number || '',
       estimated_time_enroute: general.time_enroute || '',
+      tow_kg,
+      ldw_kg,
       fuel_plan: {
         trip_fuel_kg: parseInt(general.fuel_plan_ramp || '0', 10),
         reserve_fuel_kg: parseInt(general.reserve_fuel || '0', 10)
@@ -114,6 +142,8 @@ Deno.serve(async (req) => {
       distance_nm: parseInt(general.route_distance || '0', 10),
       raw_general: {
         icao_airline: general.icao_airline,
+        icao_aircraft: general.icao_aircraft,
+        aircraft_type: general.aircraft_type,
         flight_number: general.flight_number,
         cruise_tas: general.cruise_tas,
         avg_wind_comp: general.avg_wind_comp,

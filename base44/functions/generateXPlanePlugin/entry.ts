@@ -109,6 +109,10 @@ class PythonInterface:
         self.last_fms_send = 0
         self.fms_send_interval = 30.0  # send FMS data every 30 sec
         self.cached_fms_waypoints = []
+        self.pending_simbrief_route_compact = None
+        self.last_loaded_simbrief_route_compact = None
+        self.last_fms_auto_load_at = 0
+        self.fms_auto_load_cooldown = 6.0
         
     def XPluginStart(self):
         # Cache failure dataref handles
@@ -357,6 +361,9 @@ class PythonInterface:
             
             # Send to API
             self.send_data(payload)
+
+            # Auto-load latest SimBrief route into aircraft FMS (main thread only)
+            self.try_auto_load_simbrief_route(current_time)
             
             # Failure system: check for random failures based on maintenance ratio
             if self.flight_started and not on_ground:
@@ -450,6 +457,73 @@ class PythonInterface:
         if self.active_failures:
             xp.log(f"SkyCareer: {len(self.active_failures)} Ausfaelle zurueckgesetzt")
         self.active_failures = []
+
+    def parse_simbrief_route_compact(self, compact):
+        if not compact or not isinstance(compact, str):
+            return []
+        route = []
+        for token in compact.split(";"):
+            part = token.strip()
+            if not part:
+                continue
+            bits = part.split(",")
+            if len(bits) < 4:
+                continue
+            try:
+                name = str(bits[0] or "").strip().upper()[:8] or "WPT"
+                lat = float(bits[1])
+                lon = float(bits[2])
+                alt = int(round(float(bits[3] or 0)))
+                route.append({"name": name, "lat": lat, "lon": lon, "alt": max(0, alt)})
+            except Exception:
+                continue
+        return route
+
+    def load_route_into_fms(self, compact):
+        route = self.parse_simbrief_route_compact(compact)
+        if len(route) < 2:
+            return False
+        try:
+            for i in range(100):
+                try:
+                    xp.clearFMSEntry(i)
+                except Exception:
+                    break
+            loaded = 0
+            for idx, wp in enumerate(route[:100]):
+                try:
+                    xp.setFMSEntryLatLon(idx, float(wp["lat"]), float(wp["lon"]), int(wp["alt"]))
+                    loaded += 1
+                except Exception:
+                    try:
+                        xp.setFMSEntryInfo(idx, 512, wp["name"], None, int(wp["alt"]))
+                        loaded += 1
+                    except Exception:
+                        continue
+            if loaded >= 2:
+                try:
+                    xp.setDestinationFMSEntry(loaded - 1)
+                except Exception:
+                    pass
+                xp.log(f"SkyCareer: SimBrief route auto-loaded to FMS ({loaded} waypoints)")
+                return True
+        except Exception as e:
+            xp.log(f"SkyCareer FMS load error: {str(e)}")
+        return False
+
+    def try_auto_load_simbrief_route(self, current_time):
+        compact = self.pending_simbrief_route_compact
+        if not compact:
+            return
+        if compact == self.last_loaded_simbrief_route_compact:
+            self.pending_simbrief_route_compact = None
+            return
+        if current_time - self.last_fms_auto_load_at < self.fms_auto_load_cooldown:
+            return
+        self.last_fms_auto_load_at = current_time
+        if self.load_route_into_fms(compact):
+            self.last_loaded_simbrief_route_compact = compact
+            self.pending_simbrief_route_compact = None
     
     def send_data(self, data):
         # Send in a background thread to avoid blocking X-Plane's flight loop
@@ -471,6 +545,12 @@ class PythonInterface:
                 # Update maintenance ratio from server (for failure system)
                 if 'maintenance_ratio' in result:
                     self.maintenance_ratio = float(result['maintenance_ratio'])
+
+                # Backend always returns latest SimBrief route compact string.
+                # Store it and apply in the main flight loop (XP API is not thread-safe).
+                route_compact = result.get('simbrief_route_compact')
+                if isinstance(route_compact, str) and len(route_compact) > 8:
+                    self.pending_simbrief_route_compact = route_compact
                 
                 # If flight was completed, reset failures and state
                 if result.get('status') == 'completed' or result.get('status') == 'ready_to_complete':

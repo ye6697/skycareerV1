@@ -178,36 +178,26 @@ export default function Employees() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('employees_label', lang)}</h1>
-              <p className="text-slate-400">{t('manage_crew', lang)}</p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder={t('search_employees', lang)}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64 bg-slate-800 text-white border-slate-700"
-                />
-              </div>
-              <Dialog open={isHireDialogOpen} onOpenChange={setIsHireDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    {t('hire', lang)}
-                  </Button>
-                </DialogTrigger>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('employees_label', lang)}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-cyan-600" />
+            <Input
+              placeholder={t('search_employees', lang).toUpperCase()}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900"
+            />
+          </div>
+          <Dialog open={isHireDialogOpen} onOpenChange={setIsHireDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-7 text-[10px] font-mono uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60">
+                + {t('hire', lang)}
+              </Button>
+            </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>{t('hire_new_employee', lang)}</DialogTitle>
@@ -288,43 +278,29 @@ export default function Employees() {
               </Dialog>
             </div>
           </div>
-        </motion.div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
           {Object.entries(roleLabels).map(([role, label]) => (
-            <Card key={role} className="p-4 bg-slate-800 border border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">{label}</p>
-                  <p className="text-2xl font-bold text-white">{getEmployeeCount(role)}</p>
-                </div>
-                <div className={`p-2 rounded-lg ${
-                  role === 'captain' ? 'bg-amber-100' :
-                  role === 'first_officer' ? 'bg-blue-100' :
-                  role === 'flight_attendant' ? 'bg-pink-100' :
-                  'bg-orange-100'
-                }`}>
-                  <Users className={`w-5 h-5 ${
-                    role === 'captain' ? 'text-amber-600' :
-                    role === 'first_officer' ? 'text-blue-600' :
-                    role === 'flight_attendant' ? 'text-pink-600' :
-                    'text-orange-600'
-                  }`} />
-                </div>
+            <div key={role} className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 flex items-center justify-between shadow-md">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-mono text-cyan-600/70 uppercase">{label}</span>
+                <span className="text-sm font-mono text-cyan-400 font-bold">{getEmployeeCount(role)}</span>
               </div>
-            </Card>
+              <Users className="w-4 h-4 text-cyan-800" />
+            </div>
           ))}
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="bg-slate-800 border border-slate-700">
-            <TabsTrigger value="all">{t('all', lang)}</TabsTrigger>
-            <TabsTrigger value="captain">{t('captains', lang)}</TabsTrigger>
-            <TabsTrigger value="first_officer">{t('first_officers', lang)}</TabsTrigger>
-            <TabsTrigger value="flight_attendant">{t('flight_attendants', lang)}</TabsTrigger>
-            <TabsTrigger value="loadmaster">{t('loadmasters', lang)}</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-2">
+          <TabsList className="bg-slate-900/80 border border-cyan-900/30 flex-wrap h-auto p-0.5 rounded-lg w-full justify-start overflow-x-auto">
+            <TabsTrigger value="all" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{t('all', lang)}</TabsTrigger>
+            <TabsTrigger value="captain" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{t('captains', lang)}</TabsTrigger>
+            <TabsTrigger value="first_officer" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{t('first_officers', lang)}</TabsTrigger>
+            <TabsTrigger value="flight_attendant" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{t('flight_attendants', lang)}</TabsTrigger>
+            <TabsTrigger value="loadmaster" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{t('loadmasters', lang)}</TabsTrigger>
           </TabsList>
         </Tabs>
 

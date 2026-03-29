@@ -134,17 +134,13 @@ export default function GameSettingsAdmin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-5xl mx-auto p-6">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold text-white">Spiel-Einstellungen (Admin)</h1>
-          <p className="text-slate-400">Konfiguriere Score- und Wartungskosten für alle Vorfälle</p>
-        </motion.div>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">Spiel-Einstellungen (Admin)</div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Tailstrike */}
           <Card className="p-6 bg-slate-800 border-slate-700">

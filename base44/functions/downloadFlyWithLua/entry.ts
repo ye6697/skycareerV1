@@ -71,6 +71,10 @@ local send_counter = 0
 local cached_fms_waypoints = {}
 local last_fms_read = 0
 local FMS_READ_INTERVAL = 30.0  -- read FMS every 30 seconds
+local pending_simbrief_route_compact = nil
+local last_loaded_simbrief_route_compact = ""
+local last_fms_auto_load = 0
+local FMS_AUTO_LOAD_COOLDOWN = 6.0
 
 ----------------------------
 -- FAILURE SYSTEM
@@ -200,6 +204,51 @@ function init_response_file()
     end
 end
 
+function parse_simbrief_route_compact(compact)
+    local route = {}
+    if not compact or compact == "" then return route end
+    for token in string.gmatch(compact, "([^;]+)") do
+        local name, lat, lon, alt = token:match("^([^,]+),([^,]+),([^,]+),([^,]+)")
+        if name and lat and lon and alt then
+            local lat_n = tonumber(lat)
+            local lon_n = tonumber(lon)
+            local alt_n = tonumber(alt)
+            if lat_n and lon_n then
+                table.insert(route, {
+                    name = tostring(name or "WPT"):sub(1, 8),
+                    lat = lat_n,
+                    lon = lon_n,
+                    alt = math.max(0, math.floor((alt_n or 0) + 0.5))
+                })
+            end
+        end
+    end
+    return route
+end
+
+function load_route_into_fms(compact)
+    local route = parse_simbrief_route_compact(compact)
+    if #route < 2 then return false end
+    local ok_load, _ = pcall(function()
+        for i = 0, 99 do
+            pcall(function() XPLMClearFMSEntry(i) end)
+        end
+        local loaded = 0
+        for i = 1, math.min(#route, 100) do
+            local wp = route[i]
+            local ok_wp, _ = pcall(function()
+                XPLMSetFMSEntryLatLon(i - 1, wp.lat, wp.lon, wp.alt or 0)
+            end)
+            if ok_wp then loaded = loaded + 1 end
+        end
+        if loaded >= 2 then
+            pcall(function() XPLMSetDestinationFMSEntry(loaded - 1) end)
+            logMsg("SkyCareer: SimBrief route auto-loaded to FMS (" .. tostring(loaded) .. " waypoints)")
+        end
+    end)
+    return ok_load
+end
+
 function read_server_response()
     if not response_file then return end
     local ok, _ = pcall(function()
@@ -210,6 +259,11 @@ function read_server_response()
             if resp and #resp > 5 then
                 local mr = resp:match('"maintenance_ratio":([%d%.]+)')
                 if mr then maintenance_ratio = tonumber(mr) or 0 end
+                local compact = resp:match('"simbrief_route_compact":"(.-)"')
+                if compact and #compact > 8 then
+                    compact = compact:gsub('\\"', '"'):gsub('\\\\', '\\')
+                    pending_simbrief_route_compact = compact
+                end
                 if resp:match('"ready_to_complete"') or resp:match('"completed"') then
                     reset_all_failures()
                     maintenance_ratio = 0
@@ -238,6 +292,18 @@ end
 -- MAIN MONITOR
 ------------------------------------------------------------
 function monitor_flight()
+    local now_route = os.clock()
+    if pending_simbrief_route_compact and pending_simbrief_route_compact ~= "" then
+        if pending_simbrief_route_compact ~= last_loaded_simbrief_route_compact and (now_route - last_fms_auto_load) >= FMS_AUTO_LOAD_COOLDOWN then
+            if load_route_into_fms(pending_simbrief_route_compact) then
+                last_loaded_simbrief_route_compact = pending_simbrief_route_compact
+            end
+            last_fms_auto_load = now_route
+        elseif pending_simbrief_route_compact == last_loaded_simbrief_route_compact then
+            pending_simbrief_route_compact = nil
+        end
+    end
+
     -- Core flight data
     local altitude = (get("sim/flightmodel/position/elevation") or 0) * 3.28084
     local speed = (get("sim/flightmodel/position/groundspeed") or 0) * 1.94384

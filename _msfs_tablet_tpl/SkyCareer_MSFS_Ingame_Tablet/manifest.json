@@ -1,0 +1,15 @@
+{
+  "dependencies": [],
+  "content_type": "INSTRUMENT",
+  "title": "SkyCareer MSFS Ingame Tablet",
+  "manufacturer": "SkyCareer",
+  "creator": "SkyCareer",
+  "package_version": "1.0.0",
+  "minimum_game_version": "1.37.0",
+  "release_notes": {
+    "neutral": {
+      "LastUpdate": "2026-03-07",
+      "OlderHistory": ""
+    }
+  }
+}

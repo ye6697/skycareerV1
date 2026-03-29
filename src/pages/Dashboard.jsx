@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ import {
   History,
   Settings,
   User,
+  Map,
+  Calculator,
+  Trophy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -171,12 +174,12 @@ export default function Dashboard() {
   }, [contracts, aircraft]);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
+    if (amount === undefined || amount === null) return '$0';
+    const rounded = Math.round(amount);
+    if (rounded >= 1e9) return `$${(rounded / 1e9).toFixed(1)} Mrd`;
+    if (rounded >= 1e6) return `$${(rounded / 1e6).toFixed(1)} Mio`;
+    if (rounded >= 1e3) return `$${(rounded / 1e3).toFixed(0)}k`;
+    return `$${rounded.toLocaleString()}`;
   };
 
   if (companyLoading) {
@@ -222,7 +225,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-2">
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('balance', lang)}</span>
-           <span className="text-base sm:text-xl font-mono text-emerald-400 font-bold">${company.balance?.toLocaleString()}</span>
+           <span className="text-base sm:text-xl font-mono text-emerald-400 font-bold">{formatCurrency(company.balance)}</span>
         </div>
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('level', lang)}</span>
@@ -239,7 +242,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Grid Menu */}
-      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 auto-rows-fr">
+      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 auto-rows-fr">
         {[
           { name: t('nav_contracts', lang), icon: FileText, path: "Contracts", color: "text-blue-400", alert: acceptedContracts.length > 0 },
           { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights", color: "text-emerald-400" },
@@ -247,7 +250,11 @@ export default function Dashboard() {
           { name: t('nav_employees', lang), icon: Users, path: "Employees", color: "text-indigo-400" },
           { name: t('nav_finances', lang), icon: DollarSign, path: "Finances", color: "text-amber-400" },
           { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory", color: "text-purple-400" },
-          { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
+          { name: "FREE FLIGHT", icon: Plane, path: "FreeFlight", color: "text-violet-400" },
+          { name: "FLIGHT MAP", icon: Map, path: "FlightMap", color: "text-emerald-500" },
+          { name: "PERFORMANCE", icon: Calculator, path: "PerformanceCalculator", color: "text-amber-500" },
+          { name: "SETUP", icon: Settings, path: "XPlaneSetup", color: "text-slate-400" },
+          { name: lang === 'de' ? 'RANKING' : 'LEADERBOARD', icon: Trophy, path: "Leaderboard", color: "text-amber-400" },
           { name: t('account', lang), icon: User, path: "Account", color: "text-rose-400" },
         ].map((item, i) => (
           <Link key={i} to={createPageUrl(item.path)} className="block h-full min-h-[140px]">

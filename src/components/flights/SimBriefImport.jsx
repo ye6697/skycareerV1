@@ -60,7 +60,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   }, []);
 
   const checkPlanMatchesContract = (data) => {
-    if (!contract || !data) return true;
+    if (!contract || !data) return true; // No contract = free flight, always accept
     const depMatch = !contract.departure_airport ||
       data.departure_airport?.toUpperCase() === contract.departure_airport?.toUpperCase();
     const arrMatch = !contract.arrival_airport ||
@@ -126,11 +126,12 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
 
   // Open SimBrief dispatch with contract data pre-filled
   const openSimBriefDispatch = () => {
-    if (!contract) return;
     const params = new URLSearchParams();
-    params.set('orig', contract.departure_airport || '');
-    params.set('dest', contract.arrival_airport || '');
-    if (contract.passenger_count) params.set('pax', String(contract.passenger_count));
+    if (contract) {
+      params.set('orig', contract.departure_airport || '');
+      params.set('dest', contract.arrival_airport || '');
+      if (contract.passenger_count) params.set('pax', String(contract.passenger_count));
+    }
     
     const url = `https://dispatch.simbrief.com/options/custom?${params.toString()}`;
     window.open(url, '_blank');
@@ -259,8 +260,8 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs text-amber-300 font-medium mb-1">
-                  {mismatch 
-                    ? `${t('plan_mismatch', lang)} (${contract?.departure_airport} → ${contract?.arrival_airport}).`
+                  {mismatch && contract
+                    ? `${t('plan_mismatch', lang)} (${contract.departure_airport} → ${contract.arrival_airport}).`
                     : t('no_matching_plan', lang)
                   }
                 </p>
@@ -318,28 +319,28 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-1.5 bg-slate-900 rounded">
-              <span className="text-[10px] text-slate-500">FL</span>
-              <p className="text-xs font-mono font-bold text-white">{Math.round((importedData.cruise_altitude || 0) / 100)}</p>
+            <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
+              <span className="text-[10px] text-slate-500 uppercase">FL</span>
+              <p className="text-xs font-mono font-bold text-amber-400">{Math.round((importedData.cruise_altitude || 0) / 100)}</p>
             </div>
-            <div className="p-1.5 bg-slate-900 rounded">
-              <span className="text-[10px] text-slate-500">Distanz</span>
-              <p className="text-xs font-mono font-bold text-white">{importedData.distance_nm} NM</p>
+            <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
+              <span className="text-[10px] text-slate-500 uppercase">Distanz</span>
+              <p className="text-xs font-mono font-bold text-amber-400">{importedData.distance_nm} NM</p>
             </div>
-            <div className="p-1.5 bg-slate-900 rounded">
-              <span className="text-[10px] text-slate-500">WPTs</span>
-              <p className="text-xs font-mono font-bold text-white">{importedData.waypoints?.length || 0}</p>
+            <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
+              <span className="text-[10px] text-slate-500 uppercase">WPTs</span>
+              <p className="text-xs font-mono font-bold text-amber-400">{importedData.waypoints?.length || 0}</p>
             </div>
           </div>
 
-          <div className="p-2 bg-slate-900 rounded-lg">
+          <div className="p-2 bg-slate-800/60 border border-slate-700/50 rounded-lg">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-slate-500">Route</span>
               <Button variant="ghost" size="sm" className="h-5 px-1 text-xs text-slate-400" onClick={copyRoute}>
                 {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
               </Button>
             </div>
-            <p className="text-[10px] font-mono text-purple-300 leading-relaxed break-all">
+            <p className="text-[10px] font-mono text-purple-400 leading-relaxed break-all">
               {importedData.route_string}
             </p>
           </div>

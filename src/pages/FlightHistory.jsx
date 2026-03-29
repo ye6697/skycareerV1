@@ -125,20 +125,26 @@ export default function FlightHistory() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('flight_history', lang)}</h1>
-          <p className="text-slate-400">{t('all_completed_overview', lang)}</p>
-        </motion.div>
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('flight_history', lang)}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-cyan-600" />
+            <Input
+              placeholder={t('search_flight', lang).toUpperCase()}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900"
+            />
+          </div>
+        </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
           <Card className="p-3 sm:p-4 bg-slate-800 border border-slate-700">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="p-1.5 sm:p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
@@ -193,19 +199,6 @@ export default function FlightHistory() {
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              placeholder={t('search_flight', lang)}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-800 text-white border-slate-700"
-            />
-          </div>
-        </div>
-
         {/* Departure Board Style Table */}
         {isLoading ? (
           <Card className="animate-pulse bg-slate-800 h-64" />
@@ -243,6 +236,12 @@ export default function FlightHistory() {
                 const ac = getAircraftForFlight(flight);
                 const isFailed = flight.status === 'failed';
                 const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? 0;
+                const landingVs = Number(
+                  flight.landing_vs ??
+                  flight.xplane_data?.touchdown_vspeed ??
+                  flight.xplane_data?.landing_vs ??
+                  0
+                ) || 0;
                 const madeDeadline = flight.xplane_data?.madeDeadline;
                 return (
                   <motion.div
@@ -278,13 +277,13 @@ export default function FlightHistory() {
                     {/* Landing V/S */}
                     <div className="flex justify-center">
                       <span className={`text-[11px] sm:text-xs font-bold px-1.5 py-0.5 rounded ${
-                        Math.abs(flight.landing_vs || 0) < 150
+                        Math.abs(landingVs) < 150
                           ? 'bg-emerald-500/20 text-emerald-400'
-                          : Math.abs(flight.landing_vs || 0) < 300
+                          : Math.abs(landingVs) < 300
                           ? 'bg-amber-500/20 text-amber-400'
                           : 'bg-red-500/20 text-red-400'
                       }`}>
-                        {flight.landing_vs || 0} ft/m
+                        {Math.round(Math.abs(landingVs))} ft/m
                       </span>
                     </div>
                     {/* Landing G */}

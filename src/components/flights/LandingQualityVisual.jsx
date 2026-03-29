@@ -8,8 +8,18 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
   const landingGforce = Math.abs(
     flight.xplane_data?.landingGForce ?? 
     flight.xplane_data?.landing_g_force ?? 
-    flight.max_g_force ?? 0
+    0
   );
+  const hasLandingData = landingVs > 0 || landingGforce > 0;
+
+  if (!hasLandingData) {
+    return (
+      <Card className="p-6 bg-slate-800/50 border-slate-700">
+        <h3 className="text-lg font-semibold mb-4 text-white">Landungs-Qualität</h3>
+        <p className="text-sm text-slate-400">Keine validen Touchdown-Daten vorhanden.</p>
+      </Card>
+    );
+  }
 
   const landingType = flight.xplane_data?.landingType;
   const totalRevenue = flight.revenue || flight.xplane_data?.totalRevenue || 0;

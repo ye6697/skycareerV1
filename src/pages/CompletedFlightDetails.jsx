@@ -23,6 +23,7 @@ import FlightRating from "@/components/flights/FlightRating";
 import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
+import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -133,71 +134,133 @@ export default function CompletedFlightDetails() {
     );
   }
 
+  const emergencyOffAirportCompletion = !!flight?.xplane_data?.emergency_off_airport_completion;
+  const emergencyScorePenalty = Number(flight?.xplane_data?.emergency_score_penalty || 0);
+  const emergencyPayoutFactor = Number(flight?.xplane_data?.emergency_payout_factor || 1);
+  const emergencyArrivalDistanceNm = Number(flight?.xplane_data?.arrival_distance_nm || 0);
+  const estimateFuelUsedLiters = () => {
+    if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters);
+    const xpd = flight.xplane_data || {};
+    const initKg = Number(xpd.initial_fuel_kg || 0);
+    let curKg = Number(xpd.fuelKg || xpd.fuel_kg || xpd.last_valid_fuel_kg || 0);
+    const fuelPct = Number(xpd.fuel_percentage || xpd.fuel || 0);
+    if (initKg > 0 && fuelPct > 0 && fuelPct <= 100) {
+      const pctDerived = (initKg * fuelPct) / 100;
+      if (curKg <= 0 || Math.abs(curKg - pctDerived) > (initKg * 0.55)) {
+        curKg = pctDerived;
+      }
+    }
+    if (initKg > 0) {
+      curKg = Math.min(curKg, initKg);
+      return Math.round(Math.max(0, initKg - curKg) * 1.25);
+    }
+    if (flight.flight_duration_hours > 0) return Math.round(flight.flight_duration_hours * 2500);
+    return 0;
+  };
+  const basePayout = Number(finalContract?.payout || 0);
+  const emergencyPayoutReduction = emergencyOffAirportCompletion
+    ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
+    : 0;
+  const landingVsValue = Math.max(0, Math.min(
+    2500,
+    Math.abs(Number(
+      flight?.landing_vs ??
+      flight?.xplane_data?.touchdown_vspeed ??
+      0
+    ) || 0)
+  ));
+  const wrongAirportCompletion = !!(
+    flight?.xplane_data?.events?.wrong_airport ||
+    flight?.xplane_data?.landed_too_far_from_arrival
+  );
+  const wrongAirportDistanceNm = Number(flight?.xplane_data?.arrival_distance_nm || 0);
+  const isCrashFlight = !!flight?.xplane_data?.events?.crash;
+  const showWrongAirportBanner = wrongAirportCompletion && !emergencyOffAirportCompletion && !isCrashFlight;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="flex items-center gap-2">
           <Button 
             variant="ghost"
             onClick={() => navigate(createPageUrl("ActiveFlights"))}
-            className="mb-4 text-slate-400 hover:text-white"
+            className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t('back', lang)}
+            ◀ {t('back', lang)}
           </Button>
-
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-            <div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
-                <h1 className="text-2xl sm:text-3xl font-bold">{finalContract.title}</h1>
-                {(flight?.xplane_data?.events?.crash || flight?.status === 'failed') ? (
-                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
-                    <AlertTriangle className="w-4 h-4" />
-                    CRASH - {t('failed_status', lang)}
-                  </Badge>
-                ) : (
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                    {t('completed', lang)}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-slate-400 text-sm sm:text-base">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {finalContract.departure_airport}
-                </span>
-                <span>→</span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {finalContract.arrival_airport}
-                </span>
-                <span className="text-slate-600">|</span>
-                <span>{finalContract.distance_nm} NM</span>
-              </div>
-            </div>
-            <div className="sm:text-right">
-              <p className="text-2xl sm:text-3xl font-bold text-emerald-400">
-                ${Math.round(finalContract.payout || 0).toLocaleString()}
-              </p>
-            </div>
+          <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{finalContract.title}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 text-slate-400 text-[10px] font-mono uppercase bg-slate-950 px-2 py-1 rounded border border-slate-800">
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-cyan-600" />
+              {finalContract.departure_airport}
+            </span>
+            <span>→</span>
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-cyan-600" />
+              {finalContract.arrival_airport}
+            </span>
+            <span className="text-slate-600">|</span>
+            <span>{finalContract.distance_nm} NM</span>
           </div>
-        </motion.div>
+          {isCrashFlight ? (
+            <Badge className="bg-red-900/40 text-red-400 border-red-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
+              <AlertTriangle className="w-3 h-3" />
+              CRASH
+            </Badge>
+          ) : (showWrongAirportBanner || flight?.status === 'failed') ? (
+            <Badge className="bg-red-900/40 text-red-400 border-red-700/50 flex items-center gap-1 text-[10px] font-mono uppercase h-7 rounded">
+              <AlertTriangle className="w-3 h-3" />
+              FAILED
+            </Badge>
+          ) : (
+            <Badge className="bg-emerald-900/40 text-emerald-400 border-emerald-700/50 text-[10px] font-mono uppercase h-7 rounded">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              {t('completed', lang)}
+            </Badge>
+          )}
+        </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {showWrongAirportBanner && (
+          <Card className="mb-2 p-4 bg-red-900/25 border border-red-700/60">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5" />
+              <div>
+                <p className="text-red-300 font-semibold">
+                  {t('wrong_airport_result_title', lang)}
+                </p>
+                <p className="text-sm text-slate-300 mt-1">
+                  {t('wrong_airport_result_desc', lang)}{' '}
+                  {wrongAirportDistanceNm > 0 && (
+                    <span className="text-red-300 font-mono">({Math.round(wrongAirportDistanceNm)} NM)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
         {flight ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               {/* Flight Route Map */}
               {finalContract && (() => {
                 // Build departure/arrival coords from xplane_data or flight_path
                 const xpd = flight?.xplane_data || {};
-                const fp = xpd.flight_path || [];
+                const fp = (Array.isArray(xpd.flight_path) ? xpd.flight_path : [])
+                  .map((p) => {
+                    if (Array.isArray(p) && p.length >= 2) return [Number(p[0]), Number(p[1])];
+                    if (p && typeof p === 'object') return [Number(p.lat ?? p.latitude), Number(p.lon ?? p.lng ?? p.longitude)];
+                    return null;
+                  })
+                  .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && !(p[0] === 0 && p[1] === 0));
+                const mapRouteWaypoints = (Array.isArray(xpd.simbrief_waypoints) && xpd.simbrief_waypoints.length > 0)
+                  ? xpd.simbrief_waypoints
+                  : (xpd.fms_waypoints || []);
                 const depLat = xpd.departure_lat || (fp.length > 0 ? fp[0][0] : 0);
                 const depLon = xpd.departure_lon || (fp.length > 0 ? fp[0][1] : 0);
                 const arrLat = xpd.arrival_lat || (fp.length > 1 ? fp[fp.length-1][0] : 0);
@@ -214,12 +277,20 @@ export default function CompletedFlightDetails() {
                     staticMode={true}
                     title="Flugroute & Flugverlauf"
                     flightPath={fp}
-                    routeWaypoints={xpd.fms_waypoints || []}
+                    flightEventsLog={
+                      (Array.isArray(xpd.flight_events_log) && xpd.flight_events_log.length > 0)
+                        ? xpd.flight_events_log
+                        : (Array.isArray(xpd.bridge_event_log) ? xpd.bridge_event_log : [])
+                    }
+                    routeWaypoints={mapRouteWaypoints}
                     departureCoords={depLat ? { lat: depLat, lon: depLon } : null}
                     arrivalCoords={arrLat ? { lat: arrLat, lon: arrLon } : null}
                   />
                 );
               })()}
+
+              {/* Flight Profile Chart */}
+              <FlightProfileChart flight={flight} />
 
               {/* Flight Rating */}
               <FlightRating flight={flight} />
@@ -229,16 +300,16 @@ export default function CompletedFlightDetails() {
 
               {/* Flight Details */}
               <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Plane className="w-5 h-5 text-blue-400" />
-                  {t('flight_details', lang)}
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                   <Plane className="w-5 h-5 text-blue-400" />
+                   {t('flight_details', lang)}
                   </h3>
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(() => {
                     const isCrash = flight?.xplane_data?.events?.crash || flight?.status === 'failed';
                     const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? 0;
                     return (
-                      <div className="p-4 bg-slate-900 rounded-lg">
+                      <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                         <p className="text-slate-400 text-sm mb-1">{t('landing_g_touch', lang)}</p>
                         {isCrash ? (
                           <p className="text-2xl font-mono font-bold text-red-500">CRASH</p>
@@ -248,51 +319,35 @@ export default function CompletedFlightDetails() {
                             landingG < 2.0 ? 'text-amber-400' :
                             'text-red-400'
                           }`}>
-                            {landingG?.toFixed(2)} G
+                            {landingG > 0 ? `${landingG.toFixed(2)} G` : '-'}
                           </p>
                         )}
                       </div>
                     );
                   })()}
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('landing_vs_label', lang)}</p>
                     <p className={`text-2xl font-mono font-bold ${
-                      Math.abs(flight.landing_vs || 0) < 150 ? 'text-emerald-400' :
-                      Math.abs(flight.landing_vs || 0) < 300 ? 'text-amber-400' :
+                      Math.abs(landingVsValue) < 150 ? 'text-emerald-400' :
+                      Math.abs(landingVsValue) < 300 ? 'text-amber-400' :
                       'text-red-400'
                     }`}>
-                      {Math.abs(flight.landing_vs || 0)} ft/min
+                      {Math.round(Math.abs(landingVsValue))} ft/min
                     </p>
                   </div>
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('landing_speed', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
                       {Math.round(flight?.xplane_data?.speed || 0)} kts
                     </p>
                   </div>
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('fuel_used', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
-                      {(() => {
-                        // Try stored fuel_used_liters first
-                        if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters).toLocaleString();
-                        // Fallback: compute from xplane_data
-                        const xpd = flight.xplane_data || {};
-                        const initKg = xpd.initial_fuel_kg || 0;
-                        const curKg = xpd.fuelKg || xpd.fuel_kg || 0;
-                        if (initKg > 0 && curKg >= 0) {
-                          const usedKg = Math.max(0, initKg - curKg);
-                          return Math.round(usedKg * 1.25).toLocaleString();
-                        }
-                        // Final fallback: estimate from flight hours and a typical burn rate
-                        if (flight.flight_duration_hours > 0) {
-                          return Math.round(flight.flight_duration_hours * 2500).toLocaleString();
-                        }
-                        return '0';
-                      })()} L
+                      {estimateFuelUsedLiters().toLocaleString()} L
                     </p>
                   </div>
-                  <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('flight_duration', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-slate-300">
                       {flight.flight_duration_hours?.toFixed(1)} h
@@ -302,7 +357,7 @@ export default function CompletedFlightDetails() {
 
                 {/* Deadline Result */}
                 {flight.xplane_data?.deadlineMinutes && (
-                  <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                  <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Deadline</p>
                     <div className="flex items-center justify-between">
                       <div>
@@ -326,7 +381,7 @@ export default function CompletedFlightDetails() {
                 )}
 
                 {/* Final Score */}
-                <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                   <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
                   {(() => {
                     const score = flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0;
@@ -342,12 +397,34 @@ export default function CompletedFlightDetails() {
                     );
                   })()}
                 </div>
+
+                {emergencyOffAirportCompletion && (
+                  <div className="mt-4 p-4 bg-amber-900/25 border border-amber-700/50 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-300 mb-2">
+                      {lang === 'de' ? 'Notlandung außerhalb Zielflughafen erkannt' : 'Emergency off-airport landing detected'}
+                    </p>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{lang === 'de' ? 'Distanz zum Zielflughafen' : 'Distance to destination airport'}</span>
+                        <span className="text-amber-300 font-mono">{Math.round(emergencyArrivalDistanceNm)} NM</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{lang === 'de' ? 'Notlandungs-Scoreabzug' : 'Emergency score penalty'}</span>
+                        <span className="text-red-400 font-mono">-{Math.round(emergencyScorePenalty)} {lang === 'de' ? 'Punkte' : 'points'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{lang === 'de' ? 'Payout-Reduktion (auf 30%)' : 'Payout reduction (to 30%)'}</span>
+                        <span className="text-red-400 font-mono">-${Math.round(emergencyPayoutReduction).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Landing Quality Details */}
                 {(() => {
                   // Determine landing type: prefer stored, then compute from G-force
                   let lt = flight.xplane_data?.landingType;
-                  const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? flight.max_g_force ?? 0;
+                  const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? 0;
                   if (!lt && landingG > 0 && !flight.xplane_data?.events?.crash) {
                     if (landingG < 0.5) lt = 'butter';
                     else if (landingG < 1.0) lt = 'soft';
@@ -367,10 +444,10 @@ export default function CompletedFlightDetails() {
                   else if (lt === 'acceptable') { scoreChange = 5; financialImpact = 0; }
                   else if (lt === 'hard') { scoreChange = -30; financialImpact = -(totalRev * 0.25); }
                   else if (lt === 'very_hard') { scoreChange = -50; financialImpact = -(totalRev * 0.5); }
-                  const vs = Math.abs(flight.landing_vs || 0);
+                  const vs = Math.round(Math.abs(landingVsValue));
 
                   return (
-                  <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-3">
+                  <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-3">
                     <div>
                       <p className="text-slate-400 text-sm mb-2 font-semibold">Landungsqualitäts-Analyse</p>
                       <p className="text-xs text-slate-400 mb-3">Basierend auf G-Kraft beim Landen ({landingG.toFixed(2)} G)</p>
@@ -463,8 +540,8 @@ export default function CompletedFlightDetails() {
 
                   {/* Total Maintenance Breakdown */}
                   {(flight.xplane_data?.maintenanceCost > 0 || flight.xplane_data?.crashMaintenanceCost > 0 || flight.xplane_data?.events?.crash) && (
-                    <div className="mt-4 p-4 bg-slate-900 rounded-lg space-y-2">
-                      <h4 className="text-sm font-semibold text-white mb-3">Wartungskosten-Aufschlüsselung:</h4>
+                    <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-2">
+                     <h4 className="text-sm font-semibold text-white mb-3">Wartungskosten-Aufschlüsselung:</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between text-slate-300">
                           <span>Reguläre Wartung ({flight.flight_duration_hours?.toFixed(1)}h × $400/h)</span>
@@ -499,8 +576,8 @@ export default function CompletedFlightDetails() {
 
                   {/* Maintenance Damage Breakdown */}
                   {flight?.maintenance_damage && Object.values(flight.maintenance_damage).some(v => v > 0) && (
-                    <div className="mt-4 p-4 bg-slate-900 rounded-lg">
-                      <h4 className="text-sm font-semibold text-white mb-3">Wartungsschäden durch diesen Flug:</h4>
+                    <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
+                     <h4 className="text-sm font-semibold text-white mb-3">Wartungsschäden durch diesen Flug:</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         {Object.entries(flight.maintenance_damage).filter(([_, v]) => v > 0).map(([cat, dmg]) => {
                           const labels = {
@@ -509,7 +586,7 @@ export default function CompletedFlightDetails() {
                             flight_controls: "Steuerung", pressurization: "Druckkabine"
                           };
                           return (
-                            <div key={cat} className="flex justify-between p-2 bg-slate-800 rounded">
+                            <div key={cat} className="flex justify-between p-2 bg-slate-600/30 border border-slate-600/40 rounded">
                               <span className="text-slate-400">{labels[cat] || cat}</span>
                               <span className="text-red-400 font-mono">+{dmg.toFixed(0)}%</span>
                             </div>
@@ -596,6 +673,12 @@ export default function CompletedFlightDetails() {
                           Treibstoff-Notstand (unter 3%)
                         </div>
                       )}
+                      {events.wrong_airport === true && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
+                          <AlertTriangle className="w-4 h-4" />
+                          {lang === 'de' ? 'Landung am falschen Zielflughafen' : 'Landed at wrong destination airport'}
+                        </div>
+                      )}
                       </div>
                       </div>
                       );
@@ -607,15 +690,21 @@ export default function CompletedFlightDetails() {
             <div className="space-y-6">
               {/* Financial Summary */}
               <Card className="p-6 bg-slate-800/50 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-amber-400" />
-                  {t('financial_overview', lang)}
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                   <DollarSign className="w-5 h-5 text-amber-400" />
+                   {t('financial_overview', lang)}
                   </h3>
                 <div className="space-y-3">
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-slate-400">{t('payout', lang)}</span>
                      <span className="text-emerald-400 font-mono">${Math.round(finalContract?.payout || 0).toLocaleString()}</span>
                    </div>
+                   {emergencyOffAirportCompletion && (
+                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                     <span className="text-amber-300">{lang === 'de' ? 'Notlandung Payout-Abzug (70%)' : 'Emergency payout reduction (70%)'}</span>
+                     <span className="text-red-400 font-mono">-${Math.round(emergencyPayoutReduction).toLocaleString()}</span>
+                   </div>
+                   )}
                    {flight?.xplane_data?.landingBonus > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-slate-400">{t('landing_bonus', lang)}</span>
@@ -635,15 +724,7 @@ export default function CompletedFlightDetails() {
                    </div>
                    )}
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Treibstoff ({(() => {
-                       if (flight.fuel_used_liters > 0) return Math.round(flight.fuel_used_liters).toLocaleString();
-                       const xpd = flight.xplane_data || {};
-                       const initKg = xpd.initial_fuel_kg || 0;
-                       const curKg = xpd.fuelKg || xpd.fuel_kg || 0;
-                       if (initKg > 0) return Math.round(Math.max(0, initKg - curKg) * 1.25).toLocaleString();
-                       if (flight.flight_duration_hours > 0) return Math.round(flight.flight_duration_hours * 2500).toLocaleString();
-                       return '0';
-                     })()} L)</span>
+                     <span className="text-slate-400">Treibstoff ({estimateFuelUsedLiters().toLocaleString()} L)</span>
                     <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
@@ -659,13 +740,13 @@ export default function CompletedFlightDetails() {
                     <span className="text-red-400 font-mono">-$150</span>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-700">
-                    <span className="font-semibold">{t('total_revenue', lang)}</span>
+                    <span className="font-semibold text-white">{t('total_revenue', lang)}</span>
                     <span className="text-xl font-bold font-mono text-emerald-400">
                       ${Math.round(flight.revenue || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-3">
-                    <span className="font-semibold">{t('profit_loss', lang)}</span>
+                    <span className="font-semibold text-white">{t('profit_loss', lang)}</span>
                     <span className={`text-xl font-bold font-mono ${
                       flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
@@ -678,7 +759,7 @@ export default function CompletedFlightDetails() {
               {/* Passenger Comments */}
               {flight.passenger_comments && flight.passenger_comments.length > 0 && (
                 <Card className="p-6 bg-slate-800/50 border-slate-700">
-                  <h3 className="text-lg font-semibold mb-4">{t('passenger_comments', lang)}</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-white">{t('passenger_comments', lang)}</h3>
                   <div className="space-y-2">
                     {flight.passenger_comments.map((comment, idx) => (
                       <p key={idx} className="text-slate-300 text-sm">

@@ -74,6 +74,10 @@ class PythonInterface:
         self.crash = False
         
         self.datarefs = {}
+        self.pending_simbrief_route_compact = None
+        self.last_loaded_simbrief_route_compact = None
+        self.last_fms_auto_load_at = 0
+        self.fms_auto_load_cooldown = 6.0
         
     def XPluginStart(self):
         self.datarefs['altitude'] = xp.findDataRef("sim/flightmodel/position/elevation")
@@ -94,6 +98,12 @@ class PythonInterface:
         self.datarefs['flap_ratio'] = xp.findDataRef("sim/flightmodel/controls/flaprat")
         self.datarefs['has_crashed'] = xp.findDataRef("sim/flightmodel2/misc/has_crashed")
         self.datarefs['vne'] = xp.findDataRef("sim/aircraft/view/acf_Vne")
+        self.datarefs['oat_c'] = xp.findDataRef("sim/weather/temperature_ambient_c")
+        self.datarefs['baro_setting'] = xp.findDataRef("sim/cockpit/misc/barometer_setting")
+        self.datarefs['wind_speed'] = xp.findDataRef("sim/weather/wind_speed_kt")
+        self.datarefs['wind_dir'] = xp.findDataRef("sim/weather/wind_direction_degt")
+        self.datarefs['ground_elevation'] = xp.findDataRef("sim/flightmodel/position/y_agl")
+        self.datarefs['total_weight'] = xp.findDataRef("sim/flightmodel/weight/m_total")
         
         xp.createFlightLoop(self.FlightLoopCallback, 1)
         return self.Name, self.Sig, self.Desc
@@ -128,6 +138,14 @@ class PythonInterface:
             flap_ratio = xp.getDataf(self.datarefs['flap_ratio'])
             has_crashed = xp.getDatai(self.datarefs['has_crashed']) == 1
             vne = xp.getDataf(self.datarefs['vne']) or 999
+            oat_c = xp.getDataf(self.datarefs['oat_c'])
+            baro_inhg = xp.getDataf(self.datarefs['baro_setting'])
+            baro_mb = round(baro_inhg * 33.8639, 1) if baro_inhg else None
+            wind_speed_kts = xp.getDataf(self.datarefs['wind_speed'])
+            wind_dir = xp.getDataf(self.datarefs['wind_dir'])
+            agl_m = xp.getDataf(self.datarefs['ground_elevation'])
+            ground_elev_ft = round((altitude / 3.28084 - agl_m) * 3.28084, 1) if agl_m else None
+            total_weight_kg = xp.getDataf(self.datarefs['total_weight'])
             
             engines_running = False
             engine_array = []
@@ -205,15 +223,86 @@ class PythonInterface:
                 'fuel_emergency': self.fuel_emergency,
                 'gear_up_landing': self.gear_up_landing,
                 'crash': self.crash,
-                'has_crashed': has_crashed
+                'has_crashed': has_crashed,
+                'oat_c': round(oat_c, 1) if oat_c is not None else None,
+                'baro_setting': baro_mb,
+                'wind_speed_kts': round(wind_speed_kts, 1) if wind_speed_kts is not None else None,
+                'wind_direction': round(wind_dir, 1) if wind_dir is not None else None,
+                'ground_elevation_ft': ground_elev_ft,
+                'total_weight_kg': round(total_weight_kg, 1) if total_weight_kg is not None else None
             }
             
             self.send_data(payload)
+            self.try_auto_load_simbrief_route(current_time)
             
         except Exception as e:
             xp.log(f"SkyCareer Error: {str(e)}")
         
         return -1
+
+    def parse_simbrief_route_compact(self, compact):
+        if not compact or not isinstance(compact, str):
+            return []
+        route = []
+        for token in compact.split(";"):
+            part = token.strip()
+            if not part:
+                continue
+            bits = part.split(",")
+            if len(bits) < 4:
+                continue
+            try:
+                route.append({
+                    "name": str(bits[0] or "WPT").strip().upper()[:8],
+                    "lat": float(bits[1]),
+                    "lon": float(bits[2]),
+                    "alt": max(0, int(round(float(bits[3] or 0))))
+                })
+            except Exception:
+                continue
+        return route
+
+    def load_route_into_fms(self, compact):
+        route = self.parse_simbrief_route_compact(compact)
+        if len(route) < 2:
+            return False
+        try:
+            for i in range(100):
+                try:
+                    xp.clearFMSEntry(i)
+                except Exception:
+                    break
+            loaded = 0
+            for idx, wp in enumerate(route[:100]):
+                try:
+                    xp.setFMSEntryLatLon(idx, float(wp["lat"]), float(wp["lon"]), int(wp["alt"]))
+                    loaded += 1
+                except Exception:
+                    continue
+            if loaded >= 2:
+                try:
+                    xp.setDestinationFMSEntry(loaded - 1)
+                except Exception:
+                    pass
+                xp.log(f"SkyCareer: SimBrief route auto-loaded to FMS ({loaded} waypoints)")
+                return True
+        except Exception as e:
+            xp.log(f"SkyCareer FMS load error: {str(e)}")
+        return False
+
+    def try_auto_load_simbrief_route(self, current_time):
+        compact = self.pending_simbrief_route_compact
+        if not compact:
+            return
+        if compact == self.last_loaded_simbrief_route_compact:
+            self.pending_simbrief_route_compact = None
+            return
+        if current_time - self.last_fms_auto_load_at < self.fms_auto_load_cooldown:
+            return
+        self.last_fms_auto_load_at = current_time
+        if self.load_route_into_fms(compact):
+            self.last_loaded_simbrief_route_compact = compact
+            self.pending_simbrief_route_compact = None
     
     def send_data(self, data):
         def _send():
@@ -221,7 +310,11 @@ class PythonInterface:
                 json_data = json.dumps(data).encode('utf-8')
                 url = self.api_endpoint + '?api_key=' + self.api_key
                 request = urllib.request.Request(url, data=json_data, headers={'Content-Type': 'application/json'}, method='POST')
-                urllib.request.urlopen(request, timeout=2)
+                response = urllib.request.urlopen(request, timeout=3)
+                result = json.loads(response.read().decode('utf-8'))
+                route_compact = result.get('simbrief_route_compact')
+                if isinstance(route_compact, str) and len(route_compact) > 8:
+                    self.pending_simbrief_route_compact = route_compact
             except Exception:
                 pass
         threading.Thread(target=_send, daemon=True).start()

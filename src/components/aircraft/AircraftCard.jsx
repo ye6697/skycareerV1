@@ -31,6 +31,7 @@ import { t } from "@/components/i18n/translations";
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
   const [isSellDialogOpen, setIsSellDialogOpen] = React.useState(false);
+  const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = React.useState(false);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
 
@@ -238,9 +239,14 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                  </Button>
                </>
            ) : (aircraft.status === "available" || aircraft.status === "maintenance") ? (
-               <Button size="sm" className="h-6 flex-1 text-[9px] bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700" onClick={() => setIsSellDialogOpen(true)}>
-                 {t('sell', lang).toUpperCase()}
-               </Button>
+               <>
+                 <Button size="sm" className="h-6 flex-1 text-[9px] bg-amber-900/40 text-amber-400 hover:bg-amber-800 border border-amber-900/50" onClick={() => setIsMaintenanceDialogOpen(true)}>
+                   {t('maintenance', lang).toUpperCase()}
+                 </Button>
+                 <Button size="sm" className="h-6 flex-1 text-[9px] bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700" onClick={() => setIsSellDialogOpen(true)}>
+                   {t('sell', lang).toUpperCase()}
+                 </Button>
+               </>
            ) : (
                <div className="h-6 flex-1 flex items-center justify-center text-[9px] text-cyan-600 uppercase">
                  {displayStatus.label}
@@ -275,6 +281,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               <Button variant="outline" onClick={() => setIsSellDialogOpen(false)} className="h-8 text-[10px] border-slate-700 text-slate-400">CANCEL</Button>
               <Button onClick={() => sellMutation.mutate()} disabled={sellMutation.isPending} className="h-8 text-[10px] bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-900">{t('sell', lang).toUpperCase()}</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-md">
+            <DialogHeader><DialogTitle className="text-amber-400 uppercase">{t('maintenance', lang)} - {aircraft.registration}</DialogTitle></DialogHeader>
+            <MaintenanceCategories aircraft={aircraft} />
           </DialogContent>
         </Dialog>
       </Card>

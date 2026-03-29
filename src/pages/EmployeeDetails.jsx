@@ -112,46 +112,35 @@ export default function EmployeeDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-4xl mx-auto p-4 lg:p-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <Button
+    <div className="h-full flex flex-col gap-2">
+      {/* Zibo Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="flex items-center gap-2">
+          <Button 
             variant="ghost"
             onClick={() => navigate(createPageUrl("Employees"))}
-            className="mb-4 text-blue-400 hover:text-blue-300"
+            className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t('back_to_employees', lang)}
+            ◀ {t('back_to_employees', lang)}
           </Button>
+          <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{employee.name}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className={`${roleConfig[employee.role]?.color} text-[10px] font-mono uppercase h-7 rounded`}>
+            {roleConfig[employee.role]?.label}
+          </Badge>
+          <Badge className={`${experienceConfig[employee.experience_level]?.color} text-[10px] font-mono uppercase h-7 rounded`}>
+            {experienceConfig[employee.experience_level]?.label}
+          </Badge>
+          <Badge className={`${statusConfig[employee.status]?.color} text-[10px] font-mono uppercase h-7 rounded`}>
+            {statusConfig[employee.status]?.label}
+          </Badge>
+        </div>
+      </div>
 
-          <div className="flex items-start gap-4 mb-6">
-            <div className={`w-16 h-16 rounded-lg flex items-center justify-center text-3xl ${roleConfig[employee.role]?.color}`}>
-              {roleConfig[employee.role]?.icon}
-            </div>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-white mb-2">{employee.name}</h1>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className={roleConfig[employee.role]?.color}>
-                  {roleConfig[employee.role]?.label}
-                </Badge>
-                <Badge className={experienceConfig[employee.experience_level]?.color}>
-                  {experienceConfig[employee.experience_level]?.label}
-                </Badge>
-                <Badge className={statusConfig[employee.status]?.color}>
-                  {statusConfig[employee.status]?.label}
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Skills & Performance */}
