@@ -8,6 +8,7 @@ const companyByApiKeyCache = new Map();
 const companyRefreshInFlight = new Map();
 const activeFlightByCompanyCache = new Map();
 const activeFlightRefreshInFlight = new Map();
+const aircraftMaintenanceRatioCache = new Map();
 
 const cloneValue = (value) => {
   if (value === undefined || value === null) return value;
@@ -127,6 +128,35 @@ const patchActiveFlightCache = (companyId, partialFlight) => {
     flight: cloneValue(merged),
     expiresAt,
   });
+};
+
+const normalizeSimulatorName = (value: unknown) => {
+  const sim = String(value || "").toLowerCase();
+  if (!sim) return "xplane12";
+  if (sim === "msfs" || sim === "msfs2020" || sim === "microsoftflightsimulator") return "msfs2020";
+  if (sim === "msfs2024" || sim === "microsoftflightsimulator2024") return "msfs2024";
+  if (sim === "xplane" || sim === "xplane11" || sim === "xplane12") return "xplane12";
+  return sim;
+};
+
+const getAircraftMaintenanceRatioCached = async (base44, aircraftId) => {
+  if (!aircraftId) return 0;
+  const now = Date.now();
+  const cached = aircraftMaintenanceRatioCache.get(aircraftId);
+  if (cached && cached.expiresAt > now) return cached.ratio;
+  try {
+    const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: aircraftId });
+    const ac = aircraftList[0];
+    const cats = Object.values(ac?.maintenance_categories || {});
+    const avg = cats.length > 0
+      ? cats.reduce((sum, val) => sum + (Number(val) || 0), 0) / cats.length
+      : 0;
+    const ratio = Math.max(0, Math.min(1, avg / 100));
+    aircraftMaintenanceRatioCache.set(aircraftId, { ratio, expiresAt: now + 30000 });
+    return ratio;
+  } catch (_) {
+    return Number(cached?.ratio || 0);
+  }
 };
 
 Deno.serve(async (req) => {
@@ -369,7 +399,7 @@ Deno.serve(async (req) => {
     }
     
     const data = await req.json();
-    const simulator = String(data?.simulator || "xplane12").toLowerCase();
+    const simulator = normalizeSimulatorName(data?.simulator || "xplane12");
     
     // --- FAST POSITION UPDATE: lightweight path for ~30Hz ARC mode data ---
     // These packets only contain position/heading/altitude/speed and skip all DB writes.
@@ -1904,8 +1934,11 @@ Deno.serve(async (req) => {
       status: flight.status || "in_flight",
     });
 
-    // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
-    const maintenanceRatio = company?.current_maintenance_ratio || 0;
+    // Use cached maintenance ratio from company, but fall back to aircraft categories.
+    // This keeps random failure generation reliable for X-Plane, MSFS 2020 and MSFS 2024.
+    const companyMaintenanceRatio = Math.max(0, Math.min(1, Number(company?.current_maintenance_ratio || 0)));
+    const aircraftMaintenanceRatio = await getAircraftMaintenanceRatioCached(base44, flight.aircraft_id);
+    const maintenanceRatio = Math.max(companyMaintenanceRatio, aircraftMaintenanceRatio);
     
     const completionReady = on_ground && hasBeenAirborne && completionArmed;
     const flightStatus = completionReady ? 'ready_to_complete' : 'updated';
@@ -1915,7 +1948,8 @@ Deno.serve(async (req) => {
     // Higher wear = higher chance of failure per data packet.
     // Only trigger failures when airborne to avoid ground anomalies.
     let triggeredFailures = [];
-    if (hasBeenAirborne && !on_ground && flight.aircraft_id) {
+    const failureSimEligible = simulator === 'xplane12' || simulator === 'msfs2020' || simulator === 'msfs2024';
+    if (failureSimEligible && hasBeenAirborne && !on_ground && flight.aircraft_id) {
       // Use cached maintenance ratio for quick check (0.0 = perfect, 1.0 = 100% worn)
       // Only attempt failure rolls if maintenance is above 15%
       if (maintenanceRatio > 0.15) {

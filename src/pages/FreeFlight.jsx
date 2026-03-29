@@ -257,7 +257,7 @@ export default function FreeFlight() {
   const raw = xplaneLog?.raw_data || {};
   const isConnected = company?.xplane_connection_status === 'connected';
 
-  const simLabel = raw.simulator === 'msfs' ? 'MSFS Live' :
+  const simLabel = raw.simulator === 'msfs' || raw.simulator === 'msfs2020' ? 'MSFS 2020 Live' :
     raw.simulator === 'msfs2024' ? 'MSFS 2024 Live' :
     raw.simulator === 'xplane12' ? 'X-Plane 12 Live' :
     raw.simulator === 'xplane' ? 'X-Plane Live' :
