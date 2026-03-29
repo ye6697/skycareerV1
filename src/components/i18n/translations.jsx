@@ -465,6 +465,8 @@ const translations = {
   deadline_exceeded_buffer: { en: "Deadline exceeded – 5 min buffer running (±0 points)", de: "Deadline überschritten – 5 Min. Puffer läuft (±0 Punkte)" },
   deadline_buffer_expired: { en: "Buffer expired! (-20 points)", de: "Puffer abgelaufen! (-20 Punkte)" },
   less_than_5_min: { en: "Less than 5 minutes!", de: "Weniger als 5 Minuten!" },
+  eta: { en: "ETA", de: "ETA" },
+  eta_unavailable: { en: "ETA unavailable", de: "ETA nicht verfügbar" },
 
   // === CONTRACT DETAILS (additional) ===
   loading: { en: "Loading...", de: "Lädt..." },
