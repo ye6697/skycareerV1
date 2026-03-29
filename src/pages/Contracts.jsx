@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import ContractCard from "@/components/contracts/ContractCard";
+import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { AlertCircle, Loader2, Wrench, UserX } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";

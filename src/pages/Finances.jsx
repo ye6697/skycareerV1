@@ -31,6 +31,7 @@ import {
 import StatCard from "@/components/dashboard/StatCard";
 import CreditInfoCard from "@/components/finance/CreditInfoCard";
 import LevelBonusInfo from "@/components/finance/LevelBonusInfo";
+import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 

@@ -90,18 +90,18 @@ function LayoutInner({ children, currentPageName }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-cyan-900 flex flex-col">
       {/* Universal Zibo-style Top Bar */}
-      <div className="h-10 bg-slate-900 border-b border-cyan-900/50 flex items-center justify-between px-3 sticky top-0 z-50 flex-shrink-0 shadow-md">
-        <div className="flex items-center gap-3">
+      <div className="h-12 sm:h-10 bg-slate-900 border-b border-cyan-900/50 flex items-center justify-between px-2 sm:px-3 sticky top-0 z-50 flex-shrink-0 shadow-md overflow-visible">
+        <div className="flex items-center gap-2 sm:gap-3 relative z-[51]">
           {currentPageName !== "Dashboard" && (
-            <Link to={createPageUrl("Dashboard")}>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50">
+            <Link to={createPageUrl("Dashboard")} className="relative z-[51] touch-manipulation">
+              <button className="h-10 sm:h-7 px-3 sm:px-2 text-cyan-400 hover:text-cyan-300 active:bg-cyan-950/50 hover:bg-cyan-950/30 font-mono text-xs sm:text-[10px] uppercase border border-cyan-900/50 rounded-md bg-transparent touch-manipulation select-none">
                 ◀ HOME
-              </Button>
+              </button>
             </Link>
           )}
           <span className="font-mono text-xs font-bold text-cyan-500 uppercase tracking-widest">{currentPageName}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 relative z-[51]">
           <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
             <div className={`w-2 h-2 rounded-full ${xplaneStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : xplaneStatus === 'connecting' ? 'bg-amber-500' : 'bg-slate-600'}`} />
             <span className="text-[9px] font-mono uppercase text-slate-400">{xplaneStatus}</span>
@@ -109,7 +109,7 @@ function LayoutInner({ children, currentPageName }) {
           <span className="text-[10px] font-mono text-slate-400 hidden sm:inline-block bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
              XP: {company?.experience_points || 0} | ${company?.balance?.toLocaleString() || 0}
           </span>
-          <button onClick={() => setLang(lang === 'en' ? 'de' : 'en')} className="text-[10px] font-mono font-bold text-cyan-400 uppercase border border-cyan-800 px-1.5 py-0.5 rounded bg-cyan-950/30 hover:bg-cyan-900/50 transition-colors">
+          <button onClick={() => setLang(lang === 'en' ? 'de' : 'en')} className="h-10 w-10 sm:h-auto sm:w-auto sm:px-1.5 sm:py-0.5 flex items-center justify-center text-xs sm:text-[10px] font-mono font-bold text-cyan-400 uppercase border border-cyan-800 rounded bg-cyan-950/30 hover:bg-cyan-900/50 active:bg-cyan-900/70 transition-colors touch-manipulation select-none relative z-[52]">
             {lang}
           </button>
         </div>

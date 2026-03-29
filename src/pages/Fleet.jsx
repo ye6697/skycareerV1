@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
+import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -275,6 +276,7 @@ export default function Fleet() {
                           <div className="flex justify-between"><span className="text-slate-500">CGO</span><span className="text-cyan-100">{ac.cargo_capacity_kg}kg</span></div>
                           <div className="flex justify-between"><span className="text-slate-500">BURN</span><span className="text-cyan-100">{ac.fuel_consumption_per_hour}L/h</span></div>
                           <div className="flex justify-between"><span className="text-slate-500">RNG</span><span className="text-cyan-100">{ac.range_nm}NM</span></div>
+                          <div className="flex justify-between col-span-2"><span className="text-slate-500">MIN LVL</span><span className={hasLevel ? 'text-emerald-400' : 'text-amber-400'}>{ac.level_requirement || 1}</span></div>
                         </div>
                         <div className="mt-auto space-y-2">
                           <div className="flex justify-between items-center bg-slate-950 p-1.5 rounded border border-slate-800">
@@ -307,6 +309,8 @@ export default function Fleet() {
           </Dialog>
         </div>
       </div>
+
+      <InsolvencyBanner />
 
       <div className="flex-1 overflow-y-auto min-h-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-2">

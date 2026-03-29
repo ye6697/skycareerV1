@@ -1929,6 +1929,13 @@ export default function FlightTracker() {
                   const mins = Math.floor(absRemaining / 60);
                   const secs = Math.floor(absRemaining % 60);
                   const progress = Math.min((elapsed / deadlineSec) * 100, 100);
+                  const speedKts = Number(flightData.speed) || 0;
+                  const hasEta = distanceInfo.remainingNm > 0 && speedKts >= 60;
+                  const etaMinutes = hasEta ? Math.round((distanceInfo.remainingNm / speedKts) * 60) : null;
+                  const etaDate = hasEta ? new Date(Date.now() + (etaMinutes * 60 * 1000)) : null;
+                  const etaClock = etaDate
+                    ? etaDate.toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+                    : null;
                   return (
                     <div>
                       <div className="flex items-center justify-between mb-2">
@@ -1946,6 +1953,17 @@ export default function FlightTracker() {
                         <span>0 min</span>
                         <span>{deadlineMin} min {inBuffer ? '+ 5 min Puffer' : ''}</span>
                       </div>
+                      <p className="mt-2 text-xs text-slate-400">
+                        <span className="text-slate-500">{t('eta', lang)}: </span>
+                        {hasEta ? (
+                          <span className="font-mono text-slate-300">
+                            {etaClock}
+                            {etaMinutes >= 60 ? ` (${Math.floor(etaMinutes / 60)}h ${etaMinutes % 60}m)` : ` (${etaMinutes}m)`}
+                          </span>
+                        ) : (
+                          <span>{t('eta_unavailable', lang)}</span>
+                        )}
+                      </p>
                       {inBuffer && (
                         <p className="text-xs text-amber-400 mt-2 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />

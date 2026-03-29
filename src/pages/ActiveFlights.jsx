@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -223,7 +223,7 @@ export default function ActiveFlights() {
     if (!contract?.required_crew) return true;
 
     for (const [role, required] of Object.entries(contract.required_crew)) {
-      if (required > 0 && !selectedCrew[role]) return false;
+      if (required > 0 && (!selectedCrew[role] || selectedCrew[role] === '__none__')) return false;
     }
     return true;
   };
