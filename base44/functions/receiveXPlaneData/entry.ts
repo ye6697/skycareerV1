@@ -1,8 +1,8 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
 
 const COMPANY_CACHE_TTL_MS = 5 * 60 * 1000;
-const ACTIVE_FLIGHT_CACHE_TTL_MS = 15 * 1000;
-const NO_ACTIVE_FLIGHT_CACHE_TTL_MS = 2500;
+const ACTIVE_FLIGHT_CACHE_TTL_MS = 1000;
+const NO_ACTIVE_FLIGHT_CACHE_TTL_MS = 1000;
 
 const companyByApiKeyCache = new Map();
 const companyRefreshInFlight = new Map();
@@ -102,14 +102,8 @@ const getActiveFlightForCompanyCached = async (base44, companyId) => {
   if (cached && cached.expiresAt > now) {
     return cloneValue(cached.flight);
   }
-  if (cached) {
-    // If we have a stale active flight, return it immediately and refresh in background.
-    // If we have stale "no flight", do a blocking refresh so newly started flights are detected quickly.
-    if (cached.flight) {
-      refreshActiveFlightCacheAsync(base44, companyId);
-      return cloneValue(cached.flight);
-    }
-  }
+  // For stale entries, do a blocking refresh to avoid missing out-of-band updates
+  // (e.g. manual test commands written from frontend while bridge packets are streaming).
   const fresh = await fetchActiveFlightForCompany(base44, companyId);
   setActiveFlightCache(companyId, fresh);
   return cloneValue(fresh);
@@ -1854,7 +1848,9 @@ Deno.serve(async (req) => {
     const updateData: Record<string, any> = { xplane_data: xplaneData };
     const queuedBridgeCommandsRaw = Array.isArray((flight as any)?.bridge_command_queue)
       ? (flight as any).bridge_command_queue
-      : [];
+      : (Array.isArray((flight as any)?.xplane_data?.bridge_command_queue)
+          ? (flight as any).xplane_data.bridge_command_queue
+          : []);
     const bridgeCommandsForBridge = queuedBridgeCommandsRaw
       .filter((cmd: any) => cmd && typeof cmd === "object" && cmd.type)
       .slice(0, 4)
@@ -1872,6 +1868,10 @@ Deno.serve(async (req) => {
         return id.length === 0 || !sentIds.has(id);
       });
       updateData.bridge_command_queue = remainingCommands;
+      updateData.xplane_data = {
+        ...xplaneData,
+        bridge_command_queue: remainingCommands,
+      };
       updateData.last_bridge_command_dispatch_at = new Date().toISOString();
       updateData.last_bridge_command_dispatch_count = bridgeCommandsForBridge.length;
     }
@@ -1926,138 +1926,170 @@ Deno.serve(async (req) => {
       status: flight.status || "in_flight",
     });
 
-    // Use cached maintenance_ratio from Company (updated in background ~10% of requests)
-    const maintenanceRatio = company?.current_maintenance_ratio || 0;
+    // Use cached maintenance ratio from Company as baseline.
+    // Per-aircraft wear is evaluated inside the trigger block.
+    const maintenanceRatio = Number(company?.current_maintenance_ratio || prevXd.aircraft_maintenance_ratio || 0) || 0;
     
     const completionReady = on_ground && hasBeenAirborne && completionArmed;
     const flightStatus = completionReady ? 'ready_to_complete' : 'updated';
     
     // === FAILURE TRIGGER SYSTEM ===
-    // Failures are triggered based on maintenance wear percentage.
-    // Higher wear = higher chance of failure per data packet.
-    // Only trigger failures when airborne to avoid ground anomalies.
-    let triggeredFailures = [];
-    if (hasBeenAirborne && !on_ground && flight.aircraft_id) {
-      // Use cached maintenance ratio for quick check (0.0 = perfect, 1.0 = 100% worn)
-      // Only attempt failure rolls if maintenance is above 15%
-      if (maintenanceRatio > 0.15) {
-        // Base chance per data packet (~1 per second): 
-        // At 20% wear: 0.05% chance per tick (~3% per minute)
-        // At 50% wear: 0.25% chance per tick (~15% per minute) 
-        // At 80% wear: 0.8% chance per tick (~40% per minute)
-        // At 100% wear: 1.5% chance per tick (~60% per minute)
-        const baseChance = Math.pow(maintenanceRatio, 2.5) * 0.015;
-        
-        // Roll for failure
-        if (Math.random() < baseChance) {
-          // Determine which category fails based on individual wear levels
-          // Fetch aircraft data (async, but we respond before it completes)
-          (async () => {
-            try {
-              const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
-              const ac = aircraftList[0];
-              if (!ac?.maintenance_categories) return;
-              
-              const cats = ac.maintenance_categories;
-              // Build weighted pool: categories with higher wear are more likely to fail
-              const pool = [];
-              const categoryFailures = {
-                engine: [
-                  { name: 'Engine Power Loss', name_de: 'Triebwerk Leistungsverlust', severity: 'schwer' },
-                  { name: 'Engine Vibration', name_de: 'Triebwerk Vibration', severity: 'mittel' },
-                  { name: 'Oil Pressure Warning', name_de: 'Öldruck Warnung', severity: 'leicht' },
-                ],
-                hydraulics: [
-                  { name: 'Hydraulic Pressure Low', name_de: 'Hydraulikdruck niedrig', severity: 'mittel' },
-                  { name: 'Hydraulic Leak', name_de: 'Hydraulikleck', severity: 'schwer' },
-                ],
-                avionics: [
-                  { name: 'Autopilot Disconnect', name_de: 'Autopilot Abschaltung', severity: 'mittel' },
-                  { name: 'Navigation Display Failure', name_de: 'Navigationsanzeige Ausfall', severity: 'leicht' },
-                  { name: 'Radio Failure', name_de: 'Funkausfall', severity: 'leicht' },
-                ],
-                airframe: [
-                  { name: 'Cabin Pressure Warning', name_de: 'Kabinendruck Warnung', severity: 'schwer' },
-                  { name: 'Structural Vibration', name_de: 'Strukturelle Vibration', severity: 'mittel' },
-                ],
-                landing_gear: [
-                  { name: 'Gear Indicator Fault', name_de: 'Fahrwerksanzeige Fehler', severity: 'leicht' },
-                  { name: 'Gear Retraction Problem', name_de: 'Fahrwerk Einfahrproblem', severity: 'mittel' },
-                ],
-                electrical: [
-                  { name: 'Generator Failure', name_de: 'Generator Ausfall', severity: 'mittel' },
-                  { name: 'Bus Voltage Low', name_de: 'Bus Spannung niedrig', severity: 'leicht' },
-                  { name: 'Battery Overheat', name_de: 'Batterie Überhitzung', severity: 'schwer' },
-                ],
-                flight_controls: [
-                  { name: 'Trim Runaway', name_de: 'Trimmung Durchdrehen', severity: 'schwer' },
-                  { name: 'Aileron Stiffness', name_de: 'Querruder Schwergängig', severity: 'leicht' },
-                  { name: 'Elevator Malfunction', name_de: 'Höhenruder Fehlfunktion', severity: 'mittel' },
-                ],
-                pressurization: [
-                  { name: 'Bleed Air Leak', name_de: 'Zapfluft Leck', severity: 'mittel' },
-                  { name: 'Pack Failure', name_de: 'Klimaanlage Ausfall', severity: 'leicht' },
-                  { name: 'Pressurization Loss', name_de: 'Druckverlust', severity: 'schwer' },
-                ]
-              };
-              
-              for (const [cat, wear] of Object.entries(cats)) {
-                if (wear > 20 && categoryFailures[cat]) {
-                  // Weight: more wear = more likely to be selected
-                  const weight = Math.round(wear);
-                  for (let w = 0; w < weight; w++) {
-                    pool.push(cat);
-                  }
-                }
-              }
-              
-              if (pool.length === 0) return;
-              
-              // Pick a random category from weighted pool
-              const selectedCat = pool[Math.floor(Math.random() * pool.length)];
-              const possibleFailures = categoryFailures[selectedCat] || [];
-              if (possibleFailures.length === 0) return;
-              
-              // Higher wear = more severe failures possible
-              const catWear = cats[selectedCat] || 0;
-              let filtered = possibleFailures;
-              if (catWear < 40) {
-                filtered = possibleFailures.filter(f => f.severity === 'leicht');
-              } else if (catWear < 70) {
-                filtered = possibleFailures.filter(f => f.severity !== 'schwer');
-              }
-              if (filtered.length === 0) filtered = possibleFailures;
-              
-              const failure = filtered[Math.floor(Math.random() * filtered.length)];
-              
-              // Check if this failure already exists on the flight
-              const existingFailures = flight.active_failures || [];
-              const alreadyExists = existingFailures.some(f => f.name === failure.name || f.name === failure.name_de);
-              if (alreadyExists) return;
-              
-              const newFailure = {
-                name: failure.name_de,
-                severity: failure.severity,
-                category: selectedCat,
-                timestamp: new Date().toISOString()
-              };
-              
-              // Calculate damage
-              const dmg = failure.severity === 'schwer' ? 15 : failure.severity === 'mittel' ? 8 : 3;
-              const existingDamage = flight.maintenance_damage || {};
-              const updatedDamage = { ...existingDamage };
-              updatedDamage[selectedCat] = (updatedDamage[selectedCat] || 0) + dmg;
-              
-              await base44.asServiceRole.entities.Flight.update(flight.id, {
-                active_failures: [...existingFailures, newFailure],
-                maintenance_damage: updatedDamage
+    // Trigger in-flight failures from actual aircraft wear (with cooldown).
+    const nowMs = Date.now();
+    const lastFailureTriggerAtMs = Number(prevXd.last_failure_trigger_at_ms || 0) || 0;
+    const failureCooldownMs = 25000;
+    const canAttemptFailureRoll = hasBeenAirborne && !on_ground && flight.aircraft_id && (nowMs - lastFailureTriggerAtMs >= failureCooldownMs);
+    if (canAttemptFailureRoll) {
+      const minFailureRatio = 0.08;
+      const normalizedRatio = Math.max(0, Math.min(1, (maintenanceRatio - minFailureRatio) / (1 - minFailureRatio)));
+      const baseChance = normalizedRatio > 0 ? (0.004 + Math.pow(normalizedRatio, 1.8) * 0.050) : 0;
+      if (baseChance > 0 && Math.random() < baseChance) {
+        (async () => {
+          try {
+            const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+            const ac = aircraftList[0];
+            if (!ac?.maintenance_categories || typeof ac.maintenance_categories !== 'object') return;
+
+            const cats = ac.maintenance_categories;
+            const catEntries = Object.entries(cats).map(([cat, wear]) => [cat, Number(wear || 0)]);
+            const avgWear = catEntries.length > 0
+              ? (catEntries.reduce((sum, [, wear]) => sum + Math.max(0, Number(wear || 0)), 0) / catEntries.length)
+              : 0;
+            const aircraftMaintenanceRatio = Math.max(maintenanceRatio, Math.max(0, avgWear) / 100);
+            if (aircraftMaintenanceRatio < minFailureRatio) return;
+
+            const categoryFailures = {
+              engine: [
+                { name: 'Engine Power Loss', name_de: 'Triebwerk Leistungsverlust', severity: 'schwer' },
+                { name: 'Engine Vibration', name_de: 'Triebwerk Vibration', severity: 'mittel' },
+                { name: 'Oil Pressure Warning', name_de: 'Oldruck Warnung', severity: 'leicht' },
+              ],
+              hydraulics: [
+                { name: 'Hydraulic Pressure Low', name_de: 'Hydraulikdruck niedrig', severity: 'mittel' },
+                { name: 'Hydraulic Leak', name_de: 'Hydraulikleck', severity: 'schwer' },
+              ],
+              avionics: [
+                { name: 'Autopilot Disconnect', name_de: 'Autopilot Abschaltung', severity: 'mittel' },
+                { name: 'Navigation Display Failure', name_de: 'Navigationsanzeige Ausfall', severity: 'leicht' },
+                { name: 'Radio Failure', name_de: 'Funkausfall', severity: 'leicht' },
+              ],
+              airframe: [
+                { name: 'Cabin Pressure Warning', name_de: 'Kabinendruck Warnung', severity: 'schwer' },
+                { name: 'Structural Vibration', name_de: 'Strukturelle Vibration', severity: 'mittel' },
+              ],
+              landing_gear: [
+                { name: 'Gear Indicator Fault', name_de: 'Fahrwerksanzeige Fehler', severity: 'leicht' },
+                { name: 'Gear Retraction Problem', name_de: 'Fahrwerk Einfahrproblem', severity: 'mittel' },
+              ],
+              electrical: [
+                { name: 'Generator Failure', name_de: 'Generator Ausfall', severity: 'mittel' },
+                { name: 'Bus Voltage Low', name_de: 'Bus Spannung niedrig', severity: 'leicht' },
+                { name: 'Battery Overheat', name_de: 'Batterie Uberhitzung', severity: 'schwer' },
+              ],
+              flight_controls: [
+                { name: 'Trim Runaway', name_de: 'Trimmung Durchdrehen', severity: 'schwer' },
+                { name: 'Aileron Stiffness', name_de: 'Querruder Schwergangig', severity: 'leicht' },
+                { name: 'Elevator Malfunction', name_de: 'Hohenruder Fehlfunktion', severity: 'mittel' },
+              ],
+              pressurization: [
+                { name: 'Bleed Air Leak', name_de: 'Zapfluft Leck', severity: 'mittel' },
+                { name: 'Pack Failure', name_de: 'Klimaanlage Ausfall', severity: 'leicht' },
+                { name: 'Pressurization Loss', name_de: 'Druckverlust', severity: 'schwer' },
+              ]
+            };
+
+            const weightedPool = [];
+            for (const [cat, wearRaw] of catEntries) {
+              const wear = Math.max(0, Math.min(100, Number(wearRaw || 0)));
+              if (wear < 15 || !categoryFailures[cat]) continue;
+              const weight = Math.max(1, Math.round((wear - 10) * 1.5));
+              for (let i = 0; i < weight; i++) weightedPool.push(cat);
+            }
+            if (weightedPool.length === 0) return;
+
+            const selectedCat = weightedPool[Math.floor(Math.random() * weightedPool.length)];
+            const options = categoryFailures[selectedCat] || [];
+            if (options.length === 0) return;
+
+            const catWear = Math.max(0, Math.min(100, Number(cats[selectedCat] || 0)));
+            let desiredSeverity = 'leicht';
+            if (catWear >= 85) desiredSeverity = Math.random() < 0.7 ? 'schwer' : 'mittel';
+            else if (catWear >= 60) desiredSeverity = Math.random() < 0.45 ? 'schwer' : 'mittel';
+            else if (catWear >= 35) desiredSeverity = Math.random() < 0.65 ? 'mittel' : 'leicht';
+
+            let candidates = options.filter(f => f.severity === desiredSeverity);
+            if (candidates.length === 0 && desiredSeverity === 'schwer') {
+              candidates = options.filter(f => f.severity === 'mittel');
+            }
+            if (candidates.length === 0) candidates = options;
+
+            const failure = candidates[Math.floor(Math.random() * candidates.length)];
+            const existingFailures = flight.active_failures || [];
+            const alreadyExists = existingFailures.some(f =>
+              (f?.name && (f.name === failure.name || f.name === failure.name_de)) &&
+              (f?.category ? String(f.category) === String(selectedCat) : true)
+            );
+            if (alreadyExists) return;
+
+            const createdAtIso = new Date().toISOString();
+            const newFailure = {
+              name: failure.name_de,
+              severity: failure.severity,
+              category: selectedCat,
+              source: 'maintenance_ratio_system',
+              timestamp: createdAtIso
+            };
+
+            const damageBySeverity = { schwer: 18, mittel: 10, leicht: 4 };
+            const dmg = damageBySeverity[failure.severity] ?? 8;
+            const existingDamage = flight.maintenance_damage || {};
+            const updatedDamage = { ...existingDamage };
+            updatedDamage[selectedCat] = Math.min(100, Number(updatedDamage[selectedCat] || 0) + dmg);
+
+            const rawQueue = Array.isArray((flight as any).bridge_command_queue)
+              ? (flight as any).bridge_command_queue
+              : (Array.isArray((flight as any)?.xplane_data?.bridge_command_queue)
+                  ? (flight as any).xplane_data.bridge_command_queue
+                  : []);
+            const nextQueue = [...rawQueue];
+            if (selectedCat === 'engine' && failure.severity === 'schwer') {
+              nextQueue.push({
+                id: `cmd-auto-engine-failure-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                type: 'engine_failure_test',
+                simulator: 'msfs',
+                created_at: createdAtIso,
+                source: 'maintenance_ratio_system',
               });
-            } catch (_) { /* ignore failure trigger errors */ }
-          })();
-        }
+            }
+
+            const nextFlightXpd = {
+              ...(flight.xplane_data || {}),
+              aircraft_maintenance_ratio: Number(aircraftMaintenanceRatio.toFixed(4)),
+              last_failure_trigger_at_ms: nowMs,
+              maintenance_failure_category: selectedCat,
+              maintenance_failure_severity: failure.severity,
+              maintenance_failure_timestamp: createdAtIso,
+              bridge_command_queue: nextQueue.slice(-25),
+            };
+
+            await base44.asServiceRole.entities.Flight.update(flight.id, {
+              active_failures: [...existingFailures, newFailure],
+              maintenance_damage: updatedDamage,
+              bridge_command_queue: nextQueue.slice(-25),
+              xplane_data: nextFlightXpd,
+            });
+
+            patchActiveFlightCache(company.id, {
+              ...flight,
+              active_failures: [...existingFailures, newFailure],
+              maintenance_damage: updatedDamage,
+              bridge_command_queue: nextQueue.slice(-25),
+              xplane_data: nextFlightXpd,
+            });
+          } catch (_) { /* ignore failure trigger errors */ }
+        })();
       }
     }
-    
     // Background maintenance ratio recalculation (~10% of requests, fully async)
     if (Math.random() < 0.1 && flight.aircraft_id) {
       (async () => {
@@ -2190,12 +2222,12 @@ Deno.serve(async (req) => {
     // Keep a live XPlaneLog stream during active contracts, but throttle writes
     // to reduce backend load and telemetry lag.
     const prevXPlaneLogAtMs = Number(prevXd.last_xplanelog_at_ms ?? 0);
-    const nowMs = Date.now();
+    const nowLogMs = Date.now();
     const shouldWriteLiveLog =
       !Number.isFinite(prevXPlaneLogAtMs) ||
       prevXPlaneLogAtMs <= 0 ||
-      (nowMs - prevXPlaneLogAtMs) >= 2000;
-    xplaneData.last_xplanelog_at_ms = shouldWriteLiveLog ? nowMs : prevXPlaneLogAtMs;
+      (nowLogMs - prevXPlaneLogAtMs) >= 2000;
+    xplaneData.last_xplanelog_at_ms = shouldWriteLiveLog ? nowLogMs : prevXPlaneLogAtMs;
     if (shouldWriteLiveLog) {
       base44.asServiceRole.entities.XPlaneLog.create({
         company_id: company.id,

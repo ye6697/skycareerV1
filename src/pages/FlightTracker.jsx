@@ -573,7 +573,9 @@ export default function FlightTracker() {
         ? freshFlight.maintenance_damage
         : {};
       const currentFailures = Array.isArray(freshFlight?.active_failures) ? freshFlight.active_failures : [];
-      const currentBridgeCommands = Array.isArray(freshFlight?.bridge_command_queue) ? freshFlight.bridge_command_queue : [];
+      const currentBridgeCommands = Array.isArray(freshFlight?.bridge_command_queue)
+        ? freshFlight.bridge_command_queue
+        : (Array.isArray(freshFlight?.xplane_data?.bridge_command_queue) ? freshFlight.xplane_data.bridge_command_queue : []);
       const nowIso = new Date().toISOString();
 
       const nextDamage = {
@@ -624,6 +626,7 @@ export default function FlightTracker() {
           ...currentXpd,
           flight_events_log: nextFlightEventsLog,
           bridge_event_log: nextBridgeEventLog,
+          bridge_command_queue: nextBridgeCommands,
           manual_engine_failure_test: true,
         },
       });
@@ -642,6 +645,7 @@ export default function FlightTracker() {
             ...(prev.xplane_data || {}),
             flight_events_log: nextFlightEventsLog,
             bridge_event_log: nextBridgeEventLog,
+            bridge_command_queue: nextBridgeCommands,
             manual_engine_failure_test: true,
           },
         };
