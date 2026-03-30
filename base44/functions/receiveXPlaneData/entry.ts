@@ -1974,6 +1974,16 @@ Deno.serve(async (req) => {
             const forceFailureRoll = aircraftMaintenanceRatio >= 0.35 && noFailureDurationMs >= 240000;
             const rollSuccess = baseChance > 0 && Math.random() < baseChance;
             if (!rollSuccess && !forceFailureRoll) return;
+            console.info("[MaintenanceFailure] roll accepted", {
+              flight_id: flight.id,
+              aircraft_id: flight.aircraft_id || null,
+              maintenance_ratio: Number(maintenanceRatio.toFixed(4)),
+              aircraft_maintenance_ratio: Number(aircraftMaintenanceRatio.toFixed(4)),
+              base_chance: Number(baseChance.toFixed(6)),
+              roll_success: rollSuccess,
+              forced_roll: forceFailureRoll,
+              no_failure_duration_ms: noFailureDurationMs,
+            });
 
             const categoryFailures = {
               engine: [
@@ -2011,6 +2021,11 @@ Deno.serve(async (req) => {
             if (weightedPool.length === 0) {
               const fallbackCats = Object.keys(categoryFailures);
               const fallbackWeight = Math.max(1, Math.round(aircraftMaintenanceRatio * 12));
+              console.info("[MaintenanceFailure] weighted pool empty, using fallback", {
+                flight_id: flight.id,
+                fallback_weight: fallbackWeight,
+                fallback_categories: fallbackCats,
+              });
               for (const cat of fallbackCats) {
                 for (let i = 0; i < fallbackWeight; i++) weightedPool.push(cat);
               }
@@ -2043,7 +2058,15 @@ Deno.serve(async (req) => {
               (f?.name && (f.name === failure.name || f.name === failure.name_de)) &&
               (f?.category ? String(f.category) === String(selectedCat) : true);
             });
-            if (alreadyExists) return;
+            if (alreadyExists) {
+              console.info("[MaintenanceFailure] skipped duplicate", {
+                flight_id: flight.id,
+                category: selectedCat,
+                failure_name: failure.name_de || failure.name,
+                duplicate_cooldown_ms: duplicateCooldownMs,
+              });
+              return;
+            }
 
             const createdAtIso = new Date().toISOString();
             const newFailure = {
@@ -2077,6 +2100,11 @@ Deno.serve(async (req) => {
                 source: 'maintenance_ratio_system',
                 persist_until_landed: true,
               });
+            } else {
+              console.warn("[MaintenanceFailure] no command mapping for category", {
+                flight_id: flight.id,
+                category: selectedCat,
+              });
             }
 
             const nextFlightXpd = {
@@ -2101,7 +2129,20 @@ Deno.serve(async (req) => {
               bridge_command_queue: nextQueue.slice(-25),
               xplane_data: nextFlightXpd,
             });
-          } catch (_) { /* ignore failure trigger errors */ }
+            console.info("[MaintenanceFailure] queued and persisted", {
+              flight_id: flight.id,
+              category: selectedCat,
+              severity: failure.severity,
+              command_type: autoCommandType || null,
+              queue_size: nextQueue.length,
+              timestamp: createdAtIso,
+            });
+          } catch (err) {
+            console.error("[MaintenanceFailure] trigger error", {
+              flight_id: flight.id,
+              error: err?.message || String(err),
+            });
+          }
         })();
       }
     }
