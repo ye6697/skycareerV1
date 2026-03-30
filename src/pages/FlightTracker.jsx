@@ -562,6 +562,83 @@ export default function FlightTracker() {
     }
   });
 
+  const triggerEngineFailureMutation = useMutation({
+    mutationFn: async () => {
+      const activeFlight = flight || existingFlight;
+      if (!activeFlight?.id) throw new Error('No active flight for failure test');
+
+      const freshFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
+      const freshFlight = freshFlights?.[0] || activeFlight;
+      const currentDamage = (freshFlight?.maintenance_damage && typeof freshFlight.maintenance_damage === 'object')
+        ? freshFlight.maintenance_damage
+        : {};
+      const currentFailures = Array.isArray(freshFlight?.active_failures) ? freshFlight.active_failures : [];
+      const nowIso = new Date().toISOString();
+
+      const nextDamage = {
+        ...currentDamage,
+        engine: Math.min(100, Number(currentDamage.engine || 0) + 25),
+      };
+
+      const alreadyExists = currentFailures.some((f) => f?.source === 'manual_engine_failure_test');
+      const nextFailures = alreadyExists
+        ? currentFailures
+        : [
+            ...currentFailures,
+            {
+              name: lang === 'de' ? 'Triebwerksausfall (Test)' : 'Engine failure (test)',
+              category: 'engine',
+              severity: 'schwer',
+              source: 'manual_engine_failure_test',
+              timestamp: nowIso,
+            },
+          ];
+
+      const currentXpd = freshFlight?.xplane_data || {};
+      const currentEventsLog = Array.isArray(currentXpd.flight_events_log) ? currentXpd.flight_events_log : [];
+      const currentBridgeLog = Array.isArray(currentXpd.bridge_event_log) ? currentXpd.bridge_event_log : [];
+      const eventPayload = {
+        type: 'engine_failure_test',
+        category: 'failure',
+        severity: 'severe',
+        timestamp: nowIso,
+        label: lang === 'de' ? 'Triebwerksausfall Test ausgelost' : 'Engine failure test triggered',
+      };
+      const nextFlightEventsLog = [...currentEventsLog, eventPayload].slice(-800);
+      const nextBridgeEventLog = [...currentBridgeLog, eventPayload].slice(-800);
+
+      await base44.entities.Flight.update(activeFlight.id, {
+        maintenance_damage: nextDamage,
+        active_failures: nextFailures,
+        xplane_data: {
+          ...currentXpd,
+          flight_events_log: nextFlightEventsLog,
+          bridge_event_log: nextBridgeEventLog,
+          manual_engine_failure_test: true,
+        },
+      });
+
+      return { nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog };
+    },
+    onSuccess: ({ nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog }) => {
+      setFlight((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          maintenance_damage: nextDamage,
+          active_failures: nextFailures,
+          xplane_data: {
+            ...(prev.xplane_data || {}),
+            flight_events_log: nextFlightEventsLog,
+            bridge_event_log: nextBridgeEventLog,
+            manual_engine_failure_test: true,
+          },
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ['active-flight', contractIdFromUrl] });
+    },
+  });
+
   const completeFlightMutation = useMutation({
    mutationFn: async () => {
      // Verhindere mehrfache Ausführung
@@ -2183,6 +2260,22 @@ export default function FlightTracker() {
                         {lang === 'de' ? 'Notlandung erklaert - Landung >=10 NM entfernt erlaubt, aber -30 Score und nur 30% Payout' : 'Emergency declared - off-airport landing >=10 NM allowed, but -30 score and only 30% payout'}
                       </div>
                     )}
+                    <Button
+                      onClick={() => {
+                        if (confirm(lang === 'de'
+                          ? 'Test-Fehler auslosen? Das setzt Triebwerksschaden (+25%) fur diesen Flug.'
+                          : 'Trigger test failure? This applies engine damage (+25%) for this flight.')) {
+                          triggerEngineFailureMutation.mutate();
+                        }
+                      }}
+                      disabled={triggerEngineFailureMutation.isPending}
+                      className="w-full bg-red-900/70 hover:bg-red-800 text-red-100 border border-red-700/60"
+                    >
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      {triggerEngineFailureMutation.isPending
+                        ? (lang === 'de' ? 'Test-Fehler wird gesetzt...' : 'Setting test failure...')
+                        : (lang === 'de' ? 'Test: Triebwerksausfall auslosen' : 'Test: Trigger engine failure')}
+                    </Button>
                     <Button onClick={() => { if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) cancelFlightMutation.mutate(); }} disabled={cancelFlightMutation.isPending} variant="destructive" className="w-full">
                       {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
                     </Button>
