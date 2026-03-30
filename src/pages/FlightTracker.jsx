@@ -80,29 +80,6 @@ export default function FlightTracker() {
       bridgeOnly: false,
     },
     {
-      key: 'hydraulics',
-      commandType: 'hydraulic_failure_test',
-      category: 'hydraulics',
-      severity: 'mittel',
-      source: 'manual_hydraulic_failure_test',
-      damageCategory: 'hydraulics',
-      damageValue: 85,
-      name: {
-        de: 'Hydraulikausfall (Test)',
-        en: 'Hydraulic failure (test)',
-      },
-      button: {
-        de: 'Test: Hydraulikausfall',
-        en: 'Test: Trigger hydraulic failure',
-      },
-      eventLabel: {
-        de: 'Hydraulikausfall Test ausgelost',
-        en: 'Hydraulic failure test triggered',
-      },
-      toneClass: 'bg-amber-900/70 hover:bg-amber-800 text-amber-100 border border-amber-700/60',
-      bridgeOnly: true,
-    },
-    {
       key: 'electrical',
       commandType: 'electrical_failure_test',
       category: 'electrical',
@@ -146,29 +123,6 @@ export default function FlightTracker() {
         en: 'Avionics failure test triggered',
       },
       toneClass: 'bg-sky-900/70 hover:bg-sky-800 text-sky-100 border border-sky-700/60',
-      bridgeOnly: true,
-    },
-    {
-      key: 'flight_controls',
-      commandType: 'flight_controls_failure_test',
-      category: 'flight_controls',
-      severity: 'schwer',
-      source: 'manual_flight_controls_failure_test',
-      damageCategory: 'flight_controls',
-      damageValue: 90,
-      name: {
-        de: 'Steuerungsausfall (Test)',
-        en: 'Flight controls failure (test)',
-      },
-      button: {
-        de: 'Test: Steuerungsausfall',
-        en: 'Test: Trigger flight controls failure',
-      },
-      eventLabel: {
-        de: 'Steuerungsausfall Test ausgelost',
-        en: 'Flight controls failure test triggered',
-      },
-      toneClass: 'bg-rose-900/70 hover:bg-rose-800 text-rose-100 border border-rose-700/60',
       bridgeOnly: true,
     },
     {
@@ -222,8 +176,8 @@ export default function FlightTracker() {
     tailstrike: false, stall: false, overstress: false, overspeed: false,
     flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
     crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false,
-    failure_engine: false, failure_hydraulics: false, failure_electrical: false, failure_avionics: false,
-    failure_flight_controls: false, failure_landing_gear: false, failure_airframe: false
+    failure_engine: false, failure_electrical: false, failure_avionics: false,
+    failure_landing_gear: false, failure_airframe: false
   };
   const [failurePopup, setFailurePopup] = useState(null);
 
@@ -334,10 +288,8 @@ export default function FlightTracker() {
 
     const categoryToEventKey = {
       engine: 'failure_engine',
-      hydraulics: 'failure_hydraulics',
       electrical: 'failure_electrical',
       avionics: 'failure_avionics',
-      flight_controls: 'failure_flight_controls',
       landing_gear: 'failure_landing_gear',
       airframe: 'failure_airframe',
     };
@@ -346,10 +298,8 @@ export default function FlightTracker() {
 
     const labelByCategory = {
       engine: lang === 'de' ? 'Triebwerksausfall' : 'Engine failure',
-      hydraulics: lang === 'de' ? 'Hydraulikausfall' : 'Hydraulic failure',
       electrical: lang === 'de' ? 'Elektrikausfall' : 'Electrical failure',
       avionics: lang === 'de' ? 'Avionik-Ausfall' : 'Avionics failure',
-      flight_controls: lang === 'de' ? 'Steuerungsausfall' : 'Flight controls failure',
       landing_gear: lang === 'de' ? 'Fahrwerksausfall' : 'Landing gear failure',
       airframe: lang === 'de' ? 'Strukturausfall' : 'Airframe failure',
     };
@@ -1872,10 +1822,8 @@ export default function FlightTracker() {
         hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing),
         wrong_airport: !!(prev.events.wrong_airport),
         failure_engine: !!(((newWasAirborne || xp.completion_armed) && xp.manual_engine_failure_test) || prev.events.failure_engine),
-        failure_hydraulics: !!(((newWasAirborne || xp.completion_armed) && xp.manual_hydraulic_failure_test) || prev.events.failure_hydraulics),
         failure_electrical: !!(((newWasAirborne || xp.completion_armed) && xp.manual_electrical_failure_test) || prev.events.failure_electrical),
         failure_avionics: !!(((newWasAirborne || xp.completion_armed) && xp.manual_avionics_failure_test) || prev.events.failure_avionics),
-        failure_flight_controls: !!(((newWasAirborne || xp.completion_armed) && xp.manual_flight_controls_failure_test) || prev.events.failure_flight_controls),
         failure_landing_gear: !!(((newWasAirborne || xp.completion_armed) && xp.manual_landing_gear_failure_test) || prev.events.failure_landing_gear),
         failure_airframe: !!(((newWasAirborne || xp.completion_armed) && xp.manual_airframe_failure_test) || prev.events.failure_airframe),
       };
@@ -2476,17 +2424,11 @@ export default function FlightTracker() {
                         {flightData.events.failure_engine === true && (
                           <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Triebwerk' : 'Failure: Engine'}</div>
                         )}
-                        {flightData.events.failure_hydraulics === true && (
-                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Hydraulik' : 'Failure: Hydraulics'}</div>
-                        )}
                         {flightData.events.failure_electrical === true && (
                           <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Elektrik' : 'Failure: Electrical'}</div>
                         )}
                         {flightData.events.failure_avionics === true && (
                           <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Avionik' : 'Failure: Avionics'}</div>
-                        )}
-                        {flightData.events.failure_flight_controls === true && (
-                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Flugsteuerung' : 'Failure: Flight Controls'}</div>
                         )}
                         {flightData.events.failure_landing_gear === true && (
                           <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Fahrwerk' : 'Failure: Landing Gear'}</div>

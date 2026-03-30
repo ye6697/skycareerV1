@@ -1955,8 +1955,8 @@ Deno.serve(async (req) => {
     if (canAttemptFailureRoll) {
       const minFailureRatio = 0.08;
       const normalizedRatio = Math.max(0, Math.min(1, (maintenanceRatio - minFailureRatio) / (1 - minFailureRatio)));
-      const baseChance = normalizedRatio > 0 ? (0.004 + Math.pow(normalizedRatio, 1.8) * 0.050) : 0;
-      if (baseChance > 0 && Math.random() < baseChance) {
+      const baseChance = normalizedRatio > 0 ? (0.006 + Math.pow(normalizedRatio, 1.7) * 0.070) : 0;
+      if (baseChance > 0 || maintenanceRatio >= 0.35) {
         (async () => {
           try {
             const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
@@ -1970,6 +1970,10 @@ Deno.serve(async (req) => {
               : 0;
             const aircraftMaintenanceRatio = Math.max(maintenanceRatio, Math.max(0, avgWear) / 100);
             if (aircraftMaintenanceRatio < minFailureRatio) return;
+            const noFailureDurationMs = Math.max(0, nowMs - lastFailureTriggerAtMs);
+            const forceFailureRoll = aircraftMaintenanceRatio >= 0.35 && noFailureDurationMs >= 240000;
+            const rollSuccess = baseChance > 0 && Math.random() < baseChance;
+            if (!rollSuccess && !forceFailureRoll) return;
 
             const categoryFailures = {
               engine: [
@@ -1977,17 +1981,13 @@ Deno.serve(async (req) => {
                 { name: 'Engine Vibration', name_de: 'Triebwerk Vibration', severity: 'mittel' },
                 { name: 'Oil Pressure Warning', name_de: 'Oldruck Warnung', severity: 'leicht' },
               ],
-              hydraulics: [
-                { name: 'Hydraulic Pressure Low', name_de: 'Hydraulikdruck niedrig', severity: 'mittel' },
-                { name: 'Hydraulic Leak', name_de: 'Hydraulikleck', severity: 'schwer' },
-              ],
               avionics: [
                 { name: 'Autopilot Disconnect', name_de: 'Autopilot Abschaltung', severity: 'mittel' },
                 { name: 'Navigation Display Failure', name_de: 'Navigationsanzeige Ausfall', severity: 'leicht' },
                 { name: 'Radio Failure', name_de: 'Funkausfall', severity: 'leicht' },
               ],
               airframe: [
-                { name: 'Cabin Pressure Warning', name_de: 'Kabinendruck Warnung', severity: 'schwer' },
+                { name: 'Structural Flutter Warning', name_de: 'Strukturflattern Warnung', severity: 'schwer' },
                 { name: 'Structural Vibration', name_de: 'Strukturelle Vibration', severity: 'mittel' },
               ],
               landing_gear: [
@@ -1999,11 +1999,6 @@ Deno.serve(async (req) => {
                 { name: 'Bus Voltage Low', name_de: 'Bus Spannung niedrig', severity: 'leicht' },
                 { name: 'Battery Overheat', name_de: 'Batterie Uberhitzung', severity: 'schwer' },
               ],
-              flight_controls: [
-                { name: 'Trim Runaway', name_de: 'Trimmung Durchdrehen', severity: 'schwer' },
-                { name: 'Aileron Stiffness', name_de: 'Querruder Schwergangig', severity: 'leicht' },
-                { name: 'Elevator Malfunction', name_de: 'Hohenruder Fehlfunktion', severity: 'mittel' },
-              ],
             };
 
             const weightedPool = [];
@@ -2012,6 +2007,13 @@ Deno.serve(async (req) => {
               if (wear < 15 || !categoryFailures[cat]) continue;
               const weight = Math.max(1, Math.round((wear - 10) * 1.5));
               for (let i = 0; i < weight; i++) weightedPool.push(cat);
+            }
+            if (weightedPool.length === 0) {
+              const fallbackCats = Object.keys(categoryFailures);
+              const fallbackWeight = Math.max(1, Math.round(aircraftMaintenanceRatio * 12));
+              for (const cat of fallbackCats) {
+                for (let i = 0; i < fallbackWeight; i++) weightedPool.push(cat);
+              }
             }
             if (weightedPool.length === 0) return;
 
@@ -2033,10 +2035,14 @@ Deno.serve(async (req) => {
 
             const failure = candidates[Math.floor(Math.random() * candidates.length)];
             const existingFailures = flight.active_failures || [];
-            const alreadyExists = existingFailures.some(f =>
+            const duplicateCooldownMs = 8 * 60 * 1000;
+            const alreadyExists = existingFailures.some(f => {
+              const tsMs = Date.parse(String(f?.timestamp || ""));
+              const isRecent = Number.isFinite(tsMs) ? ((nowMs - tsMs) < duplicateCooldownMs) : false;
+              return isRecent &&
               (f?.name && (f.name === failure.name || f.name === failure.name_de)) &&
-              (f?.category ? String(f.category) === String(selectedCat) : true)
-            );
+              (f?.category ? String(f.category) === String(selectedCat) : true);
+            });
             if (alreadyExists) return;
 
             const createdAtIso = new Date().toISOString();
@@ -2056,10 +2062,8 @@ Deno.serve(async (req) => {
             const nextQueue = [...rawQueue];
             const autoFailureCommandTypeByCategory: Record<string, string> = {
               engine: 'engine_failure_test',
-              hydraulics: 'hydraulic_failure_test',
               electrical: 'electrical_failure_test',
               avionics: 'avionics_failure_test',
-              flight_controls: 'flight_controls_failure_test',
               landing_gear: 'landing_gear_failure_test',
               airframe: 'airframe_failure_test',
             };
