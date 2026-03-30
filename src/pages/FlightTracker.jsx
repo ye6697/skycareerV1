@@ -54,6 +54,192 @@ export default function FlightTracker() {
   const [emergencyLanding, setEmergencyLanding] = useState(false);
   const flightDataRef = React.useRef(null);
   const autoCompleteTimeoutRef = useRef(null);
+  const failureTestScenarios = [
+    {
+      key: 'engine',
+      commandType: 'engine_failure_test',
+      category: 'engine',
+      severity: 'schwer',
+      source: 'manual_engine_failure_test',
+      damageCategory: 'engine',
+      damageValue: 100,
+      name: {
+        de: 'Triebwerksausfall (Test)',
+        en: 'Engine failure (test)',
+      },
+      button: {
+        de: 'Test: Triebwerksausfall auslosen',
+        en: 'Test: Trigger engine failure',
+      },
+      eventLabel: {
+        de: 'Triebwerksausfall Test ausgelost',
+        en: 'Engine failure test triggered',
+      },
+      toneClass: 'bg-red-900/70 hover:bg-red-800 text-red-100 border border-red-700/60',
+      bridgeOnly: false,
+    },
+    {
+      key: 'hydraulics',
+      commandType: 'hydraulic_failure_test',
+      category: 'hydraulics',
+      severity: 'mittel',
+      source: 'manual_hydraulic_failure_test',
+      damageCategory: 'hydraulics',
+      damageValue: 85,
+      name: {
+        de: 'Hydraulikausfall (Test)',
+        en: 'Hydraulic failure (test)',
+      },
+      button: {
+        de: 'Test: Hydraulikausfall',
+        en: 'Test: Trigger hydraulic failure',
+      },
+      eventLabel: {
+        de: 'Hydraulikausfall Test ausgelost',
+        en: 'Hydraulic failure test triggered',
+      },
+      toneClass: 'bg-amber-900/70 hover:bg-amber-800 text-amber-100 border border-amber-700/60',
+      bridgeOnly: true,
+    },
+    {
+      key: 'electrical',
+      commandType: 'electrical_failure_test',
+      category: 'electrical',
+      severity: 'mittel',
+      source: 'manual_electrical_failure_test',
+      damageCategory: 'electrical',
+      damageValue: 85,
+      name: {
+        de: 'Elektrikausfall (Test)',
+        en: 'Electrical failure (test)',
+      },
+      button: {
+        de: 'Test: Elektrikausfall',
+        en: 'Test: Trigger electrical failure',
+      },
+      eventLabel: {
+        de: 'Elektrikausfall Test ausgelost',
+        en: 'Electrical failure test triggered',
+      },
+      toneClass: 'bg-fuchsia-900/60 hover:bg-fuchsia-800 text-fuchsia-100 border border-fuchsia-700/60',
+      bridgeOnly: true,
+    },
+    {
+      key: 'avionics',
+      commandType: 'avionics_failure_test',
+      category: 'avionics',
+      severity: 'mittel',
+      source: 'manual_avionics_failure_test',
+      damageCategory: 'avionics',
+      damageValue: 80,
+      name: {
+        de: 'Avionik-Ausfall (Test)',
+        en: 'Avionics failure (test)',
+      },
+      button: {
+        de: 'Test: Avionik-Ausfall',
+        en: 'Test: Trigger avionics failure',
+      },
+      eventLabel: {
+        de: 'Avionik-Ausfall Test ausgelost',
+        en: 'Avionics failure test triggered',
+      },
+      toneClass: 'bg-sky-900/70 hover:bg-sky-800 text-sky-100 border border-sky-700/60',
+      bridgeOnly: true,
+    },
+    {
+      key: 'flight_controls',
+      commandType: 'flight_controls_failure_test',
+      category: 'flight_controls',
+      severity: 'schwer',
+      source: 'manual_flight_controls_failure_test',
+      damageCategory: 'flight_controls',
+      damageValue: 90,
+      name: {
+        de: 'Steuerungsausfall (Test)',
+        en: 'Flight controls failure (test)',
+      },
+      button: {
+        de: 'Test: Steuerungsausfall',
+        en: 'Test: Trigger flight controls failure',
+      },
+      eventLabel: {
+        de: 'Steuerungsausfall Test ausgelost',
+        en: 'Flight controls failure test triggered',
+      },
+      toneClass: 'bg-rose-900/70 hover:bg-rose-800 text-rose-100 border border-rose-700/60',
+      bridgeOnly: true,
+    },
+    {
+      key: 'landing_gear',
+      commandType: 'landing_gear_failure_test',
+      category: 'landing_gear',
+      severity: 'mittel',
+      source: 'manual_landing_gear_failure_test',
+      damageCategory: 'landing_gear',
+      damageValue: 80,
+      name: {
+        de: 'Fahrwerksfehler (Test)',
+        en: 'Landing gear failure (test)',
+      },
+      button: {
+        de: 'Test: Fahrwerksfehler',
+        en: 'Test: Trigger landing gear failure',
+      },
+      eventLabel: {
+        de: 'Fahrwerksfehler Test ausgelost',
+        en: 'Landing gear failure test triggered',
+      },
+      toneClass: 'bg-indigo-900/70 hover:bg-indigo-800 text-indigo-100 border border-indigo-700/60',
+      bridgeOnly: true,
+    },
+    {
+      key: 'pressurization',
+      commandType: 'pressurization_failure_test',
+      category: 'pressurization',
+      severity: 'mittel',
+      source: 'manual_pressurization_failure_test',
+      damageCategory: 'pressurization',
+      damageValue: 75,
+      name: {
+        de: 'Drucksystemfehler (Test)',
+        en: 'Pressurization failure (test)',
+      },
+      button: {
+        de: 'Test: Drucksystemfehler',
+        en: 'Test: Trigger pressurization failure',
+      },
+      eventLabel: {
+        de: 'Drucksystemfehler Test ausgelost',
+        en: 'Pressurization failure test triggered',
+      },
+      toneClass: 'bg-violet-900/65 hover:bg-violet-800 text-violet-100 border border-violet-700/60',
+      bridgeOnly: true,
+    },
+    {
+      key: 'airframe',
+      commandType: 'airframe_failure_test',
+      category: 'airframe',
+      severity: 'schwer',
+      source: 'manual_airframe_failure_test',
+      damageCategory: 'airframe',
+      damageValue: 85,
+      name: {
+        de: 'Strukturfehler (Test)',
+        en: 'Airframe failure (test)',
+      },
+      button: {
+        de: 'Test: Strukturfehler',
+        en: 'Test: Trigger airframe failure',
+      },
+      eventLabel: {
+        de: 'Strukturfehler Test ausgelost',
+        en: 'Airframe failure test triggered',
+      },
+      toneClass: 'bg-orange-900/70 hover:bg-orange-800 text-orange-100 border border-orange-700/60',
+      bridgeOnly: true,
+    },
+  ];
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
@@ -562,8 +748,9 @@ export default function FlightTracker() {
     }
   });
 
-  const triggerEngineFailureMutation = useMutation({
-    mutationFn: async () => {
+  const triggerFailureMutation = useMutation({
+    mutationFn: async (failureKey) => {
+      const scenario = failureTestScenarios.find((s) => s.key === failureKey) || failureTestScenarios[0];
       const activeFlight = flight || existingFlight;
       if (!activeFlight?.id) throw new Error('No active flight for failure test');
 
@@ -580,19 +767,19 @@ export default function FlightTracker() {
 
       const nextDamage = {
         ...currentDamage,
-        engine: 100,
+        [scenario.damageCategory]: Math.max(Number(currentDamage?.[scenario.damageCategory] || 0), scenario.damageValue),
       };
 
-      const alreadyExists = currentFailures.some((f) => f?.source === 'manual_engine_failure_test');
+      const alreadyExists = currentFailures.some((f) => f?.source === scenario.source);
       const nextFailures = alreadyExists
         ? currentFailures
         : [
             ...currentFailures,
             {
-              name: lang === 'de' ? 'Triebwerksausfall (Test)' : 'Engine failure (test)',
-              category: 'engine',
-              severity: 'schwer',
-              source: 'manual_engine_failure_test',
+              name: lang === 'de' ? scenario.name.de : scenario.name.en,
+              category: scenario.category,
+              severity: scenario.severity,
+              source: scenario.source,
               timestamp: nowIso,
             },
           ];
@@ -601,20 +788,23 @@ export default function FlightTracker() {
       const currentEventsLog = Array.isArray(currentXpd.flight_events_log) ? currentXpd.flight_events_log : [];
       const currentBridgeLog = Array.isArray(currentXpd.bridge_event_log) ? currentXpd.bridge_event_log : [];
       const eventPayload = {
-        type: 'engine_failure_test',
+        type: scenario.commandType,
         category: 'failure',
-        severity: 'severe',
+        severity: scenario.severity === 'schwer' ? 'severe' : (scenario.severity === 'mittel' ? 'medium' : 'light'),
         timestamp: nowIso,
-        label: lang === 'de' ? 'Triebwerksausfall Test ausgelost' : 'Engine failure test triggered',
+        label: lang === 'de' ? scenario.eventLabel.de : scenario.eventLabel.en,
       };
       const nextFlightEventsLog = [...currentEventsLog, eventPayload].slice(-800);
       const nextBridgeEventLog = [...currentBridgeLog, eventPayload].slice(-800);
       const failureCommand = {
-        id: `cmd-engine-fail-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        type: 'engine_failure_test',
+        id: `cmd-${scenario.key}-fail-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: scenario.commandType,
         simulator: 'msfs',
         created_at: nowIso,
         source: 'flight_tracker_manual_test',
+        category: scenario.category,
+        severity: scenario.severity,
+        persist_until_landed: scenario.key === 'engine',
       };
       const nextBridgeCommands = [...currentBridgeCommands, failureCommand].slice(-25);
 
@@ -627,13 +817,13 @@ export default function FlightTracker() {
           flight_events_log: nextFlightEventsLog,
           bridge_event_log: nextBridgeEventLog,
           bridge_command_queue: nextBridgeCommands,
-          manual_engine_failure_test: true,
+          [scenario.source]: true,
         },
       });
 
-      return { nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands };
+      return { nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands, scenario };
     },
-    onSuccess: ({ nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands }) => {
+    onSuccess: ({ nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands, scenario }) => {
       setFlight((prev) => {
         if (!prev) return prev;
         return {
@@ -646,7 +836,7 @@ export default function FlightTracker() {
             flight_events_log: nextFlightEventsLog,
             bridge_event_log: nextBridgeEventLog,
             bridge_command_queue: nextBridgeCommands,
-            manual_engine_failure_test: true,
+            [scenario.source]: true,
           },
         };
       });
@@ -2275,22 +2465,45 @@ export default function FlightTracker() {
                         {lang === 'de' ? 'Notlandung erklaert - Landung >=10 NM entfernt erlaubt, aber -30 Score und nur 30% Payout' : 'Emergency declared - off-airport landing >=10 NM allowed, but -30 score and only 30% payout'}
                       </div>
                     )}
-                    <Button
-                      onClick={() => {
-                        if (confirm(lang === 'de'
-                          ? 'Test-Fehler auslosen? Das setzt Triebwerksschaden auf 100% fur diesen Flug.'
-                          : 'Trigger test failure? This sets engine damage to 100% for this flight.')) {
-                          triggerEngineFailureMutation.mutate();
-                        }
-                      }}
-                      disabled={triggerEngineFailureMutation.isPending}
-                      className="w-full bg-red-900/70 hover:bg-red-800 text-red-100 border border-red-700/60"
-                    >
-                      <AlertTriangle className="w-4 h-4 mr-2" />
-                      {triggerEngineFailureMutation.isPending
-                        ? (lang === 'de' ? 'Test-Fehler wird gesetzt...' : 'Setting test failure...')
-                        : (lang === 'de' ? 'Test: Triebwerksausfall auslosen' : 'Test: Trigger engine failure')}
-                    </Button>
+                    <div className="space-y-2">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        {lang === 'de' ? 'Failure-Test Buttons' : 'Failure test buttons'}
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {failureTestScenarios.map((scenario) => {
+                          const runningThis =
+                            triggerFailureMutation.isPending &&
+                            triggerFailureMutation.variables === scenario.key;
+                          return (
+                            <Button
+                              key={scenario.key}
+                              onClick={() => {
+                                const confirmText = lang === 'de'
+                                  ? `Test-Fehler "${scenario.name.de}" auslosen?`
+                                  : `Trigger test failure "${scenario.name.en}"?`;
+                                if (confirm(confirmText)) {
+                                  triggerFailureMutation.mutate(scenario.key);
+                                }
+                              }}
+                              disabled={triggerFailureMutation.isPending}
+                              className={`w-full ${scenario.toneClass}`}
+                              title={scenario.bridgeOnly
+                                ? (lang === 'de'
+                                  ? 'Bridge-Testkommando + Fehler in SkyCareer'
+                                  : 'Bridge test command + SkyCareer failure entry')
+                                : (lang === 'de'
+                                  ? 'Triggert direkten Triebwerksausfall in MSFS'
+                                  : 'Triggers direct engine failure in MSFS')}
+                            >
+                              <AlertTriangle className="w-4 h-4 mr-2" />
+                              {runningThis
+                                ? (lang === 'de' ? 'Test-Fehler wird gesetzt...' : 'Setting test failure...')
+                                : (lang === 'de' ? scenario.button.de : scenario.button.en)}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
                     <Button onClick={() => { if (confirm(`${t('cancel_confirm', lang)} $${(contract?.payout * 0.3 || 5000).toLocaleString()}`)) cancelFlightMutation.mutate(); }} disabled={cancelFlightMutation.isPending} variant="destructive" className="w-full">
                       {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
                     </Button>
