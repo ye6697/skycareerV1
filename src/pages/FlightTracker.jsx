@@ -771,7 +771,7 @@ export default function FlightTracker() {
      const airportFee = 150;
 
      // Check for crash or off-airport landing (>=10 NM from arrival airport)
-      const backendCrashAtCompletion = !!(xpData.crash || xpData.has_crashed || xpData.crash_flag);
+      const backendCrashAtCompletion = !!(xpData.simconnect_crash_event || xpData.simconnectCrashEvent);
       const hasCrashed = backendCrashAtCompletion;
       if (finalFlightData.events?.crash !== hasCrashed) {
         finalFlightData = {
@@ -1287,7 +1287,7 @@ export default function FlightTracker() {
 
     const xp = xplaneLog.raw_data;
 
-    const crashSignal = !!(xp.crash || xp.has_crashed || xp.crash_flag);
+    const crashSignal = !!(xp.simconnect_crash_event || xp.simconnectCrashEvent);
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;

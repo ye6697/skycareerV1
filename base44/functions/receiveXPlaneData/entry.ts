@@ -1318,7 +1318,12 @@ Deno.serve(async (req) => {
     const rawFlapsOverspeedFlag = toBool(flaps_overspeed, false);
     const rawGearUpLandingFlag = toBool(gear_up_landing, false);
     const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
-    const crashDatarefFlag = toBool(crash, false) || toBool(has_crashed, false) || toBool(crash_flag, false) || toBool(data.crashed, false) || toBool(data.is_crashed, false) || toBool(data.sim_crashed, false);
+    const simulatorKey = String(simulator || data.simulator || "").toLowerCase();
+    const isMsfsTelemetry = simulatorKey.includes("msfs");
+    const simconnectCrashSignal = toBool(data.simconnect_crash_event ?? data.simconnectCrashEvent, false);
+    const crashDatarefFlag = isMsfsTelemetry
+      ? simconnectCrashSignal
+      : (toBool(crash, false) || toBool(has_crashed, false) || toBool(crash_flag, false) || toBool(data.crashed, false) || toBool(data.is_crashed, false) || toBool(data.sim_crashed, false));
     const rawCrashFlag = !!(
       crashDatarefFlag
     );
@@ -1484,6 +1489,7 @@ Deno.serve(async (req) => {
       // Expose only trusted crash state (raw plugin crash_flag can be stale/high all the time).
       crash_flag: !!isCrash,
       sim_disabled: !!sim_disabled,
+      simconnect_crash_event: !!simconnectCrashSignal,
       harsh_controls: harshControlsDetected,
       event_takeoff_suppress: eventTakeoffSuppress,
       was_airborne: hasBeenAirborne,
@@ -1711,6 +1717,11 @@ Deno.serve(async (req) => {
         const curGear = gear_down !== undefined ? gear_down : true;
         if (prevGear !== undefined && prevGear !== curGear) {
           appendEvent(curGear ? "gear_down" : "gear_up", {}, { force: true });
+        }
+        const hasGearUpLogged = merged.some((ev) => String(ev?.type || "").toLowerCase() === "gear_up");
+        // Fallback: if transition packet was missed, still log one gear-up marker after takeoff.
+        if (hasBeenAirborne && !on_ground && !curGear && !hasGearUpLogged) {
+          appendEvent("gear_up", {}, { force: true });
         }
 
         const prevFlap = prevXd.flap_ratio;
