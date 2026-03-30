@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import {
-  Plane, DollarSign, Users, TrendingUp, Award, Activity,
-  ArrowRight, CheckCircle2, Wrench, Shield, BarChart3, Zap, Globe,
-  Star, ChevronDown, Gauge, CreditCard, FileText, Fuel, AlertTriangle,
-  Target, Timer, Sparkles, Download, Copy, Monitor, Cloud, RefreshCw,
-  MessageSquare, Navigation, Calculator, Route
+Plane, DollarSign, Users, TrendingUp, Award, Activity,
+ArrowRight, CheckCircle2, Wrench, Shield, BarChart3, Zap, Globe,
+Star, ChevronDown, Gauge, CreditCard, FileText, Fuel, AlertTriangle,
+Target, Timer, Sparkles, Download, Copy, Monitor, Cloud, RefreshCw,
+MessageSquare, Navigation, Calculator, Route, Trophy, Gamepad2
 } from 'lucide-react';
 
 import LangToggle from '@/components/landing/LangToggle';
@@ -66,11 +66,14 @@ export default function Landing() {
     { icon: Navigation, title: L.f14_title, description: L.f14_desc, color: "bg-indigo-600" },
     { icon: Calculator, title: L.f15_title, description: L.f15_desc, color: "bg-cyan-600" },
     { icon: MessageSquare, title: L.f16_title, description: L.f16_desc, color: "bg-pink-600" },
+    { icon: Gamepad2, title: L.f17_title, description: L.f17_desc, color: "bg-violet-600" },
+    { icon: Trophy, title: L.f18_title, description: L.f18_desc, color: "bg-amber-600" },
+    { icon: Monitor, title: L.f19_title, description: L.f19_desc, color: "bg-blue-700" },
   ];
 
   const installSteps = [
     { icon: Download, title: L.step1_title, desc: L.step1_desc },
-    { icon: Copy, title: L.step2_title, desc: lang === 'en' ? "Copy the downloaded file into the correct X-Plane 12 plugin folder and restart X-Plane." : "Kopiere die heruntergeladene Datei in den richtigen X-Plane 12 Plugin-Ordner und starte X-Plane neu." },
+    { icon: Copy, title: L.step2_title, desc: lang === 'en' ? "X-Plane: Copy file to plugin folder. MSFS: Run the bridge app." : "X-Plane: Datei in Plugin-Ordner kopieren. MSFS: Bridge-App starten." },
     { icon: Globe, title: L.step3_title, desc: L.step3_desc },
     { icon: Target, title: L.step4_title, desc: L.step4_desc },
     { icon: Sparkles, title: L.step5_title, desc: L.step5_desc },
@@ -84,7 +87,7 @@ export default function Landing() {
           <div className="flex items-center gap-3">
             <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-9 h-9 rounded-xl object-cover" />
             <span className="font-bold text-xl text-white hidden sm:block">SkyCareer <span className="text-blue-400 text-sm font-normal">V1</span></span>
-            <Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30 text-xs hidden sm:flex">X-Plane 12</Badge>
+            <Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30 text-xs hidden sm:flex">X-Plane 12 & MSFS</Badge>
           </div>
           <div className="flex items-center gap-3">
             <LangToggle lang={lang} setLang={setLang} />
@@ -169,7 +172,7 @@ export default function Landing() {
                   <div className="flex justify-center"><div className="w-px h-6 bg-slate-700 relative"><div className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-slate-500">↕</div></div></div>
                   <div className="flex items-center gap-4 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                     <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0"><Plane className="w-5 h-5 text-white" /></div>
-                    <div><div className="text-sm font-bold text-white">X-Plane 12</div><div className="text-xs text-slate-400">{lang === 'en' ? 'Your simulator • Untouched performance' : 'Dein Simulator • Unveränderte Performance'}</div></div>
+                    <div><div className="text-sm font-bold text-white">X-Plane 12 / MSFS 2020 / 2024</div><div className="text-xs text-slate-400">{lang === 'en' ? 'Your simulator • Untouched performance' : 'Dein Simulator • Unveränderte Performance'}</div></div>
                   </div>
                 </div>
               </Card>
@@ -270,7 +273,7 @@ export default function Landing() {
 
             {/* Fleet with Maintenance + Tracker */}
             <div className="grid md:grid-cols-2 gap-6">
-              <AppScreenshot title={L.screen_fleet} description={lang === 'en' ? 'Track 8 independent maintenance categories per aircraft. Neglect them and real failures trigger in X-Plane.' : 'Verfolge 8 unabhängige Wartungskategorien pro Flugzeug. Vernachlässige sie und echte Failures werden in X-Plane ausgelöst.'}>
+              <AppScreenshot title={L.screen_fleet} description={lang === 'en' ? 'Track 8 independent maintenance categories per aircraft. Neglect them and real failures trigger in your sim.' : 'Verfolge 8 unabhängige Wartungskategorien pro Flugzeug. Vernachlässige sie und echte Failures werden im Sim ausgelöst.'}>
                 <div className="space-y-3">
                   {[
                     { name: "Boeing 737 MAX 8", reg: "SC018", cats: { engine: 12, hydraulics: 8, avionics: 5, landing_gear: 22 }, status: lang === 'en' ? "Available" : "Verfügbar", statusColor: "text-emerald-400" },
@@ -293,7 +296,7 @@ export default function Landing() {
                 </div>
               </AppScreenshot>
 
-              <AppScreenshot title={L.screen_tracker} description={lang === 'en' ? 'Real-time flight data from X-Plane: altitude, speed, V/S, G-force. Live event detection with scoring impact.' : 'Echtzeit-Flugdaten aus X-Plane: Höhe, Geschwindigkeit, V/S, G-Kraft. Live Event-Erkennung mit Scoring-Auswirkung.'}>
+              <AppScreenshot title={L.screen_tracker} description={lang === 'en' ? 'Real-time flight data from your simulator: altitude, speed, V/S, G-force. Live event detection with scoring impact.' : 'Echtzeit-Flugdaten aus deinem Simulator: Höhe, Geschwindigkeit, V/S, G-Kraft. Live Event-Erkennung mit Scoring-Auswirkung.'}>
                 <div className="grid grid-cols-4 gap-2 mb-3">
                   {[
                     { label: lang === 'en' ? "Altitude" : "Höhe", val: "37,420", unit: "ft", color: "text-blue-400" },
@@ -582,7 +585,7 @@ export default function Landing() {
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-5xl font-black mb-3">{L.install_title}</motion.h2>
             <motion.p variants={fadeUp} className="text-lg text-slate-400">{L.install_sub}</motion.p>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="grid md:grid-cols-2 gap-4 mb-8">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="grid md:grid-cols-3 gap-4 mb-8">
             <Card className="bg-emerald-900/20 border-emerald-700/40 p-5">
               <div className="flex items-center gap-2 mb-3"><Badge className="bg-emerald-600 text-white text-xs">{L.step1_lua_rec}</Badge><span className="text-white font-bold">{L.step1_lua}</span></div>
               <p className="text-sm text-slate-400 mb-3">{L.step1_lua_desc}</p>
@@ -592,6 +595,11 @@ export default function Landing() {
               <span className="text-white font-bold mb-3 block">{L.step1_py}</span>
               <p className="text-sm text-slate-400 mb-3">{L.step1_py_desc}</p>
               <div className="bg-slate-900/60 rounded-lg p-3 text-xs"><p className="text-slate-300 mb-1">{L.step2_py_path}</p><code className="text-blue-400 break-all">X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/</code></div>
+            </Card>
+            <Card className="bg-blue-900/20 border-blue-700/40 p-5">
+              <div className="flex items-center gap-2 mb-3"><Badge className="bg-blue-600 text-white text-xs">MSFS</Badge><span className="text-white font-bold">{lang === 'en' ? 'Desktop Bridge' : 'Desktop Bridge'}</span></div>
+              <p className="text-sm text-slate-400 mb-3">{lang === 'en' ? 'Lightweight .exe for MSFS 2020 & 2024. Reads SimConnect data automatically.' : 'Leichtgewichtige .exe für MSFS 2020 & 2024. Liest SimConnect-Daten automatisch.'}</p>
+              <div className="bg-slate-900/60 rounded-lg p-3 text-xs"><p className="text-slate-300 mb-1">{lang === 'en' ? 'Just run the app:' : 'Einfach starten:'}</p><code className="text-blue-400 break-all">SkyCareerBridge.exe</code></div>
             </Card>
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="space-y-3">
@@ -609,12 +617,12 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══════ X-PLANE INTEGRATION ═══════ */}
+      {/* ═══════ SIMULATOR INTEGRATION ═══════ */}
       <section className="py-16 sm:py-28 px-4 sm:px-6 bg-slate-900/30">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-              <Badge className="bg-purple-600/20 text-purple-400 border-purple-500/30 mb-4">X-Plane 12</Badge>
+              <Badge className="bg-purple-600/20 text-purple-400 border-purple-500/30 mb-4">X-Plane 12 & MSFS</Badge>
               <h2 className="text-3xl sm:text-4xl font-black mb-6">{L.xplane_title}<br /><span className="text-blue-400">{L.xplane_h2}</span></h2>
               <div className="space-y-3">
                 {[L.xp1, L.xp2, L.xp3, L.xp4, L.xp5, L.xp6].map((txt, i) => {
@@ -678,12 +686,12 @@ export default function Landing() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="space-y-4">
             {[
               {
-                q: lang === 'en' ? 'Which platforms are supported?' : 'Welche Plattformen werden unterstützt?',
-                a: lang === 'en' ? 'SkyCareer runs in any modern web browser – no installation needed. This means it works on Windows, macOS, Linux, and even on mobile devices (iOS & Android) via your browser. The X-Plane plugin is available for Windows, macOS and Linux.' : 'SkyCareer läuft in jedem modernen Webbrowser – keine Installation nötig. Das bedeutet es funktioniert auf Windows, macOS, Linux und sogar auf mobilen Geräten (iOS & Android) über den Browser. Das X-Plane Plugin ist für Windows, macOS und Linux verfügbar.'
+                q: lang === 'en' ? 'Which simulators are supported?' : 'Welche Simulatoren werden unterstützt?',
+                a: lang === 'en' ? 'SkyCareer supports X-Plane 12 and Microsoft Flight Simulator 2020/2024. For X-Plane, use a FlyWithLua or Python plugin. For MSFS, use the lightweight desktop bridge app. The career, features and scoring are identical across both sims.' : 'SkyCareer unterstützt X-Plane 12 und Microsoft Flight Simulator 2020/2024. Für X-Plane nutze ein FlyWithLua oder Python Plugin. Für MSFS nutze die leichtgewichtige Desktop-Bridge. Karriere, Features und Scoring sind identisch in beiden Sims.'
               },
               {
-                q: lang === 'en' ? 'Does SkyCareer affect X-Plane performance?' : 'Beeinflusst SkyCareer die X-Plane Performance?',
-                a: lang === 'en' ? 'No. The plugin is a tiny data bridge that sends ~1KB of flight data every few seconds. It has zero measurable FPS impact. The entire game runs in the cloud/browser.' : 'Nein. Das Plugin ist eine winzige Datenbrücke, die alle paar Sekunden ~1KB Flugdaten sendet. Es hat null messbaren FPS-Verlust. Das gesamte Spiel läuft in der Cloud/Browser.'
+                q: lang === 'en' ? 'Does SkyCareer affect simulator performance?' : 'Beeinflusst SkyCareer die Sim-Performance?',
+                a: lang === 'en' ? 'No. The plugin/bridge is a tiny data connector that sends ~1KB of flight data every few seconds. It has zero measurable FPS impact. The entire game runs in the cloud/browser.' : 'Nein. Das Plugin/Bridge ist eine winzige Datenbrücke, die alle paar Sekunden ~1KB Flugdaten sendet. Es hat null messbaren FPS-Verlust. Das gesamte Spiel läuft in der Cloud/Browser.'
               },
               {
                 q: lang === 'en' ? 'Can I use it with AviTab inside X-Plane?' : 'Kann ich es mit AviTab in X-Plane nutzen?',
@@ -691,7 +699,15 @@ export default function Landing() {
               },
               {
                 q: lang === 'en' ? 'How does the maintenance system work?' : 'Wie funktioniert das Wartungssystem?',
-                a: lang === 'en' ? 'Each aircraft tracks 8 independent maintenance categories (Engine, Hydraulics, Avionics, Airframe, Landing Gear, Electrical, Flight Controls, Pressurization). Wear accumulates with every flight. When categories become critical, real system failures trigger inside X-Plane.' : 'Jedes Flugzeug trackt 8 unabhängige Wartungskategorien (Triebwerk, Hydraulik, Avionik, Zelle, Fahrwerk, Elektrik, Flugsteuerung, Druckkabine). Verschleiß akkumuliert mit jedem Flug. Bei kritischem Zustand werden echte System-Failures in X-Plane ausgelöst.'
+                a: lang === 'en' ? 'Each aircraft tracks 8 independent maintenance categories (Engine, Hydraulics, Avionics, Airframe, Landing Gear, Electrical, Flight Controls, Pressurization). Wear accumulates with every flight. When categories become critical, real system failures trigger inside your simulator.' : 'Jedes Flugzeug trackt 8 unabhängige Wartungskategorien (Triebwerk, Hydraulik, Avionik, Zelle, Fahrwerk, Elektrik, Flugsteuerung, Druckkabine). Verschleiß akkumuliert mit jedem Flug. Bei kritischem Zustand werden echte System-Failures im Simulator ausgelöst.'
+              },
+              {
+                q: lang === 'en' ? 'Can I switch between X-Plane and MSFS?' : 'Kann ich zwischen X-Plane und MSFS wechseln?',
+                a: lang === 'en' ? 'Yes! Your career is saved in the cloud. You can fly a contract in X-Plane today and the next one in MSFS tomorrow. Your fleet, finances, and progression are shared across sims.' : 'Ja! Deine Karriere wird in der Cloud gespeichert. Du kannst heute einen Auftrag in X-Plane fliegen und morgen den nächsten in MSFS. Flotte, Finanzen und Fortschritt sind simulatorübergreifend.'
+              },
+              {
+                q: lang === 'en' ? 'What is Free Flight mode?' : 'Was ist der Free-Flight Modus?',
+                a: lang === 'en' ? 'Free Flight lets you fly anywhere without accepting a contract. Your flight data, landing quality and aircraft wear are still tracked – perfect for casual flights or testing new aircraft.' : 'Free Flight erlaubt dir überall hin zu fliegen ohne einen Auftrag anzunehmen. Flugdaten, Landequalität und Flugzeugverschleiß werden trotzdem erfasst – perfekt für lockere Flüge oder neue Flugzeuge testen.'
               },
               {
                 q: lang === 'en' ? 'Is my progress saved in the cloud?' : 'Wird mein Fortschritt in der Cloud gespeichert?',
@@ -700,14 +716,6 @@ export default function Landing() {
               {
                 q: lang === 'en' ? 'What happens if I cancel my subscription?' : 'Was passiert wenn ich mein Abo kündige?',
                 a: lang === 'en' ? 'Your account remains usable until the end of the billing period. After that, your data is preserved but the account becomes inactive. You can resubscribe anytime and continue where you left off.' : 'Dein Account bleibt bis zum Ende der Laufzeit nutzbar. Danach werden deine Daten aufbewahrt, aber der Account wird inaktiv. Du kannst jederzeit wieder abonnieren und dort weitermachen, wo du aufgehört hast.'
-              },
-              {
-                q: lang === 'en' ? 'Which X-Plane version is required?' : 'Welche X-Plane Version wird benötigt?',
-                a: lang === 'en' ? 'SkyCareer is designed for X-Plane 12. Two plugin options are available: FlyWithLua (recommended) or Python/XPPython3. Setup takes about 30 seconds.' : 'SkyCareer ist für X-Plane 12 konzipiert. Zwei Plugin-Optionen stehen zur Verfügung: FlyWithLua (empfohlen) oder Python/XPPython3. Setup dauert ca. 30 Sekunden.'
-              },
-              {
-                q: lang === 'en' ? 'Can I play on my phone or tablet?' : 'Kann ich auf dem Handy oder Tablet spielen?',
-                a: lang === 'en' ? 'Yes! The web app is fully responsive and works on any device with a browser. You can check your airline, manage contracts, and review finances on the go. Flying itself is done in X-Plane on your PC/Mac.' : 'Ja! Die Web-App ist voll responsiv und funktioniert auf jedem Gerät mit Browser. Du kannst deine Airline checken, Aufträge verwalten und Finanzen prüfen, auch unterwegs. Das Fliegen selbst geschieht in X-Plane auf deinem PC/Mac.'
               },
             ].map((faq, i) => (
               <motion.div key={i} variants={fadeUp}>
@@ -736,7 +744,7 @@ export default function Landing() {
 
       <footer className="border-t border-slate-800/50 py-8 px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2"><img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-6 h-6 rounded-lg object-cover" /><span className="text-sm text-slate-500">© 2026 SkyCareer V1 – X-Plane 12 Career Mode</span></div>
+          <div className="flex items-center gap-2"><img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-6 h-6 rounded-lg object-cover" /><span className="text-sm text-slate-500">© 2026 SkyCareer – X-Plane 12 & MSFS Career Mode</span></div>
           <div className="text-xs text-slate-600">{L.footer_tag}</div>
         </div>
       </footer>
