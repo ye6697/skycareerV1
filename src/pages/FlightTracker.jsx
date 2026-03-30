@@ -573,6 +573,7 @@ export default function FlightTracker() {
         ? freshFlight.maintenance_damage
         : {};
       const currentFailures = Array.isArray(freshFlight?.active_failures) ? freshFlight.active_failures : [];
+      const currentBridgeCommands = Array.isArray(freshFlight?.bridge_command_queue) ? freshFlight.bridge_command_queue : [];
       const nowIso = new Date().toISOString();
 
       const nextDamage = {
@@ -606,10 +607,19 @@ export default function FlightTracker() {
       };
       const nextFlightEventsLog = [...currentEventsLog, eventPayload].slice(-800);
       const nextBridgeEventLog = [...currentBridgeLog, eventPayload].slice(-800);
+      const failureCommand = {
+        id: `cmd-engine-fail-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: 'engine_failure_test',
+        simulator: 'msfs',
+        created_at: nowIso,
+        source: 'flight_tracker_manual_test',
+      };
+      const nextBridgeCommands = [...currentBridgeCommands, failureCommand].slice(-25);
 
       await base44.entities.Flight.update(activeFlight.id, {
         maintenance_damage: nextDamage,
         active_failures: nextFailures,
+        bridge_command_queue: nextBridgeCommands,
         xplane_data: {
           ...currentXpd,
           flight_events_log: nextFlightEventsLog,
@@ -618,15 +628,16 @@ export default function FlightTracker() {
         },
       });
 
-      return { nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog };
+      return { nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands };
     },
-    onSuccess: ({ nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog }) => {
+    onSuccess: ({ nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands }) => {
       setFlight((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
           maintenance_damage: nextDamage,
           active_failures: nextFailures,
+          bridge_command_queue: nextBridgeCommands,
           xplane_data: {
             ...(prev.xplane_data || {}),
             flight_events_log: nextFlightEventsLog,

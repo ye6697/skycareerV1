@@ -1851,7 +1851,30 @@ Deno.serve(async (req) => {
     };
 
     // Build minimal update object - only include what changes
-    const updateData = { xplane_data: xplaneData };
+    const updateData: Record<string, any> = { xplane_data: xplaneData };
+    const queuedBridgeCommandsRaw = Array.isArray((flight as any)?.bridge_command_queue)
+      ? (flight as any).bridge_command_queue
+      : [];
+    const bridgeCommandsForBridge = queuedBridgeCommandsRaw
+      .filter((cmd: any) => cmd && typeof cmd === "object" && cmd.type)
+      .slice(0, 4)
+      .map((cmd: any) => ({
+        id: String(cmd.id || crypto.randomUUID()),
+        type: String(cmd.type || ""),
+        simulator: String(cmd.simulator || "msfs"),
+        created_at: cmd.created_at || new Date().toISOString(),
+        source: cmd.source || "unknown",
+      }));
+    if (bridgeCommandsForBridge.length > 0) {
+      const sentIds = new Set(bridgeCommandsForBridge.map((cmd: any) => String(cmd.id)));
+      const remainingCommands = queuedBridgeCommandsRaw.filter((cmd: any) => {
+        const id = String(cmd?.id || "");
+        return id.length === 0 || !sentIds.has(id);
+      });
+      updateData.bridge_command_queue = remainingCommands;
+      updateData.last_bridge_command_dispatch_at = new Date().toISOString();
+      updateData.last_bridge_command_dispatch_count = bridgeCommandsForBridge.length;
+    }
 
     // Track max G-force on flight level
     if (max_g_force > (flight.max_g_force || 0)) {
@@ -1897,6 +1920,9 @@ Deno.serve(async (req) => {
       max_g_force: updateData.max_g_force ?? flight.max_g_force,
       active_failures: updateData.active_failures ?? flight.active_failures,
       maintenance_damage: updateData.maintenance_damage ?? flight.maintenance_damage,
+      bridge_command_queue: updateData.bridge_command_queue ?? (flight as any).bridge_command_queue,
+      last_bridge_command_dispatch_at: updateData.last_bridge_command_dispatch_at ?? (flight as any).last_bridge_command_dispatch_at,
+      last_bridge_command_dispatch_count: updateData.last_bridge_command_dispatch_count ?? (flight as any).last_bridge_command_dispatch_count,
       status: flight.status || "in_flight",
     });
 
@@ -2230,6 +2256,10 @@ Deno.serve(async (req) => {
       park_brake,
       engines_running: areEnginesRunning,
       maintenance_ratio: maintenanceRatio,
+      bridge_commands: bridgeCommandsForBridge,
+      trigger_engine_failure: bridgeCommandsForBridge.some((cmd: any) =>
+        String(cmd?.type || "").toLowerCase().includes("engine_failure")
+      ),
       aircraft_gate_blocked: aircraftGateBlocked,
       aircraft_gate_reason: aircraftGateReason,
       aircraft_gate_icao: aircraftIcao || aircraft_icao || null,
