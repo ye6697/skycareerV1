@@ -858,11 +858,38 @@ function update(d) {
     spoiler_on: true,
     spoiler_off: true
   };
+  var incidentTypes = {
+    crash: true,
+    tailstrike: true,
+    stall: true,
+    overstress: true,
+    high_g_force: true,
+    overspeed: true,
+    flaps_overspeed: true,
+    gear_up_landing: true,
+    harsh_controls: true,
+    touchdown: true
+  };
+  // Anti-spam limits for map markers only. This does not change scoring/events elsewhere.
+  var incidentMarkerCapByType = {
+    crash: 1,
+    tailstrike: 1,
+    gear_up_landing: 1,
+    flaps_overspeed: 2,
+    overstress: 2,
+    stall: 3,
+    overspeed: 3,
+    high_g_force: 4,
+    harsh_controls: 4,
+    touchdown: 2
+  };
   var dedupeEventsForMap = function(list) {
     if (staticMode) {
       // Results page: keep historical timeline dense.
       // Only remove true duplicates, do not apply aggressive cooldown filtering.
       var staticSeen = new Set();
+      var staticCountByType = {};
+      var staticLastByType = {};
       var staticOut = [];
       for (var si = 0; si < list.length; si++) {
         var s = list[si] || {};
@@ -873,10 +900,25 @@ function update(d) {
         if (!stp || !markerAllowedTypes[stp]) continue;
         var stsRaw = Date.parse(String(s.t || s.timestamp || ''));
         var sts = Number.isFinite(stsRaw) ? stsRaw : (si * 1000);
+        var isIncident = !!incidentTypes[stp];
+        if (isIncident) {
+          var cap = Number(incidentMarkerCapByType[stp] || 0);
+          staticCountByType[stp] = Number(staticCountByType[stp] || 0);
+          if (cap > 0 && staticCountByType[stp] >= cap) continue;
+          var slast = staticLastByType[stp];
+          if (slast) {
+            var sdtSec = Math.abs(sts - slast.ts) / 1000;
+            var smovedNm = haversineNm(slast.lat, slast.lon, slat, slon);
+            // Collapse persistent/latching incidents on results map.
+            if (sdtSec < 90 || (sdtSec < 300 && smovedNm < 1.2)) continue;
+          }
+          staticLastByType[stp] = { ts: sts, lat: slat, lon: slon };
+        }
         var sval = (s.val !== undefined && s.val !== null) ? String(s.val) : '';
         var ssig = stp + '|' + slat.toFixed(5) + '|' + slon.toFixed(5) + '|' + Math.floor(sts / 1000) + '|' + sval;
         if (staticSeen.has(ssig)) continue;
         staticSeen.add(ssig);
+        if (isIncident) staticCountByType[stp] = Number(staticCountByType[stp] || 0) + 1;
         staticOut.push({
           ...s,
           type: stp,
@@ -891,6 +933,7 @@ function update(d) {
     var byType = {};
     var lastTypeTs = {};
     var seen = new Set();
+    var countByType = {};
     var out = [];
     for (var i = 0; i < list.length; i++) {
       var src = list[i] || {};
@@ -903,6 +946,12 @@ function update(d) {
 
       var tsRaw = Date.parse(String(src.t || src.timestamp || ''));
       var ts = Number.isFinite(tsRaw) ? tsRaw : (i * 1000);
+      var isIncidentLive = !!incidentTypes[tp];
+      if (isIncidentLive) {
+        var liveCap = Number(incidentMarkerCapByType[tp] || 0);
+        countByType[tp] = Number(countByType[tp] || 0);
+        if (liveCap > 0 && countByType[tp] >= liveCap) continue;
+      }
       var bucketSig = tp + '|' + lat.toFixed(5) + '|' + lon.toFixed(5) + '|' + Math.floor(ts / 1000);
       if (seen.has(bucketSig)) continue;
       if (tp !== 'flaps') {
@@ -919,11 +968,15 @@ function update(d) {
         if (tp === 'flaps' && dtSec < cfg.cooldownSec && movedNm < cfg.minNm) {
           continue;
         }
+        if (isIncidentLive && (dtSec < 90 || (dtSec < 300 && movedNm < 1.2))) {
+          continue;
+        }
       }
 
       seen.add(bucketSig);
       lastTypeTs[tp] = ts;
       byType[tp] = { ts: ts, lat: lat, lon: lon };
+      if (isIncidentLive) countByType[tp] = Number(countByType[tp] || 0) + 1;
       out.push({
         ...src,
         type: tp,

@@ -1318,20 +1318,9 @@ Deno.serve(async (req) => {
     const rawFlapsOverspeedFlag = toBool(flaps_overspeed, false);
     const rawGearUpLandingFlag = toBool(gear_up_landing, false);
     const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
-    const verticalSpeedNow = Number(vertical_speed || 0);
-    const hasCrashDynamicsNow =
-      verticalSpeedNow <= -1900 ||
-      Number(gForceCurrent || 0) >= 3.8;
-    const hasOnGroundCrashDynamicsNow =
-      verticalSpeedNow <= -1500 ||
-      Number(gForceCurrent || 0) >= 3.8;
+    const crashDatarefFlag = toBool(crash, false) || toBool(has_crashed, false) || toBool(crash_flag, false) || toBool(data.crashed, false) || toBool(data.is_crashed, false) || toBool(data.sim_crashed, false);
     const rawCrashFlag = !!(
-      crash ||
-      data.crashed ||
-      data.is_crashed ||
-      data.sim_crashed ||
-      (toBool(has_crashed, false) && (!on_ground ? hasCrashDynamicsNow : hasOnGroundCrashDynamicsNow)) ||
-      (toBool(crash_flag, false) && (!on_ground ? hasCrashDynamicsNow : hasOnGroundCrashDynamicsNow))
+      crashDatarefFlag
     );
     const prevTakeoffSuppress = (prevXd?.event_takeoff_suppress && typeof prevXd.event_takeoff_suppress === "object")
       ? prevXd.event_takeoff_suppress
@@ -1418,25 +1407,12 @@ Deno.serve(async (req) => {
     const landingCaptureStartedAt = (hasBeenAirborne && on_ground && Number.isFinite(landingCaptureStartedAtMs))
       ? new Date(landingCaptureStartedAtMs).toISOString()
       : null;
-    const crashFromTouchdown = touchdownDetected && (
-      Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1600 ||
-      Number(effectiveLandingG || 0) >= 3.8 ||
-      (
-        Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1400 &&
-        Number(effectiveLandingG || 0) >= 3.2
-      )
-    );
     const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceCurrent) >= 2.6));
     const prevCrashState = toBool(prevXd.crash ?? prevXd.has_crashed, false);
-    const simDisabledCrashSignal = incidentArmed && toBool(sim_disabled, false) && (
-      crashFromTouchdown ||
-      Number(vertical_speed || 0) <= -2000 ||
-      Number(gForceCurrent || 0) >= 3.8
-    );
     const crashSignalTrusted = incidentArmed
-      ? (((rawCrashFlag && !eventTakeoffSuppress.crash) || simDisabledCrashSignal))
+      ? (rawCrashFlag && !eventTakeoffSuppress.crash)
       : false;
-    const isCrash = !!(crashSignalTrusted || crashFromTouchdown);
+    const isCrash = !!(crashSignalTrusted || prevCrashState);
     const prevRainIntensity = asFinite(prevXd.rain_intensity ?? prevXd.precipitation ?? prevXd.rain);
     const effectiveRainDetected = !!(rain_detected || has_rain_mask || has_convective_mask || prevXd.rain_detected);
     const effectiveRainIntensity = rain_intensity !== undefined
