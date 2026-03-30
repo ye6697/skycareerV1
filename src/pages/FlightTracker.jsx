@@ -577,7 +577,7 @@ export default function FlightTracker() {
 
       const nextDamage = {
         ...currentDamage,
-        engine: Math.min(100, Number(currentDamage.engine || 0) + 25),
+        engine: 100,
       };
 
       const alreadyExists = currentFailures.some((f) => f?.source === 'manual_engine_failure_test');
@@ -2263,8 +2263,8 @@ export default function FlightTracker() {
                     <Button
                       onClick={() => {
                         if (confirm(lang === 'de'
-                          ? 'Test-Fehler auslosen? Das setzt Triebwerksschaden (+25%) fur diesen Flug.'
-                          : 'Trigger test failure? This applies engine damage (+25%) for this flight.')) {
+                          ? 'Test-Fehler auslosen? Das setzt Triebwerksschaden auf 100% fur diesen Flug.'
+                          : 'Trigger test failure? This sets engine damage to 100% for this flight.')) {
                           triggerEngineFailureMutation.mutate();
                         }
                       }}
