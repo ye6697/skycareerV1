@@ -69,11 +69,14 @@ export default function Landing() {
     { icon: Gamepad2, title: L.f17_title, description: L.f17_desc, color: "bg-violet-600" },
     { icon: Trophy, title: L.f18_title, description: L.f18_desc, color: "bg-amber-600" },
     { icon: Monitor, title: L.f19_title, description: L.f19_desc, color: "bg-blue-700" },
+    { icon: Timer, title: L.f20_title, description: L.f20_desc, color: "bg-cyan-700" },
+    { icon: Fuel, title: L.f21_title, description: L.f21_desc, color: "bg-orange-700" },
+    { icon: Target, title: L.f22_title, description: L.f22_desc, color: "bg-rose-700" },
   ];
 
   const installSteps = [
-    { icon: Download, title: L.step1_title, desc: L.step1_desc },
-    { icon: Copy, title: L.step2_title, desc: lang === 'en' ? "X-Plane: Copy file to plugin folder. MSFS: Run the bridge app." : "X-Plane: Datei in Plugin-Ordner kopieren. MSFS: Bridge-App starten." },
+    { icon: Download, title: L.step1_title, desc: lang === 'en' ? "MSFS: Download the lightweight Desktop Bridge. X-Plane: Download the FlyWithLua script. Both pre-configured with your API key." : "MSFS: Lade die leichtgewichtige Desktop Bridge herunter. X-Plane: Lade das FlyWithLua-Script herunter. Beides mit deinem API-Key vorkonfiguriert." },
+    { icon: Copy, title: lang === 'en' ? "Install" : "Installieren", desc: lang === 'en' ? "MSFS: Just run SkyCareerBridge.exe. X-Plane: Copy file to plugin folder." : "MSFS: Einfach SkyCareerBridge.exe starten. X-Plane: Datei in Plugin-Ordner kopieren." },
     { icon: Globe, title: L.step3_title, desc: L.step3_desc },
     { icon: Target, title: L.step4_title, desc: L.step4_desc },
     { icon: Sparkles, title: L.step5_title, desc: L.step5_desc },
@@ -137,6 +140,20 @@ export default function Landing() {
           </motion.div>
         </div>
       </motion.section>
+
+      {/* ═══════ FEATURES (moved up – show what it does early) ═══════ */}
+      <section id="features" className="py-16 sm:py-28 px-4 sm:px-6 bg-slate-900/30">
+        <div className="max-w-7xl mx-auto">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-12">
+            <motion.div variants={fadeUp}><Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30 mb-4">Features</Badge></motion.div>
+            <motion.h2 variants={fadeUp} className="text-3xl sm:text-5xl font-black mb-3">{L.feat_title}</motion.h2>
+            <motion.p variants={fadeUp} className="text-lg text-slate-400 max-w-2xl mx-auto">{L.feat_sub}</motion.p>
+          </motion.div>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={stagger} className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {features.map((f, i) => <FeatureCard key={i} {...f} />)}
+          </motion.div>
+        </div>
+      </section>
 
       {/* ═══════ PREMIUM GAME POSITIONING ═══════ */}
       <section className="py-16 sm:py-24 px-4 sm:px-6">
@@ -296,7 +313,7 @@ export default function Landing() {
                 </div>
               </AppScreenshot>
 
-              <AppScreenshot title={L.screen_tracker} description={lang === 'en' ? 'Real-time flight data from your simulator: altitude, speed, V/S, G-force. Live event detection with scoring impact.' : 'Echtzeit-Flugdaten aus deinem Simulator: Höhe, Geschwindigkeit, V/S, G-Kraft. Live Event-Erkennung mit Scoring-Auswirkung.'}>
+              <AppScreenshot title={L.screen_tracker} description={lang === 'en' ? 'Real-time flight data with ETA, fuel prediction, incident map pins and live scoring – all from your simulator.' : 'Echtzeit-Flugdaten mit ETA, Treibstoff-Prognose, Ereignis-Pins auf der Karte und Live-Scoring – alles aus deinem Simulator.'}>
                 <div className="grid grid-cols-4 gap-2 mb-3">
                   {[
                     { label: lang === 'en' ? "Altitude" : "Höhe", val: "37,420", unit: "ft", color: "text-blue-400" },
@@ -311,15 +328,39 @@ export default function Landing() {
                     </div>
                   ))}
                 </div>
+                {/* ETA & Fuel Prediction */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">ETA</div>
+                    <div className="text-sm font-mono font-bold text-cyan-400">14:32 UTC</div>
+                    <div className="text-[10px] text-slate-600">{lang === 'en' ? '38 min remaining' : '38 Min. verbleibend'}</div>
+                  </div>
+                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">{lang === 'en' ? 'Fuel Prediction' : 'Treibstoff-Prognose'}</div>
+                    <div className="text-sm font-mono font-bold text-orange-400">2h 14m</div>
+                    <div className="text-[10px] text-slate-600">{lang === 'en' ? 'remaining at current rate' : 'bei aktuellem Verbrauch'}</div>
+                  </div>
+                </div>
+                {/* Progress bar */}
                 <div className="bg-slate-900/50 rounded-lg p-3 mb-3">
                   <div className="flex justify-between text-xs text-slate-500 mb-1"><span>EDDM</span><span>LIRF</span></div>
                   <div className="w-full bg-slate-800 rounded-full h-1.5"><div className="bg-blue-500 h-1.5 rounded-full w-[73%]" /></div>
-                  <div className="text-xs text-blue-400 text-center mt-1 font-mono">248 NM remaining</div>
+                  <div className="text-xs text-blue-400 text-center mt-1 font-mono">248 NM {lang === 'en' ? 'remaining' : 'verbleibend'}</div>
                 </div>
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                  <span className="text-xs text-red-300">{lang === 'en' ? 'Event: Flaps Overspeed detected (-15 pts)' : 'Event: Klappen-Overspeed erkannt (-15 Pkt.)'}</span>
+                {/* Incidents with map pin reference */}
+                <div className="space-y-1.5">
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <span className="text-xs text-red-300">{lang === 'en' ? 'Flaps Overspeed detected (-15 pts)' : 'Klappen-Overspeed erkannt (-15 Pkt.)'}</span>
+                    <span className="text-[10px] text-red-500/60 ml-auto font-mono">📍 N48.2°</span>
+                  </div>
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span className="text-xs text-amber-300">{lang === 'en' ? 'High G-Force: 1.8G (-10 pts)' : 'Hohe G-Kraft: 1.8G (-10 Pkt.)'}</span>
+                    <span className="text-[10px] text-amber-500/60 ml-auto font-mono">📍 N46.9°</span>
+                  </div>
                 </div>
+                <p className="text-[10px] text-slate-600 text-center mt-2">{lang === 'en' ? 'All incidents pinned on live map for post-flight analysis' : 'Alle Vorfälle auf der Live-Karte für Post-Flight-Analyse'}</p>
               </AppScreenshot>
             </div>
 
@@ -563,20 +604,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══════ FEATURES ═══════ */}
-      <section id="features" className="py-16 sm:py-28 px-4 sm:px-6 bg-slate-900/30">
-        <div className="max-w-7xl mx-auto">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-12">
-            <motion.div variants={fadeUp}><Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30 mb-4">Features</Badge></motion.div>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-5xl font-black mb-3">{L.feat_title}</motion.h2>
-            <motion.p variants={fadeUp} className="text-lg text-slate-400 max-w-2xl mx-auto">{L.feat_sub}</motion.p>
-          </motion.div>
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={stagger} className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {features.map((f, i) => <FeatureCard key={i} {...f} />)}
-          </motion.div>
-        </div>
-      </section>
-
       {/* ═══════ INSTALLATION ═══════ */}
       <section className="py-16 sm:py-28 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
@@ -585,21 +612,16 @@ export default function Landing() {
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-5xl font-black mb-3">{L.install_title}</motion.h2>
             <motion.p variants={fadeUp} className="text-lg text-slate-400">{L.install_sub}</motion.p>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="grid md:grid-cols-3 gap-4 mb-8">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="grid md:grid-cols-2 gap-4 mb-8">
+            <Card className="bg-blue-900/20 border-blue-700/40 p-5 ring-2 ring-blue-500/20">
+              <div className="flex items-center gap-2 mb-3"><Badge className="bg-blue-600 text-white text-xs">{lang === 'en' ? 'MSFS 2020 / 2024' : 'MSFS 2020 / 2024'}</Badge><span className="text-white font-bold">Desktop Bridge</span></div>
+              <p className="text-sm text-slate-400 mb-3">{lang === 'en' ? 'Lightweight .exe for MSFS 2020 & 2024. Reads SimConnect data automatically. No plugins needed.' : 'Leichtgewichtige .exe für MSFS 2020 & 2024. Liest SimConnect-Daten automatisch. Keine Plugins nötig.'}</p>
+              <div className="bg-slate-900/60 rounded-lg p-3 text-xs"><p className="text-slate-300 mb-1">{lang === 'en' ? 'Just run the app:' : 'Einfach starten:'}</p><code className="text-blue-400 break-all">SkyCareerBridge.exe</code></div>
+            </Card>
             <Card className="bg-emerald-900/20 border-emerald-700/40 p-5">
-              <div className="flex items-center gap-2 mb-3"><Badge className="bg-emerald-600 text-white text-xs">{L.step1_lua_rec}</Badge><span className="text-white font-bold">{L.step1_lua}</span></div>
+              <div className="flex items-center gap-2 mb-3"><Badge className="bg-emerald-600 text-white text-xs">X-Plane 12</Badge><span className="text-white font-bold">{L.step1_lua}</span></div>
               <p className="text-sm text-slate-400 mb-3">{L.step1_lua_desc}</p>
               <div className="bg-slate-900/60 rounded-lg p-3 text-xs"><p className="text-slate-300 mb-1">{L.step2_lua_path}</p><code className="text-emerald-400 break-all">X-Plane 12/Resources/plugins/FlyWithLua/Scripts/SkyCareer.lua</code></div>
-            </Card>
-            <Card className="bg-slate-800/60 border-slate-700/40 p-5">
-              <span className="text-white font-bold mb-3 block">{L.step1_py}</span>
-              <p className="text-sm text-slate-400 mb-3">{L.step1_py_desc}</p>
-              <div className="bg-slate-900/60 rounded-lg p-3 text-xs"><p className="text-slate-300 mb-1">{L.step2_py_path}</p><code className="text-blue-400 break-all">X-Plane 12/Resources/plugins/PythonPlugins/SkyCareer/</code></div>
-            </Card>
-            <Card className="bg-blue-900/20 border-blue-700/40 p-5">
-              <div className="flex items-center gap-2 mb-3"><Badge className="bg-blue-600 text-white text-xs">MSFS</Badge><span className="text-white font-bold">{lang === 'en' ? 'Desktop Bridge' : 'Desktop Bridge'}</span></div>
-              <p className="text-sm text-slate-400 mb-3">{lang === 'en' ? 'Lightweight .exe for MSFS 2020 & 2024. Reads SimConnect data automatically.' : 'Leichtgewichtige .exe für MSFS 2020 & 2024. Liest SimConnect-Daten automatisch.'}</p>
-              <div className="bg-slate-900/60 rounded-lg p-3 text-xs"><p className="text-slate-300 mb-1">{lang === 'en' ? 'Just run the app:' : 'Einfach starten:'}</p><code className="text-blue-400 break-all">SkyCareerBridge.exe</code></div>
             </Card>
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="space-y-3">
