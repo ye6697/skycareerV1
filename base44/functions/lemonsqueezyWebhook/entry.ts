@@ -6,10 +6,33 @@ const VARIANT_TO_PLAN = {
   "1464595": "lifetime",
 };
 
+async function verifySignature(rawBody, signatureHeader, secret) {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
+  const computed = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return computed === signatureHeader;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const body = await req.json();
+
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-signature") || "";
+    const secret = Deno.env.get("LEMONSQUEEZY_WEBHOOK_SECRET");
+
+    if (secret && signature) {
+      const valid = await verifySignature(rawBody, signature, secret);
+      if (!valid) {
+        console.error("Invalid webhook signature");
+        return Response.json({ error: "Invalid signature" }, { status: 401 });
+      }
+    }
+
+    const body = JSON.parse(rawBody);
     
     const eventName = body.meta?.event_name;
     const data = body.data;
