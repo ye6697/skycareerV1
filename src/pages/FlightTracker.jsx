@@ -325,6 +325,10 @@ export default function FlightTracker() {
     const failureTs = xp.maintenance_failure_timestamp || null;
     const failureCategory = String(xp.maintenance_failure_category || '').toLowerCase().trim();
     if (!failureTs || !failureCategory) return;
+    const activeSession = flight || existingFlight;
+    const sessionStartMs = Date.parse(String(activeSession?.departure_time || activeSession?.created_date || ""));
+    const failureTsMs = Date.parse(String(failureTs || ""));
+    if (Number.isFinite(sessionStartMs) && Number.isFinite(failureTsMs) && failureTsMs < (sessionStartMs - 5000)) return;
     if (lastAutoFailureTsRef.current === failureTs) return;
     lastAutoFailureTsRef.current = failureTs;
 
@@ -369,7 +373,7 @@ export default function FlightTracker() {
         : `${labelByCategory[failureCategory]} detected`,
     });
     setTimeout(() => setFailurePopup(null), 4500);
-  }, [xplaneLog, lang]);
+  }, [xplaneLog, lang, flight, existingFlight]);
 
   // Initial fetch to get current flight data immediately
   useEffect(() => {
@@ -388,6 +392,7 @@ export default function FlightTracker() {
 
   useEffect(() => {
     setLocalMapPath([]);
+    lastAutoFailureTsRef.current = null;
   }, [activeFlightId]);
 
   useEffect(() => {
@@ -1866,13 +1871,13 @@ export default function FlightTracker() {
         high_g_force: !!(newMaxGForce >= 1.5 || prev.events.high_g_force),
         hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing),
         wrong_airport: !!(prev.events.wrong_airport),
-        failure_engine: !!(xp.manual_engine_failure_test || prev.events.failure_engine),
-        failure_hydraulics: !!(xp.manual_hydraulic_failure_test || prev.events.failure_hydraulics),
-        failure_electrical: !!(xp.manual_electrical_failure_test || prev.events.failure_electrical),
-        failure_avionics: !!(xp.manual_avionics_failure_test || prev.events.failure_avionics),
-        failure_flight_controls: !!(xp.manual_flight_controls_failure_test || prev.events.failure_flight_controls),
-        failure_landing_gear: !!(xp.manual_landing_gear_failure_test || prev.events.failure_landing_gear),
-        failure_airframe: !!(xp.manual_airframe_failure_test || prev.events.failure_airframe),
+        failure_engine: !!(((newWasAirborne || xp.completion_armed) && xp.manual_engine_failure_test) || prev.events.failure_engine),
+        failure_hydraulics: !!(((newWasAirborne || xp.completion_armed) && xp.manual_hydraulic_failure_test) || prev.events.failure_hydraulics),
+        failure_electrical: !!(((newWasAirborne || xp.completion_armed) && xp.manual_electrical_failure_test) || prev.events.failure_electrical),
+        failure_avionics: !!(((newWasAirborne || xp.completion_armed) && xp.manual_avionics_failure_test) || prev.events.failure_avionics),
+        failure_flight_controls: !!(((newWasAirborne || xp.completion_armed) && xp.manual_flight_controls_failure_test) || prev.events.failure_flight_controls),
+        failure_landing_gear: !!(((newWasAirborne || xp.completion_armed) && xp.manual_landing_gear_failure_test) || prev.events.failure_landing_gear),
+        failure_airframe: !!(((newWasAirborne || xp.completion_armed) && xp.manual_airframe_failure_test) || prev.events.failure_airframe),
       };
 
       const newData = {

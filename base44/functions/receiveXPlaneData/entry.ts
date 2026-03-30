@@ -1298,6 +1298,8 @@ Deno.serve(async (req) => {
     const completionArmedAt = completionArmSignal
       ? (prevCompletionArmedAt || new Date().toISOString())
       : ((on_ground && !hasBeenAirborne) ? null : prevCompletionArmedAt);
+    // New flight / restarted session on ground: drop stale failure metadata from prior sessions.
+    const resetStaleFailureState = on_ground && !hasBeenAirborne && !completionArmed;
     const incidentArmed = hasBeenAirborne || completionArmed;
     const normalizedBridgeEventTypes = new Set(
       (Array.isArray(incomingBridgeEventLog) ? incomingBridgeEventLog : [])
@@ -1490,9 +1492,15 @@ Deno.serve(async (req) => {
       airborne_started_at: airborneStartedAt,
       completion_armed: completionArmed,
       completion_armed_at: completionArmedAt,
-      maintenance_failure_category: data.maintenance_failure_category || prevXd.maintenance_failure_category || null,
-      maintenance_failure_severity: data.maintenance_failure_severity || prevXd.maintenance_failure_severity || null,
-      maintenance_failure_timestamp: data.maintenance_failure_timestamp || prevXd.maintenance_failure_timestamp || null,
+      maintenance_failure_category: resetStaleFailureState
+        ? null
+        : (data.maintenance_failure_category || prevXd.maintenance_failure_category || null),
+      maintenance_failure_severity: resetStaleFailureState
+        ? null
+        : (data.maintenance_failure_severity || prevXd.maintenance_failure_severity || null),
+      maintenance_failure_timestamp: resetStaleFailureState
+        ? null
+        : (data.maintenance_failure_timestamp || prevXd.maintenance_failure_timestamp || null),
       bridge_event_log: Array.isArray(incomingBridgeEventLog) ? incomingBridgeEventLog.slice(-220) : [],
       // Preserve departure/arrival coords from first packet
       departure_lat: data.departure_lat || (prevXd.departure_lat || 0),
@@ -1849,12 +1857,21 @@ Deno.serve(async (req) => {
 
     // Build minimal update object - only include what changes
     const updateData: Record<string, any> = { xplane_data: xplaneData };
+    if (resetStaleFailureState) {
+      // Ensure old failures/commands do not leak into a newly started flight session.
+      updateData.active_failures = [];
+      updateData.bridge_command_queue = [];
+      updateData.xplane_data = {
+        ...xplaneData,
+        bridge_command_queue: [],
+      };
+    }
     const queuedBridgeCommandsRaw = Array.isArray((flight as any)?.bridge_command_queue)
       ? (flight as any).bridge_command_queue
       : (Array.isArray((flight as any)?.xplane_data?.bridge_command_queue)
           ? (flight as any).xplane_data.bridge_command_queue
           : []);
-    const bridgeCommandsForBridge = queuedBridgeCommandsRaw
+    const bridgeCommandsForBridge = (resetStaleFailureState ? [] : queuedBridgeCommandsRaw)
       .filter((cmd: any) => cmd && typeof cmd === "object" && cmd.type)
       .slice(0, 4)
       .map((cmd: any) => ({
