@@ -1,0 +1,63 @@
+{
+  "name": "Subscription",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the subscribed user"
+    },
+    "lemon_customer_id": {
+      "type": "string"
+    },
+    "lemon_subscription_id": {
+      "type": "string"
+    },
+    "lemon_order_id": {
+      "type": "string"
+    },
+    "product_name": {
+      "type": "string"
+    },
+    "variant_id": {
+      "type": "string"
+    },
+    "plan_type": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "yearly",
+        "lifetime"
+      ],
+      "description": "Type of subscription plan"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "cancelled",
+        "expired",
+        "past_due",
+        "paused",
+        "unpaid"
+      ],
+      "default": "active"
+    },
+    "renews_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ends_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Price in cents"
+    }
+  },
+  "required": [
+    "user_email",
+    "plan_type",
+    "status"
+  ]
+}

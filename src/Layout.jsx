@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { LanguageProvider, useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import SubscriptionPaywall from "@/components/subscription/SubscriptionPaywall";
 import {
         LayoutDashboard,
         FileText,
@@ -40,8 +41,11 @@ function getNavItems(lang) {
     { name: t('account', lang), icon: Settings, path: "Account" },
     { name: t('nav_game_settings', lang), icon: Settings, path: "GameSettingsAdmin", adminOnly: true },
     { name: t('nav_aircraft_images', lang), icon: Plane, path: "AdminAircraftImages", adminOnly: true },
+    { name: lang === 'de' ? 'Gutscheincodes' : 'Discount Codes', icon: Star, path: "AdminDiscounts", adminOnly: true },
   ];
 }
+
+const FREE_PAGES = ["Dashboard", "Account", "Setup", "Landing"];
 
 function LayoutInner({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -49,16 +53,19 @@ function LayoutInner({ children, currentPageName }) {
   const navItems = getNavItems(lang);
 
   // Load all layout data ONCE and never refetch automatically
-  const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, loaded: false });
+  const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, isPro: false, loaded: false });
 
   React.useEffect(() => {
     if (layoutData.loaded) return;
     let cancelled = false;
     (async () => {
+      let u = null;
+      let comp = null;
+      let settings = [];
+      let isPro = false;
       try {
-        const u = await base44.auth.me();
+        u = await base44.auth.me();
         const cid = u?.company_id || u?.data?.company_id;
-        let comp = null;
         if (cid) {
           const companies = await base44.entities.Company.filter({ id: cid });
           comp = companies[0] || null;
@@ -68,11 +75,16 @@ function LayoutInner({ children, currentPageName }) {
           comp = companies[0] || null;
           if (comp) await base44.auth.updateMe({ company_id: comp.id });
         }
-        const settings = await base44.entities.GameSettings.list();
-        if (!cancelled) {
-          setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, loaded: true });
-        }
+        settings = await base44.entities.GameSettings.list();
       } catch (_) {}
+      // Check subscription status separately – always runs
+      try {
+        const subRes = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
+        isPro = subRes.data?.is_pro || false;
+      } catch (_) {}
+      if (!cancelled) {
+        setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, isPro, loaded: true });
+      }
     })();
     return () => { cancelled = true; };
   }, [layoutData.loaded]);
@@ -80,12 +92,18 @@ function LayoutInner({ children, currentPageName }) {
   const company = layoutData.company;
   const gameSettings = layoutData.gameSettings;
   const user = layoutData.user;
+  const isPro = layoutData.isPro;
 
   const xplaneStatus = company?.xplane_connection_status || 'disconnected';
 
   if (currentPageName === "Setup" || currentPageName === "Landing") {
     return children;
   }
+
+  // Show paywall for non-free pages if user has no active subscription
+  const needsPaywall = layoutData.loaded && !isPro && !FREE_PAGES.includes(currentPageName);
+  const isLoadingPaywall = !layoutData.loaded && !FREE_PAGES.includes(currentPageName);
+  console.log('[LAYOUT PAYWALL]', { currentPageName, loaded: layoutData.loaded, isPro, needsPaywall, isLoadingPaywall, isFree: FREE_PAGES.includes(currentPageName) });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-cyan-900 flex flex-col">
@@ -117,7 +135,15 @@ function LayoutInner({ children, currentPageName }) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 max-w-6xl mx-auto w-full">
-        {children}
+        {isLoadingPaywall ? (
+          <div className="flex items-center justify-center h-full min-h-[50vh]">
+            <div className="w-8 h-8 border-4 border-cyan-900 border-t-cyan-400 rounded-full animate-spin" />
+          </div>
+        ) : needsPaywall ? (
+          <SubscriptionPaywall />
+        ) : (
+          children
+        )}
       </main>
     </div>
   );

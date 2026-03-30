@@ -118,7 +118,7 @@ export default function PricingSection({ L, lang, onLogin }) {
                 <h3 className="text-xl font-bold text-white mb-1">{L.pricing_lifetime_title}</h3>
                 <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs mb-4">{L.pricing_lifetime_badge}</Badge>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-5xl sm:text-6xl font-black text-white">€{L.pricing_lifetime_price}</span>
+                  <span className="text-5xl sm:text-6xl font-black text-white">${L.pricing_lifetime_price}</span>
                 </div>
                 <p className="text-slate-500 text-sm mb-1">{L.pricing_lifetime_period}</p>
                 <p className="text-blue-400 text-sm font-semibold mb-5">{L.pricing_lifetime_save}</p>
@@ -147,7 +147,7 @@ export default function PricingSection({ L, lang, onLogin }) {
               <div className="p-6 sm:p-8">
                 <h3 className="text-xl font-bold text-white mb-4">{L.pricing_annual_title}</h3>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl sm:text-5xl font-black text-white">€{L.pricing_annual_price}</span>
+                  <span className="text-4xl sm:text-5xl font-black text-white">${L.pricing_annual_price}</span>
                   <span className="text-slate-500 text-base">{L.pricing_annual_period}</span>
                 </div>
                 <div className="flex items-center gap-3 mb-5">
@@ -178,7 +178,7 @@ export default function PricingSection({ L, lang, onLogin }) {
               <div className="p-6 sm:p-8">
                 <h3 className="text-xl font-bold text-white mb-4">{L.pricing_monthly_title}</h3>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl sm:text-5xl font-black text-white">€{L.pricing_monthly_price}</span>
+                  <span className="text-4xl sm:text-5xl font-black text-white">${L.pricing_monthly_price}</span>
                   <span className="text-slate-500 text-base">{L.pricing_monthly_period}</span>
                 </div>
                 <p className="text-slate-500 text-sm mb-5">{L.pricing_monthly_save}</p>

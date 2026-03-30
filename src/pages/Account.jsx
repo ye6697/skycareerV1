@@ -16,12 +16,12 @@ import {
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
+import PricingCards from "@/components/subscription/PricingCards";
+import SubscriptionStatus from "@/components/subscription/SubscriptionStatus";
 
 export default function Account() {
   const { lang } = useLanguage();
   const queryClient = useQueryClient();
-  const [showChangePlan, setShowChangePlan] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
@@ -48,18 +48,18 @@ export default function Account() {
     refetchOnWindowFocus: false,
   });
 
-  const subscription = {
-    plan: 'SkyCareer Pro',
-    status: 'active',
-    nextPayment: '2026-03-14',
-    price: '$8.99/mo'
-  };
+  const { data: subData, isLoading: subLoading } = useQuery({
+    queryKey: ['subscription', user?.email],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
+      return res.data;
+    },
+    enabled: !!user,
+    staleTime: 30000,
+  });
 
-  const plans = [
-    { id: 'monthly', name: lang === 'de' ? 'Monats-Pro' : 'Monthly Pro', price: '8.99', period: lang === 'de' ? '/Monat' : '/month', features: lang === 'de' ? ['Alle Pro-Features', 'Jederzeit kündbar', 'Volle Flexibilität'] : ['All Pro features', 'Cancel anytime', 'Full flexibility'] },
-    { id: 'annual', name: lang === 'de' ? 'Jahres-Pro' : 'Annual Pro', price: '79', period: lang === 'de' ? '/Jahr' : '/year', badge: lang === 'de' ? 'AM BELIEBTESTEN' : 'MOST POPULAR', save: lang === 'de' ? '26% günstiger' : 'Save 26%', features: lang === 'de' ? ['Alle Pro-Features', '≈ 6,58 €/Monat', 'AviTab Unterstützung'] : ['All Pro features', '≈ $6.58/month', 'AviTab support'] },
-    { id: 'lifetime', name: 'Lifetime Premium', price: '129', period: lang === 'de' ? 'Einmalzahlung' : 'one-time', badge: lang === 'de' ? 'BESTER DEAL' : 'BEST VALUE', features: lang === 'de' ? ['Alle Features, für immer', 'Alle zukünftigen Updates', 'Early Adopter Badge'] : ['All features, forever', 'All future updates', 'Early Adopter Badge'] },
-  ];
+  const currentSub = subData?.subscription || null;
+  const isPro = subData?.is_pro || false;
 
   const resetWord = "RESET";
   const canReset = resetConfirmText.trim().toUpperCase() === resetWord;
@@ -191,39 +191,33 @@ export default function Account() {
           {/* Subscription */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
             <Card className="p-6 bg-gradient-to-br from-slate-800 to-blue-900/20 border-blue-700/40 h-full">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/20 rounded-lg"><Shield className="w-5 h-5 text-emerald-400" /></div>
-                  <h3 className="text-lg font-semibold text-white">{t('subscription_status', lang)}</h3>
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2 bg-emerald-500/20 rounded-lg"><Shield className="w-5 h-5 text-emerald-400" /></div>
+                <h3 className="text-lg font-semibold text-white">{t('subscription_status', lang)}</h3>
+                {isPro && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">PRO</Badge>}
+              </div>
+              {subLoading ? (
+                <div className="text-sm text-slate-500 font-mono">{lang === 'de' ? 'Lade...' : 'Loading...'}</div>
+              ) : currentSub ? (
+                <SubscriptionStatus subscription={currentSub} />
+              ) : (
+                <div className="text-sm text-slate-400">
+                  {lang === 'de' ? 'Kein aktives Abo – wähle unten einen Plan.' : 'No active subscription – choose a plan below.'}
                 </div>
-                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{lang === 'de' ? 'Aktiv' : 'Active'}</Badge>
-              </div>
-              <div className="p-4 bg-slate-900/60 rounded-xl mb-3 border border-slate-700/50">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Plan</p>
-                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px]">PRO</Badge>
-                </div>
-                <p className="text-xl font-bold text-white">{subscription.plan}</p>
-                <p className="text-sm text-blue-400 font-medium">{subscription.price}</p>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-slate-900/60 rounded-lg mb-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-400 text-sm">{t('next_payment', lang)}</span>
-                </div>
-                <span className="text-white font-mono text-sm">{subscription.nextPayment}</span>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setShowChangePlan(true)}>
-                  <ArrowUpRight className="w-4 h-4 mr-1" /> {t('change_plan', lang)}
-                </Button>
-                <Button variant="outline" className="w-full border-slate-600 text-slate-400 hover:text-red-400 hover:border-red-700/50" onClick={() => setShowCancelDialog(true)}>
-                  <XCircle className="w-4 h-4 mr-1" /> {t('cancel_subscription', lang)}
-                </Button>
-              </div>
+              )}
             </Card>
           </motion.div>
         </div>
+
+        {/* Pricing Plans */}
+        {!isPro && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-4">
+            <h3 className="font-mono text-sm text-cyan-400 uppercase tracking-widest mb-3">
+              {lang === 'de' ? 'SkyCareer Pro wählen' : 'Choose SkyCareer Pro'}
+            </h3>
+            <PricingCards currentSubscription={currentSub} />
+          </motion.div>
+        )}
 
         {/* Danger Zone */}
         <div className="mt-12 pt-6 border-t border-red-900/20">
@@ -264,71 +258,6 @@ export default function Account() {
           </Card>
         </div>
       </div>
-
-      {/* Change Plan Dialog */}
-      <Dialog open={showChangePlan} onOpenChange={setShowChangePlan}>
-        <DialogContent className="max-w-xl bg-slate-900 border-slate-700 text-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-white"><CreditCard className="w-5 h-5 text-blue-400" />{t('change_plan', lang)}</DialogTitle>
-            <DialogDescription className="text-slate-400">{lang === 'de' ? 'Wähle deinen neuen Plan.' : 'Choose your new plan.'}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 mt-2">
-            {plans.map(plan => (
-              <div key={plan.id} className={`p-4 rounded-xl border transition-colors cursor-pointer hover:border-blue-500/50 ${plan.id === 'annual' ? 'border-blue-500/40 bg-blue-950/20' : 'border-slate-700 bg-slate-800/50'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-white">{plan.name}</h4>
-                    {plan.badge && <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px]">{plan.badge}</Badge>}
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xl font-bold text-white">${plan.price}</span>
-                    <span className="text-xs text-slate-400 ml-1">{plan.period}</span>
-                  </div>
-                </div>
-                {plan.save && <p className="text-xs text-emerald-400 mb-2">{plan.save}</p>}
-                <div className="flex flex-wrap gap-2">
-                  {plan.features.map((f, i) => (
-                    <span key={i} className="text-[11px] text-slate-400 flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-400" /> {f}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <Button className="w-full mt-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowChangePlan(false)}>
-            {lang === 'de' ? 'Plan bestätigen' : 'Confirm Plan'}
-          </Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cancel Subscription Dialog */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-400"><AlertTriangle className="w-5 h-5" />{t('cancel_subscription', lang)}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-red-950/20 border border-red-700/40 rounded-lg">
-              <p className="text-sm text-red-300">{lang === 'de' ? 'Bei Kündigung bleibt dein Account bis Ende der Vertragslaufzeit nutzbar. Danach wird dein Account deaktiviert (nicht gelöscht). Du kannst jederzeit wieder ein Abo abschließen.' : 'Upon cancellation, your account remains usable until the end of the subscription period. After that, your account will be deactivated (not deleted). You can resubscribe at any time.'}</p>
-            </div>
-            <div className="p-3 bg-slate-800 rounded-lg">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">{lang === 'de' ? 'Aktiver Plan' : 'Current Plan'}</span>
-                <span className="text-white font-medium">{subscription.plan}</span>
-              </div>
-              <div className="flex justify-between text-sm mt-2">
-                <span className="text-slate-400">{lang === 'de' ? 'Nutzbar bis' : 'Usable until'}</span>
-                <span className="text-white font-mono">{subscription.nextPayment}</span>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1 border-slate-600 text-slate-300" onClick={() => setShowCancelDialog(false)}>{t('back', lang)}</Button>
-              <Button variant="destructive" className="flex-1" onClick={() => setShowCancelDialog(false)}>
-                {lang === 'de' ? 'Jetzt kündigen' : 'Cancel Now'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
