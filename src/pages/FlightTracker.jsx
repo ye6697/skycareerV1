@@ -771,7 +771,36 @@ export default function FlightTracker() {
      const airportFee = 150;
 
      // Check for crash or off-airport landing (>=10 NM from arrival airport)
-      const backendCrashAtCompletion = !!xpData.crash;
+      const completionLandingTrusted = !!(
+        xpData.touchdown_detected ||
+        xpData.landing_data_locked ||
+        xpData.bridge_local_landing_locked ||
+        xpData.landing_data_source === 'bridge_local'
+      );
+      const completionTouchdownVs = Math.abs(Number(xpData.touchdown_vspeed || finalFlightData.landingVs || 0));
+      const completionLandingG = Number(
+        xpData.landing_g_force ||
+        xpData.landingGForce ||
+        finalFlightData.landingGForce ||
+        0
+      );
+      const crashEventFromLog = Array.isArray(xpData.flight_events_log) && xpData.flight_events_log.some((ev) => {
+        const tp = String(ev?.type || ev?.event || ev?.name || '').toLowerCase();
+        return tp === 'crash' || tp === 'crashed' || tp === 'has_crashed';
+      });
+      const touchdownCrashAtCompletion = completionLandingTrusted && (
+        completionTouchdownVs >= 1600 ||
+        completionLandingG >= 3.8 ||
+        (completionTouchdownVs >= 1400 && completionLandingG >= 3.2)
+      );
+      const airborneCrashAtCompletion = !xpData.on_ground && (
+        Number(xpData.vertical_speed || 0) <= -2200 ||
+        Number(xpData.g_force || 0) >= 4.0
+      );
+      const backendCrashAtCompletion = !!(
+        xpData.crash &&
+        (crashEventFromLog || touchdownCrashAtCompletion || airborneCrashAtCompletion || xpData.sim_disabled)
+      );
       const hasCrashed = backendCrashAtCompletion;
       if (finalFlightData.events?.crash !== hasCrashed) {
         finalFlightData = {
@@ -1287,9 +1316,32 @@ export default function FlightTracker() {
 
     const xp = xplaneLog.raw_data;
 
-    // Backend already publishes trusted crash state in xp.crash.
-    // Avoid re-inferring crashes here from transient dynamics.
-    const crashSignal = !!xp.crash;
+    const landingDataTrustedForCrash = !!(
+      xp.touchdown_detected ||
+      xp.landing_data_locked ||
+      xp.bridge_local_landing_locked ||
+      xp.landing_data_source === 'bridge_local'
+    );
+    const crashEventFromLog = Array.isArray(xp.flight_events_log) && xp.flight_events_log.some((ev) => {
+      const tp = String(ev?.type || ev?.event || ev?.name || '').toLowerCase();
+      return tp === 'crash' || tp === 'crashed' || tp === 'has_crashed';
+    });
+    const touchdownCrashSignal = landingDataTrustedForCrash && (
+      Math.abs(Number(xp.touchdown_vspeed || 0)) >= 1600 ||
+      Number(xp.landing_g_force || xp.landingGForce || 0) >= 3.8 ||
+      (
+        Math.abs(Number(xp.touchdown_vspeed || 0)) >= 1400 &&
+        Number(xp.landing_g_force || xp.landingGForce || 0) >= 3.2
+      )
+    );
+    const airborneCrashSignal = !xp.on_ground && (
+      Number(xp.vertical_speed || 0) <= -2200 ||
+      Number(xp.g_force || 0) >= 4.0
+    );
+    const crashSignal = !!(
+      xp.crash &&
+      (crashEventFromLog || touchdownCrashSignal || airborneCrashSignal || xp.sim_disabled)
+    );
 
     setFlightData(prev => {
       const currentGForce = xp.g_force || 1.0;

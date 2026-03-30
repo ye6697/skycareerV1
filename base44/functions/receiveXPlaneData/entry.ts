@@ -1318,12 +1318,13 @@ Deno.serve(async (req) => {
     const rawFlapsOverspeedFlag = toBool(flaps_overspeed, false);
     const rawGearUpLandingFlag = toBool(gear_up_landing, false);
     const rawHarshControlsFlag = toBool(data.harsh_controls || data.harshControls, false);
+    const verticalSpeedNow = Number(vertical_speed || 0);
     const hasCrashDynamicsNow =
-      Math.abs(Number(vertical_speed || 0)) >= 1700 ||
-      Number(gForceCurrent || 0) >= 3.4;
+      verticalSpeedNow <= -1900 ||
+      Number(gForceCurrent || 0) >= 3.8;
     const hasOnGroundCrashDynamicsNow =
-      Math.abs(Number(vertical_speed || 0)) >= 1400 ||
-      Number(gForceCurrent || 0) >= 3.6;
+      verticalSpeedNow <= -1500 ||
+      Number(gForceCurrent || 0) >= 3.8;
     const rawCrashFlag = !!(
       crash ||
       data.crashed ||
@@ -1418,19 +1419,19 @@ Deno.serve(async (req) => {
       ? new Date(landingCaptureStartedAtMs).toISOString()
       : null;
     const crashFromTouchdown = touchdownDetected && (
-      Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1200 ||
-      Number(effectiveLandingG || 0) >= 3.4 ||
+      Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1600 ||
+      Number(effectiveLandingG || 0) >= 3.8 ||
       (
-        Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1000 &&
-        Number(effectiveLandingG || 0) >= 2.8
+        Math.abs(Number(effectiveTouchdownVspeed || 0)) >= 1400 &&
+        Number(effectiveLandingG || 0) >= 3.2
       )
     );
     const overstressDetected = incidentArmed && (toBool(overstress, false) || (hasBeenAirborne && Math.abs(gForceCurrent) >= 2.6));
     const prevCrashState = toBool(prevXd.crash ?? prevXd.has_crashed, false);
     const simDisabledCrashSignal = incidentArmed && toBool(sim_disabled, false) && (
       crashFromTouchdown ||
-      Math.abs(Number(vertical_speed || 0)) >= 1800 ||
-      Number(gForceCurrent || 0) >= 3.2
+      Number(vertical_speed || 0) <= -2000 ||
+      Number(gForceCurrent || 0) >= 3.8
     );
     const crashSignalTrusted = incidentArmed
       ? (((rawCrashFlag && !eventTakeoffSuppress.crash) || simDisabledCrashSignal))
