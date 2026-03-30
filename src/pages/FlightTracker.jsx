@@ -54,6 +54,7 @@ export default function FlightTracker() {
   const [emergencyLanding, setEmergencyLanding] = useState(false);
   const flightDataRef = React.useRef(null);
   const autoCompleteTimeoutRef = useRef(null);
+  const lastAutoFailureTsRef = useRef(null);
   const failureTestScenarios = [
     {
       key: 'engine',
@@ -194,29 +195,6 @@ export default function FlightTracker() {
       bridgeOnly: true,
     },
     {
-      key: 'pressurization',
-      commandType: 'pressurization_failure_test',
-      category: 'pressurization',
-      severity: 'mittel',
-      source: 'manual_pressurization_failure_test',
-      damageCategory: 'pressurization',
-      damageValue: 75,
-      name: {
-        de: 'Drucksystemfehler (Test)',
-        en: 'Pressurization failure (test)',
-      },
-      button: {
-        de: 'Test: Drucksystemfehler',
-        en: 'Test: Trigger pressurization failure',
-      },
-      eventLabel: {
-        de: 'Drucksystemfehler Test ausgelost',
-        en: 'Pressurization failure test triggered',
-      },
-      toneClass: 'bg-violet-900/65 hover:bg-violet-800 text-violet-100 border border-violet-700/60',
-      bridgeOnly: true,
-    },
-    {
       key: 'airframe',
       commandType: 'airframe_failure_test',
       category: 'airframe',
@@ -240,6 +218,14 @@ export default function FlightTracker() {
       bridgeOnly: true,
     },
   ];
+  const defaultFlightEvents = {
+    tailstrike: false, stall: false, overstress: false, overspeed: false,
+    flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
+    crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false,
+    failure_engine: false, failure_hydraulics: false, failure_electrical: false, failure_avionics: false,
+    failure_flight_controls: false, failure_landing_gear: false, failure_airframe: false
+  };
+  const [failurePopup, setFailurePopup] = useState(null);
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
@@ -251,11 +237,7 @@ export default function FlightTracker() {
     landingScoreChange: 0, landingMaintenanceCost: 0, landingBonus: 0,
     flightScore: 100, maintenanceCost: 0, reputation: 'EXCELLENT',
     latitude: 0, longitude: 0,
-    events: {
-      tailstrike: false, stall: false, overstress: false, overspeed: false,
-      flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
-      crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
-    },
+    events: { ...defaultFlightEvents },
     maxControlInput: 0, departure_lat: 0, departure_lon: 0,
     arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0
   });
@@ -337,6 +319,57 @@ export default function FlightTracker() {
     }, 100);
     return () => clearInterval(ticker);
   }, [flightPhase]);
+
+  useEffect(() => {
+    const xp = xplaneLog?.raw_data || {};
+    const failureTs = xp.maintenance_failure_timestamp || null;
+    const failureCategory = String(xp.maintenance_failure_category || '').toLowerCase().trim();
+    if (!failureTs || !failureCategory) return;
+    if (lastAutoFailureTsRef.current === failureTs) return;
+    lastAutoFailureTsRef.current = failureTs;
+
+    const categoryToEventKey = {
+      engine: 'failure_engine',
+      hydraulics: 'failure_hydraulics',
+      electrical: 'failure_electrical',
+      avionics: 'failure_avionics',
+      flight_controls: 'failure_flight_controls',
+      landing_gear: 'failure_landing_gear',
+      airframe: 'failure_airframe',
+    };
+    const eventKey = categoryToEventKey[failureCategory];
+    if (!eventKey) return;
+
+    const labelByCategory = {
+      engine: lang === 'de' ? 'Triebwerksausfall' : 'Engine failure',
+      hydraulics: lang === 'de' ? 'Hydraulikausfall' : 'Hydraulic failure',
+      electrical: lang === 'de' ? 'Elektrikausfall' : 'Electrical failure',
+      avionics: lang === 'de' ? 'Avionik-Ausfall' : 'Avionics failure',
+      flight_controls: lang === 'de' ? 'Steuerungsausfall' : 'Flight controls failure',
+      landing_gear: lang === 'de' ? 'Fahrwerksausfall' : 'Landing gear failure',
+      airframe: lang === 'de' ? 'Strukturausfall' : 'Airframe failure',
+    };
+
+    setFlightData((prev) => {
+      const updated = {
+        ...prev,
+        events: {
+          ...(prev.events || {}),
+          [eventKey]: true,
+        },
+      };
+      flightDataRef.current = updated;
+      return updated;
+    });
+
+    setFailurePopup({
+      id: Date.now(),
+      message: lang === 'de'
+        ? `${labelByCategory[failureCategory]} erkannt`
+        : `${labelByCategory[failureCategory]} detected`,
+    });
+    setTimeout(() => setFailurePopup(null), 4500);
+  }, [xplaneLog, lang]);
 
   // Initial fetch to get current flight data immediately
   useEffect(() => {
@@ -444,11 +477,7 @@ export default function FlightTracker() {
         landingGForce: 0, landingVs: 0, landingScoreChange: 0,
         landingMaintenanceCost: 0, landingBonus: 0, flightScore: 100,
         maintenanceCost: 0, reputation: 'EXCELLENT', latitude: 0, longitude: 0,
-        events: {
-          tailstrike: false, stall: false, overstress: false, overspeed: false,
-          flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
-          crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
-        },
+        events: { ...defaultFlightEvents },
         maxControlInput: 0, departure_lat: 0, departure_lon: 0,
         arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0, landingType: null
       };
@@ -662,14 +691,7 @@ export default function FlightTracker() {
         reputation: 'EXCELLENT',
         latitude: 0,
         longitude: 0,
-        events: {
-          tailstrike: false,
-          stall: false,
-          overstress: false,
-          overspeed: false,
-          flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
-          crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false
-        },
+        events: { ...defaultFlightEvents },
         maxControlInput: 0,
         departure_lat: 0,
         departure_lon: 0,
@@ -765,10 +787,8 @@ export default function FlightTracker() {
         : (Array.isArray(freshFlight?.xplane_data?.bridge_command_queue) ? freshFlight.xplane_data.bridge_command_queue : []);
       const nowIso = new Date().toISOString();
 
-      const nextDamage = {
-        ...currentDamage,
-        [scenario.damageCategory]: Math.max(Number(currentDamage?.[scenario.damageCategory] || 0), scenario.damageValue),
-      };
+      // Manual failure tests should not increase maintenance wear/cost on fleet.
+      const nextDamage = { ...currentDamage };
 
       const alreadyExists = currentFailures.some((f) => f?.source === scenario.source);
       const nextFailures = alreadyExists
@@ -804,7 +824,7 @@ export default function FlightTracker() {
         source: 'flight_tracker_manual_test',
         category: scenario.category,
         severity: scenario.severity,
-        persist_until_landed: scenario.key === 'engine',
+        persist_until_landed: true,
       };
       const nextBridgeCommands = [...currentBridgeCommands, failureCommand].slice(-25);
 
@@ -824,6 +844,24 @@ export default function FlightTracker() {
       return { nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands, scenario };
     },
     onSuccess: ({ nextDamage, nextFailures, nextFlightEventsLog, nextBridgeEventLog, nextBridgeCommands, scenario }) => {
+      const failureEventKey = `failure_${scenario.key}`;
+      setFlightData((prev) => {
+        const updated = {
+          ...prev,
+          events: {
+            ...(prev.events || {}),
+            [failureEventKey]: true,
+          },
+        };
+        flightDataRef.current = updated;
+        return updated;
+      });
+      const popupMessage = lang === 'de'
+        ? `${scenario.name.de} wurde ausgelost`
+        : `${scenario.name.en} triggered`;
+      setFailurePopup({ id: Date.now(), message: popupMessage });
+      setTimeout(() => setFailurePopup(null), 4500);
+
       setFlight((prev) => {
         if (!prev) return prev;
         return {
@@ -1335,8 +1373,8 @@ export default function FlightTracker() {
               try {
                 // Wenn Wartungskosten > 10% des Wertes -> Status "maintenance"
                 // Apply maintenance damage from failures to aircraft categories
-                const activeFl = flight || existingFlight;
-                const flightDamage = activeFl?.maintenance_damage || {};
+                // Failure tests/active failures must not increase fleet maintenance categories.
+                const flightDamage = {};
                 const existingCats = airplaneToUpdate?.maintenance_categories || {};
                 const updatedCats = { ...existingCats };
                 for (const [cat, dmg] of Object.entries(flightDamage)) {
@@ -1345,7 +1383,7 @@ export default function FlightTracker() {
                 
                 // Also add base wear from flight hours per category
                 const baseWearPerHour = 0.5; // 0.5% per flight hour base wear
-                for (const cat of ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization']) {
+                for (const cat of ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls']) {
                   updatedCats[cat] = Math.min(100, (updatedCats[cat] || 0) + baseWearPerHour * flightHours);
                 }
                 
@@ -1815,7 +1853,27 @@ export default function FlightTracker() {
       
       // Merge events: backend xplane_data events are authoritative (once true, always true)
       // Local detection adds to them but never overrides true->false
-      const mergedEvents = { tailstrike: !!(xp.tailstrike || prev.events.tailstrike), stall: !!(xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha || prev.events.stall), overstress: !!(xp.overstress || prev.events.overstress), overspeed: !!(xp.overspeed || prev.events.overspeed), flaps_overspeed: !!(flapsOverspeedDetected || xp.flaps_overspeed || prev.events.flaps_overspeed), fuel_emergency: !!(xp.fuel_emergency || prev.events.fuel_emergency), gear_up_landing: !!(xp.gear_up_landing || prev.events.gear_up_landing), crash: !!isCrash, harsh_controls: !!(xp.harsh_controls || prev.events.harsh_controls), high_g_force: !!(newMaxGForce >= 1.5 || prev.events.high_g_force), hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing), wrong_airport: !!(prev.events.wrong_airport) };
+      const mergedEvents = {
+        tailstrike: !!(xp.tailstrike || prev.events.tailstrike),
+        stall: !!(xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha || prev.events.stall),
+        overstress: !!(xp.overstress || prev.events.overstress),
+        overspeed: !!(xp.overspeed || prev.events.overspeed),
+        flaps_overspeed: !!(flapsOverspeedDetected || xp.flaps_overspeed || prev.events.flaps_overspeed),
+        fuel_emergency: !!(xp.fuel_emergency || prev.events.fuel_emergency),
+        gear_up_landing: !!(xp.gear_up_landing || prev.events.gear_up_landing),
+        crash: !!isCrash,
+        harsh_controls: !!(xp.harsh_controls || prev.events.harsh_controls),
+        high_g_force: !!(newMaxGForce >= 1.5 || prev.events.high_g_force),
+        hard_landing: !!(landingType === 'hard' || landingType === 'very_hard' || prev.events.hard_landing),
+        wrong_airport: !!(prev.events.wrong_airport),
+        failure_engine: !!(xp.manual_engine_failure_test || prev.events.failure_engine),
+        failure_hydraulics: !!(xp.manual_hydraulic_failure_test || prev.events.failure_hydraulics),
+        failure_electrical: !!(xp.manual_electrical_failure_test || prev.events.failure_electrical),
+        failure_avionics: !!(xp.manual_avionics_failure_test || prev.events.failure_avionics),
+        failure_flight_controls: !!(xp.manual_flight_controls_failure_test || prev.events.failure_flight_controls),
+        failure_landing_gear: !!(xp.manual_landing_gear_failure_test || prev.events.failure_landing_gear),
+        failure_airframe: !!(xp.manual_airframe_failure_test || prev.events.failure_airframe),
+      };
 
       const newData = {
         altitude: xp.altitude || prev.altitude,
@@ -2086,6 +2144,27 @@ export default function FlightTracker() {
           </Badge>
         </div>
       </div>
+
+      <AnimatePresence>
+        {failurePopup && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-16 right-4 z-[70] max-w-sm rounded-lg border border-amber-500/40 bg-amber-950/90 text-amber-100 px-4 py-3 shadow-xl"
+          >
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-300 shrink-0" />
+              <div>
+                <p className="text-xs uppercase tracking-wider text-amber-300/80">
+                  {lang === 'de' ? 'Ausfall erkannt' : 'Failure detected'}
+                </p>
+                <p className="text-sm font-medium">{failurePopup.message}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 overflow-y-auto min-h-0">
         {/* Tab Warning */}
@@ -2388,6 +2467,27 @@ export default function FlightTracker() {
                         )}
                         {flightData.events.wrong_airport === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Falscher Flughafen! (>=10 NM)' : 'Wrong airport! (>=10 NM)'}</div>
+                        )}
+                        {flightData.events.failure_engine === true && (
+                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Triebwerk' : 'Failure: Engine'}</div>
+                        )}
+                        {flightData.events.failure_hydraulics === true && (
+                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Hydraulik' : 'Failure: Hydraulics'}</div>
+                        )}
+                        {flightData.events.failure_electrical === true && (
+                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Elektrik' : 'Failure: Electrical'}</div>
+                        )}
+                        {flightData.events.failure_avionics === true && (
+                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Avionik' : 'Failure: Avionics'}</div>
+                        )}
+                        {flightData.events.failure_flight_controls === true && (
+                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Flugsteuerung' : 'Failure: Flight Controls'}</div>
+                        )}
+                        {flightData.events.failure_landing_gear === true && (
+                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Fahrwerk' : 'Failure: Landing Gear'}</div>
+                        )}
+                        {flightData.events.failure_airframe === true && (
+                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Struktur' : 'Failure: Airframe'}</div>
                         )}
                         </div>
                         </div>

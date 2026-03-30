@@ -1490,6 +1490,9 @@ Deno.serve(async (req) => {
       airborne_started_at: airborneStartedAt,
       completion_armed: completionArmed,
       completion_armed_at: completionArmedAt,
+      maintenance_failure_category: data.maintenance_failure_category || prevXd.maintenance_failure_category || null,
+      maintenance_failure_severity: data.maintenance_failure_severity || prevXd.maintenance_failure_severity || null,
+      maintenance_failure_timestamp: data.maintenance_failure_timestamp || prevXd.maintenance_failure_timestamp || null,
       bridge_event_log: Array.isArray(incomingBridgeEventLog) ? incomingBridgeEventLog.slice(-220) : [],
       // Preserve departure/arrival coords from first packet
       departure_lat: data.departure_lat || (prevXd.departure_lat || 0),
@@ -1860,6 +1863,7 @@ Deno.serve(async (req) => {
         simulator: String(cmd.simulator || "msfs"),
         created_at: cmd.created_at || new Date().toISOString(),
         source: cmd.source || "unknown",
+        persist_until_landed: cmd.persist_until_landed === true,
       }));
     if (bridgeCommandsForBridge.length > 0) {
       const sentIds = new Set(bridgeCommandsForBridge.map((cmd: any) => String(cmd.id)));
@@ -1899,14 +1903,6 @@ Deno.serve(async (req) => {
       }
       if (newFailures.length > 0) {
         updateData.active_failures = [...existingFailures, ...newFailures];
-        const existingDamage = flight.maintenance_damage || {};
-        const newDamage = { ...existingDamage };
-        for (const f of newFailures) {
-          const cat = f.category || 'airframe';
-          const dmg = f.severity === 'schwer' ? 15 : f.severity === 'mittel' ? 8 : 3;
-          newDamage[cat] = (newDamage[cat] || 0) + dmg;
-        }
-        updateData.maintenance_damage = newDamage;
       }
     }
 
@@ -1919,7 +1915,7 @@ Deno.serve(async (req) => {
       xplane_data: xplaneData,
       max_g_force: updateData.max_g_force ?? flight.max_g_force,
       active_failures: updateData.active_failures ?? flight.active_failures,
-      maintenance_damage: updateData.maintenance_damage ?? flight.maintenance_damage,
+      maintenance_damage: flight.maintenance_damage,
       bridge_command_queue: updateData.bridge_command_queue ?? (flight as any).bridge_command_queue,
       last_bridge_command_dispatch_at: updateData.last_bridge_command_dispatch_at ?? (flight as any).last_bridge_command_dispatch_at,
       last_bridge_command_dispatch_count: updateData.last_bridge_command_dispatch_count ?? (flight as any).last_bridge_command_dispatch_count,
@@ -1991,11 +1987,6 @@ Deno.serve(async (req) => {
                 { name: 'Aileron Stiffness', name_de: 'Querruder Schwergangig', severity: 'leicht' },
                 { name: 'Elevator Malfunction', name_de: 'Hohenruder Fehlfunktion', severity: 'mittel' },
               ],
-              pressurization: [
-                { name: 'Bleed Air Leak', name_de: 'Zapfluft Leck', severity: 'mittel' },
-                { name: 'Pack Failure', name_de: 'Klimaanlage Ausfall', severity: 'leicht' },
-                { name: 'Pressurization Loss', name_de: 'Druckverlust', severity: 'schwer' },
-              ]
             };
 
             const weightedPool = [];
@@ -2040,25 +2031,30 @@ Deno.serve(async (req) => {
               timestamp: createdAtIso
             };
 
-            const damageBySeverity = { schwer: 18, mittel: 10, leicht: 4 };
-            const dmg = damageBySeverity[failure.severity] ?? 8;
-            const existingDamage = flight.maintenance_damage || {};
-            const updatedDamage = { ...existingDamage };
-            updatedDamage[selectedCat] = Math.min(100, Number(updatedDamage[selectedCat] || 0) + dmg);
-
             const rawQueue = Array.isArray((flight as any).bridge_command_queue)
               ? (flight as any).bridge_command_queue
               : (Array.isArray((flight as any)?.xplane_data?.bridge_command_queue)
                   ? (flight as any).xplane_data.bridge_command_queue
                   : []);
             const nextQueue = [...rawQueue];
-            if (selectedCat === 'engine' && failure.severity === 'schwer') {
+            const autoFailureCommandTypeByCategory: Record<string, string> = {
+              engine: 'engine_failure_test',
+              hydraulics: 'hydraulic_failure_test',
+              electrical: 'electrical_failure_test',
+              avionics: 'avionics_failure_test',
+              flight_controls: 'flight_controls_failure_test',
+              landing_gear: 'landing_gear_failure_test',
+              airframe: 'airframe_failure_test',
+            };
+            const autoCommandType = autoFailureCommandTypeByCategory[selectedCat];
+            if (autoCommandType) {
               nextQueue.push({
-                id: `cmd-auto-engine-failure-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                type: 'engine_failure_test',
+                id: `cmd-auto-${selectedCat}-failure-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                type: autoCommandType,
                 simulator: 'msfs',
                 created_at: createdAtIso,
                 source: 'maintenance_ratio_system',
+                persist_until_landed: true,
               });
             }
 
@@ -2074,7 +2070,6 @@ Deno.serve(async (req) => {
 
             await base44.asServiceRole.entities.Flight.update(flight.id, {
               active_failures: [...existingFailures, newFailure],
-              maintenance_damage: updatedDamage,
               bridge_command_queue: nextQueue.slice(-25),
               xplane_data: nextFlightXpd,
             });
@@ -2082,7 +2077,6 @@ Deno.serve(async (req) => {
             patchActiveFlightCache(company.id, {
               ...flight,
               active_failures: [...existingFailures, newFailure],
-              maintenance_damage: updatedDamage,
               bridge_command_queue: nextQueue.slice(-25),
               xplane_data: nextFlightXpd,
             });
