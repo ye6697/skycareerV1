@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { LanguageProvider, useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import SubscriptionPaywall from "@/components/subscription/SubscriptionPaywall";
 import {
         LayoutDashboard,
         FileText,
@@ -44,13 +45,15 @@ function getNavItems(lang) {
   ];
 }
 
+const FREE_PAGES = ["Dashboard", "Account", "Setup", "Landing"];
+
 function LayoutInner({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { lang, setLang } = useLanguage();
   const navItems = getNavItems(lang);
 
   // Load all layout data ONCE and never refetch automatically
-  const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, loaded: false });
+  const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, isPro: false, loaded: false });
 
   React.useEffect(() => {
     if (layoutData.loaded) return;
@@ -70,8 +73,14 @@ function LayoutInner({ children, currentPageName }) {
           if (comp) await base44.auth.updateMe({ company_id: comp.id });
         }
         const settings = await base44.entities.GameSettings.list();
+        // Check subscription status
+        let isPro = false;
+        try {
+          const subRes = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
+          isPro = subRes.data?.is_pro || false;
+        } catch (_) {}
         if (!cancelled) {
-          setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, loaded: true });
+          setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, isPro, loaded: true });
         }
       } catch (_) {}
     })();
@@ -81,12 +90,16 @@ function LayoutInner({ children, currentPageName }) {
   const company = layoutData.company;
   const gameSettings = layoutData.gameSettings;
   const user = layoutData.user;
+  const isPro = layoutData.isPro;
 
   const xplaneStatus = company?.xplane_connection_status || 'disconnected';
 
   if (currentPageName === "Setup" || currentPageName === "Landing") {
     return children;
   }
+
+  // Show paywall for non-free pages if user has no active subscription
+  const needsPaywall = layoutData.loaded && !isPro && !FREE_PAGES.includes(currentPageName);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-cyan-900 flex flex-col">
@@ -118,7 +131,7 @@ function LayoutInner({ children, currentPageName }) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 max-w-6xl mx-auto w-full">
-        {children}
+        {needsPaywall ? <SubscriptionPaywall /> : children}
       </main>
     </div>
   );
