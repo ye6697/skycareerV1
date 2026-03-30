@@ -952,9 +952,9 @@ export default function FlightTracker() {
               existingXpData.bridge_local_landing_locked ||
               existingXpData.landing_data_source === 'bridge_local'
             );
-            const saveLandingTrusted = landingDataTrusted || existingLandingTrusted;
-            const localLandingVs = landingDataTrusted ? Number(finalFlightData.landingVs || 0) : 0;
-            const localLandingG = landingDataTrusted ? Number(finalFlightData.landingGForce || 0) : 0;
+            const localLandingVs = Number(finalFlightData.landingVs || 0);
+            const localLandingG = Number(finalFlightData.landingGForce || 0);
+            const saveLandingTrusted = landingDataTrusted || existingLandingTrusted || localLandingVs > 0 || localLandingG > 0;
             const resolvedTouchdownForSave = saveLandingTrusted
               ? (localLandingVs > 0
                   ? localLandingVs

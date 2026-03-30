@@ -161,14 +161,25 @@ export default function CompletedFlightDetails() {
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
-  const landingVsValue = Math.max(0, Math.min(
-    2500,
-    Math.abs(Number(
-      flight?.landing_vs ??
-      flight?.xplane_data?.touchdown_vspeed ??
-      0
-    ) || 0)
-  ));
+  const candidateLandingVsValues = [
+    Number(flight?.xplane_data?.touchdown_vspeed || 0),
+    Number(flight?.landing_vs || 0),
+    Number(flight?.xplane_data?.landing_vs || 0)
+  ];
+  const resolvedLandingVs = candidateLandingVsValues.find((v) => Number.isFinite(v) && Math.abs(v) > 0) || 0;
+  const landingVsValue = Math.max(0, Math.min(2500, Math.abs(resolvedLandingVs)));
+  const deadlineMinutesValue =
+    Number(flight?.xplane_data?.deadlineMinutes ?? flight?.xplane_data?.deadline_minutes ?? 0) || 0;
+  const madeDeadlineValue = (() => {
+    if (typeof flight?.xplane_data?.madeDeadline === 'boolean') return flight.xplane_data.madeDeadline;
+    if (typeof flight?.xplane_data?.made_deadline === 'boolean') return flight.xplane_data.made_deadline;
+    return null;
+  })();
+  const resolvedMadeDeadline = madeDeadlineValue !== null
+    ? madeDeadlineValue
+    : (deadlineMinutesValue > 0
+        ? ((Number(flight?.flight_duration_hours || 0) * 60) <= deadlineMinutesValue)
+        : null);
   const wrongAirportCompletion = !!(
     flight?.xplane_data?.events?.wrong_airport ||
     flight?.xplane_data?.landed_too_far_from_arrival
@@ -356,24 +367,29 @@ export default function CompletedFlightDetails() {
                 </div>
 
                 {/* Deadline Result */}
-                {flight.xplane_data?.deadlineMinutes && (
+                {deadlineMinutesValue > 0 && (
                   <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">Deadline</p>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-slate-400">
-                          Vorgabe: {flight.xplane_data.deadlineMinutes} min | Geflogen: {Math.round(flight.flight_duration_hours * 60)} min
+                          Vorgabe: {Math.round(deadlineMinutesValue)} min | Geflogen: {Math.round((flight.flight_duration_hours || 0) * 60)} min
                         </p>
                       </div>
-                      {flight.xplane_data.madeDeadline ? (
+                      {resolvedMadeDeadline === true ? (
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                           <span className="text-emerald-400 font-bold">+20 Punkte</span>
                         </div>
-                      ) : (
+                      ) : resolvedMadeDeadline === false ? (
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="w-5 h-5 text-red-400" />
                           <span className="text-red-400 font-bold">-20 Punkte</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Timer className="w-5 h-5 text-slate-400" />
+                          <span className="text-slate-300 font-bold">-</span>
                         </div>
                       )}
                     </div>
