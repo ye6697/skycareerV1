@@ -59,10 +59,13 @@ function LayoutInner({ children, currentPageName }) {
     if (layoutData.loaded) return;
     let cancelled = false;
     (async () => {
+      let u = null;
+      let comp = null;
+      let settings = [];
+      let isPro = false;
       try {
-        const u = await base44.auth.me();
+        u = await base44.auth.me();
         const cid = u?.company_id || u?.data?.company_id;
-        let comp = null;
         if (cid) {
           const companies = await base44.entities.Company.filter({ id: cid });
           comp = companies[0] || null;
@@ -72,17 +75,16 @@ function LayoutInner({ children, currentPageName }) {
           comp = companies[0] || null;
           if (comp) await base44.auth.updateMe({ company_id: comp.id });
         }
-        const settings = await base44.entities.GameSettings.list();
-        // Check subscription status
-        let isPro = false;
-        try {
-          const subRes = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
-          isPro = subRes.data?.is_pro || false;
-        } catch (_) {}
-        if (!cancelled) {
-          setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, isPro, loaded: true });
-        }
+        settings = await base44.entities.GameSettings.list();
       } catch (_) {}
+      // Check subscription status separately – always runs
+      try {
+        const subRes = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
+        isPro = subRes.data?.is_pro || false;
+      } catch (_) {}
+      if (!cancelled) {
+        setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, isPro, loaded: true });
+      }
     })();
     return () => { cancelled = true; };
   }, [layoutData.loaded]);
@@ -100,6 +102,8 @@ function LayoutInner({ children, currentPageName }) {
 
   // Show paywall for non-free pages if user has no active subscription
   const needsPaywall = layoutData.loaded && !isPro && !FREE_PAGES.includes(currentPageName);
+  const isLoadingPaywall = !layoutData.loaded && !FREE_PAGES.includes(currentPageName);
+  console.log('[LAYOUT PAYWALL]', { currentPageName, loaded: layoutData.loaded, isPro, needsPaywall, isLoadingPaywall, isFree: FREE_PAGES.includes(currentPageName) });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-cyan-900 flex flex-col">
@@ -131,7 +135,15 @@ function LayoutInner({ children, currentPageName }) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 max-w-6xl mx-auto w-full">
-        {needsPaywall ? <SubscriptionPaywall /> : children}
+        {isLoadingPaywall ? (
+          <div className="flex items-center justify-center h-full min-h-[50vh]">
+            <div className="w-8 h-8 border-4 border-cyan-900 border-t-cyan-400 rounded-full animate-spin" />
+          </div>
+        ) : needsPaywall ? (
+          <SubscriptionPaywall />
+        ) : (
+          children
+        )}
       </main>
     </div>
   );
