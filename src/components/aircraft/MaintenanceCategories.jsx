@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 function getCategories(lang) {
   const tFn = (k) => tl(k, lang);
@@ -89,6 +90,40 @@ export default function MaintenanceCategories({ aircraft }) {
   const getTotalCost = () => {
     if (totalWear <= 0) return 0;
     return Math.round(accumulatedCost);
+  };
+
+  const getCategoryCostExplanation = (catKey) => {
+    const wear = cats[catKey] || 0;
+    const categoryCost = getCategoryCost(catKey);
+    const wearShare = totalWear > 0 ? (wear / totalWear) * 100 : 0;
+    const basePoolText = lang === 'de'
+      ? `Wartungskosten-Pool: $${Math.round(accumulatedCost).toLocaleString()}`
+      : `Maintenance cost pool: $${Math.round(accumulatedCost).toLocaleString()}`;
+    const formulaText = lang === 'de'
+      ? 'Formel: Kategoriekosten = Gesamtpool × (Kategorie-Verschleiß / Summe aller Kategorie-Verschleißwerte)'
+      : 'Formula: category cost = total pool × (category wear / sum of all category wear values)';
+
+    if (categoryCost <= 0 || totalWear <= 0 || wear <= 0) {
+      return {
+        title: lang === 'de' ? 'Keine berechneten Kosten' : 'No calculated cost',
+        details: lang === 'de'
+          ? 'Für diese Kategorie liegt aktuell kein verrechenbarer Verschleiß vor.'
+          : 'There is currently no billable wear for this category.',
+        formula: formulaText,
+        breakdown: basePoolText,
+      };
+    }
+
+    return {
+      title: lang === 'de' ? 'Kostenberechnung' : 'Cost calculation',
+      details: lang === 'de'
+        ? `Diese Kategorie hat ${wear.toFixed(1)}% Verschleiß und trägt ${wearShare.toFixed(1)}% am Gesamtverschleiß bei.`
+        : `This category has ${wear.toFixed(1)}% wear and contributes ${wearShare.toFixed(1)}% of total wear.`,
+      formula: formulaText,
+      breakdown: lang === 'de'
+        ? `${basePoolText} → $${Math.round(accumulatedCost).toLocaleString()} × ${wear.toFixed(1)} / ${totalWear.toFixed(1)} = $${categoryCost.toLocaleString()}`
+        : `${basePoolText} → $${Math.round(accumulatedCost).toLocaleString()} × ${wear.toFixed(1)} / ${totalWear.toFixed(1)} = $${categoryCost.toLocaleString()}`,
+    };
   };
 
   const repairCategoryMutation = useMutation({
@@ -226,7 +261,33 @@ export default function MaintenanceCategories({ aircraft }) {
               <Icon className={`w-3.5 h-3.5 shrink-0 ${getWearColor(wear)}`} />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-300 truncate">{cat.label}</span>
+                  <span className="text-slate-300 truncate flex items-center gap-1">
+                    <span>{cat.label}</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700/70 transition-colors"
+                          aria-label={lang === 'de' ? `Kostenformel für ${cat.label}` : `Cost formula for ${cat.label}`}
+                        >
+                          <Info className="w-3 h-3" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 bg-slate-900 border-slate-700 text-slate-200 p-3" align="start">
+                        {(() => {
+                          const info = getCategoryCostExplanation(cat.key);
+                          return (
+                            <div className="space-y-1.5 text-xs">
+                              <p className="font-semibold text-white">{info.title}</p>
+                              <p className="text-slate-300">{info.details}</p>
+                              <p className="text-slate-400">{info.formula}</p>
+                              <p className="text-amber-300 font-mono">{info.breakdown}</p>
+                            </div>
+                          );
+                        })()}
+                      </PopoverContent>
+                    </Popover>
+                  </span>
                   <span className={`font-mono ${getWearColor(wear)}`}>{wear.toFixed(0)}%</span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-1 mt-0.5">

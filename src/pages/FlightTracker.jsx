@@ -30,6 +30,7 @@ import {
   Shield,
   Zap,
   Wind,
+  Info,
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
@@ -42,6 +43,7 @@ import { generatePassengerComments } from "@/components/flights/generatePassenge
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function FlightTracker() {
   const navigate = useNavigate();
@@ -267,6 +269,27 @@ export default function FlightTracker() {
       .sort((a, b) => b.wear - a.wear)
       .map((category) => ({ ...category, colorClass: toColor(category.wear) }));
   }, [flightPhase, flightDurationSeconds, flightData.events, lang, maintenanceCategoryConfig]);
+
+  const getLiveCategoryCostExplanation = (category) => {
+    const wearValue = Number(category?.wear || 0);
+    const wearPercent = Math.max(0, Math.min(100, wearValue));
+    const purchasePrice = activeAircraft?.purchase_price || 0;
+    const baseCost = purchasePrice * 0.02;
+    const estimatedCost = baseCost * (wearPercent / 100);
+
+    return {
+      title: lang === 'de' ? 'Live-Kosten-Schätzung' : 'Live cost estimate',
+      details: lang === 'de'
+        ? 'Während des Flugs wird nur der Verschleiß live angezeigt. Der finale Betrag wird beim Abschluss verbucht.'
+        : 'During flight, only wear is shown live. Final amount is posted when the flight is completed.',
+      formula: lang === 'de'
+        ? 'Faustformel pro Kategorie: Neupreis × 2% × (aktueller Verschleiß / 100)'
+        : 'Rule of thumb per category: purchase price × 2% × (current wear / 100)',
+      breakdown: lang === 'de'
+        ? `$${Math.round(purchasePrice).toLocaleString()} × 0.02 × ${wearPercent.toFixed(1)}% ≈ $${Math.round(estimatedCost).toLocaleString()}`
+        : `$${Math.round(purchasePrice).toLocaleString()} × 0.02 × ${wearPercent.toFixed(1)}% ≈ $${Math.round(estimatedCost).toLocaleString()}`,
+    };
+  };
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
@@ -2574,7 +2597,33 @@ export default function FlightTracker() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <Icon className={`w-4 h-4 shrink-0 ${category.colorClass}`} />
-                            <span className="text-sm text-slate-200 truncate">{category.label}</span>
+                            <span className="text-sm text-slate-200 truncate flex items-center gap-1">
+                              <span>{category.label}</span>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700/70 transition-colors"
+                                    aria-label={lang === 'de' ? `Kostenformel für ${category.label}` : `Cost formula for ${category.label}`}
+                                  >
+                                    <Info className="w-3 h-3" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 bg-slate-900 border-slate-700 text-slate-200 p-3" align="start">
+                                  {(() => {
+                                    const info = getLiveCategoryCostExplanation(category);
+                                    return (
+                                      <div className="space-y-1.5 text-xs">
+                                        <p className="font-semibold text-white">{info.title}</p>
+                                        <p className="text-slate-300">{info.details}</p>
+                                        <p className="text-slate-400">{info.formula}</p>
+                                        <p className="text-amber-300 font-mono">{info.breakdown}</p>
+                                      </div>
+                                    );
+                                  })()}
+                                </PopoverContent>
+                              </Popover>
+                            </span>
                           </div>
                           <span className={`text-sm font-mono ${category.colorClass}`}>
                             {category.wear.toFixed(1)}%
