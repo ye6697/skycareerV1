@@ -3132,6 +3132,7 @@ export default function FlightTracker() {
               distanceInfo={distanceInfo}
               flight={flight}
               existingFlight={existingFlight}
+              aircraft={assignedAircraft}
               xplaneRawData={xplaneLog?.raw_data || null}
             />
 

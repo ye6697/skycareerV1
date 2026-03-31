@@ -10,6 +10,7 @@ export default function FuelPrediction({
   distanceInfo,
   flight,
   existingFlight,
+  aircraft = null,
   xplaneRawData = null
 }) {
   const { lang } = useLanguage();
@@ -18,14 +19,19 @@ export default function FuelPrediction({
 
   const initialFuelKg = Number(xpd.initial_fuel_kg || 0);
   const currentFuelKg = Number(flightData.fuelKg || xpd.fuel_kg || xpd.last_valid_fuel_kg || 0);
-  const fuelUsedSoFar = Math.max(0, initialFuelKg - currentFuelKg);
+  const effectiveInitialFuelKg = initialFuelKg > 0 ? initialFuelKg : currentFuelKg;
+  const fuelUsedSoFar = Math.max(0, effectiveInitialFuelKg - currentFuelKg);
   const elapsedHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : 0;
   const derivedBurnRateKgPerHour = elapsedHours > 0.08 ? (fuelUsedSoFar / elapsedHours) : 0;
   const backendBurnRateKgPerHour = Number(xpd.fuel_burn_rate_kgph || 0);
+  const aircraftBurnRateLitersPerHour = Number(aircraft?.fuel_consumption_per_hour || 0);
+  const aircraftBurnRateKgPerHour = aircraftBurnRateLitersPerHour > 0 ? (aircraftBurnRateLitersPerHour / 1.25) : 0;
   const isPlausibleRate = (rate) => Number.isFinite(rate) && rate >= 5 && rate <= 12000;
   const burnRateKgPerHour = isPlausibleRate(backendBurnRateKgPerHour)
     ? backendBurnRateKgPerHour
-    : (isPlausibleRate(derivedBurnRateKgPerHour) ? derivedBurnRateKgPerHour : 0);
+    : (isPlausibleRate(derivedBurnRateKgPerHour)
+        ? derivedBurnRateKgPerHour
+        : (isPlausibleRate(aircraftBurnRateKgPerHour) ? aircraftBurnRateKgPerHour : 0));
   const burnRateLitersPerHour = burnRateKgPerHour > 0 ? (burnRateKgPerHour * 1.25) : 0;
   const groundSpeed = Number(flightData.speed || xpd.speed || 0) || 200;
   const remainingNm = Number(distanceInfo?.remainingNm || 0);
@@ -38,17 +44,15 @@ export default function FuelPrediction({
   const descentHours = groundSpeed > 50 ? (descentNm / (groundSpeed * 0.7)) : 0;
   const fuelNeeded = (cruiseHours * burnRateKgPerHour) + (descentHours * burnRateKgPerHour * 0.6);
   const fuelAtArrival = currentFuelKg - fuelNeeded;
-  const fuelAtArrivalPct = initialFuelKg > 0 ? ((fuelAtArrival / initialFuelKg) * 100) : 0;
+  const fuelAtArrivalPct = effectiveInitialFuelKg > 0 ? ((fuelAtArrival / effectiveInitialFuelKg) * 100) : 0;
 
   const showPrediction =
-    flightData.wasAirborne &&
-    !!flightStartTime &&
     currentFuelKg > 0 &&
     remainingNm > 0 &&
     burnRateKgPerHour > 0 &&
-    initialFuelKg >= 1;
+    effectiveInitialFuelKg >= 1;
 
-  const isLow = fuelAtArrival < (initialFuelKg * 0.05);
+  const isLow = fuelAtArrival < (effectiveInitialFuelKg * 0.05);
   const isCritical = fuelAtArrival < 0;
   const color = isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-emerald-400";
   const bgColor = isCritical
