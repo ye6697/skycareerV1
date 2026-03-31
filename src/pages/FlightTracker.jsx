@@ -200,80 +200,35 @@ export default function FlightTracker() {
   ]), [lang]);
 
   const liveMaintenanceCategories = useMemo(() => {
-    if (flightPhase === 'preflight') return [];
-
+    if (flightPhase === 'preflight' || !flightDataRef.current) return [];
+    const ev = flightDataRef.current.events || {};
     const baseWear = (flightDurationSeconds / 3600) * 0.5;
-    const liveWear = {
-      engine: baseWear,
-      hydraulics: baseWear,
-      avionics: baseWear,
-      airframe: baseWear,
-      landing_gear: baseWear,
-      electrical: baseWear,
-      flight_controls: baseWear,
-    };
-
+    const liveWear = { engine: baseWear, hydraulics: baseWear, avionics: baseWear, airframe: baseWear, landing_gear: baseWear, electrical: baseWear, flight_controls: baseWear };
     const reasons = {};
-    const addReason = (category, reason) => {
-      reasons[category] = reasons[category] || [];
-      reasons[category].push(reason);
-    };
-
-    if (flightData.events.tailstrike) {
-      liveWear.airframe += 10;
-      addReason('airframe', lang === 'de' ? 'Tailstrike' : 'Tailstrike');
-    }
-    if (flightData.events.overstress) {
-      liveWear.airframe += 15;
-      addReason('airframe', lang === 'de' ? 'Strukturlast' : 'Structural stress');
-    }
-    if (flightData.events.high_g_force) {
-      liveWear.airframe += 8;
-      addReason('airframe', lang === 'de' ? 'Hohe G-Last' : 'High G load');
-    }
-    if (flightData.events.hard_landing || flightData.events.gear_up_landing) {
-      liveWear.landing_gear += 12;
-      addReason('landing_gear', lang === 'de' ? 'Harte Landung' : 'Hard landing');
-    }
-    if (flightData.events.flaps_overspeed) {
-      liveWear.flight_controls += 10;
-      addReason('flight_controls', lang === 'de' ? 'Klappen-Überspeed' : 'Flaps overspeed');
-    }
-    if (flightData.events.failure_engine) addReason('engine', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
-    if (flightData.events.failure_electrical) addReason('electrical', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
-    if (flightData.events.failure_avionics) addReason('avionics', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
-    if (flightData.events.failure_landing_gear) addReason('landing_gear', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
-    if (flightData.events.failure_airframe) addReason('airframe', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
-
-    if (flightData.events.crash) {
-      Object.keys(liveWear).forEach((cat) => {
-        liveWear[cat] = 100;
-        addReason(cat, lang === 'de' ? 'Crash' : 'Crash');
-      });
-    }
-
-    const toColor = (wear) => {
-      if (wear >= 80) return 'text-red-400';
-      if (wear >= 60) return 'text-orange-400';
-      if (wear >= 35) return 'text-amber-400';
-      return 'text-emerald-400';
-    };
-
+    const addR = (c, r) => { reasons[c] = reasons[c] || []; reasons[c].push(r); };
+    if (ev.tailstrike) { liveWear.airframe += 10; addR('airframe', lang === 'de' ? 'Tailstrike' : 'Tailstrike'); }
+    if (ev.overstress) { liveWear.airframe += 15; addR('airframe', lang === 'de' ? 'Strukturlast' : 'Structural stress'); }
+    if (ev.high_g_force) { liveWear.airframe += 8; addR('airframe', lang === 'de' ? 'Hohe G-Last' : 'High G load'); }
+    if (ev.hard_landing || ev.gear_up_landing) { liveWear.landing_gear += 12; addR('landing_gear', lang === 'de' ? 'Harte Landung' : 'Hard landing'); }
+    if (ev.flaps_overspeed) { liveWear.flight_controls += 10; addR('flight_controls', lang === 'de' ? 'Klappen-Überspeed' : 'Flaps overspeed'); }
+    if (ev.failure_engine) addR('engine', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (ev.failure_electrical) addR('electrical', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (ev.failure_avionics) addR('avionics', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (ev.failure_landing_gear) addR('landing_gear', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (ev.failure_airframe) addR('airframe', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (ev.crash) { Object.keys(liveWear).forEach((c) => { liveWear[c] = 100; addR(c, 'Crash'); }); }
+    const toColor = (w) => w >= 80 ? 'text-red-400' : w >= 60 ? 'text-orange-400' : w >= 35 ? 'text-amber-400' : 'text-emerald-400';
     return maintenanceCategoryConfig
-      .map((category) => ({
-        ...category,
-        wear: Math.min(100, Math.max(0, liveWear[category.key] || 0)),
-        reasons: reasons[category.key] || [],
-      }))
-      .filter((category) => category.wear > 0.3 || category.reasons.length > 0)
+      .map((c) => ({ ...c, wear: Math.min(100, Math.max(0, liveWear[c.key] || 0)), reasons: reasons[c.key] || [] }))
+      .filter((c) => c.wear > 0.3 || c.reasons.length > 0)
       .sort((a, b) => b.wear - a.wear)
-      .map((category) => ({ ...category, colorClass: toColor(category.wear) }));
-  }, [flightPhase, flightDurationSeconds, flightData.events, lang, maintenanceCategoryConfig]);
+      .map((c) => ({ ...c, colorClass: toColor(c.wear) }));
+  }, [flightPhase, flightDurationSeconds, lang, maintenanceCategoryConfig]);
 
   const getLiveCategoryCostExplanation = (category) => {
     const wearValue = Number(category?.wear || 0);
     const wearPercent = Math.max(0, Math.min(100, wearValue));
-    const purchasePrice = activeAircraft?.purchase_price || 0;
+    const purchasePrice = assignedAircraft?.purchase_price || 0;
     const baseCost = purchasePrice * 0.02;
     const estimatedCost = baseCost * (wearPercent / 100);
 
