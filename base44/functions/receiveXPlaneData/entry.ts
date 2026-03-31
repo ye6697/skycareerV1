@@ -484,6 +484,21 @@ Deno.serve(async (req) => {
     const engine1_running = toBool(data.engine1_running ?? data.eng1Running ?? data.engine_1_running, false);
     const engine2_running = toBool(data.engine2_running ?? data.eng2Running ?? data.engine_2_running, false);
     const engines_running = toBool(data.engines_running ?? data.enginesRunning, false) || engine1_running || engine2_running;
+    const normalizePercent = (value, fallback = 0) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      if (n <= 1.5) return Math.max(0, Math.min(100, n * 100));
+      return Math.max(0, Math.min(100, n));
+    };
+    const engine1LoadPct = normalizePercent(data.engine1_load_pct ?? data.engine1LoadPct ?? data.throttle1_pct ?? data.eng1_throttle_pct, NaN);
+    const engine2LoadPct = normalizePercent(data.engine2_load_pct ?? data.engine2LoadPct ?? data.throttle2_pct ?? data.eng2_throttle_pct, NaN);
+    const avgEngineLoadFromEngines = Number.isFinite(engine1LoadPct) && Number.isFinite(engine2LoadPct)
+      ? ((engine1LoadPct + engine2LoadPct) / 2)
+      : (Number.isFinite(engine1LoadPct) ? engine1LoadPct : (Number.isFinite(engine2LoadPct) ? engine2LoadPct : NaN));
+    const engineLoadPct = normalizePercent(
+      data.engine_load_pct ?? data.engineLoadPct ?? data.engine_load ?? data.throttle_pct ?? avgEngineLoadFromEngines,
+      NaN
+    );
     // MSFS crash detection: support multiple field names + bridge fallbacks
     const crash_flag = data.crash_flag ?? data.crashFlag ?? data.crashflag ?? false;
     const sim_disabled = data.sim_disabled ?? data.simDisabled ?? data.sim_is_disabled ?? data.simDisabledFlag ?? false;
@@ -1457,6 +1472,9 @@ Deno.serve(async (req) => {
       engine1_running,
       engine2_running,
       engines_running: areEnginesRunning,
+      engine_load_pct: Number.isFinite(engineLoadPct) ? Number(engineLoadPct.toFixed(1)) : null,
+      engine1_load_pct: Number.isFinite(engine1LoadPct) ? Number(engine1LoadPct.toFixed(1)) : null,
+      engine2_load_pct: Number.isFinite(engine2LoadPct) ? Number(engine2LoadPct.toFixed(1)) : null,
       touchdown_vspeed: effectiveTouchdownVspeed,
       landing_g_force: effectiveLandingG,
       landing_data_source: useBridgeLocalLanding ? "bridge_local" : (data.landing_data_source || null),
@@ -1842,6 +1860,7 @@ Deno.serve(async (req) => {
             ias: Math.round(ias || 0),
             vs: Math.round(vertical_speed || 0),
             g: Number((gForceCurrent || 1).toFixed(2)),
+            eng: Number.isFinite(engineLoadPct) ? Number(engineLoadPct.toFixed(1)) : null,
             lat: Number.isFinite(Number(latitude)) ? Number(latitude) : null,
             lon: Number.isFinite(Number(longitude)) ? Number(longitude) : null,
             hdg: Number.isFinite(Number(heading)) ? Math.round(Number(heading)) : null,
