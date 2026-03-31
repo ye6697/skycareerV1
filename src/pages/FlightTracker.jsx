@@ -1341,6 +1341,34 @@ export default function FlightTracker() {
                 for (const cat of ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls']) {
                   updatedCats[cat] = Math.min(100, (updatedCats[cat] || 0) + baseWearPerHour * flightHours);
                 }
+
+                // Zusatz-Verschleiß fürs Triebwerk:
+                // Wenn >10 Minuten mit >99% Triebwerksauslastung geflogen wird,
+                // steigt der Engine-Verschleiß danach schneller.
+                const telemetryHistory = Array.isArray(preservedTelemetryHistory) ? preservedTelemetryHistory : [];
+                const highLoadThresholdPct = 99;
+                const highLoadGraceSeconds = 10 * 60; // 10 Minuten ohne Extra-Verschleiß
+                let highLoadSeconds = 0;
+                for (let i = 1; i < telemetryHistory.length; i++) {
+                  const prevPt = telemetryHistory[i - 1] || {};
+                  const curPt = telemetryHistory[i] || {};
+                  const prevTs = Date.parse(String(prevPt.t || ""));
+                  const curTs = Date.parse(String(curPt.t || ""));
+                  if (!Number.isFinite(prevTs) || !Number.isFinite(curTs) || curTs <= prevTs) continue;
+                  const dtSec = Math.max(0, Math.min(10, (curTs - prevTs) / 1000));
+                  const engNow = Number(curPt.eng ?? curPt.engine_load_pct ?? curPt.engineLoadPct ?? NaN);
+                  const engPrev = Number(prevPt.eng ?? prevPt.engine_load_pct ?? prevPt.engineLoadPct ?? NaN);
+                  const effectiveLoad = Number.isFinite(engNow) ? engNow : engPrev;
+                  if (Number.isFinite(effectiveLoad) && effectiveLoad > highLoadThresholdPct) {
+                    highLoadSeconds += dtSec;
+                  }
+                }
+                const excessHighLoadSeconds = Math.max(0, highLoadSeconds - highLoadGraceSeconds);
+                if (excessHighLoadSeconds > 0) {
+                  // +1.0% Engine wear pro 10 Minuten oberhalb der 10-Minuten-Grenze
+                  const extraEngineWear = (excessHighLoadSeconds / 600) * 1.0;
+                  updatedCats.engine = Math.min(100, (updatedCats.engine || 0) + extraEngineWear);
+                }
                 
                 // Add specific event-based damage to relevant categories
                 if (finalFlightData.events.tailstrike) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + 10);

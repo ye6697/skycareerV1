@@ -202,6 +202,9 @@ def main():
             parking_brake = to_bool(safe_get(aq, "BRAKE PARKING POSITION", "bool", False))
             engine1_running = to_bool(safe_get(aq, "GENERAL ENG COMBUSTION:1", "bool", False))
             engine2_running = to_bool(safe_get(aq, "GENERAL ENG COMBUSTION:2", "bool", False))
+            throttle1_pct = to_float(safe_get(aq, "GENERAL ENG THROTTLE LEVER POSITION:1", "percent"), 0.0)
+            throttle2_pct = to_float(safe_get(aq, "GENERAL ENG THROTTLE LEVER POSITION:2", "percent"), throttle1_pct)
+            avg_engine_load_pct = max(0.0, min(100.0, (throttle1_pct + throttle2_pct) / 2.0))
 
             # === FIX #2: GEAR - check actual gear positions, not just handle ===
             gear_handle = to_float(safe_get(aq, "GEAR HANDLE POSITION", "position"), 1.0)
@@ -544,6 +547,9 @@ def main():
                 "engine1_running": engine1_running,
                 "engine2_running": engine2_running,
                 "engines_running": engine1_running or engine2_running,
+                "engine_load_pct": avg_engine_load_pct,
+                "engine1_load_pct": throttle1_pct,
+                "engine2_load_pct": throttle2_pct,
                 "gear_down": gear_down,
                 "flap_ratio": flap_ratio,
                 "speedbrake": speedbrake_pos,
