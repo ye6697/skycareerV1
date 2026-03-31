@@ -18,6 +18,34 @@ const CATEGORY_LABELS = {
 };
 
 const ALLOWED_CATEGORIES = new Set(Object.keys(CATEGORY_LABELS));
+const INCIDENT_KEYWORDS = [
+  "tailstrike",
+  "stall",
+  "overstress",
+  "overspeed",
+  "flaps_overspeed",
+  "flaps overspeed",
+  "gear_up_landing",
+  "gear up landing",
+  "fuel_emergency",
+  "fuel emergency",
+  "harsh_controls",
+  "harsh controls",
+  "high_g_force",
+  "high g force",
+  "hard_landing",
+  "hard landing",
+  "wrong_airport",
+  "wrong airport",
+  "crash",
+];
+
+const BRIDGE_FAILURE_SOURCE_HINTS = [
+  "plugin_failure",
+  "bridge",
+  "failure",
+  "maintenance_ratio_system",
+];
 
 const normalizeSeverity = (value) => {
   const raw = String(value || "").toLowerCase().trim();
@@ -26,7 +54,25 @@ const normalizeSeverity = (value) => {
   return "leicht";
 };
 
-export const sanitizeFailureList = (failures = [], lang = "de") => {
+const toNormalizedText = (value) => String(value || "")
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, " ")
+  .trim();
+
+const isIncidentLikeName = (value) => {
+  const normalized = toNormalizedText(value);
+  if (!normalized) return false;
+  return INCIDENT_KEYWORDS.some((keyword) => normalized.includes(toNormalizedText(keyword)));
+};
+
+const isBridgeFailureSource = (source) => {
+  const normalized = String(source || "").toLowerCase().trim();
+  if (!normalized) return false;
+  return BRIDGE_FAILURE_SOURCE_HINTS.some((hint) => normalized.includes(hint));
+};
+
+export const sanitizeFailureList = (failures = [], lang = "de", options = {}) => {
+  const bridgeOnly = Boolean(options?.bridgeOnly);
   if (!Array.isArray(failures)) return [];
 
   const normalized = [];
@@ -37,9 +83,11 @@ export const sanitizeFailureList = (failures = [], lang = "de") => {
 
     const source = String(entry?.source || "").toLowerCase();
     if (source.includes("incident") || source.includes("event")) continue;
+    if (bridgeOnly && !isBridgeFailureSource(source)) continue;
 
     const label = CATEGORY_LABELS[category]?.[lang === "de" ? "de" : "en"] || category;
     const name = String(entry?.name || "").trim() || label;
+    if (isIncidentLikeName(name)) continue;
     const severity = normalizeSeverity(entry?.severity);
     const timestamp = entry?.timestamp || null;
     const dedupeKey = `${category}|${name}|${severity}|${timestamp || ""}`;

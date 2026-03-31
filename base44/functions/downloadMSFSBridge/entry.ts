@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     }
 
     const script = `#!/usr/bin/env python3
-# SkyCareer MSFS Bridge v2.2 (MSFS 2020 + 2024 via SimConnect)
+# SkyCareer MSFS Bridge v2.3 (MSFS 2020 + 2024 via SimConnect)
 # Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike
 # Usage:
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2020
@@ -49,6 +49,8 @@ TOUCHDOWN_CAPTURE_BEFORE_S = 0.6
 TOUCHDOWN_CAPTURE_AFTER_S = 0.4
 TOUCHDOWN_MAX_AGL_FT = 60.0
 MAX_EVENT_QUEUE = 120
+MAX_CONSECUTIVE_POST_TIMEOUTS = 3
+WORKER_RESTART_BACKOFF_S = 2.0
 
 # Fuel density constants (kg per gallon)
 JETA_KG_PER_GALLON = 3.039   # Jet-A / Jet-A1
@@ -155,6 +157,12 @@ def queue_event(state, event_type, lat, lon, altitude, speed, vertical_speed, g_
         state["event_queue"] = state["event_queue"][-MAX_EVENT_QUEUE:]
     state["event_last_emit"][event_type] = now_epoch
 
+def should_restart_worker_on_timeouts(consecutive_timeouts, last_success_at, now_epoch):
+    if consecutive_timeouts < MAX_CONSECUTIVE_POST_TIMEOUTS:
+        return False
+    max_gap = max(10.0, LOOP_INTERVAL * (MAX_CONSECUTIVE_POST_TIMEOUTS + 1))
+    return (now_epoch - float(last_success_at or 0.0)) >= max_gap
+
 def main():
     parser = argparse.ArgumentParser(description="SkyCareer bridge for MSFS 2020/2024")
     parser.add_argument("--sim", default="msfs2020", choices=["msfs2020", "msfs2024"])
@@ -164,8 +172,11 @@ def main():
     prev_vs = 0.0
     state = reset_flight_state()
     next_post_at = 0.0
+    worker_restart_count = 0
+    consecutive_post_timeouts = 0
+    last_successful_post_at = time.time()
 
-    print("[SkyCareer] Starting MSFS bridge v2.2 ...")
+    print("[SkyCareer] Starting MSFS bridge v2.3 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
     print(f"[SkyCareer] Simulator label: {args.sim}")
 
@@ -620,14 +631,24 @@ def main():
 
             now = time.time()
             if now >= next_post_at:
-                resp = post_payload(payload)
-                if resp.status_code >= 400:
-                    print(f"[SkyCareer] API error {resp.status_code}: {resp.text[:200]}")
-                else:
-                    # Reset per-post peak window only after a successful send.
-                    state["window_peak_g"] = g_force
-                    state["window_min_vs"] = min(0.0, vertical_speed)
-                    state["event_queue"] = []
+                try:
+                    resp = post_payload(payload)
+                    if resp.status_code >= 400:
+                        print(f"[SkyCareer] API error {resp.status_code}: {resp.text[:200]}")
+                    else:
+                        # Reset per-post peak window only after a successful send.
+                        state["window_peak_g"] = g_force
+                        state["window_min_vs"] = min(0.0, vertical_speed)
+                        state["event_queue"] = []
+                        consecutive_post_timeouts = 0
+                        last_successful_post_at = now
+                except requests.exceptions.Timeout:
+                    consecutive_post_timeouts += 1
+                    print(f"[SkyCareer] POST timeout ({consecutive_post_timeouts}/{MAX_CONSECUTIVE_POST_TIMEOUTS})")
+                    if should_restart_worker_on_timeouts(consecutive_post_timeouts, last_successful_post_at, now):
+                        raise RuntimeError("Bridge POST timeout watchdog triggered")
+                except requests.RequestException as req_err:
+                    print(f"[SkyCareer] POST request error: {req_err}")
                 next_post_at = now + LOOP_INTERVAL
 
             time.sleep(SAMPLE_INTERVAL)
@@ -636,12 +657,18 @@ def main():
             print("\\n[SkyCareer] Stopped by user.")
             break
         except Exception as ex:
-            print(f"[SkyCareer] Bridge error: {ex}")
+            worker_restart_count += 1
+            print(f"[SkyCareer] Bridge worker restart #{worker_restart_count}: {ex}")
             traceback.print_exc()
             sm = None
             aq = None
+            state = reset_flight_state()
+            prev_on_ground = True
+            prev_vs = 0.0
+            consecutive_post_timeouts = 0
+            last_successful_post_at = time.time()
             next_post_at = 0.0
-            time.sleep(3.0)
+            time.sleep(WORKER_RESTART_BACKOFF_S)
 
 if __name__ == "__main__":
     main()

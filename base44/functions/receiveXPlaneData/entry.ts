@@ -2124,7 +2124,7 @@ Deno.serve(async (req) => {
               name: failure.name_de,
               severity: failure.severity,
               category: selectedCat,
-              source: 'maintenance_ratio_system',
+              source: 'bridge_maintenance_failure',
               timestamp: createdAtIso
             };
 

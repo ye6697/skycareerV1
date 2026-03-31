@@ -1118,7 +1118,11 @@ export default function FlightTracker() {
   // Find the assigned aircraft for this flight
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
   const liveActiveFailures = useMemo(() => {
-    const persisted = sanitizeFailureList(flight?.active_failures || existingFlight?.active_failures || [], lang);
+    const persisted = sanitizeFailureList(
+      flight?.active_failures || existingFlight?.active_failures || [],
+      lang,
+      { bridgeOnly: true }
+    );
     return persisted;
   }, [flight?.active_failures, existingFlight?.active_failures, lang]);
 

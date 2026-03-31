@@ -189,7 +189,7 @@ export default function CompletedFlightDetails() {
   const isCrashFlight = !!flight?.xplane_data?.events?.crash;
   const showWrongAirportBanner = wrongAirportCompletion && !emergencyOffAirportCompletion && !isCrashFlight;
   const activeFailuresOnly = React.useMemo(() => {
-    const persisted = sanitizeFailureList(flight?.active_failures || [], lang);
+    const persisted = sanitizeFailureList(flight?.active_failures || [], lang, { bridgeOnly: true });
     return persisted;
   }, [flight?.active_failures, lang]);
   const maintenanceDamageByCategory = (flight?.maintenance_damage && typeof flight.maintenance_damage === 'object')

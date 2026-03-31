@@ -95,6 +95,10 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   patched = upsertAppSetting(patched, 'SendIntervalMs', '2000');
   patched = upsertAppSetting(patched, 'SampleIntervalMs', '200');
   patched = upsertAppSetting(patched, 'HttpTimeoutMs', '10000');
+  patched = upsertAppSetting(patched, 'AutoRestartWorkerOnTimeout', 'true');
+  patched = upsertAppSetting(patched, 'WorkerTimeoutMs', '15000');
+  patched = upsertAppSetting(patched, 'WorkerRestartDelayMs', '2000');
+  patched = upsertAppSetting(patched, 'MaxConsecutiveTimeouts', '3');
   patched = upsertAppSetting(patched, 'Simulator', 'auto');
   patched = upsertAppSetting(patched, 'AutoStartOnSimulator', 'true');
   patched = upsertAppSetting(patched, 'MonitorProcesses', 'FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12');
