@@ -107,8 +107,6 @@ export default function FuelPrediction({
 
   const showPrediction =
     currentFuelKg > 0 &&
-    remainingNm > 0 &&
-    burnRateKgPerHour > 0 &&
     effectiveInitialFuelKg >= 1;
 
   const isLow = fuelAtArrival < (effectiveInitialFuelKg * 0.05);

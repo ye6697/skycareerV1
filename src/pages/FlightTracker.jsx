@@ -47,7 +47,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const ENGINE_FULL_THRUST_THRESHOLD_PCT = 98;
+const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
 const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 30;
 const ENGINE_WEAR_PER_STEP = 0.1;
@@ -3710,9 +3710,6 @@ export default function FlightTracker() {
                           <div className="text-right shrink-0">
                           <div className={`text-sm font-mono ${category.colorClass}`}>
                             {category.wear.toFixed(1)}%
-                          </div>
-                          <div className="text-[11px] text-orange-300 font-mono">
-                            +{Number(category.addedWear || 0).toFixed(1)}%
                           </div>
                           <div className="text-[11px] text-slate-400 font-mono">
                             ${Math.round(categoryTotalCost).toLocaleString()}
