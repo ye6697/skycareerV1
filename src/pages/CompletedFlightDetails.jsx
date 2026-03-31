@@ -24,6 +24,7 @@ import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FlightProfileChart from "@/components/flights/FlightProfileChart";
+import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -187,6 +188,16 @@ export default function CompletedFlightDetails() {
   const wrongAirportDistanceNm = Number(flight?.xplane_data?.arrival_distance_nm || 0);
   const isCrashFlight = !!flight?.xplane_data?.events?.crash;
   const showWrongAirportBanner = wrongAirportCompletion && !emergencyOffAirportCompletion && !isCrashFlight;
+  const activeFailuresOnly = React.useMemo(() => {
+    const persisted = sanitizeFailureList(flight?.active_failures || [], lang);
+    const fromFlags = buildFailuresFromEventFlags(flight?.xplane_data?.events || {}, lang);
+    return sanitizeFailureList([...persisted, ...fromFlags], lang);
+  }, [flight?.active_failures, flight?.xplane_data?.events, lang]);
+  const maintenanceDamageByCategory = (flight?.maintenance_damage && typeof flight.maintenance_damage === 'object')
+    ? flight.maintenance_damage
+    : ((flight?.xplane_data?.maintenance_damage && typeof flight.xplane_data.maintenance_damage === 'object')
+        ? flight.xplane_data.maintenance_damage
+        : {});
 
   return (
     <div className="h-full flex flex-col gap-2">
@@ -584,18 +595,18 @@ export default function CompletedFlightDetails() {
                   )}
 
                   {/* Active Failures during flight */}
-                  {flight?.active_failures && flight.active_failures.length > 0 && (
+                  {activeFailuresOnly.length > 0 && (
                     <div className="mt-4 p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
-                      <ActiveFailuresDisplay failures={flight.active_failures} />
+                      <ActiveFailuresDisplay failures={activeFailuresOnly} />
                     </div>
                   )}
 
                   {/* Maintenance Damage Breakdown */}
-                  {flight?.maintenance_damage && Object.values(flight.maintenance_damage).some(v => v > 0) && (
+                  {Object.values(maintenanceDamageByCategory).some(v => Number(v) > 0) && (
                     <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                      <h4 className="text-sm font-semibold text-white mb-3">Wartungsschäden durch diesen Flug:</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        {Object.entries(flight.maintenance_damage).filter(([_, v]) => v > 0).map(([cat, dmg]) => {
+                        {Object.entries(maintenanceDamageByCategory).filter(([_, v]) => Number(v) > 0).map(([cat, dmg]) => {
                           const labels = {
                             engine: "Triebwerk", hydraulics: "Hydraulik", avionics: "Avionik",
                             airframe: "Struktur", landing_gear: "Fahrwerk", electrical: "Elektrik",
@@ -604,7 +615,7 @@ export default function CompletedFlightDetails() {
                           return (
                             <div key={cat} className="flex justify-between p-2 bg-slate-600/30 border border-slate-600/40 rounded">
                               <span className="text-slate-400">{labels[cat] || cat}</span>
-                              <span className="text-red-400 font-mono">+{dmg.toFixed(0)}%</span>
+                              <span className="text-red-400 font-mono">+{Number(dmg).toFixed(1)}%</span>
                             </div>
                           );
                         })}

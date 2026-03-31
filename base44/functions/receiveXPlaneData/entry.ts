@@ -441,7 +441,7 @@ Deno.serve(async (req) => {
       return Math.max(0, Math.min(1, ratio));
     };
     // flap_ratio: keep 0 as valid value and normalize percent-based bridges to 0..1.
-    const flap_ratio = normalizeControlRatio(
+    let flap_ratio = normalizeControlRatio(
       data.flap_ratio ?? data.flapRatio ?? data.flap_position ?? data.flapPosition ?? data.flaps ?? data.flaps_position,
       0
     );
@@ -453,7 +453,7 @@ Deno.serve(async (req) => {
       data.spoilers_handle_position ??
       data.spoiler_handle_position ??
       data.speed_brake_position;
-    const speedbrake = speedbrakeRaw === undefined || speedbrakeRaw === null
+    let speedbrake = speedbrakeRaw === undefined || speedbrakeRaw === null
       ? null
       : normalizeControlRatio(speedbrakeRaw, 0);
     const pitch = data.pitch ?? data.pitch_angle ?? data.pitchAngle;
@@ -1017,6 +1017,21 @@ Deno.serve(async (req) => {
     
     // Active flight: keep per-packet DB reads minimal so bridge latency stays low.
     const prevXd = flight.xplane_data || {};
+    const hasActiveAirframeFailure = Array.isArray(flight.active_failures) && flight.active_failures.some((f: any) => {
+      const cat = String(f?.category || "").toLowerCase().trim();
+      return cat === "airframe";
+    });
+    const airframeFailureFlagFromPrev = toBool(
+      prevXd?.events?.failure_airframe ??
+      prevXd?.failure_airframe ??
+      false,
+      false
+    );
+    const airframeControlLockActive = hasActiveAirframeFailure || airframeFailureFlagFromPrev;
+    if (airframeControlLockActive) {
+      flap_ratio = 0;
+      speedbrake = 0;
+    }
     const referenceRefreshMsPrev = Number(prevXd.reference_refresh_ms ?? 0);
     const shouldRefreshReferenceData =
       !Number.isFinite(referenceRefreshMsPrev) ||
@@ -1361,7 +1376,7 @@ Deno.serve(async (req) => {
     const tailstrikeDetected = incidentArmed && (hasBridgeEventType("tailstrike") || (rawTailstrikeFlag && !eventTakeoffSuppress.tailstrike));
     const stallDetected = incidentArmed && (hasBridgeEventType("stall") || (rawStallFlag && !eventTakeoffSuppress.stall));
     const overspeedDetected = incidentArmed && (hasBridgeEventType("overspeed") || (rawOverspeedFlag && !eventTakeoffSuppress.overspeed));
-    const flapsOverspeedDetected = incidentArmed && (hasBridgeEventType("flaps_overspeed") || (rawFlapsOverspeedFlag && !eventTakeoffSuppress.flaps_overspeed));
+    const flapsOverspeedDetected = incidentArmed && !airframeControlLockActive && (hasBridgeEventType("flaps_overspeed") || (rawFlapsOverspeedFlag && !eventTakeoffSuppress.flaps_overspeed));
     const gearUpLandingDetected = incidentArmed && (hasBridgeEventType("gear_up_landing") || (rawGearUpLandingFlag && !eventTakeoffSuppress.gear_up_landing));
     const harshControlsDetected = incidentArmed && (hasBridgeEventType("harsh_controls") || (rawHarshControlsFlag && !eventTakeoffSuppress.harsh_controls));
     const fuelEmergencyDetected = hasBeenAirborne && toBool(fuel_emergency, false);
@@ -1486,6 +1501,7 @@ Deno.serve(async (req) => {
       landing_quality,
       gear_down: gear_down !== undefined ? gear_down : true,
       flap_ratio,
+      structural_controls_locked: airframeControlLockActive,
       pitch: pitch || 0,
       ias: ias || 0,
       tailstrike: tailstrikeDetected,
@@ -1925,14 +1941,30 @@ Deno.serve(async (req) => {
     const pluginFailures = data.active_failures || [];
     if (pluginFailures.length > 0) {
       const existingFailures = flight.active_failures || [];
-      const existingNames = new Set(existingFailures.map(f => f.name));
+      const existingNames = new Set(existingFailures.map(f => `${String(f?.category || "").toLowerCase()}|${String(f?.name || "")}`));
+      const allowedFailureCategories = new Set(["engine", "hydraulics", "avionics", "airframe", "landing_gear", "electrical", "flight_controls", "pressurization"]);
+      const normalizeSeverity = (raw: any) => {
+        const val = String(raw || "").toLowerCase().trim();
+        if (["schwer", "severe", "critical", "high"].includes(val)) return "schwer";
+        if (["mittel", "medium", "moderate", "mid"].includes(val)) return "mittel";
+        return "leicht";
+      };
       const newFailures = [];
       for (const pf of pluginFailures) {
-        if (!existingNames.has(pf.name)) {
+        const normalizedCategory = toHudAscii(pf?.category || "system", "system").toLowerCase();
+        if (!allowedFailureCategories.has(normalizedCategory)) continue;
+        const normalizedName = toHudAscii(
+          pf?.name || pf?.name_de || `${normalizedCategory}_failure`,
+          `${normalizedCategory}_failure`
+        );
+        const dedupeKey = `${normalizedCategory}|${normalizedName}`;
+        if (!existingNames.has(dedupeKey)) {
+          existingNames.add(dedupeKey);
           newFailures.push({
-            name: toHudAscii(pf.name || pf.name_de || "INCIDENT", "INCIDENT"),
-            severity: toHudAscii(pf.severity || "medium", "medium"),
-            category: toHudAscii(pf.category || "system", "system"),
+            name: normalizedName,
+            severity: normalizeSeverity(pf?.severity || "medium"),
+            category: normalizedCategory,
+            source: "plugin_failure",
             timestamp: new Date().toISOString()
           });
         }

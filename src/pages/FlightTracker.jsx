@@ -39,15 +39,17 @@ import FuelPrediction from "@/components/flights/FuelPrediction";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
 import SimBriefImport from "@/components/flights/SimBriefImport";
 import WeatherDisplay from "@/components/flights/WeatherDisplay";
+import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
+import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const ENGINE_HIGH_LOAD_THRESHOLD_PCT = 99;
 const ENGINE_HIGH_LOAD_GRACE_SECONDS = 10 * 60;
-const ENGINE_HIGH_LOAD_STEP_SECONDS = 10 * 60;
+const ENGINE_HIGH_LOAD_STEP_SECONDS = 60;
 const ENGINE_HIGH_LOAD_WEAR_PER_STEP = 1;
 
 const LANDING_GEAR_EXP_FACTOR = 1.25;
@@ -63,6 +65,10 @@ const ELECTRICAL_ENGINE_HEAT_PER_HOUR = 0.6;
 const ELECTRICAL_CONTROL_INPUT_FACTOR = 0.15;
 const FLIGHT_CONTROLS_INPUT_MULTIPLIER = 6;
 const PRESSURIZATION_HIGH_ALT_PER_HOUR = 0.7;
+const OVERSPEED_AIRFRAME_WEAR = 6;
+const OVERSPEED_AVIONICS_WEAR = 4;
+const OVERSPEED_ELECTRICAL_WEAR = 5;
+const OVERSPEED_MAINTENANCE_PERCENT = 2.2;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -482,6 +488,14 @@ export default function FlightTracker() {
       liveWear.airframe += 15;
       addReason('airframe', lang === 'de' ? 'Strukturlast' : 'Structural stress');
     }
+    if (ev.overspeed) {
+      liveWear.airframe += OVERSPEED_AIRFRAME_WEAR;
+      liveWear.avionics += OVERSPEED_AVIONICS_WEAR;
+      liveWear.electrical += OVERSPEED_ELECTRICAL_WEAR;
+      addReason('airframe', lang === 'de' ? 'Overspeed-Last' : 'Overspeed stress');
+      addReason('avionics', lang === 'de' ? 'Overspeed-Schock' : 'Overspeed shock');
+      addReason('electrical', lang === 'de' ? 'Overspeed-Spannungsspitzen' : 'Overspeed electrical spikes');
+    }
     if (ev.high_g_force) {
       liveWear.airframe += 8;
       addReason('airframe', lang === 'de' ? 'Hohe G-Last' : 'High G load');
@@ -501,7 +515,10 @@ export default function FlightTracker() {
     if (ev.failure_electrical) addReason('electrical', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
     if (ev.failure_avionics) addReason('avionics', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
     if (ev.failure_landing_gear) addReason('landing_gear', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
-    if (ev.failure_airframe) addReason('airframe', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (ev.failure_airframe) {
+      addReason('airframe', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+      addReason('flight_controls', lang === 'de' ? 'Flaps/Speedbrake durch Strukturausfall blockiert' : 'Flaps/speedbrake blocked by airframe failure');
+    }
 
     if (ev.crash) {
       Object.keys(liveWear).forEach((cat) => {
@@ -550,6 +567,7 @@ export default function FlightTracker() {
     const electricalControlWear = calcElectricalWearFromControlInput(controlInput);
     const controlsWear = calcFlightControlsWearFromControlInput(controlInput);
     const pressureWear = calcPressurizationWearFromHighAltSeconds(highAltitudeSecondsLive);
+    const ev = flightData.events || {};
 
     let details = lang === 'de'
       ? 'Wartungskosten steigen durch laufenden Verschleiss waehrend des Flugs und durch erkannte Events.'
@@ -566,11 +584,11 @@ export default function FlightTracker() {
 
     if (category?.key === 'engine') {
       details = lang === 'de'
-        ? 'Engine: Bis 10 Minuten bei >=99% Leistung kein Extra. Danach +1% pro weitere volle 10 Minuten.'
-        : 'Engine: First 10 minutes at >=99% has no extra wear. After that: +1% per full 10 minutes.';
+        ? 'Engine: Bis 10 Minuten bei >=99% Leistung kein Extra. Danach +1% pro weitere volle Minute.'
+        : 'Engine: First 10 minutes at >=99% has no extra wear. After that: +1% per full minute.';
       formula = lang === 'de'
-        ? 'Extra = floor(max(0, HighLoadSek - 600) / 600) x 1%'
-        : 'Extra = floor(max(0, highLoadSec - 600) / 600) x 1%';
+        ? 'Extra = floor(max(0, HighLoadSek - 600) / 60) x 1%'
+        : 'Extra = floor(max(0, highLoadSec - 600) / 60) x 1%';
       trigger = lang === 'de'
         ? `High-Load >=99%: ${(engineHighLoadSecondsLive / 60).toFixed(1)} min, ueber Schwelle ${(excessHighLoadSeconds / 60).toFixed(1)} min, Extra +${engineExtraWear.toFixed(1)}%`
         : `High-load >=99%: ${(engineHighLoadSecondsLive / 60).toFixed(1)} min, above threshold ${(excessHighLoadSeconds / 60).toFixed(1)} min, extra +${engineExtraWear.toFixed(1)}%`;
@@ -592,27 +610,27 @@ export default function FlightTracker() {
         : 'Possible failures: gear jam, brake issues, landing gear failure';
     } else if (category?.key === 'airframe') {
       details = lang === 'de'
-        ? 'Struktur: Hohe G-Lasten in der Luft und harte Events erhoehen den Verschleiss stark.'
-        : 'Airframe: high in-air G loads and hard events increase wear significantly.';
+        ? 'Struktur: Hohe G-Lasten in der Luft, harte Events und Overspeed erhoehen den Verschleiss stark.'
+        : 'Airframe: high in-air G loads, hard events, and overspeed increase wear significantly.';
       formula = lang === 'de'
-        ? 'High-G Beitrag = max(0, MaxG - 1.2) x 5'
-        : 'High-G contribution = max(0, maxG - 1.2) x 5';
+        ? `High-G Beitrag = max(0, MaxG - 1.2) x 5, Overspeed-Event = +${OVERSPEED_AIRFRAME_WEAR}%`
+        : `High-G contribution = max(0, maxG - 1.2) x 5, overspeed event = +${OVERSPEED_AIRFRAME_WEAR}%`;
       trigger = lang === 'de'
-        ? `Max G ${maxG.toFixed(2)} -> High-G +${airframeHighGWear.toFixed(2)}%`
-        : `Max G ${maxG.toFixed(2)} -> high-G +${airframeHighGWear.toFixed(2)}%`;
+        ? `Max G ${maxG.toFixed(2)} -> High-G +${airframeHighGWear.toFixed(2)}%${ev.overspeed ? `, Overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`
+        : `Max G ${maxG.toFixed(2)} -> high-G +${airframeHighGWear.toFixed(2)}%${ev.overspeed ? `, overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`;
       possibleFailures = lang === 'de'
         ? 'Moegliche Ausfaelle: strukturelle Beschaedigung, starke Vibrationen, Airframe-Failure'
         : 'Possible failures: structural damage, heavy vibration, airframe failure';
     } else if (category?.key === 'avionics') {
       details = lang === 'de'
-        ? 'Avionik: Verschleiss steigt bei hohen G-Kraeften in der Luft und bei harten Landungen.'
-        : 'Avionics wear rises with high in-air G loads and hard landings.';
+        ? 'Avionik: Verschleiss steigt bei hohen G-Kraeften in der Luft, harten Landungen und Overspeed.'
+        : 'Avionics wear rises with high in-air G loads, hard landings, and overspeed.';
       formula = lang === 'de'
-        ? 'Beitrag = max(0, MaxG - 1.4) x 2.8 + max(0, LandingG - 1.3) x 2.2'
-        : 'Contribution = max(0, maxG - 1.4) x 2.8 + max(0, landingG - 1.3) x 2.2';
+        ? `Beitrag = max(0, MaxG - 1.4) x 2.8 + max(0, LandingG - 1.3) x 2.2 + Overspeed +${OVERSPEED_AVIONICS_WEAR}%`
+        : `Contribution = max(0, maxG - 1.4) x 2.8 + max(0, landingG - 1.3) x 2.2 + overspeed +${OVERSPEED_AVIONICS_WEAR}%`;
       trigger = lang === 'de'
-        ? `Max G ${maxG.toFixed(2)} -> +${avionicsHighGWear.toFixed(2)}%, Landing G ${landingG.toFixed(2)} -> +${avionicsLandingWear.toFixed(2)}%`
-        : `Max G ${maxG.toFixed(2)} -> +${avionicsHighGWear.toFixed(2)}%, landing G ${landingG.toFixed(2)} -> +${avionicsLandingWear.toFixed(2)}%`;
+        ? `Max G ${maxG.toFixed(2)} -> +${avionicsHighGWear.toFixed(2)}%, Landing G ${landingG.toFixed(2)} -> +${avionicsLandingWear.toFixed(2)}%${ev.overspeed ? `, Overspeed +${OVERSPEED_AVIONICS_WEAR}%` : ''}`
+        : `Max G ${maxG.toFixed(2)} -> +${avionicsHighGWear.toFixed(2)}%, landing G ${landingG.toFixed(2)} -> +${avionicsLandingWear.toFixed(2)}%${ev.overspeed ? `, overspeed +${OVERSPEED_AVIONICS_WEAR}%` : ''}`;
       possibleFailures = lang === 'de'
         ? 'Moegliche Ausfaelle: Display-Ausfall, NAV/COM-Probleme, Autopilot-Ausfall'
         : 'Possible failures: display dropouts, NAV/COM issues, autopilot failure';
@@ -631,27 +649,27 @@ export default function FlightTracker() {
         : 'Possible failures: pressure loss, sluggish controls, brake/gear hydraulic issues';
     } else if (category?.key === 'electrical') {
       details = lang === 'de'
-        ? 'Elektrik steigt bei langer hoher Engine-Last und hohem Control-Input.'
-        : 'Electrical wear rises with prolonged high engine load and high control input.';
+        ? 'Elektrik steigt bei langer hoher Engine-Last, hohem Control-Input und Overspeed.'
+        : 'Electrical wear rises with prolonged high engine load, high control input, and overspeed.';
       formula = lang === 'de'
-        ? 'Beitrag = (HighLoadSek/3600) x 0.6 + ControlInput x 0.15'
-        : 'Contribution = (highLoadSec/3600) x 0.6 + controlInput x 0.15';
+        ? `Beitrag = (HighLoadSek/3600) x 0.6 + ControlInput x 0.15 + Overspeed +${OVERSPEED_ELECTRICAL_WEAR}%`
+        : `Contribution = (highLoadSec/3600) x 0.6 + controlInput x 0.15 + overspeed +${OVERSPEED_ELECTRICAL_WEAR}%`;
       trigger = lang === 'de'
-        ? `High-Load +${electricalHeatWear.toFixed(2)}%, Controls +${electricalControlWear.toFixed(2)}%`
-        : `High-load +${electricalHeatWear.toFixed(2)}%, controls +${electricalControlWear.toFixed(2)}%`;
+        ? `High-Load +${electricalHeatWear.toFixed(2)}%, Controls +${electricalControlWear.toFixed(2)}%${ev.overspeed ? `, Overspeed +${OVERSPEED_ELECTRICAL_WEAR}%` : ''}`
+        : `High-load +${electricalHeatWear.toFixed(2)}%, controls +${electricalControlWear.toFixed(2)}%${ev.overspeed ? `, overspeed +${OVERSPEED_ELECTRICAL_WEAR}%` : ''}`;
       possibleFailures = lang === 'de'
         ? 'Moegliche Ausfaelle: Generator-/Batterieprobleme, Elektrik-Ausfall, Avionik-Blackouts'
         : 'Possible failures: generator/battery issues, electrical failure, avionics blackouts';
     } else if (category?.key === 'flight_controls') {
       details = lang === 'de'
-        ? 'Steuerflaechen verschleissen durch aggressive Eingaben und Flaps-Overspeed-Events.'
-        : 'Flight controls wear from aggressive input and flaps overspeed events.';
+        ? 'Steuerflaechen verschleissen durch aggressive Eingaben und Flaps-Overspeed-Events. Bei Strukturausfall werden Flaps und Speedbrake gesperrt.'
+        : 'Flight controls wear from aggressive input and flaps overspeed events. During airframe failure, flaps and speedbrake are blocked.';
       formula = lang === 'de'
         ? 'Control-Beitrag = ControlInput x 6 (+ Events separat)'
         : 'Control contribution = controlInput x 6 (+ events separately)';
       trigger = lang === 'de'
-        ? `ControlInput ${(controlInput * 100).toFixed(0)}% -> +${controlsWear.toFixed(2)}%`
-        : `Control input ${(controlInput * 100).toFixed(0)}% -> +${controlsWear.toFixed(2)}%`;
+        ? `ControlInput ${(controlInput * 100).toFixed(0)}% -> +${controlsWear.toFixed(2)}%${ev.failure_airframe ? ', Strukturausfall aktiv: Flaps/Speedbrake blockiert' : ''}`
+        : `Control input ${(controlInput * 100).toFixed(0)}% -> +${controlsWear.toFixed(2)}%${ev.failure_airframe ? ', airframe failure active: flaps/speedbrake blocked' : ''}`;
       possibleFailures = lang === 'de'
         ? 'Moegliche Ausfaelle: trage/uebersensitive Ruder, Flap-/Trim-Probleme'
         : 'Possible failures: sluggish/oversensitive controls, flap/trim issues';
@@ -1092,6 +1110,26 @@ export default function FlightTracker() {
 
   // Find the assigned aircraft for this flight
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
+  const liveActiveFailures = useMemo(() => {
+    const persisted = sanitizeFailureList(flight?.active_failures || existingFlight?.active_failures || [], lang);
+    const fromFlags = buildFailuresFromEventFlags(flightData?.events || {}, lang);
+    return sanitizeFailureList([...persisted, ...fromFlags], lang);
+  }, [flight?.active_failures, existingFlight?.active_failures, flightData?.events, lang]);
+
+  const liveFlightAddedMaintenanceCost = useMemo(() => {
+    if (!assignedAircraft?.purchase_price || !Array.isArray(liveMaintenanceCategories) || liveMaintenanceCategories.length === 0) return 0;
+    const baseCost = Number(assignedAircraft.purchase_price || 0) * 0.02;
+    if (baseCost <= 0) return 0;
+    return liveMaintenanceCategories.reduce((sum, category) => {
+      const wear = Math.max(0, Number(category?.wear || 0));
+      return sum + (baseCost * (wear / 100));
+    }, 0);
+  }, [assignedAircraft?.purchase_price, liveMaintenanceCategories]);
+
+  const liveCurrentTotalMaintenanceCost = Math.max(
+    0,
+    Number(assignedAircraft?.accumulated_maintenance_cost || 0) + liveFlightAddedMaintenanceCost
+  );
 
   // SimBrief route data - reset when contractId changes
   const [simbriefRoute, setSimbriefRoute] = useState(null);
@@ -1770,6 +1808,100 @@ export default function FlightTracker() {
             const storedTouchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(resolvedTouchdownForSave || 0))));
             const storedLandingG = Math.max(0, Math.min(6, Number(resolvedLandingGForSave || 0)));
             const hasCrashedFinal = hasCrashed;
+            const maintenanceCategories = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
+            const flightDamage = maintenanceCategories.reduce((acc, key) => {
+              acc[key] = 0;
+              return acc;
+            }, {});
+            const addFlightDamage = (category, value) => {
+              const n = Number(value || 0);
+              if (!Number.isFinite(n) || n <= 0) return;
+              flightDamage[category] = (flightDamage[category] || 0) + n;
+            };
+
+            const baseWearPerHour = 0.5;
+            for (const cat of maintenanceCategories) {
+              addFlightDamage(cat, baseWearPerHour * flightHours);
+            }
+
+            const telemetryHistory = Array.isArray(preservedTelemetryHistory) ? preservedTelemetryHistory : [];
+            const latestEngineLoad = firstFiniteNumber(
+              liveXpData?.engine_load_pct,
+              liveXpData?.engineLoadPct,
+              xpData?.engine_load_pct,
+              xpData?.engineLoadPct
+            );
+            const highLoadSeconds = calcEngineHighLoadSeconds(telemetryHistory, latestEngineLoad);
+            const extraEngineWear = calcEngineExtraWearFromHighLoadSeconds(highLoadSeconds);
+            addFlightDamage('engine', extraEngineWear);
+
+            const finalMaxG = Number(finalFlightData.maxGForce || 1);
+            const finalControlInput = clamp(Number(finalFlightData.maxControlInput || 0), 0, 1);
+            const landingGearImpactWear = calcLandingGearWearFromLandingG(storedLandingG);
+            const avionicsLandingWear = calcAvionicsWearFromLandingG(storedLandingG);
+            const airframeHighGWear = calcAirframeWearFromHighG(finalMaxG);
+            const avionicsHighGWear = calcAvionicsWearFromHighG(finalMaxG);
+            const controlsWear = calcFlightControlsWearFromControlInput(finalControlInput);
+            const hydraulicsFromControls = controlsWear * 0.35;
+            const hydraulicsFromLanding = calcHydraulicsWearFromLandingImpact(landingGearImpactWear);
+            const electricalHeatWear = calcElectricalWearFromEngineHighLoadSeconds(highLoadSeconds);
+            const electricalControlWear = calcElectricalWearFromControlInput(finalControlInput);
+            const highAltitudeSeconds = calcConditionSecondsFromTelemetry({
+              telemetryHistory,
+              currentSampleValue: firstFiniteNumber(
+                liveXpData?.altitude,
+                liveXpData?.alt,
+                xpData?.altitude,
+                xpData?.alt
+              ),
+              predicate: (curPt, prevPt) => {
+                const curAlt = firstFiniteNumber(curPt?.value, readAltitudeFt(curPt));
+                const prevAlt = readAltitudeFt(prevPt);
+                const effectiveAlt = Number.isFinite(curAlt) ? curAlt : prevAlt;
+                return Number.isFinite(effectiveAlt) && effectiveAlt >= 10000;
+              },
+            });
+            const pressureWear = calcPressurizationWearFromHighAltSeconds(highAltitudeSeconds);
+
+            addFlightDamage('landing_gear', landingGearImpactWear);
+            addFlightDamage('airframe', airframeHighGWear);
+            addFlightDamage('avionics', avionicsHighGWear);
+            addFlightDamage('avionics', avionicsLandingWear);
+            addFlightDamage('flight_controls', controlsWear);
+            addFlightDamage('hydraulics', hydraulicsFromControls);
+            addFlightDamage('hydraulics', hydraulicsFromLanding);
+            addFlightDamage('electrical', electricalHeatWear);
+            addFlightDamage('electrical', electricalControlWear);
+            addFlightDamage('pressurization', pressureWear);
+
+            if (finalFlightData.events.tailstrike) addFlightDamage('airframe', 10);
+            if (finalFlightData.events.overstress) addFlightDamage('airframe', 15);
+            if (finalFlightData.events.overspeed) {
+              addFlightDamage('airframe', OVERSPEED_AIRFRAME_WEAR);
+              addFlightDamage('avionics', OVERSPEED_AVIONICS_WEAR);
+              addFlightDamage('electrical', OVERSPEED_ELECTRICAL_WEAR);
+            }
+            if (finalFlightData.events.gear_up_landing) addFlightDamage('landing_gear', 25);
+            if (finalFlightData.events.high_g_force) {
+              addFlightDamage('airframe', 8);
+              addFlightDamage('avionics', 2.5);
+            }
+            if (finalFlightData.events.flaps_overspeed) addFlightDamage('flight_controls', 10);
+
+            if (hasCrashedFinal) {
+              const existingCats = airplaneToUpdate?.maintenance_categories || {};
+              for (const cat of maintenanceCategories) {
+                const currentWear = Number(existingCats[cat] || 0);
+                const nonCrashFlightWear = Number(flightDamage[cat] || 0);
+                const projectedWear = Math.min(100, currentWear + nonCrashFlightWear);
+                addFlightDamage(cat, Math.max(0, 100 - projectedWear));
+              }
+            }
+
+            const roundedFlightDamage = {};
+            for (const cat of maintenanceCategories) {
+              roundedFlightDamage[cat] = Number((flightDamage[cat] || 0).toFixed(2));
+            }
 
             await base44.entities.Flight.update(activeFlight.id, {
                status: (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed',
@@ -1785,12 +1917,13 @@ export default function FlightTracker() {
                fuel_cost: fuelCost,
                crew_cost: crewCost,
                maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
-               flight_duration_hours: flightHours,
-               revenue,
-               profit,
-               passenger_comments: generatePassengerComments(scoreWithTime, finalFlightData),
-               xplane_data: {
-                 ...finalFlightData,
+                flight_duration_hours: flightHours,
+                revenue,
+                profit,
+                maintenance_damage: roundedFlightDamage,
+                passenger_comments: generatePassengerComments(scoreWithTime, finalFlightData),
+                xplane_data: {
+                  ...finalFlightData,
                  landing_g_force: storedLandingG,
                  touchdown_vspeed: storedTouchdownVs,
                  touchdown_detected: saveLandingTrusted && (storedTouchdownVs > 0 || storedLandingG > 0),
@@ -1823,14 +1956,15 @@ export default function FlightTracker() {
                  crewBonus: crewBonusAmount,
                  arrival_distance_nm: hasArrivalCoords && hasCurrentCoords ? Math.round(arrivalDistanceNm * 10) / 10 : null,
                  landed_too_far_from_arrival: landedTooFarFromArrival,
-                 emergency_landing_declared: !!emergencyLanding,
-                 emergency_off_airport_completion: emergencyOffAirportCompletion,
-                 emergency_score_penalty: emergencyScorePenalty,
-                 emergency_payout_factor: emergencyOffAirportCompletion ? 0.3 : 1.0,
-                 events: finalFlightData.events,
-                 crashMaintenanceCost: crashMaintenanceCost
-               }
-             });
+                  emergency_landing_declared: !!emergencyLanding,
+                  emergency_off_airport_completion: emergencyOffAirportCompletion,
+                  emergency_score_penalty: emergencyScorePenalty,
+                  emergency_payout_factor: emergencyOffAirportCompletion ? 0.3 : 1.0,
+                  events: finalFlightData.events,
+                  maintenance_damage: roundedFlightDamage,
+                  crashMaintenanceCost: crashMaintenanceCost
+                }
+              });
 
             // Update contract
             console.log('Aktualisiere Contract Status:', activeFlight.contract_id, (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed');
@@ -1845,83 +1979,11 @@ export default function FlightTracker() {
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (activeFlight?.aircraft_id) {
               try {
-                // Wenn Wartungskosten > 10% des Wertes -> Status "maintenance"
-                // Apply maintenance damage from failures to aircraft categories
-                // Failure tests/active failures must not increase fleet maintenance categories.
-                const flightDamage = {};
                 const existingCats = airplaneToUpdate?.maintenance_categories || {};
                 const updatedCats = { ...existingCats };
-                for (const [cat, dmg] of Object.entries(flightDamage)) {
+                for (const [cat, dmg] of Object.entries(roundedFlightDamage)) {
                   updatedCats[cat] = Math.min(100, (updatedCats[cat] || 0) + dmg);
                 }
-                
-                // Also add base wear from flight hours per category
-                const baseWearPerHour = 0.5; // 0.5% per flight hour base wear
-                for (const cat of ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization']) {
-                  updatedCats[cat] = Math.min(100, (updatedCats[cat] || 0) + baseWearPerHour * flightHours);
-                }
-
-                // Zusatz-Verschleiß fürs Triebwerk:
-                // Wenn >10 Minuten mit >99% Triebwerksauslastung geflogen wird,
-                // steigt der Engine-Verschleiß danach schneller.
-                const telemetryHistory = Array.isArray(preservedTelemetryHistory) ? preservedTelemetryHistory : [];
-                const latestEngineLoad = firstFiniteNumber(
-                  liveXpData?.engine_load_pct,
-                  liveXpData?.engineLoadPct,
-                  xpData?.engine_load_pct,
-                  xpData?.engineLoadPct
-                );
-                const highLoadSeconds = calcEngineHighLoadSeconds(telemetryHistory, latestEngineLoad);
-                const extraEngineWear = calcEngineExtraWearFromHighLoadSeconds(highLoadSeconds);
-                if (extraEngineWear > 0) {
-                  updatedCats.engine = Math.min(100, (updatedCats.engine || 0) + extraEngineWear);
-                }
-                // Additional telemetry-based wear so fleet values match live tracker behavior.
-                const finalMaxG = Number(finalFlightData.maxGForce || 1);
-                const finalControlInput = clamp(Number(finalFlightData.maxControlInput || 0), 0, 1);
-                const landingGearImpactWear = calcLandingGearWearFromLandingG(storedLandingG);
-                const avionicsLandingWear = calcAvionicsWearFromLandingG(storedLandingG);
-                const airframeHighGWear = calcAirframeWearFromHighG(finalMaxG);
-                const avionicsHighGWear = calcAvionicsWearFromHighG(finalMaxG);
-                const controlsWear = calcFlightControlsWearFromControlInput(finalControlInput);
-                const hydraulicsFromControls = controlsWear * 0.35;
-                const hydraulicsFromLanding = calcHydraulicsWearFromLandingImpact(landingGearImpactWear);
-                const electricalHeatWear = calcElectricalWearFromEngineHighLoadSeconds(highLoadSeconds);
-                const electricalControlWear = calcElectricalWearFromControlInput(finalControlInput);
-                const highAltitudeSeconds = calcConditionSecondsFromTelemetry({
-                  telemetryHistory,
-                  currentSampleValue: firstFiniteNumber(
-                    liveXpData?.altitude,
-                    liveXpData?.alt,
-                    xpData?.altitude,
-                    xpData?.alt
-                  ),
-                  predicate: (curPt, prevPt) => {
-                    const curAlt = firstFiniteNumber(curPt?.value, readAltitudeFt(curPt));
-                    const prevAlt = readAltitudeFt(prevPt);
-                    const effectiveAlt = Number.isFinite(curAlt) ? curAlt : prevAlt;
-                    return Number.isFinite(effectiveAlt) && effectiveAlt >= 10000;
-                  },
-                });
-                const pressureWear = calcPressurizationWearFromHighAltSeconds(highAltitudeSeconds);
-
-                if (landingGearImpactWear > 0) updatedCats.landing_gear = Math.min(100, (updatedCats.landing_gear || 0) + landingGearImpactWear);
-                if (airframeHighGWear > 0) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + airframeHighGWear);
-                if (avionicsHighGWear > 0) updatedCats.avionics = Math.min(100, (updatedCats.avionics || 0) + avionicsHighGWear);
-                if (avionicsLandingWear > 0) updatedCats.avionics = Math.min(100, (updatedCats.avionics || 0) + avionicsLandingWear);
-                if (controlsWear > 0) updatedCats.flight_controls = Math.min(100, (updatedCats.flight_controls || 0) + controlsWear);
-                if (hydraulicsFromControls > 0) updatedCats.hydraulics = Math.min(100, (updatedCats.hydraulics || 0) + hydraulicsFromControls);
-                if (hydraulicsFromLanding > 0) updatedCats.hydraulics = Math.min(100, (updatedCats.hydraulics || 0) + hydraulicsFromLanding);
-                if (electricalHeatWear > 0) updatedCats.electrical = Math.min(100, (updatedCats.electrical || 0) + electricalHeatWear);
-                if (electricalControlWear > 0) updatedCats.electrical = Math.min(100, (updatedCats.electrical || 0) + electricalControlWear);
-                if (pressureWear > 0) updatedCats.pressurization = Math.min(100, (updatedCats.pressurization || 0) + pressureWear);
-
-                // Event-based spikes remain additive.
-                if (finalFlightData.events.tailstrike) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + 10);
-                if (finalFlightData.events.overstress) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + 15);
-                if (finalFlightData.events.gear_up_landing) updatedCats.landing_gear = Math.min(100, (updatedCats.landing_gear || 0) + 25);
-                if (finalFlightData.events.high_g_force) updatedCats.airframe = Math.min(100, (updatedCats.airframe || 0) + 8);
-                if (finalFlightData.events.flaps_overspeed) updatedCats.flight_controls = Math.min(100, (updatedCats.flight_controls || 0) + 10);
                 if (hasCrashed) {
                   for (const cat of Object.keys(updatedCats)) {
                     updatedCats[cat] = 100; // Everything maxed on crash
@@ -2353,11 +2415,13 @@ export default function FlightTracker() {
       // Overspeed: -15 Punkte
       if (xp.overspeed && !prev.events.overspeed) {
         baseScore = Math.max(0, baseScore - 15);
+        maintenanceCostIncrease += aircraftPurchasePrice * (OVERSPEED_MAINTENANCE_PERCENT / 100);
       }
       
       // Flaps Overspeed: Score-Abzug + Wartungskosten basierend auf Settings
       // Also detect flaps overspeed from flap_ratio + speed if plugin doesn't send flaps_overspeed flag
-      const flapsOverspeedDetected = xp.flaps_overspeed || false;
+      const airframeFailureActive = !!(prev.events.failure_airframe || xp.manual_airframe_failure_test);
+      const flapsOverspeedDetected = airframeFailureActive ? false : (xp.flaps_overspeed || false);
       if (flapsOverspeedDetected && !prev.events.flaps_overspeed) {
         const flapsScorePenalty = settings?.flaps_overspeed_score_penalty || 15;
         const flapsMaintenancePercent = settings?.flaps_overspeed_maintenance_percent || 2.5;
@@ -2387,7 +2451,7 @@ export default function FlightTracker() {
         stall: !!(xp.stall || xp.is_in_stall || xp.stall_warning || xp.override_alpha || prev.events.stall),
         overstress: !!(xp.overstress || prev.events.overstress),
         overspeed: !!(xp.overspeed || prev.events.overspeed),
-        flaps_overspeed: !!(flapsOverspeedDetected || xp.flaps_overspeed || prev.events.flaps_overspeed),
+        flaps_overspeed: !!(flapsOverspeedDetected || prev.events.flaps_overspeed),
         fuel_emergency: !!(xp.fuel_emergency || prev.events.fuel_emergency),
         gear_up_landing: !!(xp.gear_up_landing || prev.events.gear_up_landing),
         crash: !!isCrash,
@@ -2917,12 +2981,16 @@ export default function FlightTracker() {
                       t('poor_rating', lang)}
                     </Badge>
                   </div>
-                  {flightData.maintenanceCost > 0 && (
-                    <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
+                  <div className="space-y-1 pt-2 border-t border-slate-700">
+                    <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-400">{t('maint_cost_label', lang)}</span>
-                      <span className="text-red-400 font-mono">${Math.round(flightData.maintenanceCost).toLocaleString()}</span>
+                      <span className="text-red-400 font-mono">${Math.round(liveCurrentTotalMaintenanceCost).toLocaleString()}</span>
                     </div>
-                  )}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500">{lang === 'de' ? 'Davon in diesem Flug hinzugefuegt' : 'Added during this flight'}</span>
+                      <span className="text-amber-300 font-mono">+${Math.round(liveFlightAddedMaintenanceCost).toLocaleString()}</span>
+                    </div>
+                  </div>
                   {flightData.landingBonus > 0 && (
                     <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-700">
                       <span className="text-slate-400">{t('landing_bonus', lang)}</span>
@@ -2930,8 +2998,15 @@ export default function FlightTracker() {
                     </div>
                   )}
 
+                  {liveActiveFailures.length > 0 && (
+                    <div className="pt-3 border-t border-slate-700">
+                      <p className="text-xs text-slate-500 mb-2">{lang === 'de' ? 'Aktive Ausfaelle:' : 'Active failures:'}</p>
+                      <ActiveFailuresDisplay failures={liveActiveFailures} compact />
+                    </div>
+                  )}
+
                   {/* Events */}
-                  {Object.entries(flightData.events).some(([_, val]) => val === true) && (
+                  {Object.entries(flightData.events).some(([key, val]) => val === true && !String(key).startsWith('failure_')) && (
                     <div className="pt-3 border-t border-slate-700">
                       <p className="text-xs text-slate-500 mb-2">{t('incidents', lang)}:</p>
                       <div className="space-y-1">
@@ -2994,21 +3069,6 @@ export default function FlightTracker() {
                         )}
                         {flightData.events.wrong_airport === true && (
                           <div className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Falscher Flughafen! (>=10 NM)' : 'Wrong airport! (>=10 NM)'}</div>
-                        )}
-                        {flightData.events.failure_engine === true && (
-                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Triebwerk' : 'Failure: Engine'}</div>
-                        )}
-                        {flightData.events.failure_electrical === true && (
-                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Elektrik' : 'Failure: Electrical'}</div>
-                        )}
-                        {flightData.events.failure_avionics === true && (
-                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Avionik' : 'Failure: Avionics'}</div>
-                        )}
-                        {flightData.events.failure_landing_gear === true && (
-                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Fahrwerk' : 'Failure: Landing Gear'}</div>
-                        )}
-                        {flightData.events.failure_airframe === true && (
-                          <div className="text-xs text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{lang === 'de' ? 'Ausfall: Struktur' : 'Failure: Airframe'}</div>
                         )}
                         </div>
                         </div>

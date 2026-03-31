@@ -99,30 +99,140 @@ export default function MaintenanceCategories({ aircraft }) {
     const basePoolText = lang === 'de'
       ? `Wartungskosten-Pool: $${Math.round(accumulatedCost).toLocaleString()}`
       : `Maintenance cost pool: $${Math.round(accumulatedCost).toLocaleString()}`;
-    const formulaText = lang === 'de'
-      ? 'Formel: Kategoriekosten = Gesamtpool × (Kategorie-Verschleiß / Summe aller Kategorie-Verschleißwerte)'
-      : 'Formula: category cost = total pool × (category wear / sum of all category wear values)';
+    const splitFormulaText = lang === 'de'
+      ? 'Kostenanteil = Gesamtpool x (Kategorie-Verschleiss / Summe aller Kategorie-Verschleisswerte)'
+      : 'Cost split = total pool x (category wear / sum of all category wear values)';
+
+    const byCategory = {
+      engine: {
+        details: lang === 'de'
+          ? 'Engine: Bei >=99% Last steigt Verschleiss nach 10 Minuten jede weitere Minute um +1%.'
+          : 'Engine: At >=99% load, wear rises by +1% per minute after the first 10 minutes.',
+        formula: lang === 'de'
+          ? 'Extra = floor(max(0, HighLoadSek - 600) / 60) x 1%'
+          : 'Extra = floor(max(0, highLoadSec - 600) / 60) x 1%',
+        trigger: lang === 'de' ? 'Ausloeser: Dauerhaft hohe Triebwerkslast' : 'Trigger: sustained high engine load',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: Leistungsverlust, unruhiger Lauf, Triebwerksausfall/Feuer'
+          : 'Possible failures: thrust loss, rough running, engine failure/fire',
+      },
+      hydraulics: {
+        details: lang === 'de'
+          ? 'Hydraulik reagiert auf Landing-Impact und harte/haeufige Steuerinputs.'
+          : 'Hydraulics react to landing impact and aggressive/frequent control input.',
+        formula: lang === 'de'
+          ? 'LandingImpact x 0.35 + ControlInput x 6 x 0.35'
+          : 'LandingImpact x 0.35 + controlInput x 6 x 0.35',
+        trigger: lang === 'de' ? 'Ausloeser: harte Landungen, aggressive Steuerung' : 'Trigger: hard landings, aggressive controls',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: Druckverlust, traege Ruder, Brems-/Gear-Hydraulikprobleme'
+          : 'Possible failures: pressure loss, sluggish controls, brake/gear hydraulic issues',
+      },
+      avionics: {
+        details: lang === 'de'
+          ? 'Avionik verschleisst durch hohe G-Werte, harte Landungen und Overspeed.'
+          : 'Avionics wear from high G loads, hard landings, and overspeed.',
+        formula: lang === 'de'
+          ? 'max(0, MaxG-1.4)x2.8 + max(0, LandingG-1.3)x2.2 + Overspeed'
+          : 'max(0, maxG-1.4)x2.8 + max(0, landingG-1.3)x2.2 + overspeed',
+        trigger: lang === 'de' ? 'Ausloeser: hohe G-Last, harte Touchdowns, Overspeed' : 'Trigger: high G load, hard touchdowns, overspeed',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: Display-Ausfall, NAV/COM-Probleme, Autopilot-Ausfall'
+          : 'Possible failures: display dropouts, NAV/COM issues, autopilot failure',
+      },
+      airframe: {
+        details: lang === 'de'
+          ? 'Strukturverschleiss steigt bei hohen G-Lasten, Overstress und Overspeed.'
+          : 'Airframe wear rises with high G loads, overstress, and overspeed.',
+        formula: lang === 'de'
+          ? 'max(0, MaxG-1.2)x5 + Event-Spikes (z.B. Overstress/Overspeed)'
+          : 'max(0, maxG-1.2)x5 + event spikes (e.g. overstress/overspeed)',
+        trigger: lang === 'de' ? 'Ausloeser: hohe G-Werte in der Luft, Overstress, Overspeed' : 'Trigger: high in-air G, overstress, overspeed',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: strukturelle Beschaedigung, starke Vibrationen, Airframe-Failure'
+          : 'Possible failures: structural damage, heavy vibration, airframe failure',
+      },
+      landing_gear: {
+        details: lang === 'de'
+          ? 'Fahrwerk verschleisst nach Landung exponentiell mit der Landungs-G-Kraft.'
+          : 'Landing gear wear grows exponentially with touchdown G force.',
+        formula: lang === 'de'
+          ? 'Impact = max(0, exp((G - 1) x 1.25) - 1) x 5'
+          : 'Impact = max(0, exp((G - 1) x 1.25) - 1) x 5',
+        trigger: lang === 'de' ? 'Ausloeser: hohe Landing-G beim Touchdown' : 'Trigger: high touchdown G',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: Gear jam, Bremsprobleme, Fahrwerksversagen'
+          : 'Possible failures: gear jam, brake issues, landing gear failure',
+      },
+      electrical: {
+        details: lang === 'de'
+          ? 'Elektrik steigt bei langer hoher Engine-Last, hoher Steuerlast und Overspeed.'
+          : 'Electrical wear rises with prolonged high engine load, high control load, and overspeed.',
+        formula: lang === 'de'
+          ? '(HighLoadSek/3600)x0.6 + ControlInputx0.15 + Overspeed-Spikes'
+          : '(highLoadSec/3600)x0.6 + controlInputx0.15 + overspeed spikes',
+        trigger: lang === 'de' ? 'Ausloeser: Dauerlast, Stromspitzen, Overspeed' : 'Trigger: sustained load, electrical spikes, overspeed',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: Generator-/Batterieprobleme, Elektrik-Ausfall, Avionik-Blackouts'
+          : 'Possible failures: generator/battery issues, electrical failure, avionics blackouts',
+      },
+      flight_controls: {
+        details: lang === 'de'
+          ? 'Steuerflaechen verschleissen durch aggressive Inputs und Flaps-Overspeed.'
+          : 'Flight controls wear due to aggressive input and flaps overspeed.',
+        formula: lang === 'de'
+          ? 'ControlInput x 6 (+ Event-Spikes)'
+          : 'controlInput x 6 (+ event spikes)',
+        trigger: lang === 'de'
+          ? 'Ausloeser: aggressive Inputs, Flaps-Overspeed, Strukturausfall kann Flaps/Speedbrake blockieren'
+          : 'Trigger: aggressive input, flaps overspeed, airframe failure can block flaps/speedbrake',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: trage/uebersensitive Ruder, Flap-/Trim-Probleme'
+          : 'Possible failures: sluggish/oversensitive controls, flap/trim issues',
+      },
+      pressurization: {
+        details: lang === 'de'
+          ? 'Drucksystem verschleisst mit Hoehenzeit und hoher Druckdifferenz.'
+          : 'Pressurization wears with high-altitude exposure and pressure cycles.',
+        formula: lang === 'de'
+          ? '(HighAltSek/3600) x 0.7'
+          : '(highAltSec/3600) x 0.7',
+        trigger: lang === 'de' ? 'Ausloeser: lange Zeit in hoeheren Flughoehen' : 'Trigger: prolonged time at higher altitude',
+        failures: lang === 'de'
+          ? 'Moegliche Ausfaelle: Cabin-Pressure-Warnung, Druckverlust, Dekompressionsrisiko'
+          : 'Possible failures: cabin pressure warnings, pressure loss, decompression risk',
+      },
+    };
+
+    const categoryInfo = byCategory[catKey] || {
+      details: lang === 'de'
+        ? 'Wartungskosten steigen mit Verschleiss und flugbedingten Triggern.'
+        : 'Maintenance costs increase with wear and flight-related triggers.',
+      formula: lang === 'de' ? 'Neupreis x 2% x (Verschleiss/100)' : 'Purchase price x 2% x (wear/100)',
+      trigger: lang === 'de' ? 'Ausloeser: allgemeiner Systemverschleiss' : 'Trigger: general system wear',
+      failures: lang === 'de' ? 'Moegliche Ausfaelle: allgemeine Systemdegradation' : 'Possible failures: general system degradation',
+    };
 
     if (categoryCost <= 0 || totalWear <= 0 || wear <= 0) {
       return {
-        title: lang === 'de' ? 'Keine berechneten Kosten' : 'No calculated cost',
-        details: lang === 'de'
-          ? 'Für diese Kategorie liegt aktuell kein verrechenbarer Verschleiß vor.'
-          : 'There is currently no billable wear for this category.',
-        formula: formulaText,
-        breakdown: basePoolText,
+        title: lang === 'de' ? 'Live-Kosten und Trigger' : 'Live cost and triggers',
+        details: categoryInfo.details,
+        formula: categoryInfo.formula,
+        trigger: categoryInfo.trigger,
+        possibleFailures: categoryInfo.failures,
+        breakdown: `${basePoolText} | ${splitFormulaText}`,
       };
     }
 
     return {
-      title: lang === 'de' ? 'Kostenberechnung' : 'Cost calculation',
-      details: lang === 'de'
-        ? `Diese Kategorie hat ${wear.toFixed(1)}% Verschleiß und trägt ${wearShare.toFixed(1)}% am Gesamtverschleiß bei.`
-        : `This category has ${wear.toFixed(1)}% wear and contributes ${wearShare.toFixed(1)}% of total wear.`,
-      formula: formulaText,
+      title: lang === 'de' ? 'Live-Kosten und Trigger' : 'Live cost and triggers',
+      details: categoryInfo.details,
+      formula: `${categoryInfo.formula} | ${splitFormulaText}`,
+      trigger: `${categoryInfo.trigger} | ${lang === 'de' ? 'Aktueller Verschleiss' : 'Current wear'}: ${wear.toFixed(1)}%`,
+      possibleFailures: categoryInfo.failures,
       breakdown: lang === 'de'
-        ? `${basePoolText} → $${Math.round(accumulatedCost).toLocaleString()} × ${wear.toFixed(1)} / ${totalWear.toFixed(1)} = $${categoryCost.toLocaleString()}`
-        : `${basePoolText} → $${Math.round(accumulatedCost).toLocaleString()} × ${wear.toFixed(1)} / ${totalWear.toFixed(1)} = $${categoryCost.toLocaleString()}`,
+        ? `${basePoolText} -> $${Math.round(accumulatedCost).toLocaleString()} x ${wear.toFixed(1)} / ${totalWear.toFixed(1)} = $${categoryCost.toLocaleString()} (${wearShare.toFixed(1)}%)`
+        : `${basePoolText} -> $${Math.round(accumulatedCost).toLocaleString()} x ${wear.toFixed(1)} / ${totalWear.toFixed(1)} = $${categoryCost.toLocaleString()} (${wearShare.toFixed(1)}%)`,
     };
   };
 
@@ -281,6 +391,8 @@ export default function MaintenanceCategories({ aircraft }) {
                               <p className="font-semibold text-white">{info.title}</p>
                               <p className="text-slate-300">{info.details}</p>
                               <p className="text-slate-400">{info.formula}</p>
+                              <p className="text-slate-300">{info.trigger}</p>
+                              <p className="text-rose-300">{info.possibleFailures}</p>
                               <p className="text-amber-300 font-mono">{info.breakdown}</p>
                             </div>
                           );
