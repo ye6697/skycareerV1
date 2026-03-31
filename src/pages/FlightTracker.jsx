@@ -47,7 +47,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const ENGINE_HIGH_LOAD_THRESHOLD_PCT = 99;
+const ENGINE_FULL_THRUST_THRESHOLD_PCT = 98;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
 const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 30;
 const ENGINE_WEAR_PER_STEP = 0.1;
@@ -98,6 +98,49 @@ const readEngineLoadPct = (point) => firstFiniteNumber(
   point?.engine_load,
   point?.engineLoad,
 );
+
+const normalizePercentLike = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return NaN;
+  if (n <= 1.5) return clamp(n * 100, 0, 100);
+  return clamp(n, 0, 100);
+};
+
+const readThrustLeverPct = (point) => {
+  const lever1 = normalizePercentLike(firstFiniteNumber(
+    point?.thrust_lever1_pct,
+    point?.thrustLever1Pct,
+    point?.throttle1_pct,
+    point?.throttle1Pct,
+    point?.throttle_1_pct,
+    point?.eng1_throttle_pct,
+    point?.engine1_load_pct,
+    point?.engine1LoadPct,
+  ));
+  const lever2 = normalizePercentLike(firstFiniteNumber(
+    point?.thrust_lever2_pct,
+    point?.thrustLever2Pct,
+    point?.throttle2_pct,
+    point?.throttle2Pct,
+    point?.throttle_2_pct,
+    point?.eng2_throttle_pct,
+    point?.engine2_load_pct,
+    point?.engine2LoadPct,
+  ));
+  const direct = normalizePercentLike(firstFiniteNumber(
+    point?.thr,
+    point?.thrust_lever_pct,
+    point?.thrustLeverPct,
+    point?.throttle_pct,
+    point?.throttlePct,
+    point?.throttle,
+  ));
+  if (Number.isFinite(direct)) return direct;
+  if (Number.isFinite(lever1) && Number.isFinite(lever2)) return (lever1 + lever2) / 2;
+  if (Number.isFinite(lever1)) return lever1;
+  if (Number.isFinite(lever2)) return lever2;
+  return normalizePercentLike(readEngineLoadPct(point));
+};
 
 const readAltitudeFt = (point) => firstFiniteNumber(
   point?.alt,
@@ -162,15 +205,15 @@ const calcConditionSecondsFromTelemetry = ({
   return seconds;
 };
 
-const calcEngineHighLoadSeconds = (telemetryHistory, currentEngineLoadPct) => {
+const calcEngineFullThrustSeconds = (telemetryHistory, currentThrustLeverPct) => {
   return calcConditionSecondsFromTelemetry({
     telemetryHistory,
-    currentSampleValue: currentEngineLoadPct,
+    currentSampleValue: currentThrustLeverPct,
     predicate: (curPt, prevPt) => {
-      const curLoad = firstFiniteNumber(curPt?.value, readEngineLoadPct(curPt));
-      const prevLoad = readEngineLoadPct(prevPt);
-      const effectiveLoad = Number.isFinite(curLoad) ? curLoad : prevLoad;
-      return Number.isFinite(effectiveLoad) && effectiveLoad >= ENGINE_HIGH_LOAD_THRESHOLD_PCT;
+      const curLever = firstFiniteNumber(curPt?.value, readThrustLeverPct(curPt));
+      const prevLever = readThrustLeverPct(prevPt);
+      const effectiveLever = Number.isFinite(curLever) ? curLever : prevLever;
+      return Number.isFinite(effectiveLever) && effectiveLever >= ENGINE_FULL_THRUST_THRESHOLD_PCT;
     },
   });
 };
@@ -520,7 +563,7 @@ export default function FlightTracker() {
       addReason(
         'pressurization',
         lang === 'de'
-          ? `Hoehenzeit >10k ft: ${(highAltitudeSecondsLive / 60).toFixed(1)} min`
+          ? `Höhenzeit >10k ft: ${(highAltitudeSecondsLive / 60).toFixed(1)} min`
           : `High-alt time >10k ft: ${(highAltitudeSecondsLive / 60).toFixed(1)} min`
       );
     }
@@ -535,7 +578,7 @@ export default function FlightTracker() {
       addReason(
         'flight_controls',
         lang === 'de'
-          ? `Steuerausschlaege max ${(controlInputPct * 100).toFixed(0)}%`
+          ? `Steuerausschläge max ${(controlInputPct * 100).toFixed(0)}%`
           : `Control input peak ${(controlInputPct * 100).toFixed(0)}%`
       );
       addReason(
@@ -603,7 +646,7 @@ export default function FlightTracker() {
     }
     if (ev.flaps_overspeed) {
       flightWear.flight_controls += 10;
-      addReason('flight_controls', lang === 'de' ? 'Klappen-Ueberspeed' : 'Flaps overspeed');
+      addReason('flight_controls', lang === 'de' ? 'Klappen-Überspeed' : 'Flaps overspeed');
     }
     if (ev.failure_engine) addReason('engine', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
     if (ev.failure_electrical) addReason('electrical', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
@@ -682,21 +725,21 @@ export default function FlightTracker() {
     const categoryCostData = liveMaintenanceCostSnapshot?.byCategory?.[category?.key] || { base: 0, added: 0, total: 0 };
 
     let details = lang === 'de'
-      ? 'Wartungskosten steigen durch laufenden Verschleiss waehrend des Flugs und durch erkannte Events.'
+      ? 'Wartungskosten steigen durch laufenden Verschleiß während des Flugs und durch erkannte Events.'
       : 'Maintenance cost rises from continuous in-flight wear and detected events.';
     let formula = lang === 'de'
-      ? 'Kosten-Faustformel: Neupreis x 2% x (Verschleiss/100)'
+      ? 'Kosten-Faustformel: Neupreis x 2% x (Verschleiß/100)'
       : 'Cost rule of thumb: purchase price x 2% x (wear/100)';
     let trigger = lang === 'de'
-      ? `Aktueller Verschleiss gesamt: ${wearPercent.toFixed(1)}% (davon im Flug +${addedWearPercent.toFixed(1)}%)`
+      ? `Aktueller Verschleiß gesamt: ${wearPercent.toFixed(1)}% (davon im Flug +${addedWearPercent.toFixed(1)}%)`
       : `Current total wear: ${wearPercent.toFixed(1)}% (in this flight +${addedWearPercent.toFixed(1)}%)`;
     let possibleFailures = lang === 'de'
-      ? 'Moegliche Ausfaelle: allgemeine Systemdegradation'
+      ? 'Mögliche Ausfälle: allgemeine Systemdegradation'
       : 'Possible failures: general system degradation';
 
     if (category?.key === 'engine') {
       details = lang === 'de'
-        ? 'Triebwerk: Vollschub erzeugt schnelleren Verschleiss (alle 3s +0.1%), Teilschub langsamer (alle 30s +0.1%). Hohe Gs und harte Landungen erhoehen zusaetzlich.'
+        ? 'Triebwerk: Vollschub erzeugt schnelleren Verschleiß (alle 3s +0.1%), Teilschub langsamer (alle 30s +0.1%). Hohe Gs und harte Landungen erhöhen zusätzlich.'
         : 'Engine: Full thrust wears faster (+0.1% every 3s), non-full thrust slower (+0.1% every 30s). High G and hard landings add extra wear.';
       formula = lang === 'de'
         ? `Extra = floor(VollschubSek/${ENGINE_FULL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + floor(TeilschubSek/${ENGINE_PARTIAL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + max(0, MaxG - ${ENGINE_HIGH_G_THRESHOLD}) x ${ENGINE_HIGH_G_MULTIPLIER} + max(0, LandingG - ${ENGINE_HARD_LANDING_G_THRESHOLD}) x ${ENGINE_HARD_LANDING_G_MULTIPLIER} + Event-Boni`
@@ -705,11 +748,11 @@ export default function FlightTracker() {
         ? `Vollschub ${(engineThrustWear.fullSeconds / 60).toFixed(1)} min (+${engineThrustWear.fullWear.toFixed(1)}%), Teilschub ${(engineThrustWear.nonFullSeconds / 60).toFixed(1)} min (+${engineThrustWear.nonFullWear.toFixed(1)}%), High-G +${engineHighGWear.toFixed(2)}%, harte Landung +${engineHardLandingWear.toFixed(2)}%${ev.high_g_force ? `, Event +${HIGH_G_FORCE_ENGINE_EVENT_WEAR}%` : ''}${ev.hard_landing ? `, Hard-Landing Event +${HARD_LANDING_ENGINE_EVENT_WEAR}%` : ''} => Extra +${engineExtraWear.toFixed(2)}%`
         : `Full thrust ${(engineThrustWear.fullSeconds / 60).toFixed(1)} min (+${engineThrustWear.fullWear.toFixed(1)}%), non-full thrust ${(engineThrustWear.nonFullSeconds / 60).toFixed(1)} min (+${engineThrustWear.nonFullWear.toFixed(1)}%), high-G +${engineHighGWear.toFixed(2)}%, hard landing +${engineHardLandingWear.toFixed(2)}%${ev.high_g_force ? `, event +${HIGH_G_FORCE_ENGINE_EVENT_WEAR}%` : ''}${ev.hard_landing ? `, hard-landing event +${HARD_LANDING_ENGINE_EVENT_WEAR}%` : ''} => extra +${engineExtraWear.toFixed(2)}%`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: Leistungsverlust, unruhiger Lauf, Triebwerksausfall/Feuer'
+        ? 'Mögliche Ausfälle: Leistungsverlust, unruhiger Lauf, Triebwerksausfall/Feuer'
         : 'Possible failures: thrust loss, rough running, engine failure/fire';
     } else if (category?.key === 'landing_gear') {
       details = lang === 'de'
-        ? 'Fahrwerk: Nach Touchdown steigt Verschleiss exponentiell mit Landing-G.'
+        ? 'Fahrwerk: Nach Touchdown steigt Verschleiß exponentiell mit Landing-G.'
         : 'Landing gear: wear rises exponentially with touchdown G.';
       formula = lang === 'de'
         ? 'Impact = max(0, exp((G - 1) x 1.25) - 1) x 5'
@@ -718,11 +761,11 @@ export default function FlightTracker() {
         ? `Landing G ${landingG.toFixed(2)} -> Extra +${landingImpactWear.toFixed(2)}%`
         : `Landing G ${landingG.toFixed(2)} -> extra +${landingImpactWear.toFixed(2)}%`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: Gear jam, Bremsprobleme, Fahrwerksversagen'
+        ? 'Mögliche Ausfälle: Gear jam, Bremsprobleme, Fahrwerksversagen'
         : 'Possible failures: gear jam, brake issues, landing gear failure';
     } else if (category?.key === 'airframe') {
       details = lang === 'de'
-        ? 'Struktur: Hohe G-Lasten in der Luft, Overstress und Overspeed erhoehen den Verschleiss.'
+        ? 'Struktur: Hohe G-Lasten in der Luft, Overstress und Overspeed erhöhen den Verschleiß.'
         : 'Airframe: high in-air G loads, overstress, and overspeed increase wear.';
       formula = lang === 'de'
         ? `High-G = max(0, MaxG - ${AIRFRAME_HIGH_G_THRESHOLD}) x ${AIRFRAME_HIGH_G_MULTIPLIER}, Overstress +${OVERSTRESS_AIRFRAME_WEAR}%, Overspeed +${OVERSPEED_AIRFRAME_WEAR}%`
@@ -731,11 +774,11 @@ export default function FlightTracker() {
         ? `Max G ${maxG.toFixed(2)} -> High-G +${airframeHighGWear.toFixed(2)}%${ev.high_g_force ? `, High-G Event +${HIGH_G_FORCE_AIRFRAME_EVENT_WEAR}%` : ''}${ev.overstress ? `, Overstress +${OVERSTRESS_AIRFRAME_WEAR}%` : ''}${ev.overspeed ? `, Overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`
         : `Max G ${maxG.toFixed(2)} -> high-G +${airframeHighGWear.toFixed(2)}%${ev.high_g_force ? `, high-G event +${HIGH_G_FORCE_AIRFRAME_EVENT_WEAR}%` : ''}${ev.overstress ? `, overstress +${OVERSTRESS_AIRFRAME_WEAR}%` : ''}${ev.overspeed ? `, overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: strukturelle Beschaedigung, starke Vibrationen, Airframe-Failure'
+        ? 'Mögliche Ausfälle: strukturelle Beschädigung, starke Vibrationen, Airframe-Failure'
         : 'Possible failures: structural damage, heavy vibration, airframe failure';
     } else if (category?.key === 'avionics') {
       details = lang === 'de'
-        ? 'Avionik: Verschleiss steigt bei hohen G-Kraeften in der Luft, harten Landungen und Overspeed.'
+        ? 'Avionik: Verschleiß steigt bei hohen G-Kräften in der Luft, harten Landungen und Overspeed.'
         : 'Avionics wear rises with high in-air G loads, hard landings, and overspeed.';
       formula = lang === 'de'
         ? `Beitrag = max(0, MaxG - 1.4) x 2.8 + max(0, LandingG - 1.3) x 2.2 + Overspeed +${OVERSPEED_AVIONICS_WEAR}%`
@@ -744,7 +787,7 @@ export default function FlightTracker() {
         ? `Max G ${maxG.toFixed(2)} -> +${avionicsHighGWear.toFixed(2)}%, Landing G ${landingG.toFixed(2)} -> +${avionicsLandingWear.toFixed(2)}%${ev.overspeed ? `, Overspeed +${OVERSPEED_AVIONICS_WEAR}%` : ''}`
         : `Max G ${maxG.toFixed(2)} -> +${avionicsHighGWear.toFixed(2)}%, landing G ${landingG.toFixed(2)} -> +${avionicsLandingWear.toFixed(2)}%${ev.overspeed ? `, overspeed +${OVERSPEED_AVIONICS_WEAR}%` : ''}`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: Display-Ausfall, NAV/COM-Probleme, Autopilot-Ausfall'
+        ? 'Mögliche Ausfälle: Display-Ausfall, NAV/COM-Probleme, Autopilot-Ausfall'
         : 'Possible failures: display dropouts, NAV/COM issues, autopilot failure';
     } else if (category?.key === 'hydraulics') {
       details = lang === 'de'
@@ -757,7 +800,7 @@ export default function FlightTracker() {
         ? `LandingImpact +${hydraulicsLandingWear.toFixed(2)}%, ControlInput ${(controlInput * 100).toFixed(0)}%`
         : `Landing impact +${hydraulicsLandingWear.toFixed(2)}%, control input ${(controlInput * 100).toFixed(0)}%`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: Druckverlust, traege Ruder, Brems-/Gear-Hydraulikprobleme'
+        ? 'Mögliche Ausfälle: Druckverlust, träge Ruder, Brems-/Gear-Hydraulikprobleme'
         : 'Possible failures: pressure loss, sluggish controls, brake/gear hydraulic issues';
     } else if (category?.key === 'electrical') {
       details = lang === 'de'
@@ -770,11 +813,11 @@ export default function FlightTracker() {
         ? `High-Load +${electricalHeatWear.toFixed(2)}%, Controls +${electricalControlWear.toFixed(2)}%${ev.overspeed ? `, Overspeed +${OVERSPEED_ELECTRICAL_WEAR}%` : ''}`
         : `High-load +${electricalHeatWear.toFixed(2)}%, controls +${electricalControlWear.toFixed(2)}%${ev.overspeed ? `, overspeed +${OVERSPEED_ELECTRICAL_WEAR}%` : ''}`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: Generator-/Batterieprobleme, Elektrik-Ausfall, Avionik-Blackouts'
+        ? 'Mögliche Ausfälle: Generator-/Batterieprobleme, Elektrik-Ausfall, Avionik-Blackouts'
         : 'Possible failures: generator/battery issues, electrical failure, avionics blackouts';
     } else if (category?.key === 'flight_controls') {
       details = lang === 'de'
-        ? 'Steuerflaechen verschleissen durch aggressive Eingaben und Flaps-Overspeed-Events. Bei Strukturausfall werden Flaps und Speedbrake gesperrt.'
+        ? 'Steuerflächen verschleißen durch aggressive Eingaben und Flaps-Overspeed-Events. Bei Strukturausfall werden Flaps und Speedbrake gesperrt.'
         : 'Flight controls wear from aggressive input and flaps overspeed events. During airframe failure, flaps and speedbrake are blocked.';
       formula = lang === 'de'
         ? 'Control-Beitrag = ControlInput x 6 (+ Events separat)'
@@ -783,20 +826,20 @@ export default function FlightTracker() {
         ? `ControlInput ${(controlInput * 100).toFixed(0)}% -> +${controlsWear.toFixed(2)}%${ev.failure_airframe ? ', Strukturausfall aktiv: Flaps/Speedbrake blockiert' : ''}`
         : `Control input ${(controlInput * 100).toFixed(0)}% -> +${controlsWear.toFixed(2)}%${ev.failure_airframe ? ', airframe failure active: flaps/speedbrake blocked' : ''}`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: trage/uebersensitive Ruder, Flap-/Trim-Probleme'
+        ? 'Mögliche Ausfälle: träge/übersensitive Ruder, Flap-/Trim-Probleme'
         : 'Possible failures: sluggish/oversensitive controls, flap/trim issues';
     } else if (category?.key === 'pressurization') {
       details = lang === 'de'
-        ? 'Druckkabine verschleisst mit Hoehenzeit in druckrelevanten Flugphasen.'
+        ? 'Druckkabine verschleißt mit Höhenzeit in druckrelevanten Flugphasen.'
         : 'Pressurization wears with time spent in pressure-relevant altitude.';
       formula = lang === 'de'
         ? 'Beitrag = (HighAltSek/3600) x 0.7'
         : 'Contribution = (highAltSec/3600) x 0.7';
       trigger = lang === 'de'
-        ? `Hoehenzeit >10k ft ${(highAltitudeSecondsLive / 60).toFixed(1)} min -> +${pressureWear.toFixed(2)}%`
+        ? `Höhenzeit >10k ft ${(highAltitudeSecondsLive / 60).toFixed(1)} min -> +${pressureWear.toFixed(2)}%`
         : `High-alt time >10k ft ${(highAltitudeSecondsLive / 60).toFixed(1)} min -> +${pressureWear.toFixed(2)}%`;
       possibleFailures = lang === 'de'
-        ? 'Moegliche Ausfaelle: Cabin-Pressure-Warnung, Druckverlust, Dekompressionsrisiko'
+        ? 'Mögliche Ausfälle: Cabin-Pressure-Warnung, Druckverlust, Dekompressionsrisiko'
         : 'Possible failures: cabin pressure warnings, pressure loss, decompression risk';
     }
 
@@ -910,8 +953,8 @@ export default function FlightTracker() {
       return;
     }
 
-    const currentEngineLoad = firstFiniteNumber(raw.engine_load_pct, raw.engineLoadPct);
-    setEngineHighLoadSecondsLive(calcEngineHighLoadSeconds(history, currentEngineLoad));
+    const currentThrustLever = readThrustLeverPct(raw);
+    setEngineHighLoadSecondsLive(calcEngineFullThrustSeconds(history, currentThrustLever));
 
     const currentAltitude = firstFiniteNumber(raw.altitude, raw.alt);
     const highAltSeconds = calcConditionSecondsFromTelemetry({
@@ -2056,14 +2099,9 @@ export default function FlightTracker() {
 
             const sessionStartMs = Date.parse(String(activeFlight?.departure_time || activeFlight?.created_date || ""));
             const telemetryHistory = filterTelemetryHistoryForSession(preservedTelemetryHistory, sessionStartMs);
-            const latestEngineLoad = firstFiniteNumber(
-              liveXpData?.engine_load_pct,
-              liveXpData?.engineLoadPct,
-              xpData?.engine_load_pct,
-              xpData?.engineLoadPct
-            );
+            const latestThrustLever = readThrustLeverPct({ ...(xpData || {}), ...(liveXpData || {}) });
             const finalMaxG = Number(finalFlightData.maxGForce || 1);
-            const highLoadSeconds = calcEngineHighLoadSeconds(telemetryHistory, latestEngineLoad);
+            const highLoadSeconds = calcEngineFullThrustSeconds(telemetryHistory, latestThrustLever);
             const totalFlightSeconds = Math.max(0, Number(flightHours || 0) * 3600);
             const engineThrustWear = calcEngineWearFromThrustProfile(highLoadSeconds, totalFlightSeconds);
             const engineHighGWear = calcEngineWearFromHighG(finalMaxG);
@@ -3225,7 +3263,7 @@ export default function FlightTracker() {
                       <span className="text-red-400 font-mono">${Math.round(liveCurrentTotalMaintenanceCost).toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500">{lang === 'de' ? 'Davon in diesem Flug hinzugefuegt' : 'Added during this flight'}</span>
+                      <span className="text-slate-500">{lang === 'de' ? 'Davon in diesem Flug hinzugefügt' : 'Added during this flight'}</span>
                       <span className="text-amber-300 font-mono">+${Math.round(liveFlightAddedMaintenanceCost).toLocaleString()}</span>
                     </div>
                   </div>
@@ -3238,7 +3276,7 @@ export default function FlightTracker() {
 
                   {liveActiveFailures.length > 0 && (
                     <div className="pt-3 border-t border-slate-700">
-                      <p className="text-xs text-slate-500 mb-2">{lang === 'de' ? 'Aktive Ausfaelle:' : 'Active failures:'}</p>
+                      <p className="text-xs text-slate-500 mb-2">{lang === 'de' ? 'Aktive Ausfälle:' : 'Active failures:'}</p>
                       <ActiveFailuresDisplay failures={liveActiveFailures} compact />
                     </div>
                   )}
@@ -3381,7 +3419,7 @@ export default function FlightTracker() {
                     {emergencyLanding && (
                       <div className="p-2 bg-amber-900/30 border border-amber-700/50 rounded text-xs text-amber-300 flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 shrink-0" />
-                        {lang === 'de' ? 'Notlandung erklaert - Landung >=10 NM entfernt erlaubt, aber -30 Score und nur 30% Payout' : 'Emergency declared - off-airport landing >=10 NM allowed, but -30 score and only 30% payout'}
+                        {lang === 'de' ? 'Notlandung erklärt - Landung >=10 NM entfernt erlaubt, aber -30 Score und nur 30% Payout' : 'Emergency declared - off-airport landing >=10 NM allowed, but -30 score and only 30% payout'}
                       </div>
                     )}
                     <div className="space-y-2">
@@ -3647,7 +3685,7 @@ export default function FlightTracker() {
                                   <button
                                     type="button"
                                     className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700/70 transition-colors"
-                                    aria-label={lang === 'de' ? `Kostenformel fuer ${category.label}` : `Cost formula for ${category.label}`}
+                                    aria-label={lang === 'de' ? `Kostenformel für ${category.label}` : `Cost formula for ${category.label}`}
                                   >
                                     <Info className="w-3 h-3" />
                                   </button>
@@ -3711,7 +3749,7 @@ export default function FlightTracker() {
                 </div>
                 <p className="text-[11px] text-slate-500 mt-3">
                   {lang === 'de'
-                    ? 'Diese Ansicht zeigt laufende Kategorien waehrend des Flugs. Finale Wartungswerte werden beim Flugabschluss in die Flotte uebernommen.'
+                    ? 'Diese Ansicht zeigt laufende Kategorien während des Flugs. Finale Wartungswerte werden beim Flugabschluss in die Flotte übernommen.'
                     : 'This view shows ongoing categories during flight. Final maintenance values are applied to fleet on flight completion.'}
                 </p>
               </Card>

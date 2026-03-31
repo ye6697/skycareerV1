@@ -490,8 +490,34 @@ Deno.serve(async (req) => {
       if (n <= 1.5) return Math.max(0, Math.min(100, n * 100));
       return Math.max(0, Math.min(100, n));
     };
-    const engine1LoadPct = normalizePercent(data.engine1_load_pct ?? data.engine1LoadPct ?? data.throttle1_pct ?? data.eng1_throttle_pct, NaN);
-    const engine2LoadPct = normalizePercent(data.engine2_load_pct ?? data.engine2LoadPct ?? data.throttle2_pct ?? data.eng2_throttle_pct, NaN);
+    const thrustLever1Pct = normalizePercent(
+      data.thrust_lever1_pct ??
+      data.thrustLever1Pct ??
+      data.throttle1_pct ??
+      data.throttle1Pct ??
+      data.throttle_1_pct ??
+      data.eng1_throttle_pct,
+      NaN
+    );
+    const thrustLever2Pct = normalizePercent(
+      data.thrust_lever2_pct ??
+      data.thrustLever2Pct ??
+      data.throttle2_pct ??
+      data.throttle2Pct ??
+      data.throttle_2_pct ??
+      data.eng2_throttle_pct,
+      NaN
+    );
+    const avgThrustLeverFromEngines = Number.isFinite(thrustLever1Pct) && Number.isFinite(thrustLever2Pct)
+      ? ((thrustLever1Pct + thrustLever2Pct) / 2)
+      : (Number.isFinite(thrustLever1Pct) ? thrustLever1Pct : (Number.isFinite(thrustLever2Pct) ? thrustLever2Pct : NaN));
+    const thrustLeverPct = normalizePercent(
+      data.thrust_lever_pct ?? data.thrustLeverPct ?? data.throttle_pct ?? data.throttlePct ?? avgThrustLeverFromEngines,
+      NaN
+    );
+
+    const engine1LoadPct = normalizePercent(data.engine1_load_pct ?? data.engine1LoadPct ?? thrustLever1Pct ?? data.throttle1_pct ?? data.eng1_throttle_pct, NaN);
+    const engine2LoadPct = normalizePercent(data.engine2_load_pct ?? data.engine2LoadPct ?? thrustLever2Pct ?? data.throttle2_pct ?? data.eng2_throttle_pct, NaN);
     const avgEngineLoadFromEngines = Number.isFinite(engine1LoadPct) && Number.isFinite(engine2LoadPct)
       ? ((engine1LoadPct + engine2LoadPct) / 2)
       : (Number.isFinite(engine1LoadPct) ? engine1LoadPct : (Number.isFinite(engine2LoadPct) ? engine2LoadPct : NaN));
@@ -1490,6 +1516,9 @@ Deno.serve(async (req) => {
       engine_load_pct: Number.isFinite(engineLoadPct) ? Number(engineLoadPct.toFixed(1)) : null,
       engine1_load_pct: Number.isFinite(engine1LoadPct) ? Number(engine1LoadPct.toFixed(1)) : null,
       engine2_load_pct: Number.isFinite(engine2LoadPct) ? Number(engine2LoadPct.toFixed(1)) : null,
+      thrust_lever_pct: Number.isFinite(thrustLeverPct) ? Number(thrustLeverPct.toFixed(1)) : null,
+      thrust_lever1_pct: Number.isFinite(thrustLever1Pct) ? Number(thrustLever1Pct.toFixed(1)) : null,
+      thrust_lever2_pct: Number.isFinite(thrustLever2Pct) ? Number(thrustLever2Pct.toFixed(1)) : null,
       touchdown_vspeed: effectiveTouchdownVspeed,
       landing_g_force: effectiveLandingG,
       landing_data_source: useBridgeLocalLanding ? "bridge_local" : (data.landing_data_source || null),
@@ -1877,6 +1906,9 @@ Deno.serve(async (req) => {
             vs: Math.round(vertical_speed || 0),
             g: Number((gForceCurrent || 1).toFixed(2)),
             eng: Number.isFinite(engineLoadPct) ? Number(engineLoadPct.toFixed(1)) : null,
+            thr: Number.isFinite(thrustLeverPct) ? Number(thrustLeverPct.toFixed(1)) : null,
+            thr1: Number.isFinite(thrustLever1Pct) ? Number(thrustLever1Pct.toFixed(1)) : null,
+            thr2: Number.isFinite(thrustLever2Pct) ? Number(thrustLever2Pct.toFixed(1)) : null,
             lat: Number.isFinite(Number(latitude)) ? Number(latitude) : null,
             lon: Number.isFinite(Number(longitude)) ? Number(longitude) : null,
             hdg: Number.isFinite(Number(heading)) ? Math.round(Number(heading)) : null,

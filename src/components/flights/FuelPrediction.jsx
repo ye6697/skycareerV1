@@ -16,6 +16,43 @@ export default function FuelPrediction({
   const { lang } = useLanguage();
   const storedXpd = (flight || existingFlight)?.xplane_data || {};
   const xpd = { ...storedXpd, ...(xplaneRawData || {}) };
+  const normalizePercentLike = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return NaN;
+    if (n <= 1.5) return Math.max(0, Math.min(100, n * 100));
+    return Math.max(0, Math.min(100, n));
+  };
+  const readThrustLeverPct = (point) => {
+    const lever1 = normalizePercentLike(
+      point?.thrust_lever1_pct ??
+      point?.thrustLever1Pct ??
+      point?.throttle1_pct ??
+      point?.throttle1Pct ??
+      point?.engine1_load_pct ??
+      point?.engine1LoadPct
+    );
+    const lever2 = normalizePercentLike(
+      point?.thrust_lever2_pct ??
+      point?.thrustLever2Pct ??
+      point?.throttle2_pct ??
+      point?.throttle2Pct ??
+      point?.engine2_load_pct ??
+      point?.engine2LoadPct
+    );
+    const direct = normalizePercentLike(
+      point?.thrust_lever_pct ??
+      point?.thrustLeverPct ??
+      point?.throttle_pct ??
+      point?.throttlePct ??
+      point?.engine_load_pct ??
+      point?.engineLoadPct
+    );
+    if (Number.isFinite(direct)) return direct;
+    if (Number.isFinite(lever1) && Number.isFinite(lever2)) return (lever1 + lever2) / 2;
+    if (Number.isFinite(lever1)) return lever1;
+    if (Number.isFinite(lever2)) return lever2;
+    return NaN;
+  };
 
   const initialFuelKg = Number(xpd.initial_fuel_kg || 0);
   const currentFuelKg = Number(flightData.fuelKg || xpd.fuel_kg || xpd.last_valid_fuel_kg || 0);
@@ -26,12 +63,34 @@ export default function FuelPrediction({
   const backendBurnRateKgPerHour = Number(xpd.fuel_burn_rate_kgph || 0);
   const aircraftBurnRateLitersPerHour = Number(aircraft?.fuel_consumption_per_hour || 0);
   const aircraftBurnRateKgPerHour = aircraftBurnRateLitersPerHour > 0 ? (aircraftBurnRateLitersPerHour / 1.25) : 0;
+  const thrustLeverPctNow = readThrustLeverPct(xpd);
+  const isOnGroundNow = Boolean(xpd?.on_ground);
+  const enginesRunningNow = Boolean(
+    xpd?.engines_running ||
+    xpd?.engine1_running ||
+    xpd?.engine2_running ||
+    (Number.isFinite(thrustLeverPctNow) && thrustLeverPctNow > 2)
+  );
+  const thrustRatio = Number.isFinite(thrustLeverPctNow) ? Math.max(0, Math.min(1, thrustLeverPctNow / 100)) : 0;
+  const modeledBurnRateKgPerHour = (aircraftBurnRateKgPerHour > 0 && enginesRunningNow)
+    ? aircraftBurnRateKgPerHour * (0.12 + (0.88 * thrustRatio))
+    : 0;
   const isPlausibleRate = (rate) => Number.isFinite(rate) && rate >= 5 && rate <= 12000;
-  const burnRateKgPerHour = isPlausibleRate(backendBurnRateKgPerHour)
-    ? backendBurnRateKgPerHour
-    : (isPlausibleRate(derivedBurnRateKgPerHour)
-        ? derivedBurnRateKgPerHour
-        : (isPlausibleRate(aircraftBurnRateKgPerHour) ? aircraftBurnRateKgPerHour : 0));
+  const burnRateKgPerHour = isOnGroundNow
+    ? (isPlausibleRate(modeledBurnRateKgPerHour)
+        ? modeledBurnRateKgPerHour
+        : (isPlausibleRate(backendBurnRateKgPerHour)
+            ? backendBurnRateKgPerHour
+            : (isPlausibleRate(derivedBurnRateKgPerHour)
+                ? derivedBurnRateKgPerHour
+                : (isPlausibleRate(aircraftBurnRateKgPerHour) ? aircraftBurnRateKgPerHour : 0))))
+    : (isPlausibleRate(backendBurnRateKgPerHour)
+        ? backendBurnRateKgPerHour
+        : (isPlausibleRate(derivedBurnRateKgPerHour)
+            ? derivedBurnRateKgPerHour
+            : (isPlausibleRate(modeledBurnRateKgPerHour)
+                ? modeledBurnRateKgPerHour
+                : (isPlausibleRate(aircraftBurnRateKgPerHour) ? aircraftBurnRateKgPerHour : 0))));
   const burnRateLitersPerHour = burnRateKgPerHour > 0 ? (burnRateKgPerHour * 1.25) : 0;
   const groundSpeed = Number(flightData.speed || xpd.speed || 0) || 200;
   const remainingNm = Number(distanceInfo?.remainingNm || 0);
