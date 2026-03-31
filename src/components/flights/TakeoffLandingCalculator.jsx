@@ -3,15 +3,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import { Loader2, PlaneTakeoff, PlaneLanding, Download, RefreshCw, CheckCircle, AlertCircle, Plane, Wind, Thermometer } from 'lucide-react';
+import { Loader2, PlaneTakeoff, PlaneLanding, Download, RefreshCw, CheckCircle, AlertCircle, Plane } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
+import { getCruiseSpeed } from "@/components/flights/aircraftSpeedLookup";
 
 function DataRow({ label, value, unit, highlight }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-slate-800/60 last:border-0">
       <span className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">{label}</span>
       <div className="flex items-baseline gap-1">
-        <span className={`font-mono text-sm font-bold tabular-nums ${highlight ? 'text-cyan-300' : 'text-slate-200'}`}>{value ?? '—'}</span>
+        <span className={`font-mono text-sm font-bold tabular-nums ${highlight ? 'text-cyan-300' : 'text-slate-200'}`}>{value ?? 'â€”'}</span>
         {unit && <span className="text-[10px] text-slate-600">{unit}</span>}
       </div>
     </div>
@@ -23,14 +24,135 @@ function VSpeedCard({ label, value, color, sub }) {
     <div className={`flex flex-col items-center justify-center p-3 rounded-lg border ${color} min-w-0`}>
       <span className="text-[10px] font-bold tracking-widest text-slate-500 uppercase">{label}</span>
       <span className={`text-3xl font-mono font-black tabular-nums mt-0.5 ${color.includes('cyan') ? 'text-cyan-300' : color.includes('emerald') ? 'text-emerald-300' : color.includes('amber') ? 'text-amber-300' : color.includes('orange') ? 'text-orange-300' : 'text-red-300'}`}>
-        {value ?? '—'}
+        {value ?? 'â€”'}
       </span>
       {sub && <span className="text-[9px] text-slate-600 mt-0.5">{sub}</span>}
     </div>
   );
 }
+const AIRCRAFT_FUEL_BURN_KGPH = {
+  C172: 36,
+  C182: 52,
+  DA62: 95,
+  TBM9: 240,
+  B738: 2600,
+  B739: 2750,
+  B737: 2450,
+  A319: 2350,
+  A320: 2500,
+  A321: 2850,
+  B788: 5200,
+  B789: 5600,
+};
 
-export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
+const CATEGORY_FUEL_BURN_KGPH = {
+  small_prop: 60,
+  turboprop: 260,
+  regional_jet: 1300,
+  narrow_body: 2500,
+  wide_body: 5600,
+  cargo: 3000,
+};
+
+const toAircraftToken = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+const resolveAircraftIcao = (...values) => {
+  for (const value of values) {
+    const s = toAircraftToken(value);
+    if (!s || s === 'UNKNOWN' || s === 'NA' || s === 'NAN') continue;
+    if (/PMDG/.test(s) && /(737|738|739|700|800|900)/.test(s)) {
+      if (/739|900/.test(s)) return 'B739';
+      if (/700/.test(s)) return 'B737';
+      return 'B738';
+    }
+    if (/A20N|A320NEO|AIRBUSA320|A320/.test(s)) return 'A320';
+    if (/A21N|A321NEO|AIRBUSA321|A321/.test(s)) return 'A321';
+    if (/A19N|A319NEO|AIRBUSA319|A319/.test(s)) return 'A319';
+    if (/B38M|B737MAX8|BOEING7378|B737800|737800|B738/.test(s)) return 'B738';
+    if (/B39M|B737MAX9|BOEING7379|B737900|737900|B739/.test(s)) return 'B739';
+    if (/B737|737NG|737/.test(s)) return 'B738';
+    if (/B78X|B789|BOEING7879|B787900|787900/.test(s)) return 'B789';
+    if (/B788|BOEING7878|B787800|787800/.test(s)) return 'B788';
+    if (/C172|CESSNA172/.test(s)) return 'C172';
+    if (/C182|CESSNA182/.test(s)) return 'C182';
+    if (/TBM9|TBM930|TBM940/.test(s)) return 'TBM9';
+    if (/DA62/.test(s)) return 'DA62';
+    if (/^[A-Z][A-Z0-9]{2,4}$/.test(s) && /\d/.test(s)) return s;
+  }
+  return '';
+};
+
+const parseEnrouteHours = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const colonMatch = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (colonMatch) {
+    const h = Number(colonMatch[1]);
+    const m = Number(colonMatch[2]);
+    if (Number.isFinite(h) && Number.isFinite(m)) return h + (m / 60);
+  }
+  const floatVal = Number(raw);
+  if (Number.isFinite(floatVal) && floatVal > 0) return floatVal;
+  return null;
+};
+
+const resolveBurnKgPerHour = ({ aircraftIcao, fleetAircraft, simbriefData }) => {
+  const mapped = AIRCRAFT_FUEL_BURN_KGPH[aircraftIcao];
+  if (Number.isFinite(mapped) && mapped > 0) return mapped;
+
+  const fleetLitersPerHour = Number(fleetAircraft?.fuel_consumption_per_hour || 0);
+  if (Number.isFinite(fleetLitersPerHour) && fleetLitersPerHour > 0) {
+    return fleetLitersPerHour * 0.8;
+  }
+
+  const fallbackByCategory = CATEGORY_FUEL_BURN_KGPH[String(fleetAircraft?.aircraft_type || '').toLowerCase()];
+  if (Number.isFinite(fallbackByCategory) && fallbackByCategory > 0) return fallbackByCategory;
+
+  const sbTrip = Number(simbriefData?.fuel_plan?.trip_fuel_kg || 0);
+  const sbReserve = Number(simbriefData?.fuel_plan?.reserve_fuel_kg || 0);
+  const enrouteHours = parseEnrouteHours(simbriefData?.estimated_time_enroute);
+  if (sbTrip > 0 && enrouteHours && enrouteHours > 0.1) {
+    return Math.max(50, sbTrip / enrouteHours);
+  }
+  if (sbTrip > 0 && sbReserve > 0) {
+    const pseudoTotal = sbTrip + sbReserve;
+    return Math.max(50, pseudoTotal / 1.8);
+  }
+
+  return 800;
+};
+
+const estimateFuelNeed = ({ aircraftIcao, fleetAircraft, simbriefData }) => {
+  const distanceNm = Math.max(0, Number(simbriefData?.distance_nm || 0));
+  const enrouteHours = parseEnrouteHours(simbriefData?.estimated_time_enroute);
+  const cruiseKts = Math.max(90, Number(getCruiseSpeed(aircraftIcao, fleetAircraft?.aircraft_type) || 0));
+  const burnKgH = Math.max(50, resolveBurnKgPerHour({ aircraftIcao, fleetAircraft, simbriefData }));
+
+  const routeHours = enrouteHours && enrouteHours > 0
+    ? enrouteHours
+    : (distanceNm > 0 ? (distanceNm / cruiseKts) : 1.2);
+
+  const tripFuelKg = burnKgH * routeHours;
+  const contingencyFuelKg = tripFuelKg * 0.05;
+  const reserveFuelKg = burnKgH * 0.45;
+  const alternateFuelKg = tripFuelKg * 0.10;
+  const taxiFuelKg = burnKgH * 0.07;
+  const totalFuelKg = tripFuelKg + contingencyFuelKg + reserveFuelKg + alternateFuelKg + taxiFuelKg;
+
+  return {
+    burn_kgph: Math.round(burnKgH),
+    route_hours: Number(routeHours.toFixed(2)),
+    trip_kg: Math.round(tripFuelKg),
+    contingency_kg: Math.round(contingencyFuelKg),
+    reserve_kg: Math.round(reserveFuelKg),
+    alternate_kg: Math.round(alternateFuelKg),
+    taxi_kg: Math.round(taxiFuelKg),
+    total_kg: Math.round(totalFuelKg),
+    total_liters: Math.round(totalFuelKg * 1.25),
+  };
+};
+
+export default function TakeoffLandingCalculator({ simbriefData, xplaneData, aircraft }) {
   const { lang } = useLanguage();
 
   const [simData, setSimData] = useState(null); // raw data from X-Plane/MSFS
@@ -64,40 +186,6 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
   const normalizeSimData = (raw) => {
     if (!raw) return null;
     const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && v !== '') return v; } return null; };
-    const normIcao = (v) => {
-      const s = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (!s) return '';
-      if (/A20N|A320NEO|AIRBUSA320|A320/.test(s)) return 'A320';
-      if (/A21N|A321NEO|AIRBUSA321|A321/.test(s)) return 'A321';
-      if (/A19N|A319NEO|AIRBUSA319|A319/.test(s)) return 'A319';
-      if (/B38M|B737MAX8|BOEING7378|B737800|737800|B738/.test(s)) return 'B738';
-      if (/B39M|B737MAX9|BOEING7379|B737900|737900|B739/.test(s)) return 'B739';
-      if (/B78X|B789|BOEING7879|B787900|787900/.test(s)) return 'B789';
-      if (/B788|BOEING7878|B787800|787800/.test(s)) return 'B788';
-      if (/C172|CESSNA172/.test(s)) return 'C172';
-      if (/C182|CESSNA182/.test(s)) return 'C182';
-      if (/TBM9|TBM930|TBM940/.test(s)) return 'TBM9';
-      if (/DA62/.test(s)) return 'DA62';
-      if (/^[A-Z][A-Z0-9]{2,4}$/.test(s) && /\d/.test(s)) return s;
-      return '';
-    };
-    const inferIcaoFromText = (...vals) => {
-      const text = vals
-        .map((v) => String(v || '').toUpperCase())
-        .join(' ')
-        .replace(/[^A-Z0-9]/g, '');
-      if (!text) return null;
-      if (/A20N|A320NEO|AIRBUSA320|A320/.test(text)) return 'A320';
-      if (/A21N|A321NEO|AIRBUSA321|A321/.test(text)) return 'A321';
-      if (/A19N|A319NEO|AIRBUSA319|A319/.test(text)) return 'A319';
-      if (/B38M|B737MAX8|B737800|737800|B738/.test(text)) return 'B738';
-      if (/B39M|B737MAX9|B737900|737900|B739/.test(text)) return 'B739';
-      if (/B78X|B789|B787900|787900/.test(text)) return 'B789';
-      if (/B788|B787800|787800/.test(text)) return 'B788';
-      if (/C172|CESSNA172/.test(text)) return 'C172';
-      if (/TBM9|TBM930|TBM940/.test(text)) return 'TBM9';
-      return null;
-    };
 
     // Weight: try kg first, then convert from lbs
     let total_weight_kg = pick(raw.total_weight_kg, raw.gross_weight_kg, raw.weight_kg);
@@ -143,7 +231,7 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
 
     return {
       ...raw,
-      aircraft_icao: normIcao(aircraftIcaoRaw) || inferIcaoFromText(aircraftIcaoRaw, aircraftType) || null,
+      aircraft_icao: resolveAircraftIcao(aircraftIcaoRaw, aircraftType) || null,
       aircraft_type: aircraftType || null,
       total_weight_kg,
       oat_c,
@@ -192,23 +280,6 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     const sd = simData || {};
     const sb = simbriefData || {};
 
-    const canonicalAircraft = (value) => {
-      const s = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (!s || s === 'UNKNOWN' || s === 'NA' || s === 'NAN') return '';
-      if (/A20N|A320NEO|AIRBUSA320|A320/.test(s)) return 'A320';
-      if (/A21N|A321NEO|AIRBUSA321|A321/.test(s)) return 'A321';
-      if (/A19N|A319NEO|AIRBUSA319|A319/.test(s)) return 'A319';
-      if (/B38M|B737MAX8|BOEING7378|B737800|737800|B738/.test(s)) return 'B738';
-      if (/B39M|B737MAX9|BOEING7379|B737900|737900|B739/.test(s)) return 'B739';
-      if (/B78X|B789|BOEING7879|B787900|787900/.test(s)) return 'B789';
-      if (/B788|BOEING7878|B787800|787800/.test(s)) return 'B788';
-      if (/C172|CESSNA172/.test(s)) return 'C172';
-      if (/C182|CESSNA182/.test(s)) return 'C182';
-      if (/TBM9|TBM930|TBM940/.test(s)) return 'TBM9';
-      if (/DA62/.test(s)) return 'DA62';
-      if (/^[A-Z][A-Z0-9]{2,4}$/.test(s) && /\d/.test(s)) return s;
-      return '';
-    };
     const aircraftTextFallback = (...vals) => {
       for (const v of vals) {
         const s = String(v || '').trim();
@@ -219,13 +290,17 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
       }
       return '';
     };
-    const aircraftType =
-      canonicalAircraft(sd.aircraft_icao) ||
-      canonicalAircraft(sd.aircraft_type) ||
-      canonicalAircraft(sb.aircraft_icao) ||
-      canonicalAircraft(sb.raw_general?.icao_aircraft) ||
-      canonicalAircraft(sb.raw_general?.aircraft_icao) ||
-      canonicalAircraft(sb.raw_general?.aircraft_type) ||
+    const aircraftIcao =
+      resolveAircraftIcao(
+        sd.aircraft_icao,
+        sd.aircraft_type,
+        sb.aircraft_icao,
+        sb.raw_general?.icao_aircraft,
+        sb.raw_general?.aircraft_icao,
+        sb.raw_general?.aircraft_type,
+      ) || '';
+    const aircraftLabel =
+      aircraftIcao ||
       aircraftTextFallback(
         sd.aircraft_type,
         sb.raw_general?.aircraft_type,
@@ -249,16 +324,21 @@ export default function TakeoffLandingCalculator({ simbriefData, xplaneData }) {
     const depElev = sb.departure_elevation_ft ?? elevFt;
     const arrElev = sb.arrival_elevation_ft ?? 0;
     const ldwKg = sb.ldw_kg || (weightKg ? Math.round(weightKg * 0.88) : null);
+    const fuelEstimate = estimateFuelNeed({
+      aircraftIcao: aircraftIcao || resolveAircraftIcao(aircraft?.icao, aircraft?.aircraft_type),
+      fleetAircraft: aircraft,
+      simbriefData: sb,
+    });
 
     const prompt = `You are an airline performance engineer. Calculate REAL V-speeds and performance data.
 
-Aircraft type: ${aircraftType}
+Aircraft type: ${aircraftLabel}
 Takeoff weight: ${weightKg ? weightKg + ' kg' : 'estimate from aircraft MTOW'}
 Landing weight: ${ldwKg ? ldwKg + ' kg' : 'estimate from aircraft MLW'}
-OAT at departure: ${oatC}°C
+OAT at departure: ${oatC}Â°C
 Departure airport elevation: ${Math.round(depElev)} ft
 QNH: ${qnh} hPa
-Wind: ${Math.round(windKts)} kts from ${Math.round(windDir)}°
+Wind: ${Math.round(windKts)} kts from ${Math.round(windDir)}Â°
 Departure runway: ${depRwy || 'unknown'}, length: ${depRwyLength ? depRwyLength + ' m' : 'unknown'}
 Arrival airport: ${arrAirport || 'unknown'}, elevation: ${Math.round(arrElev)} ft
 Arrival runway: ${arrRwy || 'unknown'}, length: ${arrRwyLength ? arrRwyLength + ' m' : 'unknown'}
@@ -323,6 +403,10 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
       setResults({ ...res, v1, vr, v2, vref, vapp,
         dep_airport: depAirport, dep_rwy: depRwy,
         arr_airport: arrAirport, arr_rwy: arrRwy,
+        dep_rwy_length_m: depRwyLength,
+        arr_rwy_length_m: arrRwyLength,
+        recognized_aircraft_icao: aircraftIcao || null,
+        fuel_estimate: fuelEstimate,
         oat: oatC, wind: windKts, windDir, qnh
       });
     } else {
@@ -331,7 +415,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
 
     setCalculating(false);
     calcRef.current = false;
-  }, [simData, simbriefData, lang]);
+  }, [simData, simbriefData, lang, aircraft]);
 
   const hasSimData = !!simData;
   const hasSimbriefData = !!simbriefData;
@@ -347,7 +431,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
         <div className="flex items-center gap-2 flex-wrap">
           {hasSimbriefData && (
             <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30 text-[10px]">
-              SimBrief: {simbriefData.departure_airport}→{simbriefData.arrival_airport}
+              SimBrief: {simbriefData.departure_airport}â†’{simbriefData.arrival_airport}
               {simbriefData.tow_kg ? ` | TOW ${Math.round(simbriefData.tow_kg/1000)}t` : ''}
             </Badge>
           )}
@@ -363,7 +447,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
 
         {/* Step 1: Load from Sim */}
         <div className="space-y-2">
-          <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Step 1 — Load from Simulator</div>
+          <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Step 1 â€” Load from Simulator</div>
           <Button
             onClick={loadFromSim}
             disabled={simLoading}
@@ -374,16 +458,16 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
 
           {hasSimData && simData.weight_estimated && (
             <div className="flex items-start gap-2 p-2 bg-blue-900/20 border border-blue-700/30 rounded text-[10px] text-blue-400">
-              <span>ℹ {lang === 'de'
-                ? `Gewicht geschätzt aus OEW + Fuel (${simData.aircraft_icao}): ~${Math.round(simData.total_weight_kg).toLocaleString()} kg. OAT/QNH nutzt Standardwerte.`
+              <span>â„¹ {lang === 'de'
+                ? `Gewicht geschÃ¤tzt aus OEW + Fuel (${simData.aircraft_icao}): ~${Math.round(simData.total_weight_kg).toLocaleString()} kg. OAT/QNH nutzt Standardwerte.`
                 : `Weight estimated from OEW + Fuel (${simData.aircraft_icao}): ~${Math.round(simData.total_weight_kg).toLocaleString()} kg. OAT/QNH uses defaults.`
               }</span>
             </div>
           )}
           {hasSimData && !simData.total_weight_kg && !simData.oat_c && !simData.baro_setting && (
             <div className="flex items-start gap-2 p-2 bg-amber-900/20 border border-amber-700/30 rounded text-[10px] text-amber-400">
-              <span>⚠ {lang === 'de'
-                ? 'Keine Performance-Daten vom Simulator (GWT/OAT/QNH). Die Berechnung nutzt Standardwerte bzw. SimBrief-Daten falls verfügbar.'
+              <span>âš  {lang === 'de'
+                ? 'Keine Performance-Daten vom Simulator (GWT/OAT/QNH). Die Berechnung nutzt Standardwerte bzw. SimBrief-Daten falls verfÃ¼gbar.'
                 : 'No performance data from simulator (GWT/OAT/QNH). Calculation will use defaults or SimBrief data if available.'
               }</span>
             </div>
@@ -400,7 +484,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
               </div>
               <div className="flex flex-col items-center bg-slate-950 rounded p-1.5">
                 <span className="text-slate-600">OAT</span>
-                <span className="text-amber-300 font-bold">{simData.oat_c != null ? Math.round(simData.oat_c) : '?'}°C</span>
+                <span className="text-amber-300 font-bold">{simData.oat_c != null ? Math.round(simData.oat_c) : '?'}Â°C</span>
               </div>
               <div className="flex flex-col items-center bg-slate-950 rounded p-1.5">
                 <span className="text-slate-600">QNH</span>
@@ -409,7 +493,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
               <div className="flex flex-col items-center bg-slate-950 rounded p-1.5">
                 <span className="text-slate-600">WIND</span>
                 <span className="text-slate-200 font-bold">
-                  {(simData.wind_dir ?? simData.wind_direction) != null ? Math.round(simData.wind_dir ?? simData.wind_direction) : '?'}°/{simData.wind_speed_kts != null ? Math.round(simData.wind_speed_kts) : '?'}kt
+                  {(simData.wind_dir ?? simData.wind_direction) != null ? Math.round(simData.wind_dir ?? simData.wind_direction) : '?'}Â°/{simData.wind_speed_kts != null ? Math.round(simData.wind_speed_kts) : '?'}kt
                 </span>
               </div>
               <div className="flex flex-col items-center bg-slate-950 rounded p-1.5">
@@ -422,7 +506,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
 
         {/* Step 2: Calculate */}
         <div className="space-y-2">
-          <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Step 2 — Calculate Performance</div>
+          <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Step 2 â€” Calculate Performance</div>
           <Button
             onClick={calculate}
             disabled={calculating || (!hasSimData && !hasSimbriefData)}
@@ -451,8 +535,23 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
             {/* Aircraft & Airport Info */}
             <div className="flex items-center justify-between px-3 py-2 bg-slate-900/80 rounded-lg border border-slate-800 text-xs font-mono">
               <span className="text-cyan-400 font-bold">{results.aircraft_name || simData?.aircraft_icao || simbriefData?.aircraft_icao}</span>
-              {results.dep_airport && <span className="text-slate-400">{results.dep_airport}{results.dep_rwy ? ` / ${results.dep_rwy}` : ''} → {results.arr_airport}{results.arr_rwy ? ` / ${results.arr_rwy}` : ''}</span>}
+              {results.dep_airport && <span className="text-slate-400">{results.dep_airport}{results.dep_rwy ? ` / ${results.dep_rwy}` : ''} â†’ {results.arr_airport}{results.arr_rwy ? ` / ${results.arr_rwy}` : ''}</span>}
             </div>
+
+            {(results.dep_rwy_length_m || results.arr_rwy_length_m) && (
+              <div className="bg-slate-900/60 rounded border border-slate-800 p-2.5">
+                <DataRow
+                  label={lang === 'de' ? 'DEP RWY Laenge (SimBrief)' : 'DEP RWY Length (SimBrief)'}
+                  value={results.dep_rwy_length_m ? Math.round(results.dep_rwy_length_m).toLocaleString() : '-'}
+                  unit="M"
+                />
+                <DataRow
+                  label={lang === 'de' ? 'ARR RWY Laenge (SimBrief)' : 'ARR RWY Length (SimBrief)'}
+                  value={results.arr_rwy_length_m ? Math.round(results.arr_rwy_length_m).toLocaleString() : '-'}
+                  unit="M"
+                />
+              </div>
+            )}
 
             {/* Warnings */}
             {results.warnings?.length > 0 && (
@@ -469,13 +568,23 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2 bg-slate-900/60 border border-slate-800 rounded-lg text-center">
                 <span className="text-[10px] text-slate-600 uppercase">TOW</span>
-                <p className="text-sm font-mono font-bold text-white">{results.tow_kg ? Math.round(results.tow_kg).toLocaleString() : '—'} kg</p>
+                <p className="text-sm font-mono font-bold text-white">{results.tow_kg ? Math.round(results.tow_kg).toLocaleString() : 'â€”'} kg</p>
               </div>
               <div className="p-2 bg-slate-900/60 border border-slate-800 rounded-lg text-center">
                 <span className="text-[10px] text-slate-600 uppercase">LDW</span>
-                <p className="text-sm font-mono font-bold text-white">{results.ldw_kg ? Math.round(results.ldw_kg).toLocaleString() : '—'} kg</p>
+                <p className="text-sm font-mono font-bold text-white">{results.ldw_kg ? Math.round(results.ldw_kg).toLocaleString() : 'â€”'} kg</p>
               </div>
             </div>
+
+            {results.fuel_estimate && (
+              <div className="bg-slate-900/60 rounded border border-slate-800 p-2.5">
+                <DataRow label={lang === 'de' ? 'Fuel Bedarf (gesamt)' : 'Fuel required (total)'} value={Math.round(results.fuel_estimate.total_kg).toLocaleString()} unit="KG" highlight />
+                <DataRow label={lang === 'de' ? 'Fuel Bedarf (Liter)' : 'Fuel required (liters)'} value={Math.round(results.fuel_estimate.total_liters).toLocaleString()} unit="L" />
+                <DataRow label={lang === 'de' ? 'Trip Fuel' : 'Trip fuel'} value={Math.round(results.fuel_estimate.trip_kg).toLocaleString()} unit="KG" />
+                <DataRow label={lang === 'de' ? 'Reserve + Alternate' : 'Reserve + alternate'} value={Math.round(results.fuel_estimate.reserve_kg + results.fuel_estimate.alternate_kg).toLocaleString()} unit="KG" />
+                <DataRow label={lang === 'de' ? 'Verbrauchsannahme' : 'Burn assumption'} value={Math.round(results.fuel_estimate.burn_kgph).toLocaleString()} unit="KG/H" />
+              </div>
+            )}
 
             {/* TAKEOFF V-SPEEDS */}
             <div className="space-y-2">
@@ -494,10 +603,10 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
                 <VSpeedCard label="V2" value={results.v2} color="bg-emerald-900/20 border-emerald-900/40" sub="Safety" />
               </div>
               <div className="bg-slate-900/60 rounded border border-slate-800 p-2.5">
-                <DataRow label="TODR" value={results.todr_m ? results.todr_m.toLocaleString() : '—'} unit="M" />
+                <DataRow label="TODR" value={results.todr_m ? results.todr_m.toLocaleString() : 'â€”'} unit="M" />
                 {results.tora_m && <DataRow label="TORA" value={results.tora_m.toLocaleString()} unit="M" />}
                 {results.takeoff_margin_m != null && <DataRow label="Margin" value={(results.takeoff_margin_m >= 0 ? '+' : '') + Math.round(results.takeoff_margin_m).toLocaleString()} unit="M" highlight />}
-                <DataRow label="Density Alt" value={results.density_altitude_ft ? Math.round(results.density_altitude_ft).toLocaleString() : '—'} unit="FT" />
+                <DataRow label="Density Alt" value={results.density_altitude_ft ? Math.round(results.density_altitude_ft).toLocaleString() : 'â€”'} unit="FT" />
               </div>
             </div>
 
@@ -517,7 +626,7 @@ Return precise values. V1 < VR < V2 always. VAPP > VREF always.`;
                 <VSpeedCard label="VAPP" value={results.vapp} color="bg-orange-900/20 border-orange-900/40" sub="Approach" />
               </div>
               <div className="bg-slate-900/60 rounded border border-slate-800 p-2.5">
-                <DataRow label="LDR" value={results.ldr_m ? results.ldr_m.toLocaleString() : '—'} unit="M" />
+                <DataRow label="LDR" value={results.ldr_m ? results.ldr_m.toLocaleString() : 'â€”'} unit="M" />
                 {results.lda_m && <DataRow label="LDA" value={results.lda_m.toLocaleString()} unit="M" />}
                 {results.landing_margin_m != null && <DataRow label="Margin" value={(results.landing_margin_m >= 0 ? '+' : '') + Math.round(results.landing_margin_m).toLocaleString()} unit="M" highlight />}
               </div>

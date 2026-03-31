@@ -1892,21 +1892,28 @@ Deno.serve(async (req) => {
 
     // Build minimal update object - only include what changes
     const updateData: Record<string, any> = { xplane_data: xplaneData };
-    if (resetStaleFailureState) {
-      // Ensure old failures/commands do not leak into a newly started flight session.
-      updateData.active_failures = [];
-      updateData.bridge_command_queue = [];
-      updateData.xplane_data = {
-        ...xplaneData,
-        bridge_command_queue: [],
-      };
-    }
     const queuedBridgeCommandsRaw = Array.isArray((flight as any)?.bridge_command_queue)
       ? (flight as any).bridge_command_queue
       : (Array.isArray((flight as any)?.xplane_data?.bridge_command_queue)
           ? (flight as any).xplane_data.bridge_command_queue
           : []);
-    const bridgeCommandsForBridge = (resetStaleFailureState ? [] : queuedBridgeCommandsRaw)
+    const isWorkerRestartCommand = (cmd: any) => {
+      const commandType = String(cmd?.type || "").toLowerCase().trim();
+      return commandType === "worker_restart" || commandType === "restart_worker" || commandType === "bridge_worker_restart";
+    };
+    if (resetStaleFailureState) {
+      // Ensure old failures/commands do not leak into a newly started flight session.
+      const restartCommands = queuedBridgeCommandsRaw.filter((cmd: any) => isWorkerRestartCommand(cmd)).slice(-1);
+      updateData.active_failures = [];
+      updateData.bridge_command_queue = restartCommands;
+      updateData.xplane_data = {
+        ...xplaneData,
+        bridge_command_queue: restartCommands,
+      };
+    }
+    const bridgeCommandsForBridge = (resetStaleFailureState
+        ? queuedBridgeCommandsRaw.filter((cmd: any) => isWorkerRestartCommand(cmd))
+        : queuedBridgeCommandsRaw)
       .filter((cmd: any) => cmd && typeof cmd === "object" && cmd.type)
       .slice(0, 4)
       .map((cmd: any) => ({

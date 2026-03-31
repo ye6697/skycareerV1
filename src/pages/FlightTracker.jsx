@@ -42,15 +42,21 @@ import WeatherDisplay from "@/components/flights/WeatherDisplay";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
-import { sanitizeFailureList } from "@/components/flights/failureUtils";
+import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const ENGINE_HIGH_LOAD_THRESHOLD_PCT = 99;
-const ENGINE_HIGH_LOAD_GRACE_SECONDS = 10 * 60;
-const ENGINE_HIGH_LOAD_STEP_SECONDS = 60;
-const ENGINE_HIGH_LOAD_WEAR_PER_STEP = 1;
+const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
+const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 30;
+const ENGINE_WEAR_PER_STEP = 0.1;
+const ENGINE_HIGH_G_THRESHOLD = 1.6;
+const ENGINE_HIGH_G_MULTIPLIER = 1.4;
+const ENGINE_HARD_LANDING_G_THRESHOLD = 1.45;
+const ENGINE_HARD_LANDING_G_MULTIPLIER = 1.2;
+const HIGH_G_FORCE_ENGINE_EVENT_WEAR = 0.6;
+const HARD_LANDING_ENGINE_EVENT_WEAR = 1.1;
 
 const LANDING_GEAR_EXP_FACTOR = 1.25;
 const LANDING_GEAR_EXP_MULTIPLIER = 5;
@@ -73,6 +79,7 @@ const HIGH_G_FORCE_AIRFRAME_EVENT_WEAR = 3;
 const HIGH_G_FORCE_AVIONICS_EVENT_WEAR = 1.5;
 const OVERSTRESS_MAINTENANCE_PERCENT = 1.5;
 const OVERSPEED_MAINTENANCE_PERCENT = 2.2;
+const FAILURE_POPUP_VISIBLE_MS = 9000;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -152,11 +159,31 @@ const calcEngineHighLoadSeconds = (telemetryHistory, currentEngineLoadPct) => {
   });
 };
 
-const calcEngineExtraWearFromHighLoadSeconds = (highLoadSeconds) => {
-  const excessSeconds = Math.max(0, Number(highLoadSeconds || 0) - ENGINE_HIGH_LOAD_GRACE_SECONDS);
-  if (excessSeconds <= 0) return 0;
-  const fullSteps = Math.floor(excessSeconds / ENGINE_HIGH_LOAD_STEP_SECONDS);
-  return fullSteps * ENGINE_HIGH_LOAD_WEAR_PER_STEP;
+const calcEngineWearFromThrustProfile = (fullThrustSeconds, totalFlightSeconds) => {
+  const totalSeconds = Math.max(0, Number(totalFlightSeconds || 0));
+  const fullSeconds = clamp(Number(fullThrustSeconds || 0), 0, totalSeconds);
+  const nonFullSeconds = Math.max(0, totalSeconds - fullSeconds);
+  const fullSteps = Math.floor(fullSeconds / ENGINE_FULL_THRUST_STEP_SECONDS);
+  const nonFullSteps = Math.floor(nonFullSeconds / ENGINE_PARTIAL_THRUST_STEP_SECONDS);
+  const fullWear = fullSteps * ENGINE_WEAR_PER_STEP;
+  const nonFullWear = nonFullSteps * ENGINE_WEAR_PER_STEP;
+  return {
+    fullSeconds,
+    nonFullSeconds,
+    fullSteps,
+    nonFullSteps,
+    fullWear,
+    nonFullWear,
+    totalWear: fullWear + nonFullWear,
+  };
+};
+
+const calcEngineWearFromHighG = (maxGForce) => {
+  return Math.max(0, Number(maxGForce || 1) - ENGINE_HIGH_G_THRESHOLD) * ENGINE_HIGH_G_MULTIPLIER;
+};
+
+const calcEngineWearFromHardLanding = (landingGForce) => {
+  return Math.max(0, Number(landingGForce || 0) - ENGINE_HARD_LANDING_G_THRESHOLD) * ENGINE_HARD_LANDING_G_MULTIPLIER;
 };
 
 const calcLandingGearWearFromLandingG = (landingGForce) => {
@@ -342,6 +369,25 @@ export default function FlightTracker() {
     failure_landing_gear: false, failure_airframe: false
   };
   const [failurePopup, setFailurePopup] = useState(null);
+  const failurePopupTimerRef = React.useRef(null);
+  const showFailurePopup = React.useCallback((message) => {
+    if (!message) return;
+    if (failurePopupTimerRef.current) {
+      clearTimeout(failurePopupTimerRef.current);
+    }
+    setFailurePopup({ id: Date.now(), message });
+    failurePopupTimerRef.current = setTimeout(() => {
+      setFailurePopup(null);
+      failurePopupTimerRef.current = null;
+    }, FAILURE_POPUP_VISIBLE_MS);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (failurePopupTimerRef.current) {
+        clearTimeout(failurePopupTimerRef.current);
+      }
+    };
+  }, []);
   const [flightData, setFlightData] = useState({
     altitude: 0, speed: 0, verticalSpeed: 0, heading: 0,
     fuel: 100, fuelKg: 0, gForce: 1.0, maxGForce: 1.0,
@@ -387,18 +433,40 @@ export default function FlightTracker() {
       reasons[category].push(reason);
     };
 
-    const engineExtraWear = calcEngineExtraWearFromHighLoadSeconds(engineHighLoadSecondsLive);
-    if (engineExtraWear > 0 || engineHighLoadSecondsLive > 0) {
-      liveWear.engine += engineExtraWear;
+    const landingG = Number(currentLiveData.landingGForce || 0);
+    const engineThrustWear = calcEngineWearFromThrustProfile(engineHighLoadSecondsLive, flightDurationSeconds);
+    if (engineThrustWear.totalWear > 0 || flightDurationSeconds > 0) {
+      liveWear.engine += engineThrustWear.totalWear;
       addReason(
         'engine',
         lang === 'de'
-          ? `Engine >=99%: ${(engineHighLoadSecondsLive / 60).toFixed(1)} min`
-          : `Engine >=99%: ${(engineHighLoadSecondsLive / 60).toFixed(1)} min`
+          ? `Vollschub ${(engineThrustWear.fullSeconds / 60).toFixed(1)} min (+${engineThrustWear.fullWear.toFixed(1)}%), Teilschub ${(engineThrustWear.nonFullSeconds / 60).toFixed(1)} min (+${engineThrustWear.nonFullWear.toFixed(1)}%)`
+          : `Full thrust ${(engineThrustWear.fullSeconds / 60).toFixed(1)} min (+${engineThrustWear.fullWear.toFixed(1)}%), partial thrust ${(engineThrustWear.nonFullSeconds / 60).toFixed(1)} min (+${engineThrustWear.nonFullWear.toFixed(1)}%)`
       );
     }
 
-    const landingG = Number(currentLiveData.landingGForce || 0);
+    const engineHighGWear = calcEngineWearFromHighG(currentLiveData.maxGForce);
+    if (engineHighGWear > 0) {
+      liveWear.engine += engineHighGWear;
+      addReason(
+        'engine',
+        lang === 'de'
+          ? `High-G ${Number(currentLiveData.maxGForce || 1).toFixed(2)}G (+${engineHighGWear.toFixed(2)}%)`
+          : `High-G ${Number(currentLiveData.maxGForce || 1).toFixed(2)}G (+${engineHighGWear.toFixed(2)}%)`
+      );
+    }
+
+    const engineHardLandingWear = calcEngineWearFromHardLanding(landingG);
+    if (engineHardLandingWear > 0) {
+      liveWear.engine += engineHardLandingWear;
+      addReason(
+        'engine',
+        lang === 'de'
+          ? `Landing-G ${landingG.toFixed(2)} (+${engineHardLandingWear.toFixed(2)}%)`
+          : `Landing G ${landingG.toFixed(2)} (+${engineHardLandingWear.toFixed(2)}%)`
+      );
+    }
+
     const landingImpactWear = calcLandingGearWearFromLandingG(landingG);
     const avionicsLandingWear = calcAvionicsWearFromLandingG(landingG);
     if (landingImpactWear > 0) {
@@ -503,11 +571,15 @@ export default function FlightTracker() {
     if (ev.high_g_force) {
       liveWear.airframe += HIGH_G_FORCE_AIRFRAME_EVENT_WEAR;
       liveWear.avionics += HIGH_G_FORCE_AVIONICS_EVENT_WEAR;
+      liveWear.engine += HIGH_G_FORCE_ENGINE_EVENT_WEAR;
       addReason('airframe', lang === 'de' ? 'Hohe G-Last' : 'High G load');
       addReason('avionics', lang === 'de' ? 'Hohe G-Last' : 'High G load');
+      addReason('engine', lang === 'de' ? `High-G Event +${HIGH_G_FORCE_ENGINE_EVENT_WEAR}%` : `High-G event +${HIGH_G_FORCE_ENGINE_EVENT_WEAR}%`);
     }
     if (ev.hard_landing) {
+      liveWear.engine += HARD_LANDING_ENGINE_EVENT_WEAR;
       addReason('landing_gear', lang === 'de' ? 'Harte Landung' : 'Hard landing');
+      addReason('engine', lang === 'de' ? `Harte Landung +${HARD_LANDING_ENGINE_EVENT_WEAR}%` : `Hard landing +${HARD_LANDING_ENGINE_EVENT_WEAR}%`);
     }
     if (ev.gear_up_landing) {
       liveWear.landing_gear += 25;
@@ -561,9 +633,12 @@ export default function FlightTracker() {
     const landingG = Number(flightData.landingGForce || 0);
     const maxG = Number(flightData.maxGForce || 1);
     const controlInput = clamp(Number(flightData.maxControlInput || 0), 0, 1);
-    const excessHighLoadSeconds = Math.max(0, engineHighLoadSecondsLive - ENGINE_HIGH_LOAD_GRACE_SECONDS);
-
-    const engineExtraWear = calcEngineExtraWearFromHighLoadSeconds(engineHighLoadSecondsLive);
+    const ev = flightData.events || {};
+    const engineThrustWear = calcEngineWearFromThrustProfile(engineHighLoadSecondsLive, flightDurationSeconds);
+    const engineHighGWear = calcEngineWearFromHighG(maxG);
+    const engineHardLandingWear = calcEngineWearFromHardLanding(landingG);
+    const engineEventWear = (ev.high_g_force ? HIGH_G_FORCE_ENGINE_EVENT_WEAR : 0) + (ev.hard_landing ? HARD_LANDING_ENGINE_EVENT_WEAR : 0);
+    const engineExtraWear = engineThrustWear.totalWear + engineHighGWear + engineHardLandingWear + engineEventWear;
     const landingImpactWear = calcLandingGearWearFromLandingG(landingG);
     const airframeHighGWear = calcAirframeWearFromHighG(maxG);
     const avionicsHighGWear = calcAvionicsWearFromHighG(maxG);
@@ -573,7 +648,6 @@ export default function FlightTracker() {
     const electricalControlWear = calcElectricalWearFromControlInput(controlInput);
     const controlsWear = calcFlightControlsWearFromControlInput(controlInput);
     const pressureWear = calcPressurizationWearFromHighAltSeconds(highAltitudeSecondsLive);
-    const ev = flightData.events || {};
     const categoryCostData = liveMaintenanceCostSnapshot?.byCategory?.[category?.key] || { base: 0, added: 0, total: 0 };
 
     let details = lang === 'de'
@@ -591,14 +665,14 @@ export default function FlightTracker() {
 
     if (category?.key === 'engine') {
       details = lang === 'de'
-        ? 'Engine: Bis 10 Minuten bei >=99% Leistung kein Extra. Danach +1% pro weitere volle Minute.'
-        : 'Engine: First 10 minutes at >=99% has no extra wear. After that: +1% per full minute.';
+        ? 'Triebwerk: Vollschub erzeugt schnelleren Verschleiss (alle 3s +0.1%), Teilschub langsamer (alle 30s +0.1%). Hohe Gs und harte Landungen erhoehen zusaetzlich.'
+        : 'Engine: Full thrust wears faster (+0.1% every 3s), non-full thrust slower (+0.1% every 30s). High G and hard landings add extra wear.';
       formula = lang === 'de'
-        ? 'Extra = floor(max(0, HighLoadSek - 600) / 60) x 1%'
-        : 'Extra = floor(max(0, highLoadSec - 600) / 60) x 1%';
+        ? `Extra = floor(VollschubSek/${ENGINE_FULL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + floor(TeilschubSek/${ENGINE_PARTIAL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + max(0, MaxG - ${ENGINE_HIGH_G_THRESHOLD}) x ${ENGINE_HIGH_G_MULTIPLIER} + max(0, LandingG - ${ENGINE_HARD_LANDING_G_THRESHOLD}) x ${ENGINE_HARD_LANDING_G_MULTIPLIER} + Event-Boni`
+        : `Extra = floor(fullThrustSec/${ENGINE_FULL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + floor(nonFullSec/${ENGINE_PARTIAL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + max(0, maxG - ${ENGINE_HIGH_G_THRESHOLD}) x ${ENGINE_HIGH_G_MULTIPLIER} + max(0, landingG - ${ENGINE_HARD_LANDING_G_THRESHOLD}) x ${ENGINE_HARD_LANDING_G_MULTIPLIER} + event bonuses`;
       trigger = lang === 'de'
-        ? `High-Load >=99%: ${(engineHighLoadSecondsLive / 60).toFixed(1)} min, ueber Schwelle ${(excessHighLoadSeconds / 60).toFixed(1)} min, Extra +${engineExtraWear.toFixed(1)}%`
-        : `High-load >=99%: ${(engineHighLoadSecondsLive / 60).toFixed(1)} min, above threshold ${(excessHighLoadSeconds / 60).toFixed(1)} min, extra +${engineExtraWear.toFixed(1)}%`;
+        ? `Vollschub ${(engineThrustWear.fullSeconds / 60).toFixed(1)} min (+${engineThrustWear.fullWear.toFixed(1)}%), Teilschub ${(engineThrustWear.nonFullSeconds / 60).toFixed(1)} min (+${engineThrustWear.nonFullWear.toFixed(1)}%), High-G +${engineHighGWear.toFixed(2)}%, harte Landung +${engineHardLandingWear.toFixed(2)}%${ev.high_g_force ? `, Event +${HIGH_G_FORCE_ENGINE_EVENT_WEAR}%` : ''}${ev.hard_landing ? `, Hard-Landing Event +${HARD_LANDING_ENGINE_EVENT_WEAR}%` : ''} => Extra +${engineExtraWear.toFixed(2)}%`
+        : `Full thrust ${(engineThrustWear.fullSeconds / 60).toFixed(1)} min (+${engineThrustWear.fullWear.toFixed(1)}%), non-full thrust ${(engineThrustWear.nonFullSeconds / 60).toFixed(1)} min (+${engineThrustWear.nonFullWear.toFixed(1)}%), high-G +${engineHighGWear.toFixed(2)}%, hard landing +${engineHardLandingWear.toFixed(2)}%${ev.high_g_force ? `, event +${HIGH_G_FORCE_ENGINE_EVENT_WEAR}%` : ''}${ev.hard_landing ? `, hard-landing event +${HARD_LANDING_ENGINE_EVENT_WEAR}%` : ''} => extra +${engineExtraWear.toFixed(2)}%`;
       possibleFailures = lang === 'de'
         ? 'Moegliche Ausfaelle: Leistungsverlust, unruhiger Lauf, Triebwerksausfall/Feuer'
         : 'Possible failures: thrust loss, rough running, engine failure/fire';
@@ -860,14 +934,11 @@ export default function FlightTracker() {
       return updated;
     });
 
-    setFailurePopup({
-      id: Date.now(),
-      message: lang === 'de'
-        ? `${labelByCategory[failureCategory]} erkannt`
-        : `${labelByCategory[failureCategory]} detected`,
-    });
-    setTimeout(() => setFailurePopup(null), 4500);
-  }, [xplaneLog, lang, flight, existingFlight]);
+    const popupMessage = lang === 'de'
+      ? `${labelByCategory[failureCategory]} erkannt`
+      : `${labelByCategory[failureCategory]} detected`;
+    showFailurePopup(popupMessage);
+  }, [xplaneLog, lang, flight, existingFlight, showFailurePopup]);
 
   // Initial fetch to get current flight data immediately
   useEffect(() => {
@@ -1123,8 +1194,21 @@ export default function FlightTracker() {
       lang,
       { bridgeOnly: true }
     );
-    return persisted;
-  }, [flight?.active_failures, existingFlight?.active_failures, lang]);
+    const fromEventFlags = buildFailuresFromEventFlags(flightData?.events || {}, lang);
+    if (fromEventFlags.length === 0) return persisted;
+
+    const merged = [...persisted];
+    const seen = new Set(
+      persisted.map((entry) => `${String(entry?.category || "")}|${String(entry?.name || "")}`),
+    );
+    for (const entry of fromEventFlags) {
+      const dedupeKey = `${String(entry?.category || "")}|${String(entry?.name || "")}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      merged.push(entry);
+    }
+    return merged;
+  }, [flight?.active_failures, existingFlight?.active_failures, flightData?.events, lang]);
 
   const liveMaintenanceCostSnapshot = useMemo(() => {
     const purchasePrice = Math.max(0, Number(assignedAircraft?.purchase_price || 0));
@@ -1197,6 +1281,35 @@ export default function FlightTracker() {
     return { lat: 0, lon: 0, valid: false };
   };
 
+  const queueBridgeWorkerRestart = React.useCallback(async (targetFlight) => {
+    const flightId = targetFlight?.id;
+    if (!flightId) return;
+    const nowIso = new Date().toISOString();
+    const currentQueue = Array.isArray(targetFlight?.bridge_command_queue)
+      ? targetFlight.bridge_command_queue
+      : (Array.isArray(targetFlight?.xplane_data?.bridge_command_queue)
+          ? targetFlight.xplane_data.bridge_command_queue
+          : []);
+    const filteredQueue = currentQueue.filter((cmd) => String(cmd?.type || '').toLowerCase() !== 'worker_restart');
+    const restartCommand = {
+      id: `cmd-worker-restart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: 'worker_restart',
+      simulator: 'msfs',
+      created_at: nowIso,
+      source: 'flight_start_auto',
+      persist_until_landed: false,
+    };
+    const nextBridgeCommands = [...filteredQueue, restartCommand].slice(-25);
+
+    await base44.entities.Flight.update(flightId, {
+      bridge_command_queue: nextBridgeCommands,
+      xplane_data: {
+        ...(targetFlight?.xplane_data || {}),
+        bridge_command_queue: nextBridgeCommands,
+      },
+    });
+  }, []);
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // Verwende den existierenden Flight oder erstelle einen neuen (sollte nicht passieren)
@@ -1214,7 +1327,13 @@ export default function FlightTracker() {
       
       return newFlight;
     },
-    onSuccess: (flightResult) => {
+    onSuccess: async (flightResult) => {
+      try {
+        await queueBridgeWorkerRestart(flightResult);
+      } catch (err) {
+        console.warn('Bridge worker restart command could not be queued:', err);
+      }
+
       setFlight(flightResult);
       setFlightPhase('takeoff');
       // flightStartTime wird NICHT hier gesetzt, sondern erst beim Abheben
@@ -1414,8 +1533,7 @@ export default function FlightTracker() {
       const popupMessage = lang === 'de'
         ? `${scenario.name.de} wurde ausgelost`
         : `${scenario.name.en} triggered`;
-      setFailurePopup({ id: Date.now(), message: popupMessage });
-      setTimeout(() => setFailurePopup(null), 4500);
+      showFailurePopup(popupMessage);
 
       setFlight((prev) => {
         if (!prev) return prev;
@@ -1874,11 +1992,17 @@ export default function FlightTracker() {
               xpData?.engine_load_pct,
               xpData?.engineLoadPct
             );
+            const finalMaxG = Number(finalFlightData.maxGForce || 1);
             const highLoadSeconds = calcEngineHighLoadSeconds(telemetryHistory, latestEngineLoad);
-            const extraEngineWear = calcEngineExtraWearFromHighLoadSeconds(highLoadSeconds);
+            const totalFlightSeconds = Math.max(0, Number(flightHours || 0) * 3600);
+            const engineThrustWear = calcEngineWearFromThrustProfile(highLoadSeconds, totalFlightSeconds);
+            const engineHighGWear = calcEngineWearFromHighG(finalMaxG);
+            const engineHardLandingWear = calcEngineWearFromHardLanding(storedLandingG);
+            const finalEvents = finalFlightData.events || {};
+            const engineEventWear = (finalEvents.high_g_force ? HIGH_G_FORCE_ENGINE_EVENT_WEAR : 0) + (finalEvents.hard_landing ? HARD_LANDING_ENGINE_EVENT_WEAR : 0);
+            const extraEngineWear = engineThrustWear.totalWear + engineHighGWear + engineHardLandingWear + engineEventWear;
             addFlightDamage('engine', extraEngineWear);
 
-            const finalMaxG = Number(finalFlightData.maxGForce || 1);
             const finalControlInput = clamp(Number(finalFlightData.maxControlInput || 0), 0, 1);
             const landingGearImpactWear = calcLandingGearWearFromLandingG(storedLandingG);
             const avionicsLandingWear = calcAvionicsWearFromLandingG(storedLandingG);
@@ -3120,99 +3244,6 @@ export default function FlightTracker() {
               </Card>
             )}
 
-            {flightPhase !== 'preflight' && liveMaintenanceCategories.length > 0 && (
-              <Card className="p-6 bg-slate-950/80 border-slate-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-300">
-                  <Wrench className="w-5 h-5 text-amber-400" />
-                  {lang === 'de'
-                    ? 'Live-Ansicht: interagierende Wartungskategorien'
-                    : 'Live view: interacting maintenance categories'}
-                </h3>
-                <div className="mb-3 p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">{lang === 'de' ? 'Aktuelle Wartungskosten gesamt' : 'Current total maintenance cost'}</span>
-                    <span className="text-red-400 font-mono">${Math.round(liveCurrentTotalMaintenanceCost).toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">{lang === 'de' ? 'In diesem Flug addiert' : 'Added in this flight'}</span>
-                    <span className="text-amber-300 font-mono">+${Math.round(liveFlightAddedMaintenanceCost).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {liveMaintenanceCategories.map((category) => {
-                    const Icon = category.icon;
-                    const categoryCosts = liveMaintenanceCostSnapshot?.byCategory?.[category.key] || { total: 0, added: 0 };
-                    return (
-                      <div key={category.key} className="p-2 rounded-lg bg-slate-900/70 border border-slate-800">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Icon className={`w-4 h-4 shrink-0 ${category.colorClass}`} />
-                            <span className="text-sm text-slate-200 truncate flex items-center gap-1">
-                              <span>{category.label}</span>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700/70 transition-colors"
-                                    aria-label={lang === 'de' ? `Kostenformel für ${category.label}` : `Cost formula for ${category.label}`}
-                                  >
-                                    <Info className="w-3 h-3" />
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 bg-slate-900 border-slate-700 text-slate-200 p-3" align="start">
-                                  {(() => {
-                                    const info = liveCostExplanationRef.current(category);
-                                    return (
-                                      <div className="space-y-1.5 text-xs">
-                                        <p className="font-semibold text-white">{info.title}</p>
-                                        <p className="text-slate-300">{info.details}</p>
-                                        <p className="text-slate-400">{info.formula}</p>
-                                        <p className="text-rose-300">{info.possibleFailures}</p>
-                                        <p className="text-amber-300 font-mono">{info.breakdown}</p>
-                                      </div>
-                                    );
-                                  })()}
-                                </PopoverContent>
-                              </Popover>
-                            </span>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className={`text-sm font-mono ${category.colorClass}`}>
-                              {category.wear.toFixed(1)}%
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-mono">
-                              ${Math.round(categoryCosts.total || 0).toLocaleString()}
-                              <span className="text-amber-300"> (+${Math.round(categoryCosts.added || 0).toLocaleString()})</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
-                          <div
-                            className="h-1.5 rounded-full bg-amber-500 transition-all"
-                            style={{ width: `${Math.min(100, category.wear)}%` }}
-                          />
-                        </div>
-                        {category.reasons.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {category.reasons.slice(0, 3).map((reason, idx) => (
-                              <Badge key={`${category.key}-${idx}`} className="bg-slate-800 text-slate-300 border-slate-600 text-[10px]">
-                                {reason}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-3">
-                  {lang === 'de'
-                    ? 'Diese Ansicht zeigt laufende Kategorien während des Flugs. Finale Wartungswerte werden beim Flugabschluss in die Flotte übernommen.'
-                    : 'This view shows ongoing categories during flight. Final maintenance values are applied to fleet on flight completion.'}
-                </p>
-              </Card>
-            )}
-
             {/* Controls */}
             {flightPhase !== 'completed' && (
               <Card className="p-6 bg-slate-800/50 border-slate-700">
@@ -3502,6 +3533,115 @@ export default function FlightTracker() {
               xplaneData={xplaneLog?.raw_data}
               simbriefData={simbriefRoute}
             />
+            {flightPhase !== 'preflight' && liveMaintenanceCategories.length > 0 && (
+              <Card className="p-6 bg-slate-950/80 border-slate-700">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-300">
+                  <Wrench className="w-5 h-5 text-amber-400" />
+                  {lang === 'de'
+                    ? 'Live-Ansicht: interagierende Wartungskategorien'
+                    : 'Live view: interacting maintenance categories'}
+                </h3>
+                <div className="mb-3 p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">{lang === 'de' ? 'Aktuelle Wartungskosten gesamt' : 'Current total maintenance cost'}</span>
+                    <span className="text-red-400 font-mono">${Math.round(liveCurrentTotalMaintenanceCost).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">{lang === 'de' ? 'In diesem Flug addiert' : 'Added in this flight'}</span>
+                    <span className="text-amber-300 font-mono">+${Math.round(liveFlightAddedMaintenanceCost).toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {liveMaintenanceCategories.map((category) => {
+                    const Icon = category.icon;
+                    const categoryCosts = liveMaintenanceCostSnapshot?.byCategory?.[category.key] || { total: 0, added: 0 };
+                    const categoryBaseCost = Math.max(0, Number(categoryCosts.base || 0));
+                    const categoryAddedCost = Math.max(0, Number(categoryCosts.added || 0));
+                    const categoryTotalCost = Math.max(0, Number(categoryCosts.total || 0));
+                    const maintenanceTotal = Math.max(0, Number(liveCurrentTotalMaintenanceCost || 0));
+                    const totalPercent = maintenanceTotal > 0 ? (categoryTotalCost / maintenanceTotal) * 100 : 0;
+                    const basePercent = maintenanceTotal > 0 ? (categoryBaseCost / maintenanceTotal) * 100 : 0;
+                    const addedPercent = maintenanceTotal > 0 ? (categoryAddedCost / maintenanceTotal) * 100 : 0;
+                    const clampedBasePercent = Math.min(100, Math.max(0, basePercent));
+                    const clampedAddedPercent = Math.min(100 - clampedBasePercent, Math.max(0, addedPercent));
+                    return (
+                      <div key={category.key} className="p-2 rounded-lg bg-slate-900/70 border border-slate-800">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Icon className={`w-4 h-4 shrink-0 ${category.colorClass}`} />
+                            <span className="text-sm text-slate-200 truncate flex items-center gap-1">
+                              <span>{category.label}</span>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-700/70 transition-colors"
+                                    aria-label={lang === 'de' ? `Kostenformel fuer ${category.label}` : `Cost formula for ${category.label}`}
+                                  >
+                                    <Info className="w-3 h-3" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 bg-slate-900 border-slate-700 text-slate-200 p-3" align="start">
+                                  {(() => {
+                                    const info = liveCostExplanationRef.current(category);
+                                    return (
+                                      <div className="space-y-1.5 text-xs">
+                                        <p className="font-semibold text-white">{info.title}</p>
+                                        <p className="text-slate-300">{info.details}</p>
+                                        <p className="text-slate-400">{info.formula}</p>
+                                        <p className="text-rose-300">{info.possibleFailures}</p>
+                                        <p className="text-amber-300 font-mono">{info.breakdown}</p>
+                                      </div>
+                                    );
+                                  })()}
+                                </PopoverContent>
+                              </Popover>
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className={`text-sm font-mono ${category.colorClass}`}>
+                              {category.wear.toFixed(1)}%
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              ${Math.round(categoryTotalCost).toLocaleString()}
+                              <span className="text-amber-300"> (+${Math.round(categoryAddedCost).toLocaleString()})</span>
+                              <span className="text-emerald-300"> | {totalPercent.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="relative w-full bg-slate-700 rounded-full h-1.5 mt-2 overflow-hidden">
+                          <div
+                            className="absolute left-0 top-0 h-1.5 bg-emerald-500 transition-all"
+                            style={{ width: `${clampedBasePercent}%` }}
+                          />
+                          <div
+                            className="absolute top-0 h-1.5 bg-orange-400 transition-all"
+                            style={{
+                              left: `${clampedBasePercent}%`,
+                              width: `${clampedAddedPercent}%`,
+                            }}
+                          />
+                        </div>
+                        {category.reasons.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {category.reasons.slice(0, 3).map((reason, idx) => (
+                              <Badge key={`${category.key}-${idx}`} className="bg-slate-800 text-slate-300 border-slate-600 text-[10px]">
+                                {reason}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-3">
+                  {lang === 'de'
+                    ? 'Diese Ansicht zeigt laufende Kategorien waehrend des Flugs. Finale Wartungswerte werden beim Flugabschluss in die Flotte uebernommen.'
+                    : 'This view shows ongoing categories during flight. Final maintenance values are applied to fleet on flight completion.'}
+                </p>
+              </Card>
+            )}
           </div>
         )}
       </div>

@@ -175,6 +175,7 @@ def main():
     worker_restart_count = 0
     consecutive_post_timeouts = 0
     last_successful_post_at = time.time()
+    last_seen_flight_id = None
 
     print("[SkyCareer] Starting MSFS bridge v2.3 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
@@ -636,6 +637,20 @@ def main():
                     if resp.status_code >= 400:
                         print(f"[SkyCareer] API error {resp.status_code}: {resp.text[:200]}")
                     else:
+                        resp_json = None
+                        try:
+                            resp_json = resp.json()
+                        except Exception:
+                            resp_json = None
+
+                        current_flight_id = str((resp_json or {}).get("flight_id") or "").strip()
+                        if current_flight_id:
+                            if last_seen_flight_id is None:
+                                last_seen_flight_id = current_flight_id
+                            elif current_flight_id != last_seen_flight_id:
+                                last_seen_flight_id = current_flight_id
+                                raise RuntimeError(f"Active flight changed -> worker restart ({current_flight_id})")
+
                         # Reset per-post peak window only after a successful send.
                         state["window_peak_g"] = g_force
                         state["window_min_vs"] = min(0.0, vertical_speed)
@@ -665,6 +680,7 @@ def main():
             state = reset_flight_state()
             prev_on_ground = True
             prev_vs = 0.0
+            last_seen_flight_id = None
             consecutive_post_timeouts = 0
             last_successful_post_at = time.time()
             next_post_at = 0.0
