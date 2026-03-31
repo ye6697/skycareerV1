@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,12 @@ import {
   AlertTriangle,
   Timer,
   Activity,
+  Wrench,
+  Cog,
+  CircuitBoard,
+  Shield,
+  Zap,
+  Wind,
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
@@ -180,6 +186,87 @@ export default function FlightTracker() {
     failure_landing_gear: false, failure_airframe: false
   };
   const [failurePopup, setFailurePopup] = useState(null);
+
+  const maintenanceCategoryConfig = useMemo(() => ([
+    { key: 'engine', icon: Cog, label: lang === 'de' ? 'Triebwerk' : 'Engine' },
+    { key: 'hydraulics', icon: Gauge, label: lang === 'de' ? 'Hydraulik' : 'Hydraulics' },
+    { key: 'avionics', icon: CircuitBoard, label: lang === 'de' ? 'Avionik' : 'Avionics' },
+    { key: 'airframe', icon: Shield, label: lang === 'de' ? 'Struktur' : 'Airframe' },
+    { key: 'landing_gear', icon: Plane, label: lang === 'de' ? 'Fahrwerk' : 'Landing Gear' },
+    { key: 'electrical', icon: Zap, label: lang === 'de' ? 'Elektrik' : 'Electrical' },
+    { key: 'flight_controls', icon: Wind, label: lang === 'de' ? 'Steuerflächen' : 'Flight Controls' },
+  ]), [lang]);
+
+  const liveMaintenanceCategories = useMemo(() => {
+    if (flightPhase === 'preflight') return [];
+
+    const baseWear = (flightDurationSeconds / 3600) * 0.5;
+    const liveWear = {
+      engine: baseWear,
+      hydraulics: baseWear,
+      avionics: baseWear,
+      airframe: baseWear,
+      landing_gear: baseWear,
+      electrical: baseWear,
+      flight_controls: baseWear,
+    };
+
+    const reasons = {};
+    const addReason = (category, reason) => {
+      reasons[category] = reasons[category] || [];
+      reasons[category].push(reason);
+    };
+
+    if (flightData.events.tailstrike) {
+      liveWear.airframe += 10;
+      addReason('airframe', lang === 'de' ? 'Tailstrike' : 'Tailstrike');
+    }
+    if (flightData.events.overstress) {
+      liveWear.airframe += 15;
+      addReason('airframe', lang === 'de' ? 'Strukturlast' : 'Structural stress');
+    }
+    if (flightData.events.high_g_force) {
+      liveWear.airframe += 8;
+      addReason('airframe', lang === 'de' ? 'Hohe G-Last' : 'High G load');
+    }
+    if (flightData.events.hard_landing || flightData.events.gear_up_landing) {
+      liveWear.landing_gear += 12;
+      addReason('landing_gear', lang === 'de' ? 'Harte Landung' : 'Hard landing');
+    }
+    if (flightData.events.flaps_overspeed) {
+      liveWear.flight_controls += 10;
+      addReason('flight_controls', lang === 'de' ? 'Klappen-Überspeed' : 'Flaps overspeed');
+    }
+    if (flightData.events.failure_engine) addReason('engine', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (flightData.events.failure_electrical) addReason('electrical', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (flightData.events.failure_avionics) addReason('avionics', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (flightData.events.failure_landing_gear) addReason('landing_gear', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+    if (flightData.events.failure_airframe) addReason('airframe', lang === 'de' ? 'Ausfall erkannt' : 'Failure detected');
+
+    if (flightData.events.crash) {
+      Object.keys(liveWear).forEach((cat) => {
+        liveWear[cat] = 100;
+        addReason(cat, lang === 'de' ? 'Crash' : 'Crash');
+      });
+    }
+
+    const toColor = (wear) => {
+      if (wear >= 80) return 'text-red-400';
+      if (wear >= 60) return 'text-orange-400';
+      if (wear >= 35) return 'text-amber-400';
+      return 'text-emerald-400';
+    };
+
+    return maintenanceCategoryConfig
+      .map((category) => ({
+        ...category,
+        wear: Math.min(100, Math.max(0, liveWear[category.key] || 0)),
+        reasons: reasons[category.key] || [],
+      }))
+      .filter((category) => category.wear > 0.3 || category.reasons.length > 0)
+      .sort((a, b) => b.wear - a.wear)
+      .map((category) => ({ ...category, colorClass: toColor(category.wear) }));
+  }, [flightPhase, flightDurationSeconds, flightData.events, lang, maintenanceCategoryConfig]);
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractIdFromUrl = urlParams.get('contractId');
@@ -2468,6 +2555,55 @@ export default function FlightTracker() {
                         </div>
                         )}
                 </div>
+              </Card>
+            )}
+
+            {flightPhase !== 'preflight' && liveMaintenanceCategories.length > 0 && (
+              <Card className="p-6 bg-slate-950/80 border-slate-700">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-300">
+                  <Wrench className="w-5 h-5 text-amber-400" />
+                  {lang === 'de'
+                    ? 'Live-Ansicht: interagierende Wartungskategorien'
+                    : 'Live view: interacting maintenance categories'}
+                </h3>
+                <div className="space-y-2">
+                  {liveMaintenanceCategories.map((category) => {
+                    const Icon = category.icon;
+                    return (
+                      <div key={category.key} className="p-2 rounded-lg bg-slate-900/70 border border-slate-800">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Icon className={`w-4 h-4 shrink-0 ${category.colorClass}`} />
+                            <span className="text-sm text-slate-200 truncate">{category.label}</span>
+                          </div>
+                          <span className={`text-sm font-mono ${category.colorClass}`}>
+                            {category.wear.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
+                          <div
+                            className="h-1.5 rounded-full bg-amber-500 transition-all"
+                            style={{ width: `${Math.min(100, category.wear)}%` }}
+                          />
+                        </div>
+                        {category.reasons.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {category.reasons.slice(0, 3).map((reason, idx) => (
+                              <Badge key={`${category.key}-${idx}`} className="bg-slate-800 text-slate-300 border-slate-600 text-[10px]">
+                                {reason}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-3">
+                  {lang === 'de'
+                    ? 'Diese Ansicht zeigt laufende Kategorien während des Flugs. Finale Wartungswerte werden beim Flugabschluss in die Flotte übernommen.'
+                    : 'This view shows ongoing categories during flight. Final maintenance values are applied to fleet on flight completion.'}
+                </p>
               </Card>
             )}
 
