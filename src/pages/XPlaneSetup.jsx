@@ -34,7 +34,6 @@ const COPY = {
     msfsTitle: 'MSFS 2020/2024 Bridge Suite (Windows)',
     msfsDesc: 'Recommended deployment path for MSFS. Includes SC Installer and SC Uninstaller as your official bridge lifecycle tools.',
     msfsBtn: 'Download MSFS Bridge Package',
-    msfsTabletBtn: 'Download MSFS In-Game Tablet (WebView)',
 
     msfsPyTitle: 'MSFS Python Bridge (Advanced Fallback)',
     msfsPyDesc: 'Manual fallback path for advanced users. Requires Python 3 and python-simconnect.',
@@ -111,7 +110,6 @@ const COPY = {
     msfsTitle: 'MSFS 2020/2024 Bridge Suite (Windows)',
     msfsDesc: 'Empfohlener Deployment-Weg fuer MSFS. Enthalten sind SC Installer und SC Uninstaller als offizieller Lifecycle-Flow.',
     msfsBtn: 'MSFS Paket herunterladen',
-    msfsTabletBtn: 'MSFS Ingame Tablet (WebView) herunterladen',
 
     msfsPyTitle: 'MSFS Python Bridge (Advanced Fallback)',
     msfsPyDesc: 'Manueller Fallback fuer fortgeschrittene Nutzer. Benoetigt Python 3 und python-simconnect.',
@@ -272,63 +270,6 @@ export default function XPlaneSetup() {
     }
   };
 
-  const downloadStaticZip = async (file, fallbackFunction = null) => {
-    setDownloading(true);
-    try {
-      const basePath = import.meta?.env?.BASE_URL || '/';
-      const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-      const candidates = [
-        new URL(`downloads/${file}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
-        new URL(`${normalizedBase}downloads/${file}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-        new URL(`/downloads/${file}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-      ];
-
-      let bytes = null;
-      let lastError = null;
-
-      for (const fileUrl of candidates) {
-        try {
-          const res = await fetch(fileUrl, { cache: 'no-store' });
-          if (!res.ok) {
-            lastError = `HTTP ${res.status} @ ${fileUrl}`;
-            continue;
-          }
-          const arr = new Uint8Array(await res.arrayBuffer());
-          if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
-            bytes = arr;
-            break;
-          }
-          lastError = `Invalid ZIP bytes @ ${fileUrl}`;
-        } catch (e) {
-          lastError = `${e?.message || e} @ ${fileUrl}`;
-        }
-      }
-
-      if (!bytes && fallbackFunction) {
-        try {
-          const response = await base44.functions.invoke(fallbackFunction, {});
-          const base64 = response?.data?.base64;
-          if (base64) {
-            bytes = decodeBase64Zip(base64);
-          }
-        } catch (invokeError) {
-          lastError = `${lastError || ''} | invoke: ${invokeError?.message || invokeError}`;
-        }
-      }
-
-      if (!bytes) {
-        throw new Error(lastError || 'Download path and fallback not reachable');
-      }
-
-      triggerZipDownload(bytes, file);
-    } catch (error) {
-      console.error(`Error downloading ${file}:`, error);
-      alert(text.downloadError);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   const downloadSkyCareerDesktop = async () => {
     setDownloading(true);
     try {
@@ -392,10 +333,6 @@ export default function XPlaneSetup() {
     } finally {
       setDownloading(false);
     }
-  };
-
-  const downloadMsfsTablet = async () => {
-    await downloadStaticZip('SkyCareer_MSFS_Ingame_Tablet.zip', 'downloadMSFSTablet');
   };
 
   const downloadMsfsBridge = async () => {
@@ -467,10 +404,6 @@ export default function XPlaneSetup() {
                 <Button className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-900/30" onClick={downloadSkyCareerDesktop} disabled={isBusy}>
                   {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
                   {isBusy ? text.loading : text.msfsBtn}
-                </Button>
-                <Button className="w-full bg-slate-700/95 hover:bg-slate-600 text-slate-100" onClick={downloadMsfsTablet} disabled={isBusy}>
-                  {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-                  {isBusy ? text.loading : text.msfsTabletBtn}
                 </Button>
               </div>
 
