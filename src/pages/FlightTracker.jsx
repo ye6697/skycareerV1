@@ -3711,6 +3711,9 @@ export default function FlightTracker() {
                           <div className={`text-sm font-mono ${category.colorClass}`}>
                             {category.wear.toFixed(1)}%
                           </div>
+                          <div className="text-[11px] text-orange-300 font-mono">
+                            +{Number(category.addedWear || 0).toFixed(1)}%
+                          </div>
                           <div className="text-[11px] text-slate-400 font-mono">
                             ${Math.round(categoryTotalCost).toLocaleString()}
                             <span className="text-amber-300"> (+${Math.round(categoryAddedCost).toLocaleString()})</span>
