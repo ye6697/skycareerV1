@@ -413,8 +413,6 @@ export default function FlightTracker() {
 
   const liveMaintenanceCategories = useMemo(() => {
     if (flightPhase === 'preflight' || !flightDataRef.current) return [];
-    const assignedAircraftId = flight?.aircraft_id || existingFlight?.aircraft_id;
-    const existingCategories = aircraft?.find((a) => a.id === assignedAircraftId)?.maintenance_categories || {};
     const ev = flightDataRef.current.events || {};
     const baseWear = (flightDurationSeconds / 3600) * 0.5;
     const flightWear = {
@@ -616,15 +614,12 @@ export default function FlightTracker() {
 
     return maintenanceCategoryConfig
       .map((category) => {
-        const existingWear = Math.max(0, Number(existingCategories?.[category.key] || 0));
-        const flightAddedRaw = Math.max(0, Number(flightWear[category.key] || 0));
-        const totalWear = Math.min(100, existingWear + flightAddedRaw);
-        const addedWear = Math.max(0, totalWear - existingWear);
+        const addedWear = Math.max(0, Number(flightWear[category.key] || 0));
         return {
           ...category,
-          existingWear,
+          existingWear: 0,
           addedWear,
-          wear: totalWear,
+          wear: addedWear,
           reasons: reasons[category.key] || [],
         };
       })
@@ -638,9 +633,6 @@ export default function FlightTracker() {
     maintenanceCategoryConfig,
     engineHighLoadSecondsLive,
     highAltitudeSecondsLive,
-    aircraft,
-    flight?.aircraft_id,
-    existingFlight?.aircraft_id,
   ]);
 
   const liveCostExplanationRef = React.useRef(null);
@@ -1211,6 +1203,31 @@ export default function FlightTracker() {
 
   // Find the assigned aircraft for this flight
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
+  const liveMaintenanceCategoriesDisplay = useMemo(() => {
+    const existingCats = assignedAircraft?.maintenance_categories || {};
+    const toColor = (wear) => {
+      if (wear >= 80) return 'text-red-400';
+      if (wear >= 60) return 'text-orange-400';
+      if (wear >= 35) return 'text-amber-400';
+      return 'text-emerald-400';
+    };
+
+    return (Array.isArray(liveMaintenanceCategories) ? liveMaintenanceCategories : [])
+      .map((category) => {
+        const existingWear = Math.max(0, Number(existingCats?.[category.key] || 0));
+        const addedWear = Math.max(0, Number(category?.addedWear ?? category?.wear ?? 0));
+        const totalWear = Math.min(100, existingWear + addedWear);
+        return {
+          ...category,
+          existingWear,
+          addedWear,
+          wear: totalWear,
+          colorClass: toColor(totalWear),
+        };
+      })
+      .sort((a, b) => Number(b?.wear || 0) - Number(a?.wear || 0));
+  }, [assignedAircraft?.maintenance_categories, liveMaintenanceCategories]);
+
   const liveActiveFailures = useMemo(() => {
     const persisted = sanitizeFailureList(
       flight?.active_failures || existingFlight?.active_failures || [],
@@ -3557,7 +3574,7 @@ export default function FlightTracker() {
               xplaneData={xplaneLog?.raw_data}
               simbriefData={simbriefRoute}
             />
-            {flightPhase !== 'preflight' && liveMaintenanceCategories.length > 0 && (
+            {flightPhase !== 'preflight' && liveMaintenanceCategoriesDisplay.length > 0 && (
               <Card className="p-6 bg-slate-950/80 border-slate-700">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-300">
                   <Wrench className="w-5 h-5 text-amber-400" />
@@ -3576,7 +3593,7 @@ export default function FlightTracker() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {liveMaintenanceCategories.map((category) => {
+                  {liveMaintenanceCategoriesDisplay.map((category) => {
                     const Icon = category.icon;
                     const categoryCosts = liveMaintenanceCostSnapshot?.byCategory?.[category.key] || { total: 0, added: 0 };
                     const categoryBaseCost = Math.max(0, Number(categoryCosts.base || 0));
