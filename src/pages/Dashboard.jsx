@@ -264,11 +264,15 @@ export default function Dashboard() {
           { name: t('account', lang), icon: User, path: "Account", color: "text-rose-400" },
         ].map((item, i) => (
           <Link key={i} to={createPageUrl(item.path)} className="block h-full min-h-[140px]">
-            <button className="w-full h-full bg-slate-900/90 border border-cyan-900/40 hover:border-cyan-400/60 hover:bg-slate-800/90 rounded-xl flex flex-col items-center justify-center gap-3 transition-all duration-300 relative group shadow-lg overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <button className="w-full h-full rounded-2xl border border-cyan-900/40 bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 p-4 flex flex-col items-center justify-center gap-3 transition-all duration-300 relative group shadow-[0_8px_24px_rgba(15,23,42,0.45)] overflow-hidden hover:-translate-y-1 hover:border-cyan-400/70 hover:shadow-[0_14px_30px_rgba(8,145,178,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_45%),linear-gradient(to_bottom,rgba(255,255,255,0.05),transparent)] opacity-70 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-300/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               {item.alert && <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />}
-              <item.icon className={`w-12 h-12 ${item.color} group-hover:scale-110 group-hover:-translate-y-1 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]`} />
-              <span className="font-mono text-xs sm:text-sm uppercase font-bold text-slate-300 tracking-wider group-hover:text-white transition-colors">{item.name}</span>
+              <div className="w-14 h-14 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-center justify-center shadow-inner">
+                <item.icon className={`w-8 h-8 ${item.color} group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]`} />
+              </div>
+              <span className="font-mono text-xs sm:text-sm uppercase font-bold text-slate-300 tracking-[0.18em] group-hover:text-white transition-colors text-center">{item.name}</span>
+              <ChevronRight className="absolute bottom-3 right-3 w-4 h-4 text-cyan-300/50 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </button>
           </Link>
         ))}
