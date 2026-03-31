@@ -81,8 +81,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const repairPrice = accumulatedMaintCost;
       if (repairPrice <= 0) return;
       
-      // 20% permanent value reduction
-      const valueReduction = repairPrice * 0.20;
+      // 10% permanent value reduction of paid repair amount
+      const valueReduction = repairPrice * 0.10;
       const newValue = Math.max(0, rawCurrentValue - valueReduction);
       
       const newStatus = newValue <= 0 ? 'total_loss' : 'available';
@@ -104,7 +104,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         type: 'expense',
         category: 'maintenance',
         amount: repairPrice,
-        description: `Reparatur: ${aircraft.name} (20% Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
+        description: `Reparatur: ${aircraft.name} (10% Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
         date: new Date().toISOString()
       });
     },

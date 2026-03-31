@@ -13,20 +13,23 @@ import {
   ArrowRight,
   Star } from
 "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+import { t } from "@/components/i18n/translations";
 
 export default function ContractCard({ contract, onAccept, onView, isAccepting }) {
+  const { lang } = useLanguage();
   const typeConfig = {
-    passenger: { icon: Users, color: "blue", label: "Passagiere" },
-    cargo: { icon: Package, color: "orange", label: "Fracht" },
-    charter: { icon: Star, color: "purple", label: "Charter" },
-    emergency: { icon: Clock, color: "red", label: "Notfall" }
+    passenger: { icon: Users, color: "blue", label: t('passenger', lang) },
+    cargo: { icon: Package, color: "orange", label: t('cargo', lang) },
+    charter: { icon: Star, color: "purple", label: t('charter', lang) },
+    emergency: { icon: Clock, color: "red", label: t('priority_contract', lang) }
   };
 
   const difficultyConfig = {
-    easy: { color: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "Einfach" },
-    medium: { color: "bg-blue-100 text-blue-700 border-blue-200", label: "Mittel" },
-    hard: { color: "bg-orange-100 text-orange-700 border-orange-200", label: "Schwer" },
-    extreme: { color: "bg-red-100 text-red-700 border-red-200", label: "Extrem" }
+    easy: { color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40", label: lang === 'de' ? "Einfach" : "Easy" },
+    medium: { color: "bg-blue-500/20 text-blue-300 border-blue-500/40", label: lang === 'de' ? "Mittel" : "Medium" },
+    hard: { color: "bg-orange-500/20 text-orange-300 border-orange-500/40", label: lang === 'de' ? "Schwer" : "Hard" },
+    extreme: { color: "bg-red-500/20 text-red-300 border-red-500/40", label: lang === 'de' ? "Extrem" : "Extreme" }
   };
 
   const config = typeConfig[contract.type] || typeConfig.passenger;
@@ -40,7 +43,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}>
 
-      <Card className="overflow-hidden bg-slate-800 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-300">
+      <Card className="overflow-hidden bg-slate-900/90 border border-cyan-900/40 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.12)] transition-all duration-300">
         <div className={`h-1.5 bg-gradient-to-r ${
         config.color === "blue" ? "from-blue-400 to-blue-600" :
         config.color === "orange" ? "from-orange-400 to-orange-600" :
@@ -65,20 +68,20 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                 } />
               </div>
               <div>
-                <h3 className="font-semibold text-white">{contract.title}</h3>
-                <p className="text-sm text-slate-400">{config.label}</p>
+                <h3 className="font-semibold text-cyan-100">{contract.title}</h3>
+                <p className="text-sm text-cyan-500">{config.label}</p>
               </div>
             </div>
             <Badge className={`${difficulty.color} border`}>{difficulty.label}</Badge>
           </div>
 
           <div className="flex items-center gap-2 mb-4 text-sm">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 rounded-lg border border-cyan-900/30">
               <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="text-slate-50 font-medium">{contract.departure_airport}</span>
+              <span className="text-cyan-100 font-medium">{contract.departure_airport}</span>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 rounded-lg border border-cyan-900/30">
               <MapPin className="w-4 h-4 text-slate-400" />
               <span className="font-mono font-medium">{contract.arrival_airport}</span>
             </div>
@@ -92,7 +95,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
             {contract.type === "passenger" &&
             <div className="flex items-center gap-2 text-slate-300">
                 <Users className="w-4 h-4 text-slate-400" />
-                <span>{contract.passenger_count} Passagiere</span>
+                <span>{contract.passenger_count} {lang === 'de' ? 'Passagiere' : 'Passengers'}</span>
               </div>
             }
             {contract.type === "cargo" &&
@@ -105,19 +108,19 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-700">
             <div>
-              <p className="text-sm text-slate-400">Vergütung</p>
-              <p className="text-xl font-bold text-emerald-600">
+              <p className="text-sm text-cyan-500">{lang === 'de' ? 'Vergütung' : 'Payout'}</p>
+              <p className="text-xl font-bold text-emerald-400">
                 ${contract.payout?.toLocaleString()}
               </p>
               {contract.bonus_potential > 0 &&
-              <p className="text-xs text-amber-600">
-                  +${contract.bonus_potential?.toLocaleString()} Bonus möglich
+              <p className="text-xs text-amber-400">
+                  +${contract.bonus_potential?.toLocaleString()} {lang === 'de' ? 'Bonus möglich' : 'bonus possible'}
                 </p>
               }
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => onView?.(contract)}>
-                Details
+              <Button variant="outline" size="sm" onClick={() => onView?.(contract)} className="border-cyan-800 text-cyan-200 hover:bg-cyan-950/40">
+                {lang === 'de' ? 'Details' : 'Details'}
               </Button>
               {contract.status === "available" &&
               <Button
@@ -126,7 +129,7 @@ export default function ContractCard({ contract, onAccept, onView, isAccepting }
                 onClick={() => onAccept?.(contract)}
                 disabled={isAccepting}>
 
-                  Annehmen
+                  {lang === 'de' ? 'Annehmen' : 'Accept'}
                 </Button>
               }
             </div>
