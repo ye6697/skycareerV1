@@ -225,25 +225,12 @@ export default function FlightTracker() {
       .map((c) => ({ ...c, colorClass: toColor(c.wear) }));
   }, [flightPhase, flightDurationSeconds, lang, maintenanceCategoryConfig]);
 
-  const getLiveCategoryCostExplanation = (category) => {
-    const wearValue = Number(category?.wear || 0);
-    const wearPercent = Math.max(0, Math.min(100, wearValue));
-    const purchasePrice = assignedAircraft?.purchase_price || 0;
-    const baseCost = purchasePrice * 0.02;
-    const estimatedCost = baseCost * (wearPercent / 100);
-
-    return {
-      title: lang === 'de' ? 'Live-Kosten-Schätzung' : 'Live cost estimate',
-      details: lang === 'de'
-        ? 'Während des Flugs wird nur der Verschleiß live angezeigt. Der finale Betrag wird beim Abschluss verbucht.'
-        : 'During flight, only wear is shown live. Final amount is posted when the flight is completed.',
-      formula: lang === 'de'
-        ? 'Faustformel pro Kategorie: Neupreis × 2% × (aktueller Verschleiß / 100)'
-        : 'Rule of thumb per category: purchase price × 2% × (current wear / 100)',
-      breakdown: lang === 'de'
-        ? `$${Math.round(purchasePrice).toLocaleString()} × 0.02 × ${wearPercent.toFixed(1)}% ≈ $${Math.round(estimatedCost).toLocaleString()}`
-        : `$${Math.round(purchasePrice).toLocaleString()} × 0.02 × ${wearPercent.toFixed(1)}% ≈ $${Math.round(estimatedCost).toLocaleString()}`,
-    };
+  const liveCostExplanationRef = React.useRef(null);
+  liveCostExplanationRef.current = (category) => {
+    const wp = Math.max(0, Math.min(100, Number(category?.wear || 0)));
+    const pp = assignedAircraft?.purchase_price || 0;
+    const ec = pp * 0.02 * (wp / 100);
+    return { title: lang === 'de' ? 'Live-Kosten-Schätzung' : 'Live cost estimate', details: lang === 'de' ? 'Während des Flugs wird nur der Verschleiß live angezeigt. Der finale Betrag wird beim Abschluss verbucht.' : 'During flight, only wear is shown live. Final amount is posted when the flight is completed.', formula: lang === 'de' ? 'Faustformel pro Kategorie: Neupreis × 2% × (aktueller Verschleiß / 100)' : 'Rule of thumb per category: purchase price × 2% × (current wear / 100)', breakdown: `$${Math.round(pp).toLocaleString()} × 0.02 × ${wp.toFixed(1)}% ≈ $${Math.round(ec).toLocaleString()}` };
   };
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -2566,7 +2553,7 @@ export default function FlightTracker() {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 bg-slate-900 border-slate-700 text-slate-200 p-3" align="start">
                                   {(() => {
-                                    const info = getLiveCategoryCostExplanation(category);
+                                    const info = liveCostExplanationRef.current(category);
                                     return (
                                       <div className="space-y-1.5 text-xs">
                                         <p className="font-semibold text-white">{info.title}</p>
