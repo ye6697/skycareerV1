@@ -233,6 +233,9 @@ export default function Dashboard() {
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('level', lang)}</span>
            <span className="text-base sm:text-xl font-mono text-cyan-400 font-bold">{company.level || 1}</span>
+           <span className="text-[10px] text-cyan-500/80 font-mono mt-0.5">
+             XP: {(company.xp || 0).toLocaleString()}
+           </span>
         </div>
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">Reputation</span>

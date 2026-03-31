@@ -5,39 +5,26 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import {
   Search,
   Plane,
   Star,
   DollarSign,
-  Calendar,
   TrendingUp,
   TrendingDown
 } from "lucide-react";
 
-import FlightRating from "@/components/flights/FlightRating";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
 export default function FlightHistory() {
   const { lang } = useLanguage();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFlight, setSelectedFlight] = useState(null);
+  const [visibleFlights, setVisibleFlights] = useState(30);
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
@@ -62,11 +49,13 @@ export default function FlightHistory() {
   });
 
   const { data: flights = [], isLoading } = useQuery({
-    queryKey: ['flights', 'history', company?.id],
+    queryKey: ['flights', 'history', company?.id, visibleFlights],
     queryFn: async () => {
-      const completed = await base44.entities.Flight.filter({ company_id: company.id, status: 'completed' }, '-created_date');
-      const failed = await base44.entities.Flight.filter({ company_id: company.id, status: 'failed' }, '-created_date');
-      return [...completed, ...failed].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      const completed = await base44.entities.Flight.filter({ company_id: company.id, status: 'completed' }, '-created_date', visibleFlights);
+      const failed = await base44.entities.Flight.filter({ company_id: company.id, status: 'failed' }, '-created_date', visibleFlights);
+      return [...completed, ...failed]
+        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+        .slice(0, visibleFlights);
     },
     enabled: !!company?.id,
     staleTime: 60000,
@@ -250,7 +239,9 @@ export default function FlightHistory() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
                     className={`grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[100px_1fr_100px_70px_65px_55px_55px_70px_60px_90px] gap-1 items-center px-3 sm:px-5 py-2.5 cursor-pointer transition-colors font-mono text-sm ${isFailed ? 'bg-red-950/20 hover:bg-red-950/40' : 'hover:bg-slate-800/60'}`}
-                    onClick={() => setSelectedFlight(flight)}
+                    onClick={() => navigate(createPageUrl(`CompletedFlightDetails?contractId=${flight.contract_id}`), {
+                      state: { flight, contract }
+                    })}
                   >
                     {/* Date */}
                     <div className="text-slate-400 text-[11px] sm:text-xs">
@@ -326,6 +317,14 @@ export default function FlightHistory() {
                 );
               })}
             </div>
+            <div className="p-3 border-t border-slate-700/50 bg-[#111318]">
+              <Button
+                onClick={() => setVisibleFlights((prev) => prev + 30)}
+                className="w-full bg-cyan-900/40 text-cyan-400 border border-cyan-700/50 hover:bg-cyan-800/60 font-mono uppercase text-xs"
+              >
+                {lang === 'de' ? 'Mehr laden (30)' : 'Load more (30)'}
+              </Button>
+            </div>
           </Card>
         ) : (
           <Card className="p-12 text-center bg-slate-800 border border-slate-700">
@@ -334,51 +333,6 @@ export default function FlightHistory() {
             <p className="text-slate-400">{t('no_flights_completed_yet', lang)}</p>
           </Card>
         )}
-
-        {/* Flight Detail Dialog */}
-        <Dialog open={!!selectedFlight} onOpenChange={() => setSelectedFlight(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-white">
-            <DialogHeader>
-              <DialogTitle className="text-white">{t('flight_details', lang)}</DialogTitle>
-            </DialogHeader>
-            {selectedFlight && (
-              <div className="space-y-4">
-                <FlightRating flight={selectedFlight} />
-                
-                <Card className="p-4 bg-slate-800 border-slate-700">
-                  <h4 className="font-semibold mb-3 text-white">{t('financial_overview', lang)}</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-white">
-                      <span>{t('revenue', lang)}</span>
-                      <span className="text-emerald-400 font-medium">
-                        {formatCurrency(selectedFlight.revenue)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-white">
-                      <span>{t('fuel_cost', lang)}</span>
-                      <span className="text-red-400">-{formatCurrency(selectedFlight.fuel_cost)}</span>
-                    </div>
-                    <div className="flex justify-between text-white">
-                      <span>{t('crew_cost', lang)}</span>
-                      <span className="text-red-400">-{formatCurrency(selectedFlight.crew_cost)}</span>
-                    </div>
-                    <div className="flex justify-between text-white">
-                      <span>{t('maintenance_cost', lang)}</span>
-                      <span className="text-red-400">-{formatCurrency(selectedFlight.maintenance_cost)}</span>
-                    </div>
-                    <hr className="border-slate-600" />
-                    <div className="flex justify-between font-bold text-white">
-                      <span>{t('profit', lang)}</span>
-                      <span className={selectedFlight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                        {formatCurrency(selectedFlight.profit)}
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

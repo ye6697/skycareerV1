@@ -237,20 +237,20 @@ export default function Finances() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Chart */}
-          <Card className="lg:col-span-2 p-6 bg-slate-800 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-6">{t('income_vs_expenses', lang)}</h3>
+          <Card className="lg:col-span-2 p-6 bg-slate-900/90 border border-cyan-900/40">
+            <h3 className="text-lg font-semibold text-cyan-300 mb-6">{t('income_vs_expenses', lang)}</h3>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                  <YAxis stroke="#94a3b8" fontSize={11} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#164e63" />
+                  <XAxis dataKey="name" stroke="#67e8f9" fontSize={11} />
+                  <YAxis stroke="#67e8f9" fontSize={11} />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: '#1e293b', 
-                      border: '1px solid #334155',
+                      backgroundColor: '#020617', 
+                      border: '1px solid #155e75',
                       borderRadius: '8px',
-                      color: '#fff'
+                      color: '#cffafe'
                     }}
                     formatter={(value) => formatCurrency(value)}
                   />
@@ -282,8 +282,8 @@ export default function Finances() {
           </Card>
 
           {/* Expense Breakdown */}
-          <Card className="p-6 bg-slate-800 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-6">{t('expense_breakdown', lang)}</h3>
+          <Card className="p-6 bg-slate-900/90 border border-cyan-900/40">
+            <h3 className="text-lg font-semibold text-cyan-300 mb-6">{t('expense_breakdown', lang)}</h3>
             {pieData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={200}>
@@ -311,7 +311,7 @@ export default function Finances() {
                           className="w-3 h-3 rounded-full" 
                           style={{ backgroundColor: item.color }}
                         />
-                        <span className="text-slate-300">{item.name}</span>
+                        <span className="text-cyan-100">{item.name}</span>
                       </div>
                       <span className="font-medium">{formatCurrency(item.value)}</span>
                     </div>
@@ -333,14 +333,14 @@ export default function Finances() {
         </div>
 
         {/* Recent Transactions */}
-        <Card className="p-6 bg-slate-800 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">{t('recent_transactions', lang)}</h3>
+        <Card className="p-6 bg-slate-900/90 border border-cyan-900/40">
+          <h3 className="text-lg font-semibold text-cyan-300 mb-4">{t('recent_transactions', lang)}</h3>
           {transactions.length > 0 ? (
             <div className="space-y-3">
               {transactions.slice(0, 10).map((transaction) => (
                 <div 
                   key={transaction.id} 
-                  className="flex items-center justify-between p-3 bg-slate-900 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-cyan-900/25"
                 >
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${
@@ -353,9 +353,9 @@ export default function Finances() {
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-white">{translateTransactionDesc(transaction.description, lang) || categoryLabels[transaction.category]}</p>
+                      <p className="font-medium text-cyan-100">{translateTransactionDesc(transaction.description, lang) || categoryLabels[transaction.category]}</p>
                       <p className="text-sm text-slate-400">
-                        {new Date(transaction.date).toLocaleDateString('de-DE')}
+                        {new Date(transaction.date).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US')}
                       </p>
                     </div>
                   </div>

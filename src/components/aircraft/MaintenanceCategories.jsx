@@ -101,7 +101,7 @@ export default function MaintenanceCategories({ aircraft }) {
       const cost = getCategoryCost(categoryKey);
       if (cost <= 0) return;
 
-      const valueReduction = cost * 0.05;
+      const valueReduction = cost * 0.10;
       const newValue = Math.max(0, currentValue - valueReduction);
 
       const newCats = { ...(aircraft.maintenance_categories || {}) };
@@ -113,7 +113,9 @@ export default function MaintenanceCategories({ aircraft }) {
       const newMaxWear = Math.max(...categories.map(c => newCats[c.key] || 0));
       const newAvgWear = categories.map(c => newCats[c.key] || 0).reduce((a, b) => a + b, 0) / categories.length;
       const stillNeedsMaint = newMaxWear > 75 || newAvgWear > 50;
-      const newStatus = aircraft.status === 'damaged' ? 'damaged' : (stillNeedsMaint ? 'maintenance' : 'available');
+      const newStatus = newValue <= 0
+        ? 'total_loss'
+        : (aircraft.status === 'damaged' ? 'damaged' : (stillNeedsMaint ? 'maintenance' : 'available'));
 
       await base44.entities.Aircraft.update(aircraft.id, {
         maintenance_categories: newCats,
@@ -148,12 +150,12 @@ export default function MaintenanceCategories({ aircraft }) {
       const totalCost = getTotalCost();
       if (totalCost <= 0) return;
 
-      const valueReduction = totalCost * 0.05;
+      const valueReduction = totalCost * 0.10;
       const newValue = Math.max(0, currentValue - valueReduction);
       const newCats = {};
       categories.forEach(c => { newCats[c.key] = 0; });
       
-      const newStatus = aircraft.status === 'damaged' ? 'damaged' : 'available';
+      const newStatus = newValue <= 0 ? 'total_loss' : (aircraft.status === 'damaged' ? 'damaged' : 'available');
 
       await base44.entities.Aircraft.update(aircraft.id, {
         maintenance_categories: newCats,
@@ -309,7 +311,7 @@ export default function MaintenanceCategories({ aircraft }) {
             </div>
             <div>
               <h5 className="font-semibold text-white mb-1">{lang === 'de' ? 'Wartung' : 'Maintenance'}</h5>
-              <p>{lang === 'de' ? 'Jede Kategorie kann einzeln oder komplett gewartet werden. Wartungskosten basieren auf dem Verschleiß (2% des Neupreises pro 100% Verschleiß). Jede Wartung verursacht 5% permanenten Wertverlust.' : 'Each category can be repaired individually or all at once. Maintenance costs are based on wear (2% of purchase price per 100% wear). Each repair causes 5% permanent depreciation.'}</p>
+              <p>{lang === 'de' ? 'Jede Kategorie kann einzeln oder komplett gewartet werden. Wartungskosten basieren auf dem Verschleiß (2% des Neupreises pro 100% Verschleiß). Jede Wartung verursacht 10% permanenten Wertverlust der gezahlten Wartungssumme.' : 'Each category can be repaired individually or all at once. Maintenance costs are based on wear (2% of purchase price per 100% wear). Every maintenance action permanently depreciates aircraft value by 10% of the paid maintenance amount.'}</p>
             </div>
             <div>
               <h5 className="font-semibold text-amber-400 mb-1">⚠️ {tl('maint_mandatory', lang)}</h5>
