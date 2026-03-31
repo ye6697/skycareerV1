@@ -145,8 +145,8 @@ export default function MaintenanceCategories({ aircraft }) {
           ? 'Strukturverschleiss steigt bei hohen G-Lasten, Overstress und Overspeed.'
           : 'Airframe wear rises with high G loads, overstress, and overspeed.',
         formula: lang === 'de'
-          ? 'max(0, MaxG-1.2)x5 + Event-Spikes (z.B. Overstress/Overspeed)'
-          : 'max(0, maxG-1.2)x5 + event spikes (e.g. overstress/overspeed)',
+          ? 'max(0, MaxG-1.35)x2.2 + High-G-Event +3 + Overstress +6 + Overspeed +6'
+          : 'max(0, maxG-1.35)x2.2 + high-G event +3 + overstress +6 + overspeed +6',
         trigger: lang === 'de' ? 'Ausloeser: hohe G-Werte in der Luft, Overstress, Overspeed' : 'Trigger: high in-air G, overstress, overspeed',
         failures: lang === 'de'
           ? 'Moegliche Ausfaelle: strukturelle Beschaedigung, starke Vibrationen, Airframe-Failure'

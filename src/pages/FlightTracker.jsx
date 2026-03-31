@@ -42,7 +42,7 @@ import WeatherDisplay from "@/components/flights/WeatherDisplay";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
-import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
+import { sanitizeFailureList } from "@/components/flights/failureUtils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -54,8 +54,8 @@ const ENGINE_HIGH_LOAD_WEAR_PER_STEP = 1;
 
 const LANDING_GEAR_EXP_FACTOR = 1.25;
 const LANDING_GEAR_EXP_MULTIPLIER = 5;
-const AIRFRAME_HIGH_G_THRESHOLD = 1.2;
-const AIRFRAME_HIGH_G_MULTIPLIER = 5;
+const AIRFRAME_HIGH_G_THRESHOLD = 1.35;
+const AIRFRAME_HIGH_G_MULTIPLIER = 2.2;
 const AVIONICS_HIGH_G_THRESHOLD = 1.4;
 const AVIONICS_HIGH_G_MULTIPLIER = 2.8;
 const AVIONICS_LANDING_G_THRESHOLD = 1.3;
@@ -68,6 +68,10 @@ const PRESSURIZATION_HIGH_ALT_PER_HOUR = 0.7;
 const OVERSPEED_AIRFRAME_WEAR = 6;
 const OVERSPEED_AVIONICS_WEAR = 4;
 const OVERSPEED_ELECTRICAL_WEAR = 5;
+const OVERSTRESS_AIRFRAME_WEAR = 6;
+const HIGH_G_FORCE_AIRFRAME_EVENT_WEAR = 3;
+const HIGH_G_FORCE_AVIONICS_EVENT_WEAR = 1.5;
+const OVERSTRESS_MAINTENANCE_PERCENT = 1.5;
 const OVERSPEED_MAINTENANCE_PERCENT = 2.2;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -485,7 +489,7 @@ export default function FlightTracker() {
       addReason('airframe', lang === 'de' ? 'Tailstrike' : 'Tailstrike');
     }
     if (ev.overstress) {
-      liveWear.airframe += 15;
+      liveWear.airframe += OVERSTRESS_AIRFRAME_WEAR;
       addReason('airframe', lang === 'de' ? 'Strukturlast' : 'Structural stress');
     }
     if (ev.overspeed) {
@@ -497,8 +501,10 @@ export default function FlightTracker() {
       addReason('electrical', lang === 'de' ? 'Overspeed-Spannungsspitzen' : 'Overspeed electrical spikes');
     }
     if (ev.high_g_force) {
-      liveWear.airframe += 8;
+      liveWear.airframe += HIGH_G_FORCE_AIRFRAME_EVENT_WEAR;
+      liveWear.avionics += HIGH_G_FORCE_AVIONICS_EVENT_WEAR;
       addReason('airframe', lang === 'de' ? 'Hohe G-Last' : 'High G load');
+      addReason('avionics', lang === 'de' ? 'Hohe G-Last' : 'High G load');
     }
     if (ev.hard_landing) {
       addReason('landing_gear', lang === 'de' ? 'Harte Landung' : 'Hard landing');
@@ -568,6 +574,7 @@ export default function FlightTracker() {
     const controlsWear = calcFlightControlsWearFromControlInput(controlInput);
     const pressureWear = calcPressurizationWearFromHighAltSeconds(highAltitudeSecondsLive);
     const ev = flightData.events || {};
+    const categoryCostData = liveMaintenanceCostSnapshot?.byCategory?.[category?.key] || { base: 0, added: 0, total: 0 };
 
     let details = lang === 'de'
       ? 'Wartungskosten steigen durch laufenden Verschleiss waehrend des Flugs und durch erkannte Events.'
@@ -610,14 +617,14 @@ export default function FlightTracker() {
         : 'Possible failures: gear jam, brake issues, landing gear failure';
     } else if (category?.key === 'airframe') {
       details = lang === 'de'
-        ? 'Struktur: Hohe G-Lasten in der Luft, harte Events und Overspeed erhoehen den Verschleiss stark.'
-        : 'Airframe: high in-air G loads, hard events, and overspeed increase wear significantly.';
+        ? 'Struktur: Hohe G-Lasten in der Luft, Overstress und Overspeed erhoehen den Verschleiss.'
+        : 'Airframe: high in-air G loads, overstress, and overspeed increase wear.';
       formula = lang === 'de'
-        ? `High-G Beitrag = max(0, MaxG - 1.2) x 5, Overspeed-Event = +${OVERSPEED_AIRFRAME_WEAR}%`
-        : `High-G contribution = max(0, maxG - 1.2) x 5, overspeed event = +${OVERSPEED_AIRFRAME_WEAR}%`;
+        ? `High-G = max(0, MaxG - ${AIRFRAME_HIGH_G_THRESHOLD}) x ${AIRFRAME_HIGH_G_MULTIPLIER}, Overstress +${OVERSTRESS_AIRFRAME_WEAR}%, Overspeed +${OVERSPEED_AIRFRAME_WEAR}%`
+        : `High-G = max(0, maxG - ${AIRFRAME_HIGH_G_THRESHOLD}) x ${AIRFRAME_HIGH_G_MULTIPLIER}, overstress +${OVERSTRESS_AIRFRAME_WEAR}%, overspeed +${OVERSPEED_AIRFRAME_WEAR}%`;
       trigger = lang === 'de'
-        ? `Max G ${maxG.toFixed(2)} -> High-G +${airframeHighGWear.toFixed(2)}%${ev.overspeed ? `, Overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`
-        : `Max G ${maxG.toFixed(2)} -> high-G +${airframeHighGWear.toFixed(2)}%${ev.overspeed ? `, overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`;
+        ? `Max G ${maxG.toFixed(2)} -> High-G +${airframeHighGWear.toFixed(2)}%${ev.high_g_force ? `, High-G Event +${HIGH_G_FORCE_AIRFRAME_EVENT_WEAR}%` : ''}${ev.overstress ? `, Overstress +${OVERSTRESS_AIRFRAME_WEAR}%` : ''}${ev.overspeed ? `, Overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`
+        : `Max G ${maxG.toFixed(2)} -> high-G +${airframeHighGWear.toFixed(2)}%${ev.high_g_force ? `, high-G event +${HIGH_G_FORCE_AIRFRAME_EVENT_WEAR}%` : ''}${ev.overstress ? `, overstress +${OVERSTRESS_AIRFRAME_WEAR}%` : ''}${ev.overspeed ? `, overspeed +${OVERSPEED_AIRFRAME_WEAR}%` : ''}`;
       possibleFailures = lang === 'de'
         ? 'Moegliche Ausfaelle: strukturelle Beschaedigung, starke Vibrationen, Airframe-Failure'
         : 'Possible failures: structural damage, heavy vibration, airframe failure';
@@ -694,8 +701,8 @@ export default function FlightTracker() {
       formula,
       possibleFailures,
       breakdown: lang === 'de'
-        ? `${trigger} | $${Math.round(purchasePrice).toLocaleString()} x 0.02 x ${wearPercent.toFixed(1)}% ~= $${Math.round(estimatedCost).toLocaleString()}`
-        : `${trigger} | $${Math.round(purchasePrice).toLocaleString()} x 0.02 x ${wearPercent.toFixed(1)}% ~= $${Math.round(estimatedCost).toLocaleString()}`,
+        ? `${trigger} | Fluganteil: $${Math.round(purchasePrice).toLocaleString()} x 0.02 x ${wearPercent.toFixed(1)}% ~= +$${Math.round(estimatedCost).toLocaleString()} | Kategorie gesamt: $${Math.round(categoryCostData.total || 0).toLocaleString()}`
+        : `${trigger} | Flight add: $${Math.round(purchasePrice).toLocaleString()} x 0.02 x ${wearPercent.toFixed(1)}% ~= +$${Math.round(estimatedCost).toLocaleString()} | Category total now: $${Math.round(categoryCostData.total || 0).toLocaleString()}`,
     };
   };
   const urlParams = new URLSearchParams(window.location.search);
@@ -1112,24 +1119,56 @@ export default function FlightTracker() {
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
   const liveActiveFailures = useMemo(() => {
     const persisted = sanitizeFailureList(flight?.active_failures || existingFlight?.active_failures || [], lang);
-    const fromFlags = buildFailuresFromEventFlags(flightData?.events || {}, lang);
-    return sanitizeFailureList([...persisted, ...fromFlags], lang);
-  }, [flight?.active_failures, existingFlight?.active_failures, flightData?.events, lang]);
+    return persisted;
+  }, [flight?.active_failures, existingFlight?.active_failures, lang]);
 
-  const liveFlightAddedMaintenanceCost = useMemo(() => {
-    if (!assignedAircraft?.purchase_price || !Array.isArray(liveMaintenanceCategories) || liveMaintenanceCategories.length === 0) return 0;
-    const baseCost = Number(assignedAircraft.purchase_price || 0) * 0.02;
-    if (baseCost <= 0) return 0;
-    return liveMaintenanceCategories.reduce((sum, category) => {
-      const wear = Math.max(0, Number(category?.wear || 0));
-      return sum + (baseCost * (wear / 100));
-    }, 0);
-  }, [assignedAircraft?.purchase_price, liveMaintenanceCategories]);
+  const liveMaintenanceCostSnapshot = useMemo(() => {
+    const purchasePrice = Math.max(0, Number(assignedAircraft?.purchase_price || 0));
+    const baseCost = purchasePrice * 0.02;
+    const accumulatedCost = Math.max(0, Number(assignedAircraft?.accumulated_maintenance_cost || 0));
+    const existingCats = assignedAircraft?.maintenance_categories || {};
+    const existingWearTotal = maintenanceCategoryConfig.reduce((sum, cfg) => (
+      sum + Math.max(0, Number(existingCats?.[cfg.key] || 0))
+    ), 0);
 
-  const liveCurrentTotalMaintenanceCost = Math.max(
-    0,
-    Number(assignedAircraft?.accumulated_maintenance_cost || 0) + liveFlightAddedMaintenanceCost
-  );
+    const byCategory = {};
+    for (const cfg of maintenanceCategoryConfig) {
+      const existingWear = Math.max(0, Number(existingCats?.[cfg.key] || 0));
+      const baseShare = existingWearTotal > 0 ? accumulatedCost * (existingWear / existingWearTotal) : 0;
+      byCategory[cfg.key] = { base: baseShare, added: 0, total: baseShare };
+    }
+
+    if (baseCost > 0 && Array.isArray(liveMaintenanceCategories)) {
+      for (const category of liveMaintenanceCategories) {
+        const key = category?.key;
+        if (!key || !byCategory[key]) continue;
+        const wear = Math.max(0, Number(category?.wear || 0));
+        const added = baseCost * (wear / 100);
+        byCategory[key] = {
+          ...byCategory[key],
+          added,
+          total: byCategory[key].base + added,
+        };
+      }
+    }
+
+    const addedTotal = Object.values(byCategory).reduce((sum, entry) => sum + Number(entry?.added || 0), 0);
+    return {
+      baseTotal: accumulatedCost,
+      addedTotal,
+      currentTotal: accumulatedCost + addedTotal,
+      byCategory,
+    };
+  }, [
+    assignedAircraft?.purchase_price,
+    assignedAircraft?.accumulated_maintenance_cost,
+    assignedAircraft?.maintenance_categories,
+    maintenanceCategoryConfig,
+    liveMaintenanceCategories,
+  ]);
+
+  const liveFlightAddedMaintenanceCost = Math.max(0, Number(liveMaintenanceCostSnapshot?.addedTotal || 0));
+  const liveCurrentTotalMaintenanceCost = Math.max(0, Number(liveMaintenanceCostSnapshot?.currentTotal || 0));
 
   // SimBrief route data - reset when contractId changes
   const [simbriefRoute, setSimbriefRoute] = useState(null);
@@ -1875,7 +1914,7 @@ export default function FlightTracker() {
             addFlightDamage('pressurization', pressureWear);
 
             if (finalFlightData.events.tailstrike) addFlightDamage('airframe', 10);
-            if (finalFlightData.events.overstress) addFlightDamage('airframe', 15);
+            if (finalFlightData.events.overstress) addFlightDamage('airframe', OVERSTRESS_AIRFRAME_WEAR);
             if (finalFlightData.events.overspeed) {
               addFlightDamage('airframe', OVERSPEED_AIRFRAME_WEAR);
               addFlightDamage('avionics', OVERSPEED_AVIONICS_WEAR);
@@ -1883,8 +1922,8 @@ export default function FlightTracker() {
             }
             if (finalFlightData.events.gear_up_landing) addFlightDamage('landing_gear', 25);
             if (finalFlightData.events.high_g_force) {
-              addFlightDamage('airframe', 8);
-              addFlightDamage('avionics', 2.5);
+              addFlightDamage('airframe', HIGH_G_FORCE_AIRFRAME_EVENT_WEAR);
+              addFlightDamage('avionics', HIGH_G_FORCE_AVIONICS_EVENT_WEAR);
             }
             if (finalFlightData.events.flaps_overspeed) addFlightDamage('flight_controls', 10);
 
@@ -2406,10 +2445,10 @@ export default function FlightTracker() {
         }
       }
       
-      // Strukturschaden (overstress): -30 Punkte + 4% des Neuwertes, einmalig
+      // Strukturschaden (overstress): -30 Punkte + 1.5% des Neuwertes, einmalig
       if (xp.overstress && !prev.events.overstress) {
         baseScore = Math.max(0, baseScore - 30);
-        maintenanceCostIncrease += aircraftPurchasePrice * 0.04;
+        maintenanceCostIncrease += aircraftPurchasePrice * (OVERSTRESS_MAINTENANCE_PERCENT / 100);
       }
       
       // Overspeed: -15 Punkte
@@ -3085,9 +3124,20 @@ export default function FlightTracker() {
                     ? 'Live-Ansicht: interagierende Wartungskategorien'
                     : 'Live view: interacting maintenance categories'}
                 </h3>
+                <div className="mb-3 p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">{lang === 'de' ? 'Aktuelle Wartungskosten gesamt' : 'Current total maintenance cost'}</span>
+                    <span className="text-red-400 font-mono">${Math.round(liveCurrentTotalMaintenanceCost).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">{lang === 'de' ? 'In diesem Flug addiert' : 'Added in this flight'}</span>
+                    <span className="text-amber-300 font-mono">+${Math.round(liveFlightAddedMaintenanceCost).toLocaleString()}</span>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   {liveMaintenanceCategories.map((category) => {
                     const Icon = category.icon;
+                    const categoryCosts = liveMaintenanceCostSnapshot?.byCategory?.[category.key] || { total: 0, added: 0 };
                     return (
                       <div key={category.key} className="p-2 rounded-lg bg-slate-900/70 border border-slate-800">
                         <div className="flex items-center justify-between gap-3">
@@ -3122,9 +3172,15 @@ export default function FlightTracker() {
                               </Popover>
                             </span>
                           </div>
-                          <span className={`text-sm font-mono ${category.colorClass}`}>
-                            {category.wear.toFixed(1)}%
-                          </span>
+                          <div className="text-right shrink-0">
+                            <div className={`text-sm font-mono ${category.colorClass}`}>
+                              {category.wear.toFixed(1)}%
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              ${Math.round(categoryCosts.total || 0).toLocaleString()}
+                              <span className="text-amber-300"> (+${Math.round(categoryCosts.added || 0).toLocaleString()})</span>
+                            </div>
+                          </div>
                         </div>
                         <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
                           <div

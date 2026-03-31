@@ -24,7 +24,7 @@ import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FlightProfileChart from "@/components/flights/FlightProfileChart";
-import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
+import { sanitizeFailureList } from "@/components/flights/failureUtils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -190,9 +190,8 @@ export default function CompletedFlightDetails() {
   const showWrongAirportBanner = wrongAirportCompletion && !emergencyOffAirportCompletion && !isCrashFlight;
   const activeFailuresOnly = React.useMemo(() => {
     const persisted = sanitizeFailureList(flight?.active_failures || [], lang);
-    const fromFlags = buildFailuresFromEventFlags(flight?.xplane_data?.events || {}, lang);
-    return sanitizeFailureList([...persisted, ...fromFlags], lang);
-  }, [flight?.active_failures, flight?.xplane_data?.events, lang]);
+    return persisted;
+  }, [flight?.active_failures, lang]);
   const maintenanceDamageByCategory = (flight?.maintenance_damage && typeof flight.maintenance_damage === 'object')
     ? flight.maintenance_damage
     : ((flight?.xplane_data?.maintenance_damage && typeof flight.xplane_data.maintenance_damage === 'object')
