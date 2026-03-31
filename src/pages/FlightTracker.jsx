@@ -106,6 +106,22 @@ const readAltitudeFt = (point) => firstFiniteNumber(
   point?.altitudeFt,
 );
 
+const readTelemetryPointTimestampMs = (point) => {
+  const iso = point?.t || point?.timestamp || point?.created_date || null;
+  const ms = Date.parse(String(iso || ""));
+  return Number.isFinite(ms) ? ms : NaN;
+};
+
+const filterTelemetryHistoryForSession = (telemetryHistory, sessionStartMs) => {
+  const history = Array.isArray(telemetryHistory) ? telemetryHistory : [];
+  if (!Number.isFinite(sessionStartMs)) return history;
+  const minTs = sessionStartMs - 5000;
+  return history.filter((point) => {
+    const ptMs = readTelemetryPointTimestampMs(point);
+    return Number.isFinite(ptMs) && ptMs >= minTs;
+  });
+};
+
 const calcConditionSecondsFromTelemetry = ({
   telemetryHistory,
   predicate,
@@ -883,7 +899,11 @@ export default function FlightTracker() {
     }
 
     const raw = xplaneLog?.raw_data || {};
-    const history = Array.isArray(raw.telemetry_history) ? raw.telemetry_history : [];
+    const activeSession = flight || existingFlight;
+    const sessionStartMs = Number.isFinite(Number(flightStartedAt))
+      ? Number(flightStartedAt)
+      : Date.parse(String(activeSession?.departure_time || activeSession?.created_date || ""));
+    const history = filterTelemetryHistoryForSession(raw.telemetry_history, sessionStartMs);
     if (history.length === 0) {
       setEngineHighLoadSecondsLive(0);
       setHighAltitudeSecondsLive(0);
@@ -905,7 +925,7 @@ export default function FlightTracker() {
       },
     });
     setHighAltitudeSecondsLive(highAltSeconds);
-  }, [flightPhase, xplaneLog]);
+  }, [flightPhase, xplaneLog, flight, existingFlight, flightStartedAt]);
 
   useEffect(() => {
     const xp = xplaneLog?.raw_data || {};
@@ -1379,11 +1399,20 @@ export default function FlightTracker() {
       // flightStartTime wird NICHT hier gesetzt, sondern erst beim Abheben
       setFlightStartTime(null);
       setFlightDurationSeconds(0);
+      setEngineHighLoadSecondsLive(0);
+      setHighAltitudeSecondsLive(0);
       setProcessedGLevels(new Set());
       setIsCompletingFlight(false);
       setShowAutoCompleteOverlay(false);
       // Merke Zeitpunkt des Flugstarts, um alte X-Plane Logs zu ignorieren
       setFlightStartedAt(Date.now());
+      setXplaneLog(null);
+      setLocalMapPath([]);
+      setDataLatency(null);
+      setDataAge(null);
+      lastXplaneTimestampRef.current = null;
+      lastDataReceivedRef.current = null;
+      lastAutoFailureTsRef.current = null;
       
       // Reset flight data for new flight - komplett sauber
       const cleanData = {
@@ -2025,7 +2054,8 @@ export default function FlightTracker() {
               addFlightDamage(cat, baseWearPerHour * flightHours);
             }
 
-            const telemetryHistory = Array.isArray(preservedTelemetryHistory) ? preservedTelemetryHistory : [];
+            const sessionStartMs = Date.parse(String(activeFlight?.departure_time || activeFlight?.created_date || ""));
+            const telemetryHistory = filterTelemetryHistoryForSession(preservedTelemetryHistory, sessionStartMs);
             const latestEngineLoad = firstFiniteNumber(
               liveXpData?.engine_load_pct,
               liveXpData?.engineLoadPct,
@@ -3640,12 +3670,15 @@ export default function FlightTracker() {
                             </span>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className={`text-sm font-mono ${category.colorClass}`}>
-                              {category.wear.toFixed(1)}%
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-mono">
-                              ${Math.round(categoryTotalCost).toLocaleString()}
-                              <span className="text-amber-300"> (+${Math.round(categoryAddedCost).toLocaleString()})</span>
+                          <div className={`text-sm font-mono ${category.colorClass}`}>
+                            {category.wear.toFixed(1)}%
+                          </div>
+                          <div className="text-[11px] text-orange-300 font-mono">
+                            +{Number(category.addedWear || 0).toFixed(1)}%
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-mono">
+                            ${Math.round(categoryTotalCost).toLocaleString()}
+                            <span className="text-amber-300"> (+${Math.round(categoryAddedCost).toLocaleString()})</span>
                               <span className="text-emerald-300"> | {totalPercent.toFixed(1)}%</span>
                             </div>
                           </div>
