@@ -67,11 +67,12 @@ export default function MaintenanceCategories({ aircraft }) {
   });
   const overdraftBlocked = isAtOverdraftLimit(companyForLimit);
   const cats = aircraft.maintenance_categories || {};
+  const permanentCats = aircraft.permanent_wear_categories || {};
   const purchasePrice = aircraft.purchase_price || 100000;
   const currentValue = aircraft.current_value || purchasePrice;
 
   // Calculate overall wear
-  const catValues = categories.map(c => cats[c.key] || 0);
+  const catValues = categories.map(c => (cats[c.key] || 0) + (permanentCats[c.key] || 0));
   const avgWear = catValues.reduce((a, b) => a + b, 0) / catValues.length;
   const maxWear = Math.max(...catValues);
   const needsMaintenance = maxWear > 75 || avgWear > 50;
@@ -251,6 +252,10 @@ export default function MaintenanceCategories({ aircraft }) {
 
       const newCats = { ...(aircraft.maintenance_categories || {}) };
       newCats[categoryKey] = 0;
+      const newLifetimeMaintCost = Math.max(0, Number(aircraft.lifetime_maintenance_cost || 0)) + cost;
+      const permanentWearValue = Math.max(0, Math.min(100, 100 / Math.max(1, newLifetimeMaintCost)));
+      const currentPermanentCats = aircraft.permanent_wear_categories || {};
+      const newPermanentCats = { ...currentPermanentCats, [categoryKey]: permanentWearValue };
 
       // Subtract this category's cost from accumulated total
       const newAccum = Math.max(0, accumulatedCost - cost);
@@ -264,8 +269,10 @@ export default function MaintenanceCategories({ aircraft }) {
 
       await base44.entities.Aircraft.update(aircraft.id, {
         maintenance_categories: newCats,
+        permanent_wear_categories: newPermanentCats,
         current_value: newValue,
         accumulated_maintenance_cost: newAccum,
+        lifetime_maintenance_cost: newLifetimeMaintCost,
         status: newStatus
       });
 
@@ -299,13 +306,19 @@ export default function MaintenanceCategories({ aircraft }) {
       const newValue = Math.max(0, currentValue - valueReduction);
       const newCats = {};
       categories.forEach(c => { newCats[c.key] = 0; });
+      const newLifetimeMaintCost = Math.max(0, Number(aircraft.lifetime_maintenance_cost || 0)) + totalCost;
+      const permanentWearValue = Math.max(0, Math.min(100, 100 / Math.max(1, newLifetimeMaintCost)));
+      const newPermanentCats = { ...(aircraft.permanent_wear_categories || {}) };
+      categories.forEach(c => { newPermanentCats[c.key] = permanentWearValue; });
       
       const newStatus = newValue <= 0 ? 'total_loss' : (aircraft.status === 'damaged' ? 'damaged' : 'available');
 
       await base44.entities.Aircraft.update(aircraft.id, {
         maintenance_categories: newCats,
+        permanent_wear_categories: newPermanentCats,
         current_value: newValue,
         accumulated_maintenance_cost: 0,
+        lifetime_maintenance_cost: newLifetimeMaintCost,
         status: newStatus
       });
 
@@ -362,7 +375,9 @@ export default function MaintenanceCategories({ aircraft }) {
       {/* Category breakdown */}
       <div className="space-y-1.5">
         {categories.map(cat => {
-          const wear = cats[cat.key] || 0;
+          const baseWear = Math.max(0, Number(permanentCats[cat.key] || 0));
+          const dynamicWear = Math.max(0, Number(cats[cat.key] || 0));
+          const wear = Math.min(100, baseWear + dynamicWear);
           const cost = getCategoryCost(cat.key);
           const Icon = cat.icon;
           
@@ -402,10 +417,24 @@ export default function MaintenanceCategories({ aircraft }) {
                   </span>
                   <span className={`font-mono ${getWearColor(wear)}`}>{wear.toFixed(0)}%</span>
                 </div>
-                <div className="w-full bg-slate-700 rounded-full h-1 mt-0.5">
-                  <div className={`h-1 rounded-full transition-all ${getProgressColor(wear)}`}
-                    style={{ width: `${Math.min(100, wear)}%` }} />
+                <div className="relative w-full bg-slate-700 rounded-full h-1 mt-0.5 overflow-hidden">
+                  <div
+                    className="absolute left-0 top-0 h-1 bg-red-500/90 transition-all"
+                    style={{ width: `${Math.min(100, baseWear)}%` }}
+                  />
+                  <div
+                    className={`absolute top-0 h-1 transition-all ${getProgressColor(dynamicWear)}`}
+                    style={{
+                      left: `${Math.min(100, baseWear)}%`,
+                      width: `${Math.min(100 - Math.min(100, baseWear), dynamicWear)}%`
+                    }}
+                  />
                 </div>
+                {baseWear > 0 && (
+                  <div className="text-[10px] text-red-400 mt-0.5">
+                    {lang === 'de' ? 'Permanenter Verschleiß' : 'Permanent wear'}: {baseWear.toFixed(1)}%
+                  </div>
+                )}
               </div>
               {cost > 0 && (
                 <Button 
