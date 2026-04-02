@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -17,9 +18,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
+  Plus,
   Plane,
-  Sparkles,
-  Filter
+  DollarSign,
+  Sparkles
 } from "lucide-react";
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
@@ -105,8 +107,6 @@ export default function Fleet() {
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
-  const [marketSearch, setMarketSearch] = useState('');
-  const [marketType, setMarketType] = useState('all');
 
   const { data: templates = [] } = useQuery({
     queryKey: ['aircraftTemplates'],
@@ -223,27 +223,11 @@ export default function Fleet() {
     return hasLevel && hasBalance;
   };
 
-  const marketAircraft = useMemo(() => {
-    return AIRCRAFT_MARKET_SPECS.filter((ac) => {
-      const matchesType = marketType === 'all' ? true : ac.type === marketType;
-      const q = marketSearch.trim().toLowerCase();
-      const matchesSearch = !q
-        ? true
-        : ac.name.toLowerCase().includes(q) || String(ac.level_requirement || 1).includes(q);
-      return matchesType && matchesSearch;
-    });
-  }, [marketSearch, marketType]);
-
   return (
     <div className="h-full flex flex-col gap-2">
       {/* Zibo Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-slate-900/90 to-cyan-950/40 border border-cyan-700/30 p-2 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.1)]">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-cyan-500/10 border border-cyan-500/30">
-            <Plane className="w-4 h-4 text-cyan-300" />
-          </span>
-          <div className="text-lg font-mono font-bold text-cyan-300 uppercase tracking-widest px-1">{t('fleet', lang)}</div>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
+        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('fleet', lang)}</div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-cyan-600" />
@@ -256,18 +240,14 @@ export default function Fleet() {
           </div>
           <Dialog open={isPurchaseDialogOpen} onOpenChange={setIsPurchaseDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="h-7 text-[10px] font-mono uppercase bg-gradient-to-r from-emerald-800/70 to-cyan-800/70 text-emerald-100 border border-emerald-400/40 hover:from-emerald-700/80 hover:to-cyan-700/80">
-                <Sparkles className="w-3 h-3 mr-1" />
-                {t('buy_aircraft', lang)}
+              <Button size="sm" className="h-7 text-[10px] font-mono uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60">
+                + {t('buy_aircraft', lang)}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-800 shadow-2xl">
                <DialogHeader>
-                 <DialogTitle className="text-xl font-mono text-cyan-300 uppercase flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  {t('aircraft_market', lang)}
-                 </DialogTitle>
-                 <p className="text-[10px] font-mono text-cyan-500/80 uppercase">{t('choose_next_aircraft', lang)}</p>
+                 <DialogTitle className="text-xl font-mono text-cyan-400 uppercase">{t('aircraft_market', lang)}</DialogTitle>
+                 <p className="text-[10px] font-mono text-cyan-600/70 uppercase">{t('choose_next_aircraft', lang)}</p>
                </DialogHeader>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -282,35 +262,7 @@ export default function Fleet() {
                   </motion.div>
                 )}
 
-                <div className="col-span-full sticky top-10 z-10 p-2 rounded border border-cyan-900/40 bg-slate-950/90 backdrop-blur-sm">
-                  <div className="flex flex-col md:flex-row gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-cyan-700" />
-                      <Input
-                        placeholder={lang === 'de' ? 'Markt durchsuchen...' : 'Search market...'}
-                        value={marketSearch}
-                        onChange={(e) => setMarketSearch(e.target.value)}
-                        className="pl-7 h-8 text-xs font-mono bg-slate-900 border-cyan-900/50 text-cyan-100"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1 overflow-x-auto">
-                      <span className="text-[10px] text-cyan-600 uppercase font-mono flex items-center gap-1"><Filter className="w-3 h-3" />TYPE</span>
-                      {['all', ...Object.keys(typeLabels)].map((type) => (
-                        <Button
-                          key={type}
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setMarketType(type)}
-                          className={`h-7 text-[10px] font-mono uppercase border ${marketType === type ? 'border-cyan-500 bg-cyan-900/30 text-cyan-200' : 'border-slate-700 bg-slate-900 text-slate-400'}`}
-                        >
-                          {type === 'all' ? 'ALL' : typeLabels[type]}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {marketAircraft.map((ac, index) => {
+                {AIRCRAFT_MARKET_SPECS.map((ac, index) => {
                   const template = templates.find(t => t.name === ac.name);
                   const displayData = { ...ac, image_url: template?.image_url };
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
@@ -319,12 +271,7 @@ export default function Fleet() {
 
                   return (
                   <motion.div key={index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
-                    <Card className={`overflow-hidden flex flex-col h-full bg-gradient-to-b from-slate-900 to-slate-950 border ${isPurchasable ? 'border-cyan-800/60 hover:border-cyan-400/60 cursor-pointer' : 'border-slate-800 opacity-60'} transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,211,238,0.12)]`}>
-                      {displayData.image_url && (
-                        <div className="h-24 w-full overflow-hidden border-b border-cyan-900/30">
-                          <img src={displayData.image_url} alt={ac.name} className="h-full w-full object-cover opacity-85 hover:opacity-100 transition-opacity" />
-                        </div>
-                      )}
+                    <Card className={`overflow-hidden flex flex-col h-full bg-slate-900 border ${isPurchasable ? 'border-cyan-900/50 hover:border-cyan-500/50 cursor-pointer' : 'border-slate-800 opacity-50'}`}>
                       <div className="p-3 flex flex-col flex-grow">
                         <div className="mb-2 border-b border-cyan-900/30 pb-2">
                           <p className="font-bold text-xs text-white uppercase truncate">{ac.name}</p>
@@ -357,11 +304,6 @@ export default function Fleet() {
                   </motion.div>
                   );
                 })}
-                {marketAircraft.length === 0 && (
-                  <div className="col-span-full p-6 border border-slate-800 rounded text-center text-slate-400 text-xs font-mono">
-                    {lang === 'de' ? 'Keine Flugzeuge für diesen Filter gefunden.' : 'No aircraft found for this filter.'}
-                  </div>
-                )}
               </div>
 
               <DialogFooter>
