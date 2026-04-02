@@ -46,6 +46,7 @@ import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/f
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { calculateInsuranceForFlight } from "@/lib/insurance";
 
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
@@ -1967,13 +1968,6 @@ export default function FlightTracker() {
      }
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
-     const directCosts = fuelCost + crewCost + airportFee;
-     const profit = revenue - directCosts;
-
-            // Calculate level bonus (1% per level auf den Gewinn)
-            const levelBonusPercent = (company?.level || 1) * 0.01; // 1% pro Level
-            const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
-
             // Calculate depreciation based on flight hours
             const airplaneToUpdate = aircraft.find(a => a.id === activeFlight.aircraft_id);
             const newFlightHours = (airplaneToUpdate?.total_flight_hours || 0) + flightHours;
@@ -1981,7 +1975,7 @@ export default function FlightTracker() {
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
             
             // Crash: -100 Punkte einmalig + 70% des Neuwertes Wartungskosten
-             let crashMaintenanceCost = 0;
+            let crashMaintenanceCost = 0;
              if (hasCrashed) {
                crashMaintenanceCost = (airplaneToUpdate?.purchase_price || 0) * 0.7;
              }
@@ -2014,24 +2008,46 @@ export default function FlightTracker() {
               ? 0
               : Math.max(0, Math.min(100, adjustedFlightScore + timeScoreChange - emergencyScorePenalty));
 
-            console.log('🎯 SCORE:', { adj: adjustedFlightScore, time: timeScoreChange, final: scoreWithTime, crash: hasCrashed });
+            const totalEventMaintenanceCost = finalFlightData.maintenanceCost;
+            const totalMaintenanceCostWithCrash = totalEventMaintenanceCost + crashMaintenanceCost;
+            const insuranceResult = calculateInsuranceForFlight({
+              aircraft: airplaneToUpdate,
+              flightHours,
+              maintenanceCost: totalMaintenanceCostWithCrash,
+              companyReputation: company?.reputation || 50,
+              baseScore: scoreWithTime,
+            });
+            const insuranceScoreBonus = Math.round(insuranceResult.scoreBonusPoints * 10) / 10;
+            const scoreWithInsurance = (hasCrashed || wrongAirport)
+              ? scoreWithTime
+              : Math.max(0, Math.min(100, scoreWithTime + insuranceScoreBonus));
+            const insuranceCost = Math.max(0, insuranceResult.insuranceCost);
+            const insuranceCoveredMaintenance = Math.max(0, insuranceResult.maintenanceCovered);
+            const maintenanceCostAfterInsurance = Math.max(0, insuranceResult.maintenanceAfterCoverage);
+            const directCosts = fuelCost + crewCost + airportFee + insuranceCost;
+            const profit = revenue - directCosts;
+
+            // Calculate level bonus (1% per level auf den Gewinn)
+            const levelBonusPercent = (company?.level || 1) * 0.01; // 1% pro Level
+            const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
+
+            console.log('🎯 SCORE:', { adj: adjustedFlightScore, time: timeScoreChange, finalBeforeInsurance: scoreWithTime, insuranceScoreBonus, final: scoreWithInsurance, crash: hasCrashed });
 
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
 
             // Update flight record with events and final score
-            const totalEventMaintenanceCost = finalFlightData.maintenanceCost;
-            const totalMaintenanceCostWithCrash = totalEventMaintenanceCost + crashMaintenanceCost;
-
             console.log('🔍 SPEICHERE FINALE FLUGDATEN:', {
-              finalScore: scoreWithTime,
+              finalScore: scoreWithInsurance,
               flightHours,
               timeScoreChange,
               timeBonus,
               events: finalFlightData.events,
               maintenanceCost: finalFlightData.maintenanceCost,
               crashMaintenanceCost,
-              totalMaintenanceCostWithCrash
+              totalMaintenanceCostWithCrash,
+              insuranceCost,
+              insuranceCoveredMaintenance
             });
             
             // Fetch LATEST xplane_data from DB (local state may be stale, missing current flight_path)
@@ -2181,22 +2197,22 @@ export default function FlightTracker() {
             await base44.entities.Flight.update(activeFlight.id, {
                status: (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed',
                arrival_time: new Date().toISOString(),
-               flight_score: scoreWithTime,
-               takeoff_rating: scoreToRating(scoreWithTime),
-               flight_rating: scoreToRating(scoreWithTime),
-               landing_rating: scoreToRating(scoreWithTime),
-               overall_rating: scoreToRating(scoreWithTime),
+               flight_score: scoreWithInsurance,
+               takeoff_rating: scoreToRating(scoreWithInsurance),
+               flight_rating: scoreToRating(scoreWithInsurance),
+               landing_rating: scoreToRating(scoreWithInsurance),
+               overall_rating: scoreToRating(scoreWithInsurance),
                landing_vs: storedTouchdownVs,
                max_g_force: finalFlightData.maxGForce,
                fuel_used_liters: fuelUsed,
                fuel_cost: fuelCost,
                crew_cost: crewCost,
-               maintenance_cost: (flightHours * maintenanceCostPerHour) + totalMaintenanceCostWithCrash,
+               maintenance_cost: (flightHours * maintenanceCostPerHour) + maintenanceCostAfterInsurance,
                 flight_duration_hours: flightHours,
                 revenue,
                 profit,
                 maintenance_damage: roundedFlightDamage,
-                passenger_comments: generatePassengerComments(scoreWithTime, finalFlightData),
+                passenger_comments: generatePassengerComments(scoreWithInsurance, finalFlightData),
                 xplane_data: {
                   ...finalFlightData,
                  landing_g_force: storedLandingG,
@@ -2216,7 +2232,7 @@ export default function FlightTracker() {
                  arrival_lat: existingXpData.arrival_lat || finalFlightData.arrival_lat || 0,
                  arrival_lon: existingXpData.arrival_lon || finalFlightData.arrival_lon || 0,
                  // Completion metadata
-                 final_score: scoreWithTime,
+                 final_score: scoreWithInsurance,
                  flightHours,
                  timeScoreChange,
                  timeBonus,
@@ -2229,6 +2245,13 @@ export default function FlightTracker() {
                  levelBonusPercent: levelBonusPercent * 100,
                  companyLevel: company?.level || 1,
                  crewBonus: crewBonusAmount,
+                 insurance_plan: insuranceResult.planKey,
+                 insurance_hourly_cost: Math.round(insuranceResult.hourlyCost * 100) / 100,
+                 insurance_cost: Math.round(insuranceCost * 100) / 100,
+                 insurance_coverage_pct: Math.round(insuranceResult.maintenanceCoveragePct * 100),
+                 insurance_covered_maintenance: Math.round(insuranceCoveredMaintenance * 100) / 100,
+                 insurance_score_bonus_pct: Math.round(insuranceResult.scoreBonusPct * 100),
+                 insurance_score_bonus_points: insuranceScoreBonus,
                  arrival_distance_nm: hasArrivalCoords && hasCurrentCoords ? Math.round(arrivalDistanceNm * 10) / 10 : null,
                  landed_too_far_from_arrival: landedTooFarFromArrival,
                   emergency_landing_declared: !!emergencyLanding,
@@ -2247,7 +2270,7 @@ export default function FlightTracker() {
 
             // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
             const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
-            const newAccumulatedCost = currentAccumulatedCost + totalMaintenanceCostWithCrash;
+            const newAccumulatedCost = currentAccumulatedCost + maintenanceCostAfterInsurance;
 
             console.log('Wartungskosten Update:', { currentAccumulatedCost, totalMaintenanceCostWithCrash, newAccumulatedCost });
 
@@ -2337,12 +2360,12 @@ export default function FlightTracker() {
             // Update company - only deduct direct costs (fuel, crew, airport)
             if (company) {
               // Reputation based on score (0-100)
-              const reputationChange = (hasCrashed || wrongAirport) ? -10 : Math.round((scoreWithTime - 85) / 5);
+              const reputationChange = (hasCrashed || wrongAirport) ? -10 : Math.round((scoreWithInsurance - 85) / 5);
               
               // XP and Level system with level-up bonus
               const calculateXPForLevel = (level) => Math.round(100 * Math.pow(1.1, level - 1));
               const calculateLevelUpBonus = (lvl) => Math.round(1000 * Math.pow(1.5, lvl - 1));
-              const earnedXP = Math.round(scoreWithTime);
+              const earnedXP = Math.round(scoreWithInsurance);
               let currentLevel = company.level || 1;
               let currentXP = (company.experience_points || 0) + earnedXP;
               let totalLevelUpBonus = 0;
@@ -3501,19 +3524,27 @@ export default function FlightTracker() {
                       revenue = contract?.payout || 0;
                       revenue += flightData.landingBonus || 0;
                     }
-                    const directCosts = fuelCost + crewCost + airportFee;
+                    const previewInsurance = calculateInsuranceForFlight({
+                      aircraft: assignedAircraft,
+                      flightHours,
+                      maintenanceCost: flightData.maintenanceCost,
+                      companyReputation: company?.reputation || 50,
+                      baseScore: flightData.flightScore,
+                    });
+                    const directCosts = fuelCost + crewCost + airportFee + previewInsurance.insuranceCost;
                     const profit = revenue - directCosts;
                     const levelBonusPercent = (company?.level || 1) * 0.01;
                     const levelBonus = profit > 0 ? profit * levelBonusPercent : 0;
+                    const insuranceScoreBonus = Math.round(previewInsurance.scoreBonusPoints * 10) / 10;
                     return {
-                      flight_score: flightData.flightScore,
+                      flight_score: Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)),
                       landing_vs: flightData.landingVs,
                       max_g_force: flightData.maxGForce,
                       fuel_used_liters: fuelUsed,
                       flight_duration_hours: flightHours,
-                      passenger_comments: generatePassengerComments(flightData.flightScore, flightData),
+                      passenger_comments: generatePassengerComments(Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)), flightData),
                       xplane_data: {
-                        final_score: flightData.flightScore,
+                        final_score: Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)),
                         landingGForce: flightData.landingGForce,
                         events: flightData.events,
                         levelBonus,
@@ -3521,7 +3552,12 @@ export default function FlightTracker() {
                         companyLevel: company?.level || 1,
                         landingScoreChange: flightData.landingScoreChange,
                         landingBonus: flightData.landingBonus,
-                        landingMaintenanceCost: flightData.landingMaintenanceCost
+                        landingMaintenanceCost: flightData.landingMaintenanceCost,
+                        insurance_plan: previewInsurance.planKey,
+                        insurance_cost: Math.round(previewInsurance.insuranceCost),
+                        insurance_covered_maintenance: Math.round(previewInsurance.maintenanceCovered),
+                        insurance_score_bonus_pct: Math.round(previewInsurance.scoreBonusPct * 100),
+                        insurance_score_bonus_points: insuranceScoreBonus
                       },
                       revenue,
                       fuel_cost: fuelCost,
