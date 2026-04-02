@@ -203,6 +203,30 @@ export default function FlightRating({ flight }) {
                 <span className="text-amber-400 font-mono">+${Math.round(flight.xplane_data.levelBonus).toLocaleString()}</span>
               </div>
             )}
+            {flight?.xplane_data?.insurance_cost > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-cyan-300">
+                  {lang === 'de' ? 'Versicherungskosten' : 'Insurance premium'} ({String(flight?.xplane_data?.insurance_plan || 'basic').toUpperCase()})
+                </span>
+                <span className="text-red-300 font-mono">-${Math.round(flight.xplane_data.insurance_cost).toLocaleString()}</span>
+              </div>
+            )}
+            {flight?.xplane_data?.insurance_covered_maintenance > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-cyan-300">
+                  {lang === 'de' ? 'Versicherung deckt Wartung' : 'Insurance covered maintenance'}
+                </span>
+                <span className="text-emerald-300 font-mono">+${Math.round(flight.xplane_data.insurance_covered_maintenance).toLocaleString()}</span>
+              </div>
+            )}
+            {flight?.xplane_data?.insurance_score_bonus_points > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-cyan-300">
+                  {lang === 'de' ? 'Versicherungs-Scorebonus' : 'Insurance score bonus'} (+{Math.round(flight?.xplane_data?.insurance_score_bonus_pct || 0)}%)
+                </span>
+                <span className="text-emerald-300 font-mono">+{Number(flight.xplane_data.insurance_score_bonus_points).toFixed(1)} {lang === 'de' ? 'Punkte' : 'points'}</span>
+              </div>
+            )}
             {flight?.fuel_cost && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-400">{t('fuel_costs', lang)}</span>

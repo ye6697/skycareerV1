@@ -28,6 +28,7 @@ import AircraftCard from "@/components/aircraft/AircraftCard";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
 
 const AIRCRAFT_MARKET_SPECS = [
   // === SMALL PROPS (Level 1) ===
@@ -157,6 +158,7 @@ export default function Fleet() {
       
       const specs = AIRCRAFT_MARKET_SPECS.find(a => a.name === aircraftData.name) || aircraftData;
       const template = templates.find(t => t.name === aircraftData.name);
+      const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       await base44.entities.Aircraft.create({
         ...specs,
         company_id: company.id,
@@ -164,7 +166,11 @@ export default function Fleet() {
         status: 'available',
         total_flight_hours: 0,
         current_value: aircraftData.purchase_price,
-        image_url: template?.image_url
+        image_url: template?.image_url,
+        insurance_plan: defaultInsurance.key,
+        insurance_hourly_rate_pct: defaultInsurance.hourlyRatePctOfNewValue,
+        insurance_maintenance_coverage_pct: defaultInsurance.maintenanceCoveragePct,
+        insurance_score_bonus_pct: defaultInsurance.scoreBonusPct
       });
 
       if (company) {
