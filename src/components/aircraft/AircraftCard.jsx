@@ -29,6 +29,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { calculateInsuranceForFlight, DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig, INSURANCE_PACKAGES, resolveAircraftInsurance } from '@/lib/insurance';
+import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap } from '@/lib/maintenance';
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
@@ -37,7 +38,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const [isInsuranceDialogOpen, setIsInsuranceDialogOpen] = React.useState(false);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
-  const [selectedInsurancePlan, setSelectedInsurancePlan] = useState(aircraft.insurance_plan || DEFAULT_INSURANCE_PLAN);
+  const [selectedInsurancePlan, setSelectedInsurancePlan] = useState(() => resolveAircraftInsurance(aircraft).planKey);
+  const [optimisticInsurancePlan, setOptimisticInsurancePlan] = useState(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
@@ -79,7 +81,6 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     sold: { label: t('sold', lang), color: "bg-slate-100 text-slate-600 border-slate-200" }
   };
 
-  const repairCost = aircraft.accumulated_maintenance_cost || 0;
   const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
   const rawCurrentValue = aircraft.current_value || aircraft.purchase_price || 0;
   const accumulatedMaintCost = aircraft.accumulated_maintenance_cost || 0;
@@ -87,8 +88,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const currentValue = Math.max(0, rawCurrentValue - accumulatedMaintCost);
   
   // New category-based maintenance check
-  const cats = aircraft.maintenance_categories || {};
-  const permanentCats = aircraft.permanent_wear_categories || {};
+  const cats = normalizeMaintenanceCategoryMap(aircraft.maintenance_categories);
+  const permanentCats = normalizeMaintenanceCategoryMap(aircraft.permanent_wear_categories);
   const catValues = [
     (cats.engine || 0) + (permanentCats.engine || 0), (cats.hydraulics || 0) + (permanentCats.hydraulics || 0), (cats.avionics || 0) + (permanentCats.avionics || 0),
     (cats.airframe || 0) + (permanentCats.airframe || 0), (cats.landing_gear || 0) + (permanentCats.landing_gear || 0), (cats.electrical || 0) + (permanentCats.electrical || 0),
@@ -107,6 +108,23 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     permanentCats.pressurization || 0
   );
   const needsMaintenance = maxWear > 75 || avgWear > 50;
+  const activeInsurance = resolveAircraftInsurance(aircraft);
+  const activeInsurancePlanKey = optimisticInsurancePlan || activeInsurance.planKey;
+  const activeInsuranceConfig = getInsurancePlanConfig(activeInsurancePlanKey);
+  const insuranceMaintenanceCoveragePct = Math.max(0, Math.min(1, Number(activeInsuranceConfig.maintenanceCoveragePct || 0)));
+  const grossRepairCost = Math.max(0, accumulatedMaintCost);
+  const coveredRepairCost = grossRepairCost * insuranceMaintenanceCoveragePct;
+  const netRepairCost = Math.max(0, grossRepairCost - coveredRepairCost);
+
+  React.useEffect(() => {
+    setSelectedInsurancePlan(activeInsurance.planKey || DEFAULT_INSURANCE_PLAN);
+  }, [activeInsurance.planKey, aircraft.id]);
+
+  React.useEffect(() => {
+    if (optimisticInsurancePlan && activeInsurance.planKey === optimisticInsurancePlan) {
+      setOptimisticInsurancePlan(null);
+    }
+  }, [activeInsurance.planKey, optimisticInsurancePlan]);
 
   const repairMutation = useMutation({
     mutationFn: async () => {
@@ -115,22 +133,37 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const company = companies[0];
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
-      const repairPrice = accumulatedMaintCost;
-      if (repairPrice <= 0) return;
+      const repairPriceGross = grossRepairCost;
+      if (repairPriceGross <= 0) return;
+      const insuranceCovered = repairPriceGross * insuranceMaintenanceCoveragePct;
+      const repairPrice = Math.max(0, repairPriceGross - insuranceCovered);
       
       // 10% permanent value reduction of paid repair amount
-      const valueReduction = repairPrice * 0.10;
+      const valueReduction = repairPriceGross * 0.10;
       const newValue = Math.max(0, rawCurrentValue - valueReduction);
       
       const newStatus = newValue <= 0 ? 'total_loss' : 'available';
-      const newLifetimeMaintCost = Math.max(0, Number(aircraft.lifetime_maintenance_cost || 0)) + repairPrice;
-      const permanentWearValue = Math.max(0, Math.min(100, 100 / Math.max(1, newLifetimeMaintCost)));
+      const newLifetimeMaintCost = Math.max(0, Number(aircraft.lifetime_maintenance_cost || 0)) + repairPriceGross;
       
       // Reset all maintenance categories
       const newCats = {};
       const newPermanentCats = {};
-      ['engine','hydraulics','avionics','airframe','landing_gear','electrical','flight_controls','pressurization'].forEach(c => { newCats[c] = 0; });
-      ['engine','hydraulics','avionics','airframe','landing_gear','electrical','flight_controls','pressurization'].forEach(c => { newPermanentCats[c] = permanentWearValue; });
+      const totalDynamicWear = MAINTENANCE_CATEGORY_KEYS.reduce((sum, key) => sum + Math.max(0, Number(cats[key] || 0)), 0);
+      const fallbackCategoryCost = repairPriceGross / Math.max(1, MAINTENANCE_CATEGORY_KEYS.length);
+      MAINTENANCE_CATEGORY_KEYS.forEach((key) => {
+        const repairedWear = Math.max(0, Number(cats[key] || 0));
+        const categoryRepairCost = totalDynamicWear > 0
+          ? repairPriceGross * (repairedWear / totalDynamicWear)
+          : fallbackCategoryCost;
+        newCats[key] = 0;
+        newPermanentCats[key] = applyPermanentWearIncrease({
+          currentPermanentWear: permanentCats[key] || 0,
+          repairedWearPct: repairedWear,
+          repairCost: categoryRepairCost,
+          purchasePrice: aircraft.purchase_price || rawCurrentValue || 1,
+          maxPermanentWear: 45,
+        });
+      });
       
       await base44.entities.Aircraft.update(aircraft.id, { 
         status: newStatus,
@@ -147,7 +180,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         type: 'expense',
         category: 'maintenance',
         amount: repairPrice,
-        description: `Reparatur: ${aircraft.name} (10% Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
+        description: `Reparatur: ${aircraft.name} (Versicherung: -$${Math.round(insuranceCovered).toLocaleString()}, 10% Wertminderung: -$${Math.round(valueReduction).toLocaleString()})`,
         date: new Date().toISOString()
       });
     },
@@ -222,8 +255,10 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         insurance_score_bonus_pct: config.scoreBonusPct,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+    onSuccess: async (_data, planKey) => {
+      setOptimisticInsurancePlan(planKey);
+      await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      await queryClient.refetchQueries({ queryKey: ['aircraft'] });
       setIsInsuranceDialogOpen(false);
     }
   });
@@ -231,7 +266,6 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   // Legacy performMaintenanceMutation removed - now handled by MaintenanceCategories component
 
   const type = typeConfig[aircraft.type] || typeConfig.small_prop;
-  const activeInsurance = resolveAircraftInsurance(aircraft);
   const insurancePreview = calculateInsuranceForFlight({
     aircraft,
     flightHours: 1,
@@ -337,7 +371,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             <DialogHeader><DialogTitle className="text-amber-400 uppercase">{t('repair_or_dispose', lang)}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div className="p-3 bg-slate-950 border border-slate-800 rounded">
-                <div className="flex justify-between mb-1"><span className="text-slate-500">REPAIR COST</span><span className="text-amber-400">${Math.round(repairCost).toLocaleString()}</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-500">REPAIR COST (GROSS)</span><span className="text-amber-400">${Math.round(grossRepairCost).toLocaleString()}</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-500">INSURANCE COVERS</span><span className="text-emerald-400">-${Math.round(coveredRepairCost).toLocaleString()}</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-500">YOU PAY</span><span className="text-cyan-300">${Math.round(netRepairCost).toLocaleString()}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">SCRAP VALUE</span><span className="text-emerald-400">${Math.round(scrapValue).toLocaleString()}</span></div>
               </div>
             </div>
@@ -402,7 +438,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold text-slate-100">{pkg.name[lang] || pkg.name.en}</span>
-                        {activeInsurance.planKey === pkg.key && (
+                        {activeInsurancePlanKey === pkg.key && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300">
                             {lang === 'de' ? 'Aktiv' : 'Active'}
                           </span>

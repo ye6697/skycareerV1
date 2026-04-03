@@ -47,10 +47,11 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { calculateInsuranceForFlight } from "@/lib/insurance";
+import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap } from "@/lib/maintenance";
 
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
-const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 30;
+const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 150;
 const ENGINE_WEAR_PER_STEP = 0.1;
 const ENGINE_HIGH_G_THRESHOLD = 1.6;
 const ENGINE_HIGH_G_MULTIPLIER = 1.4;
@@ -81,8 +82,21 @@ const HIGH_G_FORCE_AVIONICS_EVENT_WEAR = 1.5;
 const OVERSTRESS_MAINTENANCE_PERCENT = 1.5;
 const OVERSPEED_MAINTENANCE_PERCENT = 2.2;
 const FAILURE_POPUP_VISIBLE_MS = 9000;
+const AUTO_FAILURE_MIN_TOTAL_WEAR_PCT = 60;
+const AUTO_FAILURE_GLOBAL_COOLDOWN_MS = 4 * 60 * 1000;
+const AUTO_FAILURE_CATEGORY_COOLDOWN_MS = 10 * 60 * 1000;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const deterministicFailureRoll = (seed) => {
+  const text = String(seed || "");
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return Math.abs(hash >>> 0) / 4294967295;
+};
 
 const firstFiniteNumber = (...values) => {
   for (const value of values) {
@@ -304,6 +318,8 @@ export default function FlightTracker() {
   const flightDataRef = React.useRef(null);
   const autoCompleteTimeoutRef = useRef(null);
   const lastAutoFailureTsRef = useRef(null);
+  const lastAutoFailureAcceptedAtRef = useRef(0);
+  const lastAutoFailureAcceptedByCategoryRef = useRef({});
   const failureTestScenarios = [
     {
       key: 'engine',
@@ -740,8 +756,8 @@ export default function FlightTracker() {
 
     if (category?.key === 'engine') {
       details = lang === 'de'
-        ? 'Triebwerk: Vollschub erzeugt schnelleren Verschleiß (alle 3s +0.1%), Teilschub langsamer (alle 30s +0.1%). Hohe Gs und harte Landungen erhöhen zusätzlich.'
-        : 'Engine: Full thrust wears faster (+0.1% every 3s), non-full thrust slower (+0.1% every 30s). High G and hard landings add extra wear.';
+        ? 'Triebwerk: Vollschub erzeugt schnelleren Verschleiß (alle 3s +0.1%), Teilschub deutlich langsamer (alle 150s +0.1%). Hohe Gs und harte Landungen erhöhen zusätzlich.'
+        : 'Engine: Full thrust wears faster (+0.1% every 3s), non-full thrust is much slower (+0.1% every 150s). High G and hard landings add extra wear.';
       formula = lang === 'de'
         ? `Extra = floor(VollschubSek/${ENGINE_FULL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + floor(TeilschubSek/${ENGINE_PARTIAL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + max(0, MaxG - ${ENGINE_HIGH_G_THRESHOLD}) x ${ENGINE_HIGH_G_MULTIPLIER} + max(0, LandingG - ${ENGINE_HARD_LANDING_G_THRESHOLD}) x ${ENGINE_HARD_LANDING_G_MULTIPLIER} + Event-Boni`
         : `Extra = floor(fullThrustSec/${ENGINE_FULL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + floor(nonFullSec/${ENGINE_PARTIAL_THRUST_STEP_SECONDS}) x ${ENGINE_WEAR_PER_STEP}% + max(0, maxG - ${ENGINE_HIGH_G_THRESHOLD}) x ${ENGINE_HIGH_G_MULTIPLIER} + max(0, landingG - ${ENGINE_HARD_LANDING_G_THRESHOLD}) x ${ENGINE_HARD_LANDING_G_MULTIPLIER} + event bonuses`;
@@ -975,6 +991,7 @@ export default function FlightTracker() {
     const xp = xplaneLog?.raw_data || {};
     const failureTs = xp.maintenance_failure_timestamp || null;
     const failureCategory = String(xp.maintenance_failure_category || '').toLowerCase().trim();
+    const failureSeverity = String(xp.maintenance_failure_severity || 'medium').toLowerCase().trim();
     if (!failureTs || !failureCategory) return;
     const activeSession = flight || existingFlight;
     const sessionStartMs = Date.parse(String(activeSession?.departure_time || activeSession?.created_date || ""));
@@ -992,6 +1009,44 @@ export default function FlightTracker() {
     };
     const eventKey = categoryToEventKey[failureCategory];
     if (!eventKey) return;
+
+    const aircraftIdForFailure = activeSession?.aircraft_id;
+    const aircraftForFailure = (Array.isArray(aircraft) && aircraftIdForFailure)
+      ? aircraft.find((a) => a.id === aircraftIdForFailure)
+      : null;
+    const dynamicCats = normalizeMaintenanceCategoryMap(aircraftForFailure?.maintenance_categories);
+    const permanentCats = normalizeMaintenanceCategoryMap(aircraftForFailure?.permanent_wear_categories);
+    const dynamicWear = Math.max(0, Number(dynamicCats?.[failureCategory] || 0));
+    const permanentWear = Math.max(0, Number(permanentCats?.[failureCategory] || 0));
+    const totalWear = dynamicWear + permanentWear;
+    const severityBoost = ['critical', 'severe', 'schwer', 'kritisch'].includes(failureSeverity) ? 10 : 0;
+    const minWearRequired = Math.max(35, AUTO_FAILURE_MIN_TOTAL_WEAR_PCT - severityBoost);
+    if (totalWear < minWearRequired) return;
+
+    const nowMs = Date.now();
+    if (lastAutoFailureAcceptedAtRef.current > 0 && (nowMs - lastAutoFailureAcceptedAtRef.current) < AUTO_FAILURE_GLOBAL_COOLDOWN_MS) {
+      return;
+    }
+    const lastAcceptedThisCategory = Number(lastAutoFailureAcceptedByCategoryRef.current?.[failureCategory] || 0);
+    if (lastAcceptedThisCategory > 0 && (nowMs - lastAcceptedThisCategory) < AUTO_FAILURE_CATEGORY_COOLDOWN_MS) {
+      return;
+    }
+
+    // Even with high wear, only some plugin-reported failures are accepted to avoid spammy failure frequency.
+    let acceptanceChance = 0.18;
+    if (totalWear >= 95) acceptanceChance = 0.7;
+    else if (totalWear >= 85) acceptanceChance = 0.52;
+    else if (totalWear >= 75) acceptanceChance = 0.38;
+    else if (totalWear >= 65) acceptanceChance = 0.27;
+    if (severityBoost > 0) acceptanceChance = Math.min(0.9, acceptanceChance + 0.2);
+    const roll = deterministicFailureRoll(`${failureTs}|${failureCategory}|${activeSession?.id || ''}`);
+    if (roll > acceptanceChance) return;
+
+    lastAutoFailureAcceptedAtRef.current = nowMs;
+    lastAutoFailureAcceptedByCategoryRef.current = {
+      ...(lastAutoFailureAcceptedByCategoryRef.current || {}),
+      [failureCategory]: nowMs,
+    };
 
     const labelByCategory = {
       engine: lang === 'de' ? 'Triebwerksausfall' : 'Engine failure',
@@ -1017,7 +1072,7 @@ export default function FlightTracker() {
       ? `${labelByCategory[failureCategory]} erkannt`
       : `${labelByCategory[failureCategory]} detected`;
     showFailurePopup(popupMessage);
-  }, [xplaneLog, lang, flight, existingFlight, showFailurePopup]);
+  }, [xplaneLog, lang, flight, existingFlight, aircraft, showFailurePopup]);
 
   // Initial fetch to get current flight data immediately
   useEffect(() => {
@@ -1037,6 +1092,8 @@ export default function FlightTracker() {
   useEffect(() => {
     setLocalMapPath([]);
     lastAutoFailureTsRef.current = null;
+    lastAutoFailureAcceptedAtRef.current = 0;
+    lastAutoFailureAcceptedByCategoryRef.current = {};
   }, [activeFlightId]);
 
   useEffect(() => {
@@ -1460,6 +1517,8 @@ export default function FlightTracker() {
       lastXplaneTimestampRef.current = null;
       lastDataReceivedRef.current = null;
       lastAutoFailureTsRef.current = null;
+      lastAutoFailureAcceptedAtRef.current = 0;
+      lastAutoFailureAcceptedByCategoryRef.current = {};
       
       // Reset flight data for new flight - komplett sauber
       const cleanData = {
@@ -2100,7 +2159,7 @@ export default function FlightTracker() {
             const storedTouchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(resolvedTouchdownForSave || 0))));
             const storedLandingG = Math.max(0, Math.min(6, Number(resolvedLandingGForSave || 0)));
             const hasCrashedFinal = hasCrashed;
-            const maintenanceCategories = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
+            const maintenanceCategories = MAINTENANCE_CATEGORY_KEYS;
             const flightDamage = maintenanceCategories.reduce((acc, key) => {
               acc[key] = 0;
               return acc;
@@ -2183,7 +2242,7 @@ export default function FlightTracker() {
             if (finalFlightData.events.flaps_overspeed) addFlightDamage('flight_controls', 10);
 
             if (hasCrashedFinal) {
-              const existingCats = airplaneToUpdate?.maintenance_categories || {};
+              const existingCats = normalizeMaintenanceCategoryMap(airplaneToUpdate?.maintenance_categories);
               for (const cat of maintenanceCategories) {
                 const currentWear = Number(existingCats[cat] || 0);
                 const nonCrashFlightWear = Number(flightDamage[cat] || 0);
@@ -2280,7 +2339,7 @@ export default function FlightTracker() {
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (activeFlight?.aircraft_id) {
               try {
-                const existingCats = airplaneToUpdate?.maintenance_categories || {};
+                const existingCats = normalizeMaintenanceCategoryMap(airplaneToUpdate?.maintenance_categories);
                 const updatedCats = { ...existingCats };
                 for (const [cat, dmg] of Object.entries(roundedFlightDamage)) {
                   updatedCats[cat] = Math.min(100, (updatedCats[cat] || 0) + dmg);
@@ -2290,13 +2349,26 @@ export default function FlightTracker() {
                     updatedCats[cat] = 100; // Everything maxed on crash
                   }
                 }
+                const existingPermanentCats = normalizeMaintenanceCategoryMap(airplaneToUpdate?.permanent_wear_categories);
+                const updatedPermanentCats = {};
+                for (const cat of maintenanceCategories) {
+                  const permanent = Number(existingPermanentCats?.[cat] || 0);
+                  updatedPermanentCats[cat] = Number.isFinite(permanent) ? Math.max(0, permanent) : 0;
+                  if (!Number.isFinite(Number(updatedCats?.[cat]))) {
+                    updatedCats[cat] = 0;
+                  }
+                }
 
                 // Determine aircraft status based on updated categories
                 let newAircraftStatus = 'available';
                 if (hasCrashed) {
                   newAircraftStatus = 'damaged';
                 } else {
-                  const catVals = Object.values(updatedCats);
+                  const catVals = maintenanceCategories.map((cat) => {
+                    const dynamicWear = Number(updatedCats?.[cat] || 0);
+                    const permanentWear = Number(updatedPermanentCats?.[cat] || 0);
+                    return Math.max(0, dynamicWear) + Math.max(0, permanentWear);
+                  });
                   const maxCatWear = Math.max(...catVals);
                   const avgCatWear = catVals.reduce((a, b) => a + b, 0) / catVals.length;
                   if (maxCatWear > 75 || avgCatWear > 50) {
@@ -2309,7 +2381,8 @@ export default function FlightTracker() {
                   total_flight_hours: newFlightHours,
                   current_value: hasCrashed ? 0 : Math.max(0, newAircraftValue),
                   accumulated_maintenance_cost: newAccumulatedCost,
-                  maintenance_categories: updatedCats
+                  maintenance_categories: updatedCats,
+                  permanent_wear_categories: updatedPermanentCats
                 };
 
                 console.log('🛩️ AKTUALISIERE FLUGZEUG JETZT:', activeFlight.aircraft_id, aircraftUpdate);
