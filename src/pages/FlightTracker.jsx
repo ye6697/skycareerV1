@@ -1269,6 +1269,7 @@ export default function FlightTracker() {
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
   const liveMaintenanceCategoriesDisplay = useMemo(() => {
     const existingCats = assignedAircraft?.maintenance_categories || {};
+    const permanentCats = assignedAircraft?.permanent_wear_categories || {};
     const toColor = (wear) => {
       if (wear >= 80) return 'text-red-400';
       if (wear >= 60) return 'text-orange-400';
@@ -1279,10 +1280,12 @@ export default function FlightTracker() {
     return (Array.isArray(liveMaintenanceCategories) ? liveMaintenanceCategories : [])
       .map((category) => {
         const existingWear = Math.max(0, Number(existingCats?.[category.key] || 0));
+        const permanentWear = Math.max(0, Number(permanentCats?.[category.key] || 0));
         const addedWear = Math.max(0, Number(category?.addedWear ?? category?.wear ?? 0));
-        const totalWear = Math.min(100, existingWear + addedWear);
+        const totalWear = Math.min(100, permanentWear + existingWear + addedWear);
         return {
           ...category,
+          permanentWear,
           existingWear,
           addedWear,
           wear: totalWear,
@@ -1290,7 +1293,7 @@ export default function FlightTracker() {
         };
       })
       .sort((a, b) => Number(b?.wear || 0) - Number(a?.wear || 0));
-  }, [assignedAircraft?.maintenance_categories, liveMaintenanceCategories]);
+  }, [assignedAircraft?.maintenance_categories, assignedAircraft?.permanent_wear_categories, liveMaintenanceCategories]);
 
   const liveActiveFailures = useMemo(() => {
     const persisted = sanitizeFailureList(
@@ -3705,6 +3708,7 @@ export default function FlightTracker() {
                     const categoryTotalCost = Math.max(0, Number(categoryCosts.total || 0));
                     const maintenanceTotal = Math.max(0, Number(liveCurrentTotalMaintenanceCost || 0));
                     const totalPercent = maintenanceTotal > 0 ? (categoryTotalCost / maintenanceTotal) * 100 : 0;
+                    const permanentPercent = Math.min(100, Math.max(0, Number(category.permanentWear || 0)));
                     const basePercent = maintenanceTotal > 0 ? (categoryBaseCost / maintenanceTotal) * 100 : 0;
                     const addedPercent = maintenanceTotal > 0 ? (categoryAddedCost / maintenanceTotal) * 100 : 0;
                     const clampedBasePercent = Math.min(100, Math.max(0, basePercent));
@@ -3750,6 +3754,9 @@ export default function FlightTracker() {
                           <div className="text-[11px] text-orange-300 font-mono">
                             +{Number(category.addedWear || 0).toFixed(1)}%
                           </div>
+                          <div className="text-[11px] text-red-400 font-mono">
+                            {lang === 'de' ? 'Permanent' : 'Permanent'} {Number(category.permanentWear || 0).toFixed(1)}%
+                          </div>
                           <div className="text-[11px] text-slate-400 font-mono">
                             ${Math.round(categoryTotalCost).toLocaleString()}
                             <span className="text-amber-300"> (+${Math.round(categoryAddedCost).toLocaleString()})</span>
@@ -3759,14 +3766,21 @@ export default function FlightTracker() {
                         </div>
                         <div className="relative w-full bg-slate-700 rounded-full h-1.5 mt-2 overflow-hidden">
                           <div
+                            className="absolute left-0 top-0 h-1.5 bg-red-500 transition-all"
+                            style={{ width: `${permanentPercent}%` }}
+                          />
+                          <div
                             className="absolute left-0 top-0 h-1.5 bg-emerald-500 transition-all"
-                            style={{ width: `${clampedBasePercent}%` }}
+                            style={{
+                              left: `${permanentPercent}%`,
+                              width: `${Math.min(100 - permanentPercent, clampedBasePercent)}%`
+                            }}
                           />
                           <div
                             className="absolute top-0 h-1.5 bg-orange-400 transition-all"
                             style={{
-                              left: `${clampedBasePercent}%`,
-                              width: `${clampedAddedPercent}%`,
+                              left: `${Math.min(100, permanentPercent + clampedBasePercent)}%`,
+                              width: `${Math.min(100 - Math.min(100, permanentPercent + clampedBasePercent), clampedAddedPercent)}%`,
                             }}
                           />
                         </div>

@@ -88,13 +88,24 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   
   // New category-based maintenance check
   const cats = aircraft.maintenance_categories || {};
+  const permanentCats = aircraft.permanent_wear_categories || {};
   const catValues = [
-    cats.engine || 0, cats.hydraulics || 0, cats.avionics || 0,
-    cats.airframe || 0, cats.landing_gear || 0, cats.electrical || 0,
-    cats.flight_controls || 0, cats.pressurization || 0
+    (cats.engine || 0) + (permanentCats.engine || 0), (cats.hydraulics || 0) + (permanentCats.hydraulics || 0), (cats.avionics || 0) + (permanentCats.avionics || 0),
+    (cats.airframe || 0) + (permanentCats.airframe || 0), (cats.landing_gear || 0) + (permanentCats.landing_gear || 0), (cats.electrical || 0) + (permanentCats.electrical || 0),
+    (cats.flight_controls || 0) + (permanentCats.flight_controls || 0), (cats.pressurization || 0) + (permanentCats.pressurization || 0)
   ];
   const avgWear = catValues.reduce((a, b) => a + b, 0) / catValues.length;
   const maxWear = Math.max(...catValues);
+  const maxPermanentWear = Math.max(
+    permanentCats.engine || 0,
+    permanentCats.hydraulics || 0,
+    permanentCats.avionics || 0,
+    permanentCats.airframe || 0,
+    permanentCats.landing_gear || 0,
+    permanentCats.electrical || 0,
+    permanentCats.flight_controls || 0,
+    permanentCats.pressurization || 0
+  );
   const needsMaintenance = maxWear > 75 || avgWear > 50;
 
   const repairMutation = useMutation({
@@ -112,15 +123,21 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const newValue = Math.max(0, rawCurrentValue - valueReduction);
       
       const newStatus = newValue <= 0 ? 'total_loss' : 'available';
+      const newLifetimeMaintCost = Math.max(0, Number(aircraft.lifetime_maintenance_cost || 0)) + repairPrice;
+      const permanentWearValue = Math.max(0, Math.min(100, 100 / Math.max(1, newLifetimeMaintCost)));
       
       // Reset all maintenance categories
       const newCats = {};
+      const newPermanentCats = {};
       ['engine','hydraulics','avionics','airframe','landing_gear','electrical','flight_controls','pressurization'].forEach(c => { newCats[c] = 0; });
+      ['engine','hydraulics','avionics','airframe','landing_gear','electrical','flight_controls','pressurization'].forEach(c => { newPermanentCats[c] = permanentWearValue; });
       
       await base44.entities.Aircraft.update(aircraft.id, { 
         status: newStatus,
         accumulated_maintenance_cost: 0,
         maintenance_categories: newCats,
+        permanent_wear_categories: newPermanentCats,
+        lifetime_maintenance_cost: newLifetimeMaintCost,
         current_value: newValue
       });
       await base44.entities.Company.update(company.id, { balance: (company.balance || 0) - repairPrice });
@@ -268,8 +285,15 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             <span className="text-slate-600">WEAR MAX</span>
             <span className={needsMaintenance ? 'text-red-400 font-bold' : 'text-emerald-500'}>{Math.round(maxWear)}%</span>
           </div>
-          <div className="w-full bg-slate-950 rounded-full h-1 border border-slate-800">
-            <div className={`h-full rounded-full ${needsMaintenance ? 'bg-red-500 shadow-[0_0_5px_#ef4444]' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, maxWear)}%` }} />
+          <div className="relative w-full bg-slate-950 rounded-full h-1 border border-slate-800 overflow-hidden">
+            <div className="absolute left-0 top-0 h-full bg-red-500/90" style={{ width: `${Math.min(100, maxPermanentWear)}%` }} />
+            <div
+              className={`absolute top-0 h-full ${needsMaintenance ? 'bg-orange-400 shadow-[0_0_5px_#fb923c]' : 'bg-emerald-500'}`}
+              style={{
+                left: `${Math.min(100, maxPermanentWear)}%`,
+                width: `${Math.min(100 - Math.min(100, maxPermanentWear), Math.max(0, maxWear - maxPermanentWear))}%`
+              }}
+            />
           </div>
         </div>
 

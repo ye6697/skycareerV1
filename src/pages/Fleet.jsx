@@ -18,10 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
-  Plus,
   Plane,
-  DollarSign,
-  Sparkles
 } from "lucide-react";
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
@@ -99,6 +96,42 @@ const AIRCRAFT_MARKET_SPECS = [
   { name: "Airbus A380", type: "wide_body", passenger_capacity: 555, cargo_capacity_kg: 18600, fuel_consumption_per_hour: 12500, range_nm: 8000, purchase_price: 440000000, maintenance_cost_per_hour: 5000, level_requirement: 31 },
 ];
 
+const MAINTENANCE_CATEGORY_KEYS = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
+
+const getPermanentWearFromMaintenanceCost = (totalMaintenanceCost) => {
+  const safeCost = Math.max(1, Number(totalMaintenanceCost || 0));
+  return Math.max(0, Math.min(100, 100 / safeCost));
+};
+
+const buildUsedMarketInventory = () => {
+  return AIRCRAFT_MARKET_SPECS
+    .filter((ac) => ac.level_requirement <= 20)
+    .map((ac, index) => {
+      const discountFactor = 0.62 + ((index % 7) * 0.045);
+      const usedPrice = Math.round(ac.purchase_price * Math.min(0.9, discountFactor));
+      const maintenanceCosts = Math.max(2000, Math.round(ac.purchase_price * (0.008 + ((index % 6) * 0.003))));
+      const permanentWear = getPermanentWearFromMaintenanceCost(maintenanceCosts);
+      const maintenance_categories = {};
+      const permanent_wear_categories = {};
+      MAINTENANCE_CATEGORY_KEYS.forEach((key, catIndex) => {
+        const baseWear = 5 + ((index + catIndex * 3) % 35);
+        maintenance_categories[key] = baseWear;
+        permanent_wear_categories[key] = Number((permanentWear + ((catIndex + index) % 3) * 0.3).toFixed(2));
+      });
+
+      return {
+        ...ac,
+        purchase_price: usedPrice,
+        marketType: 'used',
+        original_price: ac.purchase_price,
+        accumulated_maintenance_cost: Math.round(maintenanceCosts * 0.35),
+        lifetime_maintenance_cost: maintenanceCosts,
+        maintenance_categories,
+        permanent_wear_categories,
+      };
+    });
+};
+
 export default function Fleet() {
   const { state } = useLocation();
   const queryClient = useQueryClient();
@@ -107,6 +140,8 @@ export default function Fleet() {
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
+  const [marketSection, setMarketSection] = useState('new');
+  const usedMarketInventory = React.useMemo(() => buildUsedMarketInventory(), []);
 
   const { data: templates = [] } = useQuery({
     queryKey: ['aircraftTemplates'],
@@ -170,7 +205,12 @@ export default function Fleet() {
         insurance_plan: defaultInsurance.key,
         insurance_hourly_rate_pct: defaultInsurance.hourlyRatePctOfNewValue,
         insurance_maintenance_coverage_pct: defaultInsurance.maintenanceCoveragePct,
-        insurance_score_bonus_pct: defaultInsurance.scoreBonusPct
+        insurance_score_bonus_pct: defaultInsurance.scoreBonusPct,
+        maintenance_categories: aircraftData.maintenance_categories || MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {}),
+        permanent_wear_categories: aircraftData.permanent_wear_categories || MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {}),
+        lifetime_maintenance_cost: Number(aircraftData.lifetime_maintenance_cost || 0),
+        accumulated_maintenance_cost: Number(aircraftData.accumulated_maintenance_cost || 0),
+        market_origin: aircraftData.marketType || 'new'
       });
 
       if (company) {
@@ -223,11 +263,30 @@ export default function Fleet() {
     return hasLevel && hasBalance;
   };
 
+  const marketAircraft = marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS;
+
   return (
-    <div className="h-full flex flex-col gap-2">
-      {/* Zibo Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
-        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('fleet', lang)}</div>
+    <div className="h-full flex flex-col gap-3">
+      <div className="rounded-xl border border-cyan-900/40 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-3 shadow-lg shadow-cyan-950/30">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-lg font-mono font-bold text-cyan-300 uppercase tracking-widest">{t('fleet', lang)}</div>
+            <div className="text-[11px] text-cyan-700 uppercase">{lang === 'de' ? 'Flottenmanagement & Flugzeugmärkte' : 'Fleet management & aircraft markets'}</div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+            <Card className="p-2 bg-slate-900/80 border-cyan-900/50">
+              <div className="text-cyan-700">{lang === 'de' ? 'Flugzeuge' : 'Aircraft'}</div>
+              <div className="text-cyan-300 font-bold text-sm">{filteredAircraft.length}</div>
+            </Card>
+            <Card className="p-2 bg-slate-900/80 border-emerald-900/50">
+              <div className="text-emerald-700">{lang === 'de' ? 'Budget' : 'Budget'}</div>
+              <div className="text-emerald-300 font-bold text-sm">${Math.round(company?.balance || 0).toLocaleString()}</div>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/70 border border-cyan-900/30 p-2 rounded-lg shadow-md">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-cyan-600" />
@@ -249,6 +308,14 @@ export default function Fleet() {
                  <DialogTitle className="text-xl font-mono text-cyan-400 uppercase">{t('aircraft_market', lang)}</DialogTitle>
                  <p className="text-[10px] font-mono text-cyan-600/70 uppercase">{t('choose_next_aircraft', lang)}</p>
                </DialogHeader>
+               <div className="flex items-center gap-2 mb-2">
+                 <Button size="sm" className={`h-7 text-[10px] ${marketSection === 'new' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`} onClick={() => setMarketSection('new')}>
+                  {lang === 'de' ? 'Neumarkt' : 'New market'}
+                 </Button>
+                 <Button size="sm" className={`h-7 text-[10px] ${marketSection === 'used' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`} onClick={() => setMarketSection('used')}>
+                  {lang === 'de' ? 'Gebrauchtmarkt' : 'Used market'}
+                 </Button>
+               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {company && (
@@ -262,7 +329,7 @@ export default function Fleet() {
                   </motion.div>
                 )}
 
-                {AIRCRAFT_MARKET_SPECS.map((ac, index) => {
+                {marketAircraft.map((ac, index) => {
                   const template = templates.find(t => t.name === ac.name);
                   const displayData = { ...ac, image_url: template?.image_url };
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
@@ -274,7 +341,10 @@ export default function Fleet() {
                     <Card className={`overflow-hidden flex flex-col h-full bg-slate-900 border ${isPurchasable ? 'border-cyan-900/50 hover:border-cyan-500/50 cursor-pointer' : 'border-slate-800 opacity-50'}`}>
                       <div className="p-3 flex flex-col flex-grow">
                         <div className="mb-2 border-b border-cyan-900/30 pb-2">
-                          <p className="font-bold text-xs text-white uppercase truncate">{ac.name}</p>
+                          <p className="font-bold text-xs text-white uppercase truncate flex items-center gap-1">
+                            {ac.name}
+                            {ac.marketType === 'used' && <span className="text-[9px] text-amber-400">USED</span>}
+                          </p>
                           <p className="text-[10px] text-cyan-600">{typeLabels[ac.type]?.toUpperCase()}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-1 text-[10px] font-mono mb-3">
@@ -289,6 +359,11 @@ export default function Fleet() {
                             <span className="text-[10px] text-slate-500">PRICE</span>
                             <span className={`text-sm font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>${(ac.purchase_price / 1000000).toFixed(1)}M</span>
                           </div>
+                          {ac.marketType === 'used' && (
+                            <div className="text-[10px] text-amber-300 bg-amber-950/30 border border-amber-700/40 rounded p-1">
+                              {lang === 'de' ? 'Permanenter Verschleiß inklusive' : 'Permanent wear included'} | ${Math.round(ac.original_price || 0).toLocaleString()} → ${Math.round(ac.purchase_price).toLocaleString()}
+                            </div>
+                          )}
                           {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
                           <Button
                             onClick={() => { setSelectedAircraft(ac); purchaseMutation.mutate(ac); }}
