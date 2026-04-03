@@ -93,7 +93,6 @@ export default function CompletedFlightDetails() {
   // No route generation needed - map will use flight path data
 
   // If we don't have all required data, refetch queries instead of full reload
-  const queryClient = React.useMemo(() => null, []); // handled by useQuery refetch
   React.useEffect(() => {
     if (!flight && contractId) {
       // Force refetch flight data after short delay (data may not be written yet)
@@ -103,6 +102,26 @@ export default function CompletedFlightDetails() {
       return () => clearTimeout(timer);
     }
   }, [flight, contractId]);
+
+  // All hooks must be called before any early returns
+  const activeFailuresOnly = React.useMemo(() => {
+    if (!flight) return [];
+    const persisted = sanitizeFailureList(flight?.active_failures || [], lang, { bridgeOnly: true });
+    const fromEventFlags = buildFailuresFromEventFlags(flight?.xplane_data?.events || {}, lang);
+    if (fromEventFlags.length === 0) return persisted;
+
+    const merged = [...persisted];
+    const seen = new Set(
+      persisted.map((entry) => `${String(entry?.category || "")}|${String(entry?.name || "")}`),
+    );
+    for (const entry of fromEventFlags) {
+      const dedupeKey = `${String(entry?.category || "")}|${String(entry?.name || "")}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      merged.push(entry);
+    }
+    return merged;
+  }, [flight?.active_failures, flight?.xplane_data?.events, lang]);
 
   if (!finalContract) {
     return (
@@ -188,23 +207,6 @@ export default function CompletedFlightDetails() {
   const wrongAirportDistanceNm = Number(flight?.xplane_data?.arrival_distance_nm || 0);
   const isCrashFlight = !!flight?.xplane_data?.events?.crash;
   const showWrongAirportBanner = wrongAirportCompletion && !emergencyOffAirportCompletion && !isCrashFlight;
-  const activeFailuresOnly = React.useMemo(() => {
-    const persisted = sanitizeFailureList(flight?.active_failures || [], lang, { bridgeOnly: true });
-    const fromEventFlags = buildFailuresFromEventFlags(flight?.xplane_data?.events || {}, lang);
-    if (fromEventFlags.length === 0) return persisted;
-
-    const merged = [...persisted];
-    const seen = new Set(
-      persisted.map((entry) => `${String(entry?.category || "")}|${String(entry?.name || "")}`),
-    );
-    for (const entry of fromEventFlags) {
-      const dedupeKey = `${String(entry?.category || "")}|${String(entry?.name || "")}`;
-      if (seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-      merged.push(entry);
-    }
-    return merged;
-  }, [flight?.active_failures, flight?.xplane_data?.events, lang]);
   const maintenanceDamageByCategory = (flight?.maintenance_damage && typeof flight.maintenance_damage === 'object')
     ? flight.maintenance_damage
     : ((flight?.xplane_data?.maintenance_damage && typeof flight.xplane_data.maintenance_damage === 'object')
