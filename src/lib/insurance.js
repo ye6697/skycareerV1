@@ -3,33 +3,33 @@ export const INSURANCE_PACKAGES = {
     key: 'basic',
     name: { en: 'Basic Cover', de: 'Basis-Schutz' },
     description: {
-      en: 'Low premium, low maintenance coverage.',
-      de: 'Niedrige Prämie, geringe Wartungsabdeckung.',
+      en: 'Lowest fees with limited maintenance coverage.',
+      de: 'Niedrige Gebuehren mit begrenzter Wartungsabdeckung.',
     },
-    hourlyRatePctOfNewValue: 0.000015,
-    maintenanceCoveragePct: 0.15,
+    hourlyRatePctOfNewValue: 0.00007,
+    maintenanceCoveragePct: 0.2,
     scoreBonusPct: 0,
   },
   plus: {
     key: 'plus',
     name: { en: 'Plus Cover', de: 'Plus-Schutz' },
     description: {
-      en: 'Balanced premium with meaningful maintenance coverage.',
-      de: 'Ausgewogene Prämie mit spürbarer Wartungsabdeckung.',
+      en: 'Higher fees with strong maintenance protection.',
+      de: 'Hoehere Gebuehren mit starkem Wartungsschutz.',
     },
-    hourlyRatePctOfNewValue: 0.00003,
-    maintenanceCoveragePct: 0.4,
-    scoreBonusPct: 0.03,
+    hourlyRatePctOfNewValue: 0.00018,
+    maintenanceCoveragePct: 0.48,
+    scoreBonusPct: 0.02,
   },
   premium: {
     key: 'premium',
     name: { en: 'Premium Cover', de: 'Premium-Schutz' },
     description: {
-      en: 'Highest premium, strongest protection and score bonus.',
-      de: 'Höchste Prämie, stärkster Schutz und Score-Bonus.',
+      en: 'Very high fees, maximum protection and top score bonus.',
+      de: 'Sehr hohe Gebuehren, maximaler Schutz und bester Score-Bonus.',
     },
-    hourlyRatePctOfNewValue: 0.00005,
-    maintenanceCoveragePct: 0.65,
+    hourlyRatePctOfNewValue: 0.00055,
+    maintenanceCoveragePct: 0.8,
     scoreBonusPct: 0.05,
   },
 };
@@ -43,19 +43,27 @@ export function getInsurancePlanConfig(planKey) {
 export function getReputationInsuranceFactor(reputation) {
   const rep = Number.isFinite(Number(reputation)) ? Number(reputation) : 50;
   const normalized = Math.max(0, Math.min(100, rep));
-  // High reputation lowers premium up to -20%, low reputation raises up to +20%.
-  return 1 + ((50 - normalized) / 50) * 0.2;
+
+  // Strong dynamic pricing:
+  // - High reputation (100) => up to 30% lower fees (factor 0.70)
+  // - Low reputation (0) => up to 180% higher fees (factor 2.80)
+  if (normalized >= 50) {
+    return 1 - ((normalized - 50) / 50) * 0.3;
+  }
+  return 1 + ((50 - normalized) / 50) * 1.8;
 }
 
 export function resolveAircraftInsurance(aircraft) {
   const planKey = aircraft?.insurance_plan || DEFAULT_INSURANCE_PLAN;
   const plan = getInsurancePlanConfig(planKey);
+
+  // Always resolve package values from the current config so insurance terms stay dynamic.
   return {
     planKey: plan.key,
     plan,
-    maintenanceCoveragePct: Number(aircraft?.insurance_maintenance_coverage_pct ?? plan.maintenanceCoveragePct),
-    scoreBonusPct: Number(aircraft?.insurance_score_bonus_pct ?? plan.scoreBonusPct),
-    hourlyRatePctOfNewValue: Number(aircraft?.insurance_hourly_rate_pct ?? plan.hourlyRatePctOfNewValue),
+    maintenanceCoveragePct: plan.maintenanceCoveragePct,
+    scoreBonusPct: plan.scoreBonusPct,
+    hourlyRatePctOfNewValue: plan.hourlyRatePctOfNewValue,
   };
 }
 

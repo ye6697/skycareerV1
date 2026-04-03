@@ -97,39 +97,189 @@ const AIRCRAFT_MARKET_SPECS = [
 ];
 
 const MAINTENANCE_CATEGORY_KEYS = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
-
-const getPermanentWearFromMaintenanceCost = (totalMaintenanceCost) => {
-  const safeCost = Math.max(1, Number(totalMaintenanceCost || 0));
-  return Math.max(0, Math.min(100, 100 / safeCost));
+const MAINTENANCE_CATEGORY_LABELS = {
+  engine: { en: 'Engine', de: 'Triebwerk' },
+  hydraulics: { en: 'Hydraulics', de: 'Hydraulik' },
+  avionics: { en: 'Avionics', de: 'Avionik' },
+  airframe: { en: 'Airframe', de: 'Zelle' },
+  landing_gear: { en: 'Landing gear', de: 'Fahrwerk' },
+  electrical: { en: 'Electrical', de: 'Elektrik' },
+  flight_controls: { en: 'Flight controls', de: 'Flugsteuerung' },
+  pressurization: { en: 'Pressurization', de: 'Drucksystem' },
 };
 
-const buildUsedMarketInventory = () => {
-  return AIRCRAFT_MARKET_SPECS
-    .filter((ac) => ac.level_requirement <= 20)
-    .map((ac, index) => {
-      const discountFactor = 0.62 + ((index % 7) * 0.045);
-      const usedPrice = Math.round(ac.purchase_price * Math.min(0.9, discountFactor));
-      const maintenanceCosts = Math.max(2000, Math.round(ac.purchase_price * (0.008 + ((index % 6) * 0.003))));
-      const permanentWear = getPermanentWearFromMaintenanceCost(maintenanceCosts);
+const USED_CONDITION_PROFILES = [
+  {
+    key: 'ready',
+    label: { en: 'Ready to fly', de: 'Sofort einsatzbereit' },
+    minDiscount: 0.72,
+    maxDiscount: 0.9,
+    minLiveWear: 3,
+    maxLiveWear: 18,
+    minPermanentWear: 0.2,
+    maxPermanentWear: 2.5,
+    minAccumulatedCostPct: 0.002,
+    maxAccumulatedCostPct: 0.01,
+    minAgeYears: 2,
+    maxAgeYears: 9,
+  },
+  {
+    key: 'service_due',
+    label: { en: 'Service due soon', de: 'Service bald faellig' },
+    minDiscount: 0.55,
+    maxDiscount: 0.74,
+    minLiveWear: 18,
+    maxLiveWear: 48,
+    minPermanentWear: 2.5,
+    maxPermanentWear: 8,
+    minAccumulatedCostPct: 0.01,
+    maxAccumulatedCostPct: 0.03,
+    minAgeYears: 6,
+    maxAgeYears: 16,
+  },
+  {
+    key: 'project',
+    label: { en: 'Project aircraft', de: 'Projektflugzeug' },
+    minDiscount: 0.34,
+    maxDiscount: 0.58,
+    minLiveWear: 45,
+    maxLiveWear: 85,
+    minPermanentWear: 8,
+    maxPermanentWear: 22,
+    minAccumulatedCostPct: 0.03,
+    maxAccumulatedCostPct: 0.08,
+    minAgeYears: 10,
+    maxAgeYears: 28,
+  },
+];
+
+const usedMarketLerp = (min, max, t) => min + (max - min) * t;
+
+const seededValue = (seed) => {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return Math.abs(hash >>> 0) / 4294967295;
+};
+
+const pickUsedProfile = (value) => {
+  if (value < 0.45) return USED_CONDITION_PROFILES[0];
+  if (value < 0.8) return USED_CONDITION_PROFILES[1];
+  return USED_CONDITION_PROFILES[2];
+};
+
+const buildUsedMarketInventory = ({ companyLevel = 1, marketSeed = '' } = {}) => {
+  const maxLevel = Math.min(31, Math.max(4, companyLevel + 6));
+  const minLevel = Math.max(1, companyLevel - 6);
+  const candidatePool = AIRCRAFT_MARKET_SPECS.filter((ac) => ac.level_requirement >= minLevel && ac.level_requirement <= maxLevel);
+  const poolByType = candidatePool.reduce((acc, ac) => {
+    if (!acc[ac.type]) acc[ac.type] = [];
+    acc[ac.type].push(ac);
+    return acc;
+  }, {});
+
+  const selectedModels = [];
+  Object.entries(poolByType).forEach(([typeKey, typeModels]) => {
+    const ranked = [...typeModels]
+      .map((ac) => ({
+        aircraft: ac,
+        score: Math.abs((ac.level_requirement || 1) - companyLevel) + seededValue(`${marketSeed}-${typeKey}-${ac.name}`),
+      }))
+      .sort((a, b) => a.score - b.score);
+
+    const typeSlots = Math.min(3, ranked.length);
+    selectedModels.push(...ranked.slice(0, typeSlots).map((entry) => entry.aircraft));
+  });
+
+  const listings = [];
+  selectedModels.forEach((ac) => {
+    const variantCount = 1 + Math.floor(seededValue(`${marketSeed}-${ac.name}-variants`) * 3);
+    for (let variant = 0; variant < variantCount; variant += 1) {
+      const profile = pickUsedProfile(seededValue(`${marketSeed}-${ac.name}-${variant}-profile`));
+      const discountFactor = usedMarketLerp(
+        profile.minDiscount,
+        profile.maxDiscount,
+        seededValue(`${marketSeed}-${ac.name}-${variant}-discount`)
+      );
+      const usedPrice = Math.round(ac.purchase_price * Math.max(0.28, Math.min(0.93, discountFactor)));
+
+      const accumulatedMaintenanceCost = Math.round(
+        Math.max(
+          1500,
+          ac.purchase_price * usedMarketLerp(
+            profile.minAccumulatedCostPct,
+            profile.maxAccumulatedCostPct,
+            seededValue(`${marketSeed}-${ac.name}-${variant}-acc`)
+          )
+        )
+      );
+      const lifetimeMaintenanceCost = Math.round(
+        accumulatedMaintenanceCost + ac.purchase_price * usedMarketLerp(0.04, 0.22, seededValue(`${marketSeed}-${ac.name}-${variant}-life`))
+      );
+
       const maintenance_categories = {};
       const permanent_wear_categories = {};
       MAINTENANCE_CATEGORY_KEYS.forEach((key, catIndex) => {
-        const baseWear = 5 + ((index + catIndex * 3) % 35);
-        maintenance_categories[key] = baseWear;
-        permanent_wear_categories[key] = Number((permanentWear + ((catIndex + index) % 3) * 0.3).toFixed(2));
+        const liveWear = usedMarketLerp(
+          profile.minLiveWear,
+          profile.maxLiveWear,
+          seededValue(`${marketSeed}-${ac.name}-${variant}-${key}-live-${catIndex}`)
+        );
+        const permanentWear = usedMarketLerp(
+          profile.minPermanentWear,
+          profile.maxPermanentWear,
+          seededValue(`${marketSeed}-${ac.name}-${variant}-${key}-perm-${catIndex}`)
+        );
+        maintenance_categories[key] = Number(liveWear.toFixed(1));
+        permanent_wear_categories[key] = Number(permanentWear.toFixed(2));
       });
 
-      return {
+      const liveWearValues = Object.values(maintenance_categories);
+      const permanentWearValues = Object.values(permanent_wear_categories);
+      const avgLiveWear = liveWearValues.reduce((sum, value) => sum + Number(value), 0) / liveWearValues.length;
+      const maxLiveWear = Math.max(...liveWearValues.map((value) => Number(value)));
+      const avgPermanentWear = permanentWearValues.reduce((sum, value) => sum + Number(value), 0) / permanentWearValues.length;
+      const ageYears = Math.round(
+        usedMarketLerp(
+          profile.minAgeYears,
+          profile.maxAgeYears,
+          seededValue(`${marketSeed}-${ac.name}-${variant}-age`)
+        )
+      );
+      const totalHours = Math.round(
+        usedMarketLerp(400, 12000, seededValue(`${marketSeed}-${ac.name}-${variant}-hours`)) * (1 + (ac.level_requirement || 1) * 0.03)
+      );
+
+      listings.push({
         ...ac,
         purchase_price: usedPrice,
         marketType: 'used',
         original_price: ac.purchase_price,
-        accumulated_maintenance_cost: Math.round(maintenanceCosts * 0.35),
-        lifetime_maintenance_cost: maintenanceCosts,
+        accumulated_maintenance_cost: accumulatedMaintenanceCost,
+        lifetime_maintenance_cost: lifetimeMaintenanceCost,
         maintenance_categories,
         permanent_wear_categories,
-      };
-    });
+        used_condition_key: profile.key,
+        used_condition_label: profile.label,
+        used_wear_avg: Number(avgLiveWear.toFixed(1)),
+        used_wear_peak: Number(maxLiveWear.toFixed(1)),
+        used_permanent_avg: Number(avgPermanentWear.toFixed(2)),
+        used_age_years: ageYears,
+        total_flight_hours: totalHours,
+        market_listing_id: `${ac.name}-${profile.key}-${variant}-${Math.round(usedPrice / 1000)}`,
+      });
+    }
+  });
+
+  return listings
+    .sort((a, b) => {
+      const levelDiff = Math.abs((a.level_requirement || 1) - companyLevel) - Math.abs((b.level_requirement || 1) - companyLevel);
+      if (levelDiff !== 0) return levelDiff;
+      return a.purchase_price - b.purchase_price;
+    })
+    .slice(0, 24);
 };
 
 export default function Fleet() {
@@ -141,7 +291,9 @@ export default function Fleet() {
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [marketSection, setMarketSection] = useState('new');
-  const usedMarketInventory = React.useMemo(() => buildUsedMarketInventory(), []);
+  const [usedConditionFilter, setUsedConditionFilter] = useState('all');
+  const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
+  const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const { data: templates = [] } = useQuery({
     queryKey: ['aircraftTemplates'],
@@ -175,6 +327,11 @@ export default function Fleet() {
     refetchOnWindowFocus: false,
   });
 
+  const usedMarketInventory = React.useMemo(
+    () => buildUsedMarketInventory({ companyLevel: company?.level || 1, marketSeed: usedMarketSeed }),
+    [company?.level, usedMarketSeed]
+  );
+
   const { data: aircraft = [], isLoading } = useQuery({
     queryKey: ['aircraft', company?.id],
     queryFn: async () => {
@@ -194,13 +351,16 @@ export default function Fleet() {
       const specs = AIRCRAFT_MARKET_SPECS.find(a => a.name === aircraftData.name) || aircraftData;
       const template = templates.find(t => t.name === aircraftData.name);
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
+      const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
       await base44.entities.Aircraft.create({
         ...specs,
+        purchase_price: finalPurchasePrice,
+        original_purchase_price: Number(aircraftData.original_price || specs.purchase_price || finalPurchasePrice),
         company_id: company.id,
         registration,
         status: 'available',
-        total_flight_hours: 0,
-        current_value: aircraftData.purchase_price,
+        total_flight_hours: Number(aircraftData.total_flight_hours || 0),
+        current_value: finalPurchasePrice,
         image_url: template?.image_url,
         insurance_plan: defaultInsurance.key,
         insurance_hourly_rate_pct: defaultInsurance.hourlyRatePctOfNewValue,
@@ -210,7 +370,9 @@ export default function Fleet() {
         permanent_wear_categories: aircraftData.permanent_wear_categories || MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {}),
         lifetime_maintenance_cost: Number(aircraftData.lifetime_maintenance_cost || 0),
         accumulated_maintenance_cost: Number(aircraftData.accumulated_maintenance_cost || 0),
-        market_origin: aircraftData.marketType || 'new'
+        market_origin: aircraftData.marketType || 'new',
+        used_condition_key: aircraftData.used_condition_key || null,
+        used_age_years: Number(aircraftData.used_age_years || 0)
       });
 
       if (company) {
@@ -235,7 +397,7 @@ export default function Fleet() {
     }
   });
 
-  // Fleet wird jetzt direkt von DB geladen mit refetchInterval, state wird nicht mehr benötigt
+  // Fleet wird jetzt direkt von DB geladen mit refetchInterval, state wird nicht mehr benoetigt
   const displayAircraft = aircraft;
 
   const filteredAircraft = displayAircraft.filter(ac => {
@@ -263,7 +425,11 @@ export default function Fleet() {
     return hasLevel && hasBalance;
   };
 
-  const marketAircraft = marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS;
+  const marketAircraft = (marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS)
+    .filter((ac) => {
+      if (marketSection !== 'used' || usedConditionFilter === 'all') return true;
+      return ac.used_condition_key === usedConditionFilter;
+    });
 
   return (
     <div className="h-full flex flex-col gap-3">
@@ -271,7 +437,7 @@ export default function Fleet() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-lg font-mono font-bold text-cyan-300 uppercase tracking-widest">{t('fleet', lang)}</div>
-            <div className="text-[11px] text-cyan-700 uppercase">{lang === 'de' ? 'Flottenmanagement & Flugzeugmärkte' : 'Fleet management & aircraft markets'}</div>
+            <div className="text-[11px] text-cyan-700 uppercase">{lang === 'de' ? 'Flottenmanagement & Flugzeugmaerkte' : 'Fleet management & aircraft markets'}</div>
           </div>
           <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
             <Card className="p-2 bg-slate-900/80 border-cyan-900/50">
@@ -297,7 +463,13 @@ export default function Fleet() {
               className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900"
             />
           </div>
-          <Dialog open={isPurchaseDialogOpen} onOpenChange={setIsPurchaseDialogOpen}>
+          <Dialog
+            open={isPurchaseDialogOpen}
+            onOpenChange={(open) => {
+              setIsPurchaseDialogOpen(open);
+              if (!open) setMaintenancePreviewListing(null);
+            }}
+          >
             <DialogTrigger asChild>
               <Button size="sm" className="h-7 text-[10px] font-mono uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60">
                 + {t('buy_aircraft', lang)}
@@ -309,13 +481,57 @@ export default function Fleet() {
                  <p className="text-[10px] font-mono text-cyan-600/70 uppercase">{t('choose_next_aircraft', lang)}</p>
                </DialogHeader>
                <div className="flex items-center gap-2 mb-2">
-                 <Button size="sm" className={`h-7 text-[10px] ${marketSection === 'new' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`} onClick={() => setMarketSection('new')}>
+                 <Button
+                   size="sm"
+                   className={`h-7 text-[10px] ${marketSection === 'new' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+                   onClick={() => {
+                     setMarketSection('new');
+                     setUsedConditionFilter('all');
+                   }}
+                 >
                   {lang === 'de' ? 'Neumarkt' : 'New market'}
                  </Button>
-                 <Button size="sm" className={`h-7 text-[10px] ${marketSection === 'used' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`} onClick={() => setMarketSection('used')}>
+                 <Button
+                   size="sm"
+                   className={`h-7 text-[10px] ${marketSection === 'used' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                   onClick={() => setMarketSection('used')}
+                 >
                   {lang === 'de' ? 'Gebrauchtmarkt' : 'Used market'}
                  </Button>
-               </div>
+                </div>
+               {marketSection === 'used' && (
+                 <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
+                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                     <p className="text-[10px] text-amber-300 font-mono uppercase">
+                       {lang === 'de'
+                         ? 'Realistischer Markt: begrenztes Angebot, mehrere Zustaende pro Modell'
+                         : 'Realistic market: limited listings, multiple conditions per model'}
+                     </p>
+                     <p className="text-[10px] text-slate-400 font-mono">
+                       {lang === 'de' ? 'Marktstand' : 'Market snapshot'}: {usedMarketSeed}
+                     </p>
+                   </div>
+                   <div className="flex flex-wrap gap-2">
+                     <Button
+                       size="sm"
+                       className={`h-6 text-[10px] ${usedConditionFilter === 'all' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                       onClick={() => setUsedConditionFilter('all')}
+                     >
+                       {lang === 'de' ? 'Alle' : 'All'}
+                     </Button>
+                     {USED_CONDITION_PROFILES.map((profile) => (
+                       <Button
+                         key={profile.key}
+                         size="sm"
+                         className={`h-6 text-[10px] ${usedConditionFilter === profile.key ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                         onClick={() => setUsedConditionFilter(profile.key)}
+                       >
+                         {profile.label[lang] || profile.label.en}
+                       </Button>
+                     ))}
+                   </div>
+                 </div>
+               )}
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {company && (
@@ -330,56 +546,152 @@ export default function Fleet() {
                 )}
 
                 {marketAircraft.map((ac, index) => {
-                  const template = templates.find(t => t.name === ac.name);
-                  const displayData = { ...ac, image_url: template?.image_url };
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                   const hasBalance = canAfford(ac.purchase_price);
                   const isPurchasable = hasLevel && hasBalance;
+                  const isBuyingThis = purchaseMutation.isPending && (
+                    (ac.market_listing_id && selectedAircraft?.market_listing_id === ac.market_listing_id) ||
+                    (!ac.market_listing_id && selectedAircraft?.name === ac.name)
+                  );
+                  const usedConditionLabel = ac.used_condition_label?.[lang] || ac.used_condition_label?.en;
 
                   return (
-                  <motion.div key={index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
-                    <Card className={`overflow-hidden flex flex-col h-full bg-slate-900 border ${isPurchasable ? 'border-cyan-900/50 hover:border-cyan-500/50 cursor-pointer' : 'border-slate-800 opacity-50'}`}>
-                      <div className="p-3 flex flex-col flex-grow">
-                        <div className="mb-2 border-b border-cyan-900/30 pb-2">
-                          <p className="font-bold text-xs text-white uppercase truncate flex items-center gap-1">
-                            {ac.name}
-                            {ac.marketType === 'used' && <span className="text-[9px] text-amber-400">USED</span>}
-                          </p>
-                          <p className="text-[10px] text-cyan-600">{typeLabels[ac.type]?.toUpperCase()}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-1 text-[10px] font-mono mb-3">
-                          <div className="flex justify-between"><span className="text-slate-500">PAX</span><span className="text-cyan-100">{ac.passenger_capacity}</span></div>
-                          <div className="flex justify-between"><span className="text-slate-500">CGO</span><span className="text-cyan-100">{ac.cargo_capacity_kg}kg</span></div>
-                          <div className="flex justify-between"><span className="text-slate-500">BURN</span><span className="text-cyan-100">{ac.fuel_consumption_per_hour}L/h</span></div>
-                          <div className="flex justify-between"><span className="text-slate-500">RNG</span><span className="text-cyan-100">{ac.range_nm}NM</span></div>
-                          <div className="flex justify-between col-span-2"><span className="text-slate-500">MIN LVL</span><span className={hasLevel ? 'text-emerald-400' : 'text-amber-400'}>{ac.level_requirement || 1}</span></div>
-                        </div>
-                        <div className="mt-auto space-y-2">
-                          <div className="flex justify-between items-center bg-slate-950 p-1.5 rounded border border-slate-800">
-                            <span className="text-[10px] text-slate-500">PRICE</span>
-                            <span className={`text-sm font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>${(ac.purchase_price / 1000000).toFixed(1)}M</span>
+                    <motion.div
+                      key={ac.market_listing_id || `${ac.name}-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.04 }}
+                    >
+                      <Card className={`overflow-hidden flex flex-col h-full bg-slate-900 border ${isPurchasable ? 'border-cyan-900/50 hover:border-cyan-500/50 cursor-pointer' : 'border-slate-800 opacity-50'}`}>
+                        <div className="p-3 flex flex-col flex-grow">
+                          <div className="mb-2 border-b border-cyan-900/30 pb-2">
+                            <p className="font-bold text-xs text-white uppercase truncate flex items-center gap-1 flex-wrap">
+                              {ac.name}
+                              {ac.marketType === 'used' && <span className="text-[9px] text-amber-400">USED</span>}
+                              {ac.marketType === 'used' && usedConditionLabel && (
+                                <span className="text-[9px] px-1 py-0.5 rounded bg-amber-900/40 text-amber-300 normal-case">
+                                  {usedConditionLabel}
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-cyan-600">{typeLabels[ac.type]?.toUpperCase()}</p>
                           </div>
-                          {ac.marketType === 'used' && (
-                            <div className="text-[10px] text-amber-300 bg-amber-950/30 border border-amber-700/40 rounded p-1">
-                              {lang === 'de' ? 'Permanenter Verschleiß inklusive' : 'Permanent wear included'} | ${Math.round(ac.original_price || 0).toLocaleString()} → ${Math.round(ac.purchase_price).toLocaleString()}
+                          <div className="grid grid-cols-2 gap-1 text-[10px] font-mono mb-3">
+                            <div className="flex justify-between"><span className="text-slate-500">PAX</span><span className="text-cyan-100">{ac.passenger_capacity}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">CGO</span><span className="text-cyan-100">{ac.cargo_capacity_kg}kg</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">BURN</span><span className="text-cyan-100">{ac.fuel_consumption_per_hour}L/h</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">RNG</span><span className="text-cyan-100">{ac.range_nm}NM</span></div>
+                            <div className="flex justify-between col-span-2"><span className="text-slate-500">MIN LVL</span><span className={hasLevel ? 'text-emerald-400' : 'text-amber-400'}>{ac.level_requirement || 1}</span></div>
+                            {ac.marketType === 'used' && (
+                              <div className="flex justify-between col-span-2">
+                                <span className="text-slate-500">{lang === 'de' ? 'ALTER / HRS' : 'AGE / HRS'}</span>
+                                <span className="text-cyan-100">{ac.used_age_years || '-'}y / {(ac.total_flight_hours || 0).toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-auto space-y-2">
+                            <div className="flex justify-between items-center bg-slate-950 p-1.5 rounded border border-slate-800">
+                              <span className="text-[10px] text-slate-500">PRICE</span>
+                              <span className={`text-sm font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>${(ac.purchase_price / 1000000).toFixed(1)}M</span>
                             </div>
-                          )}
-                          {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
-                          <Button
-                            onClick={() => { setSelectedAircraft(ac); purchaseMutation.mutate(ac); }}
-                            disabled={!isPurchasable || purchaseMutation.isPending}
-                            size="sm"
-                            className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}
-                          >
-                            {purchaseMutation.isPending && selectedAircraft?.name === ac.name ? t('buying', lang) : t('buy', lang)}
-                          </Button>
+                            {ac.marketType === 'used' && (
+                              <div className="space-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setMaintenancePreviewListing(ac)}
+                                  className="w-full text-left text-[10px] text-amber-200 bg-amber-950/30 border border-amber-700/40 rounded p-1 hover:bg-amber-900/30"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span>{lang === 'de' ? 'Wartungsstand' : 'Maintenance state'}</span>
+                                    <span className="text-amber-300">{Math.round(ac.used_wear_avg || 0)}% / {Math.round(ac.used_wear_peak || 0)}%</span>
+                                  </div>
+                                  <div className="text-[9px] text-amber-400/90">
+                                    {lang === 'de' ? 'Klicken fuer Kategorien und Details' : 'Click for category details'}
+                                  </div>
+                                </button>
+                                <div className="text-[10px] text-amber-300 bg-amber-950/20 border border-amber-800/30 rounded p-1">
+                                  {lang === 'de' ? 'Neupreis' : 'New price'} ${Math.round(ac.original_price || 0).toLocaleString()} | {lang === 'de' ? 'Angebot' : 'Listing'} ${Math.round(ac.purchase_price).toLocaleString()}
+                                </div>
+                              </div>
+                            )}
+                            {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
+                            <Button
+                              onClick={() => { setSelectedAircraft(ac); purchaseMutation.mutate(ac); }}
+                              disabled={!isPurchasable || purchaseMutation.isPending}
+                              size="sm"
+                              className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}
+                            >
+                              {isBuyingThis ? t('buying', lang) : t('buy', lang)}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </Card>
-                  </motion.div>
+                      </Card>
+                    </motion.div>
                   );
                 })}
               </div>
+
+              <Dialog
+                open={!!maintenancePreviewListing}
+                onOpenChange={(open) => {
+                  if (!open) setMaintenancePreviewListing(null);
+                }}
+              >
+                <DialogContent className="bg-slate-900 border border-amber-700/50 text-slate-200 max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle className="text-amber-300 uppercase">
+                      {lang === 'de' ? 'Wartungsstand im Detail' : 'Maintenance details'}
+                    </DialogTitle>
+                  </DialogHeader>
+                  {maintenancePreviewListing && (
+                    <div className="space-y-3">
+                      <div className="p-2 rounded border border-amber-900/50 bg-amber-950/20 text-[11px] font-mono">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-amber-200">{maintenancePreviewListing.name}</span>
+                          <span className="text-amber-300">
+                            {maintenancePreviewListing.used_condition_label?.[lang] || maintenancePreviewListing.used_condition_label?.en}
+                          </span>
+                        </div>
+                        <div className="text-slate-300 mt-1">
+                          {lang === 'de' ? 'Wartungsrueckstand' : 'Maintenance backlog'}: ${Math.round(maintenancePreviewListing.accumulated_maintenance_cost || 0).toLocaleString()}
+                          {' '}|{' '}
+                          {lang === 'de' ? 'Durchschnitts-Verschleiss' : 'Avg wear'}: {Math.round(maintenancePreviewListing.used_wear_avg || 0)}%
+                          {' '}|{' '}
+                          {lang === 'de' ? 'Max Verschleiss' : 'Max wear'}: {Math.round(maintenancePreviewListing.used_wear_peak || 0)}%
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto border border-slate-700 rounded">
+                        <table className="w-full text-[11px] font-mono">
+                          <thead className="bg-slate-800/80 text-slate-300">
+                            <tr>
+                              <th className="text-left p-2">{lang === 'de' ? 'Kategorie' : 'Category'}</th>
+                              <th className="text-right p-2">{lang === 'de' ? 'Aktiver Verschleiss' : 'Active wear'}</th>
+                              <th className="text-right p-2">{lang === 'de' ? 'Permanenter Verschleiss' : 'Permanent wear'}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {MAINTENANCE_CATEGORY_KEYS.map((key) => (
+                              <tr key={key} className="border-t border-slate-800">
+                                <td className="p-2 text-slate-200">{MAINTENANCE_CATEGORY_LABELS[key]?.[lang] || MAINTENANCE_CATEGORY_LABELS[key]?.en || key}</td>
+                                <td className="p-2 text-right text-amber-300">{Number(maintenancePreviewListing.maintenance_categories?.[key] || 0).toFixed(1)}%</td>
+                                <td className="p-2 text-right text-cyan-300">{Number(maintenancePreviewListing.permanent_wear_categories?.[key] || 0).toFixed(2)}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button
+                      onClick={() => setMaintenancePreviewListing(null)}
+                      className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8"
+                    >
+                      {t('close', lang).toUpperCase()}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <DialogFooter>
                 <Button onClick={() => setIsPurchaseDialogOpen(false)} className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8">

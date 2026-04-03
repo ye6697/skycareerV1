@@ -380,8 +380,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               <div className="p-3 rounded border border-cyan-900/40 bg-slate-950/70 text-xs">
                 <p className="text-slate-200 mb-2">
                   {lang === 'de'
-                    ? 'Die Versicherungsprämie wird pro Flugstunde berechnet und basiert auf dem Neuwert des Flugzeugs. Eine höhere Unternehmens-Reputation senkt den Faktor, eine niedrige erhöht ihn.'
-                    : 'Insurance premium is charged per flight hour and based on aircraft new value. Higher company reputation lowers the factor, lower reputation increases it.'}
+                    ? 'Die Versicherungsgebuehren werden pro Flugstunde berechnet und basieren auf dem Neuwert des Flugzeugs. Eine niedrige Unternehmens-Reputation macht die Gebuehren deutlich teurer. Das gilt auch nach Abschluss dynamisch bei jeder Reputationsaenderung.'
+                    : 'Insurance fees are charged per flight hour and based on aircraft new value. Lower company reputation makes fees much more expensive, and this updates dynamically after purchase whenever reputation changes.'}
                 </p>
                 <p className="text-cyan-300">
                   {lang === 'de' ? 'Aktueller Faktor durch Reputation' : 'Current reputation factor'}:{' '}
@@ -410,7 +410,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                       </div>
                       <p className="text-[11px] text-slate-400 mb-2">{pkg.description[lang] || pkg.description.en}</p>
                       <div className="space-y-1 text-[11px]">
-                        <div>{lang === 'de' ? 'Prämie pro Flugstunde' : 'Premium per flight hour'}: <span className="text-cyan-300 font-semibold">${Math.round(estimatedHourly).toLocaleString()}</span></div>
+                        <div>{lang === 'de' ? 'Gebuehren pro Flugstunde' : 'Fees per flight hour'}: <span className="text-cyan-300 font-semibold">${Math.round(estimatedHourly).toLocaleString()}</span></div>
                         <div>{lang === 'de' ? 'Wartungsschaden gedeckt' : 'Maintenance damage covered'}: <span className="text-emerald-300 font-semibold">{Math.round(pkg.maintenanceCoveragePct * 100)}%</span></div>
                         <div>{lang === 'de' ? 'Score-Bonus pro Flug' : 'Score bonus per flight'}: <span className="text-amber-300 font-semibold">+{Math.round(pkg.scoreBonusPct * 100)}%</span></div>
                       </div>
