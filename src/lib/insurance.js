@@ -6,8 +6,8 @@ export const INSURANCE_PACKAGES = {
       en: 'Lowest fees with limited maintenance coverage.',
       de: 'Niedrige Gebuehren mit begrenzter Wartungsabdeckung.',
     },
-    hourlyRatePctOfNewValue: 0.00007,
-    maintenanceCoveragePct: 0.2,
+    hourlyRatePctOfNewValue: 0.00022,
+    maintenanceCoveragePct: 0.22,
     scoreBonusPct: 0,
   },
   plus: {
@@ -17,8 +17,8 @@ export const INSURANCE_PACKAGES = {
       en: 'Higher fees with strong maintenance protection.',
       de: 'Hoehere Gebuehren mit starkem Wartungsschutz.',
     },
-    hourlyRatePctOfNewValue: 0.00018,
-    maintenanceCoveragePct: 0.48,
+    hourlyRatePctOfNewValue: 0.00065,
+    maintenanceCoveragePct: 0.5,
     scoreBonusPct: 0.02,
   },
   premium: {
@@ -28,8 +28,8 @@ export const INSURANCE_PACKAGES = {
       en: 'Very high fees, maximum protection and top score bonus.',
       de: 'Sehr hohe Gebuehren, maximaler Schutz und bester Score-Bonus.',
     },
-    hourlyRatePctOfNewValue: 0.00055,
-    maintenanceCoveragePct: 0.8,
+    hourlyRatePctOfNewValue: 0.0022,
+    maintenanceCoveragePct: 0.82,
     scoreBonusPct: 0.05,
   },
 };
@@ -39,6 +39,38 @@ export const DEFAULT_INSURANCE_PLAN = 'basic';
 export function getInsurancePlanConfig(planKey) {
   return INSURANCE_PACKAGES[planKey] || INSURANCE_PACKAGES[DEFAULT_INSURANCE_PLAN];
 }
+
+const normalizePct = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return NaN;
+  if (n > 1 && n <= 100) return n / 100;
+  return n;
+};
+
+const inferInsurancePlanKeyFromStoredValues = (aircraft) => {
+  const hourly = normalizePct(aircraft?.insurance_hourly_rate_pct);
+  const coverage = normalizePct(aircraft?.insurance_maintenance_coverage_pct);
+  const score = normalizePct(aircraft?.insurance_score_bonus_pct);
+  if (!Number.isFinite(hourly) && !Number.isFinite(coverage) && !Number.isFinite(score)) {
+    return null;
+  }
+
+  const planEntries = Object.entries(INSURANCE_PACKAGES);
+  let bestKey = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const [key, cfg] of planEntries) {
+    const dHourly = Number.isFinite(hourly) ? Math.abs(hourly - cfg.hourlyRatePctOfNewValue) : 0;
+    const dCoverage = Number.isFinite(coverage) ? Math.abs(coverage - cfg.maintenanceCoveragePct) : 0;
+    const dScore = Number.isFinite(score) ? Math.abs(score - cfg.scoreBonusPct) : 0;
+    const distance = dHourly + dCoverage + dScore;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestKey = key;
+    }
+  }
+  return bestKey;
+};
 
 export function getReputationInsuranceFactor(reputation) {
   const rep = Number.isFinite(Number(reputation)) ? Number(reputation) : 50;
@@ -54,7 +86,14 @@ export function getReputationInsuranceFactor(reputation) {
 }
 
 export function resolveAircraftInsurance(aircraft) {
-  const planKey = aircraft?.insurance_plan || DEFAULT_INSURANCE_PLAN;
+  const storedPlanKeyRaw = aircraft?.insurance_plan;
+  const storedPlanKey = typeof storedPlanKeyRaw === 'string'
+    ? storedPlanKeyRaw.trim().toLowerCase()
+    : null;
+  const planKey =
+    (storedPlanKey && INSURANCE_PACKAGES[storedPlanKey] ? storedPlanKey : null)
+    || inferInsurancePlanKeyFromStoredValues(aircraft)
+    || DEFAULT_INSURANCE_PLAN;
   const plan = getInsurancePlanConfig(planKey);
 
   // Always resolve package values from the current config so insurance terms stay dynamic.
