@@ -206,7 +206,7 @@ export default function FlightRating({ flight }) {
             {flight?.xplane_data?.insurance_cost > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-cyan-300">
-                  {lang === 'de' ? 'Versicherungskosten' : 'Insurance premium'} ({String(flight?.xplane_data?.insurance_plan || 'basic').toUpperCase()})
+                  {lang === 'de' ? 'Versicherungsgebuehren' : 'Insurance fees'} ({String(flight?.xplane_data?.insurance_plan || 'basic').toUpperCase()})
                 </span>
                 <span className="text-red-300 font-mono">-${Math.round(flight.xplane_data.insurance_cost).toLocaleString()}</span>
               </div>
