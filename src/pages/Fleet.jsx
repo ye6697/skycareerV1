@@ -97,6 +97,13 @@ const AIRCRAFT_MARKET_SPECS = [
 ];
 
 const MAINTENANCE_CATEGORY_KEYS = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
+const makeCategoryMap = (source, fallbackValue = 0) =>
+  MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => {
+    const raw = source?.[key];
+    const value = Number.isFinite(Number(raw)) ? Number(raw) : Number(fallbackValue);
+    acc[key] = Math.max(0, value);
+    return acc;
+  }, {});
 const MAINTENANCE_CATEGORY_LABELS = {
   engine: { en: 'Engine', de: 'Triebwerk' },
   hydraulics: { en: 'Hydraulics', de: 'Hydraulik' },
@@ -116,8 +123,8 @@ const USED_CONDITION_PROFILES = [
     maxDiscount: 0.9,
     minLiveWear: 3,
     maxLiveWear: 18,
-    minPermanentWear: 0.2,
-    maxPermanentWear: 2.5,
+    minPermanentWear: 2.5,
+    maxPermanentWear: 6,
     minAccumulatedCostPct: 0.002,
     maxAccumulatedCostPct: 0.01,
     minAgeYears: 2,
@@ -130,8 +137,8 @@ const USED_CONDITION_PROFILES = [
     maxDiscount: 0.74,
     minLiveWear: 18,
     maxLiveWear: 48,
-    minPermanentWear: 2.5,
-    maxPermanentWear: 8,
+    minPermanentWear: 6,
+    maxPermanentWear: 14,
     minAccumulatedCostPct: 0.01,
     maxAccumulatedCostPct: 0.03,
     minAgeYears: 6,
@@ -144,8 +151,8 @@ const USED_CONDITION_PROFILES = [
     maxDiscount: 0.58,
     minLiveWear: 45,
     maxLiveWear: 85,
-    minPermanentWear: 8,
-    maxPermanentWear: 22,
+    minPermanentWear: 14,
+    maxPermanentWear: 32,
     minAccumulatedCostPct: 0.03,
     maxAccumulatedCostPct: 0.08,
     minAgeYears: 10,
@@ -352,6 +359,25 @@ export default function Fleet() {
       const template = templates.find(t => t.name === aircraftData.name);
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
+      const maintenanceCategories = makeCategoryMap(aircraftData.maintenance_categories, 0);
+      const permanentFromListing = makeCategoryMap(aircraftData.permanent_wear_categories, 0);
+      const hasPermanentFromListing = Object.values(permanentFromListing).some((value) => value > 0);
+      const defaultPermanentByCondition = {
+        ready: 4,
+        service_due: 9,
+        project: 18,
+      };
+      const permanentFallbackValue = Math.max(
+        0,
+        Number(
+          aircraftData.used_permanent_avg
+            || defaultPermanentByCondition[aircraftData.used_condition_key]
+            || 0
+        )
+      );
+      const permanentCategories = hasPermanentFromListing
+        ? permanentFromListing
+        : makeCategoryMap(null, permanentFallbackValue);
       await base44.entities.Aircraft.create({
         ...specs,
         purchase_price: finalPurchasePrice,
@@ -366,8 +392,8 @@ export default function Fleet() {
         insurance_hourly_rate_pct: defaultInsurance.hourlyRatePctOfNewValue,
         insurance_maintenance_coverage_pct: defaultInsurance.maintenanceCoveragePct,
         insurance_score_bonus_pct: defaultInsurance.scoreBonusPct,
-        maintenance_categories: aircraftData.maintenance_categories || MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {}),
-        permanent_wear_categories: aircraftData.permanent_wear_categories || MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {}),
+        maintenance_categories: maintenanceCategories,
+        permanent_wear_categories: permanentCategories,
         lifetime_maintenance_cost: Number(aircraftData.lifetime_maintenance_cost || 0),
         accumulated_maintenance_cost: Number(aircraftData.accumulated_maintenance_cost || 0),
         market_origin: aircraftData.marketType || 'new',
@@ -554,6 +580,9 @@ export default function Fleet() {
                     (!ac.market_listing_id && selectedAircraft?.name === ac.name)
                   );
                   const usedConditionLabel = ac.used_condition_label?.[lang] || ac.used_condition_label?.en;
+                  const usedWearAvgPct = Math.max(0, Math.min(100, Number(ac.used_wear_avg || 0)));
+                  const usedWearPeakPct = Math.max(0, Math.min(100, Number(ac.used_wear_peak || 0)));
+                  const usedPermanentAvgPct = Math.max(0, Math.min(100, Number(ac.used_permanent_avg || 0)));
 
                   return (
                     <motion.div
@@ -603,7 +632,29 @@ export default function Fleet() {
                                 >
                                   <div className="flex items-center justify-between">
                                     <span>{lang === 'de' ? 'Wartungsstand' : 'Maintenance state'}</span>
-                                    <span className="text-amber-300">{Math.round(ac.used_wear_avg || 0)}% / {Math.round(ac.used_wear_peak || 0)}%</span>
+                                    <span className="text-amber-300">{Math.round(usedWearAvgPct)}% / {Math.round(usedWearPeakPct)}%</span>
+                                  </div>
+                                  <div className="mt-1 space-y-1">
+                                    <div className="flex items-center justify-between text-[9px] text-amber-300/90">
+                                      <span>{lang === 'de' ? 'Aktiver Verschleiss' : 'Active wear'}</span>
+                                      <span>{Math.round(usedWearAvgPct)}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-1.5 rounded-full bg-amber-500"
+                                        style={{ width: `${usedWearAvgPct}%` }}
+                                      />
+                                    </div>
+                                    <div className="flex items-center justify-between text-[9px] text-red-300/90">
+                                      <span>{lang === 'de' ? 'Permanenter Verschleiss' : 'Permanent wear'}</span>
+                                      <span>{Math.round(usedPermanentAvgPct)}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-1.5 rounded-full bg-red-500"
+                                        style={{ width: `${usedPermanentAvgPct}%` }}
+                                      />
+                                    </div>
                                   </div>
                                   <div className="text-[9px] text-amber-400/90">
                                     {lang === 'de' ? 'Klicken fuer Kategorien und Details' : 'Click for category details'}
