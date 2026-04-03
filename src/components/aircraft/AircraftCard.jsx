@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { 
+import {
   Plane, 
   Users, 
   Package, 
@@ -13,7 +13,8 @@ import {
   DollarSign,
   AlertTriangle,
   Hammer,
-  Trash2
+  Trash2,
+  Shield
 } from "lucide-react";
 import MaintenanceCategories from "./MaintenanceCategories";
 import {
@@ -24,16 +25,41 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { calculateInsuranceForFlight, DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig, INSURANCE_PACKAGES, resolveAircraftInsurance } from '@/lib/insurance';
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
   const [isSellDialogOpen, setIsSellDialogOpen] = React.useState(false);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = React.useState(false);
+  const [isInsuranceDialogOpen, setIsInsuranceDialogOpen] = React.useState(false);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
+  const [selectedInsurancePlan, setSelectedInsurancePlan] = useState(aircraft.insurance_plan || DEFAULT_INSURANCE_PLAN);
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: company } = useQuery({
+    queryKey: ['company', currentUser?.company_id],
+    queryFn: async () => {
+      if (currentUser?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+        if (companies[0]) return companies[0];
+      }
+      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
+      return companies[0];
+    },
+    enabled: !!currentUser,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
+  });
 
   const typeConfig = {
     small_prop: { label: t('small_prop_label', lang), icon: "🛩️" },
@@ -186,9 +212,33 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     }
   });
 
+  const insuranceMutation = useMutation({
+    mutationFn: async (planKey) => {
+      const config = getInsurancePlanConfig(planKey);
+      await base44.entities.Aircraft.update(aircraft.id, {
+        insurance_plan: config.key,
+        insurance_hourly_rate_pct: config.hourlyRatePctOfNewValue,
+        insurance_maintenance_coverage_pct: config.maintenanceCoveragePct,
+        insurance_score_bonus_pct: config.scoreBonusPct,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      setIsInsuranceDialogOpen(false);
+    }
+  });
+
   // Legacy performMaintenanceMutation removed - now handled by MaintenanceCategories component
 
   const type = typeConfig[aircraft.type] || typeConfig.small_prop;
+  const activeInsurance = resolveAircraftInsurance(aircraft);
+  const insurancePreview = calculateInsuranceForFlight({
+    aircraft,
+    flightHours: 1,
+    maintenanceCost: accumulatedMaintCost,
+    companyReputation: company?.reputation || 50,
+    baseScore: 100,
+  });
   const displayStatus = (aircraft.status === 'available' && needsMaintenance) 
     ? { label: t('maintenance_required', lang), color: "bg-orange-100 text-orange-700 border-orange-200" }
     : (statusConfig[aircraft.status] || statusConfig.available);
@@ -267,6 +317,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                  <Button size="sm" className="h-6 flex-1 text-[9px] bg-amber-900/40 text-amber-400 hover:bg-amber-800 border border-amber-900/50" onClick={() => setIsMaintenanceDialogOpen(true)}>
                    {t('maintenance', lang).toUpperCase()}
                  </Button>
+                 <Button size="sm" className="h-6 flex-1 text-[9px] bg-cyan-900/40 text-cyan-300 hover:bg-cyan-800 border border-cyan-900/50" onClick={() => setIsInsuranceDialogOpen(true)}>
+                   {lang === 'de' ? 'VERSICHERUNG' : 'INSURANCE'}
+                 </Button>
                  <Button size="sm" className="h-6 flex-1 text-[9px] bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700" onClick={() => setIsSellDialogOpen(true)}>
                    {t('sell', lang).toUpperCase()}
                  </Button>
@@ -312,6 +365,74 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-md">
             <DialogHeader><DialogTitle className="text-amber-400 uppercase">{t('maintenance', lang)} - {aircraft.registration}</DialogTitle></DialogHeader>
             <MaintenanceCategories aircraft={aircraft} />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isInsuranceDialogOpen} onOpenChange={setIsInsuranceDialogOpen}>
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-cyan-300 uppercase flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                {lang === 'de' ? 'Flugzeug-Versicherung' : 'Aircraft Insurance'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-3 rounded border border-cyan-900/40 bg-slate-950/70 text-xs">
+                <p className="text-slate-200 mb-2">
+                  {lang === 'de'
+                    ? 'Die Versicherungsprämie wird pro Flugstunde berechnet und basiert auf dem Neuwert des Flugzeugs. Eine höhere Unternehmens-Reputation senkt den Faktor, eine niedrige erhöht ihn.'
+                    : 'Insurance premium is charged per flight hour and based on aircraft new value. Higher company reputation lowers the factor, lower reputation increases it.'}
+                </p>
+                <p className="text-cyan-300">
+                  {lang === 'de' ? 'Aktueller Faktor durch Reputation' : 'Current reputation factor'}:{' '}
+                  <strong>{insurancePreview.reputationFactor.toFixed(2)}x</strong> ({lang === 'de' ? 'Reputation' : 'Reputation'}: {Math.round(company?.reputation || 50)})
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {Object.values(INSURANCE_PACKAGES).map((pkg) => {
+                  const selected = selectedInsurancePlan === pkg.key;
+                  const estimatedHourly = (aircraft.purchase_price || 0) * pkg.hourlyRatePctOfNewValue * insurancePreview.reputationFactor;
+                  return (
+                    <button
+                      key={pkg.key}
+                      type="button"
+                      onClick={() => setSelectedInsurancePlan(pkg.key)}
+                      className={`text-left p-3 rounded border transition ${selected ? 'border-cyan-400 bg-cyan-950/30' : 'border-slate-700 bg-slate-950/50 hover:border-cyan-800'}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-slate-100">{pkg.name[lang] || pkg.name.en}</span>
+                        {activeInsurance.planKey === pkg.key && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300">
+                            {lang === 'de' ? 'Aktiv' : 'Active'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400 mb-2">{pkg.description[lang] || pkg.description.en}</p>
+                      <div className="space-y-1 text-[11px]">
+                        <div>{lang === 'de' ? 'Prämie pro Flugstunde' : 'Premium per flight hour'}: <span className="text-cyan-300 font-semibold">${Math.round(estimatedHourly).toLocaleString()}</span></div>
+                        <div>{lang === 'de' ? 'Wartungsschaden gedeckt' : 'Maintenance damage covered'}: <span className="text-emerald-300 font-semibold">{Math.round(pkg.maintenanceCoveragePct * 100)}%</span></div>
+                        <div>{lang === 'de' ? 'Score-Bonus pro Flug' : 'Score bonus per flight'}: <span className="text-amber-300 font-semibold">+{Math.round(pkg.scoreBonusPct * 100)}%</span></div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsInsuranceDialogOpen(false)} className="h-8 text-[10px] border-slate-700 text-slate-300">
+                {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+              </Button>
+              <Button
+                onClick={() => insuranceMutation.mutate(selectedInsurancePlan)}
+                disabled={insuranceMutation.isPending}
+                className="h-8 text-[10px] bg-cyan-900/50 text-cyan-200 hover:bg-cyan-800 border border-cyan-800"
+              >
+                {insuranceMutation.isPending
+                  ? (lang === 'de' ? 'Speichern...' : 'Saving...')
+                  : (lang === 'de' ? 'Paket speichern' : 'Save package')}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </Card>
