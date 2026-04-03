@@ -828,9 +828,9 @@ export default function FlightTracker() {
     });
     setHighAltitudeSecondsLive(highAltSeconds);
   }, [flightPhase, xplaneLog, flight, existingFlight, flightStartedAt]);
-
-  useEffect(() => {
-    const xp = xplaneLog?.raw_data || {};
+  const { data: aircraft } = useQuery({ queryKey: ['aircraft'], queryFn: async () => { const u = await base44.auth.me(); let cId = u?.company_id || u?.data?.company_id; if (!cId) { const c = await base44.entities.Company.filter({ created_by: u.email }); cId = c[0]?.id; } return cId ? await base44.entities.Aircraft.filter({ company_id: cId }) : []; }, staleTime: 60000, refetchOnWindowFocus: false });
+  const { data: settings } = useQuery({ queryKey: ['gameSettings'], queryFn: async () => { const s = await base44.entities.GameSettings.list(); return s[0] || null; }, staleTime: 300000, refetchOnWindowFocus: false });
+  useEffect(() => { const xp = xplaneLog?.raw_data || {};
     const failureTs = xp.maintenance_failure_timestamp || null;
     const failureCategory = String(xp.maintenance_failure_category || '').toLowerCase().trim();
     const failureSeverity = String(xp.maintenance_failure_severity || 'medium').toLowerCase().trim();
@@ -1136,33 +1136,6 @@ export default function FlightTracker() {
       clearInterval(poll);
     };
   }, [company?.id, activeFlightId, contractIdFromUrl, flightPhase, ingestLiveXplaneData, flight, existingFlight]);
-
-  const { data: aircraft } = useQuery({
-    queryKey: ['aircraft'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      const cid = user?.company_id || user?.data?.company_id;
-      let companyId = cid;
-      if (!companyId) {
-        const companies = await base44.entities.Company.filter({ created_by: user.email });
-        companyId = companies[0]?.id;
-      }
-      if (!companyId) return [];
-      return await base44.entities.Aircraft.filter({ company_id: companyId });
-    },
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-  });
-
-  const { data: settings } = useQuery({
-    queryKey: ['gameSettings'],
-    queryFn: async () => {
-      const allSettings = await base44.entities.GameSettings.list();
-      return allSettings[0] || null;
-    },
-    staleTime: 300000,
-    refetchOnWindowFocus: false,
-  });
 
   // Find the assigned aircraft for this flight
   const assignedAircraft = aircraft?.find(a => a.id === (flight?.aircraft_id || existingFlight?.aircraft_id));
@@ -2693,9 +2666,6 @@ export default function FlightTracker() {
         wasAirborne: newWasAirborne,
         previousSpeed: currentSpeed
       };
-      
-
-
       flightDataRef.current = newData;
       if (newMaxGForce >= 1.5) { const cl = Math.floor(newMaxGForce); setProcessedGLevels(p => { const u = new Set(p); for (let g = 2; g <= cl; g++) u.add(g); return u; }); }
       return newData;
