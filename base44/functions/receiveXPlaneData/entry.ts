@@ -1596,6 +1596,13 @@ Deno.serve(async (req) => {
       contract_deadline_minutes: contractDeadlineMinutes,
       contract_payout: contractPayout,
       contract_bonus_potential: contractBonusPotential,
+      insurance_plan: data.insurance_plan || prevXd.insurance_plan || null,
+      insurance_hourly_cost: asFinite(data.insurance_hourly_cost ?? prevXd.insurance_hourly_cost),
+      insurance_cost: asFinite(data.insurance_cost ?? prevXd.insurance_cost),
+      insurance_coverage_pct: asFinite(data.insurance_coverage_pct ?? prevXd.insurance_coverage_pct),
+      insurance_covered_maintenance: asFinite(data.insurance_covered_maintenance ?? prevXd.insurance_covered_maintenance),
+      insurance_score_bonus_pct: asFinite(data.insurance_score_bonus_pct ?? prevXd.insurance_score_bonus_pct),
+      insurance_score_bonus_points: asFinite(data.insurance_score_bonus_points ?? prevXd.insurance_score_bonus_points),
       // FMS waypoints - only update if plugin sends them (they don't change often)
       fms_waypoints: incomingFmsWaypoints.length
         ? incomingFmsWaypoints

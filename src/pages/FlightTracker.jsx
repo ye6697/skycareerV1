@@ -1246,6 +1246,7 @@ export default function FlightTracker() {
     const flightId = targetFlight?.id;
     if (!flightId) return;
     const nowIso = new Date().toISOString();
+    const existingXpd = targetFlight?.xplane_data || {};
     const currentQueue = Array.isArray(targetFlight?.bridge_command_queue)
       ? targetFlight.bridge_command_queue
       : (Array.isArray(targetFlight?.xplane_data?.bridge_command_queue)
@@ -1263,9 +1264,30 @@ export default function FlightTracker() {
     const nextBridgeCommands = [...filteredQueue, restartCommand].slice(-25);
 
     await base44.entities.Flight.update(flightId, {
+      active_failures: [],
       bridge_command_queue: nextBridgeCommands,
       xplane_data: {
-        ...(targetFlight?.xplane_data || {}),
+        ...existingXpd,
+        flight_id: targetFlight?.id || existingXpd.flight_id || null,
+        contract_id: targetFlight?.contract_id || existingXpd.contract_id || null,
+        was_airborne: false,
+        airborne_started_at: null,
+        completion_armed: false,
+        completion_armed_at: null,
+        touchdown_detected: false,
+        touchdown_vspeed: 0,
+        landing_g_force: 0,
+        landing_data_locked: false,
+        bridge_local_landing_locked: false,
+        maintenance_failure_category: null,
+        maintenance_failure_severity: null,
+        maintenance_failure_timestamp: null,
+        flight_path: [],
+        flight_events_log: [],
+        bridge_event_log: [],
+        telemetry_history: [],
+        bridge_reset_requested_at: nowIso,
+        bridge_reset_reason: 'new_flight_start',
         bridge_command_queue: nextBridgeCommands,
       },
     });
@@ -1279,11 +1301,44 @@ export default function FlightTracker() {
       }
       
       // Fallback: Sollte nicht verwendet werden, da Flights in ActiveFlights erstellt werden
+      const nowIso = new Date().toISOString();
+      const restartCommand = {
+        id: `cmd-worker-restart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: 'worker_restart',
+        simulator: 'msfs',
+        created_at: nowIso,
+        source: 'flight_tracker_start_fallback',
+        persist_until_landed: false,
+      };
       const newFlight = await base44.entities.Flight.create({
         company_id: company.id,
         contract_id: contractIdFromUrl,
         status: 'in_flight',
-        departure_time: new Date().toISOString()
+        departure_time: new Date().toISOString(),
+        active_failures: [],
+        bridge_command_queue: [restartCommand],
+        xplane_data: {
+          contract_id: contractIdFromUrl,
+          was_airborne: false,
+          airborne_started_at: null,
+          completion_armed: false,
+          completion_armed_at: null,
+          touchdown_detected: false,
+          touchdown_vspeed: 0,
+          landing_g_force: 0,
+          landing_data_locked: false,
+          bridge_local_landing_locked: false,
+          maintenance_failure_category: null,
+          maintenance_failure_severity: null,
+          maintenance_failure_timestamp: null,
+          flight_path: [],
+          flight_events_log: [],
+          bridge_event_log: [],
+          telemetry_history: [],
+          bridge_reset_requested_at: nowIso,
+          bridge_reset_reason: 'new_flight_start',
+          bridge_command_queue: [restartCommand],
+        },
       });
       
       return newFlight;
@@ -1828,7 +1883,17 @@ export default function FlightTracker() {
 
      // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
             // Calculate depreciation based on flight hours
-            const airplaneToUpdate = aircraft.find(a => a.id === activeFlight.aircraft_id);
+            let airplaneToUpdate = (aircraft || []).find(a => a.id === activeFlight.aircraft_id);
+            if (activeFlight?.aircraft_id) {
+              try {
+                const freshAircraftRows = await base44.entities.Aircraft.filter({ id: activeFlight.aircraft_id });
+                if (freshAircraftRows?.[0]) {
+                  airplaneToUpdate = freshAircraftRows[0];
+                }
+              } catch (aircraftRefreshError) {
+                console.warn('Could not refresh aircraft before insurance/depreciation calc:', aircraftRefreshError);
+              }
+            }
             const newFlightHours = (airplaneToUpdate?.total_flight_hours || 0) + flightHours;
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));

@@ -115,6 +115,16 @@ export default function ActiveFlights() {
         throw new Error('Flugzeug hat nicht genug Reichweite');
       }
 
+      const nowIso = new Date().toISOString();
+      const restartCommand = {
+        id: `cmd-worker-restart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: 'worker_restart',
+        simulator: 'msfs',
+        created_at: nowIso,
+        source: 'active_flight_start',
+        persist_until_landed: false
+      };
+
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
         company_id: company.id,
@@ -124,7 +134,31 @@ export default function ActiveFlights() {
         filter(([_, id]) => id).
         map(([role, id]) => ({ role, employee_id: id })),
         departure_time: new Date().toISOString(),
-        status: 'in_flight'
+        status: 'in_flight',
+        active_failures: [],
+        bridge_command_queue: [restartCommand],
+        xplane_data: {
+          contract_id: selectedContract.id,
+          was_airborne: false,
+          airborne_started_at: null,
+          completion_armed: false,
+          completion_armed_at: null,
+          touchdown_detected: false,
+          touchdown_vspeed: 0,
+          landing_g_force: 0,
+          landing_data_locked: false,
+          bridge_local_landing_locked: false,
+          maintenance_failure_category: null,
+          maintenance_failure_severity: null,
+          maintenance_failure_timestamp: null,
+          flight_path: [],
+          flight_events_log: [],
+          bridge_event_log: [],
+          telemetry_history: [],
+          bridge_reset_requested_at: nowIso,
+          bridge_reset_reason: 'new_contract_flight_start',
+          bridge_command_queue: [restartCommand]
+        }
       });
 
       // Update contract status

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { INSURANCE_PACKAGES } from "@/lib/insurance";
 
 export default function FlightRating({ flight }) {
   const { lang } = useLanguage();
@@ -96,6 +97,20 @@ export default function FlightRating({ flight }) {
 
   // Use final_score from xplane_data as authoritative source, then flightScore, then flight_score prop
   const score = flight?.xplane_data?.final_score ?? flight?.xplane_data?.flightScore ?? flight?.flight_score ?? (flight?.overall_rating !== undefined ? (flight.overall_rating / 5) * 100 : 100);
+  const insurancePlanLabel = (() => {
+    const explicitPlan = String(flight?.xplane_data?.insurance_plan || "").trim().toLowerCase();
+    if (explicitPlan && INSURANCE_PACKAGES[explicitPlan]) return explicitPlan.toUpperCase();
+
+    const coveragePct = Number(flight?.xplane_data?.insurance_coverage_pct || 0);
+    const scoreBonusPct = Number(flight?.xplane_data?.insurance_score_bonus_pct || 0);
+    if (coveragePct >= Math.round((INSURANCE_PACKAGES.premium?.maintenanceCoveragePct || 0) * 100) || scoreBonusPct >= Math.round((INSURANCE_PACKAGES.premium?.scoreBonusPct || 0) * 100)) {
+      return "PREMIUM";
+    }
+    if (coveragePct >= Math.round((INSURANCE_PACKAGES.plus?.maintenanceCoveragePct || 0) * 100) || scoreBonusPct >= Math.round((INSURANCE_PACKAGES.plus?.scoreBonusPct || 0) * 100)) {
+      return "PLUS";
+    }
+    return "BASIC";
+  })();
 
   return (
     <Card className="p-6 bg-slate-800/50 border-slate-700">
@@ -206,7 +221,7 @@ export default function FlightRating({ flight }) {
             {flight?.xplane_data?.insurance_cost > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-cyan-300">
-                  {lang === 'de' ? 'Versicherungsgebuehren' : 'Insurance fees'} ({String(flight?.xplane_data?.insurance_plan || 'basic').toUpperCase()})
+                  {lang === 'de' ? 'Versicherungsgebuehren' : 'Insurance fees'} ({insurancePlanLabel})
                 </span>
                 <span className="text-red-300 font-mono">-${Math.round(flight.xplane_data.insurance_cost).toLocaleString()}</span>
               </div>
