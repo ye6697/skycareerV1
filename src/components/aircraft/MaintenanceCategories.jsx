@@ -93,6 +93,26 @@ export default function MaintenanceCategories({ aircraft }) {
     staleTime: 30000,
   });
 
+  const failureTriggerStateKey = useMemo(
+    () => ['failure-trigger-state', aircraft?.company_id || companyForLimit?.id || 'unknown'],
+    [aircraft?.company_id, companyForLimit?.id]
+  );
+
+  const { data: failureTriggerState } = useQuery({
+    queryKey: failureTriggerStateKey,
+    queryFn: async () => {
+      const company = companyForLimit || await loadCurrentCompany();
+      const response = await base44.functions.invoke('toggleFailureTriggers', {
+        companyId: company?.id || aircraft?.company_id || null,
+      });
+      if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
+      return null;
+    },
+    enabled: !!aircraft?.id,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
   const loadCurrentCompany = async () => {
     if (aircraft?.company_id) {
       const byAircraftCompany = await base44.entities.Company.filter({ id: aircraft.company_id });
@@ -112,9 +132,17 @@ export default function MaintenanceCategories({ aircraft }) {
     return allCompanies[0] || null;
   };
 
-  const failureTriggersEnabled = companyForLimit?.failure_triggers_enabled !== false;
+  const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
+    ? failureTriggerState
+    : (companyForLimit?.failure_triggers_enabled !== false);
 
   const toggleFailureTriggersMutation = useMutation({
+    onMutate: async (enabled) => {
+      const target = !!enabled;
+      const previous = queryClient.getQueryData(failureTriggerStateKey);
+      queryClient.setQueryData(failureTriggerStateKey, target);
+      return { previous };
+    },
     mutationFn: async (enabled) => {
       setFailureToggleError('');
       const company = companyForLimit || await loadCurrentCompany();
@@ -152,6 +180,7 @@ export default function MaintenanceCategories({ aircraft }) {
       }
     },
     onSuccess: (enabled) => {
+      queryClient.setQueryData(failureTriggerStateKey, enabled);
       queryClient.setQueryData(['company-maint-limit'], (prev) => (
         prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       ));
@@ -161,7 +190,10 @@ export default function MaintenanceCategories({ aircraft }) {
       queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
     },
-    onError: () => {
+    onError: (_error, _enabled, context) => {
+      if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
+        queryClient.setQueryData(failureTriggerStateKey, context.previous);
+      }
       setFailureToggleError(
         lang === 'de'
           ? 'Konnte den Failure-Trigger nicht umschalten. Bitte erneut versuchen.'

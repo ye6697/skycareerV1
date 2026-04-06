@@ -19,9 +19,6 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const enabled = body?.enabled;
     const requestedCompanyId = body?.companyId ? String(body.companyId) : null;
-    if (typeof enabled !== 'boolean') {
-      return Response.json({ error: 'enabled boolean required' }, { status: 400 });
-    }
 
     const userCompanyId = resolveUserCompanyId(user);
     let company = null;
@@ -50,25 +47,32 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Berechtigung fuer dieses Unternehmen' }, { status: 403 });
     }
 
-    await base44.asServiceRole.entities.Company.update(company.id, {
-      failure_triggers_enabled: !!enabled,
-    });
+    if (typeof enabled === 'boolean') {
+      await base44.asServiceRole.entities.Company.update(company.id, {
+        failure_triggers_enabled: !!enabled,
+      });
 
-    if (!userCompanyId || userCompanyId !== company.id) {
-      try {
-        await base44.auth.updateMe({ company_id: company.id });
-      } catch (_) {
-        // Keep toggle result successful even if profile sync fails.
+      if (!userCompanyId || userCompanyId !== company.id) {
+        try {
+          await base44.auth.updateMe({ company_id: company.id });
+        } catch (_) {
+          // Keep toggle result successful even if profile sync fails.
+        }
       }
     }
 
+    const refreshedRows = await base44.asServiceRole.entities.Company.filter({ id: company.id });
+    const refreshedCompany = refreshedRows[0] || company;
+    const persistedEnabled = (typeof refreshedCompany?.failure_triggers_enabled === 'boolean')
+      ? refreshedCompany.failure_triggers_enabled
+      : (typeof enabled === 'boolean' ? !!enabled : true);
+
     return Response.json({
       success: true,
-      enabled: !!enabled,
+      enabled: persistedEnabled,
       company_id: company.id,
     });
   } catch (error: any) {
     return Response.json({ error: error?.message || 'toggle failed' }, { status: 500 });
   }
 });
-

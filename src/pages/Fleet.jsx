@@ -344,7 +344,6 @@ export default function Fleet() {
     refetchOnWindowFocus: false,
   });
 
-  const failureTriggersEnabled = company?.failure_triggers_enabled !== false;
   const loadCurrentCompany = React.useCallback(async () => {
     if (company?.id) return company;
     const user = currentUser || await base44.auth.me();
@@ -361,7 +360,37 @@ export default function Fleet() {
     return allCompanies[0] || null;
   }, [company, currentUser, resolveUserCompanyId]);
 
+  const failureTriggerStateKey = React.useMemo(
+    () => ['failure-trigger-state', company?.id || 'unknown'],
+    [company?.id]
+  );
+
+  const { data: failureTriggerState } = useQuery({
+    queryKey: failureTriggerStateKey,
+    queryFn: async () => {
+      const currentCompany = await loadCurrentCompany();
+      const response = await base44.functions.invoke('toggleFailureTriggers', {
+        companyId: currentCompany?.id || null,
+      });
+      if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
+      return null;
+    },
+    enabled: !!currentUser,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
+  const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
+    ? failureTriggerState
+    : (company?.failure_triggers_enabled !== false);
+
   const toggleFailureTriggersMutation = useMutation({
+    onMutate: async (enabled) => {
+      const target = !!enabled;
+      const previous = queryClient.getQueryData(failureTriggerStateKey);
+      queryClient.setQueryData(failureTriggerStateKey, target);
+      return { previous };
+    },
     mutationFn: async (enabled) => {
       setFailureToggleError('');
       const currentCompany = await loadCurrentCompany();
@@ -399,13 +428,20 @@ export default function Fleet() {
       }
     },
     onSuccess: (enabled) => {
+      queryClient.setQueryData(failureTriggerStateKey, enabled);
       queryClient.setQueryData(['company'], (prev) => (
+        prev ? { ...prev, failure_triggers_enabled: enabled } : prev
+      ));
+      queryClient.setQueryData(['company', resolveUserCompanyId(currentUser)], (prev) => (
         prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       ));
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
     },
-    onError: () => {
+    onError: (_error, _enabled, context) => {
+      if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
+        queryClient.setQueryData(failureTriggerStateKey, context.previous);
+      }
       setFailureToggleError(
         lang === 'de'
           ? 'Konnte den Failure-Trigger nicht umschalten.'
