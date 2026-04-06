@@ -40,6 +40,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const { lang } = useLanguage();
   const [selectedInsurancePlan, setSelectedInsurancePlan] = useState(() => resolveAircraftInsurance(aircraft).planKey);
   const [optimisticInsurancePlan, setOptimisticInsurancePlan] = useState(null);
+  const resolveUserCompanyId = React.useCallback((user) => (
+    user?.company_id
+    || user?.data?.company_id
+    || user?.company?.id
+    || user?.data?.company?.id
+    || null
+  ), []);
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
@@ -49,10 +56,11 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   });
 
   const { data: company } = useQuery({
-    queryKey: ['company', currentUser?.company_id],
+    queryKey: ['company', resolveUserCompanyId(currentUser)],
     queryFn: async () => {
-      if (currentUser?.company_id) {
-        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+      const companyId = resolveUserCompanyId(currentUser);
+      if (companyId) {
+        const companies = await base44.entities.Company.filter({ id: companyId });
         if (companies[0]) return companies[0];
       }
       const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
@@ -62,6 +70,17 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     staleTime: 120000,
     refetchOnWindowFocus: false,
   });
+
+  const loadCurrentCompany = React.useCallback(async () => {
+    const user = currentUser || await base44.auth.me();
+    const companyId = resolveUserCompanyId(user);
+    if (companyId) {
+      const companies = await base44.entities.Company.filter({ id: companyId });
+      if (companies[0]) return companies[0];
+    }
+    const companies = await base44.entities.Company.filter({ created_by: user.email });
+    return companies[0] || null;
+  }, [currentUser, resolveUserCompanyId]);
 
   const typeConfig = {
     small_prop: { label: t('small_prop_label', lang), icon: "🛩️" },
@@ -128,9 +147,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const repairMutation = useMutation({
     mutationFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      const company = companies[0];
+      const company = await loadCurrentCompany();
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       const repairPriceGross = grossRepairCost;
@@ -193,9 +210,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const scrapMutation = useMutation({
     mutationFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      const company = companies[0];
+      const company = await loadCurrentCompany();
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
@@ -221,9 +236,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const sellMutation = useMutation({
     mutationFn: async () => {
-      const user = await base44.auth.me();
-      const companies = await base44.entities.Company.filter({ created_by: user.email });
-      const company = companies[0];
+      const company = await loadCurrentCompany();
       if (!company) throw new Error('Unternehmen nicht gefunden');
 
       await base44.entities.Aircraft.update(aircraft.id, { status: 'sold' });
@@ -398,11 +411,14 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         </Dialog>
 
         <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
-          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-md p-0 overflow-hidden">
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-md max-h-[92dvh] sm:max-h-[85dvh] p-0 overflow-hidden">
             <DialogHeader className="px-4 pt-4 pb-2">
               <DialogTitle className="text-amber-400 uppercase">{t('maintenance', lang)} - {aircraft.registration}</DialogTitle>
             </DialogHeader>
-            <div className="px-4 pb-4 max-h-[70dvh] overflow-y-auto overscroll-contain touch-pan-y">
+            <div
+              className="px-4 pb-4 max-h-[74dvh] overflow-y-auto overscroll-contain touch-pan-y"
+              style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+            >
               <MaintenanceCategories aircraft={aircraft} />
             </div>
           </DialogContent>

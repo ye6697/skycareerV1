@@ -60,6 +60,13 @@ export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
+  const resolveUserCompanyId = React.useCallback((user) => (
+    user?.company_id
+    || user?.data?.company_id
+    || user?.company?.id
+    || user?.data?.company?.id
+    || null
+  ), []);
 
   const categories = useMemo(
     () => CATEGORY_META.map((meta) => ({
@@ -74,7 +81,7 @@ export default function MaintenanceCategories({ aircraft }) {
     queryKey: ['company-maint-limit'],
     queryFn: async () => {
       const user = await base44.auth.me();
-      const cid = user?.company_id || user?.data?.company_id;
+      const cid = resolveUserCompanyId(user);
       if (cid) {
         const companies = await base44.entities.Company.filter({ id: cid });
         if (companies[0]) return companies[0];
@@ -87,7 +94,7 @@ export default function MaintenanceCategories({ aircraft }) {
 
   const loadCurrentCompany = async () => {
     const user = await base44.auth.me();
-    const cid = user?.company_id || user?.data?.company_id;
+    const cid = resolveUserCompanyId(user);
     if (cid) {
       const companies = await base44.entities.Company.filter({ id: cid });
       if (companies[0]) return companies[0];

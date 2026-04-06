@@ -1534,6 +1534,38 @@ Deno.serve(async (req) => {
       gateMeta?.icao ||
       ""
     );
+    const normalizeInsurancePlan = (value: any): string | null => {
+      if (typeof value !== "string") return null;
+      const normalized = value.trim().toLowerCase();
+      return normalized || null;
+    };
+    const normalizePctLike = (value: any): number | undefined => {
+      const n = asFinite(value);
+      if (n === undefined) return undefined;
+      if (n > 1 && n <= 100) return n / 100;
+      return n;
+    };
+    const aircraftInsurancePlan = normalizeInsurancePlan(assignedAircraft?.insurance_plan);
+    const prevInsurancePlan = normalizeInsurancePlan(prevXd.insurance_plan);
+    const incomingInsurancePlan = normalizeInsurancePlan(data.insurance_plan);
+    const resolvedInsurancePlan = aircraftInsurancePlan || prevInsurancePlan || incomingInsurancePlan || null;
+    const resolvedInsuranceCoveragePct = normalizePctLike(
+      assignedAircraft?.insurance_maintenance_coverage_pct ??
+      prevXd.insurance_coverage_pct ??
+      prevXd.insurance_maintenance_coverage_pct ??
+      data.insurance_coverage_pct ??
+      data.insurance_maintenance_coverage_pct
+    );
+    const resolvedInsuranceScoreBonusPct = normalizePctLike(
+      assignedAircraft?.insurance_score_bonus_pct ??
+      prevXd.insurance_score_bonus_pct ??
+      data.insurance_score_bonus_pct
+    );
+    const resolvedInsuranceHourlyRatePct = normalizePctLike(
+      assignedAircraft?.insurance_hourly_rate_pct ??
+      prevXd.insurance_hourly_rate_pct ??
+      data.insurance_hourly_rate_pct
+    );
 
     const xplaneData = {
       simulator,
@@ -1645,12 +1677,13 @@ Deno.serve(async (req) => {
       contract_deadline_minutes: contractDeadlineMinutes,
       contract_payout: contractPayout,
       contract_bonus_potential: contractBonusPotential,
-      insurance_plan: data.insurance_plan || prevXd.insurance_plan || null,
+      insurance_plan: resolvedInsurancePlan,
+      insurance_hourly_rate_pct: resolvedInsuranceHourlyRatePct,
       insurance_hourly_cost: asFinite(data.insurance_hourly_cost ?? prevXd.insurance_hourly_cost),
       insurance_cost: asFinite(data.insurance_cost ?? prevXd.insurance_cost),
-      insurance_coverage_pct: asFinite(data.insurance_coverage_pct ?? prevXd.insurance_coverage_pct),
+      insurance_coverage_pct: resolvedInsuranceCoveragePct !== undefined ? (resolvedInsuranceCoveragePct * 100) : undefined,
       insurance_covered_maintenance: asFinite(data.insurance_covered_maintenance ?? prevXd.insurance_covered_maintenance),
-      insurance_score_bonus_pct: asFinite(data.insurance_score_bonus_pct ?? prevXd.insurance_score_bonus_pct),
+      insurance_score_bonus_pct: resolvedInsuranceScoreBonusPct !== undefined ? (resolvedInsuranceScoreBonusPct * 100) : undefined,
       insurance_score_bonus_points: asFinite(data.insurance_score_bonus_points ?? prevXd.insurance_score_bonus_points),
       // FMS waypoints - only update if plugin sends them (they don't change often)
       fms_waypoints: incomingFmsWaypoints.length

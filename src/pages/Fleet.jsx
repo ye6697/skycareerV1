@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -301,6 +302,13 @@ export default function Fleet() {
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const resolveUserCompanyId = React.useCallback((user) => (
+    user?.company_id
+    || user?.data?.company_id
+    || user?.company?.id
+    || user?.data?.company?.id
+    || null
+  ), []);
 
   const { data: templates = [] } = useQuery({
     queryKey: ['aircraftTemplates'],
@@ -320,10 +328,11 @@ export default function Fleet() {
   });
 
   const { data: company } = useQuery({
-    queryKey: ['company', currentUser?.company_id],
+    queryKey: ['company', resolveUserCompanyId(currentUser)],
     queryFn: async () => {
-      if (currentUser?.company_id) {
-        const companies = await base44.entities.Company.filter({ id: currentUser.company_id });
+      const companyId = resolveUserCompanyId(currentUser);
+      if (companyId) {
+        const companies = await base44.entities.Company.filter({ id: companyId });
         if (companies[0]) return companies[0];
       }
       const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
@@ -332,6 +341,20 @@ export default function Fleet() {
     enabled: !!currentUser,
     staleTime: 120000,
     refetchOnWindowFocus: false,
+  });
+
+  const failureTriggersEnabled = company?.failure_triggers_enabled !== false;
+  const toggleFailureTriggersMutation = useMutation({
+    mutationFn: async (enabled) => {
+      if (!company?.id) throw new Error('Unternehmen nicht gefunden');
+      await base44.entities.Company.update(company.id, {
+        failure_triggers_enabled: !!enabled,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
+    },
   });
 
   const usedMarketInventory = React.useMemo(
@@ -684,11 +707,11 @@ export default function Fleet() {
 
               {maintenancePreviewListing && (
                 <div
-                  className="fixed inset-0 z-[120] bg-black/80 flex items-center justify-center p-3 sm:p-6"
+                  className="fixed inset-0 z-[120] bg-black/80 flex items-end sm:items-center justify-center p-2 sm:p-6"
                   onClick={() => setMaintenancePreviewListing(null)}
                 >
                   <div
-                    className="w-full max-w-3xl bg-slate-900 border border-amber-700/50 text-slate-200 rounded-lg overflow-hidden flex flex-col max-h-[88dvh]"
+                    className="w-full max-w-3xl bg-slate-900 border border-amber-700/50 text-slate-200 rounded-lg overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[88dvh]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="px-4 pt-4 pb-2 border-b border-slate-800">
@@ -696,7 +719,28 @@ export default function Fleet() {
                         {lang === 'de' ? 'Wartungsstand im Detail' : 'Maintenance details'}
                       </h3>
                     </div>
-                    <div className="space-y-3 px-4 py-3 min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
+                    <div
+                      className="space-y-3 px-4 py-3 min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y"
+                      style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+                      onTouchMove={(e) => e.stopPropagation()}
+                    >
+                      <div className="p-2 rounded border border-slate-700 bg-slate-950/60 text-[11px] font-mono flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-slate-200 font-semibold">
+                            {lang === 'de' ? 'Failure Trigger (Bridge)' : 'Failure trigger (bridge)'}
+                          </div>
+                          <div className="text-slate-400 mt-0.5">
+                            {failureTriggersEnabled
+                              ? (lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.')
+                              : (lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.')}
+                          </div>
+                        </div>
+                        <Switch
+                          checked={failureTriggersEnabled}
+                          onCheckedChange={(checked) => toggleFailureTriggersMutation.mutate(checked)}
+                          disabled={toggleFailureTriggersMutation.isPending || !company?.id}
+                        />
+                      </div>
                       <div className="p-2 rounded border border-amber-900/50 bg-amber-950/20 text-[11px] font-mono">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-amber-200">{maintenancePreviewListing.name}</span>

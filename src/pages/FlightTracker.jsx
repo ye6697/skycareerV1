@@ -302,6 +302,13 @@ export default function FlightTracker() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
+  const resolveUserCompanyId = React.useCallback((user) => (
+    user?.company_id
+    || user?.data?.company_id
+    || user?.company?.id
+    || user?.data?.company?.id
+    || null
+  ), []);
 
   const [flightPhase, setFlightPhase] = useState('preflight');
   const [viewMode, setViewMode] = useState('fplan');
@@ -732,8 +739,7 @@ export default function FlightTracker() {
     queryFn: async () => {
       if (!contractIdFromUrl) return null;
       const user = await base44.auth.me();
-      const cid = user?.company_id || user?.data?.company_id;
-      let companyId = cid;
+      let companyId = resolveUserCompanyId(user);
       if (!companyId) {
         const companies = await base44.entities.Company.filter({ created_by: user.email });
         companyId = companies[0]?.id;
@@ -828,7 +834,20 @@ export default function FlightTracker() {
     });
     setHighAltitudeSecondsLive(highAltSeconds);
   }, [flightPhase, xplaneLog, flight, existingFlight, flightStartedAt]);
-  const { data: aircraft } = useQuery({ queryKey: ['aircraft'], queryFn: async () => { const u = await base44.auth.me(); let cId = u?.company_id || u?.data?.company_id; if (!cId) { const c = await base44.entities.Company.filter({ created_by: u.email }); cId = c[0]?.id; } return cId ? await base44.entities.Aircraft.filter({ company_id: cId }) : []; }, staleTime: 60000, refetchOnWindowFocus: false });
+  const { data: aircraft } = useQuery({
+    queryKey: ['aircraft'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      let companyId = resolveUserCompanyId(user);
+      if (!companyId) {
+        const companies = await base44.entities.Company.filter({ created_by: user.email });
+        companyId = companies[0]?.id;
+      }
+      return companyId ? await base44.entities.Aircraft.filter({ company_id: companyId }) : [];
+    },
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+  });
   const { data: settings } = useQuery({ queryKey: ['gameSettings'], queryFn: async () => { const s = await base44.entities.GameSettings.list(); return s[0] || null; }, staleTime: 300000, refetchOnWindowFocus: false });
   useEffect(() => { const xp = xplaneLog?.raw_data || {};
     const failureTs = xp.maintenance_failure_timestamp || null;
@@ -1038,9 +1057,9 @@ export default function FlightTracker() {
     queryKey: ['company'],
     queryFn: async () => {
       const user = await base44.auth.me();
-      const cid = user?.company_id || user?.data?.company_id;
-      if (cid) {
-        const companies = await base44.entities.Company.filter({ id: cid });
+      const companyId = resolveUserCompanyId(user);
+      if (companyId) {
+        const companies = await base44.entities.Company.filter({ id: companyId });
         if (companies[0]) return companies[0];
       }
       const companies = await base44.entities.Company.filter({ created_by: user.email });
@@ -2213,9 +2232,32 @@ export default function FlightTracker() {
                 }
                 const existingPermanentCats = normalizeMaintenanceCategoryMap(airplaneToUpdate?.permanent_wear_categories);
                 const updatedPermanentCats = {};
+                const eventsForPermanent = finalFlightData?.events || {};
                 for (const cat of maintenanceCategories) {
                   const permanent = Number(existingPermanentCats?.[cat] || 0);
-                  updatedPermanentCats[cat] = Number.isFinite(permanent) ? Math.max(0, permanent) : 0;
+                  const safePermanent = Number.isFinite(permanent) ? Math.max(0, permanent) : 0;
+                  const addedWear = Math.max(0, Number(roundedFlightDamage?.[cat] || 0));
+                  const wearBasedPermanentGain = Math.min(0.9, addedWear * 0.03);
+                  let eventBonus = 0;
+                  if (hasCrashed) {
+                    eventBonus = 2.5;
+                  } else if (cat === 'engine') {
+                    if (eventsForPermanent.hard_landing) eventBonus += 0.2;
+                    if (eventsForPermanent.high_g_force) eventBonus += 0.15;
+                  } else if (cat === 'landing_gear') {
+                    if (eventsForPermanent.hard_landing) eventBonus += 0.35;
+                    if (eventsForPermanent.gear_up_landing) eventBonus += 0.7;
+                  } else if (cat === 'airframe') {
+                    if (eventsForPermanent.overstress) eventBonus += 0.35;
+                    if (eventsForPermanent.overspeed) eventBonus += 0.25;
+                    if (eventsForPermanent.tailstrike) eventBonus += 0.5;
+                  } else if (cat === 'avionics') {
+                    if (eventsForPermanent.overspeed) eventBonus += 0.15;
+                  } else if (cat === 'flight_controls') {
+                    if (eventsForPermanent.flaps_overspeed) eventBonus += 0.25;
+                  }
+                  const nextPermanent = Math.max(0, Math.min(45, safePermanent + wearBasedPermanentGain + eventBonus));
+                  updatedPermanentCats[cat] = Math.round(nextPermanent * 100) / 100;
                   if (!Number.isFinite(Number(updatedCats?.[cat]))) {
                     updatedCats[cat] = 0;
                   }
