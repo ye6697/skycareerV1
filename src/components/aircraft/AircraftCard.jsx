@@ -398,9 +398,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         </Dialog>
 
         <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
-          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-md max-h-[85vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="text-amber-400 uppercase">{t('maintenance', lang)} - {aircraft.registration}</DialogTitle></DialogHeader>
-            <MaintenanceCategories aircraft={aircraft} />
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-md p-0 overflow-hidden">
+            <DialogHeader className="px-4 pt-4 pb-2">
+              <DialogTitle className="text-amber-400 uppercase">{t('maintenance', lang)} - {aircraft.registration}</DialogTitle>
+            </DialogHeader>
+            <div className="px-4 pb-4 max-h-[70dvh] overflow-y-auto overscroll-contain touch-pan-y">
+              <MaintenanceCategories aircraft={aircraft} />
+            </div>
           </DialogContent>
         </Dialog>
 

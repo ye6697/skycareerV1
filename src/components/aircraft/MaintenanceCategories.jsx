@@ -418,11 +418,11 @@ export default function MaintenanceCategories({ aircraft }) {
       )}
 
       <Dialog open={showInfo} onOpenChange={setShowInfo}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2">
             <DialogTitle className="text-white">{tl('maint_system_title', lang)}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 text-sm text-slate-300">
+          <div className="space-y-4 text-sm text-slate-300 px-4 pb-4 max-h-[70dvh] overflow-y-auto overscroll-contain touch-pan-y">
             <div>
               <h5 className="font-semibold text-white mb-1">{lang === 'de' ? 'Verschleiss-Kategorien' : 'Wear categories'}</h5>
               <p>{tl('maint_cat_desc', lang)}</p>

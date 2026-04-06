@@ -688,14 +688,14 @@ export default function Fleet() {
                   if (!open) setMaintenancePreviewListing(null);
                 }}
               >
-                <DialogContent className="bg-slate-900 border border-amber-700/50 text-slate-200 max-w-3xl max-h-[85vh] overflow-y-auto">
-                  <DialogHeader>
+                <DialogContent className="bg-slate-900 border border-amber-700/50 text-slate-200 max-w-3xl p-0 overflow-hidden">
+                  <DialogHeader className="px-4 pt-4 pb-2">
                     <DialogTitle className="text-amber-300 uppercase">
                       {lang === 'de' ? 'Wartungsstand im Detail' : 'Maintenance details'}
                     </DialogTitle>
                   </DialogHeader>
                   {maintenancePreviewListing && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 px-4 pb-4 max-h-[70dvh] overflow-y-auto overscroll-contain touch-pan-y">
                       <div className="p-2 rounded border border-amber-900/50 bg-amber-950/20 text-[11px] font-mono">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-amber-200">{maintenancePreviewListing.name}</span>
@@ -733,7 +733,7 @@ export default function Fleet() {
                       </div>
                     </div>
                   )}
-                  <DialogFooter>
+                  <DialogFooter className="px-4 pb-4 pt-2">
                     <Button
                       onClick={() => setMaintenancePreviewListing(null)}
                       className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8"
