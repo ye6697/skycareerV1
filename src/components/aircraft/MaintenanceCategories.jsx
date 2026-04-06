@@ -59,6 +59,7 @@ const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-b';
 export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
   const [failureToggleError, setFailureToggleError] = useState('');
+  const [localFailureOverride, setLocalFailureOverride] = useState(null);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
   const resolveUserCompanyId = React.useCallback((user) => (
@@ -135,12 +136,37 @@ export default function MaintenanceCategories({ aircraft }) {
   const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
     ? failureTriggerState
     : (companyForLimit?.failure_triggers_enabled !== false);
+  const effectiveFailureEnabled = (typeof localFailureOverride === 'boolean')
+    ? localFailureOverride
+    : failureTriggersEnabled;
+
+  React.useEffect(() => {
+    try {
+      const storageKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw === 'true') setLocalFailureOverride(true);
+      else if (raw === 'false') setLocalFailureOverride(false);
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [aircraft?.company_id, companyForLimit?.id]);
+
+  const persistFailureOverride = (value) => {
+    setLocalFailureOverride(value);
+    try {
+      const storageKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
+      window.localStorage.setItem(storageKey, String(!!value));
+    } catch (_) {
+      // ignore storage errors
+    }
+  };
 
   const toggleFailureTriggersMutation = useMutation({
     onMutate: async (enabled) => {
       const target = !!enabled;
       const previous = queryClient.getQueryData(failureTriggerStateKey);
       queryClient.setQueryData(failureTriggerStateKey, target);
+      persistFailureOverride(target);
       return { previous };
     },
     mutationFn: async (enabled) => {
@@ -151,10 +177,13 @@ export default function MaintenanceCategories({ aircraft }) {
 
       const fallbackDirectUpdate = async () => {
         const settings = await base44.entities.GameSettings.list();
-        if (settings[0]?.id) {
-          await base44.entities.GameSettings.update(settings[0].id, {
-            failure_triggers_enabled: targetEnabled,
-          });
+        const settingRows = Array.isArray(settings) ? settings.filter((row) => row?.id) : [];
+        if (settingRows.length > 0) {
+          await Promise.all(
+            settingRows.map((row) => base44.entities.GameSettings.update(row.id, {
+              failure_triggers_enabled: targetEnabled,
+            }))
+          );
         } else {
           await base44.entities.GameSettings.create({
             failure_triggers_enabled: targetEnabled,
@@ -190,8 +219,10 @@ export default function MaintenanceCategories({ aircraft }) {
         return await fallbackDirectUpdate();
       }
     },
-    onSuccess: (enabled) => {
+    onSuccess: (_data, requestedEnabled) => {
+      const enabled = !!requestedEnabled;
       queryClient.setQueryData(failureTriggerStateKey, enabled);
+      persistFailureOverride(enabled);
       queryClient.setQueryData(['company-maint-limit'], (prev) => (
         prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       ));
@@ -204,6 +235,7 @@ export default function MaintenanceCategories({ aircraft }) {
     onError: (_error, _enabled, context) => {
       if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
         queryClient.setQueryData(failureTriggerStateKey, context.previous);
+        if (typeof context.previous === 'boolean') persistFailureOverride(context.previous);
       }
       setFailureToggleError(
         lang === 'de'
@@ -416,17 +448,17 @@ export default function MaintenanceCategories({ aircraft }) {
           </div>
           <div className="text-[10px] text-slate-500">UI {FAILURE_TOGGLE_UI_VERSION}</div>
           <div className="text-[11px] text-slate-400 mt-0.5">
-            {failureTriggersEnabled
+            {effectiveFailureEnabled
               ? (lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.')
               : (lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.')}
           </div>
         </div>
         <Button
           type="button"
-          onClick={() => toggleFailureTriggersMutation.mutate(!failureTriggersEnabled)}
+          onClick={() => toggleFailureTriggersMutation.mutate(!effectiveFailureEnabled)}
           disabled={toggleFailureTriggersMutation.isPending}
           className={`h-9 w-full text-[11px] font-semibold touch-manipulation pointer-events-auto ${
-            failureTriggersEnabled
+            effectiveFailureEnabled
               ? 'bg-red-600 text-white hover:bg-red-500'
               : 'bg-emerald-600 text-white hover:bg-emerald-500'
           }`}
@@ -434,7 +466,7 @@ export default function MaintenanceCategories({ aircraft }) {
         >
           {toggleFailureTriggersMutation.isPending
             ? (lang === 'de' ? 'Speichere...' : 'Saving...')
-            : (failureTriggersEnabled
+            : (effectiveFailureEnabled
               ? (lang === 'de' ? 'FAILURE TRIGGER: EIN - TIPPE ZUM AUSSCHALTEN' : 'FAILURE TRIGGER: ON - TAP TO TURN OFF')
               : (lang === 'de' ? 'FAILURE TRIGGER: AUS - TIPPE ZUM EINSCHALTEN' : 'FAILURE TRIGGER: OFF - TAP TO TURN ON'))}
         </Button>

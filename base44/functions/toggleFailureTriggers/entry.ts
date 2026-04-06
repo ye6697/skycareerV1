@@ -61,9 +61,17 @@ Deno.serve(async (req) => {
 
     const refreshedSettingsRows = await base44.asServiceRole.entities.GameSettings.list();
     const refreshedSettings = refreshedSettingsRows[0] || settings;
-    const persistedEnabled = refreshedSettingsRows.length
-      ? refreshedSettingsRows.some((row) => row?.failure_triggers_enabled !== false)
+    let persistedEnabled = refreshedSettingsRows.length
+      ? refreshedSettingsRows.every((row) => row?.failure_triggers_enabled !== false)
       : (typeof enabled === 'boolean' ? !!enabled : true);
+
+    if (!refreshedSettingsRows.length && typeof enabled !== 'boolean' && companyId) {
+      const companyRows = await base44.asServiceRole.entities.Company.filter({ id: companyId });
+      const companyFlag = companyRows?.[0]?.failure_triggers_enabled;
+      if (typeof companyFlag === 'boolean') {
+        persistedEnabled = companyFlag;
+      }
+    }
 
     if (companyId) {
       // Keep company field synced with global setting (best effort).

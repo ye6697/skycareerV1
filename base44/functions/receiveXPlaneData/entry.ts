@@ -128,7 +128,13 @@ const patchActiveFlightCache = (companyId, partialFlight) => {
 
 const fetchGameSettings = async (base44) => {
   const allSettings = await base44.asServiceRole.entities.GameSettings.list();
-  return allSettings?.[0] || null;
+  if (!Array.isArray(allSettings) || allSettings.length === 0) return null;
+  const firstRow = allSettings[0] || null;
+  const mergedFailureEnabled = allSettings.every((row: any) => row?.failure_triggers_enabled !== false);
+  return {
+    ...(firstRow || {}),
+    failure_triggers_enabled: mergedFailureEnabled,
+  };
 };
 
 const setGameSettingsCache = (settings, ttlMs = GAME_SETTINGS_CACHE_TTL_MS) => {

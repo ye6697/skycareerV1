@@ -302,6 +302,7 @@ export default function Fleet() {
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
+  const [localFailureOverride, setLocalFailureOverride] = useState(null);
   const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
   const resolveUserCompanyId = React.useCallback((user) => (
     user?.company_id
@@ -383,12 +384,38 @@ export default function Fleet() {
   const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
     ? failureTriggerState
     : (company?.failure_triggers_enabled !== false);
+  const effectiveFailureEnabled = (typeof localFailureOverride === 'boolean')
+    ? localFailureOverride
+    : failureTriggersEnabled;
+
+  React.useEffect(() => {
+    setLocalFailureOverride(null);
+    try {
+      const storageKey = `failure_toggle_${company?.id || 'default'}`;
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw === 'true') setLocalFailureOverride(true);
+      else if (raw === 'false') setLocalFailureOverride(false);
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [company?.id]);
+
+  const persistFailureOverride = React.useCallback((value) => {
+    setLocalFailureOverride(value);
+    try {
+      const storageKey = `failure_toggle_${company?.id || 'default'}`;
+      window.localStorage.setItem(storageKey, String(!!value));
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [company?.id]);
 
   const toggleFailureTriggersMutation = useMutation({
     onMutate: async (enabled) => {
       const target = !!enabled;
       const previous = queryClient.getQueryData(failureTriggerStateKey);
       queryClient.setQueryData(failureTriggerStateKey, target);
+      persistFailureOverride(target);
       return { previous };
     },
     mutationFn: async (enabled) => {
@@ -399,10 +426,13 @@ export default function Fleet() {
 
       const fallbackDirectUpdate = async () => {
         const settings = await base44.entities.GameSettings.list();
-        if (settings[0]?.id) {
-          await base44.entities.GameSettings.update(settings[0].id, {
-            failure_triggers_enabled: targetEnabled,
-          });
+        const settingRows = Array.isArray(settings) ? settings.filter((row) => row?.id) : [];
+        if (settingRows.length > 0) {
+          await Promise.all(
+            settingRows.map((row) => base44.entities.GameSettings.update(row.id, {
+              failure_triggers_enabled: targetEnabled,
+            }))
+          );
         } else {
           await base44.entities.GameSettings.create({
             failure_triggers_enabled: targetEnabled,
@@ -438,8 +468,10 @@ export default function Fleet() {
         return await fallbackDirectUpdate();
       }
     },
-    onSuccess: (enabled) => {
+    onSuccess: (_data, requestedEnabled) => {
+      const enabled = !!requestedEnabled;
       queryClient.setQueryData(failureTriggerStateKey, enabled);
+      persistFailureOverride(enabled);
       queryClient.setQueryData(['company'], (prev) => (
         prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       ));
@@ -452,6 +484,7 @@ export default function Fleet() {
     onError: (_error, _enabled, context) => {
       if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
         queryClient.setQueryData(failureTriggerStateKey, context.previous);
+        if (typeof context.previous === 'boolean') persistFailureOverride(context.previous);
       }
       setFailureToggleError(
         lang === 'de'
@@ -812,10 +845,14 @@ export default function Fleet() {
               {maintenancePreviewListing && (
                 <div
                   className="fixed inset-0 z-[120] bg-black/80 flex items-end sm:items-center justify-center p-2 sm:p-6"
-                  onClick={() => setMaintenancePreviewListing(null)}
+                  onClick={(event) => {
+                    if (event.target === event.currentTarget) {
+                      setMaintenancePreviewListing(null);
+                    }
+                  }}
                 >
                   <div
-                    className="w-full max-w-3xl bg-slate-900 border border-amber-700/50 text-slate-200 rounded-lg overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[88dvh]"
+                    className="w-full max-w-3xl h-[92dvh] sm:h-auto bg-slate-900 border border-amber-700/50 text-slate-200 rounded-lg overflow-hidden flex flex-col sm:max-h-[88dvh]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="px-4 pt-4 pb-2 border-b border-slate-800">
@@ -824,9 +861,8 @@ export default function Fleet() {
                       </h3>
                     </div>
                     <div
-                      className="space-y-3 px-4 py-3 min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y"
-                      style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
-                      onTouchMove={(e) => e.stopPropagation()}
+                      className="space-y-3 px-4 py-3 min-h-0 flex-1 overflow-y-scroll overscroll-contain touch-pan-y"
+                      style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
                     >
                       <div className="p-2 rounded border border-slate-700 bg-slate-950/60 text-[11px] font-mono space-y-2">
                         <div className="min-w-0">
@@ -835,17 +871,17 @@ export default function Fleet() {
                           </div>
                           <div className="text-[10px] text-slate-500">UI {FAILURE_TOGGLE_UI_VERSION}</div>
                           <div className="text-slate-400 mt-0.5">
-                            {failureTriggersEnabled
+                            {effectiveFailureEnabled
                               ? (lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.')
                               : (lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.')}
                           </div>
                         </div>
                         <Button
                           type="button"
-                          onClick={() => toggleFailureTriggersMutation.mutate(!failureTriggersEnabled)}
+                          onClick={() => toggleFailureTriggersMutation.mutate(!effectiveFailureEnabled)}
                           disabled={toggleFailureTriggersMutation.isPending}
                           className={`h-9 w-full text-[11px] font-semibold touch-manipulation pointer-events-auto ${
-                            failureTriggersEnabled
+                            effectiveFailureEnabled
                               ? 'bg-red-600 text-white hover:bg-red-500'
                               : 'bg-emerald-600 text-white hover:bg-emerald-500'
                           }`}
@@ -853,7 +889,7 @@ export default function Fleet() {
                         >
                           {toggleFailureTriggersMutation.isPending
                             ? (lang === 'de' ? 'Speichere...' : 'Saving...')
-                            : (failureTriggersEnabled
+                            : (effectiveFailureEnabled
                               ? (lang === 'de' ? 'FAILURE TRIGGER: EIN - TIPPE ZUM AUSSCHALTEN' : 'FAILURE TRIGGER: ON - TAP TO TURN OFF')
                               : (lang === 'de' ? 'FAILURE TRIGGER: AUS - TIPPE ZUM EINSCHALTEN' : 'FAILURE TRIGGER: OFF - TAP TO TURN ON'))}
                         </Button>

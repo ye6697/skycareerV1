@@ -101,12 +101,17 @@ export default function FlightRating({ flight }) {
     const explicitPlan = String(flight?.xplane_data?.insurance_plan || "").trim().toLowerCase();
     if (explicitPlan && INSURANCE_PACKAGES[explicitPlan]) return explicitPlan.toUpperCase();
 
-    const coveragePct = Number(flight?.xplane_data?.insurance_coverage_pct || 0);
-    const scoreBonusPct = Number(flight?.xplane_data?.insurance_score_bonus_pct || 0);
-    if (coveragePct >= Math.round((INSURANCE_PACKAGES.premium?.maintenanceCoveragePct || 0) * 100) || scoreBonusPct >= Math.round((INSURANCE_PACKAGES.premium?.scoreBonusPct || 0) * 100)) {
+    const normalizePctLike = (value) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 0;
+      return n > 1 ? (n / 100) : n;
+    };
+    const coveragePct = normalizePctLike(flight?.xplane_data?.insurance_coverage_pct);
+    const scoreBonusPct = normalizePctLike(flight?.xplane_data?.insurance_score_bonus_pct);
+    if (coveragePct >= (INSURANCE_PACKAGES.premium?.maintenanceCoveragePct || 0) || scoreBonusPct >= (INSURANCE_PACKAGES.premium?.scoreBonusPct || 0)) {
       return "PREMIUM";
     }
-    if (coveragePct >= Math.round((INSURANCE_PACKAGES.plus?.maintenanceCoveragePct || 0) * 100) || scoreBonusPct >= Math.round((INSURANCE_PACKAGES.plus?.scoreBonusPct || 0) * 100)) {
+    if (coveragePct >= (INSURANCE_PACKAGES.plus?.maintenanceCoveragePct || 0) || scoreBonusPct >= (INSURANCE_PACKAGES.plus?.scoreBonusPct || 0)) {
       return "PLUS";
     }
     return "BASIC";

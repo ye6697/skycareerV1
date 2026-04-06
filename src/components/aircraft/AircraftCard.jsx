@@ -281,6 +281,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         if (persistedPlan !== targetPlan) {
           throw new Error('insurance_not_persisted');
         }
+        return persistedPlan;
       } catch (_) {
         // Fallback for environments where function rollout lags behind.
         await base44.entities.Aircraft.update(aircraft.id, {
@@ -289,15 +290,27 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           insurance_maintenance_coverage_pct: config.maintenanceCoveragePct,
           insurance_score_bonus_pct: config.scoreBonusPct,
         });
-      }
-      const verifyRows = await base44.entities.Aircraft.filter({ id: aircraft.id });
-      const persistedPlan = String(verifyRows?.[0]?.insurance_plan || '').trim().toLowerCase();
-      if (persistedPlan !== targetPlan) {
-        throw new Error('insurance_verify_mismatch');
+        return targetPlan;
       }
     },
-    onSuccess: async (_data, planKey) => {
-      setOptimisticInsurancePlan(planKey);
+    onSuccess: async (persistedPlan, requestedPlan) => {
+      const resolvedPlan = String(persistedPlan || requestedPlan || DEFAULT_INSURANCE_PLAN).trim().toLowerCase() || DEFAULT_INSURANCE_PLAN;
+      setOptimisticInsurancePlan(resolvedPlan);
+      setSelectedInsurancePlan(resolvedPlan);
+      queryClient.setQueriesData({ queryKey: ['aircraft'] }, (prev) => {
+        if (!Array.isArray(prev)) return prev;
+        return prev.map((ac) => (
+          ac?.id === aircraft.id
+            ? {
+              ...ac,
+              insurance_plan: resolvedPlan,
+              insurance_hourly_rate_pct: getInsurancePlanConfig(resolvedPlan).hourlyRatePctOfNewValue,
+              insurance_maintenance_coverage_pct: getInsurancePlanConfig(resolvedPlan).maintenanceCoveragePct,
+              insurance_score_bonus_pct: getInsurancePlanConfig(resolvedPlan).scoreBonusPct,
+            }
+            : ac
+        ));
+      });
       await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       await queryClient.refetchQueries({ queryKey: ['aircraft'] });
       setIsInsuranceDialogOpen(false);
@@ -444,13 +457,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         </Dialog>
 
         <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
-          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-md max-h-[92dvh] sm:max-h-[85dvh] p-0 overflow-hidden">
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 w-[calc(100%-1rem)] sm:w-full max-w-md max-h-[92dvh] sm:max-h-[85dvh] p-0 overflow-hidden flex flex-col">
             <DialogHeader className="px-4 pt-4 pb-2">
               <DialogTitle className="text-amber-400 uppercase">{t('maintenance', lang)} - {aircraft.registration}</DialogTitle>
             </DialogHeader>
             <div
-              className="px-4 pb-4 max-h-[74dvh] overflow-y-auto overscroll-contain touch-pan-y"
-              style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+              className="px-4 pb-4 min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y"
+              style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
             >
               <MaintenanceCategories aircraft={aircraft} />
             </div>
