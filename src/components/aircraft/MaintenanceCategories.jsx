@@ -418,7 +418,7 @@ export default function MaintenanceCategories({ aircraft }) {
       )}
 
       <Dialog open={showInfo} onOpenChange={setShowInfo}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg">
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">{tl('maint_system_title', lang)}</DialogTitle>
           </DialogHeader>

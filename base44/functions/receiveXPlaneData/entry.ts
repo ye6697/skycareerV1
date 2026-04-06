@@ -3,11 +3,14 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
 const COMPANY_CACHE_TTL_MS = 5 * 60 * 1000;
 const ACTIVE_FLIGHT_CACHE_TTL_MS = 1000;
 const NO_ACTIVE_FLIGHT_CACHE_TTL_MS = 1000;
+const GAME_SETTINGS_CACHE_TTL_MS = 30 * 1000;
 
 const companyByApiKeyCache = new Map();
 const companyRefreshInFlight = new Map();
 const activeFlightByCompanyCache = new Map();
 const activeFlightRefreshInFlight = new Map();
+let gameSettingsCache: { settings: any; expiresAt: number } | null = null;
+let gameSettingsRefreshInFlight: Promise<void> | null = null;
 
 const cloneValue = (value) => {
   if (value === undefined || value === null) return value;
@@ -121,6 +124,46 @@ const patchActiveFlightCache = (companyId, partialFlight) => {
     flight: cloneValue(merged),
     expiresAt,
   });
+};
+
+const fetchGameSettings = async (base44) => {
+  const allSettings = await base44.asServiceRole.entities.GameSettings.list();
+  return allSettings?.[0] || null;
+};
+
+const setGameSettingsCache = (settings, ttlMs = GAME_SETTINGS_CACHE_TTL_MS) => {
+  gameSettingsCache = {
+    settings: cloneValue(settings),
+    expiresAt: Date.now() + ttlMs,
+  };
+};
+
+const refreshGameSettingsCacheAsync = (base44) => {
+  if (gameSettingsRefreshInFlight) return;
+  gameSettingsRefreshInFlight = (async () => {
+    try {
+      const fresh = await fetchGameSettings(base44);
+      setGameSettingsCache(fresh);
+    } catch (_) {
+      // Keep stale cache on refresh errors.
+    } finally {
+      gameSettingsRefreshInFlight = null;
+    }
+  })();
+};
+
+const getGameSettingsCached = async (base44) => {
+  const now = Date.now();
+  if (gameSettingsCache && gameSettingsCache.expiresAt > now) {
+    return cloneValue(gameSettingsCache.settings);
+  }
+  if (gameSettingsCache?.settings !== undefined) {
+    refreshGameSettingsCacheAsync(base44);
+    return cloneValue(gameSettingsCache.settings);
+  }
+  const fresh = await fetchGameSettings(base44);
+  setGameSettingsCache(fresh);
+  return cloneValue(fresh);
 };
 
 Deno.serve(async (req) => {
@@ -1041,6 +1084,9 @@ Deno.serve(async (req) => {
       }, { status: 200 });
     }
     
+    const gameSettings = await getGameSettingsCached(base44);
+    const failureTriggersEnabled = gameSettings?.failure_triggers_enabled !== false;
+
     // Active flight: keep per-packet DB reads minimal so bridge latency stays low.
     const prevXd = flight.xplane_data || {};
     const hasActiveAirframeFailure = Array.isArray(flight.active_failures) && flight.active_failures.some((f: any) => {
@@ -1555,13 +1601,13 @@ Deno.serve(async (req) => {
       airborne_started_at: airborneStartedAt,
       completion_armed: completionArmed,
       completion_armed_at: completionArmedAt,
-      maintenance_failure_category: resetStaleFailureState
+      maintenance_failure_category: (!failureTriggersEnabled || resetStaleFailureState)
         ? null
         : (data.maintenance_failure_category || prevXd.maintenance_failure_category || null),
-      maintenance_failure_severity: resetStaleFailureState
+      maintenance_failure_severity: (!failureTriggersEnabled || resetStaleFailureState)
         ? null
         : (data.maintenance_failure_severity || prevXd.maintenance_failure_severity || null),
-      maintenance_failure_timestamp: resetStaleFailureState
+      maintenance_failure_timestamp: (!failureTriggersEnabled || resetStaleFailureState)
         ? null
         : (data.maintenance_failure_timestamp || prevXd.maintenance_failure_timestamp || null),
       bridge_event_log: Array.isArray(incomingBridgeEventLog) ? incomingBridgeEventLog.slice(-220) : [],
@@ -1985,7 +2031,7 @@ Deno.serve(async (req) => {
 
     // Only process failures if plugin sends them (rare event, not every packet)
     const pluginFailures = data.active_failures || [];
-    if (pluginFailures.length > 0) {
+    if (failureTriggersEnabled && pluginFailures.length > 0) {
       const existingFailures = flight.active_failures || [];
       const existingNames = new Set(existingFailures.map(f => `${String(f?.category || "").toLowerCase()}|${String(f?.name || "")}`));
       const allowedFailureCategories = new Set(["engine", "hydraulics", "avionics", "airframe", "landing_gear", "electrical", "flight_controls", "pressurization"]);
@@ -2048,7 +2094,12 @@ Deno.serve(async (req) => {
     const nowMs = Date.now();
     const lastFailureTriggerAtMs = Number(prevXd.last_failure_trigger_at_ms || 0) || 0;
     const failureCooldownMs = 25000;
-    const canAttemptFailureRoll = hasBeenAirborne && !on_ground && flight.aircraft_id && (nowMs - lastFailureTriggerAtMs >= failureCooldownMs);
+    const canAttemptFailureRoll =
+      failureTriggersEnabled &&
+      hasBeenAirborne &&
+      !on_ground &&
+      flight.aircraft_id &&
+      (nowMs - lastFailureTriggerAtMs >= failureCooldownMs);
     if (canAttemptFailureRoll) {
       const minFailureRatio = 0.08;
       const normalizedRatio = Math.max(0, Math.min(1, (maintenanceRatio - minFailureRatio) / (1 - minFailureRatio)));
@@ -2441,6 +2492,7 @@ Deno.serve(async (req) => {
       park_brake,
       engines_running: areEnginesRunning,
       maintenance_ratio: maintenanceRatio,
+      failure_triggers_enabled: failureTriggersEnabled,
       bridge_commands: bridgeCommandsForBridge,
       trigger_engine_failure: bridgeCommandsForBridge.some((cmd: any) =>
         String(cmd?.type || "").toLowerCase().includes("engine_failure")

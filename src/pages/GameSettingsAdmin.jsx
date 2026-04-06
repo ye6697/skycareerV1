@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { Save, AlertTriangle, Settings, RotateCcw } from "lucide-react";
 
@@ -28,7 +29,10 @@ export default function GameSettingsAdmin() {
 
   React.useEffect(() => {
     if (settings) {
-      setFormData(settings);
+      setFormData({
+        ...settings,
+        failure_triggers_enabled: settings.failure_triggers_enabled !== false,
+      });
     }
   }, [settings]);
 
@@ -53,6 +57,7 @@ export default function GameSettingsAdmin() {
     crash_vs_threshold: 1000,
     crash_score_penalty: 100,
     crash_maintenance_percent: 70,
+    failure_triggers_enabled: true,
     level_1_4_title: "Freizeit-Simmer",
     level_5_8_title: "Hobby-Pilot",
     level_9_12_title: "Regional-Kapitän",
@@ -106,6 +111,10 @@ export default function GameSettingsAdmin() {
     }
   };
 
+  const handleToggle = (field, checked) => {
+    setFormData(prev => ({ ...prev, [field]: !!checked }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     saveMutation.mutate(formData);
@@ -142,6 +151,23 @@ export default function GameSettingsAdmin() {
 
       <div className="flex-1 overflow-y-auto min-h-0">
         <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="p-6 bg-slate-800 border-slate-700">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-white">Failure Trigger (Bridge)</h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  {formData.failure_triggers_enabled !== false
+                    ? 'Aktiv: Bridge darf Failure-Events ausloesen.'
+                    : 'Deaktiviert: Bridge loest keine neuen Failure-Events mehr aus.'}
+                </p>
+              </div>
+              <Switch
+                checked={formData.failure_triggers_enabled !== false}
+                onCheckedChange={(checked) => handleToggle('failure_triggers_enabled', checked)}
+              />
+            </div>
+          </Card>
+
           {/* Tailstrike */}
           <Card className="p-6 bg-slate-800 border-slate-700">
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">

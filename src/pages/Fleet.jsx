@@ -688,7 +688,7 @@ export default function Fleet() {
                   if (!open) setMaintenancePreviewListing(null);
                 }}
               >
-                <DialogContent className="bg-slate-900 border border-amber-700/50 text-slate-200 max-w-3xl">
+                <DialogContent className="bg-slate-900 border border-amber-700/50 text-slate-200 max-w-3xl max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-amber-300 uppercase">
                       {lang === 'de' ? 'Wartungsstand im Detail' : 'Maintenance details'}
