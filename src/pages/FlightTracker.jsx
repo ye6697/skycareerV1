@@ -46,7 +46,7 @@ import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/f
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { calculateInsuranceForFlight } from "@/lib/insurance";
+import { calculateInsuranceForFlight, resolveAircraftInsurance } from "@/lib/insurance";
 import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap } from "@/lib/maintenance";
 
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
@@ -1266,6 +1266,20 @@ export default function FlightTracker() {
     if (!flightId) return;
     const nowIso = new Date().toISOString();
     const existingXpd = targetFlight?.xplane_data || {};
+    const toStoredPct = (value) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return null;
+      return n > 1 ? n : (n * 100);
+    };
+    let restartAircraft = null;
+    if (targetFlight?.aircraft_id) {
+      try {
+        const rows = await base44.entities.Aircraft.filter({ id: targetFlight.aircraft_id });
+        restartAircraft = rows[0] || null;
+      } catch (_) {
+        restartAircraft = null;
+      }
+    }
     const currentQueue = Array.isArray(targetFlight?.bridge_command_queue)
       ? targetFlight.bridge_command_queue
       : (Array.isArray(targetFlight?.xplane_data?.bridge_command_queue)
@@ -1305,6 +1319,14 @@ export default function FlightTracker() {
         flight_events_log: [],
         bridge_event_log: [],
         telemetry_history: [],
+        ...(restartAircraft ? {
+          insurance_plan: String(restartAircraft.insurance_plan || '').trim().toLowerCase() || existingXpd.insurance_plan || null,
+          insurance_hourly_rate_pct: Number.isFinite(Number(restartAircraft.insurance_hourly_rate_pct))
+            ? Number(restartAircraft.insurance_hourly_rate_pct)
+            : (existingXpd.insurance_hourly_rate_pct ?? null),
+          insurance_coverage_pct: toStoredPct(restartAircraft.insurance_maintenance_coverage_pct) ?? (existingXpd.insurance_coverage_pct ?? null),
+          insurance_score_bonus_pct: toStoredPct(restartAircraft.insurance_score_bonus_pct) ?? (existingXpd.insurance_score_bonus_pct ?? null),
+        } : {}),
         bridge_reset_requested_at: nowIso,
         bridge_reset_reason: 'new_flight_start',
         bridge_command_queue: nextBridgeCommands,
@@ -1900,7 +1922,7 @@ export default function FlightTracker() {
        }
      }
 
-     // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
+            // Only direct costs (fuel, crew, airport) - maintenance goes to accumulated_maintenance_cost
             // Calculate depreciation based on flight hours
             let airplaneToUpdate = (aircraft || []).find(a => a.id === activeFlight.aircraft_id);
             if (activeFlight?.aircraft_id) {
@@ -1913,6 +1935,34 @@ export default function FlightTracker() {
                 console.warn('Could not refresh aircraft before insurance/depreciation calc:', aircraftRefreshError);
               }
             }
+            const normalizeStoredPct = (value) => {
+              const n = Number(value);
+              if (!Number.isFinite(n)) return undefined;
+              return n > 1 && n <= 100 ? n / 100 : n;
+            };
+            const sessionXpd = (flight || existingFlight)?.xplane_data || {};
+            const preferredInsurancePlan = String(
+              airplaneToUpdate?.insurance_plan
+              || assignedAircraft?.insurance_plan
+              || sessionXpd?.insurance_plan
+              || ''
+            ).trim().toLowerCase();
+            const insuranceAircraftForCalc = {
+              ...(airplaneToUpdate || {}),
+              purchase_price: Number(airplaneToUpdate?.purchase_price || assignedAircraft?.purchase_price || 0),
+              current_value: Number(airplaneToUpdate?.current_value || assignedAircraft?.current_value || 0),
+              insurance_plan: preferredInsurancePlan || null,
+              insurance_hourly_rate_pct: Number.isFinite(Number(airplaneToUpdate?.insurance_hourly_rate_pct))
+                ? Number(airplaneToUpdate.insurance_hourly_rate_pct)
+                : normalizeStoredPct(sessionXpd?.insurance_hourly_rate_pct),
+              insurance_maintenance_coverage_pct: Number.isFinite(Number(airplaneToUpdate?.insurance_maintenance_coverage_pct))
+                ? Number(airplaneToUpdate.insurance_maintenance_coverage_pct)
+                : normalizeStoredPct(sessionXpd?.insurance_coverage_pct ?? sessionXpd?.insurance_maintenance_coverage_pct),
+              insurance_score_bonus_pct: Number.isFinite(Number(airplaneToUpdate?.insurance_score_bonus_pct))
+                ? Number(airplaneToUpdate.insurance_score_bonus_pct)
+                : normalizeStoredPct(sessionXpd?.insurance_score_bonus_pct),
+            };
+            const resolvedInsurance = resolveAircraftInsurance(insuranceAircraftForCalc);
             const newFlightHours = (airplaneToUpdate?.total_flight_hours || 0) + flightHours;
             const depreciationPerHour = airplaneToUpdate?.depreciation_rate || 0.001;
             const newAircraftValue = Math.max(0, (airplaneToUpdate?.current_value || airplaneToUpdate?.purchase_price || 0) - (depreciationPerHour * flightHours * airplaneToUpdate?.purchase_price || 0));
@@ -1954,7 +2004,7 @@ export default function FlightTracker() {
             const totalEventMaintenanceCost = finalFlightData.maintenanceCost;
             const totalMaintenanceCostWithCrash = totalEventMaintenanceCost + crashMaintenanceCost;
             const insuranceResult = calculateInsuranceForFlight({
-              aircraft: airplaneToUpdate,
+              aircraft: insuranceAircraftForCalc,
               flightHours,
               maintenanceCost: totalMaintenanceCostWithCrash,
               companyReputation: company?.reputation || 50,
@@ -2188,7 +2238,7 @@ export default function FlightTracker() {
                  levelBonusPercent: levelBonusPercent * 100,
                  companyLevel: company?.level || 1,
                  crewBonus: crewBonusAmount,
-                 insurance_plan: insuranceResult.planKey,
+                 insurance_plan: resolvedInsurance.planKey,
                  insurance_hourly_cost: Math.round(insuranceResult.hourlyCost * 100) / 100,
                  insurance_cost: Math.round(insuranceCost * 100) / 100,
                  insurance_coverage_pct: Math.round(insuranceResult.maintenanceCoveragePct * 100),
@@ -3501,8 +3551,27 @@ export default function FlightTracker() {
                       revenue = contract?.payout || 0;
                       revenue += flightData.landingBonus || 0;
                     }
+                    const normalizeStoredPct = (value) => {
+                      const n = Number(value);
+                      if (!Number.isFinite(n)) return undefined;
+                      return n > 1 && n <= 100 ? n / 100 : n;
+                    };
+                    const previewInsuranceAircraft = {
+                      ...(assignedAircraft || {}),
+                      insurance_plan: String(assignedAircraft?.insurance_plan || xpd?.insurance_plan || '').trim().toLowerCase() || null,
+                      insurance_hourly_rate_pct: Number.isFinite(Number(assignedAircraft?.insurance_hourly_rate_pct))
+                        ? Number(assignedAircraft.insurance_hourly_rate_pct)
+                        : normalizeStoredPct(xpd?.insurance_hourly_rate_pct),
+                      insurance_maintenance_coverage_pct: Number.isFinite(Number(assignedAircraft?.insurance_maintenance_coverage_pct))
+                        ? Number(assignedAircraft.insurance_maintenance_coverage_pct)
+                        : normalizeStoredPct(xpd?.insurance_coverage_pct ?? xpd?.insurance_maintenance_coverage_pct),
+                      insurance_score_bonus_pct: Number.isFinite(Number(assignedAircraft?.insurance_score_bonus_pct))
+                        ? Number(assignedAircraft.insurance_score_bonus_pct)
+                        : normalizeStoredPct(xpd?.insurance_score_bonus_pct),
+                    };
+                    const resolvedPreviewInsurance = resolveAircraftInsurance(previewInsuranceAircraft);
                     const previewInsurance = calculateInsuranceForFlight({
-                      aircraft: assignedAircraft,
+                      aircraft: previewInsuranceAircraft,
                       flightHours,
                       maintenanceCost: flightData.maintenanceCost,
                       companyReputation: company?.reputation || 50,
@@ -3530,7 +3599,7 @@ export default function FlightTracker() {
                         landingScoreChange: flightData.landingScoreChange,
                         landingBonus: flightData.landingBonus,
                         landingMaintenanceCost: flightData.landingMaintenanceCost,
-                        insurance_plan: previewInsurance.planKey,
+                        insurance_plan: resolvedPreviewInsurance.planKey,
                         insurance_cost: Math.round(previewInsurance.insuranceCost),
                         insurance_covered_maintenance: Math.round(previewInsurance.maintenanceCovered),
                         insurance_score_bonus_pct: Math.round(previewInsurance.scoreBonusPct * 100),
