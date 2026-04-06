@@ -274,6 +274,34 @@ Port=500
     });
   };
 
+  const mergeBootstrapToolsIntoZip = async (bridgeZipBytes, bootstrapZipBytes) => {
+    const bridgeZip = await JSZip.loadAsync(bridgeZipBytes);
+    const bootstrapZip = await JSZip.loadAsync(bootstrapZipBytes);
+    const keepNames = new Set([
+      'sc installer.exe',
+      'sc uninstaller.exe',
+      'readme_start_here.txt',
+      'readme.txt',
+    ]);
+
+    const bootstrapEntries = Object.entries(bootstrapZip.files)
+      .filter(([, file]) => !file?.dir);
+
+    for (const [path, file] of bootstrapEntries) {
+      const fileName = path.split('/').pop() || path;
+      const lower = fileName.toLowerCase();
+      if (!keepNames.has(lower)) continue;
+      const data = await file.async('uint8array');
+      bridgeZip.file(fileName, data);
+    }
+
+    return await bridgeZip.generateAsync({
+      type: 'uint8array',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    });
+  };
+
   const triggerZipDownload = (bytes, fileName) => {
     const blob = new Blob([bytes], { type: 'application/zip' });
     const url = window.URL.createObjectURL(blob);
@@ -368,45 +396,64 @@ Port=500
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
         const payloadFile = 'SkyCareer_MSFS_Bridge_Payload.zip';
-        const candidates = [
-          { url: new URL(`downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(), kind: 'payload', fileName: payloadFile },
-          { url: new URL(`${normalizedBase}downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'payload', fileName: payloadFile },
-          { url: new URL(`/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'payload', fileName: payloadFile },
-          { url: `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, kind: 'payload', fileName: payloadFile },
-          { url: new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(), kind: 'bootstrap', fileName: targetFile },
-          { url: new URL(`${normalizedBase}downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'bootstrap', fileName: targetFile },
-          { url: new URL(`/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'bootstrap', fileName: targetFile },
-          { url: `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, kind: 'bootstrap', fileName: targetFile },
+        const payloadCandidates = [
+          new URL(`downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
+          new URL(`${normalizedBase}downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          new URL(`/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`,
         ];
-
-        for (const candidate of candidates) {
+        const bootstrapCandidates = [
+          new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
+          new URL(`${normalizedBase}downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          new URL(`/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`,
+        ];
+        let bootstrapBytes = null;
+        for (const bootUrl of bootstrapCandidates) {
           try {
-            const res = await fetch(candidate.url, { cache: 'no-store' });
+            const res = await fetch(bootUrl, { cache: 'no-store' });
             if (!res.ok) {
-              lastError = `HTTP ${res.status} @ ${candidate.url}`;
+              lastError = `HTTP ${res.status} @ ${bootUrl}`;
               continue;
             }
             const arr = new Uint8Array(await res.arrayBuffer());
             if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
-              if (candidate.kind === 'payload') {
-                try {
-                  const patched = await personalizeBridgePayloadZip(arr, apiKey || '', endpoint);
-                  bytes = patched;
-                  fileName = 'SkyCareer_MSFS_Bridge_Windows_Fallback_Personalized.zip';
-                } catch (zipPatchError) {
-                  lastError = `ZIP patch failed @ ${candidate.url}: ${zipPatchError?.message || zipPatchError}`;
-                  continue;
-                }
-              } else {
-                bytes = arr;
-                fileName = candidate.fileName || targetFile;
-              }
+              bootstrapBytes = arr;
               break;
             }
-            lastError = `Invalid ZIP bytes @ ${candidate.url}`;
+            lastError = `Invalid ZIP bytes @ ${bootUrl}`;
           } catch (e) {
-            lastError = `${e?.message || e} @ ${candidate.url}`;
+            lastError = `${e?.message || e} @ ${bootUrl}`;
           }
+        }
+
+        for (const payloadUrl of payloadCandidates) {
+          try {
+            const res = await fetch(payloadUrl, { cache: 'no-store' });
+            if (!res.ok) {
+              lastError = `HTTP ${res.status} @ ${payloadUrl}`;
+              continue;
+            }
+            const arr = new Uint8Array(await res.arrayBuffer());
+            if (arr.length < 4 || arr[0] !== 0x50 || arr[1] !== 0x4b) {
+              lastError = `Invalid ZIP bytes @ ${payloadUrl}`;
+              continue;
+            }
+            let patched = await personalizeBridgePayloadZip(arr, apiKey || '', endpoint);
+            if (bootstrapBytes) {
+              patched = await mergeBootstrapToolsIntoZip(patched, bootstrapBytes);
+            }
+            bytes = patched;
+            fileName = 'SkyCareer_MSFS_Bridge_Windows_Fallback_Personalized.zip';
+            break;
+          } catch (e) {
+            lastError = `${e?.message || e} @ ${payloadUrl}`;
+          }
+        }
+
+        if (!bytes && bootstrapBytes) {
+          bytes = bootstrapBytes;
+          fileName = targetFile;
         }
       }
 
