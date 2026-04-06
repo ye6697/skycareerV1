@@ -412,9 +412,6 @@ export default function Fleet() {
       const currentCompany = await loadCurrentCompany();
       const targetEnabled = !!enabled;
       const targetCompanyId = currentCompany?.id || null;
-      if (!targetCompanyId) {
-        throw new Error('missing_company_context');
-      }
 
       const response = await Promise.race([
         base44.functions.invoke('toggleFailureTriggers', {

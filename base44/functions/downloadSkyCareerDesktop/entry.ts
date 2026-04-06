@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://aero-career-pilot.base44.app/api/functions/receiveXPlaneData';
+const BRIDGE_VERSION = 'bridge-2026-04-06-r2';
 const DEFAULT_SIMCONNECT_CFG = `[SimConnect]
 Protocol=Ipv4
 Address=localhost
@@ -99,6 +100,7 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   patched = upsertAppSetting(patched, 'WorkerTimeoutMs', '15000');
   patched = upsertAppSetting(patched, 'WorkerRestartDelayMs', '2000');
   patched = upsertAppSetting(patched, 'MaxConsecutiveTimeouts', '3');
+  patched = upsertAppSetting(patched, 'BridgeVersion', BRIDGE_VERSION);
   patched = upsertAppSetting(patched, 'Simulator', 'auto');
   patched = upsertAppSetting(patched, 'AutoStartOnSimulator', 'true');
   patched = upsertAppSetting(patched, 'MonitorProcesses', 'FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12');
@@ -121,6 +123,7 @@ function buildBridgeConfig(apiKey: string, endpoint: string) {
     <add key="WorkerTimeoutMs" value="15000" />
     <add key="WorkerRestartDelayMs" value="2000" />
     <add key="MaxConsecutiveTimeouts" value="3" />
+    <add key="BridgeVersion" value="${BRIDGE_VERSION}" />
     <add key="AutoStartOnSimulator" value="true" />
     <add key="MonitorProcesses" value="FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12" />
   </appSettings>
@@ -248,6 +251,7 @@ Deno.serve(async (req) => {
       mime_type: 'application/zip',
       base64: toBase64(finalZipBytes),
       byte_length: finalZipBytes.length,
+      bridge_version: BRIDGE_VERSION,
       personalized: true,
     });
   } catch (error) {

@@ -164,9 +164,6 @@ export default function MaintenanceCategories({ aircraft }) {
       const company = companyForLimit || await loadCurrentCompany();
       const targetEnabled = !!enabled;
       const targetCompanyId = company?.id || aircraft?.company_id || null;
-      if (!targetCompanyId) {
-        throw new Error('missing_company_context');
-      }
 
       const response = await Promise.race([
         base44.functions.invoke('toggleFailureTriggers', {

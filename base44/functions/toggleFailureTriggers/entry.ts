@@ -21,11 +21,20 @@ Deno.serve(async (req) => {
     const requestedCompanyId = body?.companyId ? String(body.companyId) : null;
 
     const userCompanyId = resolveUserCompanyId(user);
-    let companyId = requestedCompanyId || userCompanyId || null;
-    if (!companyId && user?.email) {
-      const rows = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
-      companyId = rows?.[0]?.id || null;
+    const ownedCompanies = user?.email
+      ? await base44.asServiceRole.entities.Company.filter({ created_by: user.email }).catch(() => [])
+      : [];
+    const ownedCompanyIds = (Array.isArray(ownedCompanies) ? ownedCompanies : [])
+      .map((row: any) => row?.id)
+      .filter(Boolean);
+    const companyIdSet = new Set<string>();
+    if (requestedCompanyId) companyIdSet.add(requestedCompanyId);
+    if (userCompanyId) companyIdSet.add(String(userCompanyId));
+    for (const cid of ownedCompanyIds) {
+      companyIdSet.add(String(cid));
     }
+    const targetCompanyIds = Array.from(companyIdSet);
+    const companyId = targetCompanyIds[0] || null;
 
     const settingsRows = await base44.asServiceRole.entities.GameSettings.list();
     let settings = settingsRows[0] || null;
@@ -45,12 +54,16 @@ Deno.serve(async (req) => {
         settings = settingsRows[0] || null;
       }
       // Keep company field in sync if available (best effort only).
-      if (companyId) {
-        await base44.asServiceRole.entities.Company.update(companyId, {
-          failure_triggers_enabled: !!enabled,
-        }).catch(() => null);
+      if (targetCompanyIds.length > 0) {
+        await Promise.allSettled(
+          targetCompanyIds.map((cid) => (
+            base44.asServiceRole.entities.Company.update(cid, {
+              failure_triggers_enabled: !!enabled,
+            })
+          ))
+        );
       }
-      if (companyId && (!userCompanyId || userCompanyId !== companyId)) {
+      if (companyId && (!userCompanyId || String(userCompanyId) !== companyId)) {
         try {
           await base44.auth.updateMe({ company_id: companyId });
         } catch (_) {
@@ -65,19 +78,30 @@ Deno.serve(async (req) => {
       ? refreshedSettingsRows.every((row) => row?.failure_triggers_enabled !== false)
       : (typeof enabled === 'boolean' ? !!enabled : true);
 
-    if (!refreshedSettingsRows.length && typeof enabled !== 'boolean' && companyId) {
-      const companyRows = await base44.asServiceRole.entities.Company.filter({ id: companyId });
-      const companyFlag = companyRows?.[0]?.failure_triggers_enabled;
-      if (typeof companyFlag === 'boolean') {
-        persistedEnabled = companyFlag;
-      }
+    const companyRowsForState = targetCompanyIds.length > 0
+      ? (await Promise.all(
+          targetCompanyIds.map((cid) => (
+            base44.asServiceRole.entities.Company.filter({ id: cid }).catch(() => [])
+          ))
+        )).flat()
+      : [];
+    const companyRowsWithFlag = companyRowsForState.filter(
+      (row: any) => typeof row?.failure_triggers_enabled === 'boolean'
+    );
+    if (companyRowsWithFlag.length > 0) {
+      const allCompanyFlagsEnabled = companyRowsWithFlag.every((row: any) => row?.failure_triggers_enabled !== false);
+      persistedEnabled = persistedEnabled && allCompanyFlagsEnabled;
     }
 
-    if (companyId) {
+    if (targetCompanyIds.length > 0) {
       // Keep company field synced with global setting (best effort).
-      await base44.asServiceRole.entities.Company.update(companyId, {
-        failure_triggers_enabled: persistedEnabled,
-      }).catch(() => null);
+      await Promise.allSettled(
+        targetCompanyIds.map((cid) => (
+          base44.asServiceRole.entities.Company.update(cid, {
+            failure_triggers_enabled: persistedEnabled,
+          })
+        ))
+      );
     }
 
     if (typeof enabled === 'boolean') {
@@ -87,10 +111,21 @@ Deno.serve(async (req) => {
           || commandType === 'restart_worker'
           || commandType === 'bridge_worker_restart';
       };
-      const flightFilter = companyId
-        ? { company_id: companyId, status: 'in_flight' }
-        : { status: 'in_flight' };
-      const activeFlights = await base44.asServiceRole.entities.Flight.filter(flightFilter);
+      let activeFlights: any[] = [];
+      if (targetCompanyIds.length > 0) {
+        const byCompany = await Promise.all(
+          targetCompanyIds.map((cid) => (
+            base44.asServiceRole.entities.Flight.filter({ company_id: cid, status: 'in_flight' }).catch(() => [])
+          ))
+        );
+        const dedupe = new Map<string, any>();
+        for (const row of byCompany.flat()) {
+          if (row?.id) dedupe.set(String(row.id), row);
+        }
+        activeFlights = Array.from(dedupe.values());
+      } else {
+        activeFlights = await base44.asServiceRole.entities.Flight.filter({ status: 'in_flight' });
+      }
       await Promise.all(
         (Array.isArray(activeFlights) ? activeFlights : [])
           .filter((fl: any) => fl?.id)
@@ -143,6 +178,7 @@ Deno.serve(async (req) => {
       success: true,
       enabled: persistedEnabled,
       company_id: companyId,
+      company_ids: targetCompanyIds,
       settings_id: refreshedSettings?.id || null,
     });
   } catch (error: any) {
