@@ -364,10 +364,11 @@ export default function Fleet() {
     mutationFn: async (enabled) => {
       setFailureToggleError('');
       const currentCompany = await loadCurrentCompany();
-      if (!currentCompany?.id) throw new Error('Unternehmen nicht gefunden');
-      await base44.entities.Company.update(currentCompany.id, {
-        failure_triggers_enabled: !!enabled,
+      const response = await base44.functions.invoke('toggleFailureTriggers', {
+        enabled: !!enabled,
+        companyId: currentCompany?.id || null,
       });
+      if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
       return !!enabled;
     },
     onSuccess: (enabled) => {

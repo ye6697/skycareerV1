@@ -117,10 +117,11 @@ export default function MaintenanceCategories({ aircraft }) {
     mutationFn: async (enabled) => {
       setFailureToggleError('');
       const company = companyForLimit || await loadCurrentCompany();
-      if (!company?.id) throw new Error('Unternehmen nicht gefunden');
-      await base44.entities.Company.update(company.id, {
-        failure_triggers_enabled: !!enabled,
+      const response = await base44.functions.invoke('toggleFailureTriggers', {
+        enabled: !!enabled,
+        companyId: company?.id || aircraft?.company_id || null,
       });
+      if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
       return !!enabled;
     },
     onSuccess: (enabled) => {
