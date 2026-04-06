@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
 
-const COMPANY_CACHE_TTL_MS = 5 * 60 * 1000;
+const COMPANY_CACHE_TTL_MS = 30 * 1000;
 const ACTIVE_FLIGHT_CACHE_TTL_MS = 1000;
 const NO_ACTIVE_FLIGHT_CACHE_TTL_MS = 1000;
 const GAME_SETTINGS_CACHE_TTL_MS = 30 * 1000;
@@ -1085,7 +1085,10 @@ Deno.serve(async (req) => {
     }
     
     const gameSettings = await getGameSettingsCached(base44);
-    const failureTriggersEnabled = gameSettings?.failure_triggers_enabled !== false;
+    const companyFailureToggle = (typeof company?.failure_triggers_enabled === "boolean")
+      ? company.failure_triggers_enabled
+      : null;
+    const failureTriggersEnabled = companyFailureToggle ?? (gameSettings?.failure_triggers_enabled !== false);
 
     // Active flight: keep per-packet DB reads minimal so bridge latency stays low.
     const prevXd = flight.xplane_data || {};

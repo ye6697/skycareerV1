@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const CATEGORY_META = [
@@ -94,6 +95,22 @@ export default function MaintenanceCategories({ aircraft }) {
     const companies = await base44.entities.Company.filter({ created_by: user.email });
     return companies[0] || null;
   };
+
+  const failureTriggersEnabled = companyForLimit?.failure_triggers_enabled !== false;
+
+  const toggleFailureTriggersMutation = useMutation({
+    mutationFn: async (enabled) => {
+      const company = companyForLimit || await loadCurrentCompany();
+      if (!company?.id) throw new Error('Unternehmen nicht gefunden');
+      await base44.entities.Company.update(company.id, {
+        failure_triggers_enabled: !!enabled,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+    },
+  });
 
   const overdraftBlocked = isAtOverdraftLimit(companyForLimit);
   const cats = normalizeMaintenanceCategoryMap(aircraft?.maintenance_categories);
@@ -289,6 +306,24 @@ export default function MaintenanceCategories({ aircraft }) {
             </Badge>
           )}
         </div>
+      </div>
+
+      <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold text-slate-200">
+            {lang === 'de' ? 'Failure Trigger (Bridge)' : 'Failure trigger (bridge)'}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">
+            {failureTriggersEnabled
+              ? (lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.')
+              : (lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.')}
+          </div>
+        </div>
+        <Switch
+          checked={failureTriggersEnabled}
+          onCheckedChange={(checked) => toggleFailureTriggersMutation.mutate(checked)}
+          disabled={toggleFailureTriggersMutation.isPending}
+        />
       </div>
 
       <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5">
