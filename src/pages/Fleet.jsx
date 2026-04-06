@@ -13,13 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  DialogFooter } from
+"@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
-  Plane,
-} from "lucide-react";
+  Plane } from
+"lucide-react";
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
@@ -29,82 +29,82 @@ import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance'
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-c';
 
 const AIRCRAFT_MARKET_SPECS = [
-  // === SMALL PROPS (Level 1) ===
-  { name: "Icon A5", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 60, fuel_consumption_per_hour: 23, range_nm: 300, purchase_price: 120000, maintenance_cost_per_hour: 20, level_requirement: 1 },
-  { name: "Piper PA-18 Super Cub", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 100, fuel_consumption_per_hour: 35, range_nm: 400, purchase_price: 180000, maintenance_cost_per_hour: 30, level_requirement: 1 },
-  { name: "Robin DR400", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 120, fuel_consumption_per_hour: 38, range_nm: 550, purchase_price: 200000, maintenance_cost_per_hour: 25, level_requirement: 1 },
-  { name: "Cessna 152", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 55, fuel_consumption_per_hour: 25, range_nm: 415, purchase_price: 210000, maintenance_cost_per_hour: 20, level_requirement: 1 },
-  { name: "Vans RV-10", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 180, fuel_consumption_per_hour: 48, range_nm: 900, purchase_price: 250000, maintenance_cost_per_hour: 35, level_requirement: 1 },
-  { name: "Diamond DA40 NG", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 110, fuel_consumption_per_hour: 30, range_nm: 720, purchase_price: 300000, maintenance_cost_per_hour: 28, level_requirement: 1 },
-  { name: "Cessna 172 Skyhawk", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 100, fuel_consumption_per_hour: 45, range_nm: 640, purchase_price: 425000, maintenance_cost_per_hour: 25, level_requirement: 1 },
-  { name: "Beechcraft Bonanza G36", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 250, fuel_consumption_per_hour: 75, range_nm: 920, purchase_price: 430000, maintenance_cost_per_hour: 55, level_requirement: 1 },
-  { name: "Beechcraft Baron 58", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 340, fuel_consumption_per_hour: 130, range_nm: 1480, purchase_price: 450000, maintenance_cost_per_hour: 80, level_requirement: 1 },
-  { name: "Diamond DA62", type: "small_prop", passenger_capacity: 6, cargo_capacity_kg: 280, fuel_consumption_per_hour: 55, range_nm: 1300, purchase_price: 550000, maintenance_cost_per_hour: 45, level_requirement: 1 },
-  { name: "Cessna 208B Grand Caravan", type: "small_prop", passenger_capacity: 9, cargo_capacity_kg: 1100, fuel_consumption_per_hour: 180, range_nm: 900, purchase_price: 580000, maintenance_cost_per_hour: 60, level_requirement: 1 },
-  { name: "Cirrus SR22", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 180, fuel_consumption_per_hour: 60, range_nm: 1050, purchase_price: 650000, maintenance_cost_per_hour: 50, level_requirement: 1 },
+// === SMALL PROPS (Level 1) ===
+{ name: "Icon A5", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 60, fuel_consumption_per_hour: 23, range_nm: 300, purchase_price: 120000, maintenance_cost_per_hour: 20, level_requirement: 1 },
+{ name: "Piper PA-18 Super Cub", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 100, fuel_consumption_per_hour: 35, range_nm: 400, purchase_price: 180000, maintenance_cost_per_hour: 30, level_requirement: 1 },
+{ name: "Robin DR400", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 120, fuel_consumption_per_hour: 38, range_nm: 550, purchase_price: 200000, maintenance_cost_per_hour: 25, level_requirement: 1 },
+{ name: "Cessna 152", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 55, fuel_consumption_per_hour: 25, range_nm: 415, purchase_price: 210000, maintenance_cost_per_hour: 20, level_requirement: 1 },
+{ name: "Vans RV-10", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 180, fuel_consumption_per_hour: 48, range_nm: 900, purchase_price: 250000, maintenance_cost_per_hour: 35, level_requirement: 1 },
+{ name: "Diamond DA40 NG", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 110, fuel_consumption_per_hour: 30, range_nm: 720, purchase_price: 300000, maintenance_cost_per_hour: 28, level_requirement: 1 },
+{ name: "Cessna 172 Skyhawk", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 100, fuel_consumption_per_hour: 45, range_nm: 640, purchase_price: 425000, maintenance_cost_per_hour: 25, level_requirement: 1 },
+{ name: "Beechcraft Bonanza G36", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 250, fuel_consumption_per_hour: 75, range_nm: 920, purchase_price: 430000, maintenance_cost_per_hour: 55, level_requirement: 1 },
+{ name: "Beechcraft Baron 58", type: "small_prop", passenger_capacity: 4, cargo_capacity_kg: 340, fuel_consumption_per_hour: 130, range_nm: 1480, purchase_price: 450000, maintenance_cost_per_hour: 80, level_requirement: 1 },
+{ name: "Diamond DA62", type: "small_prop", passenger_capacity: 6, cargo_capacity_kg: 280, fuel_consumption_per_hour: 55, range_nm: 1300, purchase_price: 550000, maintenance_cost_per_hour: 45, level_requirement: 1 },
+{ name: "Cessna 208B Grand Caravan", type: "small_prop", passenger_capacity: 9, cargo_capacity_kg: 1100, fuel_consumption_per_hour: 180, range_nm: 900, purchase_price: 580000, maintenance_cost_per_hour: 60, level_requirement: 1 },
+{ name: "Cirrus SR22", type: "small_prop", passenger_capacity: 3, cargo_capacity_kg: 180, fuel_consumption_per_hour: 60, range_nm: 1050, purchase_price: 650000, maintenance_cost_per_hour: 50, level_requirement: 1 },
 
-  // === TURBOPROPS (Level 2-4) ===
-  { name: "Daher Kodiak 100", type: "turboprop", passenger_capacity: 9, cargo_capacity_kg: 1400, fuel_consumption_per_hour: 200, range_nm: 1132, purchase_price: 750000, maintenance_cost_per_hour: 90, level_requirement: 2 },
-  { name: "Lancair Evolution", type: "turboprop", passenger_capacity: 3, cargo_capacity_kg: 200, fuel_consumption_per_hour: 120, range_nm: 1400, purchase_price: 800000, maintenance_cost_per_hour: 100, level_requirement: 2 },
-  { name: "Daher TBM 930", type: "turboprop", passenger_capacity: 5, cargo_capacity_kg: 300, fuel_consumption_per_hour: 190, range_nm: 1650, purchase_price: 1200000, maintenance_cost_per_hour: 150, level_requirement: 2 },
-  { name: "Beechcraft King Air C90B", type: "turboprop", passenger_capacity: 7, cargo_capacity_kg: 600, fuel_consumption_per_hour: 250, range_nm: 1260, purchase_price: 1800000, maintenance_cost_per_hour: 250, level_requirement: 3 },
-  { name: "Pilatus PC-12 NGX", type: "turboprop", passenger_capacity: 9, cargo_capacity_kg: 1100, fuel_consumption_per_hour: 280, range_nm: 1800, purchase_price: 2500000, maintenance_cost_per_hour: 200, level_requirement: 3 },
-  { name: "Beechcraft King Air 350i", type: "turboprop", passenger_capacity: 11, cargo_capacity_kg: 800, fuel_consumption_per_hour: 310, range_nm: 1800, purchase_price: 3200000, maintenance_cost_per_hour: 320, level_requirement: 4 },
+// === TURBOPROPS (Level 2-4) ===
+{ name: "Daher Kodiak 100", type: "turboprop", passenger_capacity: 9, cargo_capacity_kg: 1400, fuel_consumption_per_hour: 200, range_nm: 1132, purchase_price: 750000, maintenance_cost_per_hour: 90, level_requirement: 2 },
+{ name: "Lancair Evolution", type: "turboprop", passenger_capacity: 3, cargo_capacity_kg: 200, fuel_consumption_per_hour: 120, range_nm: 1400, purchase_price: 800000, maintenance_cost_per_hour: 100, level_requirement: 2 },
+{ name: "Daher TBM 930", type: "turboprop", passenger_capacity: 5, cargo_capacity_kg: 300, fuel_consumption_per_hour: 190, range_nm: 1650, purchase_price: 1200000, maintenance_cost_per_hour: 150, level_requirement: 2 },
+{ name: "Beechcraft King Air C90B", type: "turboprop", passenger_capacity: 7, cargo_capacity_kg: 600, fuel_consumption_per_hour: 250, range_nm: 1260, purchase_price: 1800000, maintenance_cost_per_hour: 250, level_requirement: 3 },
+{ name: "Pilatus PC-12 NGX", type: "turboprop", passenger_capacity: 9, cargo_capacity_kg: 1100, fuel_consumption_per_hour: 280, range_nm: 1800, purchase_price: 2500000, maintenance_cost_per_hour: 200, level_requirement: 3 },
+{ name: "Beechcraft King Air 350i", type: "turboprop", passenger_capacity: 11, cargo_capacity_kg: 800, fuel_consumption_per_hour: 310, range_nm: 1800, purchase_price: 3200000, maintenance_cost_per_hour: 320, level_requirement: 4 },
 
-  // === LIGHT JETS (Level 2-6) ===
-  { name: "Cirrus Vision SF50", type: "regional_jet", passenger_capacity: 4, cargo_capacity_kg: 225, fuel_consumption_per_hour: 200, range_nm: 1200, purchase_price: 2900000, maintenance_cost_per_hour: 300, level_requirement: 2 },
-  { name: "Honda HA-420 HondaJet", type: "regional_jet", passenger_capacity: 5, cargo_capacity_kg: 280, fuel_consumption_per_hour: 280, range_nm: 1220, purchase_price: 3800000, maintenance_cost_per_hour: 350, level_requirement: 3 },
-  { name: "Cessna Citation CJ4", type: "regional_jet", passenger_capacity: 7, cargo_capacity_kg: 350, fuel_consumption_per_hour: 550, range_nm: 2165, purchase_price: 6500000, maintenance_cost_per_hour: 550, level_requirement: 4 },
-  { name: "Cessna Citation Longitude", type: "regional_jet", passenger_capacity: 8, cargo_capacity_kg: 500, fuel_consumption_per_hour: 700, range_nm: 3500, purchase_price: 9500000, maintenance_cost_per_hour: 750, level_requirement: 5 },
-  { name: "Cessna Citation X", type: "regional_jet", passenger_capacity: 8, cargo_capacity_kg: 450, fuel_consumption_per_hour: 900, range_nm: 3070, purchase_price: 12000000, maintenance_cost_per_hour: 900, level_requirement: 6 },
+// === LIGHT JETS (Level 2-6) ===
+{ name: "Cirrus Vision SF50", type: "regional_jet", passenger_capacity: 4, cargo_capacity_kg: 225, fuel_consumption_per_hour: 200, range_nm: 1200, purchase_price: 2900000, maintenance_cost_per_hour: 300, level_requirement: 2 },
+{ name: "Honda HA-420 HondaJet", type: "regional_jet", passenger_capacity: 5, cargo_capacity_kg: 280, fuel_consumption_per_hour: 280, range_nm: 1220, purchase_price: 3800000, maintenance_cost_per_hour: 350, level_requirement: 3 },
+{ name: "Cessna Citation CJ4", type: "regional_jet", passenger_capacity: 7, cargo_capacity_kg: 350, fuel_consumption_per_hour: 550, range_nm: 2165, purchase_price: 6500000, maintenance_cost_per_hour: 550, level_requirement: 4 },
+{ name: "Cessna Citation Longitude", type: "regional_jet", passenger_capacity: 8, cargo_capacity_kg: 500, fuel_consumption_per_hour: 700, range_nm: 3500, purchase_price: 9500000, maintenance_cost_per_hour: 750, level_requirement: 5 },
+{ name: "Cessna Citation X", type: "regional_jet", passenger_capacity: 8, cargo_capacity_kg: 450, fuel_consumption_per_hour: 900, range_nm: 3070, purchase_price: 12000000, maintenance_cost_per_hour: 900, level_requirement: 6 },
 
-  // === REGIONAL AIRLINERS (Level 7-14) ===
-  { name: "Pilatus PC-24", type: "regional_jet", passenger_capacity: 8, cargo_capacity_kg: 600, fuel_consumption_per_hour: 750, range_nm: 2000, purchase_price: 15000000, maintenance_cost_per_hour: 600, level_requirement: 7 },
-  { name: "Bombardier Dash 8-400", type: "turboprop", passenger_capacity: 78, cargo_capacity_kg: 2500, fuel_consumption_per_hour: 700, range_nm: 1550, purchase_price: 25000000, maintenance_cost_per_hour: 250, level_requirement: 9 },
-  { name: "ATR 72F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 6000, fuel_consumption_per_hour: 350, range_nm: 2400, purchase_price: 28000000, maintenance_cost_per_hour: 600, level_requirement: 10 },
-  { name: "Bombardier CRJ-200", type: "regional_jet", passenger_capacity: 50, cargo_capacity_kg: 1500, fuel_consumption_per_hour: 1600, range_nm: 2000, purchase_price: 35000000, maintenance_cost_per_hour: 350, level_requirement: 11 },
-  { name: "Bombardier CRJ-700", type: "regional_jet", passenger_capacity: 66, cargo_capacity_kg: 1800, fuel_consumption_per_hour: 1900, range_nm: 2350, purchase_price: 42000000, maintenance_cost_per_hour: 400, level_requirement: 12 },
-  { name: "Embraer E175", type: "regional_jet", passenger_capacity: 76, cargo_capacity_kg: 2000, fuel_consumption_per_hour: 2400, range_nm: 2200, purchase_price: 50000000, maintenance_cost_per_hour: 450, level_requirement: 13 },
-  { name: "Airbus A220-300", type: "regional_jet", passenger_capacity: 145, cargo_capacity_kg: 3400, fuel_consumption_per_hour: 2800, range_nm: 3350, purchase_price: 65000000, maintenance_cost_per_hour: 650, level_requirement: 14 },
-  { name: "McDonnell Douglas MD-82", type: "narrow_body", passenger_capacity: 155, cargo_capacity_kg: 4500, fuel_consumption_per_hour: 3000, range_nm: 2050, purchase_price: 55000000, maintenance_cost_per_hour: 950, level_requirement: 14 },
+// === REGIONAL AIRLINERS (Level 7-14) ===
+{ name: "Pilatus PC-24", type: "regional_jet", passenger_capacity: 8, cargo_capacity_kg: 600, fuel_consumption_per_hour: 750, range_nm: 2000, purchase_price: 15000000, maintenance_cost_per_hour: 600, level_requirement: 7 },
+{ name: "Bombardier Dash 8-400", type: "turboprop", passenger_capacity: 78, cargo_capacity_kg: 2500, fuel_consumption_per_hour: 700, range_nm: 1550, purchase_price: 25000000, maintenance_cost_per_hour: 250, level_requirement: 9 },
+{ name: "ATR 72F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 6000, fuel_consumption_per_hour: 350, range_nm: 2400, purchase_price: 28000000, maintenance_cost_per_hour: 600, level_requirement: 10 },
+{ name: "Bombardier CRJ-200", type: "regional_jet", passenger_capacity: 50, cargo_capacity_kg: 1500, fuel_consumption_per_hour: 1600, range_nm: 2000, purchase_price: 35000000, maintenance_cost_per_hour: 350, level_requirement: 11 },
+{ name: "Bombardier CRJ-700", type: "regional_jet", passenger_capacity: 66, cargo_capacity_kg: 1800, fuel_consumption_per_hour: 1900, range_nm: 2350, purchase_price: 42000000, maintenance_cost_per_hour: 400, level_requirement: 12 },
+{ name: "Embraer E175", type: "regional_jet", passenger_capacity: 76, cargo_capacity_kg: 2000, fuel_consumption_per_hour: 2400, range_nm: 2200, purchase_price: 50000000, maintenance_cost_per_hour: 450, level_requirement: 13 },
+{ name: "Airbus A220-300", type: "regional_jet", passenger_capacity: 145, cargo_capacity_kg: 3400, fuel_consumption_per_hour: 2800, range_nm: 3350, purchase_price: 65000000, maintenance_cost_per_hour: 650, level_requirement: 14 },
+{ name: "McDonnell Douglas MD-82", type: "narrow_body", passenger_capacity: 155, cargo_capacity_kg: 4500, fuel_consumption_per_hour: 3000, range_nm: 2050, purchase_price: 55000000, maintenance_cost_per_hour: 950, level_requirement: 14 },
 
-  // === NARROW BODY (Level 15-20) ===
-  { name: "Airbus A310-300", type: "narrow_body", passenger_capacity: 220, cargo_capacity_kg: 6000, fuel_consumption_per_hour: 4500, range_nm: 4800, purchase_price: 70000000, maintenance_cost_per_hour: 1000, level_requirement: 15 },
-  { name: "Airbus A318", type: "narrow_body", passenger_capacity: 108, cargo_capacity_kg: 3200, fuel_consumption_per_hour: 2200, range_nm: 3100, purchase_price: 75000000, maintenance_cost_per_hour: 800, level_requirement: 15 },
-  { name: "Boeing 737-700", type: "narrow_body", passenger_capacity: 148, cargo_capacity_kg: 4200, fuel_consumption_per_hour: 2900, range_nm: 3250, purchase_price: 82000000, maintenance_cost_per_hour: 1000, level_requirement: 15 },
-  { name: "Airbus A319", type: "narrow_body", passenger_capacity: 140, cargo_capacity_kg: 3850, fuel_consumption_per_hour: 2600, range_nm: 3300, purchase_price: 85000000, maintenance_cost_per_hour: 950, level_requirement: 16 },
-  { name: "Boeing 737-800", type: "narrow_body", passenger_capacity: 189, cargo_capacity_kg: 5200, fuel_consumption_per_hour: 3200, range_nm: 3195, purchase_price: 98000000, maintenance_cost_per_hour: 1100, level_requirement: 16 },
-  { name: "Airbus A320neo", type: "narrow_body", passenger_capacity: 180, cargo_capacity_kg: 5000, fuel_consumption_per_hour: 3200, range_nm: 3500, purchase_price: 100000000, maintenance_cost_per_hour: 1200, level_requirement: 17 },
-  { name: "Boeing 737 MAX 8", type: "narrow_body", passenger_capacity: 210, cargo_capacity_kg: 5300, fuel_consumption_per_hour: 3500, range_nm: 3500, purchase_price: 105000000, maintenance_cost_per_hour: 1350, level_requirement: 18 },
-  { name: "Boeing 757-200", type: "narrow_body", passenger_capacity: 228, cargo_capacity_kg: 5800, fuel_consumption_per_hour: 3800, range_nm: 3900, purchase_price: 115000000, maintenance_cost_per_hour: 1400, level_requirement: 18 },
-  { name: "Airbus A321neo", type: "narrow_body", passenger_capacity: 220, cargo_capacity_kg: 5800, fuel_consumption_per_hour: 3600, range_nm: 4000, purchase_price: 120000000, maintenance_cost_per_hour: 1450, level_requirement: 19 },
-  { name: "Boeing 787-8", type: "narrow_body", passenger_capacity: 242, cargo_capacity_kg: 4500, fuel_consumption_per_hour: 3800, range_nm: 5000, purchase_price: 140000000, maintenance_cost_per_hour: 1600, level_requirement: 20 },
-  { name: "Boeing 787-10", type: "narrow_body", passenger_capacity: 330, cargo_capacity_kg: 5500, fuel_consumption_per_hour: 4200, range_nm: 6430, purchase_price: 155000000, maintenance_cost_per_hour: 1800, level_requirement: 20 },
+// === NARROW BODY (Level 15-20) ===
+{ name: "Airbus A310-300", type: "narrow_body", passenger_capacity: 220, cargo_capacity_kg: 6000, fuel_consumption_per_hour: 4500, range_nm: 4800, purchase_price: 70000000, maintenance_cost_per_hour: 1000, level_requirement: 15 },
+{ name: "Airbus A318", type: "narrow_body", passenger_capacity: 108, cargo_capacity_kg: 3200, fuel_consumption_per_hour: 2200, range_nm: 3100, purchase_price: 75000000, maintenance_cost_per_hour: 800, level_requirement: 15 },
+{ name: "Boeing 737-700", type: "narrow_body", passenger_capacity: 148, cargo_capacity_kg: 4200, fuel_consumption_per_hour: 2900, range_nm: 3250, purchase_price: 82000000, maintenance_cost_per_hour: 1000, level_requirement: 15 },
+{ name: "Airbus A319", type: "narrow_body", passenger_capacity: 140, cargo_capacity_kg: 3850, fuel_consumption_per_hour: 2600, range_nm: 3300, purchase_price: 85000000, maintenance_cost_per_hour: 950, level_requirement: 16 },
+{ name: "Boeing 737-800", type: "narrow_body", passenger_capacity: 189, cargo_capacity_kg: 5200, fuel_consumption_per_hour: 3200, range_nm: 3195, purchase_price: 98000000, maintenance_cost_per_hour: 1100, level_requirement: 16 },
+{ name: "Airbus A320neo", type: "narrow_body", passenger_capacity: 180, cargo_capacity_kg: 5000, fuel_consumption_per_hour: 3200, range_nm: 3500, purchase_price: 100000000, maintenance_cost_per_hour: 1200, level_requirement: 17 },
+{ name: "Boeing 737 MAX 8", type: "narrow_body", passenger_capacity: 210, cargo_capacity_kg: 5300, fuel_consumption_per_hour: 3500, range_nm: 3500, purchase_price: 105000000, maintenance_cost_per_hour: 1350, level_requirement: 18 },
+{ name: "Boeing 757-200", type: "narrow_body", passenger_capacity: 228, cargo_capacity_kg: 5800, fuel_consumption_per_hour: 3800, range_nm: 3900, purchase_price: 115000000, maintenance_cost_per_hour: 1400, level_requirement: 18 },
+{ name: "Airbus A321neo", type: "narrow_body", passenger_capacity: 220, cargo_capacity_kg: 5800, fuel_consumption_per_hour: 3600, range_nm: 4000, purchase_price: 120000000, maintenance_cost_per_hour: 1450, level_requirement: 19 },
+{ name: "Boeing 787-8", type: "narrow_body", passenger_capacity: 242, cargo_capacity_kg: 4500, fuel_consumption_per_hour: 3800, range_nm: 5000, purchase_price: 140000000, maintenance_cost_per_hour: 1600, level_requirement: 20 },
+{ name: "Boeing 787-10", type: "narrow_body", passenger_capacity: 330, cargo_capacity_kg: 5500, fuel_consumption_per_hour: 4200, range_nm: 6430, purchase_price: 155000000, maintenance_cost_per_hour: 1800, level_requirement: 20 },
 
-  // === WIDE BODY (Level 21-31) ===
-  { name: "Airbus A300", type: "wide_body", passenger_capacity: 266, cargo_capacity_kg: 11000, fuel_consumption_per_hour: 6500, range_nm: 4800, purchase_price: 150000000, maintenance_cost_per_hour: 2400, level_requirement: 21 },
-  { name: "Boeing 767-300ER", type: "wide_body", passenger_capacity: 290, cargo_capacity_kg: 13000, fuel_consumption_per_hour: 7000, range_nm: 5990, purchase_price: 170000000, maintenance_cost_per_hour: 2500, level_requirement: 21 },
-  { name: "Airbus A330-200F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 70000, fuel_consumption_per_hour: 7000, range_nm: 5550, purchase_price: 185000000, maintenance_cost_per_hour: 2600, level_requirement: 22 },
-  { name: "Airbus A330-900neo", type: "wide_body", passenger_capacity: 440, cargo_capacity_kg: 15500, fuel_consumption_per_hour: 7200, range_nm: 6550, purchase_price: 210000000, maintenance_cost_per_hour: 2800, level_requirement: 22 },
-  { name: "Airbus A330-300", type: "wide_body", passenger_capacity: 440, cargo_capacity_kg: 15200, fuel_consumption_per_hour: 7500, range_nm: 6350, purchase_price: 220000000, maintenance_cost_per_hour: 3000, level_requirement: 23 },
-  { name: "Boeing 747-400", type: "wide_body", passenger_capacity: 416, cargo_capacity_kg: 20000, fuel_consumption_per_hour: 11000, range_nm: 7260, purchase_price: 240000000, maintenance_cost_per_hour: 3800, level_requirement: 24 },
-  { name: "Boeing 777-200ER", type: "wide_body", passenger_capacity: 350, cargo_capacity_kg: 20000, fuel_consumption_per_hour: 9200, range_nm: 7065, purchase_price: 260000000, maintenance_cost_per_hour: 3200, level_requirement: 25 },
-  { name: "Boeing 777-300ER", type: "wide_body", passenger_capacity: 396, cargo_capacity_kg: 22000, fuel_consumption_per_hour: 10000, range_nm: 7370, purchase_price: 285000000, maintenance_cost_per_hour: 3500, level_requirement: 26 },
-  { name: "Airbus A350-900", type: "wide_body", passenger_capacity: 325, cargo_capacity_kg: 16600, fuel_consumption_per_hour: 8200, range_nm: 8000, purchase_price: 300000000, maintenance_cost_per_hour: 3800, level_requirement: 27 },
-  { name: "Boeing 777F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 102000, fuel_consumption_per_hour: 9500, range_nm: 4435, purchase_price: 330000000, maintenance_cost_per_hour: 3600, level_requirement: 28 },
-  { name: "Boeing 747-8", type: "wide_body", passenger_capacity: 467, cargo_capacity_kg: 21870, fuel_consumption_per_hour: 11200, range_nm: 8000, purchase_price: 360000000, maintenance_cost_per_hour: 4200, level_requirement: 29 },
-  { name: "Boeing 747-8F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 134000, fuel_consumption_per_hour: 14500, range_nm: 4120, purchase_price: 400000000, maintenance_cost_per_hour: 4500, level_requirement: 30 },
-  { name: "Airbus A380", type: "wide_body", passenger_capacity: 555, cargo_capacity_kg: 18600, fuel_consumption_per_hour: 12500, range_nm: 8000, purchase_price: 440000000, maintenance_cost_per_hour: 5000, level_requirement: 31 },
-];
+// === WIDE BODY (Level 21-31) ===
+{ name: "Airbus A300", type: "wide_body", passenger_capacity: 266, cargo_capacity_kg: 11000, fuel_consumption_per_hour: 6500, range_nm: 4800, purchase_price: 150000000, maintenance_cost_per_hour: 2400, level_requirement: 21 },
+{ name: "Boeing 767-300ER", type: "wide_body", passenger_capacity: 290, cargo_capacity_kg: 13000, fuel_consumption_per_hour: 7000, range_nm: 5990, purchase_price: 170000000, maintenance_cost_per_hour: 2500, level_requirement: 21 },
+{ name: "Airbus A330-200F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 70000, fuel_consumption_per_hour: 7000, range_nm: 5550, purchase_price: 185000000, maintenance_cost_per_hour: 2600, level_requirement: 22 },
+{ name: "Airbus A330-900neo", type: "wide_body", passenger_capacity: 440, cargo_capacity_kg: 15500, fuel_consumption_per_hour: 7200, range_nm: 6550, purchase_price: 210000000, maintenance_cost_per_hour: 2800, level_requirement: 22 },
+{ name: "Airbus A330-300", type: "wide_body", passenger_capacity: 440, cargo_capacity_kg: 15200, fuel_consumption_per_hour: 7500, range_nm: 6350, purchase_price: 220000000, maintenance_cost_per_hour: 3000, level_requirement: 23 },
+{ name: "Boeing 747-400", type: "wide_body", passenger_capacity: 416, cargo_capacity_kg: 20000, fuel_consumption_per_hour: 11000, range_nm: 7260, purchase_price: 240000000, maintenance_cost_per_hour: 3800, level_requirement: 24 },
+{ name: "Boeing 777-200ER", type: "wide_body", passenger_capacity: 350, cargo_capacity_kg: 20000, fuel_consumption_per_hour: 9200, range_nm: 7065, purchase_price: 260000000, maintenance_cost_per_hour: 3200, level_requirement: 25 },
+{ name: "Boeing 777-300ER", type: "wide_body", passenger_capacity: 396, cargo_capacity_kg: 22000, fuel_consumption_per_hour: 10000, range_nm: 7370, purchase_price: 285000000, maintenance_cost_per_hour: 3500, level_requirement: 26 },
+{ name: "Airbus A350-900", type: "wide_body", passenger_capacity: 325, cargo_capacity_kg: 16600, fuel_consumption_per_hour: 8200, range_nm: 8000, purchase_price: 300000000, maintenance_cost_per_hour: 3800, level_requirement: 27 },
+{ name: "Boeing 777F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 102000, fuel_consumption_per_hour: 9500, range_nm: 4435, purchase_price: 330000000, maintenance_cost_per_hour: 3600, level_requirement: 28 },
+{ name: "Boeing 747-8", type: "wide_body", passenger_capacity: 467, cargo_capacity_kg: 21870, fuel_consumption_per_hour: 11200, range_nm: 8000, purchase_price: 360000000, maintenance_cost_per_hour: 4200, level_requirement: 29 },
+{ name: "Boeing 747-8F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 134000, fuel_consumption_per_hour: 14500, range_nm: 4120, purchase_price: 400000000, maintenance_cost_per_hour: 4500, level_requirement: 30 },
+{ name: "Airbus A380", type: "wide_body", passenger_capacity: 555, cargo_capacity_kg: 18600, fuel_consumption_per_hour: 12500, range_nm: 8000, purchase_price: 440000000, maintenance_cost_per_hour: 5000, level_requirement: 31 }];
+
 
 const MAINTENANCE_CATEGORY_KEYS = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
 const makeCategoryMap = (source, fallbackValue = 0) =>
-  MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => {
-    const raw = source?.[key];
-    const value = Number.isFinite(Number(raw)) ? Number(raw) : Number(fallbackValue);
-    acc[key] = Math.max(0, value);
-    return acc;
-  }, {});
+MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => {
+  const raw = source?.[key];
+  const value = Number.isFinite(Number(raw)) ? Number(raw) : Number(fallbackValue);
+  acc[key] = Math.max(0, value);
+  return acc;
+}, {});
 const MAINTENANCE_CATEGORY_LABELS = {
   engine: { en: 'Engine', de: 'Triebwerk' },
   hydraulics: { en: 'Hydraulics', de: 'Hydraulik' },
@@ -113,53 +113,53 @@ const MAINTENANCE_CATEGORY_LABELS = {
   landing_gear: { en: 'Landing gear', de: 'Fahrwerk' },
   electrical: { en: 'Electrical', de: 'Elektrik' },
   flight_controls: { en: 'Flight controls', de: 'Flugsteuerung' },
-  pressurization: { en: 'Pressurization', de: 'Drucksystem' },
+  pressurization: { en: 'Pressurization', de: 'Drucksystem' }
 };
 
 const USED_CONDITION_PROFILES = [
-  {
-    key: 'ready',
-    label: { en: 'Ready to fly', de: 'Sofort einsatzbereit' },
-    minDiscount: 0.72,
-    maxDiscount: 0.9,
-    minLiveWear: 3,
-    maxLiveWear: 18,
-    minPermanentWear: 2.5,
-    maxPermanentWear: 6,
-    minAccumulatedCostPct: 0.002,
-    maxAccumulatedCostPct: 0.01,
-    minAgeYears: 2,
-    maxAgeYears: 9,
-  },
-  {
-    key: 'service_due',
-    label: { en: 'Service due soon', de: 'Service bald faellig' },
-    minDiscount: 0.55,
-    maxDiscount: 0.74,
-    minLiveWear: 18,
-    maxLiveWear: 48,
-    minPermanentWear: 6,
-    maxPermanentWear: 14,
-    minAccumulatedCostPct: 0.01,
-    maxAccumulatedCostPct: 0.03,
-    minAgeYears: 6,
-    maxAgeYears: 16,
-  },
-  {
-    key: 'project',
-    label: { en: 'Project aircraft', de: 'Projektflugzeug' },
-    minDiscount: 0.34,
-    maxDiscount: 0.58,
-    minLiveWear: 45,
-    maxLiveWear: 85,
-    minPermanentWear: 14,
-    maxPermanentWear: 32,
-    minAccumulatedCostPct: 0.03,
-    maxAccumulatedCostPct: 0.08,
-    minAgeYears: 10,
-    maxAgeYears: 28,
-  },
-];
+{
+  key: 'ready',
+  label: { en: 'Ready to fly', de: 'Sofort einsatzbereit' },
+  minDiscount: 0.72,
+  maxDiscount: 0.9,
+  minLiveWear: 3,
+  maxLiveWear: 18,
+  minPermanentWear: 2.5,
+  maxPermanentWear: 6,
+  minAccumulatedCostPct: 0.002,
+  maxAccumulatedCostPct: 0.01,
+  minAgeYears: 2,
+  maxAgeYears: 9
+},
+{
+  key: 'service_due',
+  label: { en: 'Service due soon', de: 'Service bald faellig' },
+  minDiscount: 0.55,
+  maxDiscount: 0.74,
+  minLiveWear: 18,
+  maxLiveWear: 48,
+  minPermanentWear: 6,
+  maxPermanentWear: 14,
+  minAccumulatedCostPct: 0.01,
+  maxAccumulatedCostPct: 0.03,
+  minAgeYears: 6,
+  maxAgeYears: 16
+},
+{
+  key: 'project',
+  label: { en: 'Project aircraft', de: 'Projektflugzeug' },
+  minDiscount: 0.34,
+  maxDiscount: 0.58,
+  minLiveWear: 45,
+  maxLiveWear: 85,
+  minPermanentWear: 14,
+  maxPermanentWear: 32,
+  minAccumulatedCostPct: 0.03,
+  maxAccumulatedCostPct: 0.08,
+  minAgeYears: 10,
+  maxAgeYears: 28
+}];
+
 
 const usedMarketLerp = (min, max, t) => min + (max - min) * t;
 
@@ -190,12 +190,12 @@ const buildUsedMarketInventory = ({ companyLevel = 1, marketSeed = '' } = {}) =>
 
   const selectedModels = [];
   Object.entries(poolByType).forEach(([typeKey, typeModels]) => {
-    const ranked = [...typeModels]
-      .map((ac) => ({
-        aircraft: ac,
-        score: Math.abs((ac.level_requirement || 1) - companyLevel) + seededValue(`${marketSeed}-${typeKey}-${ac.name}`),
-      }))
-      .sort((a, b) => a.score - b.score);
+    const ranked = [...typeModels].
+    map((ac) => ({
+      aircraft: ac,
+      score: Math.abs((ac.level_requirement || 1) - companyLevel) + seededValue(`${marketSeed}-${typeKey}-${ac.name}`)
+    })).
+    sort((a, b) => a.score - b.score);
 
     const typeSlots = Math.min(3, ranked.length);
     selectedModels.push(...ranked.slice(0, typeSlots).map((entry) => entry.aircraft));
@@ -276,18 +276,18 @@ const buildUsedMarketInventory = ({ companyLevel = 1, marketSeed = '' } = {}) =>
         used_permanent_avg: Number(avgPermanentWear.toFixed(2)),
         used_age_years: ageYears,
         total_flight_hours: totalHours,
-        market_listing_id: `${ac.name}-${profile.key}-${variant}-${Math.round(usedPrice / 1000)}`,
+        market_listing_id: `${ac.name}-${profile.key}-${variant}-${Math.round(usedPrice / 1000)}`
       });
     }
   });
 
-  return listings
-    .sort((a, b) => {
-      const levelDiff = Math.abs((a.level_requirement || 1) - companyLevel) - Math.abs((b.level_requirement || 1) - companyLevel);
-      if (levelDiff !== 0) return levelDiff;
-      return a.purchase_price - b.purchase_price;
-    })
-    .slice(0, 24);
+  return listings.
+  sort((a, b) => {
+    const levelDiff = Math.abs((a.level_requirement || 1) - companyLevel) - Math.abs((b.level_requirement || 1) - companyLevel);
+    if (levelDiff !== 0) return levelDiff;
+    return a.purchase_price - b.purchase_price;
+  }).
+  slice(0, 24);
 };
 
 export default function Fleet() {
@@ -304,13 +304,13 @@ export default function Fleet() {
   const [failureToggleError, setFailureToggleError] = useState('');
   const [localFailureOverride, setLocalFailureOverride] = useState(null);
   const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const resolveUserCompanyId = React.useCallback((user) => (
-    user?.company_id
-    || user?.data?.company_id
-    || user?.company?.id
-    || user?.data?.company?.id
-    || null
-  ), []);
+  const resolveUserCompanyId = React.useCallback((user) =>
+  user?.company_id ||
+  user?.data?.company_id ||
+  user?.company?.id ||
+  user?.data?.company?.id ||
+  null,
+  []);
 
   const { data: templates = [] } = useQuery({
     queryKey: ['aircraftTemplates'],
@@ -318,7 +318,7 @@ export default function Fleet() {
       return await base44.entities.AircraftTemplate.list();
     },
     staleTime: 300000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
 
@@ -326,7 +326,7 @@ export default function Fleet() {
     queryKey: ['currentUser'],
     queryFn: () => base44.auth.me(),
     staleTime: Infinity,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
   const { data: company } = useQuery({
@@ -342,12 +342,12 @@ export default function Fleet() {
     },
     enabled: !!currentUser,
     staleTime: 120000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
   const loadCurrentCompany = React.useCallback(async () => {
     if (company?.id) return company;
-    const user = currentUser || await base44.auth.me();
+    const user = currentUser || (await base44.auth.me());
     const companyId = resolveUserCompanyId(user);
     if (companyId) {
       const companies = await base44.entities.Company.filter({ id: companyId });
@@ -371,29 +371,29 @@ export default function Fleet() {
     queryFn: async () => {
       const currentCompany = await loadCurrentCompany();
       const response = await base44.functions.invoke('toggleFailureTriggers', {
-        companyId: currentCompany?.id || null,
+        companyId: currentCompany?.id || null
       });
       if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
       return null;
     },
     enabled: !!currentUser,
     staleTime: 30000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
-  const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
-    ? failureTriggerState
-    : (company?.failure_triggers_enabled !== false);
-  const effectiveFailureEnabled = (typeof localFailureOverride === 'boolean')
-    ? localFailureOverride
-    : failureTriggersEnabled;
+  const failureTriggersEnabled = typeof failureTriggerState === 'boolean' ?
+  failureTriggerState :
+  company?.failure_triggers_enabled !== false;
+  const effectiveFailureEnabled = typeof localFailureOverride === 'boolean' ?
+  localFailureOverride :
+  failureTriggersEnabled;
 
   React.useEffect(() => {
     setLocalFailureOverride(null);
     try {
-      const keys = company?.id
-        ? [`failure_toggle_${company.id}`, 'failure_toggle_default']
-        : ['failure_toggle_default'];
+      const keys = company?.id ?
+      [`failure_toggle_${company.id}`, 'failure_toggle_default'] :
+      ['failure_toggle_default'];
       for (const storageKey of keys) {
         const raw = window.localStorage.getItem(storageKey);
         if (raw === 'true') {
@@ -406,9 +406,9 @@ export default function Fleet() {
         }
       }
     } catch (_) {
+
       // ignore storage errors
-    }
-  }, [company?.id]);
+    }}, [company?.id]);
 
   const persistFailureOverride = React.useCallback((value) => {
     setLocalFailureOverride(value);
@@ -419,9 +419,9 @@ export default function Fleet() {
         window.localStorage.setItem(`failure_toggle_${company.id}`, normalized);
       }
     } catch (_) {
+
       // ignore storage errors
-    }
-  }, [company?.id]);
+    }}, [company?.id]);
 
   const toggleFailureTriggersMutation = useMutation({
     onMutate: async (enabled) => {
@@ -443,17 +443,17 @@ export default function Fleet() {
         if (settingRows.length > 0) {
           await Promise.all(
             settingRows.map((row) => base44.entities.GameSettings.update(row.id, {
-              failure_triggers_enabled: targetEnabled,
+              failure_triggers_enabled: targetEnabled
             }))
           );
         } else {
           await base44.entities.GameSettings.create({
-            failure_triggers_enabled: targetEnabled,
+            failure_triggers_enabled: targetEnabled
           });
         }
         if (targetCompanyId) {
           await base44.entities.Company.update(targetCompanyId, {
-            failure_triggers_enabled: targetEnabled,
+            failure_triggers_enabled: targetEnabled
           });
         }
         return targetEnabled;
@@ -461,18 +461,18 @@ export default function Fleet() {
 
       try {
         const response = await Promise.race([
-          base44.functions.invoke('toggleFailureTriggers', {
-            enabled: targetEnabled,
-            companyId: targetCompanyId,
-          }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('toggle_timeout')), 7000)),
-        ]);
+        base44.functions.invoke('toggleFailureTriggers', {
+          enabled: targetEnabled,
+          companyId: targetCompanyId
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('toggle_timeout')), 7000))]
+        );
         const invokeError = response?.error || response?.data?.error;
         if (invokeError) {
           throw new Error(
-            typeof invokeError === 'string'
-              ? invokeError
-              : (invokeError?.message || 'toggle_invoke_failed')
+            typeof invokeError === 'string' ?
+            invokeError :
+            invokeError?.message || 'toggle_invoke_failed'
           );
         }
         if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
@@ -485,12 +485,12 @@ export default function Fleet() {
       const enabled = !!requestedEnabled;
       queryClient.setQueryData(failureTriggerStateKey, enabled);
       persistFailureOverride(enabled);
-      queryClient.setQueryData(['company'], (prev) => (
-        prev ? { ...prev, failure_triggers_enabled: enabled } : prev
-      ));
-      queryClient.setQueryData(['company', resolveUserCompanyId(currentUser)], (prev) => (
-        prev ? { ...prev, failure_triggers_enabled: enabled } : prev
-      ));
+      queryClient.setQueryData(['company'], (prev) =>
+      prev ? { ...prev, failure_triggers_enabled: enabled } : prev
+      );
+      queryClient.setQueryData(['company', resolveUserCompanyId(currentUser)], (prev) =>
+      prev ? { ...prev, failure_triggers_enabled: enabled } : prev
+      );
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
     },
@@ -500,11 +500,11 @@ export default function Fleet() {
         if (typeof context.previous === 'boolean') persistFailureOverride(context.previous);
       }
       setFailureToggleError(
-        lang === 'de'
-          ? 'Konnte den Failure-Trigger nicht umschalten.'
-          : 'Could not toggle failure trigger.'
+        lang === 'de' ?
+        'Konnte den Failure-Trigger nicht umschalten.' :
+        'Could not toggle failure trigger.'
       );
-    },
+    }
   });
 
   const usedMarketInventory = React.useMemo(
@@ -519,17 +519,17 @@ export default function Fleet() {
     },
     enabled: !!company?.id,
     staleTime: 30000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
   const purchaseMutation = useMutation({
     mutationFn: async (aircraftData) => {
       const callsignPrefix = company?.callsign || 'N';
-      const aircraftCount = aircraft.filter(a => a.status !== 'sold').length;
+      const aircraftCount = aircraft.filter((a) => a.status !== 'sold').length;
       const registration = `${callsignPrefix}-${String(aircraftCount + 1).padStart(3, '0')}`;
-      
-      const specs = AIRCRAFT_MARKET_SPECS.find(a => a.name === aircraftData.name) || aircraftData;
-      const template = templates.find(t => t.name === aircraftData.name);
+
+      const specs = AIRCRAFT_MARKET_SPECS.find((a) => a.name === aircraftData.name) || aircraftData;
+      const template = templates.find((t) => t.name === aircraftData.name);
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
       const maintenanceCategories = makeCategoryMap(aircraftData.maintenance_categories, 0);
@@ -538,19 +538,19 @@ export default function Fleet() {
       const defaultPermanentByCondition = {
         ready: 4,
         service_due: 9,
-        project: 18,
+        project: 18
       };
       const permanentFallbackValue = Math.max(
         0,
         Number(
-          aircraftData.used_permanent_avg
-            || defaultPermanentByCondition[aircraftData.used_condition_key]
-            || 0
+          aircraftData.used_permanent_avg ||
+          defaultPermanentByCondition[aircraftData.used_condition_key] ||
+          0
         )
       );
-      const permanentCategories = hasPermanentFromListing
-        ? permanentFromListing
-        : makeCategoryMap(null, permanentFallbackValue);
+      const permanentCategories = hasPermanentFromListing ?
+      permanentFromListing :
+      makeCategoryMap(null, permanentFallbackValue);
       await base44.entities.Aircraft.create({
         ...specs,
         purchase_price: finalPurchasePrice,
@@ -599,11 +599,11 @@ export default function Fleet() {
   // Fleet wird jetzt direkt von DB geladen mit refetchInterval, state wird nicht mehr benoetigt
   const displayAircraft = aircraft;
 
-  const filteredAircraft = displayAircraft.filter(ac => {
+  const filteredAircraft = displayAircraft.filter((ac) => {
     if (ac.status === 'sold') return false;
     if (ac.status === 'total_loss') return true; // Show total loss so user can scrap
     const matchesSearch = ac.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ac.registration?.toLowerCase().includes(searchTerm.toLowerCase());
+    ac.registration?.toLowerCase().includes(searchTerm.toLowerCase());
     if (activeTab === 'all') return matchesSearch;
     return matchesSearch && ac.type === activeTab;
   });
@@ -624,11 +624,11 @@ export default function Fleet() {
     return hasLevel && hasBalance;
   };
 
-  const marketAircraft = (marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS)
-    .filter((ac) => {
-      if (marketSection !== 'used' || usedConditionFilter === 'all') return true;
-      return ac.used_condition_key === usedConditionFilter;
-    });
+  const marketAircraft = (marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS).
+  filter((ac) => {
+    if (marketSection !== 'used' || usedConditionFilter === 'all') return true;
+    return ac.used_condition_key === usedConditionFilter;
+  });
 
   return (
     <div className="h-full flex flex-col gap-3">
@@ -636,7 +636,7 @@ export default function Fleet() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-lg font-mono font-bold text-cyan-300 uppercase tracking-widest">{t('fleet', lang)}</div>
-            <div className="text-[11px] text-cyan-700 uppercase">{lang === 'de' ? 'Flottenmanagement & Flugzeugmaerkte' : 'Fleet management & aircraft markets'}</div>
+            <div className="text-cyan-600 uppercase">{lang === 'de' ? 'Flottenmanagement & Flugzeugmaerkte' : 'Fleet management & aircraft markets'}</div>
           </div>
           <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
             <Card className="p-2 bg-slate-900/80 border-cyan-900/50">
@@ -659,16 +659,16 @@ export default function Fleet() {
               placeholder={t('search_aircraft', lang).toUpperCase()}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900"
-            />
+              className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900" />
+            
           </div>
           <Dialog
             open={isPurchaseDialogOpen}
             onOpenChange={(open) => {
               setIsPurchaseDialogOpen(open);
               if (!open) setMaintenancePreviewListing(null);
-            }}
-          >
+            }}>
+            
             <DialogTrigger asChild>
               <Button size="sm" className="h-7 text-[10px] font-mono uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60">
                 + {t('buy_aircraft', lang)}
@@ -681,30 +681,30 @@ export default function Fleet() {
                </DialogHeader>
                <div className="flex items-center gap-2 mb-2">
                  <Button
-                   size="sm"
-                   className={`h-7 text-[10px] ${marketSection === 'new' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
-                   onClick={() => {
-                     setMarketSection('new');
-                     setUsedConditionFilter('all');
-                   }}
-                 >
+                  size="sm"
+                  className={`h-7 text-[10px] ${marketSection === 'new' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+                  onClick={() => {
+                    setMarketSection('new');
+                    setUsedConditionFilter('all');
+                  }}>
+                  
                   {lang === 'de' ? 'Neumarkt' : 'New market'}
                  </Button>
                  <Button
-                   size="sm"
-                   className={`h-7 text-[10px] ${marketSection === 'used' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-                   onClick={() => setMarketSection('used')}
-                 >
+                  size="sm"
+                  className={`h-7 text-[10px] ${marketSection === 'used' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                  onClick={() => setMarketSection('used')}>
+                  
                   {lang === 'de' ? 'Gebrauchtmarkt' : 'Used market'}
                  </Button>
                 </div>
-               {marketSection === 'used' && (
-                 <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
+               {marketSection === 'used' &&
+              <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                      <p className="text-[10px] text-amber-300 font-mono uppercase">
-                       {lang === 'de'
-                         ? 'Realistischer Markt: begrenztes Angebot, mehrere Zustaende pro Modell'
-                         : 'Realistic market: limited listings, multiple conditions per model'}
+                       {lang === 'de' ?
+                    'Realistischer Markt: begrenztes Angebot, mehrere Zustaende pro Modell' :
+                    'Realistic market: limited listings, multiple conditions per model'}
                      </p>
                      <p className="text-[10px] text-slate-400 font-mono">
                        {lang === 'de' ? 'Marktstand' : 'Market snapshot'}: {usedMarketSeed}
@@ -712,46 +712,46 @@ export default function Fleet() {
                    </div>
                    <div className="flex flex-wrap gap-2">
                      <Button
-                       size="sm"
-                       className={`h-6 text-[10px] ${usedConditionFilter === 'all' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-                       onClick={() => setUsedConditionFilter('all')}
-                     >
+                    size="sm"
+                    className={`h-6 text-[10px] ${usedConditionFilter === 'all' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                    onClick={() => setUsedConditionFilter('all')}>
+                    
                        {lang === 'de' ? 'Alle' : 'All'}
                      </Button>
-                     {USED_CONDITION_PROFILES.map((profile) => (
-                       <Button
-                         key={profile.key}
-                         size="sm"
-                         className={`h-6 text-[10px] ${usedConditionFilter === profile.key ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-                         onClick={() => setUsedConditionFilter(profile.key)}
-                       >
+                     {USED_CONDITION_PROFILES.map((profile) =>
+                  <Button
+                    key={profile.key}
+                    size="sm"
+                    className={`h-6 text-[10px] ${usedConditionFilter === profile.key ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                    onClick={() => setUsedConditionFilter(profile.key)}>
+                    
                          {profile.label[lang] || profile.label.en}
                        </Button>
-                     ))}
+                  )}
                    </div>
                  </div>
-               )}
+              }
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {company && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="col-span-full p-2 bg-emerald-950/40 border border-emerald-900/50 rounded flex items-center justify-between sticky top-0 z-10 font-mono"
-                  >
+                {company &&
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="col-span-full p-2 bg-emerald-950/40 border border-emerald-900/50 rounded flex items-center justify-between sticky top-0 z-10 font-mono">
+                  
                     <span className="text-[10px] text-emerald-600 uppercase">{t('available_budget', lang)}:</span>
                     <span className="font-bold text-sm text-emerald-400">${company.balance?.toLocaleString()}</span>
                   </motion.div>
-                )}
+                }
 
                 {marketAircraft.map((ac, index) => {
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                   const hasBalance = canAfford(ac.purchase_price);
                   const isPurchasable = hasLevel && hasBalance;
                   const isBuyingThis = purchaseMutation.isPending && (
-                    (ac.market_listing_id && selectedAircraft?.market_listing_id === ac.market_listing_id) ||
-                    (!ac.market_listing_id && selectedAircraft?.name === ac.name)
-                  );
+                  ac.market_listing_id && selectedAircraft?.market_listing_id === ac.market_listing_id ||
+                  !ac.market_listing_id && selectedAircraft?.name === ac.name);
+
                   const usedConditionLabel = ac.used_condition_label?.[lang] || ac.used_condition_label?.en;
                   const usedWearAvgPct = Math.max(0, Math.min(100, Number(ac.used_wear_avg || 0)));
                   const usedWearPeakPct = Math.max(0, Math.min(100, Number(ac.used_wear_peak || 0)));
@@ -762,19 +762,19 @@ export default function Fleet() {
                       key={ac.market_listing_id || `${ac.name}-${index}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.04 }}
-                    >
+                      transition={{ delay: index * 0.04 }}>
+                      
                       <Card className={`overflow-hidden flex flex-col h-full bg-slate-900 border ${isPurchasable ? 'border-cyan-900/50 hover:border-cyan-500/50 cursor-pointer' : 'border-slate-800 opacity-50'}`}>
                         <div className="p-3 flex flex-col flex-grow">
                           <div className="mb-2 border-b border-cyan-900/30 pb-2">
                             <p className="font-bold text-xs text-white uppercase truncate flex items-center gap-1 flex-wrap">
                               {ac.name}
                               {ac.marketType === 'used' && <span className="text-[9px] text-amber-400">USED</span>}
-                              {ac.marketType === 'used' && usedConditionLabel && (
-                                <span className="text-[9px] px-1 py-0.5 rounded bg-amber-900/40 text-amber-300 normal-case">
+                              {ac.marketType === 'used' && usedConditionLabel &&
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-amber-900/40 text-amber-300 normal-case">
                                   {usedConditionLabel}
                                 </span>
-                              )}
+                              }
                             </p>
                             <p className="text-[10px] text-cyan-600">{typeLabels[ac.type]?.toUpperCase()}</p>
                           </div>
@@ -784,25 +784,25 @@ export default function Fleet() {
                             <div className="flex justify-between"><span className="text-slate-500">BURN</span><span className="text-cyan-100">{ac.fuel_consumption_per_hour}L/h</span></div>
                             <div className="flex justify-between"><span className="text-slate-500">RNG</span><span className="text-cyan-100">{ac.range_nm}NM</span></div>
                             <div className="flex justify-between col-span-2"><span className="text-slate-500">MIN LVL</span><span className={hasLevel ? 'text-emerald-400' : 'text-amber-400'}>{ac.level_requirement || 1}</span></div>
-                            {ac.marketType === 'used' && (
-                              <div className="flex justify-between col-span-2">
+                            {ac.marketType === 'used' &&
+                            <div className="flex justify-between col-span-2">
                                 <span className="text-slate-500">{lang === 'de' ? 'ALTER / HRS' : 'AGE / HRS'}</span>
                                 <span className="text-cyan-100">{ac.used_age_years || '-'}y / {(ac.total_flight_hours || 0).toLocaleString()}</span>
                               </div>
-                            )}
+                            }
                           </div>
                           <div className="mt-auto space-y-2">
                             <div className="flex justify-between items-center bg-slate-950 p-1.5 rounded border border-slate-800">
                               <span className="text-[10px] text-slate-500">PRICE</span>
                               <span className={`text-sm font-bold ${isPurchasable ? 'text-emerald-400' : 'text-red-400'}`}>${(ac.purchase_price / 1000000).toFixed(1)}M</span>
                             </div>
-                            {ac.marketType === 'used' && (
-                              <div className="space-y-1">
+                            {ac.marketType === 'used' &&
+                            <div className="space-y-1">
                                 <button
-                                  type="button"
-                                  onClick={() => setMaintenancePreviewListing(ac)}
-                                  className="w-full text-left text-[10px] text-amber-200 bg-amber-950/30 border border-amber-700/40 rounded p-1 hover:bg-amber-900/30"
-                                >
+                                type="button"
+                                onClick={() => setMaintenancePreviewListing(ac)}
+                                className="w-full text-left text-[10px] text-amber-200 bg-amber-950/30 border border-amber-700/40 rounded p-1 hover:bg-amber-900/30">
+                                
                                   <div className="flex items-center justify-between">
                                     <span>{lang === 'de' ? 'Wartungsstand' : 'Maintenance state'}</span>
                                     <span className="text-amber-300">{Math.round(usedWearAvgPct)}% / {Math.round(usedWearPeakPct)}%</span>
@@ -814,9 +814,9 @@ export default function Fleet() {
                                     </div>
                                     <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                                       <div
-                                        className="h-1.5 rounded-full bg-amber-500"
-                                        style={{ width: `${usedWearAvgPct}%` }}
-                                      />
+                                      className="h-1.5 rounded-full bg-amber-500"
+                                      style={{ width: `${usedWearAvgPct}%` }} />
+                                    
                                     </div>
                                     <div className="flex items-center justify-between text-[9px] text-red-300/90">
                                       <span>{lang === 'de' ? 'Permanenter Verschleiss' : 'Permanent wear'}</span>
@@ -824,9 +824,9 @@ export default function Fleet() {
                                     </div>
                                     <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                                       <div
-                                        className="h-1.5 rounded-full bg-red-500"
-                                        style={{ width: `${usedPermanentAvgPct}%` }}
-                                      />
+                                      className="h-1.5 rounded-full bg-red-500"
+                                      style={{ width: `${usedPermanentAvgPct}%` }} />
+                                    
                                     </div>
                                   </div>
                                   <div className="text-[9px] text-amber-400/90">
@@ -837,46 +837,46 @@ export default function Fleet() {
                                   {lang === 'de' ? 'Neupreis' : 'New price'} ${Math.round(ac.original_price || 0).toLocaleString()} | {lang === 'de' ? 'Angebot' : 'Listing'} ${Math.round(ac.purchase_price).toLocaleString()}
                                 </div>
                               </div>
-                            )}
+                            }
                             {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
                             <Button
-                              onClick={() => { setSelectedAircraft(ac); purchaseMutation.mutate(ac); }}
+                              onClick={() => {setSelectedAircraft(ac);purchaseMutation.mutate(ac);}}
                               disabled={!isPurchasable || purchaseMutation.isPending}
                               size="sm"
-                              className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}
-                            >
+                              className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}>
+                              
                               {isBuyingThis ? t('buying', lang) : t('buy', lang)}
                             </Button>
                           </div>
                         </div>
                       </Card>
-                    </motion.div>
-                  );
+                    </motion.div>);
+
                 })}
               </div>
 
-              {maintenancePreviewListing && (
-                <div
-                  className="fixed inset-0 z-[120] bg-black/80 flex items-end sm:items-center justify-center p-2 sm:p-6"
-                  onClick={(event) => {
-                    if (event.target === event.currentTarget) {
-                      setMaintenancePreviewListing(null);
-                    }
-                  }}
-                >
+              {maintenancePreviewListing &&
+              <div
+                className="fixed inset-0 z-[120] bg-black/80 flex items-end sm:items-center justify-center p-2 sm:p-6"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) {
+                    setMaintenancePreviewListing(null);
+                  }
+                }}>
+                
                   <div
-                    className="w-full max-w-3xl h-[92dvh] sm:h-auto bg-slate-900 border border-amber-700/50 text-slate-200 rounded-lg overflow-hidden flex flex-col sm:max-h-[88dvh]"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  className="w-full max-w-3xl h-[92dvh] sm:h-auto bg-slate-900 border border-amber-700/50 text-slate-200 rounded-lg overflow-hidden flex flex-col sm:max-h-[88dvh]"
+                  onClick={(e) => e.stopPropagation()}>
+                  
                     <div className="px-4 pt-4 pb-2 border-b border-slate-800">
                       <h3 className="text-amber-300 uppercase font-semibold">
                         {lang === 'de' ? 'Wartungsstand im Detail' : 'Maintenance details'}
                       </h3>
                     </div>
                     <div
-                      className="space-y-3 px-4 py-3 min-h-0 flex-1 overflow-y-scroll overscroll-contain touch-pan-y"
-                      style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
-                    >
+                    className="space-y-3 px-4 py-3 min-h-0 flex-1 overflow-y-scroll overscroll-contain touch-pan-y"
+                    style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}>
+                    
                       <div className="p-2 rounded border border-slate-700 bg-slate-950/60 text-[11px] font-mono space-y-2">
                         <div className="min-w-0">
                           <div className="text-slate-200 font-semibold">
@@ -884,31 +884,31 @@ export default function Fleet() {
                           </div>
                           <div className="text-[10px] text-slate-500">UI {FAILURE_TOGGLE_UI_VERSION}</div>
                           <div className="text-slate-400 mt-0.5">
-                            {effectiveFailureEnabled
-                              ? (lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.')
-                              : (lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.')}
+                            {effectiveFailureEnabled ?
+                          lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.' :
+                          lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.'}
                           </div>
                         </div>
                         <Button
-                          type="button"
-                          onClick={() => toggleFailureTriggersMutation.mutate(!effectiveFailureEnabled)}
-                          disabled={toggleFailureTriggersMutation.isPending}
-                          className={`h-9 w-full text-[11px] font-semibold touch-manipulation pointer-events-auto ${
-                            effectiveFailureEnabled
-                              ? 'bg-red-600 text-white hover:bg-red-500'
-                              : 'bg-emerald-600 text-white hover:bg-emerald-500'
-                          }`}
-                          onPointerDown={(e) => e.stopPropagation()}
-                        >
-                          {toggleFailureTriggersMutation.isPending
-                            ? (lang === 'de' ? 'Speichere...' : 'Saving...')
-                            : (effectiveFailureEnabled
-                              ? (lang === 'de' ? 'FAILURE TRIGGER: EIN - TIPPE ZUM AUSSCHALTEN' : 'FAILURE TRIGGER: ON - TAP TO TURN OFF')
-                              : (lang === 'de' ? 'FAILURE TRIGGER: AUS - TIPPE ZUM EINSCHALTEN' : 'FAILURE TRIGGER: OFF - TAP TO TURN ON'))}
+                        type="button"
+                        onClick={() => toggleFailureTriggersMutation.mutate(!effectiveFailureEnabled)}
+                        disabled={toggleFailureTriggersMutation.isPending}
+                        className={`h-9 w-full text-[11px] font-semibold touch-manipulation pointer-events-auto ${
+                        effectiveFailureEnabled ?
+                        'bg-red-600 text-white hover:bg-red-500' :
+                        'bg-emerald-600 text-white hover:bg-emerald-500'}`
+                        }
+                        onPointerDown={(e) => e.stopPropagation()}>
+                        
+                          {toggleFailureTriggersMutation.isPending ?
+                        lang === 'de' ? 'Speichere...' : 'Saving...' :
+                        effectiveFailureEnabled ?
+                        lang === 'de' ? 'FAILURE TRIGGER: EIN - TIPPE ZUM AUSSCHALTEN' : 'FAILURE TRIGGER: ON - TAP TO TURN OFF' :
+                        lang === 'de' ? 'FAILURE TRIGGER: AUS - TIPPE ZUM EINSCHALTEN' : 'FAILURE TRIGGER: OFF - TAP TO TURN ON'}
                         </Button>
-                        {failureToggleError && (
-                          <div className="text-[11px] text-red-300">{failureToggleError}</div>
-                        )}
+                        {failureToggleError &&
+                      <div className="text-[11px] text-red-300">{failureToggleError}</div>
+                      }
                       </div>
                       <div className="p-2 rounded border border-amber-900/50 bg-amber-950/20 text-[11px] font-mono">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -935,28 +935,28 @@ export default function Fleet() {
                             </tr>
                           </thead>
                           <tbody>
-                            {MAINTENANCE_CATEGORY_KEYS.map((key) => (
-                              <tr key={key} className="border-t border-slate-800">
+                            {MAINTENANCE_CATEGORY_KEYS.map((key) =>
+                          <tr key={key} className="border-t border-slate-800">
                                 <td className="p-2 text-slate-200">{MAINTENANCE_CATEGORY_LABELS[key]?.[lang] || MAINTENANCE_CATEGORY_LABELS[key]?.en || key}</td>
                                 <td className="p-2 text-right text-amber-300">{Number(maintenancePreviewListing.maintenance_categories?.[key] || 0).toFixed(1)}%</td>
                                 <td className="p-2 text-right text-cyan-300">{Number(maintenancePreviewListing.permanent_wear_categories?.[key] || 0).toFixed(2)}%</td>
                               </tr>
-                            ))}
+                          )}
                           </tbody>
                         </table>
                       </div>
                     </div>
                     <div className="px-4 pb-4 pt-2 border-t border-slate-800">
                       <Button
-                        onClick={() => setMaintenancePreviewListing(null)}
-                        className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8"
-                      >
+                      onClick={() => setMaintenancePreviewListing(null)}
+                      className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8">
+                      
                         {t('close', lang).toUpperCase()}
                       </Button>
                     </div>
                   </div>
                 </div>
-              )}
+              }
 
               <DialogFooter>
                 <Button onClick={() => setIsPurchaseDialogOpen(false)} className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8">
@@ -974,32 +974,32 @@ export default function Fleet() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-2">
           <TabsList className="bg-slate-900/80 border border-cyan-900/30 flex-wrap h-auto p-0.5 rounded-lg w-full justify-start overflow-x-auto">
             <TabsTrigger value="all" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">ALL</TabsTrigger>
-            {Object.entries(typeLabels).map(([type, label]) => (
-              <TabsTrigger key={type} value={type} className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{label}</TabsTrigger>
-            ))}
+            {Object.entries(typeLabels).map(([type, label]) =>
+            <TabsTrigger key={type} value={type} className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">{label}</TabsTrigger>
+            )}
           </TabsList>
         </Tabs>
 
         {/* Aircraft Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+        {isLoading ?
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             {[1, 2, 3, 4].map((i) => <Card key={i} className="h-32 animate-pulse bg-slate-900 border-cyan-900/30" />)}
-          </div>
-        ) : filteredAircraft.length > 0 ? (
-          <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
+          </div> :
+        filteredAircraft.length > 0 ?
+        <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
             <AnimatePresence>
-              {filteredAircraft.map((ac) => (
-                <AircraftCard key={ac.id} aircraft={ac} />
-              ))}
+              {filteredAircraft.map((ac) =>
+            <AircraftCard key={ac.id} aircraft={ac} />
+            )}
             </AnimatePresence>
-          </motion.div>
-        ) : (
-          <Card className="p-8 text-center bg-slate-900/80 border border-cyan-900/30 flex flex-col items-center">
+          </motion.div> :
+
+        <Card className="p-8 text-center bg-slate-900/80 border border-cyan-900/30 flex flex-col items-center">
             <Plane className="w-10 h-10 text-cyan-900 mx-auto mb-2" />
             <h3 className="text-sm font-mono text-cyan-600 mb-1">{t('no_aircraft', lang).toUpperCase()}</h3>
           </Card>
-        )}
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 }
