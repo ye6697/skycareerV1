@@ -24,6 +24,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { getInsurancePlanConfig, INSURANCE_PACKAGES } from "@/lib/insurance";
 import {
   Plane,
   Users,
@@ -121,10 +122,22 @@ export default function ActiveFlights() {
         if (!Number.isFinite(n)) return null;
         return n > 1 && n <= 100 ? (n / 100) : n;
       };
-      const insurancePlan = String(ac?.insurance_plan || '').trim().toLowerCase() || 'basic';
-      const insuranceHourlyRatePct = normalizePctLike(ac?.insurance_hourly_rate_pct);
-      const insuranceCoveragePct = normalizePctLike(ac?.insurance_maintenance_coverage_pct);
-      const insuranceScoreBonusPct = normalizePctLike(ac?.insurance_score_bonus_pct);
+      const localStoredPlan = (() => {
+        try {
+          const raw = String(window.localStorage.getItem(`insurance_plan_${ac?.id || 'unknown'}`) || '').trim().toLowerCase();
+          return INSURANCE_PACKAGES[raw] ? raw : null;
+        } catch (_) {
+          return null;
+        }
+      })();
+      const aircraftPlan = String(ac?.insurance_plan || '').trim().toLowerCase();
+      const insurancePlan = (INSURANCE_PACKAGES[localStoredPlan] ? localStoredPlan : null)
+        || (INSURANCE_PACKAGES[aircraftPlan] ? aircraftPlan : null)
+        || 'basic';
+      const insuranceCfg = getInsurancePlanConfig(insurancePlan);
+      const insuranceHourlyRatePct = normalizePctLike(ac?.insurance_hourly_rate_pct) ?? insuranceCfg.hourlyRatePctOfNewValue;
+      const insuranceCoveragePct = normalizePctLike(ac?.insurance_maintenance_coverage_pct) ?? insuranceCfg.maintenanceCoveragePct;
+      const insuranceScoreBonusPct = normalizePctLike(ac?.insurance_score_bonus_pct) ?? insuranceCfg.scoreBonusPct;
       const restartCommand = {
         id: `cmd-worker-restart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: 'worker_restart',

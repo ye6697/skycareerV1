@@ -40,6 +40,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const { lang } = useLanguage();
   const [selectedInsurancePlan, setSelectedInsurancePlan] = useState(() => resolveAircraftInsurance(aircraft).planKey);
   const [optimisticInsurancePlan, setOptimisticInsurancePlan] = useState(null);
+  const [localInsurancePlan, setLocalInsurancePlan] = useState(null);
   const [insuranceError, setInsuranceError] = useState('');
   const resolveUserCompanyId = React.useCallback((user) => (
     user?.company_id
@@ -128,7 +129,24 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     permanentCats.pressurization || 0
   );
   const needsMaintenance = maxWear > 75 || avgWear > 50;
-  const activeInsurance = resolveAircraftInsurance(aircraft);
+  const insuranceStorageKey = React.useMemo(
+    () => `insurance_plan_${aircraft?.id || 'unknown'}`,
+    [aircraft?.id]
+  );
+  const persistedLocalPlan = (
+    typeof localInsurancePlan === 'string'
+    && INSURANCE_PACKAGES[localInsurancePlan]
+  ) ? localInsurancePlan : null;
+  const insuranceSource = persistedLocalPlan
+    ? {
+      ...aircraft,
+      insurance_plan: persistedLocalPlan,
+      insurance_hourly_rate_pct: getInsurancePlanConfig(persistedLocalPlan).hourlyRatePctOfNewValue,
+      insurance_maintenance_coverage_pct: getInsurancePlanConfig(persistedLocalPlan).maintenanceCoveragePct,
+      insurance_score_bonus_pct: getInsurancePlanConfig(persistedLocalPlan).scoreBonusPct,
+    }
+    : aircraft;
+  const activeInsurance = resolveAircraftInsurance(insuranceSource);
   const activeInsurancePlanKey = optimisticInsurancePlan || activeInsurance.planKey;
   const activeInsuranceConfig = getInsurancePlanConfig(activeInsurancePlanKey);
   const insuranceMaintenanceCoveragePct = Math.max(0, Math.min(1, Number(activeInsuranceConfig.maintenanceCoveragePct || 0)));
@@ -136,9 +154,36 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const coveredRepairCost = grossRepairCost * insuranceMaintenanceCoveragePct;
   const netRepairCost = Math.max(0, grossRepairCost - coveredRepairCost);
 
+  const persistLocalInsurancePlan = React.useCallback((planKey) => {
+    const normalized = String(planKey || '').trim().toLowerCase();
+    if (!INSURANCE_PACKAGES[normalized]) return;
+    setLocalInsurancePlan(normalized);
+    try {
+      window.localStorage.setItem(insuranceStorageKey, normalized);
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [insuranceStorageKey]);
+
   React.useEffect(() => {
-    setSelectedInsurancePlan(activeInsurance.planKey || DEFAULT_INSURANCE_PLAN);
-  }, [activeInsurance.planKey, aircraft.id]);
+    try {
+      const raw = String(window.localStorage.getItem(insuranceStorageKey) || '').trim().toLowerCase();
+      if (INSURANCE_PACKAGES[raw]) {
+        setLocalInsurancePlan(raw);
+      } else {
+        setLocalInsurancePlan(null);
+      }
+    } catch (_) {
+      setLocalInsurancePlan(null);
+    }
+  }, [insuranceStorageKey]);
+
+  React.useEffect(() => {
+    const serverPlan = String(aircraft?.insurance_plan || '').trim().toLowerCase();
+    if (INSURANCE_PACKAGES[serverPlan]) {
+      persistLocalInsurancePlan(serverPlan);
+    }
+  }, [aircraft?.id, aircraft?.insurance_plan, persistLocalInsurancePlan]);
 
   React.useEffect(() => {
     if (optimisticInsurancePlan && activeInsurance.planKey === optimisticInsurancePlan) {
@@ -297,6 +342,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       const resolvedPlan = String(persistedPlan || requestedPlan || DEFAULT_INSURANCE_PLAN).trim().toLowerCase() || DEFAULT_INSURANCE_PLAN;
       setOptimisticInsurancePlan(resolvedPlan);
       setSelectedInsurancePlan(resolvedPlan);
+      persistLocalInsurancePlan(resolvedPlan);
       queryClient.setQueriesData({ queryKey: ['aircraft'] }, (prev) => {
         if (!Array.isArray(prev)) return prev;
         return prev.map((ac) => (
@@ -410,9 +456,9 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                  <Button size="sm" className="h-6 flex-1 text-[9px] bg-amber-900/40 text-amber-400 hover:bg-amber-800 border border-amber-900/50" onClick={() => setIsMaintenanceDialogOpen(true)}>
                    {t('maintenance', lang).toUpperCase()}
                  </Button>
-                 <Button size="sm" className="h-6 flex-1 text-[9px] bg-cyan-900/40 text-cyan-300 hover:bg-cyan-800 border border-cyan-900/50" onClick={() => setIsInsuranceDialogOpen(true)}>
-                   {lang === 'de' ? 'VERSICHERUNG' : 'INSURANCE'}
-                 </Button>
+              <Button size="sm" className="h-6 flex-1 text-[9px] bg-cyan-900/40 text-cyan-300 hover:bg-cyan-800 border border-cyan-900/50" onClick={() => setIsInsuranceDialogOpen(true)}>
+                {lang === 'de' ? 'VERSICHERUNG' : 'INSURANCE'}
+              </Button>
                  <Button size="sm" className="h-6 flex-1 text-[9px] bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700" onClick={() => setIsSellDialogOpen(true)}>
                    {t('sell', lang).toUpperCase()}
                  </Button>
@@ -470,7 +516,16 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isInsuranceDialogOpen} onOpenChange={setIsInsuranceDialogOpen}>
+        <Dialog
+          open={isInsuranceDialogOpen}
+          onOpenChange={(open) => {
+            setIsInsuranceDialogOpen(open);
+            if (open) {
+              setInsuranceError('');
+              setSelectedInsurancePlan(activeInsurance.planKey || DEFAULT_INSURANCE_PLAN);
+            }
+          }}
+        >
           <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-cyan-300 uppercase flex items-center gap-2">
