@@ -357,8 +357,7 @@ export default function Fleet() {
       const byOwner = await base44.entities.Company.filter({ created_by: user.email });
       if (byOwner[0]) return byOwner[0];
     }
-    const allCompanies = await base44.entities.Company.list();
-    return allCompanies[0] || null;
+    return null;
   }, [company, currentUser, resolveUserCompanyId]);
 
   const failureTriggerStateKey = React.useMemo(
@@ -390,38 +389,15 @@ export default function Fleet() {
 
   React.useEffect(() => {
     setLocalFailureOverride(null);
-    try {
-      const keys = company?.id ?
-      [`failure_toggle_${company.id}`, 'failure_toggle_default'] :
-      ['failure_toggle_default'];
-      for (const storageKey of keys) {
-        const raw = window.localStorage.getItem(storageKey);
-        if (raw === 'true') {
-          setLocalFailureOverride(true);
-          break;
-        }
-        if (raw === 'false') {
-          setLocalFailureOverride(false);
-          break;
-        }
-      }
-    } catch (_) {
-
-      // ignore storage errors
-    }}, [company?.id]);
+  }, [company?.id]);
 
   const persistFailureOverride = React.useCallback((value) => {
-    setLocalFailureOverride(value);
-    try {
-      const normalized = String(!!value);
-      window.localStorage.setItem('failure_toggle_default', normalized);
-      if (company?.id) {
-        window.localStorage.setItem(`failure_toggle_${company.id}`, normalized);
-      }
-    } catch (_) {
-
-      // ignore storage errors
-    }}, [company?.id]);
+    if (typeof value === 'boolean') {
+      setLocalFailureOverride(value);
+      return;
+    }
+    setLocalFailureOverride(null);
+  }, []);
 
   const toggleFailureTriggersMutation = useMutation({
     onMutate: async (enabled) => {
@@ -436,55 +412,38 @@ export default function Fleet() {
       const currentCompany = await loadCurrentCompany();
       const targetEnabled = !!enabled;
       const targetCompanyId = currentCompany?.id || null;
+      if (!targetCompanyId) {
+        throw new Error('missing_company_context');
+      }
 
-      const fallbackDirectUpdate = async () => {
-        const settings = await base44.entities.GameSettings.list();
-        const settingRows = Array.isArray(settings) ? settings.filter((row) => row?.id) : [];
-        if (settingRows.length > 0) {
-          await Promise.all(
-            settingRows.map((row) => base44.entities.GameSettings.update(row.id, {
-              failure_triggers_enabled: targetEnabled
-            }))
-          );
-        } else {
-          await base44.entities.GameSettings.create({
-            failure_triggers_enabled: targetEnabled
-          });
-        }
-        if (targetCompanyId) {
-          await base44.entities.Company.update(targetCompanyId, {
-            failure_triggers_enabled: targetEnabled
-          });
-        }
-        return targetEnabled;
-      };
-
-      try {
-        const response = await Promise.race([
+      const response = await Promise.race([
         base44.functions.invoke('toggleFailureTriggers', {
           enabled: targetEnabled,
           companyId: targetCompanyId
         }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('toggle_timeout')), 7000))]
+        new Promise((_, reject) => setTimeout(() => reject(new Error('toggle_timeout')), 12000))]
+      );
+      const invokeError = response?.error || response?.data?.error;
+      if (invokeError) {
+        throw new Error(
+          typeof invokeError === 'string' ?
+          invokeError :
+          invokeError?.message || 'toggle_invoke_failed'
         );
-        const invokeError = response?.error || response?.data?.error;
-        if (invokeError) {
-          throw new Error(
-            typeof invokeError === 'string' ?
-            invokeError :
-            invokeError?.message || 'toggle_invoke_failed'
-          );
-        }
-        if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
-        return targetEnabled;
-      } catch (_) {
-        return await fallbackDirectUpdate();
       }
+
+      if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
+
+      const verify = await base44.functions.invoke('toggleFailureTriggers', {
+        companyId: targetCompanyId
+      });
+      if (typeof verify?.data?.enabled === 'boolean') return verify.data.enabled;
+      throw new Error('toggle_unconfirmed');
     },
-    onSuccess: (_data, requestedEnabled) => {
-      const enabled = !!requestedEnabled;
+    onSuccess: (resolvedEnabled) => {
+      const enabled = !!resolvedEnabled;
       queryClient.setQueryData(failureTriggerStateKey, enabled);
-      persistFailureOverride(enabled);
+      persistFailureOverride(null);
       queryClient.setQueryData(['company'], (prev) =>
       prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       );
@@ -493,17 +452,21 @@ export default function Fleet() {
       );
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
+      queryClient.invalidateQueries({ queryKey: failureTriggerStateKey });
     },
     onError: (_error, _enabled, context) => {
       if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
         queryClient.setQueryData(failureTriggerStateKey, context.previous);
-        if (typeof context.previous === 'boolean') persistFailureOverride(context.previous);
+        persistFailureOverride(typeof context.previous === 'boolean' ? context.previous : null);
+      } else {
+        persistFailureOverride(null);
       }
       setFailureToggleError(
         lang === 'de' ?
         'Konnte den Failure-Trigger nicht umschalten.' :
         'Could not toggle failure trigger.'
       );
+      queryClient.invalidateQueries({ queryKey: failureTriggerStateKey });
     }
   });
 

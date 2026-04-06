@@ -129,8 +129,7 @@ export default function MaintenanceCategories({ aircraft }) {
       const companies = await base44.entities.Company.filter({ created_by: user.email });
       if (companies[0]) return companies[0];
     }
-    const allCompanies = await base44.entities.Company.list();
-    return allCompanies[0] || null;
+    return null;
   };
 
   const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
@@ -141,37 +140,15 @@ export default function MaintenanceCategories({ aircraft }) {
     : failureTriggersEnabled;
 
   React.useEffect(() => {
-    try {
-      const scopedKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
-      const keys = scopedKey === 'failure_toggle_default'
-        ? ['failure_toggle_default']
-        : [scopedKey, 'failure_toggle_default'];
-      for (const storageKey of keys) {
-        const raw = window.localStorage.getItem(storageKey);
-        if (raw === 'true') {
-          setLocalFailureOverride(true);
-          break;
-        }
-        if (raw === 'false') {
-          setLocalFailureOverride(false);
-          break;
-        }
-      }
-    } catch (_) {
-      // ignore storage errors
-    }
+    setLocalFailureOverride(null);
   }, [aircraft?.company_id, companyForLimit?.id]);
 
   const persistFailureOverride = (value) => {
-    setLocalFailureOverride(value);
-    try {
-      const normalized = String(!!value);
-      const scopedKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
-      window.localStorage.setItem(scopedKey, normalized);
-      window.localStorage.setItem('failure_toggle_default', normalized);
-    } catch (_) {
-      // ignore storage errors
+    if (typeof value === 'boolean') {
+      setLocalFailureOverride(value);
+      return;
     }
+    setLocalFailureOverride(null);
   };
 
   const toggleFailureTriggersMutation = useMutation({
@@ -187,55 +164,38 @@ export default function MaintenanceCategories({ aircraft }) {
       const company = companyForLimit || await loadCurrentCompany();
       const targetEnabled = !!enabled;
       const targetCompanyId = company?.id || aircraft?.company_id || null;
-
-      const fallbackDirectUpdate = async () => {
-        const settings = await base44.entities.GameSettings.list();
-        const settingRows = Array.isArray(settings) ? settings.filter((row) => row?.id) : [];
-        if (settingRows.length > 0) {
-          await Promise.all(
-            settingRows.map((row) => base44.entities.GameSettings.update(row.id, {
-              failure_triggers_enabled: targetEnabled,
-            }))
-          );
-        } else {
-          await base44.entities.GameSettings.create({
-            failure_triggers_enabled: targetEnabled,
-          });
-        }
-        if (targetCompanyId) {
-          await base44.entities.Company.update(targetCompanyId, {
-            failure_triggers_enabled: targetEnabled,
-          });
-        }
-        return targetEnabled;
-      };
-
-      try {
-        const response = await Promise.race([
-          base44.functions.invoke('toggleFailureTriggers', {
-            enabled: targetEnabled,
-            companyId: targetCompanyId,
-          }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('toggle_timeout')), 7000)),
-        ]);
-        const invokeError = response?.error || response?.data?.error;
-        if (invokeError) {
-          throw new Error(
-            typeof invokeError === 'string'
-              ? invokeError
-              : (invokeError?.message || 'toggle_invoke_failed')
-          );
-        }
-        if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
-        return targetEnabled;
-      } catch (_) {
-        return await fallbackDirectUpdate();
+      if (!targetCompanyId) {
+        throw new Error('missing_company_context');
       }
+
+      const response = await Promise.race([
+        base44.functions.invoke('toggleFailureTriggers', {
+          enabled: targetEnabled,
+          companyId: targetCompanyId,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('toggle_timeout')), 12000)),
+      ]);
+      const invokeError = response?.error || response?.data?.error;
+      if (invokeError) {
+        throw new Error(
+          typeof invokeError === 'string'
+            ? invokeError
+            : (invokeError?.message || 'toggle_invoke_failed')
+        );
+      }
+
+      if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
+
+      const verify = await base44.functions.invoke('toggleFailureTriggers', {
+        companyId: targetCompanyId,
+      });
+      if (typeof verify?.data?.enabled === 'boolean') return verify.data.enabled;
+      throw new Error('toggle_unconfirmed');
     },
-    onSuccess: (_data, requestedEnabled) => {
-      const enabled = !!requestedEnabled;
+    onSuccess: (resolvedEnabled) => {
+      const enabled = !!resolvedEnabled;
       queryClient.setQueryData(failureTriggerStateKey, enabled);
-      persistFailureOverride(enabled);
+      persistFailureOverride(null);
       queryClient.setQueryData(['company-maint-limit'], (prev) => (
         prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       ));
@@ -244,17 +204,21 @@ export default function MaintenanceCategories({ aircraft }) {
       ));
       queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: failureTriggerStateKey });
     },
     onError: (_error, _enabled, context) => {
       if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
         queryClient.setQueryData(failureTriggerStateKey, context.previous);
-        if (typeof context.previous === 'boolean') persistFailureOverride(context.previous);
+        persistFailureOverride(typeof context.previous === 'boolean' ? context.previous : null);
+      } else {
+        persistFailureOverride(null);
       }
       setFailureToggleError(
         lang === 'de'
           ? 'Konnte den Failure-Trigger nicht umschalten. Bitte erneut versuchen.'
           : 'Could not toggle failure trigger. Please try again.'
       );
+      queryClient.invalidateQueries({ queryKey: failureTriggerStateKey });
     },
   });
 
