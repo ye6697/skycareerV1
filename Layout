@@ -21,7 +21,7 @@ import {
   Star } from
 "lucide-react";
 
-const APP_UI_VERSION = 'app-root-2026-04-06-a';
+const APP_UI_VERSION = 'app-root-2026-04-06-b';
 
 const navItems = [
 { name: "Dashboard", icon: LayoutDashboard, path: "Dashboard" },
