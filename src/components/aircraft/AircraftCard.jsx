@@ -30,6 +30,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { calculateInsuranceForFlight, DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig, INSURANCE_PACKAGES, resolveAircraftInsurance } from '@/lib/insurance';
 import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap } from '@/lib/maintenance';
+const INSURANCE_UI_VERSION = 'ins-2026-04-06-a';
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
@@ -305,6 +306,28 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   });
 
   const insuranceMutation = useMutation({
+    onMutate: (planKey) => {
+      const targetPlan = getInsurancePlanConfig(planKey).key;
+      setOptimisticInsurancePlan(targetPlan);
+      setSelectedInsurancePlan(targetPlan);
+      persistLocalInsurancePlan(targetPlan);
+      queryClient.setQueriesData({ queryKey: ['aircraft'] }, (prev) => {
+        if (!Array.isArray(prev)) return prev;
+        const cfg = getInsurancePlanConfig(targetPlan);
+        return prev.map((ac) => (
+          ac?.id === aircraft.id
+            ? {
+              ...ac,
+              insurance_plan: targetPlan,
+              insurance_hourly_rate_pct: cfg.hourlyRatePctOfNewValue,
+              insurance_maintenance_coverage_pct: cfg.maintenanceCoveragePct,
+              insurance_score_bonus_pct: cfg.scoreBonusPct,
+            }
+            : ac
+        ));
+      });
+      return { targetPlan };
+    },
     mutationFn: async (planKey) => {
       setInsuranceError('');
       const config = getInsurancePlanConfig(planKey);
@@ -363,8 +386,8 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     },
     onError: () => {
       setInsuranceError(lang === 'de'
-        ? 'Versicherung konnte nicht gespeichert werden.'
-        : 'Could not save insurance package.');
+        ? 'Server-Speicherung fehlgeschlagen. Lokal bleibt dein Paket aktiv.'
+        : 'Server save failed. Your package stays active locally.');
     }
   });
 
@@ -580,6 +603,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                   );
                 })}
               </div>
+              <div className="text-[9px] text-slate-600 text-right select-none">v {INSURANCE_UI_VERSION}</div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsInsuranceDialogOpen(false)} className="h-8 text-[10px] border-slate-700 text-slate-300">
