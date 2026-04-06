@@ -7,12 +7,12 @@ import { motion } from "framer-motion";
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
-} from "@/components/ui/dialog";
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from
+"@/components/ui/dialog";
 import {
   Plane, CreditCard, Calendar, ArrowUpRight, XCircle, User, Star, Shield,
-  CheckCircle, AlertTriangle, Globe, RotateCcw
-} from "lucide-react";
+  CheckCircle, AlertTriangle, Globe, RotateCcw } from
+"lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import DeleteAccountDialog from "@/components/account/DeleteAccountDialog";
@@ -30,7 +30,7 @@ export default function Account() {
     queryKey: ['currentUser'],
     queryFn: () => base44.auth.me(),
     staleTime: Infinity,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
   const { data: company } = useQuery({
@@ -45,7 +45,7 @@ export default function Account() {
     },
     enabled: !!user,
     staleTime: 120000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 
   const { data: subData, isLoading: subLoading } = useQuery({
@@ -55,7 +55,7 @@ export default function Account() {
       return res.data;
     },
     enabled: !!user,
-    staleTime: 30000,
+    staleTime: 30000
   });
 
   const currentSub = subData?.subscription || null;
@@ -71,9 +71,9 @@ export default function Account() {
       const preservedName = company?.name || '';
       const preservedApiKey = company?.xplane_api_key || '';
       const preservedSimbriefUsername =
-        company?.simbrief_username ?? user?.simbrief_username ?? null;
+      company?.simbrief_username ?? user?.simbrief_username ?? null;
       const preservedSimbriefPilotId =
-        company?.simbrief_pilot_id ?? user?.simbrief_pilot_id ?? null;
+      company?.simbrief_pilot_id ?? user?.simbrief_pilot_id ?? null;
 
       const wipeEntity = async (entity, where) => {
         while (true) {
@@ -112,7 +112,7 @@ export default function Account() {
         experience_points: 0,
         callsign: "",
         hub_airport: "",
-        xplane_connection_status: "disconnected",
+        xplane_connection_status: "disconnected"
       });
 
       const templates = await base44.entities.AircraftTemplate.filter({ name: "Cessna 172 Skyhawk" });
@@ -166,17 +166,17 @@ export default function Account() {
               </div>
               <div className="space-y-2.5">
                 {[
-                  { label: 'Name', value: user?.full_name },
-                  { label: 'Email', value: user?.email },
-                  { label: lang === 'de' ? 'Firma' : 'Company', value: company?.name },
-                  { label: 'Hub', value: company?.hub_airport },
-                  { label: 'Callsign', value: company?.callsign },
-                ].map((row, i) => (
-                  <div key={i} className="flex justify-between items-center p-3 bg-slate-900/60 rounded-lg">
+                { label: 'Name', value: user?.full_name },
+                { label: 'Email', value: user?.email },
+                { label: lang === 'de' ? 'Firma' : 'Company', value: company?.name },
+                { label: 'Hub', value: company?.hub_airport },
+                { label: 'Callsign', value: company?.callsign }].
+                map((row, i) =>
+                <div key={i} className="flex justify-between items-center p-3 bg-slate-900/60 rounded-lg">
                     <span className="text-slate-500 text-sm">{row.label}</span>
                     <span className="text-white font-medium text-sm">{row.value || '—'}</span>
                   </div>
-                ))}
+                )}
                 <div className="flex justify-between items-center p-3 bg-gradient-to-r from-amber-900/20 to-slate-900/60 rounded-lg border border-amber-700/20">
                   <span className="text-slate-500 text-sm">{t('level', lang)}</span>
                   <div className="flex items-center gap-2">
@@ -196,28 +196,28 @@ export default function Account() {
                 <h3 className="text-lg font-semibold text-white">{t('subscription_status', lang)}</h3>
                 {isPro && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">PRO</Badge>}
               </div>
-              {subLoading ? (
-                <div className="text-sm text-slate-500 font-mono">{lang === 'de' ? 'Lade...' : 'Loading...'}</div>
-              ) : currentSub ? (
-                <SubscriptionStatus subscription={currentSub} />
-              ) : (
-                <div className="text-sm text-slate-400">
+              {subLoading ?
+              <div className="text-sm text-slate-500 font-mono">{lang === 'de' ? 'Lade...' : 'Loading...'}</div> :
+              currentSub ?
+              <SubscriptionStatus subscription={currentSub} /> :
+
+              <div className="text-slate-300 text-sm">
                   {lang === 'de' ? 'Kein aktives Abo – wähle unten einen Plan.' : 'No active subscription – choose a plan below.'}
                 </div>
-              )}
+              }
             </Card>
           </motion.div>
         </div>
 
         {/* Pricing Plans */}
-        {!isPro && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-4">
+        {!isPro &&
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-4">
             <h3 className="font-mono text-sm text-cyan-400 uppercase tracking-widest mb-3">
               {lang === 'de' ? 'SkyCareer Pro wählen' : 'Choose SkyCareer Pro'}
             </h3>
             <PricingCards currentSubscription={currentSub} />
           </motion.div>
-        )}
+        }
 
         {/* Danger Zone */}
         <div className="mt-12 pt-6 border-t border-red-900/20">
@@ -228,17 +228,17 @@ export default function Account() {
                   {lang === 'de' ? 'Account zurücksetzen' : 'Reset account data'}
                 </h4>
                 <p className="text-xs text-slate-500">
-                  {lang === 'de'
-                    ? 'Setzt alle Daten zurück, behält aber Firmenname, API-Key und SimBrief-Daten.'
-                    : 'Resets all data but keeps company name, API key and SimBrief data.'}
+                  {lang === 'de' ?
+                  'Setzt alle Daten zurück, behält aber Firmenname, API-Key und SimBrief-Daten.' :
+                  'Resets all data but keeps company name, API key and SimBrief data.'}
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="border-amber-700/50 text-amber-400 hover:bg-amber-900/20"
-                onClick={() => setShowResetDialog(true)}
-              >
+                onClick={() => setShowResetDialog(true)}>
+                
                 <RotateCcw className="w-4 h-4 mr-1" />
                 {lang === 'de' ? 'Zurücksetzen' : 'Reset'}
               </Button>
@@ -267,9 +267,9 @@ export default function Account() {
               {lang === 'de' ? 'Account-Daten zurücksetzen' : 'Reset account data'}
             </DialogTitle>
             <DialogDescription className="text-slate-400">
-              {lang === 'de'
-                ? 'Dies löscht Flüge, Aufträge, Flugzeuge, Mitarbeiter, Transaktionen und Logs.'
-                : 'This deletes flights, contracts, aircraft, employees, transactions and logs.'}
+              {lang === 'de' ?
+              'Dies löscht Flüge, Aufträge, Flugzeuge, Mitarbeiter, Transaktionen und Logs.' :
+              'This deletes flights, contracts, aircraft, employees, transactions and logs.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -285,16 +285,16 @@ export default function Account() {
 
             <div>
               <p className="text-sm text-slate-400 mb-2">
-                {lang === 'de'
-                  ? `Zum Bestätigen "${resetWord}" eingeben:`
-                  : `Type "${resetWord}" to confirm:`}
+                {lang === 'de' ?
+                `Zum Bestätigen "${resetWord}" eingeben:` :
+                `Type "${resetWord}" to confirm:`}
               </p>
               <Input
                 value={resetConfirmText}
                 onChange={(e) => setResetConfirmText(e.target.value)}
                 placeholder={resetWord}
-                className="bg-slate-800 border-slate-600"
-              />
+                className="bg-slate-800 border-slate-600" />
+              
             </div>
           </div>
 
@@ -302,24 +302,24 @@ export default function Account() {
             <Button
               variant="outline"
               className="border-slate-600 text-slate-300"
-              onClick={() => setShowResetDialog(false)}
-            >
+              onClick={() => setShowResetDialog(false)}>
+              
               {lang === 'de' ? 'Abbrechen' : 'Cancel'}
             </Button>
             <Button
               variant="destructive"
               disabled={!canReset || resetAccountMutation.isPending}
-              onClick={() => resetAccountMutation.mutate()}
-            >
-              {resetAccountMutation.isPending
-                ? (lang === 'de' ? 'Setze zurück...' : 'Resetting...')
-                : (lang === 'de' ? 'Jetzt zurücksetzen' : 'Reset now')}
+              onClick={() => resetAccountMutation.mutate()}>
+              
+              {resetAccountMutation.isPending ?
+              lang === 'de' ? 'Setze zurück...' : 'Resetting...' :
+              lang === 'de' ? 'Jetzt zurücksetzen' : 'Reset now'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <DeleteAccountDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog} company={company} />
-    </div>
-  );
+    </div>);
+
 }
