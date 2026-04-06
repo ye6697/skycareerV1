@@ -40,6 +40,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const { lang } = useLanguage();
   const [selectedInsurancePlan, setSelectedInsurancePlan] = useState(() => resolveAircraftInsurance(aircraft).planKey);
   const [optimisticInsurancePlan, setOptimisticInsurancePlan] = useState(null);
+  const [insuranceError, setInsuranceError] = useState('');
   const resolveUserCompanyId = React.useCallback((user) => (
     user?.company_id
     || user?.data?.company_id
@@ -260,19 +261,41 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const insuranceMutation = useMutation({
     mutationFn: async (planKey) => {
+      setInsuranceError('');
       const config = getInsurancePlanConfig(planKey);
-      await base44.entities.Aircraft.update(aircraft.id, {
-        insurance_plan: config.key,
-        insurance_hourly_rate_pct: config.hourlyRatePctOfNewValue,
-        insurance_maintenance_coverage_pct: config.maintenanceCoveragePct,
-        insurance_score_bonus_pct: config.scoreBonusPct,
-      });
+      try {
+        const response = await base44.functions.invoke('setAircraftInsurancePlan', {
+          aircraftId: aircraft.id,
+          planKey: config.key,
+        });
+        const invokeError = response?.error || response?.data?.error;
+        if (invokeError) {
+          throw new Error(
+            typeof invokeError === 'string'
+              ? invokeError
+              : (invokeError?.message || 'insurance_invoke_failed')
+          );
+        }
+      } catch (_) {
+        // Fallback for environments where function rollout lags behind.
+        await base44.entities.Aircraft.update(aircraft.id, {
+          insurance_plan: config.key,
+          insurance_hourly_rate_pct: config.hourlyRatePctOfNewValue,
+          insurance_maintenance_coverage_pct: config.maintenanceCoveragePct,
+          insurance_score_bonus_pct: config.scoreBonusPct,
+        });
+      }
     },
     onSuccess: async (_data, planKey) => {
       setOptimisticInsurancePlan(planKey);
       await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       await queryClient.refetchQueries({ queryKey: ['aircraft'] });
       setIsInsuranceDialogOpen(false);
+    },
+    onError: () => {
+      setInsuranceError(lang === 'de'
+        ? 'Versicherung konnte nicht gespeichert werden.'
+        : 'Could not save insurance package.');
     }
   });
 
@@ -433,6 +456,11 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {insuranceError && (
+                <div className="p-2 rounded border border-red-800 bg-red-950/40 text-xs text-red-200">
+                  {insuranceError}
+                </div>
+              )}
               <div className="p-3 rounded border border-cyan-900/40 bg-slate-950/70 text-xs">
                 <p className="text-slate-200 mb-2">
                   {lang === 'de'
