@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const CATEGORY_META = [
@@ -58,6 +57,7 @@ const clampPct = (value) => Math.max(0, Math.min(100, Number(value) || 0));
 
 export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
+  const [failureToggleError, setFailureToggleError] = useState('');
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
   const resolveUserCompanyId = React.useCallback((user) => (
@@ -93,29 +93,52 @@ export default function MaintenanceCategories({ aircraft }) {
   });
 
   const loadCurrentCompany = async () => {
+    if (aircraft?.company_id) {
+      const byAircraftCompany = await base44.entities.Company.filter({ id: aircraft.company_id });
+      if (byAircraftCompany[0]) return byAircraftCompany[0];
+    }
     const user = await base44.auth.me();
     const cid = resolveUserCompanyId(user);
     if (cid) {
       const companies = await base44.entities.Company.filter({ id: cid });
       if (companies[0]) return companies[0];
     }
-    const companies = await base44.entities.Company.filter({ created_by: user.email });
-    return companies[0] || null;
+    if (user?.email) {
+      const companies = await base44.entities.Company.filter({ created_by: user.email });
+      if (companies[0]) return companies[0];
+    }
+    const allCompanies = await base44.entities.Company.list();
+    return allCompanies[0] || null;
   };
 
   const failureTriggersEnabled = companyForLimit?.failure_triggers_enabled !== false;
 
   const toggleFailureTriggersMutation = useMutation({
     mutationFn: async (enabled) => {
+      setFailureToggleError('');
       const company = companyForLimit || await loadCurrentCompany();
       if (!company?.id) throw new Error('Unternehmen nicht gefunden');
       await base44.entities.Company.update(company.id, {
         failure_triggers_enabled: !!enabled,
       });
+      return !!enabled;
     },
-    onSuccess: () => {
+    onSuccess: (enabled) => {
+      queryClient.setQueryData(['company-maint-limit'], (prev) => (
+        prev ? { ...prev, failure_triggers_enabled: enabled } : prev
+      ));
+      queryClient.setQueryData(['company'], (prev) => (
+        prev ? { ...prev, failure_triggers_enabled: enabled } : prev
+      ));
       queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
+    },
+    onError: () => {
+      setFailureToggleError(
+        lang === 'de'
+          ? 'Konnte den Failure-Trigger nicht umschalten. Bitte erneut versuchen.'
+          : 'Could not toggle failure trigger. Please try again.'
+      );
     },
   });
 
@@ -315,7 +338,7 @@ export default function MaintenanceCategories({ aircraft }) {
         </div>
       </div>
 
-      <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 flex items-center justify-between gap-3">
+      <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-2">
         <div className="min-w-0">
           <div className="text-xs font-semibold text-slate-200">
             {lang === 'de' ? 'Failure Trigger (Bridge)' : 'Failure trigger (bridge)'}
@@ -326,11 +349,25 @@ export default function MaintenanceCategories({ aircraft }) {
               : (lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.')}
           </div>
         </div>
-        <Switch
-          checked={failureTriggersEnabled}
-          onCheckedChange={(checked) => toggleFailureTriggersMutation.mutate(checked)}
+        <Button
+          type="button"
+          onClick={() => toggleFailureTriggersMutation.mutate(!failureTriggersEnabled)}
           disabled={toggleFailureTriggersMutation.isPending}
-        />
+          className={`h-9 w-full text-[11px] font-semibold ${
+            failureTriggersEnabled
+              ? 'bg-red-600 text-white hover:bg-red-500'
+              : 'bg-emerald-600 text-white hover:bg-emerald-500'
+          }`}
+        >
+          {toggleFailureTriggersMutation.isPending
+            ? (lang === 'de' ? 'Speichere...' : 'Saving...')
+            : (failureTriggersEnabled
+              ? (lang === 'de' ? 'FAILURE TRIGGER: EIN - TIPPE ZUM AUSSCHALTEN' : 'FAILURE TRIGGER: ON - TAP TO TURN OFF')
+              : (lang === 'de' ? 'FAILURE TRIGGER: AUS - TIPPE ZUM EINSCHALTEN' : 'FAILURE TRIGGER: OFF - TAP TO TURN ON'))}
+        </Button>
+        {failureToggleError && (
+          <div className="text-[11px] text-red-300">{failureToggleError}</div>
+        )}
       </div>
 
       <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5">

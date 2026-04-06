@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -301,6 +300,7 @@ export default function Fleet() {
   const [marketSection, setMarketSection] = useState('new');
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
+  const [failureToggleError, setFailureToggleError] = useState('');
   const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
   const resolveUserCompanyId = React.useCallback((user) => (
     user?.company_id
@@ -344,16 +344,45 @@ export default function Fleet() {
   });
 
   const failureTriggersEnabled = company?.failure_triggers_enabled !== false;
+  const loadCurrentCompany = React.useCallback(async () => {
+    if (company?.id) return company;
+    const user = currentUser || await base44.auth.me();
+    const companyId = resolveUserCompanyId(user);
+    if (companyId) {
+      const companies = await base44.entities.Company.filter({ id: companyId });
+      if (companies[0]) return companies[0];
+    }
+    if (user?.email) {
+      const byOwner = await base44.entities.Company.filter({ created_by: user.email });
+      if (byOwner[0]) return byOwner[0];
+    }
+    const allCompanies = await base44.entities.Company.list();
+    return allCompanies[0] || null;
+  }, [company, currentUser, resolveUserCompanyId]);
+
   const toggleFailureTriggersMutation = useMutation({
     mutationFn: async (enabled) => {
-      if (!company?.id) throw new Error('Unternehmen nicht gefunden');
-      await base44.entities.Company.update(company.id, {
+      setFailureToggleError('');
+      const currentCompany = await loadCurrentCompany();
+      if (!currentCompany?.id) throw new Error('Unternehmen nicht gefunden');
+      await base44.entities.Company.update(currentCompany.id, {
         failure_triggers_enabled: !!enabled,
       });
+      return !!enabled;
     },
-    onSuccess: () => {
+    onSuccess: (enabled) => {
+      queryClient.setQueryData(['company'], (prev) => (
+        prev ? { ...prev, failure_triggers_enabled: enabled } : prev
+      ));
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['company-maint-limit'] });
+    },
+    onError: () => {
+      setFailureToggleError(
+        lang === 'de'
+          ? 'Konnte den Failure-Trigger nicht umschalten.'
+          : 'Could not toggle failure trigger.'
+      );
     },
   });
 
@@ -724,7 +753,7 @@ export default function Fleet() {
                       style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
                       onTouchMove={(e) => e.stopPropagation()}
                     >
-                      <div className="p-2 rounded border border-slate-700 bg-slate-950/60 text-[11px] font-mono flex items-center justify-between gap-3">
+                      <div className="p-2 rounded border border-slate-700 bg-slate-950/60 text-[11px] font-mono space-y-2">
                         <div className="min-w-0">
                           <div className="text-slate-200 font-semibold">
                             {lang === 'de' ? 'Failure Trigger (Bridge)' : 'Failure trigger (bridge)'}
@@ -735,11 +764,25 @@ export default function Fleet() {
                               : (lang === 'de' ? 'Aus: Bridge loest keine neuen Ausfaelle aus.' : 'Off: bridge will not trigger new failures.')}
                           </div>
                         </div>
-                        <Switch
-                          checked={failureTriggersEnabled}
-                          onCheckedChange={(checked) => toggleFailureTriggersMutation.mutate(checked)}
-                          disabled={toggleFailureTriggersMutation.isPending || !company?.id}
-                        />
+                        <Button
+                          type="button"
+                          onClick={() => toggleFailureTriggersMutation.mutate(!failureTriggersEnabled)}
+                          disabled={toggleFailureTriggersMutation.isPending}
+                          className={`h-9 w-full text-[11px] font-semibold ${
+                            failureTriggersEnabled
+                              ? 'bg-red-600 text-white hover:bg-red-500'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                          }`}
+                        >
+                          {toggleFailureTriggersMutation.isPending
+                            ? (lang === 'de' ? 'Speichere...' : 'Saving...')
+                            : (failureTriggersEnabled
+                              ? (lang === 'de' ? 'FAILURE TRIGGER: EIN - TIPPE ZUM AUSSCHALTEN' : 'FAILURE TRIGGER: ON - TAP TO TURN OFF')
+                              : (lang === 'de' ? 'FAILURE TRIGGER: AUS - TIPPE ZUM EINSCHALTEN' : 'FAILURE TRIGGER: OFF - TAP TO TURN ON'))}
+                        </Button>
+                        {failureToggleError && (
+                          <div className="text-[11px] text-red-300">{failureToggleError}</div>
+                        )}
                       </div>
                       <div className="p-2 rounded border border-amber-900/50 bg-amber-950/20 text-[11px] font-mono">
                         <div className="flex flex-wrap items-center justify-between gap-2">
