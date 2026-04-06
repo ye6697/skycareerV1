@@ -26,6 +26,7 @@ import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
+const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-b';
 
 const AIRCRAFT_MARKET_SPECS = [
   // === SMALL PROPS (Level 1) ===
@@ -364,12 +365,38 @@ export default function Fleet() {
     mutationFn: async (enabled) => {
       setFailureToggleError('');
       const currentCompany = await loadCurrentCompany();
-      const response = await base44.functions.invoke('toggleFailureTriggers', {
-        enabled: !!enabled,
-        companyId: currentCompany?.id || null,
-      });
-      if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
-      return !!enabled;
+      const targetEnabled = !!enabled;
+      const targetCompanyId = currentCompany?.id || null;
+
+      const fallbackDirectUpdate = async () => {
+        if (!targetCompanyId) throw new Error('Unternehmen nicht gefunden');
+        await base44.entities.Company.update(targetCompanyId, {
+          failure_triggers_enabled: targetEnabled,
+        });
+        return targetEnabled;
+      };
+
+      try {
+        const response = await Promise.race([
+          base44.functions.invoke('toggleFailureTriggers', {
+            enabled: targetEnabled,
+            companyId: targetCompanyId,
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('toggle_timeout')), 7000)),
+        ]);
+        const invokeError = response?.error || response?.data?.error;
+        if (invokeError) {
+          throw new Error(
+            typeof invokeError === 'string'
+              ? invokeError
+              : (invokeError?.message || 'toggle_invoke_failed')
+          );
+        }
+        if (typeof response?.data?.enabled === 'boolean') return response.data.enabled;
+        return targetEnabled;
+      } catch (_) {
+        return await fallbackDirectUpdate();
+      }
     },
     onSuccess: (enabled) => {
       queryClient.setQueryData(['company'], (prev) => (
@@ -759,6 +786,7 @@ export default function Fleet() {
                           <div className="text-slate-200 font-semibold">
                             {lang === 'de' ? 'Failure Trigger (Bridge)' : 'Failure trigger (bridge)'}
                           </div>
+                          <div className="text-[10px] text-slate-500">UI {FAILURE_TOGGLE_UI_VERSION}</div>
                           <div className="text-slate-400 mt-0.5">
                             {failureTriggersEnabled
                               ? (lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.')
@@ -769,11 +797,12 @@ export default function Fleet() {
                           type="button"
                           onClick={() => toggleFailureTriggersMutation.mutate(!failureTriggersEnabled)}
                           disabled={toggleFailureTriggersMutation.isPending}
-                          className={`h-9 w-full text-[11px] font-semibold ${
+                          className={`h-9 w-full text-[11px] font-semibold touch-manipulation pointer-events-auto ${
                             failureTriggersEnabled
                               ? 'bg-red-600 text-white hover:bg-red-500'
                               : 'bg-emerald-600 text-white hover:bg-emerald-500'
                           }`}
+                          onPointerDown={(e) => e.stopPropagation()}
                         >
                           {toggleFailureTriggersMutation.isPending
                             ? (lang === 'de' ? 'Speichere...' : 'Saving...')
