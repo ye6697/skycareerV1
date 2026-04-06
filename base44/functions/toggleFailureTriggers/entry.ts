@@ -100,9 +100,25 @@ Deno.serve(async (req) => {
               : (Array.isArray(fl?.xplane_data?.bridge_command_queue)
                   ? fl.xplane_data.bridge_command_queue
                   : []);
-            const nextQueue = enabled
+            let nextQueue = enabled
               ? rawQueue
               : rawQueue.filter((cmd: any) => isWorkerRestartCommand(cmd));
+            if (!enabled) {
+              const hasRestart = nextQueue.some((cmd: any) => isWorkerRestartCommand(cmd));
+              if (!hasRestart) {
+                nextQueue = [
+                  ...nextQueue,
+                  {
+                    id: `cmd-worker-restart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    type: 'bridge_worker_restart',
+                    simulator: 'msfs',
+                    created_at: new Date().toISOString(),
+                    source: 'failure_toggle_off',
+                    persist_until_landed: false,
+                  },
+                ];
+              }
+            }
             const nextXplaneData = {
               ...(fl?.xplane_data || {}),
               failure_triggers_enabled: !!enabled,
@@ -115,10 +131,8 @@ Deno.serve(async (req) => {
               bridge_command_queue: nextQueue,
               xplane_data: nextXplaneData,
             };
-            if (!enabled && Array.isArray(fl?.active_failures)) {
-              updatePayload.active_failures = fl.active_failures.filter((f: any) => (
-                String(f?.source || '').toLowerCase() !== 'bridge_maintenance_failure'
-              ));
+            if (!enabled) {
+              updatePayload.active_failures = [];
             }
             await base44.asServiceRole.entities.Flight.update(fl.id, updatePayload).catch(() => null);
           })

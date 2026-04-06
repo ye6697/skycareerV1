@@ -105,6 +105,50 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   return patched;
 }
 
+function buildBridgeConfig(apiKey: string, endpoint: string) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <appSettings>
+    <add key="ApiEndpoint" value="${endpoint}" />
+    <add key="ApiKey" value="${apiKey}" />
+    <add key="Simulator" value="auto" />
+    <add key="LoopIntervalMs" value="2000" />
+    <add key="PollIntervalMs" value="2000" />
+    <add key="SendIntervalMs" value="2000" />
+    <add key="SampleIntervalMs" value="200" />
+    <add key="HttpTimeoutMs" value="10000" />
+    <add key="AutoRestartWorkerOnTimeout" value="true" />
+    <add key="WorkerTimeoutMs" value="15000" />
+    <add key="WorkerRestartDelayMs" value="2000" />
+    <add key="MaxConsecutiveTimeouts" value="3" />
+    <add key="AutoStartOnSimulator" value="true" />
+    <add key="MonitorProcesses" value="FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12" />
+  </appSettings>
+</configuration>
+`;
+}
+
+function resolveEndpoint(req: Request, endpointFromBody?: string) {
+  const fromBody = String(endpointFromBody || '').trim();
+  if (fromBody.startsWith('http://') || fromBody.startsWith('https://')) {
+    return fromBody;
+  }
+
+  const reqUrl = new URL(req.url);
+  const originHeader = String(req.headers.get('origin') || '').trim();
+  if (originHeader.startsWith('http://') || originHeader.startsWith('https://')) {
+    return `${originHeader.replace(/\/+$/, '')}/api/functions/receiveXPlaneData`;
+  }
+
+  const forwardedHost = String(req.headers.get('x-forwarded-host') || '').trim();
+  if (forwardedHost) {
+    const forwardedProto = String(req.headers.get('x-forwarded-proto') || '').trim() || reqUrl.protocol.replace(':', '');
+    return `${forwardedProto}://${forwardedHost}/api/functions/receiveXPlaneData`;
+  }
+
+  return `${reqUrl.origin}/api/functions/receiveXPlaneData`;
+}
+
 function normalizeZipPath(path: string) {
   return path.replace(/\\/g, '/').replace(/^\.\/+/, '');
 }
@@ -137,8 +181,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await req.json().catch(() => ({}));
     const { apiKey } = await ensureCompanyApiKey(base44, user);
-    const endpoint = API_ENDPOINT_DEFAULT;
+    const endpoint = resolveEndpoint(req, body?.endpoint) || API_ENDPOINT_DEFAULT;
 
     const desktopZipBytes = await readFirstAvailable(DESKTOP_ZIP_CANDIDATES);
     const bridgeZipBytes = await readFirstAvailable(BRIDGE_ZIP_CANDIDATES);
@@ -155,11 +200,16 @@ Deno.serve(async (req) => {
     }
 
     let hasSimConnectCfg = false;
+    let hasBridgeConfig = false;
+    let bridgeExePath = '';
     for (const [name, file] of Object.entries(bridgeZip.files)) {
       if (file.dir) continue;
       const targetName = normalizeZipPath(name);
       if (!targetName) continue;
       const fileName = basename(targetName).toLowerCase();
+      if (fileName === 'skycareermsfsbridge.exe') {
+        bridgeExePath = targetName;
+      }
 
       if (fileName === 'simconnect.cfg') {
         hasSimConnectCfg = true;
@@ -169,14 +219,23 @@ Deno.serve(async (req) => {
         const configText = await file.async('string');
         const patchedConfig = patchBridgeConfig(configText, apiKey, endpoint);
         outputZip.file(targetName, patchedConfig);
+        hasBridgeConfig = true;
       } else {
         const data = await file.async('uint8array');
         outputZip.file(targetName, data);
       }
     }
 
+    if (bridgeExePath && !hasBridgeConfig) {
+      const slash = bridgeExePath.lastIndexOf('/');
+      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
+      outputZip.file(`${dir}SkyCareerMsfsBridge.exe.config`, buildBridgeConfig(apiKey, endpoint));
+    }
+
     if (!hasSimConnectCfg) {
-      outputZip.file('SimConnect.cfg', DEFAULT_SIMCONNECT_CFG);
+      const slash = bridgeExePath.lastIndexOf('/');
+      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
+      outputZip.file(`${dir}SimConnect.cfg`, DEFAULT_SIMCONNECT_CFG);
     }
     const finalZipBytes = await outputZip.generateAsync({
       type: 'uint8array',
