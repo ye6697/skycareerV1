@@ -1092,11 +1092,20 @@ Deno.serve(async (req) => {
       }, { status: 200 });
     }
     
-    const gameSettings = await getGameSettingsCached(base44);
-    const failureTriggersEnabled = gameSettings?.failure_triggers_enabled !== false;
-
     // Active flight: keep per-packet DB reads minimal so bridge latency stays low.
     const prevXd = flight.xplane_data || {};
+    const gameSettings = await getGameSettingsCached(base44);
+    const sessionFailureFlag = typeof prevXd?.failure_triggers_enabled === 'boolean'
+      ? prevXd.failure_triggers_enabled
+      : null;
+    const companyFailureFlag = typeof company?.failure_triggers_enabled === 'boolean'
+      ? company.failure_triggers_enabled
+      : null;
+    const failureTriggersEnabled = sessionFailureFlag === false
+      ? false
+      : (companyFailureFlag === false
+          ? false
+          : (gameSettings?.failure_triggers_enabled !== false));
     const hasActiveAirframeFailure = Array.isArray(flight.active_failures) && flight.active_failures.some((f: any) => {
       const cat = String(f?.category || "").toLowerCase().trim();
       return cat === "airframe";
@@ -1650,6 +1659,7 @@ Deno.serve(async (req) => {
       maintenance_failure_timestamp: (!failureTriggersEnabled || resetStaleFailureState)
         ? null
         : (data.maintenance_failure_timestamp || prevXd.maintenance_failure_timestamp || null),
+      failure_triggers_enabled: failureTriggersEnabled,
       bridge_event_log: Array.isArray(incomingBridgeEventLog) ? incomingBridgeEventLog.slice(-220) : [],
       // Preserve departure/arrival coords from first packet
       departure_lat: data.departure_lat || (prevXd.departure_lat || 0),
@@ -2027,9 +2037,19 @@ Deno.serve(async (req) => {
       const commandType = String(cmd?.type || "").toLowerCase().trim();
       return commandType === "worker_restart" || commandType === "restart_worker" || commandType === "bridge_worker_restart";
     };
+    const queuedBridgeCommandsSanitized = failureTriggersEnabled
+      ? queuedBridgeCommandsRaw
+      : queuedBridgeCommandsRaw.filter((cmd: any) => isWorkerRestartCommand(cmd));
+    if (!failureTriggersEnabled && queuedBridgeCommandsSanitized.length !== queuedBridgeCommandsRaw.length) {
+      updateData.bridge_command_queue = queuedBridgeCommandsSanitized;
+      updateData.xplane_data = {
+        ...xplaneData,
+        bridge_command_queue: queuedBridgeCommandsSanitized,
+      };
+    }
     if (resetStaleFailureState) {
       // Ensure old failures/commands do not leak into a newly started flight session.
-      const restartCommands = queuedBridgeCommandsRaw.filter((cmd: any) => isWorkerRestartCommand(cmd)).slice(-1);
+      const restartCommands = queuedBridgeCommandsSanitized.filter((cmd: any) => isWorkerRestartCommand(cmd)).slice(-1);
       updateData.active_failures = [];
       updateData.bridge_command_queue = restartCommands;
       updateData.xplane_data = {
@@ -2037,9 +2057,10 @@ Deno.serve(async (req) => {
         bridge_command_queue: restartCommands,
       };
     }
-    const bridgeCommandsForBridge = (resetStaleFailureState
-        ? queuedBridgeCommandsRaw.filter((cmd: any) => isWorkerRestartCommand(cmd))
-        : queuedBridgeCommandsRaw)
+    const dispatchCandidateQueue = (resetStaleFailureState || !failureTriggersEnabled)
+      ? queuedBridgeCommandsSanitized.filter((cmd: any) => isWorkerRestartCommand(cmd))
+      : queuedBridgeCommandsSanitized;
+    const bridgeCommandsForBridge = dispatchCandidateQueue
       .filter((cmd: any) => cmd && typeof cmd === "object" && cmd.type)
       .slice(0, 4)
       .map((cmd: any) => ({
@@ -2052,7 +2073,7 @@ Deno.serve(async (req) => {
       }));
     if (bridgeCommandsForBridge.length > 0) {
       const sentIds = new Set(bridgeCommandsForBridge.map((cmd: any) => String(cmd.id)));
-      const remainingCommands = queuedBridgeCommandsRaw.filter((cmd: any) => {
+      const remainingCommands = queuedBridgeCommandsSanitized.filter((cmd: any) => {
         const id = String(cmd?.id || "");
         return id.length === 0 || !sentIds.has(id);
       });

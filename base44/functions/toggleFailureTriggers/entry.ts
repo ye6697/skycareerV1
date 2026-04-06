@@ -80,6 +80,51 @@ Deno.serve(async (req) => {
       }).catch(() => null);
     }
 
+    if (typeof enabled === 'boolean') {
+      const isWorkerRestartCommand = (cmd: any) => {
+        const commandType = String(cmd?.type || '').toLowerCase().trim();
+        return commandType === 'worker_restart'
+          || commandType === 'restart_worker'
+          || commandType === 'bridge_worker_restart';
+      };
+      const flightFilter = companyId
+        ? { company_id: companyId, status: 'in_flight' }
+        : { status: 'in_flight' };
+      const activeFlights = await base44.asServiceRole.entities.Flight.filter(flightFilter);
+      await Promise.all(
+        (Array.isArray(activeFlights) ? activeFlights : [])
+          .filter((fl: any) => fl?.id)
+          .map(async (fl: any) => {
+            const rawQueue = Array.isArray(fl?.bridge_command_queue)
+              ? fl.bridge_command_queue
+              : (Array.isArray(fl?.xplane_data?.bridge_command_queue)
+                  ? fl.xplane_data.bridge_command_queue
+                  : []);
+            const nextQueue = enabled
+              ? rawQueue
+              : rawQueue.filter((cmd: any) => isWorkerRestartCommand(cmd));
+            const nextXplaneData = {
+              ...(fl?.xplane_data || {}),
+              failure_triggers_enabled: !!enabled,
+              bridge_command_queue: nextQueue,
+              maintenance_failure_category: enabled ? (fl?.xplane_data?.maintenance_failure_category ?? null) : null,
+              maintenance_failure_severity: enabled ? (fl?.xplane_data?.maintenance_failure_severity ?? null) : null,
+              maintenance_failure_timestamp: enabled ? (fl?.xplane_data?.maintenance_failure_timestamp ?? null) : null,
+            };
+            const updatePayload: any = {
+              bridge_command_queue: nextQueue,
+              xplane_data: nextXplaneData,
+            };
+            if (!enabled && Array.isArray(fl?.active_failures)) {
+              updatePayload.active_failures = fl.active_failures.filter((f: any) => (
+                String(f?.source || '').toLowerCase() !== 'bridge_maintenance_failure'
+              ));
+            }
+            await base44.asServiceRole.entities.Flight.update(fl.id, updatePayload).catch(() => null);
+          })
+      );
+    }
+
     return Response.json({
       success: true,
       enabled: persistedEnabled,
