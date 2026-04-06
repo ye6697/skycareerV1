@@ -1,4 +1,5 @@
 import React from 'react';
+import JSZip from "jszip";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -216,6 +217,63 @@ export default function XPlaneSetup() {
     return bytes;
   };
 
+  const escapeXml = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/'/g, '&apos;');
+
+  const buildBridgeConfigXml = (personalApiKey, telemetryEndpoint) => `<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <appSettings>
+    <add key="ApiEndpoint" value="${escapeXml(telemetryEndpoint)}" />
+    <add key="ApiKey" value="${escapeXml(personalApiKey)}" />
+    <add key="Simulator" value="auto" />
+    <add key="LoopIntervalMs" value="2000" />
+    <add key="PollIntervalMs" value="2000" />
+    <add key="SendIntervalMs" value="2000" />
+    <add key="SampleIntervalMs" value="200" />
+    <add key="HttpTimeoutMs" value="10000" />
+    <add key="AutoRestartWorkerOnTimeout" value="true" />
+    <add key="WorkerTimeoutMs" value="15000" />
+    <add key="WorkerRestartDelayMs" value="2000" />
+    <add key="MaxConsecutiveTimeouts" value="3" />
+    <add key="AutoStartOnSimulator" value="true" />
+    <add key="MonitorProcesses" value="FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12" />
+  </appSettings>
+</configuration>
+`;
+
+  const personalizeBridgePayloadZip = async (zipBytes, personalApiKey, telemetryEndpoint) => {
+    const zip = await JSZip.loadAsync(zipBytes);
+    const fileNames = Object.keys(zip.files).filter((name) => !zip.files[name]?.dir);
+    const bridgeExePath = fileNames.find((name) => /skycareermsfsbridge\.exe$/i.test(name));
+    if (!bridgeExePath) {
+      throw new Error('Bridge executable missing in payload zip');
+    }
+    const slash = bridgeExePath.lastIndexOf('/');
+    const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
+    const configPath = `${dir}SkyCareerMsfsBridge.exe.config`;
+    const simConnectCfgPath = `${dir}SimConnect.cfg`;
+
+    zip.file(configPath, buildBridgeConfigXml(personalApiKey, telemetryEndpoint));
+    const hasSimConnect = fileNames.some((name) => name.toLowerCase() === simConnectCfgPath.toLowerCase());
+    if (!hasSimConnect) {
+      zip.file(simConnectCfgPath, `[SimConnect]
+Protocol=Ipv4
+Address=localhost
+Port=500
+`);
+    }
+
+    return await zip.generateAsync({
+      type: 'uint8array',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    });
+  };
+
   const triggerZipDownload = (bytes, fileName) => {
     const blob = new Blob([bytes], { type: 'application/zip' });
     const url = window.URL.createObjectURL(blob);
@@ -309,30 +367,45 @@ export default function XPlaneSetup() {
       if (!bytes) {
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-        const githubMedia = `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`;
+        const payloadFile = 'SkyCareer_MSFS_Bridge_Payload.zip';
         const candidates = [
-          new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
-          new URL(`${normalizedBase}downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          new URL(`/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          githubMedia,
+          { url: new URL(`downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(), kind: 'payload', fileName: payloadFile },
+          { url: new URL(`${normalizedBase}downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'payload', fileName: payloadFile },
+          { url: new URL(`/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'payload', fileName: payloadFile },
+          { url: `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, kind: 'payload', fileName: payloadFile },
+          { url: new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(), kind: 'bootstrap', fileName: targetFile },
+          { url: new URL(`${normalizedBase}downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'bootstrap', fileName: targetFile },
+          { url: new URL(`/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(), kind: 'bootstrap', fileName: targetFile },
+          { url: `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, kind: 'bootstrap', fileName: targetFile },
         ];
 
-        for (const fileUrl of candidates) {
+        for (const candidate of candidates) {
           try {
-            const res = await fetch(fileUrl, { cache: 'no-store' });
+            const res = await fetch(candidate.url, { cache: 'no-store' });
             if (!res.ok) {
-              lastError = `HTTP ${res.status} @ ${fileUrl}`;
+              lastError = `HTTP ${res.status} @ ${candidate.url}`;
               continue;
             }
             const arr = new Uint8Array(await res.arrayBuffer());
             if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
-              bytes = arr;
-              fileName = targetFile;
+              if (candidate.kind === 'payload') {
+                try {
+                  const patched = await personalizeBridgePayloadZip(arr, apiKey || '', endpoint);
+                  bytes = patched;
+                  fileName = 'SkyCareer_MSFS_Bridge_Windows_Fallback_Personalized.zip';
+                } catch (zipPatchError) {
+                  lastError = `ZIP patch failed @ ${candidate.url}: ${zipPatchError?.message || zipPatchError}`;
+                  continue;
+                }
+              } else {
+                bytes = arr;
+                fileName = candidate.fileName || targetFile;
+              }
               break;
             }
-            lastError = `Invalid ZIP bytes @ ${fileUrl}`;
+            lastError = `Invalid ZIP bytes @ ${candidate.url}`;
           } catch (e) {
-            lastError = `${e?.message || e} @ ${fileUrl}`;
+            lastError = `${e?.message || e} @ ${candidate.url}`;
           }
         }
       }
