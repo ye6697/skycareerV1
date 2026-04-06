@@ -176,6 +176,7 @@ const COPY = {
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
   const text = COPY[lang] || COPY.en;
+  const DOWNLOAD_CACHE_BUST = '20260406-fix-download-fallback';
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
@@ -302,6 +303,37 @@ export default function XPlaneSetup() {
           }
         } catch (fallbackFnError) {
           lastError = fallbackFnError?.message || String(fallbackFnError);
+        }
+      }
+
+      if (!bytes) {
+        const basePath = import.meta?.env?.BASE_URL || '/';
+        const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+        const githubMedia = `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`;
+        const candidates = [
+          new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
+          new URL(`${normalizedBase}downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          new URL(`/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          githubMedia,
+        ];
+
+        for (const fileUrl of candidates) {
+          try {
+            const res = await fetch(fileUrl, { cache: 'no-store' });
+            if (!res.ok) {
+              lastError = `HTTP ${res.status} @ ${fileUrl}`;
+              continue;
+            }
+            const arr = new Uint8Array(await res.arrayBuffer());
+            if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
+              bytes = arr;
+              fileName = targetFile;
+              break;
+            }
+            lastError = `Invalid ZIP bytes @ ${fileUrl}`;
+          } catch (e) {
+            lastError = `${e?.message || e} @ ${fileUrl}`;
+          }
         }
       }
 
