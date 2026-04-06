@@ -2147,6 +2147,9 @@ Deno.serve(async (req) => {
     // Use cached maintenance ratio from Company as baseline.
     // Per-aircraft wear is evaluated inside the trigger block.
     const maintenanceRatio = Number(company?.current_maintenance_ratio || prevXd.aircraft_maintenance_ratio || 0) || 0;
+    // Hard-stop bridge-side failure generation when the toggle is OFF.
+    // Some MSFS bridge runtimes can derive local failures from this ratio.
+    const maintenanceRatioForBridge = failureTriggersEnabled ? maintenanceRatio : 0;
     
     const completionReady = on_ground && hasBeenAirborne && completionArmed;
     const flightStatus = completionReady ? 'ready_to_complete' : 'updated';
@@ -2553,7 +2556,7 @@ Deno.serve(async (req) => {
       on_ground,
       park_brake,
       engines_running: areEnginesRunning,
-      maintenance_ratio: maintenanceRatio,
+      maintenance_ratio: maintenanceRatioForBridge,
       failure_triggers_enabled: failureTriggersEnabled,
       bridge_commands: bridgeCommandsForBridge,
       trigger_engine_failure: bridgeCommandsForBridge.some((cmd: any) =>

@@ -105,13 +105,18 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
   const rawCurrentValue = aircraft.current_value || aircraft.purchase_price || 0;
-  const accumulatedMaintCost = aircraft.accumulated_maintenance_cost || 0;
+  const maintenanceValueCap = Math.max(0, Number(aircraft.purchase_price || aircraft.original_purchase_price || rawCurrentValue || 0));
+  const accumulatedMaintCostRaw = Math.max(0, Number(aircraft.accumulated_maintenance_cost || 0));
+  const accumulatedMaintCost = maintenanceValueCap > 0
+    ? Math.min(accumulatedMaintCostRaw, maintenanceValueCap)
+    : accumulatedMaintCostRaw;
   // Temporär Wartungskosten vom Wert abziehen (bis gewartet)
   const currentValue = Math.max(0, rawCurrentValue - accumulatedMaintCost);
   
   // New category-based maintenance check
   const cats = normalizeMaintenanceCategoryMap(aircraft.maintenance_categories);
-  const permanentCats = normalizeMaintenanceCategoryMap(aircraft.permanent_wear_categories);
+  const fallbackPermanentWear = Math.max(0, Math.min(100, Number(aircraft?.used_permanent_avg || 0)));
+  const permanentCats = normalizeMaintenanceCategoryMap(aircraft.permanent_wear_categories, fallbackPermanentWear);
   const catValues = [
     (cats.engine || 0) + (permanentCats.engine || 0), (cats.hydraulics || 0) + (permanentCats.hydraulics || 0), (cats.avionics || 0) + (permanentCats.avionics || 0),
     (cats.airframe || 0) + (permanentCats.airframe || 0), (cats.landing_gear || 0) + (permanentCats.landing_gear || 0), (cats.electrical || 0) + (permanentCats.electrical || 0),

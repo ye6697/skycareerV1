@@ -533,6 +533,11 @@ export default function Fleet() {
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
       const maintenanceCategories = makeCategoryMap(aircraftData.maintenance_categories, 0);
+      const dynamicWearValues = Object.values(maintenanceCategories).map((value) => Math.max(0, Number(value || 0)));
+      const avgDynamicWearPct = dynamicWearValues.length > 0
+        ? dynamicWearValues.reduce((sum, value) => sum + value, 0) / dynamicWearValues.length
+        : 0;
+      const dynamicWearRatio = Math.max(0, Math.min(1, avgDynamicWearPct / 100));
       const permanentFromListing = makeCategoryMap(aircraftData.permanent_wear_categories, 0);
       const hasPermanentFromListing = Object.values(permanentFromListing).some((value) => value > 0);
       const defaultPermanentByCondition = {
@@ -551,6 +556,22 @@ export default function Fleet() {
       const permanentCategories = hasPermanentFromListing ?
       permanentFromListing :
       makeCategoryMap(null, permanentFallbackValue);
+      const permanentValues = Object.values(permanentCategories).map((value) => Math.max(0, Number(value || 0)));
+      const persistedPermanentAvg = permanentValues.length > 0
+        ? Number((permanentValues.reduce((sum, value) => sum + value, 0) / permanentValues.length).toFixed(2))
+        : 0;
+      const rawAccumulatedMaintenanceCost = Math.max(0, Number(aircraftData.accumulated_maintenance_cost || 0));
+      const maxAccumulatedForAircraftValue = Math.max(0, finalPurchasePrice);
+      const maxAccumulatedFromDynamicWear = Math.round(maxAccumulatedForAircraftValue * dynamicWearRatio);
+      const initialAccumulatedMaintenanceCost = Math.min(
+        rawAccumulatedMaintenanceCost,
+        maxAccumulatedForAircraftValue,
+        maxAccumulatedFromDynamicWear
+      );
+      const initialLifetimeMaintenanceCost = Math.max(
+        initialAccumulatedMaintenanceCost,
+        Math.max(0, Number(aircraftData.lifetime_maintenance_cost || 0))
+      );
       await base44.entities.Aircraft.create({
         ...specs,
         purchase_price: finalPurchasePrice,
@@ -567,11 +588,14 @@ export default function Fleet() {
         insurance_score_bonus_pct: defaultInsurance.scoreBonusPct,
         maintenance_categories: maintenanceCategories,
         permanent_wear_categories: permanentCategories,
-        lifetime_maintenance_cost: Number(aircraftData.lifetime_maintenance_cost || 0),
-        accumulated_maintenance_cost: Number(aircraftData.accumulated_maintenance_cost || 0),
+        lifetime_maintenance_cost: initialLifetimeMaintenanceCost,
+        accumulated_maintenance_cost: initialAccumulatedMaintenanceCost,
         market_origin: aircraftData.marketType || 'new',
         used_condition_key: aircraftData.used_condition_key || null,
-        used_age_years: Number(aircraftData.used_age_years || 0)
+        used_age_years: Number(aircraftData.used_age_years || 0),
+        used_wear_avg: Number(aircraftData.used_wear_avg || 0),
+        used_wear_peak: Number(aircraftData.used_wear_peak || 0),
+        used_permanent_avg: Number(aircraftData.used_permanent_avg || persistedPermanentAvg || 0)
       });
 
       if (company) {

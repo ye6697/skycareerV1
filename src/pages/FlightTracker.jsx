@@ -2262,10 +2262,31 @@ export default function FlightTracker() {
             await base44.entities.Contract.update(activeFlight.contract_id, { status: (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed' });
 
             // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
-            const currentAccumulatedCost = airplaneToUpdate?.accumulated_maintenance_cost || 0;
-            const newAccumulatedCost = currentAccumulatedCost + maintenanceCostAfterInsurance;
+            const aircraftNewValueCap = Math.max(
+              0,
+              Number(
+                airplaneToUpdate?.purchase_price ||
+                airplaneToUpdate?.original_purchase_price ||
+                airplaneToUpdate?.current_value ||
+                0
+              )
+            );
+            const currentAccumulatedCost = Math.max(0, Number(airplaneToUpdate?.accumulated_maintenance_cost || 0));
+            const maintenanceDeltaCapped = aircraftNewValueCap > 0
+              ? Math.min(Math.max(0, maintenanceCostAfterInsurance), aircraftNewValueCap)
+              : Math.max(0, maintenanceCostAfterInsurance);
+            const newAccumulatedCostRaw = currentAccumulatedCost + maintenanceDeltaCapped;
+            const newAccumulatedCost = aircraftNewValueCap > 0
+              ? Math.min(aircraftNewValueCap, newAccumulatedCostRaw)
+              : newAccumulatedCostRaw;
 
-            console.log('Wartungskosten Update:', { currentAccumulatedCost, totalMaintenanceCostWithCrash, newAccumulatedCost });
+            console.log('Wartungskosten Update:', {
+              currentAccumulatedCost,
+              maintenanceDeltaCapped,
+              totalMaintenanceCostWithCrash,
+              aircraftNewValueCap,
+              newAccumulatedCost
+            });
 
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (activeFlight?.aircraft_id) {
@@ -2280,14 +2301,23 @@ export default function FlightTracker() {
                     updatedCats[cat] = 100; // Everything maxed on crash
                   }
                 }
-                const existingPermanentCats = normalizeMaintenanceCategoryMap(airplaneToUpdate?.permanent_wear_categories);
+                const permanentFallbackFromUsed = Math.max(
+                  0,
+                  Math.min(100, Number(airplaneToUpdate?.used_permanent_avg || 0))
+                );
+                const existingPermanentCats = normalizeMaintenanceCategoryMap(
+                  airplaneToUpdate?.permanent_wear_categories,
+                  permanentFallbackFromUsed
+                );
                 const updatedPermanentCats = {};
                 const eventsForPermanent = finalFlightData?.events || {};
                 for (const cat of maintenanceCategories) {
                   const permanent = Number(existingPermanentCats?.[cat] || 0);
                   const safePermanent = Number.isFinite(permanent) ? Math.max(0, permanent) : 0;
                   const addedWear = Math.max(0, Number(roundedFlightDamage?.[cat] || 0));
-                  const wearBasedPermanentGain = Math.min(0.9, addedWear * 0.03);
+                  const wearBasedPermanentGain = addedWear > 0
+                    ? Math.max(0.08, Math.min(1.25, addedWear * 0.06))
+                    : 0;
                   let eventBonus = 0;
                   if (hasCrashed) {
                     eventBonus = 2.5;

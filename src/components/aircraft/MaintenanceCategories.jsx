@@ -260,18 +260,24 @@ export default function MaintenanceCategories({ aircraft }) {
 
   const overdraftBlocked = isAtOverdraftLimit(companyForLimit);
   const cats = normalizeMaintenanceCategoryMap(aircraft?.maintenance_categories);
-  const permanentCats = normalizeMaintenanceCategoryMap(aircraft?.permanent_wear_categories);
+  const fallbackPermanentWear = Math.max(0, Math.min(100, Number(aircraft?.used_permanent_avg || 0)));
+  const permanentCats = normalizeMaintenanceCategoryMap(aircraft?.permanent_wear_categories, fallbackPermanentWear);
   const activeInsurance = resolveAircraftInsurance(aircraft);
   const insuranceCoveragePct = Math.max(0, Math.min(1, Number(activeInsurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));
   const currentValue = Math.max(0, Number(aircraft?.current_value || purchasePrice));
-  const accumulatedCost = Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0));
+  const rawAccumulatedCost = Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0));
+  // Never let the maintenance backlog exceed aircraft new value.
+  const accumulatedCost = Math.min(rawAccumulatedCost, purchasePrice);
   const totalDynamicWear = categories.reduce((sum, c) => sum + clampPct(cats[c.key]), 0);
 
   const getCategoryCost = (key) => {
     const wear = clampPct(cats[key]);
     if (wear <= 0 || totalDynamicWear <= 0 || accumulatedCost <= 0) return 0;
-    return Math.round(accumulatedCost * (wear / totalDynamicWear));
+    const wearShare = wear / totalDynamicWear;
+    const grossRaw = accumulatedCost * wearShare;
+    const categoryCap = purchasePrice * wearShare;
+    return Math.round(Math.min(grossRaw, categoryCap));
   };
 
   const getCategoryCostSummary = (key) => {
@@ -282,7 +288,8 @@ export default function MaintenanceCategories({ aircraft }) {
   };
 
   const totalCostSummary = (() => {
-    const gross = Math.round(accumulatedCost);
+    const grossByCategory = categories.reduce((sum, cat) => sum + getCategoryCost(cat.key), 0);
+    const gross = Math.max(0, Math.min(Math.round(accumulatedCost), grossByCategory));
     const insuranceCovered = Math.round(gross * insuranceCoveragePct);
     const payable = Math.max(0, gross - insuranceCovered);
     return { gross, insuranceCovered, payable };
@@ -310,8 +317,8 @@ export default function MaintenanceCategories({ aircraft }) {
     return {
       title: lang === 'de' ? 'Live-Kosten und Trigger' : 'Live cost and triggers',
       details: lang === 'de'
-        ? `Kategorie: ${category.description}. Aktiver Verschleiss ${wear.toFixed(1)}%, permanenter Verschleiss ${permanent.toFixed(1)}%.`
-        : `Category: ${category.description}. Active wear ${wear.toFixed(1)}%, permanent wear ${permanent.toFixed(1)}%.`,
+        ? `Kategorie: ${category.description}. Aktiver Verschleiss ${wear.toFixed(1)}%, permanenter Verschleiss ${permanent.toFixed(2)}%.`
+        : `Category: ${category.description}. Active wear ${wear.toFixed(1)}%, permanent wear ${permanent.toFixed(2)}%.`,
       formula: lang === 'de'
         ? 'Kosten = Wartungspool x (Kategorie-Verschleiss / Summe aktiver Verschleisswerte)'
         : 'Cost = maintenance pool x (category wear / sum of active wear)',
@@ -557,7 +564,7 @@ export default function MaintenanceCategories({ aircraft }) {
                     {lang === 'de' ? 'Aktiv' : 'Active'} {activeWear.toFixed(1)}%
                   </div>
                   <div className="text-[11px] text-red-400 font-mono">
-                    {lang === 'de' ? 'Permanent' : 'Permanent'} {permanentWear.toFixed(1)}%
+                    {lang === 'de' ? 'Permanent' : 'Permanent'} {permanentWear.toFixed(2)}%
                   </div>
                   <div className="text-[11px] text-slate-300 font-mono">
                     ${Math.round(costSummary.payable).toLocaleString()}
