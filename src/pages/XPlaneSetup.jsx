@@ -177,6 +177,7 @@ const COPY = {
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
   const text = COPY[lang] || COPY.en;
+  const BRIDGE_VERSION = 'bridge-2026-04-06-r2';
   const DOWNLOAD_CACHE_BUST = '20260406-fix-download-fallback';
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
@@ -239,6 +240,7 @@ export default function XPlaneSetup() {
     <add key="WorkerTimeoutMs" value="15000" />
     <add key="WorkerRestartDelayMs" value="2000" />
     <add key="MaxConsecutiveTimeouts" value="3" />
+    <add key="BridgeVersion" value="${escapeXml(BRIDGE_VERSION)}" />
     <add key="AutoStartOnSimulator" value="true" />
     <add key="MonitorProcesses" value="FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12" />
   </appSettings>
@@ -256,8 +258,10 @@ export default function XPlaneSetup() {
     const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
     const configPath = `${dir}SkyCareerMsfsBridge.exe.config`;
     const simConnectCfgPath = `${dir}SimConnect.cfg`;
+    const bridgeVersionPath = `${dir}BRIDGE_VERSION.txt`;
 
     zip.file(configPath, buildBridgeConfigXml(personalApiKey, telemetryEndpoint));
+    zip.file(bridgeVersionPath, `${BRIDGE_VERSION}\n`);
     const hasSimConnect = fileNames.some((name) => name.toLowerCase() === simConnectCfgPath.toLowerCase());
     if (!hasSimConnect) {
       zip.file(simConnectCfgPath, `[SimConnect]
@@ -294,6 +298,14 @@ Port=500
       const data = await file.async('uint8array');
       bridgeZip.file(fileName, data);
     }
+    bridgeZip.file('README_START_HERE.txt', `SkyCareer MSFS Bridge (${BRIDGE_VERSION})
+
+1) Run: SC Installer.exe (recommended)
+2) If needed, remove everything with: SC Uninstaller.exe
+3) Bridge runtime files are inside the folder: SkyCareer_MSFS_Bridge
+4) Direct start (without installer): open SkyCareer_MSFS_Bridge and run SkyCareerMsfsBridge.exe
+`);
+    bridgeZip.file('BRIDGE_VERSION.txt', `${BRIDGE_VERSION}\n`);
 
     return await bridgeZip.generateAsync({
       type: 'uint8array',

@@ -276,6 +276,11 @@ Deno.serve(async (req) => {
       const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
       bridgeConfigPath = `${dir}SkyCareerMsfsBridge.exe.config`;
       outputZip.file(bridgeConfigPath, buildBridgeConfig(apiKey, endpoint));
+      outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
+    } else if (bridgeExePath) {
+      const slash = bridgeExePath.lastIndexOf('/');
+      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
+      outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
     }
 
     if (bridgeExePath && !hasSimConnectCfg) {
@@ -285,6 +290,7 @@ Deno.serve(async (req) => {
     }
 
     outputZip.file('README_START_HERE.txt', BRIDGE_ROOT_README);
+    outputZip.file('BRIDGE_VERSION.txt', `${BRIDGE_VERSION}\n`);
     const finalZipBytes = await outputZip.generateAsync({
       type: 'uint8array',
       compression: 'DEFLATE',
