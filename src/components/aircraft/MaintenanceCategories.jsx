@@ -150,10 +150,21 @@ export default function MaintenanceCategories({ aircraft }) {
       const targetCompanyId = company?.id || aircraft?.company_id || null;
 
       const fallbackDirectUpdate = async () => {
-        if (!targetCompanyId) throw new Error('Unternehmen nicht gefunden');
-        await base44.entities.Company.update(targetCompanyId, {
-          failure_triggers_enabled: targetEnabled,
-        });
+        const settings = await base44.entities.GameSettings.list();
+        if (settings[0]?.id) {
+          await base44.entities.GameSettings.update(settings[0].id, {
+            failure_triggers_enabled: targetEnabled,
+          });
+        } else {
+          await base44.entities.GameSettings.create({
+            failure_triggers_enabled: targetEnabled,
+          });
+        }
+        if (targetCompanyId) {
+          await base44.entities.Company.update(targetCompanyId, {
+            failure_triggers_enabled: targetEnabled,
+          });
+        }
         return targetEnabled;
       };
 

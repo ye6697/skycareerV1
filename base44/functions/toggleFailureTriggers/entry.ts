@@ -30,14 +30,19 @@ Deno.serve(async (req) => {
     const settingsRows = await base44.asServiceRole.entities.GameSettings.list();
     let settings = settingsRows[0] || null;
     if (typeof enabled === 'boolean') {
-      if (settings?.id) {
-        await base44.asServiceRole.entities.GameSettings.update(settings.id, {
-          failure_triggers_enabled: !!enabled,
-        });
-      } else {
+      if (!settingsRows.length) {
         settings = await base44.asServiceRole.entities.GameSettings.create({
           failure_triggers_enabled: !!enabled,
         });
+      } else {
+        await Promise.all(
+          settingsRows
+            .filter((row) => row?.id)
+            .map((row) => base44.asServiceRole.entities.GameSettings.update(row.id, {
+              failure_triggers_enabled: !!enabled,
+            }))
+        );
+        settings = settingsRows[0] || null;
       }
       // Keep company field in sync if available (best effort only).
       if (companyId) {
@@ -56,8 +61,8 @@ Deno.serve(async (req) => {
 
     const refreshedSettingsRows = await base44.asServiceRole.entities.GameSettings.list();
     const refreshedSettings = refreshedSettingsRows[0] || settings;
-    const persistedEnabled = (typeof refreshedSettings?.failure_triggers_enabled === 'boolean')
-      ? refreshedSettings.failure_triggers_enabled
+    const persistedEnabled = refreshedSettingsRows.length
+      ? refreshedSettingsRows.some((row) => row?.failure_triggers_enabled !== false)
       : (typeof enabled === 'boolean' ? !!enabled : true);
 
     if (companyId) {

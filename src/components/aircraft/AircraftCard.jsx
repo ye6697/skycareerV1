@@ -290,6 +290,11 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           insurance_score_bonus_pct: config.scoreBonusPct,
         });
       }
+      const verifyRows = await base44.entities.Aircraft.filter({ id: aircraft.id });
+      const persistedPlan = String(verifyRows?.[0]?.insurance_plan || '').trim().toLowerCase();
+      if (persistedPlan !== targetPlan) {
+        throw new Error('insurance_verify_mismatch');
+      }
     },
     onSuccess: async (_data, planKey) => {
       setOptimisticInsurancePlan(planKey);

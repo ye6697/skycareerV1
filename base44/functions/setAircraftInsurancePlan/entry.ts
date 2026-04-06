@@ -62,6 +62,22 @@ Deno.serve(async (req) => {
       insurance_score_bonus_pct: plan.scoreBonusPct,
     });
 
+    // Keep in-flight session metadata aligned so result views don't fall back to BASIC.
+    const activeFlights = await base44.asServiceRole.entities.Flight.filter({ aircraft_id: aircraft.id, status: 'in_flight' });
+    await Promise.all(
+      (Array.isArray(activeFlights) ? activeFlights : [])
+        .filter((fl) => fl?.id)
+        .map((fl) => base44.asServiceRole.entities.Flight.update(fl.id, {
+          xplane_data: {
+            ...(fl?.xplane_data || {}),
+            insurance_plan: plan.key,
+            insurance_hourly_rate_pct: plan.hourlyRatePctOfNewValue,
+            insurance_coverage_pct: Math.round(plan.maintenanceCoveragePct * 100),
+            insurance_score_bonus_pct: Math.round(plan.scoreBonusPct * 100),
+          },
+        }))
+    );
+
     if (aircraft.company_id && (!userCompanyId || String(userCompanyId) !== String(aircraft.company_id))) {
       try {
         await base44.auth.updateMe({ company_id: aircraft.company_id });
