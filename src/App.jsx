@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -11,6 +12,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
+const APP_BUILD_MARKER = 'app-2026-04-06-a';
 
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
@@ -65,6 +67,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  useEffect(() => {
+    document.title = `SkyCareer ${APP_BUILD_MARKER}`;
+  }, []);
 
   return (
     <AuthProvider>
