@@ -26,7 +26,7 @@ import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
-const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-b';
+const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-c';
 
 const AIRCRAFT_MARKET_SPECS = [
   // === SMALL PROPS (Level 1) ===
@@ -391,10 +391,20 @@ export default function Fleet() {
   React.useEffect(() => {
     setLocalFailureOverride(null);
     try {
-      const storageKey = `failure_toggle_${company?.id || 'default'}`;
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw === 'true') setLocalFailureOverride(true);
-      else if (raw === 'false') setLocalFailureOverride(false);
+      const keys = company?.id
+        ? [`failure_toggle_${company.id}`, 'failure_toggle_default']
+        : ['failure_toggle_default'];
+      for (const storageKey of keys) {
+        const raw = window.localStorage.getItem(storageKey);
+        if (raw === 'true') {
+          setLocalFailureOverride(true);
+          break;
+        }
+        if (raw === 'false') {
+          setLocalFailureOverride(false);
+          break;
+        }
+      }
     } catch (_) {
       // ignore storage errors
     }
@@ -403,8 +413,11 @@ export default function Fleet() {
   const persistFailureOverride = React.useCallback((value) => {
     setLocalFailureOverride(value);
     try {
-      const storageKey = `failure_toggle_${company?.id || 'default'}`;
-      window.localStorage.setItem(storageKey, String(!!value));
+      const normalized = String(!!value);
+      window.localStorage.setItem('failure_toggle_default', normalized);
+      if (company?.id) {
+        window.localStorage.setItem(`failure_toggle_${company.id}`, normalized);
+      }
     } catch (_) {
       // ignore storage errors
     }

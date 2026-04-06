@@ -116,6 +116,15 @@ export default function ActiveFlights() {
       }
 
       const nowIso = new Date().toISOString();
+      const normalizePctLike = (value) => {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return null;
+        return n > 1 && n <= 100 ? (n / 100) : n;
+      };
+      const insurancePlan = String(ac?.insurance_plan || '').trim().toLowerCase() || 'basic';
+      const insuranceHourlyRatePct = normalizePctLike(ac?.insurance_hourly_rate_pct);
+      const insuranceCoveragePct = normalizePctLike(ac?.insurance_maintenance_coverage_pct);
+      const insuranceScoreBonusPct = normalizePctLike(ac?.insurance_score_bonus_pct);
       const restartCommand = {
         id: `cmd-worker-restart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: 'worker_restart',
@@ -155,6 +164,10 @@ export default function ActiveFlights() {
           flight_events_log: [],
           bridge_event_log: [],
           telemetry_history: [],
+          insurance_plan: insurancePlan,
+          insurance_hourly_rate_pct: insuranceHourlyRatePct,
+          insurance_coverage_pct: insuranceCoveragePct !== null ? Math.round(insuranceCoveragePct * 100) : null,
+          insurance_score_bonus_pct: insuranceScoreBonusPct !== null ? Math.round(insuranceScoreBonusPct * 100) : null,
           bridge_reset_requested_at: nowIso,
           bridge_reset_reason: 'new_contract_flight_start',
           bridge_command_queue: [restartCommand]

@@ -54,7 +54,7 @@ function getProgressColor(percent) {
 }
 
 const clampPct = (value) => Math.max(0, Math.min(100, Number(value) || 0));
-const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-b';
+const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-c';
 
 export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
@@ -142,10 +142,21 @@ export default function MaintenanceCategories({ aircraft }) {
 
   React.useEffect(() => {
     try {
-      const storageKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw === 'true') setLocalFailureOverride(true);
-      else if (raw === 'false') setLocalFailureOverride(false);
+      const scopedKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
+      const keys = scopedKey === 'failure_toggle_default'
+        ? ['failure_toggle_default']
+        : [scopedKey, 'failure_toggle_default'];
+      for (const storageKey of keys) {
+        const raw = window.localStorage.getItem(storageKey);
+        if (raw === 'true') {
+          setLocalFailureOverride(true);
+          break;
+        }
+        if (raw === 'false') {
+          setLocalFailureOverride(false);
+          break;
+        }
+      }
     } catch (_) {
       // ignore storage errors
     }
@@ -154,8 +165,10 @@ export default function MaintenanceCategories({ aircraft }) {
   const persistFailureOverride = (value) => {
     setLocalFailureOverride(value);
     try {
-      const storageKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
-      window.localStorage.setItem(storageKey, String(!!value));
+      const normalized = String(!!value);
+      const scopedKey = `failure_toggle_${aircraft?.company_id || companyForLimit?.id || 'default'}`;
+      window.localStorage.setItem(scopedKey, normalized);
+      window.localStorage.setItem('failure_toggle_default', normalized);
     } catch (_) {
       // ignore storage errors
     }

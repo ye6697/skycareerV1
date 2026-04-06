@@ -163,9 +163,11 @@ const getGameSettingsCached = async (base44) => {
   if (gameSettingsCache && gameSettingsCache.expiresAt > now) {
     return cloneValue(gameSettingsCache.settings);
   }
+  // For stale cache entries, do a blocking refresh so toggle changes apply immediately.
   if (gameSettingsCache?.settings !== undefined) {
-    refreshGameSettingsCacheAsync(base44);
-    return cloneValue(gameSettingsCache.settings);
+    const fresh = await fetchGameSettings(base44);
+    setGameSettingsCache(fresh);
+    return cloneValue(fresh);
   }
   const fresh = await fetchGameSettings(base44);
   setGameSettingsCache(fresh);
