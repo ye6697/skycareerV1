@@ -26,6 +26,8 @@ import {
         Trophy
       } from "lucide-react";
 
+const APP_UI_VERSION = 'app-2026-04-06-a';
+
 function getNavItems(lang) {
   return [
     { name: t('nav_dashboard', lang), icon: LayoutDashboard, path: "Dashboard" },
@@ -126,6 +128,9 @@ function LayoutInner({ children, currentPageName }) {
           </div>
           <span className="text-[10px] font-mono text-slate-400 hidden sm:inline-block bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
              XP: {company?.experience_points || 0} | ${company?.balance?.toLocaleString() || 0}
+          </span>
+          <span className="text-[8px] sm:text-[9px] font-mono text-slate-600 inline-block select-none">
+            v {APP_UI_VERSION}
           </span>
           <button onClick={() => setLang(lang === 'en' ? 'de' : 'en')} className="h-10 w-10 sm:h-auto sm:w-auto sm:px-1.5 sm:py-0.5 flex items-center justify-center text-xs sm:text-[10px] font-mono font-bold text-cyan-400 uppercase border border-cyan-800 rounded bg-cyan-950/30 hover:bg-cyan-900/50 active:bg-cyan-900/70 transition-colors touch-manipulation select-none relative z-[52]">
             {lang}
