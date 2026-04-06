@@ -47,7 +47,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { calculateInsuranceForFlight, resolveAircraftInsurance } from "@/lib/insurance";
-import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap } from "@/lib/maintenance";
+import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
 
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
@@ -2305,10 +2305,18 @@ export default function FlightTracker() {
                   0,
                   Math.min(100, Number(airplaneToUpdate?.used_permanent_avg || 0))
                 );
-                const existingPermanentCats = normalizeMaintenanceCategoryMap(
-                  airplaneToUpdate?.permanent_wear_categories,
-                  permanentFallbackFromUsed
-                );
+                const storedPermanentCats = normalizeMaintenanceCategoryMap(airplaneToUpdate?.permanent_wear_categories, 0);
+                const listingPermanentCats = normalizeMaintenanceCategoryMap(airplaneToUpdate?.used_listing_permanent_wear_categories, 0);
+                const hasStoredPermanentCats = maintenanceCategories.some((key) => Number(storedPermanentCats?.[key] || 0) > 0);
+                const hasListingPermanentCats = maintenanceCategories.some((key) => Number(listingPermanentCats?.[key] || 0) > 0);
+                const existingPermanentCats = hasStoredPermanentCats
+                  ? storedPermanentCats
+                  : (hasListingPermanentCats
+                    ? listingPermanentCats
+                    : resolvePermanentWearCategories(
+                      airplaneToUpdate?.permanent_wear_categories,
+                      permanentFallbackFromUsed
+                    ));
                 const updatedPermanentCats = {};
                 const eventsForPermanent = finalFlightData?.events || {};
                 for (const cat of maintenanceCategories) {

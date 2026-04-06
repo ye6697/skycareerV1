@@ -36,6 +36,17 @@ export function normalizeMaintenanceCategoryMap(source, fallbackValue = 0) {
   }, {});
 }
 
+export function resolvePermanentWearCategories(source, fallbackValue = 0) {
+  const normalized = normalizeMaintenanceCategoryMap(source, 0);
+  const fallback = clamp(toFinite(fallbackValue, 0), 0, 100);
+  const hasExplicitPermanentWear = MAINTENANCE_CATEGORY_KEYS.some((key) => normalized[key] > 0);
+  if (hasExplicitPermanentWear || fallback <= 0) return normalized;
+  return MAINTENANCE_CATEGORY_KEYS.reduce((acc, key) => {
+    acc[key] = fallback;
+    return acc;
+  }, {});
+}
+
 export function calculatePermanentWearIncrease({ repairedWearPct, repairCost, purchasePrice }) {
   const repairedWear = clamp(toFinite(repairedWearPct, 0), 0, 100);
   const cost = Math.max(0, toFinite(repairCost, 0));

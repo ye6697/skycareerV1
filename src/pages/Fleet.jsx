@@ -588,11 +588,13 @@ export default function Fleet() {
         insurance_score_bonus_pct: defaultInsurance.scoreBonusPct,
         maintenance_categories: maintenanceCategories,
         permanent_wear_categories: permanentCategories,
+        used_listing_permanent_wear_categories: permanentCategories,
         lifetime_maintenance_cost: initialLifetimeMaintenanceCost,
         accumulated_maintenance_cost: initialAccumulatedMaintenanceCost,
         market_origin: aircraftData.marketType || 'new',
         used_condition_key: aircraftData.used_condition_key || null,
         used_age_years: Number(aircraftData.used_age_years || 0),
+        source_market_listing_id: aircraftData.market_listing_id || null,
         used_wear_avg: Number(aircraftData.used_wear_avg || 0),
         used_wear_peak: Number(aircraftData.used_wear_peak || 0),
         used_permanent_avg: Number(aircraftData.used_permanent_avg || persistedPermanentAvg || 0)

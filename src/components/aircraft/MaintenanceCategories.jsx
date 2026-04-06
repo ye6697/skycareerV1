@@ -8,7 +8,7 @@ import { isAtOverdraftLimit } from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t as tl } from "@/components/i18n/translations";
 import { resolveAircraftInsurance } from "@/lib/insurance";
-import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap } from "@/lib/maintenance";
+import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
 import {
   Dialog,
   DialogContent,
@@ -261,7 +261,15 @@ export default function MaintenanceCategories({ aircraft }) {
   const overdraftBlocked = isAtOverdraftLimit(companyForLimit);
   const cats = normalizeMaintenanceCategoryMap(aircraft?.maintenance_categories);
   const fallbackPermanentWear = Math.max(0, Math.min(100, Number(aircraft?.used_permanent_avg || 0)));
-  const permanentCats = normalizeMaintenanceCategoryMap(aircraft?.permanent_wear_categories, fallbackPermanentWear);
+  const currentPermanentCats = normalizeMaintenanceCategoryMap(aircraft?.permanent_wear_categories, 0);
+  const listingPermanentCats = normalizeMaintenanceCategoryMap(aircraft?.used_listing_permanent_wear_categories, 0);
+  const hasCurrentPermanentCats = MAINTENANCE_CATEGORY_KEYS.some((key) => Number(currentPermanentCats?.[key] || 0) > 0);
+  const hasListingPermanentCats = MAINTENANCE_CATEGORY_KEYS.some((key) => Number(listingPermanentCats?.[key] || 0) > 0);
+  const permanentCats = hasCurrentPermanentCats
+    ? currentPermanentCats
+    : (hasListingPermanentCats
+      ? listingPermanentCats
+      : resolvePermanentWearCategories(aircraft?.permanent_wear_categories, fallbackPermanentWear));
   const activeInsurance = resolveAircraftInsurance(aircraft);
   const insuranceCoveragePct = Math.max(0, Math.min(1, Number(activeInsurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));

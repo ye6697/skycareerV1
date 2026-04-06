@@ -29,7 +29,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { calculateInsuranceForFlight, DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig, INSURANCE_PACKAGES, resolveAircraftInsurance } from '@/lib/insurance';
-import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap } from '@/lib/maintenance';
+import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from '@/lib/maintenance';
 const INSURANCE_UI_VERSION = 'ins-2026-04-06-a';
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
@@ -116,7 +116,15 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   // New category-based maintenance check
   const cats = normalizeMaintenanceCategoryMap(aircraft.maintenance_categories);
   const fallbackPermanentWear = Math.max(0, Math.min(100, Number(aircraft?.used_permanent_avg || 0)));
-  const permanentCats = normalizeMaintenanceCategoryMap(aircraft.permanent_wear_categories, fallbackPermanentWear);
+  const currentPermanentCats = normalizeMaintenanceCategoryMap(aircraft?.permanent_wear_categories, 0);
+  const listingPermanentCats = normalizeMaintenanceCategoryMap(aircraft?.used_listing_permanent_wear_categories, 0);
+  const hasCurrentPermanentCats = MAINTENANCE_CATEGORY_KEYS.some((key) => Number(currentPermanentCats?.[key] || 0) > 0);
+  const hasListingPermanentCats = MAINTENANCE_CATEGORY_KEYS.some((key) => Number(listingPermanentCats?.[key] || 0) > 0);
+  const permanentCats = hasCurrentPermanentCats
+    ? currentPermanentCats
+    : (hasListingPermanentCats
+      ? listingPermanentCats
+      : resolvePermanentWearCategories(aircraft.permanent_wear_categories, fallbackPermanentWear));
   const catValues = [
     (cats.engine || 0) + (permanentCats.engine || 0), (cats.hydraulics || 0) + (permanentCats.hydraulics || 0), (cats.avionics || 0) + (permanentCats.avionics || 0),
     (cats.airframe || 0) + (permanentCats.airframe || 0), (cats.landing_gear || 0) + (permanentCats.landing_gear || 0), (cats.electrical || 0) + (permanentCats.electrical || 0),
