@@ -54,28 +54,6 @@ Deno.serve(async (req) => {
     if (!aircraft?.id) return Response.json({ error: 'Aircraft not found' }, { status: 404 });
 
     const userCompanyId = resolveUserCompanyId(user);
-    let company = null;
-
-    if (aircraft.company_id) {
-      const companyRows = await base44.asServiceRole.entities.Company.filter({ id: aircraft.company_id });
-      company = companyRows[0] || null;
-    }
-    if (!company && userCompanyId) {
-      const companyRows = await base44.asServiceRole.entities.Company.filter({ id: userCompanyId });
-      company = companyRows[0] || null;
-    }
-    if (!company && user?.email) {
-      const companyRows = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
-      company = companyRows[0] || null;
-    }
-    if (!company?.id) return Response.json({ error: 'Unternehmen nicht gefunden' }, { status: 404 });
-
-    const sameCompany = String(aircraft.company_id || '') === String(company.id || '');
-    const ownedByUser = company.created_by === user.email;
-    const linkedToUserCompany = !!userCompanyId && String(userCompanyId) === String(company.id);
-    if (!sameCompany || (!ownedByUser && !linkedToUserCompany)) {
-      return Response.json({ error: 'Keine Berechtigung fuer dieses Flugzeug' }, { status: 403 });
-    }
 
     await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
       insurance_plan: plan.key,
@@ -84,16 +62,26 @@ Deno.serve(async (req) => {
       insurance_score_bonus_pct: plan.scoreBonusPct,
     });
 
+    if (aircraft.company_id && (!userCompanyId || String(userCompanyId) !== String(aircraft.company_id))) {
+      try {
+        await base44.auth.updateMe({ company_id: aircraft.company_id });
+      } catch (_) {
+        // no-op
+      }
+    }
+
+    const refreshedAircraftRows = await base44.asServiceRole.entities.Aircraft.filter({ id: aircraft.id });
+    const refreshedAircraft = refreshedAircraftRows[0] || aircraft;
+
     return Response.json({
       success: true,
       aircraft_id: aircraft.id,
-      insurance_plan: plan.key,
-      insurance_hourly_rate_pct: plan.hourlyRatePctOfNewValue,
-      insurance_maintenance_coverage_pct: plan.maintenanceCoveragePct,
-      insurance_score_bonus_pct: plan.scoreBonusPct,
+      insurance_plan: String(refreshedAircraft.insurance_plan || plan.key).trim().toLowerCase(),
+      insurance_hourly_rate_pct: Number(refreshedAircraft.insurance_hourly_rate_pct ?? plan.hourlyRatePctOfNewValue),
+      insurance_maintenance_coverage_pct: Number(refreshedAircraft.insurance_maintenance_coverage_pct ?? plan.maintenanceCoveragePct),
+      insurance_score_bonus_pct: Number(refreshedAircraft.insurance_score_bonus_pct ?? plan.scoreBonusPct),
     });
   } catch (error: any) {
     return Response.json({ error: error?.message || 'set insurance failed' }, { status: 500 });
   }
 });
-

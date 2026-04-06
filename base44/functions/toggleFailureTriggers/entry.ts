@@ -21,56 +21,57 @@ Deno.serve(async (req) => {
     const requestedCompanyId = body?.companyId ? String(body.companyId) : null;
 
     const userCompanyId = resolveUserCompanyId(user);
-    let company = null;
-
-    const tryLoadCompanyById = async (id: string | null) => {
-      if (!id) return null;
-      const rows = await base44.asServiceRole.entities.Company.filter({ id });
-      return rows[0] || null;
-    };
-
-    company = await tryLoadCompanyById(requestedCompanyId);
-    if (!company) company = await tryLoadCompanyById(userCompanyId);
-    if (!company && user?.email) {
+    let companyId = requestedCompanyId || userCompanyId || null;
+    if (!companyId && user?.email) {
       const rows = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
-      company = rows[0] || null;
-    }
-    if (!company) {
-      const allCompanies = await base44.asServiceRole.entities.Company.list();
-      if (allCompanies.length === 1) company = allCompanies[0];
-    }
-    if (!company?.id) {
-      return Response.json({ error: 'Unternehmen nicht gefunden' }, { status: 404 });
+      companyId = rows?.[0]?.id || null;
     }
 
-    if (userCompanyId && userCompanyId !== company.id && company.created_by !== user.email) {
-      return Response.json({ error: 'Keine Berechtigung fuer dieses Unternehmen' }, { status: 403 });
-    }
-
+    const settingsRows = await base44.asServiceRole.entities.GameSettings.list();
+    let settings = settingsRows[0] || null;
     if (typeof enabled === 'boolean') {
-      await base44.asServiceRole.entities.Company.update(company.id, {
-        failure_triggers_enabled: !!enabled,
-      });
-
-      if (!userCompanyId || userCompanyId !== company.id) {
+      if (settings?.id) {
+        await base44.asServiceRole.entities.GameSettings.update(settings.id, {
+          failure_triggers_enabled: !!enabled,
+        });
+      } else {
+        settings = await base44.asServiceRole.entities.GameSettings.create({
+          failure_triggers_enabled: !!enabled,
+        });
+      }
+      // Keep company field in sync if available (best effort only).
+      if (companyId) {
+        await base44.asServiceRole.entities.Company.update(companyId, {
+          failure_triggers_enabled: !!enabled,
+        }).catch(() => null);
+      }
+      if (companyId && (!userCompanyId || userCompanyId !== companyId)) {
         try {
-          await base44.auth.updateMe({ company_id: company.id });
+          await base44.auth.updateMe({ company_id: companyId });
         } catch (_) {
-          // Keep toggle result successful even if profile sync fails.
+          // no-op
         }
       }
     }
 
-    const refreshedRows = await base44.asServiceRole.entities.Company.filter({ id: company.id });
-    const refreshedCompany = refreshedRows[0] || company;
-    const persistedEnabled = (typeof refreshedCompany?.failure_triggers_enabled === 'boolean')
-      ? refreshedCompany.failure_triggers_enabled
+    const refreshedSettingsRows = await base44.asServiceRole.entities.GameSettings.list();
+    const refreshedSettings = refreshedSettingsRows[0] || settings;
+    const persistedEnabled = (typeof refreshedSettings?.failure_triggers_enabled === 'boolean')
+      ? refreshedSettings.failure_triggers_enabled
       : (typeof enabled === 'boolean' ? !!enabled : true);
+
+    if (companyId) {
+      // Keep company field synced with global setting (best effort).
+      await base44.asServiceRole.entities.Company.update(companyId, {
+        failure_triggers_enabled: persistedEnabled,
+      }).catch(() => null);
+    }
 
     return Response.json({
       success: true,
       enabled: persistedEnabled,
-      company_id: company.id,
+      company_id: companyId,
+      settings_id: refreshedSettings?.id || null,
     });
   } catch (error: any) {
     return Response.json({ error: error?.message || 'toggle failed' }, { status: 500 });

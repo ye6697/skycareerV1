@@ -263,10 +263,11 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     mutationFn: async (planKey) => {
       setInsuranceError('');
       const config = getInsurancePlanConfig(planKey);
+      const targetPlan = config.key;
       try {
         const response = await base44.functions.invoke('setAircraftInsurancePlan', {
           aircraftId: aircraft.id,
-          planKey: config.key,
+          planKey: targetPlan,
         });
         const invokeError = response?.error || response?.data?.error;
         if (invokeError) {
@@ -276,10 +277,14 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               : (invokeError?.message || 'insurance_invoke_failed')
           );
         }
+        const persistedPlan = String(response?.data?.insurance_plan || targetPlan).trim().toLowerCase();
+        if (persistedPlan !== targetPlan) {
+          throw new Error('insurance_not_persisted');
+        }
       } catch (_) {
         // Fallback for environments where function rollout lags behind.
         await base44.entities.Aircraft.update(aircraft.id, {
-          insurance_plan: config.key,
+          insurance_plan: targetPlan,
           insurance_hourly_rate_pct: config.hourlyRatePctOfNewValue,
           insurance_maintenance_coverage_pct: config.maintenanceCoveragePct,
           insurance_score_bonus_pct: config.scoreBonusPct,

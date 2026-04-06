@@ -1085,10 +1085,7 @@ Deno.serve(async (req) => {
     }
     
     const gameSettings = await getGameSettingsCached(base44);
-    const companyFailureToggle = (typeof company?.failure_triggers_enabled === "boolean")
-      ? company.failure_triggers_enabled
-      : null;
-    const failureTriggersEnabled = companyFailureToggle ?? (gameSettings?.failure_triggers_enabled !== false);
+    const failureTriggersEnabled = gameSettings?.failure_triggers_enabled !== false;
 
     // Active flight: keep per-packet DB reads minimal so bridge latency stays low.
     const prevXd = flight.xplane_data || {};
