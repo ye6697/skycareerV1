@@ -180,11 +180,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   }, [insuranceStorageKey]);
 
   React.useEffect(() => {
+    // Seed from server only when no local override exists for this aircraft yet.
+    if (persistedLocalPlan) return;
     const serverPlan = String(aircraft?.insurance_plan || '').trim().toLowerCase();
     if (INSURANCE_PACKAGES[serverPlan]) {
       persistLocalInsurancePlan(serverPlan);
     }
-  }, [aircraft?.id, aircraft?.insurance_plan, persistLocalInsurancePlan]);
+  }, [aircraft?.id, aircraft?.insurance_plan, persistedLocalPlan, persistLocalInsurancePlan]);
 
   React.useEffect(() => {
     if (optimisticInsurancePlan && activeInsurance.planKey === optimisticInsurancePlan) {
@@ -551,9 +553,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         >
           <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-cyan-300 uppercase flex items-center gap-2">
+              <DialogTitle className="text-cyan-300 uppercase flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-2">
                 <Shield className="w-4 h-4" />
                 {lang === 'de' ? 'Flugzeug-Versicherung' : 'Aircraft Insurance'}
+                </span>
+                <span className="text-[9px] text-slate-600 normal-case select-none">v {INSURANCE_UI_VERSION}</span>
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
@@ -603,7 +608,6 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                   );
                 })}
               </div>
-              <div className="text-[9px] text-slate-600 text-right select-none">v {INSURANCE_UI_VERSION}</div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsInsuranceDialogOpen(false)} className="h-8 text-[10px] border-slate-700 text-slate-300">
