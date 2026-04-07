@@ -54,12 +54,11 @@ function getProgressColor(percent) {
 }
 
 const clampPct = (value) => Math.max(0, Math.min(100, Number(value) || 0));
-const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-c';
+const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-d';
 
 export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
   const [failureToggleError, setFailureToggleError] = useState('');
-  const [localFailureOverride, setLocalFailureOverride] = useState(null);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
   const resolveUserCompanyId = React.useCallback((user) => (
@@ -135,28 +134,11 @@ export default function MaintenanceCategories({ aircraft }) {
   const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
     ? failureTriggerState
     : (companyForLimit?.failure_triggers_enabled !== false);
-  const effectiveFailureEnabled = (typeof localFailureOverride === 'boolean')
-    ? localFailureOverride
-    : failureTriggersEnabled;
-
-  React.useEffect(() => {
-    setLocalFailureOverride(null);
-  }, [aircraft?.company_id, companyForLimit?.id]);
-
-  const persistFailureOverride = (value) => {
-    if (typeof value === 'boolean') {
-      setLocalFailureOverride(value);
-      return;
-    }
-    setLocalFailureOverride(null);
-  };
+  const effectiveFailureEnabled = failureTriggersEnabled;
 
   const toggleFailureTriggersMutation = useMutation({
-    onMutate: async (enabled) => {
-      const target = !!enabled;
+    onMutate: async (_enabled) => {
       const previous = queryClient.getQueryData(failureTriggerStateKey);
-      queryClient.setQueryData(failureTriggerStateKey, target);
-      persistFailureOverride(target);
       return { previous };
     },
     mutationFn: async (enabled) => {
@@ -192,7 +174,6 @@ export default function MaintenanceCategories({ aircraft }) {
     onSuccess: (resolvedEnabled) => {
       const enabled = !!resolvedEnabled;
       queryClient.setQueryData(failureTriggerStateKey, enabled);
-      persistFailureOverride(null);
       queryClient.setQueryData(['company-maint-limit'], (prev) => (
         prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       ));
@@ -206,9 +187,6 @@ export default function MaintenanceCategories({ aircraft }) {
     onError: (_error, _enabled, context) => {
       if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
         queryClient.setQueryData(failureTriggerStateKey, context.previous);
-        persistFailureOverride(typeof context.previous === 'boolean' ? context.previous : null);
-      } else {
-        persistFailureOverride(null);
       }
       setFailureToggleError(
         lang === 'de'
@@ -435,7 +413,7 @@ export default function MaintenanceCategories({ aircraft }) {
           <div className="text-xs font-semibold text-slate-200">
             {lang === 'de' ? 'Failure Trigger (Bridge)' : 'Failure trigger (bridge)'}
           </div>
-          <div className="text-[10px] text-slate-500">UI {FAILURE_TOGGLE_UI_VERSION}</div>
+          <div className="text-[10px] text-cyan-300">Version {FAILURE_TOGGLE_UI_VERSION}</div>
           <div className="text-[11px] text-slate-400 mt-0.5">
             {effectiveFailureEnabled
               ? (lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.')

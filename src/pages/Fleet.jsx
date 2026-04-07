@@ -26,7 +26,7 @@ import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
-const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-06-c';
+const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-d';
 
 const AIRCRAFT_MARKET_SPECS = [
 // === SMALL PROPS (Level 1) ===
@@ -302,7 +302,6 @@ export default function Fleet() {
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
-  const [localFailureOverride, setLocalFailureOverride] = useState(null);
   const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
   const resolveUserCompanyId = React.useCallback((user) =>
   user?.company_id ||
@@ -383,28 +382,11 @@ export default function Fleet() {
   const failureTriggersEnabled = typeof failureTriggerState === 'boolean' ?
   failureTriggerState :
   company?.failure_triggers_enabled !== false;
-  const effectiveFailureEnabled = typeof localFailureOverride === 'boolean' ?
-  localFailureOverride :
-  failureTriggersEnabled;
-
-  React.useEffect(() => {
-    setLocalFailureOverride(null);
-  }, [company?.id]);
-
-  const persistFailureOverride = React.useCallback((value) => {
-    if (typeof value === 'boolean') {
-      setLocalFailureOverride(value);
-      return;
-    }
-    setLocalFailureOverride(null);
-  }, []);
+  const effectiveFailureEnabled = failureTriggersEnabled;
 
   const toggleFailureTriggersMutation = useMutation({
-    onMutate: async (enabled) => {
-      const target = !!enabled;
+    onMutate: async (_enabled) => {
       const previous = queryClient.getQueryData(failureTriggerStateKey);
-      queryClient.setQueryData(failureTriggerStateKey, target);
-      persistFailureOverride(target);
       return { previous };
     },
     mutationFn: async (enabled) => {
@@ -440,7 +422,6 @@ export default function Fleet() {
     onSuccess: (resolvedEnabled) => {
       const enabled = !!resolvedEnabled;
       queryClient.setQueryData(failureTriggerStateKey, enabled);
-      persistFailureOverride(null);
       queryClient.setQueryData(['company'], (prev) =>
       prev ? { ...prev, failure_triggers_enabled: enabled } : prev
       );
@@ -454,9 +435,6 @@ export default function Fleet() {
     onError: (_error, _enabled, context) => {
       if (context && Object.prototype.hasOwnProperty.call(context, 'previous')) {
         queryClient.setQueryData(failureTriggerStateKey, context.previous);
-        persistFailureOverride(typeof context.previous === 'boolean' ? context.previous : null);
-      } else {
-        persistFailureOverride(null);
       }
       setFailureToggleError(
         lang === 'de' ?
@@ -868,7 +846,7 @@ export default function Fleet() {
                           <div className="text-slate-200 font-semibold">
                             {lang === 'de' ? 'Failure Trigger (Bridge)' : 'Failure trigger (bridge)'}
                           </div>
-                          <div className="text-[10px] text-slate-500">UI {FAILURE_TOGGLE_UI_VERSION}</div>
+                          <div className="text-[10px] text-cyan-300">Version {FAILURE_TOGGLE_UI_VERSION}</div>
                           <div className="text-slate-400 mt-0.5">
                             {effectiveFailureEnabled ?
                           lang === 'de' ? 'Aktiv: Bridge kann Ausfaelle ausloesen.' : 'On: bridge may trigger failures.' :

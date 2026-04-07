@@ -74,9 +74,12 @@ Deno.serve(async (req) => {
 
     const refreshedSettingsRows = await base44.asServiceRole.entities.GameSettings.list();
     const refreshedSettings = refreshedSettingsRows[0] || settings;
-    let persistedEnabled = refreshedSettingsRows.length
-      ? refreshedSettingsRows.every((row) => row?.failure_triggers_enabled !== false)
-      : (typeof enabled === 'boolean' ? !!enabled : true);
+    const requestedEnabled = typeof enabled === 'boolean' ? !!enabled : null;
+    let persistedEnabled = typeof requestedEnabled === 'boolean'
+      ? requestedEnabled
+      : (refreshedSettingsRows.length
+          ? refreshedSettingsRows.every((row) => row?.failure_triggers_enabled !== false)
+          : true);
 
     const companyRowsForState = targetCompanyIds.length > 0
       ? (await Promise.all(
@@ -96,25 +99,27 @@ Deno.serve(async (req) => {
           (userCompanyId && String(row.id) === String(userCompanyId))
         )
     );
-    if (typeof enabled !== 'boolean' && preferredCompanyRow && typeof preferredCompanyRow?.failure_triggers_enabled === 'boolean') {
+    if (typeof requestedEnabled !== 'boolean' && preferredCompanyRow && typeof preferredCompanyRow?.failure_triggers_enabled === 'boolean') {
       persistedEnabled = preferredCompanyRow.failure_triggers_enabled !== false;
-    } else if (companyRowsWithFlag.length > 0) {
+    } else if (typeof requestedEnabled !== 'boolean' && companyRowsWithFlag.length > 0) {
       const allCompanyFlagsEnabled = companyRowsWithFlag.every((row: any) => row?.failure_triggers_enabled !== false);
       persistedEnabled = persistedEnabled && allCompanyFlagsEnabled;
     }
 
-    if (typeof enabled === 'boolean' && targetCompanyIds.length > 0) {
-      // Keep company field synced with global setting (best effort).
+    if (typeof requestedEnabled === 'boolean' && targetCompanyIds.length > 0) {
+      // Enforce requested value for each resolved company ID.
+      // This avoids reverting to stale reads when GameSettings replication lags.
       await Promise.allSettled(
         targetCompanyIds.map((cid) => (
           base44.asServiceRole.entities.Company.update(cid, {
-            failure_triggers_enabled: persistedEnabled,
+            failure_triggers_enabled: requestedEnabled,
           })
         ))
       );
+      persistedEnabled = requestedEnabled;
     }
 
-    if (typeof enabled === 'boolean') {
+    if (typeof requestedEnabled === 'boolean') {
       const isWorkerRestartCommand = (cmd: any) => {
         const commandType = String(cmd?.type || '').toLowerCase().trim();
         return commandType === 'worker_restart'
@@ -145,10 +150,10 @@ Deno.serve(async (req) => {
               : (Array.isArray(fl?.xplane_data?.bridge_command_queue)
                   ? fl.xplane_data.bridge_command_queue
                   : []);
-            let nextQueue = enabled
+            let nextQueue = requestedEnabled
               ? rawQueue
               : rawQueue.filter((cmd: any) => isWorkerRestartCommand(cmd));
-            if (!enabled) {
+            if (!requestedEnabled) {
               const hasRestart = nextQueue.some((cmd: any) => isWorkerRestartCommand(cmd));
               if (!hasRestart) {
                 nextQueue = [
@@ -166,17 +171,17 @@ Deno.serve(async (req) => {
             }
             const nextXplaneData = {
               ...(fl?.xplane_data || {}),
-              failure_triggers_enabled: !!enabled,
+              failure_triggers_enabled: requestedEnabled,
               bridge_command_queue: nextQueue,
-              maintenance_failure_category: enabled ? (fl?.xplane_data?.maintenance_failure_category ?? null) : null,
-              maintenance_failure_severity: enabled ? (fl?.xplane_data?.maintenance_failure_severity ?? null) : null,
-              maintenance_failure_timestamp: enabled ? (fl?.xplane_data?.maintenance_failure_timestamp ?? null) : null,
+              maintenance_failure_category: requestedEnabled ? (fl?.xplane_data?.maintenance_failure_category ?? null) : null,
+              maintenance_failure_severity: requestedEnabled ? (fl?.xplane_data?.maintenance_failure_severity ?? null) : null,
+              maintenance_failure_timestamp: requestedEnabled ? (fl?.xplane_data?.maintenance_failure_timestamp ?? null) : null,
             };
             const updatePayload: any = {
               bridge_command_queue: nextQueue,
               xplane_data: nextXplaneData,
             };
-            if (!enabled) {
+            if (!requestedEnabled) {
               updatePayload.active_failures = [];
             }
             await base44.asServiceRole.entities.Flight.update(fl.id, updatePayload).catch(() => null);
