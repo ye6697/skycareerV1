@@ -1094,18 +1094,16 @@ Deno.serve(async (req) => {
     
     // Active flight: keep per-packet DB reads minimal so bridge latency stays low.
     const prevXd = flight.xplane_data || {};
-    const gameSettings = await getGameSettingsCached(base44);
+    const packetFailureFlag = typeof data?.failure_triggers_enabled === 'boolean'
+      ? data.failure_triggers_enabled
+      : null;
     const sessionFailureFlag = typeof prevXd?.failure_triggers_enabled === 'boolean'
       ? prevXd.failure_triggers_enabled
       : null;
-    const companyFailureFlag = typeof company?.failure_triggers_enabled === 'boolean'
-      ? company.failure_triggers_enabled
-      : null;
-    const failureTriggersEnabled = sessionFailureFlag === false
+    // User-scoped toggle: prefer packet/session flag and ignore global/company flags.
+    const failureTriggersEnabled = packetFailureFlag === false
       ? false
-      : (companyFailureFlag === false
-          ? false
-          : (gameSettings?.failure_triggers_enabled !== false));
+      : (sessionFailureFlag === false ? false : true);
     const hasActiveAirframeFailure = Array.isArray(flight.active_failures) && flight.active_failures.some((f: any) => {
       const cat = String(f?.category || "").toLowerCase().trim();
       return cat === "airframe";

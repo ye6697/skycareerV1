@@ -54,7 +54,7 @@ function getProgressColor(percent) {
 }
 
 const clampPct = (value) => Math.max(0, Math.min(100, Number(value) || 0));
-const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-d';
+const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
 export default function MaintenanceCategories({ aircraft }) {
   const [showInfo, setShowInfo] = useState(false);
@@ -133,7 +133,7 @@ export default function MaintenanceCategories({ aircraft }) {
 
   const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
     ? failureTriggerState
-    : (companyForLimit?.failure_triggers_enabled !== false);
+    : true;
   const effectiveFailureEnabled = failureTriggersEnabled;
 
   const toggleFailureTriggersMutation = useMutation({

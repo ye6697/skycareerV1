@@ -8,6 +8,19 @@ const resolveUserCompanyId = (user: any): string | null => (
   || null
 );
 
+const resolveUserFailurePref = (user: any): boolean | null => {
+  const direct = user?.failure_triggers_enabled_user;
+  if (typeof direct === 'boolean') return direct;
+  const nested = user?.data?.failure_triggers_enabled_user;
+  if (typeof nested === 'boolean') return nested;
+  // Legacy fallback
+  const legacyDirect = user?.failure_triggers_enabled;
+  if (typeof legacyDirect === 'boolean') return legacyDirect;
+  const legacyNested = user?.data?.failure_triggers_enabled;
+  if (typeof legacyNested === 'boolean') return legacyNested;
+  return null;
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -19,6 +32,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const enabled = body?.enabled;
     const requestedCompanyId = body?.companyId ? String(body.companyId) : null;
+    const requestedEnabled = typeof enabled === 'boolean' ? !!enabled : null;
+    const userEmail = String(user?.email || '').trim().toLowerCase();
 
     const userCompanyId = resolveUserCompanyId(user);
     const ownedCompanies = user?.email
@@ -34,92 +49,20 @@ Deno.serve(async (req) => {
       companyIdSet.add(String(cid));
     }
     const targetCompanyIds = Array.from(companyIdSet);
-    const companyId = targetCompanyIds[0] || null;
-
-    const settingsRows = await base44.asServiceRole.entities.GameSettings.list();
-    let settings = settingsRows[0] || null;
-    if (typeof enabled === 'boolean') {
-      if (!settingsRows.length) {
-        settings = await base44.asServiceRole.entities.GameSettings.create({
-          failure_triggers_enabled: !!enabled,
-        });
-      } else {
-        await Promise.all(
-          settingsRows
-            .filter((row) => row?.id)
-            .map((row) => base44.asServiceRole.entities.GameSettings.update(row.id, {
-              failure_triggers_enabled: !!enabled,
-            }))
-        );
-        settings = settingsRows[0] || null;
-      }
-      // Keep company field in sync if available (best effort only).
-      if (targetCompanyIds.length > 0) {
-        await Promise.allSettled(
-          targetCompanyIds.map((cid) => (
-            base44.asServiceRole.entities.Company.update(cid, {
-              failure_triggers_enabled: !!enabled,
-            })
-          ))
-        );
-      }
-      if (companyId && (!userCompanyId || String(userCompanyId) !== companyId)) {
-        try {
-          await base44.auth.updateMe({ company_id: companyId });
-        } catch (_) {
-          // no-op
-        }
-      }
-    }
-
-    const refreshedSettingsRows = await base44.asServiceRole.entities.GameSettings.list();
-    const refreshedSettings = refreshedSettingsRows[0] || settings;
-    const requestedEnabled = typeof enabled === 'boolean' ? !!enabled : null;
-    let persistedEnabled = typeof requestedEnabled === 'boolean'
-      ? requestedEnabled
-      : (refreshedSettingsRows.length
-          ? refreshedSettingsRows.every((row) => row?.failure_triggers_enabled !== false)
-          : true);
-
-    const companyRowsForState = targetCompanyIds.length > 0
-      ? (await Promise.all(
-          targetCompanyIds.map((cid) => (
-            base44.asServiceRole.entities.Company.filter({ id: cid }).catch(() => [])
-          ))
-        )).flat()
-      : [];
-    const companyRowsWithFlag = companyRowsForState.filter(
-      (row: any) => typeof row?.failure_triggers_enabled === 'boolean'
-    );
-    const preferredCompanyRow = companyRowsForState.find(
-      (row: any) =>
-        row?.id &&
-        (
-          (requestedCompanyId && String(row.id) === String(requestedCompanyId)) ||
-          (userCompanyId && String(row.id) === String(userCompanyId))
-        )
-    );
-    if (typeof requestedEnabled !== 'boolean' && preferredCompanyRow && typeof preferredCompanyRow?.failure_triggers_enabled === 'boolean') {
-      persistedEnabled = preferredCompanyRow.failure_triggers_enabled !== false;
-    } else if (typeof requestedEnabled !== 'boolean' && companyRowsWithFlag.length > 0) {
-      const allCompanyFlagsEnabled = companyRowsWithFlag.every((row: any) => row?.failure_triggers_enabled !== false);
-      persistedEnabled = persistedEnabled && allCompanyFlagsEnabled;
-    }
-
-    if (typeof requestedEnabled === 'boolean' && targetCompanyIds.length > 0) {
-      // Enforce requested value for each resolved company ID.
-      // This avoids reverting to stale reads when GameSettings replication lags.
-      await Promise.allSettled(
-        targetCompanyIds.map((cid) => (
-          base44.asServiceRole.entities.Company.update(cid, {
-            failure_triggers_enabled: requestedEnabled,
-          })
-        ))
-      );
-      persistedEnabled = requestedEnabled;
-    }
+    const targetCompanyId = requestedCompanyId
+      || userCompanyId
+      || (targetCompanyIds[0] ? String(targetCompanyIds[0]) : null);
+    let persistedEnabled = resolveUserFailurePref(user);
 
     if (typeof requestedEnabled === 'boolean') {
+      persistedEnabled = requestedEnabled;
+      await base44.auth.updateMe({
+        failure_triggers_enabled_user: requestedEnabled,
+        ...(targetCompanyId && (!userCompanyId || String(userCompanyId) !== String(targetCompanyId))
+          ? { company_id: targetCompanyId }
+          : {}),
+      }).catch(() => null);
+
       const isWorkerRestartCommand = (cmd: any) => {
         const commandType = String(cmd?.type || '').toLowerCase().trim();
         return commandType === 'worker_restart'
@@ -127,19 +70,15 @@ Deno.serve(async (req) => {
           || commandType === 'bridge_worker_restart';
       };
       let activeFlights: any[] = [];
-      if (targetCompanyIds.length > 0) {
-        const byCompany = await Promise.all(
-          targetCompanyIds.map((cid) => (
-            base44.asServiceRole.entities.Flight.filter({ company_id: cid, status: 'in_flight' }).catch(() => [])
-          ))
-        );
-        const dedupe = new Map<string, any>();
-        for (const row of byCompany.flat()) {
-          if (row?.id) dedupe.set(String(row.id), row);
-        }
-        activeFlights = Array.from(dedupe.values());
-      } else {
-        activeFlights = await base44.asServiceRole.entities.Flight.filter({ status: 'in_flight' });
+      if (targetCompanyId) {
+        const byCompany = await base44.asServiceRole.entities.Flight
+          .filter({ company_id: targetCompanyId, status: 'in_flight' })
+          .catch(() => []);
+        const all = Array.isArray(byCompany) ? byCompany : [];
+        const ownFlights = userEmail
+          ? all.filter((fl: any) => String(fl?.created_by || '').trim().toLowerCase() === userEmail)
+          : all;
+        activeFlights = ownFlights.length > 0 ? ownFlights : all.slice(0, 1);
       }
       await Promise.all(
         (Array.isArray(activeFlights) ? activeFlights : [])
@@ -187,14 +126,27 @@ Deno.serve(async (req) => {
             await base44.asServiceRole.entities.Flight.update(fl.id, updatePayload).catch(() => null);
           })
       );
+    } else if (persistedEnabled === null && targetCompanyId) {
+      const byCompany = await base44.asServiceRole.entities.Flight
+        .filter({ company_id: targetCompanyId, status: 'in_flight' })
+        .catch(() => []);
+      const all = Array.isArray(byCompany) ? byCompany : [];
+      const ownFlights = userEmail
+        ? all.filter((fl: any) => String(fl?.created_by || '').trim().toLowerCase() === userEmail)
+        : all;
+      const probeFlight = ownFlights[0] || all[0] || null;
+      const probeFlag = probeFlight?.xplane_data?.failure_triggers_enabled;
+      if (typeof probeFlag === 'boolean') {
+        persistedEnabled = probeFlag;
+      }
     }
 
     return Response.json({
       success: true,
-      enabled: persistedEnabled,
-      company_id: companyId,
-      company_ids: targetCompanyIds,
-      settings_id: refreshedSettings?.id || null,
+      enabled: persistedEnabled !== false,
+      company_id: targetCompanyId,
+      company_ids: targetCompanyId ? [targetCompanyId] : [],
+      settings_id: null,
     });
   } catch (error: any) {
     return Response.json({ error: error?.message || 'toggle failed' }, { status: 500 });

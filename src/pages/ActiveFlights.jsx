@@ -146,6 +146,19 @@ export default function ActiveFlights() {
         source: 'active_flight_start',
         persist_until_landed: false
       };
+      const currentUser = await base44.auth.me();
+      const userFailurePref = (
+        typeof currentUser?.failure_triggers_enabled_user === 'boolean'
+          ? currentUser.failure_triggers_enabled_user
+          : (typeof currentUser?.data?.failure_triggers_enabled_user === 'boolean'
+              ? currentUser.data.failure_triggers_enabled_user
+              : (typeof currentUser?.failure_triggers_enabled === 'boolean'
+                  ? currentUser.failure_triggers_enabled
+                  : (typeof currentUser?.data?.failure_triggers_enabled === 'boolean'
+                      ? currentUser.data.failure_triggers_enabled
+                      : null)))
+      );
+      const sessionFailureTriggersEnabled = userFailurePref !== false;
 
       // Create flight record with 'in_flight' status
       const flight = await base44.entities.Flight.create({
@@ -177,6 +190,7 @@ export default function ActiveFlights() {
           flight_events_log: [],
           bridge_event_log: [],
           telemetry_history: [],
+          failure_triggers_enabled: sessionFailureTriggersEnabled,
           insurance_plan: insurancePlan,
           insurance_hourly_rate_pct: insuranceHourlyRatePct,
           insurance_coverage_pct: insuranceCoveragePct !== null ? Math.round(insuranceCoveragePct * 100) : null,

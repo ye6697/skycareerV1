@@ -26,7 +26,7 @@ import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
-const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-d';
+const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
 const AIRCRAFT_MARKET_SPECS = [
 // === SMALL PROPS (Level 1) ===
@@ -381,7 +381,7 @@ export default function Fleet() {
 
   const failureTriggersEnabled = typeof failureTriggerState === 'boolean' ?
   failureTriggerState :
-  company?.failure_triggers_enabled !== false;
+  true;
   const effectiveFailureEnabled = failureTriggersEnabled;
 
   const toggleFailureTriggersMutation = useMutation({

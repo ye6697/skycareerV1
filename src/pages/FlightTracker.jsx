@@ -1351,6 +1351,19 @@ export default function FlightTracker() {
         source: 'flight_tracker_start_fallback',
         persist_until_landed: false,
       };
+      const currentUser = await base44.auth.me();
+      const userFailurePref = (
+        typeof currentUser?.failure_triggers_enabled_user === 'boolean'
+          ? currentUser.failure_triggers_enabled_user
+          : (typeof currentUser?.data?.failure_triggers_enabled_user === 'boolean'
+              ? currentUser.data.failure_triggers_enabled_user
+              : (typeof currentUser?.failure_triggers_enabled === 'boolean'
+                  ? currentUser.failure_triggers_enabled
+                  : (typeof currentUser?.data?.failure_triggers_enabled === 'boolean'
+                      ? currentUser.data.failure_triggers_enabled
+                      : null)))
+      );
+      const sessionFailureTriggersEnabled = userFailurePref !== false;
       const newFlight = await base44.entities.Flight.create({
         company_id: company.id,
         contract_id: contractIdFromUrl,
@@ -1376,6 +1389,7 @@ export default function FlightTracker() {
           flight_events_log: [],
           bridge_event_log: [],
           telemetry_history: [],
+          failure_triggers_enabled: sessionFailureTriggersEnabled,
           bridge_reset_requested_at: nowIso,
           bridge_reset_reason: 'new_flight_start',
           bridge_command_queue: [restartCommand],
