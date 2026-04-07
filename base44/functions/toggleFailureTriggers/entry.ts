@@ -88,12 +88,22 @@ Deno.serve(async (req) => {
     const companyRowsWithFlag = companyRowsForState.filter(
       (row: any) => typeof row?.failure_triggers_enabled === 'boolean'
     );
-    if (companyRowsWithFlag.length > 0) {
+    const preferredCompanyRow = companyRowsForState.find(
+      (row: any) =>
+        row?.id &&
+        (
+          (requestedCompanyId && String(row.id) === String(requestedCompanyId)) ||
+          (userCompanyId && String(row.id) === String(userCompanyId))
+        )
+    );
+    if (typeof enabled !== 'boolean' && preferredCompanyRow && typeof preferredCompanyRow?.failure_triggers_enabled === 'boolean') {
+      persistedEnabled = preferredCompanyRow.failure_triggers_enabled !== false;
+    } else if (companyRowsWithFlag.length > 0) {
       const allCompanyFlagsEnabled = companyRowsWithFlag.every((row: any) => row?.failure_triggers_enabled !== false);
       persistedEnabled = persistedEnabled && allCompanyFlagsEnabled;
     }
 
-    if (targetCompanyIds.length > 0) {
+    if (typeof enabled === 'boolean' && targetCompanyIds.length > 0) {
       // Keep company field synced with global setting (best effort).
       await Promise.allSettled(
         targetCompanyIds.map((cid) => (
