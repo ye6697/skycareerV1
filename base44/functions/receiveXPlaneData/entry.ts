@@ -452,6 +452,33 @@ Deno.serve(async (req) => {
     const heading = data.heading ?? data.hdg ?? data.true_heading ?? data.magnetic_heading;
     const fuel_percentage = data.fuel_percentage ?? data.fuelPercentage ?? data.fuel_percent;
     const fuel_kg = data.fuel_kg ?? data.fuelKg ?? data.fuel_weight_kg ?? data.total_fuel_kg;
+    const fuelFlowTotalKgphRaw = Number(
+      data.fuel_flow_total_kgph ??
+      data.fuel_flow_kgph ??
+      data.fuel_burn_kgph ??
+      data.fuelBurnRateKgph ??
+      0
+    );
+    const fuelFlowTotalLphRaw = Number(
+      data.fuel_flow_total_lph ??
+      data.fuel_flow_lph ??
+      0
+    );
+    const fuelFlowTotalPphSource =
+      data.fuel_flow_total_pph ??
+      ((Number(data.engine1_fuel_flow_pph ?? 0) || 0) + (Number(data.engine2_fuel_flow_pph ?? 0) || 0));
+    const fuelFlowTotalPphRaw = Number(fuelFlowTotalPphSource || 0);
+    const fuelFlowTotalKgphFromLph = Number.isFinite(fuelFlowTotalLphRaw) && fuelFlowTotalLphRaw > 0
+      ? (fuelFlowTotalLphRaw / 1.25)
+      : 0;
+    const fuelFlowTotalKgphFromPph = Number.isFinite(fuelFlowTotalPphRaw) && fuelFlowTotalPphRaw > 0
+      ? (fuelFlowTotalPphRaw * 0.45359237)
+      : 0;
+    const incomingFuelFlowTotalKgph = Number.isFinite(fuelFlowTotalKgphRaw) && fuelFlowTotalKgphRaw > 0
+      ? fuelFlowTotalKgphRaw
+      : (fuelFlowTotalKgphFromLph > 0
+          ? fuelFlowTotalKgphFromLph
+          : (fuelFlowTotalKgphFromPph > 0 ? fuelFlowTotalKgphFromPph : 0));
     const g_force = data.g_force ?? data.gForce ?? data.g_load ?? data.gLoad;
     const g_force_window_peak = data.g_force_window_peak ?? data.g_peak_window ?? data.window_peak_g;
     const gForceNumeric = Number(g_force ?? 1);
@@ -1294,6 +1321,10 @@ Deno.serve(async (req) => {
       ? Math.max(0, (Date.now() - prevSampleTsMs) / 1000)
       : 0;
     const prevFuelBurnRateKgph = Number(prevXd.fuel_burn_rate_kgph ?? 0);
+    const incomingFuelFlowIsPlausible = Number.isFinite(incomingFuelFlowTotalKgph)
+      && incomingFuelFlowTotalKgph >= (on_ground ? 10 : 30)
+      && incomingFuelFlowTotalKgph <= 20000;
+    const trustedIncomingFuelFlowKgph = incomingFuelFlowIsPlausible ? incomingFuelFlowTotalKgph : 0;
     let instantFuelBurnRateKgph = 0;
     if (
       hasBeenAirborne &&
@@ -1310,10 +1341,13 @@ Deno.serve(async (req) => {
         }
       }
     }
-    const fuelBurnRateKgph = instantFuelBurnRateKgph > 0
+    const fuelBurnRateCandidateKgph = trustedIncomingFuelFlowKgph > 0
+      ? trustedIncomingFuelFlowKgph
+      : instantFuelBurnRateKgph;
+    const fuelBurnRateKgph = fuelBurnRateCandidateKgph > 0
       ? (prevFuelBurnRateKgph > 0
-          ? ((prevFuelBurnRateKgph * 0.75) + (instantFuelBurnRateKgph * 0.25))
-          : instantFuelBurnRateKgph)
+          ? ((prevFuelBurnRateKgph * 0.65) + (fuelBurnRateCandidateKgph * 0.35))
+          : fuelBurnRateCandidateKgph)
       : (prevFuelBurnRateKgph > 0 ? prevFuelBurnRateKgph : 0);
     const fuelBurnRateLph = fuelBurnRateKgph > 0 ? (fuelBurnRateKgph * 1.25) : 0;
 
@@ -1593,6 +1627,9 @@ Deno.serve(async (req) => {
       initial_fuel_kg,
       fuel_burn_rate_kgph: fuelBurnRateKgph > 0 ? Number(fuelBurnRateKgph.toFixed(1)) : 0,
       fuel_burn_rate_lph: fuelBurnRateLph > 0 ? Number(fuelBurnRateLph.toFixed(1)) : 0,
+      fuel_flow_total_kgph: trustedIncomingFuelFlowKgph > 0 ? Number(trustedIncomingFuelFlowKgph.toFixed(1)) : 0,
+      fuel_flow_total_lph: trustedIncomingFuelFlowKgph > 0 ? Number((trustedIncomingFuelFlowKgph * 1.25).toFixed(1)) : 0,
+      fuel_flow_source: String(data.fuel_flow_source || ""),
       g_force: gForceCurrent,
       max_g_force,
       g_force_window_peak: Number.isFinite(gForceWindowPeakNumeric) ? gForceWindowPeakNumeric : null,

@@ -647,91 +647,154 @@ export default function CompletedFlightDetails() {
 
                   {/* Flight Events */}
                   {(() => {
-                    const events = flight?.xplane_data?.events;
-                    if (!events) return null;
-                    // Filter out falsy values AND numeric 0 values (the "schwarze Null" bug)
-                    const activeEvents = Object.entries(events).filter(([key, val]) => val === true);
-                    if (activeEvents.length === 0 && !(events.fuel_emergency === true && (flight?.xplane_data?.fuel_percentage || flight?.xplane_data?.fuel || 100) < 3)) return null;
+                    const events = flight?.xplane_data?.events || {};
+                    const rawFlightEventsLog = Array.isArray(flight?.xplane_data?.flight_events_log)
+                      ? flight.xplane_data.flight_events_log
+                      : [];
+                    const rawBridgeEventsLog = Array.isArray(flight?.xplane_data?.bridge_event_log)
+                      ? flight.xplane_data.bridge_event_log
+                      : [];
+                    const normalizeEventType = (value) => {
+                      const type = String(value || "")
+                        .trim()
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_]/g, "_");
+                      if (!type) return "";
+                      if (type === "crashed" || type === "has_crashed") return "crash";
+                      if (type === "high_g" || type === "highg") return "high_g_force";
+                      if (type === "hardlanding") return "hard_landing";
+                      if (type === "gear_up") return "gear_up_landing";
+                      if (type === "wrong_destination" || type === "wrong_airport_landing") return "wrong_airport";
+                      if (type === "fuel_emergency_low") return "fuel_emergency";
+                      if (type === "flaps_overspeeding") return "flaps_overspeed";
+                      return type;
+                    };
+                    const logTypes = new Set(
+                      [...rawFlightEventsLog, ...rawBridgeEventsLog]
+                        .map((entry) => normalizeEventType(typeof entry === "string" ? entry : entry?.type))
+                        .filter(Boolean)
+                    );
+                    const isTruthyEvent = (value) => (
+                      value === true ||
+                      value === 1 ||
+                      value === "1" ||
+                      String(value || "").toLowerCase() === "true"
+                    );
+                    const eventAliasByKey = {
+                      tailstrike: ["tailstrike"],
+                      stall: ["stall", "is_in_stall", "stall_warning"],
+                      overstress: ["overstress", "structural_damage"],
+                      overspeed: ["overspeed", "over_speed"],
+                      flaps_overspeed: ["flaps_overspeed", "flaps_overspeeding", "flaps_overspeed_warning"],
+                      gear_up_landing: ["gear_up_landing", "gear_up"],
+                      crash: ["crash", "crashed", "has_crashed"],
+                      harsh_controls: ["harsh_controls", "harsh_control_inputs"],
+                      high_g_force: ["high_g_force", "high_g", "highg"],
+                      hard_landing: ["hard_landing", "hardlanding"],
+                      wrong_airport: ["wrong_airport", "wrong_destination", "wrong_airport_landing"],
+                      fuel_emergency: ["fuel_emergency", "fuel_emergency_low"],
+                    };
+                    const hasEvent = (key) => {
+                      const aliases = eventAliasByKey[key] || [key];
+                      return aliases.some((alias) => isTruthyEvent(events?.[alias]) || logTypes.has(normalizeEventType(alias)));
+                    };
+                    const hasFuelEmergency = hasEvent("fuel_emergency")
+                      && (flight?.xplane_data?.fuel_percentage || flight?.xplane_data?.fuel || 100) < 3;
+                    const hasAnyIncident =
+                      hasEvent("tailstrike") ||
+                      hasEvent("stall") ||
+                      hasEvent("overstress") ||
+                      hasEvent("overspeed") ||
+                      hasEvent("flaps_overspeed") ||
+                      hasEvent("gear_up_landing") ||
+                      hasEvent("crash") ||
+                      hasEvent("harsh_controls") ||
+                      hasEvent("high_g_force") ||
+                      hasEvent("hard_landing") ||
+                      hasFuelEmergency ||
+                      hasEvent("wrong_airport");
+                    if (!hasAnyIncident) return null;
+
                     return (
                       <div className="mt-4 pt-4 border-t border-slate-700">
                         <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges:</h4>
                         <div className="space-y-2">
-                        {events.tailstrike === true && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Heckaufsetzer
+                          {hasEvent("tailstrike") && (
+                            <div className="flex items-center gap-2 text-red-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Heckaufsetzer
+                            </div>
+                          )}
+                          {hasEvent("stall") && (
+                            <div className="flex items-center gap-2 text-red-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Strömungsabriss
+                            </div>
+                          )}
+                          {hasEvent("overstress") && (
+                            <div className="flex items-center gap-2 text-orange-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Strukturbelastung
+                            </div>
+                          )}
+                          {hasEvent("overspeed") && (
+                            <div className="flex items-center gap-2 text-orange-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Overspeed
+                            </div>
+                          )}
+                          {hasEvent("flaps_overspeed") && (
+                            <div className="flex items-center gap-2 text-orange-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Klappen-Overspeed
+                            </div>
+                          )}
+                          {hasEvent("gear_up_landing") && (
+                            <div className="flex items-center gap-2 text-red-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Landung ohne Fahrwerk
+                            </div>
+                          )}
+                          {hasEvent("crash") && (
+                            <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
+                              <AlertTriangle className="w-4 h-4" />
+                              CRASH (-100 Punkte, Wartung: 70% Neuwert)
+                            </div>
+                          )}
+                          {hasEvent("harsh_controls") && (
+                            <div className="flex items-center gap-2 text-orange-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Ruppige Steuerung
+                            </div>
+                          )}
+                          {hasEvent("high_g_force") && (
+                            <div className="flex items-center gap-2 text-orange-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Hohe G-Kräfte
+                            </div>
+                          )}
+                          {hasEvent("hard_landing") && (
+                            <div className="flex items-center gap-2 text-red-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Harte Landung
+                            </div>
+                          )}
+                          {hasFuelEmergency && (
+                            <div className="flex items-center gap-2 text-red-400 text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              Treibstoff-Notstand (unter 3%)
+                            </div>
+                          )}
+                          {hasEvent("wrong_airport") && (
+                            <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
+                              <AlertTriangle className="w-4 h-4" />
+                              {lang === 'de' ? 'Landung am falschen Zielflughafen' : 'Landed at wrong destination airport'}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {events.stall === true && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Strömungsabriss
-                        </div>
-                      )}
-                      {events.overstress === true && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Strukturbelastung
-                        </div>
-                      )}
-                      {events.overspeed === true && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Overspeed
-                        </div>
-                      )}
-                      {events.flaps_overspeed === true && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Klappen-Overspeed
-                        </div>
-                      )}
-                      {events.gear_up_landing === true && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Landung ohne Fahrwerk
-                        </div>
-                      )}
-                      {events.crash === true && (
-                       <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
-                         <AlertTriangle className="w-4 h-4" />
-                         CRASH (-100 Punkte, Wartung: 70% Neuwert)
-                       </div>
-                      )}
-                      {events.harsh_controls === true && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Ruppige Steuerung
-                        </div>
-                      )}
-                      {events.high_g_force === true && (
-                        <div className="flex items-center gap-2 text-orange-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Hohe G-Kräfte
-                        </div>
-                      )}
-                      {events.hard_landing === true && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Harte Landung
-                        </div>
-                      )}
-                      {events.fuel_emergency === true && (flight?.xplane_data?.fuel_percentage || flight?.xplane_data?.fuel || 100) < 3 && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                          <AlertTriangle className="w-4 h-4" />
-                          Treibstoff-Notstand (unter 3%)
-                        </div>
-                      )}
-                      {events.wrong_airport === true && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
-                          <AlertTriangle className="w-4 h-4" />
-                          {lang === 'de' ? 'Landung am falschen Zielflughafen' : 'Landed at wrong destination airport'}
-                        </div>
-                      )}
                       </div>
-                      </div>
-                      );
-                      })()}
+                    );
+                  })()}
                       </Card>
             </div>
 

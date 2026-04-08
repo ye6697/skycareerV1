@@ -53,6 +53,63 @@ export default function FuelPrediction({
     if (Number.isFinite(lever2)) return lever2;
     return NaN;
   };
+  const toAircraftToken = (value) => String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const parseBool = (value, fallback = false) => {
+    if (value === undefined || value === null) return fallback;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized) return fallback;
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off"].includes(normalized)) return false;
+    const numeric = Number(normalized);
+    return Number.isFinite(numeric) ? numeric !== 0 : fallback;
+  };
+  const toFiniteNumber = (value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+  const resolveAircraftIcao = (...values) => {
+    for (const value of values) {
+      const s = toAircraftToken(value);
+      if (!s || s === "UNKNOWN" || s === "NA" || s === "NAN") continue;
+      if (/PMDG/.test(s) && /(737|738|739|700|800|900)/.test(s)) {
+        if (/739|900/.test(s)) return "B739";
+        if (/700/.test(s)) return "B737";
+        return "B738";
+      }
+      if (/B38M|B737MAX8|BOEING7378|B737800|737800|B738/.test(s)) return "B738";
+      if (/B39M|B737MAX9|BOEING7379|B737900|737900|B739/.test(s)) return "B739";
+      if (/B737|737NG|737/.test(s)) return "B737";
+      if (/A20N|A320NEO|AIRBUSA320|A320/.test(s)) return "A320";
+      if (/A21N|A321NEO|AIRBUSA321|A321/.test(s)) return "A321";
+      if (/A19N|A319NEO|AIRBUSA319|A319/.test(s)) return "A319";
+      if (/B78X|B789|BOEING7879|B787900|787900/.test(s)) return "B789";
+      if (/B788|BOEING7878|B787800|787800/.test(s)) return "B788";
+      if (/^[A-Z][A-Z0-9]{2,4}$/.test(s) && /\d/.test(s)) return s;
+    }
+    return "";
+  };
+
+  const AIRCRAFT_FUEL_BURN_KGPH = {
+    B737: 2450,
+    B738: 2600,
+    B739: 2750,
+    A319: 2350,
+    A320: 2500,
+    A321: 2850,
+    B788: 5200,
+    B789: 5600,
+  };
+
+  const CATEGORY_FUEL_BURN_KGPH = {
+    small_prop: 60,
+    turboprop: 260,
+    regional_jet: 1300,
+    narrow_body: 2500,
+    wide_body: 5600,
+    cargo: 3000,
+  };
 
   const initialFuelKg = Number(xpd.initial_fuel_kg || 0);
   const currentFuelKg = Number(flightData.fuelKg || xpd.fuel_kg || xpd.last_valid_fuel_kg || 0);
@@ -61,36 +118,94 @@ export default function FuelPrediction({
   const elapsedHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : 0;
   const derivedBurnRateKgPerHour = elapsedHours > 0.08 ? (fuelUsedSoFar / elapsedHours) : 0;
   const backendBurnRateKgPerHour = Number(xpd.fuel_burn_rate_kgph || 0);
+  const directFlowBurnRateCandidatesKgph = [
+    toFiniteNumber(xpd.fuel_flow_total_kgph),
+    toFiniteNumber(xpd.fuel_flow_kgph),
+    toFiniteNumber(xpd.fuel_burn_kgph),
+    toFiniteNumber(xpd.fuelBurnRateKgph),
+    toFiniteNumber(xpd.fuel_flow_total_lph) / 1.25,
+    toFiniteNumber(xpd.fuel_flow_lph) / 1.25,
+    toFiniteNumber(xpd.fuel_flow_total_pph) * 0.45359237,
+    toFiniteNumber(xpd.fuel_flow_pph) * 0.45359237,
+    (toFiniteNumber(xpd.engine1_fuel_flow_pph) + toFiniteNumber(xpd.engine2_fuel_flow_pph)) * 0.45359237,
+  ].filter((value) => Number.isFinite(value) && value > 0);
+  const directFlowBurnRateKgPerHour = directFlowBurnRateCandidatesKgph.length > 0
+    ? Math.max(...directFlowBurnRateCandidatesKgph)
+    : 0;
   const aircraftBurnRateLitersPerHour = Number(aircraft?.fuel_consumption_per_hour || 0);
   const aircraftBurnRateKgPerHour = aircraftBurnRateLitersPerHour > 0 ? (aircraftBurnRateLitersPerHour / 1.25) : 0;
+  const resolvedAircraftIcao = resolveAircraftIcao(
+    xpd.aircraft_icao,
+    xpd.aircraftIcao,
+    xpd.atc_model,
+    xpd.atcModel,
+    xpd.atc_type,
+    xpd.atcType,
+    aircraft?.name,
+    aircraft?.model
+  );
+  const mappedBurnRateKgPerHour = Number(AIRCRAFT_FUEL_BURN_KGPH[resolvedAircraftIcao] || 0);
+  const categoryBurnRateKgPerHour = Number(
+    CATEGORY_FUEL_BURN_KGPH[String(aircraft?.aircraft_type || aircraft?.type || "").toLowerCase()] || 0
+  );
+  const baselineBurnRateKgPerHour = mappedBurnRateKgPerHour > 0
+    ? mappedBurnRateKgPerHour
+    : (aircraftBurnRateKgPerHour > 0
+        ? aircraftBurnRateKgPerHour
+        : categoryBurnRateKgPerHour);
   const thrustLeverPctNow = readThrustLeverPct(xpd);
-  const isOnGroundNow = Boolean(xpd?.on_ground);
-  const enginesRunningNow = Boolean(
-    xpd?.engines_running ||
-    xpd?.engine1_running ||
-    xpd?.engine2_running ||
+  const isOnGroundNow = parseBool(
+    xpd?.on_ground ?? xpd?.onGround ?? xpd?.sim_on_ground ?? xpd?.isOnGround,
+    false
+  );
+  const enginesRunningNow = (
+    parseBool(xpd?.engines_running, false) ||
+    parseBool(xpd?.engine1_running, false) ||
+    parseBool(xpd?.engine2_running, false) ||
     (Number.isFinite(thrustLeverPctNow) && thrustLeverPctNow > 2)
   );
+  const isJetLikeAircraft = (
+    baselineBurnRateKgPerHour >= 1800 ||
+    /^(B7|B78|B77|A3)/.test(resolvedAircraftIcao || "")
+  );
   const thrustRatio = Number.isFinite(thrustLeverPctNow) ? Math.max(0, Math.min(1, thrustLeverPctNow / 100)) : 0;
-  const modeledBurnRateKgPerHour = (aircraftBurnRateKgPerHour > 0 && enginesRunningNow)
-    ? aircraftBurnRateKgPerHour * (0.12 + (0.88 * thrustRatio))
+  const modeledBurnRateKgPerHour = (baselineBurnRateKgPerHour > 0 && enginesRunningNow)
+    ? baselineBurnRateKgPerHour * (0.12 + (0.88 * thrustRatio))
     : 0;
-  const isPlausibleRate = (rate) => Number.isFinite(rate) && rate >= 5 && rate <= 12000;
+  const minGroundBurnKgPerHour = baselineBurnRateKgPerHour > 0
+    ? Math.max(
+        (isJetLikeAircraft && enginesRunningNow) ? 180 : 30,
+        baselineBurnRateKgPerHour * (isJetLikeAircraft ? 0.08 : 0.06)
+      )
+    : ((isJetLikeAircraft && enginesRunningNow) ? 180 : 20);
+  const minAirBurnKgPerHour = baselineBurnRateKgPerHour > 0
+    ? Math.max(isJetLikeAircraft ? 550 : 80, baselineBurnRateKgPerHour * 0.2)
+    : (isJetLikeAircraft ? 550 : 120);
+  const minReasonableKgPerHour = isOnGroundNow ? minGroundBurnKgPerHour : minAirBurnKgPerHour;
+  const maxReasonableKgPerHour = baselineBurnRateKgPerHour > 0
+    ? Math.max(12000, baselineBurnRateKgPerHour * 3.5)
+    : 12000;
+  const isPlausibleRate = (rate) => (
+    Number.isFinite(rate) &&
+    rate >= minReasonableKgPerHour &&
+    rate <= maxReasonableKgPerHour
+  );
+  const pickFirstPlausibleRate = (...rates) => rates.find((rate) => isPlausibleRate(rate)) || 0;
   const burnRateKgPerHour = isOnGroundNow
-    ? (isPlausibleRate(modeledBurnRateKgPerHour)
-        ? modeledBurnRateKgPerHour
-        : (isPlausibleRate(backendBurnRateKgPerHour)
-            ? backendBurnRateKgPerHour
-            : (isPlausibleRate(derivedBurnRateKgPerHour)
-                ? derivedBurnRateKgPerHour
-                : (isPlausibleRate(aircraftBurnRateKgPerHour) ? aircraftBurnRateKgPerHour : 0))))
-    : (isPlausibleRate(backendBurnRateKgPerHour)
-        ? backendBurnRateKgPerHour
-        : (isPlausibleRate(derivedBurnRateKgPerHour)
-            ? derivedBurnRateKgPerHour
-            : (isPlausibleRate(modeledBurnRateKgPerHour)
-                ? modeledBurnRateKgPerHour
-                : (isPlausibleRate(aircraftBurnRateKgPerHour) ? aircraftBurnRateKgPerHour : 0))));
+    ? pickFirstPlausibleRate(
+        directFlowBurnRateKgPerHour,
+        modeledBurnRateKgPerHour,
+        derivedBurnRateKgPerHour,
+        backendBurnRateKgPerHour,
+        baselineBurnRateKgPerHour
+      )
+    : pickFirstPlausibleRate(
+        directFlowBurnRateKgPerHour,
+        backendBurnRateKgPerHour,
+        derivedBurnRateKgPerHour,
+        modeledBurnRateKgPerHour,
+        baselineBurnRateKgPerHour
+      );
   const burnRateLitersPerHour = burnRateKgPerHour > 0 ? (burnRateKgPerHour * 1.25) : 0;
   const groundSpeed = Number(flightData.speed || xpd.speed || 0) || 200;
   const remainingNm = Number(distanceInfo?.remainingNm || 0);

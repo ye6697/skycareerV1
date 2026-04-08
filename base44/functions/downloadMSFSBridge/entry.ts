@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     }
 
     const script = `#!/usr/bin/env python3
-# SkyCareer MSFS Bridge v2.3 (MSFS 2020 + 2024 via SimConnect)
+# SkyCareer MSFS Bridge v2.4 (MSFS 2020 + 2024 via SimConnect)
 # Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike
 # Usage:
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2020
@@ -133,6 +133,9 @@ def reset_flight_state():
         "prev_gear_down": True,
         "prev_flap_pct": 0,
         "prev_speedbrake_on": False,
+        "prev_fuel_kg": None,
+        "prev_fuel_ts": None,
+        "fuel_flow_fallback_kgph": 0.0,
     }
 
 def queue_event(state, event_type, lat, lon, altitude, speed, vertical_speed, g_force, val=None, cooldown=0.0):
@@ -177,7 +180,7 @@ def main():
     last_successful_post_at = time.time()
     last_seen_flight_id = None
 
-    print("[SkyCareer] Starting MSFS bridge v2.3 ...")
+    print("[SkyCareer] Starting MSFS bridge v2.4 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
     print(f"[SkyCareer] Simulator label: {args.sim}")
 
@@ -243,6 +246,36 @@ def main():
             fuel_capacity_gal = to_float(safe_get(aq, "FUEL TOTAL CAPACITY", "gallons"), 0.0)
             fuel_percentage = (fuel_gal / fuel_capacity_gal * 100.0) if fuel_capacity_gal > 0 else 0.0
             fuel_kg = fuel_gal * fuel_density
+            fuel_flow_eng1_pph = to_float(safe_get(aq, "TURB ENG FUEL FLOW PPH:1", "pounds per hour"), 0.0)
+            fuel_flow_eng2_pph = to_float(safe_get(aq, "TURB ENG FUEL FLOW PPH:2", "pounds per hour"), 0.0)
+            fuel_flow_eng1_gph = to_float(safe_get(aq, "ENG FUEL FLOW GPH:1", "gallons per hour"), 0.0)
+            fuel_flow_eng2_gph = to_float(safe_get(aq, "ENG FUEL FLOW GPH:2", "gallons per hour"), 0.0)
+            fuel_flow_total_pph = max(0.0, fuel_flow_eng1_pph) + max(0.0, fuel_flow_eng2_pph)
+            fuel_flow_total_gph = max(0.0, fuel_flow_eng1_gph) + max(0.0, fuel_flow_eng2_gph)
+            fuel_flow_source = ""
+            fuel_flow_total_kgph = 0.0
+            if fuel_flow_total_pph > 0.0:
+                fuel_flow_total_kgph = fuel_flow_total_pph * 0.45359237
+                fuel_flow_source = "simconnect_pph"
+            elif fuel_flow_total_gph > 0.0:
+                fuel_flow_total_kgph = fuel_flow_total_gph * fuel_density
+                fuel_flow_source = "simconnect_gph"
+            prev_fuel_kg = to_float(state.get("prev_fuel_kg"), 0.0)
+            prev_fuel_ts = to_float(state.get("prev_fuel_ts"), 0.0)
+            if fuel_flow_total_kgph <= 0.0 and prev_fuel_kg > 0.0 and prev_fuel_ts > 0.0 and fuel_kg <= prev_fuel_kg:
+                dt = now_epoch - prev_fuel_ts
+                if dt >= 0.5:
+                    burned_kg = max(0.0, prev_fuel_kg - fuel_kg)
+                    if burned_kg > 0.0:
+                        instant_flow_kgph = (burned_kg * 3600.0) / dt
+                        if 20.0 <= instant_flow_kgph <= 20000.0:
+                            prev_flow = to_float(state.get("fuel_flow_fallback_kgph"), 0.0)
+                            fuel_flow_total_kgph = instant_flow_kgph if prev_flow <= 0.0 else ((prev_flow * 0.65) + (instant_flow_kgph * 0.35))
+                            state["fuel_flow_fallback_kgph"] = fuel_flow_total_kgph
+                            fuel_flow_source = "derived_delta"
+            state["prev_fuel_kg"] = fuel_kg
+            state["prev_fuel_ts"] = now_epoch
+            fuel_flow_total_lph = fuel_flow_total_kgph * 1.25 if fuel_flow_total_kgph > 0.0 else 0.0
 
             # === FIX #1: AIRCRAFT ICAO - use ATC TYPE instead of ATC MODEL ===
             aircraft_icao = to_str(safe_get(aq, "ATC TYPE", None, ""), "")
@@ -567,6 +600,12 @@ def main():
                 "speedbrake": speedbrake_pos,
                 "fuel_percentage": fuel_percentage,
                 "fuel_kg": fuel_kg,
+                "fuel_flow_total_kgph": fuel_flow_total_kgph,
+                "fuel_flow_total_lph": fuel_flow_total_lph,
+                "fuel_flow_total_pph": fuel_flow_total_pph if fuel_flow_total_pph > 0.0 else (fuel_flow_total_kgph / 0.45359237 if fuel_flow_total_kgph > 0.0 else 0.0),
+                "engine1_fuel_flow_pph": fuel_flow_eng1_pph,
+                "engine2_fuel_flow_pph": fuel_flow_eng2_pph,
+                "fuel_flow_source": fuel_flow_source,
                 "touchdown_vspeed": state["touchdown_vspeed"],
                 "landing_vs": state["touchdown_vspeed"],
                 "landing_g_force": state["landing_g_force"],
