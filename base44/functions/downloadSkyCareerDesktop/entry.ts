@@ -2,7 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://aero-career-pilot.base44.app/api/functions/receiveXPlaneData';
-const BRIDGE_VERSION = 'bridge-2026-04-06-r2';
+const BRIDGE_VERSION = 'bridge-2026-04-08-r1';
+const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
 const DEFAULT_SIMCONNECT_CFG = `[SimConnect]
 Protocol=Ipv4
 Address=localhost
@@ -11,18 +12,12 @@ Port=500
 
 const DESKTOP_ZIP_CANDIDATES = [
   new URL('./assets/SkyCareer_Desktop_AllInOne_Windows.zip', import.meta.url),
-  new URL('./assets/SkyCareer_Desktop_AllInOne_Windows_20260311.zip', import.meta.url),
   new URL('../../../../public/downloads/SkyCareer_Desktop_AllInOne_Windows.zip', import.meta.url),
-  new URL('../../../../public/downloads/SkyCareer_Desktop_AllInOne_Windows_20260311.zip', import.meta.url),
 ];
 
-const BRIDGE_ZIP_CANDIDATES = [
+const BRIDGE_PAYLOAD_ZIP_CANDIDATES = [
   new URL('./assets/SkyCareer_MSFS_Bridge_Payload.zip', import.meta.url),
   new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Payload.zip', import.meta.url),
-  new URL('./assets/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
-  new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
-  new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows_20260311.zip', import.meta.url),
-  new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
 ];
 const GITHUB_MEDIA_BASE = 'https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads';
 
@@ -101,6 +96,7 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   patched = upsertAppSetting(patched, 'WorkerRestartDelayMs', '2000');
   patched = upsertAppSetting(patched, 'MaxConsecutiveTimeouts', '3');
   patched = upsertAppSetting(patched, 'BridgeVersion', BRIDGE_VERSION);
+  patched = upsertAppSetting(patched, 'NativeBridgeVersion', BRIDGE_VERSION);
   patched = upsertAppSetting(patched, 'Simulator', 'auto');
   patched = upsertAppSetting(patched, 'AutoStartOnSimulator', 'true');
   patched = upsertAppSetting(patched, 'MonitorProcesses', 'FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12');
@@ -124,6 +120,7 @@ function buildBridgeConfig(apiKey: string, endpoint: string) {
     <add key="WorkerRestartDelayMs" value="2000" />
     <add key="MaxConsecutiveTimeouts" value="3" />
     <add key="BridgeVersion" value="${BRIDGE_VERSION}" />
+    <add key="NativeBridgeVersion" value="${BRIDGE_VERSION}" />
     <add key="AutoStartOnSimulator" value="true" />
     <add key="MonitorProcesses" value="FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12" />
   </appSettings>
@@ -189,10 +186,10 @@ Deno.serve(async (req) => {
     const endpoint = resolveEndpoint(req, body?.endpoint) || API_ENDPOINT_DEFAULT;
 
     const desktopZipBytes = await readFirstAvailable(DESKTOP_ZIP_CANDIDATES);
-    const bridgeZipBytes = await readFirstAvailable(BRIDGE_ZIP_CANDIDATES);
+    const bridgePayloadZipBytes = await readFirstAvailable(BRIDGE_PAYLOAD_ZIP_CANDIDATES);
 
     const desktopZip = await JSZip.loadAsync(desktopZipBytes);
-    const bridgeZip = await JSZip.loadAsync(bridgeZipBytes);
+    const bridgeZip = await JSZip.loadAsync(bridgePayloadZipBytes);
     const outputZip = new JSZip();
 
     for (const [name, file] of Object.entries(desktopZip.files)) {
@@ -245,6 +242,8 @@ Deno.serve(async (req) => {
       const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
       outputZip.file(`${dir}SimConnect.cfg`, DEFAULT_SIMCONNECT_CFG);
     }
+    // Keep the payload zip in the desktop package so SC Installer consumes this exact build.
+    outputZip.file(BRIDGE_PAYLOAD_FILE, bridgePayloadZipBytes);
     outputZip.file('BRIDGE_VERSION.txt', `${BRIDGE_VERSION}\n`);
     const finalZipBytes = await outputZip.generateAsync({
       type: 'uint8array',
@@ -253,7 +252,7 @@ Deno.serve(async (req) => {
     });
 
     return Response.json({
-      filename: 'SkyCareer_Desktop_AllInOne_Windows.zip',
+      filename: `SkyCareer_Desktop_AllInOne_Windows_${BRIDGE_VERSION}.zip`,
       mime_type: 'application/zip',
       base64: toBase64(finalZipBytes),
       byte_length: finalZipBytes.length,

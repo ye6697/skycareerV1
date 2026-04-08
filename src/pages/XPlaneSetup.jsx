@@ -177,8 +177,10 @@ const COPY = {
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
   const text = COPY[lang] || COPY.en;
-  const BRIDGE_VERSION = 'bridge-2026-04-06-r2';
-  const DOWNLOAD_CACHE_BUST = '20260406-fix-download-fallback';
+  const BRIDGE_VERSION = 'bridge-2026-04-08-r1';
+  const DOWNLOAD_CACHE_BUST = '20260408-bridge-r1';
+  const BRIDGE_BOOTSTRAP_FILE = 'SkyCareer_MSFS_Bridge_Windows.zip';
+  const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
@@ -241,6 +243,7 @@ export default function XPlaneSetup() {
     <add key="WorkerRestartDelayMs" value="2000" />
     <add key="MaxConsecutiveTimeouts" value="3" />
     <add key="BridgeVersion" value="${escapeXml(BRIDGE_VERSION)}" />
+    <add key="NativeBridgeVersion" value="${escapeXml(BRIDGE_VERSION)}" />
     <add key="AutoStartOnSimulator" value="true" />
     <add key="MonitorProcesses" value="FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12" />
   </appSettings>
@@ -371,7 +374,7 @@ Port=500
   const downloadSkyCareerDesktop = async () => {
     setDownloading(true);
     try {
-      const targetFile = 'SkyCareer_MSFS_Bridge_Windows.zip';
+      const targetFile = BRIDGE_BOOTSTRAP_FILE;
       let bytes = null;
       let fileName = targetFile;
       let lastError = null;
@@ -407,12 +410,11 @@ Port=500
       if (!bytes) {
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-        const payloadFile = 'SkyCareer_MSFS_Bridge_Payload.zip';
         const payloadCandidates = [
-          new URL(`downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
-          new URL(`${normalizedBase}downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          new URL(`/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${payloadFile}?v=${DOWNLOAD_CACHE_BUST}`,
+          new URL(`downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
+          new URL(`${normalizedBase}downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          new URL(`/downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
+          `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`,
         ];
         const bootstrapCandidates = [
           new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
@@ -532,6 +534,7 @@ Port=500
               <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">MSFS 2020/2024</span>
               <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">X-Plane 12</span>
               <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">Account-bound API</span>
+              <span className="rounded-full border border-emerald-200/25 bg-emerald-300/10 px-3 py-1 text-xs font-medium text-emerald-100">Bridge {BRIDGE_VERSION}</span>
             </div>
           </div>
         </Card>
