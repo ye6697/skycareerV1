@@ -14,14 +14,11 @@ import { INSURANCE_PACKAGES } from "@/lib/insurance";
 
 export default function FlightRating({ flight }) {
   const { lang } = useLanguage();
-  const landingVsValue = Math.max(0, Math.min(
-    2500,
-    Math.abs(Number(
-      flight?.landing_vs ??
-      flight?.xplane_data?.touchdown_vspeed ??
-      0
-    ) || 0)
-  ));
+  const landingVsValue = Math.max(0, Math.abs(Number(
+    flight?.landing_vs ??
+    flight?.xplane_data?.touchdown_vspeed ??
+    0
+  ) || 0));
   const getRatingColor = (rating) => {
     if (rating >= 4.5) return "text-emerald-500";
     if (rating >= 3.5) return "text-blue-500";

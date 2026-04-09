@@ -25,6 +25,7 @@ import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
+import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -182,14 +183,45 @@ export default function CompletedFlightDetails() {
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
   const candidateLandingVsValues = [
-    Number(flight?.xplane_data?.touchdown_vspeed || 0),
     Number(flight?.landing_vs || 0),
+    Number(flight?.xplane_data?.touchdown_vspeed || 0),
     Number(flight?.xplane_data?.landing_vs || 0)
   ];
   const resolvedLandingVs = candidateLandingVsValues.find((v) => Number.isFinite(v) && Math.abs(v) > 0) || 0;
-  const landingVsValue = Math.max(0, Math.min(2500, Math.abs(resolvedLandingVs)));
-  const deadlineMinutesValue =
-    Number(flight?.xplane_data?.deadlineMinutes ?? flight?.xplane_data?.deadline_minutes ?? 0) || 0;
+  const landingVsValue = Math.max(0, Math.abs(Number(resolvedLandingVs) || 0));
+  const flightDurationMinutes = Number(flight?.flight_duration_hours || 0) * 60;
+  const fallbackDeadlineMinutes = (() => {
+    const explicit = Number(
+      flight?.xplane_data?.contract_deadline_minutes ??
+      finalContract?.deadline_minutes ??
+      0
+    );
+    if (explicit > 0) return explicit;
+    const distanceNm = Number(
+      finalContract?.distance_nm ??
+      flight?.xplane_data?.contract_distance_nm ??
+      0
+    );
+    if (distanceNm > 0) {
+      return calculateDeadlineMinutes(
+        distanceNm,
+        flight?.xplane_data?.aircraft_icao || null,
+        flight?.xplane_data?.fleet_aircraft_type || null
+      );
+    }
+    return 0;
+  })();
+  const deadlineMinutesValue = Number(
+    flight?.xplane_data?.deadlineMinutes ??
+    flight?.xplane_data?.deadline_minutes ??
+    fallbackDeadlineMinutes
+  ) || 0;
+  const timeScoreRaw = Number(
+    flight?.xplane_data?.timeScoreChange ??
+    flight?.xplane_data?.time_score_change
+  );
+  const timeScoreChangeValue = Number.isFinite(timeScoreRaw) ? Math.round(timeScoreRaw) : null;
+  const bufferDeadlineMinutesValue = deadlineMinutesValue > 0 ? (deadlineMinutesValue + 5) : 0;
   const madeDeadlineValue = (() => {
     if (typeof flight?.xplane_data?.madeDeadline === 'boolean') return flight.xplane_data.madeDeadline;
     if (typeof flight?.xplane_data?.made_deadline === 'boolean') return flight.xplane_data.made_deadline;
@@ -198,8 +230,18 @@ export default function CompletedFlightDetails() {
   const resolvedMadeDeadline = madeDeadlineValue !== null
     ? madeDeadlineValue
     : (deadlineMinutesValue > 0
-        ? ((Number(flight?.flight_duration_hours || 0) * 60) <= deadlineMinutesValue)
+        ? (flightDurationMinutes <= deadlineMinutesValue)
         : null);
+  const deadlineState = (() => {
+    if (timeScoreChangeValue === 5) return 'on_time';
+    if (timeScoreChangeValue === 0) return 'buffer';
+    if (timeScoreChangeValue === -20) return 'late';
+    if (deadlineMinutesValue <= 0) return 'unknown';
+    if (resolvedMadeDeadline === true) return 'on_time';
+    if (flightDurationMinutes <= bufferDeadlineMinutesValue) return 'buffer';
+    if (resolvedMadeDeadline === false) return 'late';
+    return 'unknown';
+  })();
   const wrongAirportCompletion = !!(
     flight?.xplane_data?.events?.wrong_airport ||
     flight?.xplane_data?.landed_too_far_from_arrival
@@ -223,7 +265,7 @@ export default function CompletedFlightDetails() {
             onClick={() => navigate(createPageUrl("ActiveFlights"))}
             className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 font-mono text-[10px] uppercase border border-cyan-900/50"
           >
-            ◀ {t('back', lang)}
+            {'<'} {t('back', lang)}
           </Button>
           <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{finalContract.title}</div>
         </div>
@@ -233,7 +275,7 @@ export default function CompletedFlightDetails() {
               <MapPin className="w-3 h-3 text-cyan-600" />
               {finalContract.departure_airport}
             </span>
-            <span>→</span>
+            <span>{'->'}</span>
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3 text-cyan-600" />
               {finalContract.arrival_airport}
@@ -392,24 +434,39 @@ export default function CompletedFlightDetails() {
                 </div>
 
                 {/* Deadline Result */}
-                {deadlineMinutesValue > 0 && (
+                {(deadlineMinutesValue > 0 || timeScoreChangeValue !== null) && (
                   <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
-                    <p className="text-slate-400 text-sm mb-1">Deadline</p>
+                    <p className="text-slate-400 text-sm mb-1">{t('deadline', lang)}</p>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-slate-400">
-                          Vorgabe: {Math.round(deadlineMinutesValue)} min | Geflogen: {Math.round((flight.flight_duration_hours || 0) * 60)} min
+                          {deadlineMinutesValue > 0
+                            ? (lang === 'de'
+                                ? `Vorgabe: ${Math.round(deadlineMinutesValue)} min | Puffer bis: ${Math.round(bufferDeadlineMinutesValue)} min | Geflogen: ${Math.round(flightDurationMinutes)} min`
+                                : `Target: ${Math.round(deadlineMinutesValue)} min | Buffer until: ${Math.round(bufferDeadlineMinutesValue)} min | Flown: ${Math.round(flightDurationMinutes)} min`)
+                            : (lang === 'de' ? 'Deadline-Details nicht verfuegbar' : 'Deadline details unavailable')}
                         </p>
                       </div>
-                      {resolvedMadeDeadline === true ? (
+                      {deadlineState === 'on_time' ? (
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                          <span className="text-emerald-400 font-bold">+20 Punkte</span>
+                          <span className="text-emerald-400 font-bold">
+                            {lang === 'de' ? '+5 Punkte' : '+5 points'}
+                          </span>
                         </div>
-                      ) : resolvedMadeDeadline === false ? (
+                      ) : deadlineState === 'buffer' ? (
+                        <div className="flex items-center gap-2">
+                          <Timer className="w-5 h-5 text-amber-400" />
+                          <span className="text-amber-300 font-bold">
+                            {lang === 'de' ? 'Puffer (0 Punkte)' : 'Buffer (0 points)'}
+                          </span>
+                        </div>
+                      ) : deadlineState === 'late' ? (
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="w-5 h-5 text-red-400" />
-                          <span className="text-red-400 font-bold">-20 Punkte</span>
+                          <span className="text-red-400 font-bold">
+                            {lang === 'de' ? '-20 Punkte' : '-20 points'}
+                          </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
@@ -423,7 +480,9 @@ export default function CompletedFlightDetails() {
 
                 {/* Final Score */}
                 <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
-                  <p className="text-slate-400 text-sm mb-1">Finaler Flug-Score</p>
+                  <p className="text-slate-400 text-sm mb-1">
+                    {lang === 'de' ? 'Finaler Flug-Score' : 'Final Flight Score'}
+                  </p>
                   {(() => {
                     const score = flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0;
                     return (
@@ -450,7 +509,7 @@ export default function CompletedFlightDetails() {
                 {emergencyOffAirportCompletion && (
                   <div className="mt-4 p-4 bg-amber-900/25 border border-amber-700/50 rounded-lg">
                     <p className="text-sm font-semibold text-amber-300 mb-2">
-                      {lang === 'de' ? 'Notlandung außerhalb Zielflughafen erkannt' : 'Emergency off-airport landing detected'}
+                      {lang === 'de' ? 'Notlandung ausserhalb Zielflughafen erkannt' : 'Emergency off-airport landing detected'}
                     </p>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
@@ -498,8 +557,8 @@ export default function CompletedFlightDetails() {
                   return (
                   <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-3">
                     <div>
-                      <p className="text-slate-400 text-sm mb-2 font-semibold">Landungsqualitäts-Analyse</p>
-                      <p className="text-xs text-slate-400 mb-3">Basierend auf G-Kraft beim Landen ({landingG.toFixed(2)} G)</p>
+                      <p className="text-slate-400 text-sm mb-2 font-semibold">{lang === 'de' ? 'Landungsqualitaets-Analyse' : 'Landing quality analysis'}</p>
+                      <p className="text-xs text-slate-400 mb-3">{lang === 'de' ? `Basierend auf G-Kraft beim Landen (${landingG.toFixed(2)} G)` : `Based on touchdown G-force (${landingG.toFixed(2)} G)`}</p>
                     </div>
 
                     {/* Landing Type */}
@@ -514,35 +573,35 @@ export default function CompletedFlightDetails() {
                       {lt === 'very_hard' && (
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-500" />
-                          <span className="text-red-500 font-bold">Sehr Harte Landung</span>
+                          <span className="text-red-500 font-bold">{lang === 'de' ? 'Sehr harte Landung' : 'Very hard landing'}</span>
                           <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'hard' && (
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-400" />
-                          <span className="text-red-400 font-bold">Harte Landung</span>
+                          <span className="text-red-400 font-bold">{lang === 'de' ? 'Harte Landung' : 'Hard landing'}</span>
                           <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'acceptable' && (
                         <>
                           <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                          <span className="text-blue-400 font-semibold">Akzeptable Landung</span>
+                          <span className="text-blue-400 font-semibold">{lang === 'de' ? 'Akzeptable Landung' : 'Acceptable landing'}</span>
                           <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'soft' && (
                         <>
                           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                          <span className="text-emerald-400 font-bold">Weiche Landung</span>
+                          <span className="text-emerald-400 font-bold">{lang === 'de' ? 'Weiche Landung' : 'Soft landing'}</span>
                           <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'butter' && (
                         <>
                           <Star className="w-5 h-5 text-amber-400" />
-                          <span className="text-amber-400 font-bold">BUTTERWEICHE LANDUNG!</span>
+                          <span className="text-amber-400 font-bold">{lang === 'de' ? 'BUTTERWEICHE LANDUNG!' : 'BUTTER LANDING!'}</span>
                           <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
@@ -551,17 +610,17 @@ export default function CompletedFlightDetails() {
                       {/* Score and Cost Impact */}
                       <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-700">
                       <div>
-                        <p className="text-xs text-slate-400 mb-1">Score-Auswirkung</p>
+                        <p className="text-xs text-slate-400 mb-1">{lang === 'de' ? 'Score-Auswirkung' : 'Score impact'}</p>
                         <p className={`font-mono font-bold ${
                           scoreChange > 0 ? 'text-emerald-400' :
                           scoreChange < 0 ? 'text-red-400' :
                           'text-slate-400'
                         }`}>
-                          {scoreChange > 0 ? '+' : ''}{scoreChange} Punkte
+                          {scoreChange > 0 ? '+' : ''}{scoreChange} {lang === 'de' ? 'Punkte' : 'points'}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400 mb-1">Finanzielle Auswirkung</p>
+                        <p className="text-xs text-slate-400 mb-1">{lang === 'de' ? 'Finanzielle Auswirkung' : 'Financial impact'}</p>
                         {financialImpact > 0 ? (
                           <p className="font-mono font-bold text-emerald-400">
                            +${Math.round(financialImpact).toLocaleString()}
@@ -582,7 +641,9 @@ export default function CompletedFlightDetails() {
                       {/* Live Maintenance Costs */}
                   {flight.xplane_data?.maintenanceCost > 0 && (
                     <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
-                      <p className="text-sm text-red-300 mb-2">Wartungskosten im Flug:</p>
+                      <p className="text-sm text-red-300 mb-2">
+                        {lang === 'de' ? 'Wartungskosten im Flug:' : 'In-flight maintenance costs:'}
+                      </p>
                       <p className="text-2xl font-bold text-red-400">${Math.round(flight.xplane_data.maintenanceCost || 0).toLocaleString()}</p>
                     </div>
                   )}
@@ -590,26 +651,32 @@ export default function CompletedFlightDetails() {
                   {/* Total Maintenance Breakdown */}
                   {(flight.xplane_data?.maintenanceCost > 0 || flight.xplane_data?.crashMaintenanceCost > 0 || flight.xplane_data?.events?.crash) && (
                     <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-2">
-                     <h4 className="text-sm font-semibold text-white mb-3">Wartungskosten-Aufschlüsselung:</h4>
+                     <h4 className="text-sm font-semibold text-white mb-3">
+                       {lang === 'de' ? 'Wartungskosten-Aufschluesselung:' : 'Maintenance cost breakdown:'}
+                     </h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between text-slate-300">
-                          <span>Reguläre Wartung ({flight.flight_duration_hours?.toFixed(1)}h × $400/h)</span>
+                          <span>
+                            {lang === 'de'
+                              ? `Regulaere Wartung (${flight.flight_duration_hours?.toFixed(1)}h x $400/h)`
+                              : `Regular maintenance (${flight.flight_duration_hours?.toFixed(1)}h x $400/h)`}
+                          </span>
                           <span className="text-amber-400">${Math.round((flight.flight_duration_hours || 0) * 400).toLocaleString()}</span>
                         </div>
                         {flight.xplane_data?.maintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
-                            <span>Event-Schäden im Flug</span>
+                          <span>{lang === 'de' ? 'Event-Schaeden im Flug' : 'Event damage during flight'}</span>
                             <span className="text-red-400">${Math.round(flight.xplane_data.maintenanceCost || 0).toLocaleString()}</span>
                           </div>
                         )}
                         {flight.xplane_data?.crashMaintenanceCost > 0 && (
                           <div className="flex justify-between text-slate-300">
-                            <span>Crash-Reparatur (70% des Neuwertes)</span>
+                            <span>{lang === 'de' ? 'Crash-Reparatur (70% des Neuwertes)' : 'Crash repair (70% of new value)'}</span>
                             <span className="text-red-500 font-bold">${Math.round(flight.xplane_data.crashMaintenanceCost || 0).toLocaleString()}</span>
                           </div>
                         )}
                         <div className="flex justify-between pt-2 border-t border-slate-700 font-bold">
-                          <span className="text-white">Gesamt Wartungskosten</span>
+                          <span className="text-white">{lang === 'de' ? 'Gesamt Wartungskosten' : 'Total maintenance costs'}</span>
                           <span className="text-red-400">${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
                         </div>
                       </div>
@@ -626,13 +693,19 @@ export default function CompletedFlightDetails() {
                   {/* Maintenance Damage Breakdown */}
                   {Object.values(maintenanceDamageByCategory).some(v => Number(v) > 0) && (
                     <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
-                     <h4 className="text-sm font-semibold text-white mb-3">Wartungsschäden durch diesen Flug:</h4>
+                     <h4 className="text-sm font-semibold text-white mb-3">
+                       {lang === 'de' ? 'Wartungsschaeden durch diesen Flug:' : 'Maintenance wear caused by this flight:'}
+                     </h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         {Object.entries(maintenanceDamageByCategory).filter(([_, v]) => Number(v) > 0).map(([cat, dmg]) => {
-                          const labels = {
+                          const labels = lang === 'de' ? {
                             engine: "Triebwerk", hydraulics: "Hydraulik", avionics: "Avionik",
                             airframe: "Struktur", landing_gear: "Fahrwerk", electrical: "Elektrik",
                             flight_controls: "Steuerung", pressurization: "Druckkabine"
+                          } : {
+                            engine: "Engine", hydraulics: "Hydraulics", avionics: "Avionics",
+                            airframe: "Airframe", landing_gear: "Landing Gear", electrical: "Electrical",
+                            flight_controls: "Flight Controls", pressurization: "Pressurization"
                           };
                           return (
                             <div key={cat} className="flex justify-between p-2 bg-slate-600/30 border border-slate-600/40 rounded">
@@ -663,7 +736,6 @@ export default function CompletedFlightDetails() {
                       if (type === "crashed" || type === "has_crashed") return "crash";
                       if (type === "high_g" || type === "highg") return "high_g_force";
                       if (type === "hardlanding") return "hard_landing";
-                      if (type === "gear_up") return "gear_up_landing";
                       if (type === "wrong_destination" || type === "wrong_airport_landing") return "wrong_airport";
                       if (type === "fuel_emergency_low") return "fuel_emergency";
                       if (type === "flaps_overspeeding") return "flaps_overspeed";
@@ -686,7 +758,7 @@ export default function CompletedFlightDetails() {
                       overstress: ["overstress", "structural_damage"],
                       overspeed: ["overspeed", "over_speed"],
                       flaps_overspeed: ["flaps_overspeed", "flaps_overspeeding", "flaps_overspeed_warning"],
-                      gear_up_landing: ["gear_up_landing", "gear_up"],
+                      gear_up_landing: ["gear_up_landing"],
                       crash: ["crash", "crashed", "has_crashed"],
                       harsh_controls: ["harsh_controls", "harsh_control_inputs"],
                       high_g_force: ["high_g_force", "high_g", "highg"],
@@ -717,24 +789,26 @@ export default function CompletedFlightDetails() {
 
                     return (
                       <div className="mt-4 pt-4 border-t border-slate-700">
-                        <h4 className="text-sm font-semibold text-slate-300 mb-3">Vorfälle während des Fluges:</h4>
+                        <h4 className="text-sm font-semibold text-slate-300 mb-3">
+                          {lang === 'de' ? 'Vorfaelle waehrend des Fluges:' : 'Incidents during the flight:'}
+                        </h4>
                         <div className="space-y-2">
                           {hasEvent("tailstrike") && (
                             <div className="flex items-center gap-2 text-red-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Heckaufsetzer
+                              {lang === 'de' ? 'Heckaufsetzer' : 'Tailstrike'}
                             </div>
                           )}
                           {hasEvent("stall") && (
                             <div className="flex items-center gap-2 text-red-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Strömungsabriss
+                              {lang === 'de' ? 'Stroemungsabriss' : 'Stall'}
                             </div>
                           )}
                           {hasEvent("overstress") && (
                             <div className="flex items-center gap-2 text-orange-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Strukturbelastung
+                              {lang === 'de' ? 'Strukturbelastung' : 'Structural stress'}
                             </div>
                           )}
                           {hasEvent("overspeed") && (
@@ -746,43 +820,43 @@ export default function CompletedFlightDetails() {
                           {hasEvent("flaps_overspeed") && (
                             <div className="flex items-center gap-2 text-orange-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Klappen-Overspeed
+                              {lang === 'de' ? 'Klappen-Overspeed' : 'Flaps overspeed'}
                             </div>
                           )}
                           {hasEvent("gear_up_landing") && (
                             <div className="flex items-center gap-2 text-red-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Landung ohne Fahrwerk
+                              {lang === 'de' ? 'Landung ohne Fahrwerk' : 'Gear-up landing'}
                             </div>
                           )}
                           {hasEvent("crash") && (
                             <div className="flex items-center gap-2 text-red-400 text-sm font-bold">
                               <AlertTriangle className="w-4 h-4" />
-                              CRASH (-100 Punkte, Wartung: 70% Neuwert)
+                              {lang === 'de' ? 'CRASH (-100 Punkte, Wartung: 70% Neuwert)' : 'CRASH (-100 points, maintenance: 70% new value)'}
                             </div>
                           )}
                           {hasEvent("harsh_controls") && (
                             <div className="flex items-center gap-2 text-orange-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Ruppige Steuerung
+                              {lang === 'de' ? 'Ruppige Steuerung' : 'Harsh controls'}
                             </div>
                           )}
                           {hasEvent("high_g_force") && (
                             <div className="flex items-center gap-2 text-orange-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Hohe G-Kräfte
+                              {lang === 'de' ? 'Hohe G-Kraefte' : 'High G-forces'}
                             </div>
                           )}
                           {hasEvent("hard_landing") && (
                             <div className="flex items-center gap-2 text-red-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Harte Landung
+                              {lang === 'de' ? 'Harte Landung' : 'Hard landing'}
                             </div>
                           )}
                           {hasFuelEmergency && (
                             <div className="flex items-center gap-2 text-red-400 text-sm">
                               <AlertTriangle className="w-4 h-4" />
-                              Treibstoff-Notstand (unter 3%)
+                              {lang === 'de' ? 'Treibstoff-Notstand (unter 3%)' : 'Fuel emergency (below 3%)'}
                             </div>
                           )}
                           {hasEvent("wrong_airport") && (
@@ -831,24 +905,40 @@ export default function CompletedFlightDetails() {
                    )}
                    {flight?.xplane_data?.levelBonus > 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-amber-400">Level-Bonus (Lv.{flight.xplane_data.companyLevel || 1} × {flight.xplane_data.levelBonusPercent?.toFixed(0) || 1}%)</span>
+                     <span className="text-amber-400">
+                       {lang === 'de'
+                         ? `Level-Bonus (Lv.${flight.xplane_data.companyLevel || 1} x ${flight.xplane_data.levelBonusPercent?.toFixed(0) || 1}%)`
+                         : `Level bonus (Lv.${flight.xplane_data.companyLevel || 1} x ${flight.xplane_data.levelBonusPercent?.toFixed(0) || 1}%)`}
+                     </span>
                      <span className="text-amber-400 font-mono">+${Math.round(flight.xplane_data.levelBonus).toLocaleString()}</span>
                    </div>
                    )}
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-slate-400">Treibstoff ({estimateFuelUsedLiters().toLocaleString()} L)</span>
+                     <span className="text-slate-400">
+                       {lang === 'de'
+                         ? `Treibstoff (${estimateFuelUsedLiters().toLocaleString()} L)`
+                         : `Fuel (${estimateFuelUsedLiters().toLocaleString()} L)`}
+                     </span>
                     <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Crew ({flight.flight_duration_hours?.toFixed(1)}h)</span>
+                    <span className="text-slate-400">
+                      {lang === 'de'
+                        ? `Crew (${flight.flight_duration_hours?.toFixed(1)}h)`
+                        : `Crew (${flight.flight_duration_hours?.toFixed(1)}h)`}
+                    </span>
                     <span className="text-red-400 font-mono">-${Math.round(flight.crew_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Wartung ({flight.flight_duration_hours?.toFixed(1)}h + Events)</span>
+                    <span className="text-slate-400">
+                      {lang === 'de'
+                        ? `Wartung (${flight.flight_duration_hours?.toFixed(1)}h + Events)`
+                        : `Maintenance (${flight.flight_duration_hours?.toFixed(1)}h + events)`}
+                    </span>
                     <span className="text-red-400 font-mono">-${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span className="text-slate-400">Flughafen-Gebühren</span>
+                    <span className="text-slate-400">{lang === 'de' ? 'Flughafen-Gebuehren' : 'Airport fees'}</span>
                     <span className="text-red-400 font-mono">-$150</span>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-700">

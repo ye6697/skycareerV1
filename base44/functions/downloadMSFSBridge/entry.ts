@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     }
 
     const script = `#!/usr/bin/env python3
-# SkyCareer MSFS Bridge v2.4 (MSFS 2020 + 2024 via SimConnect)
+# SkyCareer MSFS Bridge v2.5 (MSFS 2020 + 2024 via SimConnect)
 # Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike
 # Usage:
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2020
@@ -48,6 +48,7 @@ SAMPLE_BUFFER_SECONDS = 2.0
 TOUCHDOWN_CAPTURE_BEFORE_S = 0.6
 TOUCHDOWN_CAPTURE_AFTER_S = 0.4
 TOUCHDOWN_MAX_AGL_FT = 60.0
+TOUCHDOWN_SAMPLE_OFFSET = 3
 MAX_EVENT_QUEUE = 120
 MAX_CONSECUTIVE_POST_TIMEOUTS = 3
 WORKER_RESTART_BACKOFF_S = 2.0
@@ -166,6 +167,47 @@ def should_restart_worker_on_timeouts(consecutive_timeouts, last_success_at, now
     max_gap = max(10.0, LOOP_INTERVAL * (MAX_CONSECUTIVE_POST_TIMEOUTS + 1))
     return (now_epoch - float(last_success_at or 0.0)) >= max_gap
 
+def pick_touchdown_sample_metrics(sample_buffer, touchdown_epoch, now_epoch):
+    if not sample_buffer:
+        return 0.0, 1.0
+    window_start = float(touchdown_epoch or now_epoch) - TOUCHDOWN_CAPTURE_BEFORE_S
+    window_end = float(now_epoch) + TOUCHDOWN_CAPTURE_AFTER_S
+    raw_window = [s for s in sample_buffer if window_start <= float(s.get("t", 0.0)) <= window_end]
+    landing_window = [
+        s for s in raw_window
+        if bool(s.get("on_ground")) or (s.get("agl") is not None and float(s.get("agl", 0.0)) <= TOUCHDOWN_MAX_AGL_FT)
+    ]
+    candidates = landing_window if landing_window else raw_window
+    if not candidates:
+        candidates = sample_buffer[-7:]
+    if not candidates:
+        return 0.0, 1.0
+
+    candidates = sorted(candidates, key=lambda s: float(s.get("t", 0.0)))
+    touchdown_idx = max(0, len(candidates) - 1)
+    for idx, sample in enumerate(candidates):
+        if float(sample.get("t", 0.0)) >= float(touchdown_epoch or now_epoch):
+            touchdown_idx = idx
+            break
+
+    before_idx = max(0, touchdown_idx - TOUCHDOWN_SAMPLE_OFFSET)
+    after_idx = min(len(candidates) - 1, touchdown_idx + TOUCHDOWN_SAMPLE_OFFSET)
+    before_sample = candidates[before_idx]
+    after_sample = candidates[after_idx]
+
+    before_g = max(1.0, float(before_sample.get("g", 1.0) or 1.0))
+    after_g = max(1.0, float(after_sample.get("g", 1.0) or 1.0))
+    chosen_sample = before_sample if before_g >= after_g else after_sample
+    chosen_g = before_g if before_g >= after_g else after_g
+
+    chosen_vs_raw = float(chosen_sample.get("vs", 0.0) or 0.0)
+    chosen_vs = abs(chosen_vs_raw) if chosen_vs_raw < -20.0 else 0.0
+    if chosen_vs <= 0.0:
+        vs_candidates = [abs(float(s.get("vs", 0.0))) for s in candidates if float(s.get("vs", 0.0)) < -20.0]
+        if vs_candidates:
+            chosen_vs = max(vs_candidates)
+    return chosen_vs, chosen_g
+
 def main():
     parser = argparse.ArgumentParser(description="SkyCareer bridge for MSFS 2020/2024")
     parser.add_argument("--sim", default="msfs2020", choices=["msfs2020", "msfs2024"])
@@ -180,7 +222,7 @@ def main():
     last_successful_post_at = time.time()
     last_seen_flight_id = None
 
-    print("[SkyCareer] Starting MSFS bridge v2.4 ...")
+    print("[SkyCareer] Starting MSFS bridge v2.5 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
     print(f"[SkyCareer] Simulator label: {args.sim}")
 
@@ -458,21 +500,19 @@ def main():
             if just_landed:
                 state["touchdown_epoch"] = now_epoch
                 state["touchdown_capture_until"] = now_epoch + TOUCHDOWN_CAPTURE_AFTER_S
-                window_start = now_epoch - TOUCHDOWN_CAPTURE_BEFORE_S
-                raw_window = [s for s in state["sample_buffer"] if s.get("t", 0) >= window_start and s.get("t", 0) <= now_epoch + 0.001]
-                landing_window = [
-                    s for s in raw_window
-                    if bool(s.get("on_ground")) or (s.get("agl") is not None and float(s.get("agl", 0.0)) <= TOUCHDOWN_MAX_AGL_FT)
-                ]
-                if not landing_window:
-                    landing_window = raw_window
-
-                g_candidates = [float(s.get("g", 1.0)) for s in landing_window]
-                vs_candidates = [abs(float(s.get("vs", 0.0))) for s in landing_window if float(s.get("vs", 0.0)) < -40.0]
-                touchdown_vs_local = max(abs(prev_vs), abs(vertical_speed), max(vs_candidates) if vs_candidates else 0.0)
-                landing_g_local = max(1.0, g_force, state.get("prev_g_force", 1.0), max(g_candidates) if g_candidates else 1.0)
-                state["touchdown_vspeed"] = max(state["touchdown_vspeed"], touchdown_vs_local)
-                state["landing_g_force"] = max(state["landing_g_force"], landing_g_local)
+                touchdown_vs_local, landing_g_local = pick_touchdown_sample_metrics(
+                    state["sample_buffer"],
+                    state.get("touchdown_epoch"),
+                    now_epoch
+                )
+                fallback_vs = max(
+                    abs(prev_vs) if prev_vs < -20.0 else 0.0,
+                    abs(vertical_speed) if vertical_speed < -20.0 else 0.0
+                )
+                touchdown_vs_local = max(touchdown_vs_local, fallback_vs)
+                landing_g_local = max(1.0, landing_g_local, g_force, state.get("prev_g_force", 1.0))
+                state["touchdown_vspeed"] = touchdown_vs_local
+                state["landing_g_force"] = landing_g_local
                 state["landing_data_timestamp"] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
                 state["landing_locked_local"] = True
                 queue_event(
@@ -492,20 +532,15 @@ def main():
             if state.get("landing_locked_local") and state.get("touchdown_epoch") is not None:
                 capture_until = state.get("touchdown_capture_until")
                 if capture_until is not None and now_epoch <= capture_until:
-                    window_start = float(state.get("touchdown_epoch", now_epoch)) - TOUCHDOWN_CAPTURE_BEFORE_S
-                    raw_window = [s for s in state["sample_buffer"] if s.get("t", 0) >= window_start and s.get("t", 0) <= now_epoch + 0.001]
-                    landing_window = [
-                        s for s in raw_window
-                        if bool(s.get("on_ground")) or (s.get("agl") is not None and float(s.get("agl", 0.0)) <= TOUCHDOWN_MAX_AGL_FT)
-                    ]
-                    if not landing_window:
-                        landing_window = raw_window
-                    g_candidates = [float(s.get("g", 1.0)) for s in landing_window]
-                    vs_candidates = [abs(float(s.get("vs", 0.0))) for s in landing_window if float(s.get("vs", 0.0)) < -40.0]
-                    if g_candidates:
-                        state["landing_g_force"] = max(state["landing_g_force"], max(g_candidates))
-                    if vs_candidates:
-                        state["touchdown_vspeed"] = max(state["touchdown_vspeed"], max(vs_candidates))
+                    touchdown_vs_local, landing_g_local = pick_touchdown_sample_metrics(
+                        state["sample_buffer"],
+                        state.get("touchdown_epoch"),
+                        now_epoch
+                    )
+                    if touchdown_vs_local > 0:
+                        state["touchdown_vspeed"] = touchdown_vs_local
+                    if landing_g_local > 0:
+                        state["landing_g_force"] = landing_g_local
 
             prev_on_ground = on_ground
             prev_vs = vertical_speed

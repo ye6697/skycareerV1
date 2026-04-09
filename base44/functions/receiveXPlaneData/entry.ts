@@ -1529,9 +1529,11 @@ Deno.serve(async (req) => {
     const touchdownCandidateRaw = mergedTouchdownVspeedNum > 0
       ? mergedTouchdownVspeedNum
       : (useBridgeLocalLanding ? 0 : transitionTouchdownVspeed);
-    const touchdownCandidate = Math.max(0, Math.min(2500, touchdownCandidateRaw));
+    const touchdownCandidate = Math.max(0, Math.min(10000, touchdownCandidateRaw));
     const effectiveTouchdownVspeedGround = landingCaptureActive
-      ? Math.max(Number(prevTouchdownVspeed || 0), touchdownCandidate)
+      ? (touchdownCandidate > 0
+          ? touchdownCandidate
+          : Number(prevTouchdownVspeed || 0))
       : ((Number(prevTouchdownVspeed || 0) > 0) ? Number(prevTouchdownVspeed || 0) : touchdownCandidate);
     const mergedLandingGNum = Number(mergedLandingG || 0);
     const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceCurrent) : 0;
@@ -1540,7 +1542,9 @@ Deno.serve(async (req) => {
       : (useBridgeLocalLanding ? 0 : transitionLandingG);
     const landingGCandidate = Math.max(0, Math.min(6, landingGCandidateRaw));
     const effectiveLandingGGround = landingCaptureActive
-      ? Math.max(Number(prevLandingG || 0), landingGCandidate)
+      ? (landingGCandidate > 0
+          ? landingGCandidate
+          : Number(prevLandingG || 0))
       : ((Number(prevLandingG || 0) > 0) ? Number(prevLandingG || 0) : landingGCandidate);
     const effectiveTouchdownVspeed = (hasBeenAirborne && on_ground) ? effectiveTouchdownVspeedGround : 0;
     const effectiveLandingG = (hasBeenAirborne && on_ground) ? effectiveLandingGGround : 0;

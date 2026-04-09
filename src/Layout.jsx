@@ -26,7 +26,7 @@ import {
         Trophy
       } from "lucide-react";
 
-const APP_UI_VERSION = 'app-2026-04-06-e-usedperm';
+const APP_UI_VERSION = 'app-2026-04-09-r1';
 
 function getNavItems(lang) {
   return [

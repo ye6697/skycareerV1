@@ -1532,7 +1532,7 @@ export default function FlightTracker() {
     );
      finalFlightData = {
        ...finalFlightData,
-       landingVs: Math.max(0, Math.min(2500, Math.abs(Number(resolvedLandingVs || finalFlightData.landingVs || 0)))),
+       landingVs: Math.max(0, Math.abs(Number(resolvedLandingVs || finalFlightData.landingVs || 0) || 0)),
        landingGForce: Math.max(0, Math.min(6, Number(resolvedLandingG || finalFlightData.landingGForce || 0))),
      };
      const initialFuelKg = positiveNumber(
@@ -1593,14 +1593,14 @@ export default function FlightTracker() {
      const deadlineHours = deadlineMinutes / 60;
      let timeBonus = 0;
      let timeScoreChange = 0;
-     // 3-tier deadline: on time = +20, buffer (up to 5 min over) = 0, over buffer = -20
+      // 3-tier deadline: on time = +5, buffer (up to 5 min over) = 0, over buffer = -20
      const bufferHours = 5 / 60; // 5 minutes buffer
      const madeDeadline = flightHours <= deadlineHours;
      const inBuffer = !madeDeadline && flightHours <= (deadlineHours + bufferHours);
      const overBuffer = flightHours > (deadlineHours + bufferHours);
 
      if (madeDeadline) {
-       timeScoreChange = 20; // +20 score for making the deadline
+        timeScoreChange = 5; // +5 score for making the deadline
      } else if (inBuffer) {
        timeScoreChange = 0; // Within 5-min buffer: no bonus, no penalty
      } else {
@@ -1873,7 +1873,7 @@ export default function FlightTracker() {
                       0
                     ))
               : 0;
-            const storedTouchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(resolvedTouchdownForSave || 0))));
+            const storedTouchdownVs = Math.max(0, Math.abs(Number(resolvedTouchdownForSave || 0) || 0));
             const storedLandingG = Math.max(0, Math.min(6, Number(resolvedLandingGForSave || 0)));
             const hasCrashedFinal = hasCrashed;
             const maintenanceCategories = MAINTENANCE_CATEGORY_KEYS;
@@ -2428,7 +2428,7 @@ export default function FlightTracker() {
         : ((xp.on_ground && newWasAirborne && landingDataTrusted)
             ? (xp.touchdown_vspeed || 0)
             : 0);
-      const touchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(touchdownVsRaw || 0))));
+      const touchdownVs = Math.max(0, Math.abs(Number(touchdownVsRaw || 0) || 0));
       // Landing G-force: Capture the ACTUAL g-force at touchdown moment
       // NOT the peak g-force during the entire flight
       // Once landed (landingType set), preserve the captured value
@@ -2871,7 +2871,7 @@ export default function FlightTracker() {
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
               {xplaneLog?.raw_data?.simulator === 'msfs' ? 'MSFS Live' :
                xplaneLog?.raw_data?.simulator === 'msfs2024' ? 'MSFS 2024 Live' :
-               xplaneLog?.raw_data?.simulator === 'xplane' || xplaneLog?.raw_data?.simulator === 'xplane12' ? 'X-Plane Live' :
+               xplaneLog?.raw_data?.simulator === 'xplane' || xplaneLog?.raw_data?.simulator === 'xplane12' ? 'FlightSim Live' :
                xplaneLog?.raw_data?.simulator ? `${xplaneLog.raw_data.simulator} Live` : 'Sim Live'}
             </Badge>
           )}
@@ -2946,7 +2946,7 @@ export default function FlightTracker() {
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
               <Plane className="w-12 h-12 text-blue-400 mx-auto" />
             </motion.div>
-            <p className="text-slate-400 mt-4">{t('waiting_for_xplane', lang)}</p>
+            <p className="text-slate-400 mt-4">{lang === 'de' ? 'Warte auf FlightSim...' : 'Waiting for FlightSim...'}</p>
           </div>
         )}
 
@@ -3244,7 +3244,7 @@ export default function FlightTracker() {
                       {startFlightMutation.isPending ? t('starting', lang) : t('start_flight', lang)}
                     </Button>
                     <p className="text-sm text-slate-400 text-center">
-                      {t('click_start_then_xplane', lang)}
+                      {lang === 'de' ? 'Klicke auf "Flug starten" und mache in FlightSim weiter' : 'Click "Start Flight" and continue in FlightSim'}
                     </p>
                   </div>
                 )}
@@ -3261,14 +3261,14 @@ export default function FlightTracker() {
                         </motion.div>
                       </div>
                       <div>
-                        <p className="font-medium text-amber-200 mb-1">{t('waiting_for_xplane', lang)}</p>
+                        <p className="font-medium text-amber-200 mb-1">{lang === 'de' ? 'Warte auf FlightSim...' : 'Waiting for FlightSim...'}</p>
                         <p className="text-sm text-amber-300/70">
-                          {t('start_in_xplane', lang)} <span className="font-mono font-bold text-amber-200">{contract?.departure_airport}</span>
+                          {lang === 'de' ? 'Starte jetzt deinen Flug in FlightSim.' : 'Start your flight in FlightSim now.'} <span className="font-mono font-bold text-amber-200">{contract?.departure_airport}</span>
                         </p>
                         {company?.xplane_connection_status !== 'connected' && (
                           <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
                             <AlertTriangle className="w-4 h-4" />
-                            {t('xplane_not_connected', lang)}
+                            {lang === 'de' ? 'FlightSim ist nicht verbunden. Stelle sicher, dass die Bridge aktiv ist.' : 'FlightSim is not connected. Make sure the bridge is active.'}
                           </p>
                         )}
                       </div>
@@ -3280,7 +3280,9 @@ export default function FlightTracker() {
                   <div className="space-y-4">
                     <p className="text-sm text-slate-400">
                       {flightPhase === 'takeoff' && flightData.wasAirborne && t('climbing_to_cruise', lang)}
-                      {flightPhase === 'cruise' && t('flight_controlled_xplane', lang)}
+                      {flightPhase === 'cruise' && (lang === 'de'
+                        ? 'Der Flug wird von FlightSim gesteuert. Er endet automatisch, wenn du parkst und die Parkbremse aktiv ist.'
+                        : 'Flight is controlled by FlightSim. It completes automatically when you park with parking brake on.')}
                       {flightPhase === 'landing' && t('land_and_park', lang)}
                     </p>
                     {/* Emergency Landing Button */}
