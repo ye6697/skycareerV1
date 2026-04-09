@@ -182,6 +182,10 @@ export default function Dashboard() {
     if (rounded >= 1e3) return `$${(rounded / 1e3).toFixed(0)}k`;
     return `$${rounded.toLocaleString()}`;
   };
+  const calculateXPForLevel = (level) => Math.round(100 * Math.pow(1.1, Math.max(1, Number(level || 1)) - 1));
+  const companyLevel = Math.max(1, Number(company?.level || 1));
+  const currentXP = Math.max(0, Number(company?.experience_points ?? company?.xp ?? 0));
+  const xpToNextLevel = calculateXPForLevel(companyLevel);
 
   if (companyLoading) {
     return (
@@ -232,9 +236,9 @@ export default function Dashboard() {
         </div>
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
            <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('level', lang)}</span>
-           <span className="text-base sm:text-xl font-mono text-cyan-400 font-bold">{company.level || 1}</span>
+           <span className="text-base sm:text-xl font-mono text-cyan-400 font-bold">{companyLevel}</span>
            <span className="text-[10px] text-cyan-500/80 font-mono mt-0.5">
-             XP: {(company.xp || 0).toLocaleString()}
+             XP: {currentXP.toLocaleString()} / {xpToNextLevel.toLocaleString()}
            </span>
         </div>
         <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">

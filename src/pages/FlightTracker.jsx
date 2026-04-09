@@ -41,6 +41,7 @@ import SimBriefImport from "@/components/flights/SimBriefImport";
 import WeatherDisplay from "@/components/flights/WeatherDisplay";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
+import { deriveLandingMetricsFromTelemetry } from "@/components/flights/landingMetrics";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { useLanguage } from "@/components/LanguageContext";
@@ -1424,6 +1425,7 @@ export default function FlightTracker() {
      if (!activeFlight) {
        throw new Error('Flugdaten nicht geladen');
      }
+     const sessionStartMs = Date.parse(String(activeFlight?.departure_time || activeFlight?.created_date || ""));
      if (!aircraft || aircraft.length === 0) {
        throw new Error('Flugzeugdaten nicht geladen');
      }
@@ -1470,8 +1472,22 @@ export default function FlightTracker() {
        }
        return 0;
      };
+     const packetTimestampInSession = (packet = {}) => {
+       if (!Number.isFinite(sessionStartMs)) return true;
+       const packetTs = Date.parse(String(
+         packet?.touchdown_at ||
+         packet?.landing_data_locked_at ||
+         packet?.bridge_local_landing_locked_at ||
+         packet?.completion_armed_at ||
+         packet?.airborne_started_at ||
+         packet?.timestamp ||
+         ''
+       ));
+       return Number.isFinite(packetTs) && packetTs >= (sessionStartMs - 15000);
+     };
      let xpData = latestFlight?.xplane_data || activeFlight?.xplane_data || {};
      const hasAnyTouchdownValues = (packet = {}) => {
+       if (!packetTimestampInSession(packet)) return false;
        const vs = nonZeroNumber(packet.touchdown_vspeed);
        const g = positiveNumber(packet.landing_g_force, packet.landingGForce);
        return Math.abs(vs) > 0 || g > 0;
@@ -1502,31 +1518,31 @@ export default function FlightTracker() {
          }
        }
      }
+    const xpLandingPacketInSession = packetTimestampInSession(xpData);
+    const liveLandingPacketInSession = packetTimestampInSession(liveData);
     const landingDataTrusted = !!(
-      xpData.touchdown_detected ||
-      xpData.landing_data_locked ||
-      xpData.bridge_local_landing_locked ||
-      xpData.landing_data_source === 'bridge_local' ||
-      liveData.touchdown_detected ||
-      liveData.landing_data_locked ||
-      liveData.bridge_local_landing_locked ||
-      liveData.landing_data_source === 'bridge_local'
+      (xpLandingPacketInSession && (
+        xpData.touchdown_detected ||
+        xpData.landing_data_locked ||
+        xpData.bridge_local_landing_locked ||
+        xpData.landing_data_source === 'bridge_local'
+      )) ||
+      (liveLandingPacketInSession && (
+        liveData.touchdown_detected ||
+        liveData.landing_data_locked ||
+        liveData.bridge_local_landing_locked ||
+        liveData.landing_data_source === 'bridge_local'
+      ))
     );
     const resolvedLandingVs = nonZeroNumber(
-      ...(landingDataTrusted ? [
-        xpData.touchdown_vspeed,
-        liveData.touchdown_vspeed,
-      ] : []),
+      ...(landingDataTrusted && xpLandingPacketInSession ? [xpData.touchdown_vspeed] : []),
+      ...(landingDataTrusted && liveLandingPacketInSession ? [liveData.touchdown_vspeed] : []),
       finalFlightData.landingVs,
       finalFlightData.landing_vs
     );
     const resolvedLandingG = positiveNumber(
-      ...(landingDataTrusted ? [
-        xpData.landing_g_force,
-        xpData.landingGForce,
-        liveData.landing_g_force,
-        liveData.landingGForce,
-      ] : []),
+      ...(landingDataTrusted && xpLandingPacketInSession ? [xpData.landing_g_force, xpData.landingGForce] : []),
+      ...(landingDataTrusted && liveLandingPacketInSession ? [liveData.landing_g_force, liveData.landingGForce] : []),
       finalFlightData.landingGForce,
       finalFlightData.landing_g_force
     );
@@ -1841,6 +1857,8 @@ export default function FlightTracker() {
             const preservedFlightEventsLog = xpData.flight_events_log || finalFlightData.flight_events_log || existingXpData.flight_events_log || liveXpData.flight_events_log || [];
             const preservedBridgeEventLog = xpData.bridge_event_log || finalFlightData.bridge_event_log || existingXpData.bridge_event_log || liveXpData.bridge_event_log || [];
             const preservedTelemetryHistory = xpData.telemetry_history || existingXpData.telemetry_history || liveXpData.telemetry_history || [];
+            const telemetryHistory = filterTelemetryHistoryForSession(preservedTelemetryHistory, sessionStartMs);
+            const derivedLandingMetrics = deriveLandingMetricsFromTelemetry(telemetryHistory, activeFlight?.departure_time || activeFlight?.created_date);
             const preservedFmsWaypoints = xpData.fms_waypoints || existingXpData.fms_waypoints || liveXpData.fms_waypoints || [];
             const preservedSimbriefWaypoints = xpData.simbrief_waypoints || existingXpData.simbrief_waypoints || liveXpData.simbrief_waypoints || [];
             const preservedSimbriefRouteString = xpData.simbrief_route_string || existingXpData.simbrief_route_string || liveXpData.simbrief_route_string || null;
@@ -1854,22 +1872,28 @@ export default function FlightTracker() {
             );
             const localLandingVs = Number(finalFlightData.landingVs || 0);
             const localLandingG = Number(finalFlightData.landingGForce || 0);
-            const saveLandingTrusted = landingDataTrusted || existingLandingTrusted || localLandingVs > 0 || localLandingG > 0;
+            const telemetryLandingVs = Number(derivedLandingMetrics?.landingVs || 0);
+            const telemetryLandingG = Number(derivedLandingMetrics?.landingG || 0);
+            const saveLandingTrusted = landingDataTrusted || existingLandingTrusted || localLandingVs > 0 || localLandingG > 0 || telemetryLandingVs > 0 || telemetryLandingG > 0;
             const resolvedTouchdownForSave = saveLandingTrusted
               ? (localLandingVs > 0
                   ? localLandingVs
-                  : Number(xpData.touchdown_vspeed || liveData.touchdown_vspeed || existingXpData.touchdown_vspeed || 0))
+                  : Number(
+                      telemetryLandingVs ||
+                      xpData.touchdown_vspeed ||
+                      liveData.touchdown_vspeed ||
+                      0
+                    ))
               : 0;
             const resolvedLandingGForSave = saveLandingTrusted
               ? (localLandingG > 0
                   ? localLandingG
                   : Number(
+                      telemetryLandingG ||
                       xpData.landing_g_force ||
                       xpData.landingGForce ||
                       liveData.landing_g_force ||
                       liveData.landingGForce ||
-                      existingXpData.landing_g_force ||
-                      existingXpData.landingGForce ||
                       0
                     ))
               : 0;
@@ -1892,8 +1916,6 @@ export default function FlightTracker() {
               addFlightDamage(cat, baseWearPerHour * flightHours);
             }
 
-            const sessionStartMs = Date.parse(String(activeFlight?.departure_time || activeFlight?.created_date || ""));
-            const telemetryHistory = filterTelemetryHistoryForSession(preservedTelemetryHistory, sessionStartMs);
             const latestThrustLever = readThrustLeverPct({ ...(xpData || {}), ...(liveXpData || {}) });
             const finalMaxG = Number(finalFlightData.maxGForce || 1);
             const highLoadSeconds = calcEngineFullThrustSeconds(telemetryHistory, latestThrustLever);
@@ -2000,7 +2022,7 @@ export default function FlightTracker() {
                  flight_path: preservedFlightPath,
                  flight_events_log: preservedFlightEventsLog,
                  bridge_event_log: preservedBridgeEventLog,
-                 telemetry_history: preservedTelemetryHistory,
+                 telemetry_history: telemetryHistory,
                  fms_waypoints: preservedFmsWaypoints,
                  simbrief_waypoints: preservedSimbriefWaypoints,
                  simbrief_route_string: preservedSimbriefRouteString,

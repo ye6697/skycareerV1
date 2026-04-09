@@ -3,15 +3,13 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
+import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMetrics";
 
 export default function LandingQualityVisual({ flight, gameSettings }) {
   const { lang } = useLanguage();
-  const landingVs = Math.abs(flight.landing_vs || 0);
-  const landingGforce = Math.abs(
-    flight.xplane_data?.landingGForce ??
-    flight.xplane_data?.landing_g_force ??
-    0
-  );
+  const landingMetrics = React.useMemo(() => resolveLandingMetricsFromFlight(flight), [flight]);
+  const landingVs = Math.max(0, Math.abs(Number(landingMetrics?.landingVs || 0) || 0));
+  const landingGforce = Math.max(0, Math.min(6, Math.abs(Number(landingMetrics?.landingG || 0) || 0)));
   const hasLandingData = landingVs > 0 || landingGforce > 0;
 
   if (!hasLandingData) {

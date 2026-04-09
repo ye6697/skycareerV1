@@ -12,14 +12,13 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { INSURANCE_PACKAGES } from "@/lib/insurance";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
+import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMetrics";
 
 export default function FlightRating({ flight }) {
   const { lang } = useLanguage();
-  const landingVsValue = Math.max(0, Math.abs(Number(
-    flight?.landing_vs ??
-    flight?.xplane_data?.touchdown_vspeed ??
-    0
-  ) || 0));
+  const landingMetrics = React.useMemo(() => resolveLandingMetricsFromFlight(flight), [flight]);
+  const landingVsValue = Math.max(0, Math.abs(Number(landingMetrics?.landingVs || 0) || 0));
+  const landingGValue = Math.max(0, Math.min(6, Number(landingMetrics?.landingG || 0) || 0));
   const passengerCommentsDisplay = React.useMemo(() => {
     const stored = Array.isArray(flight?.passenger_comments)
       ? flight.passenger_comments.filter((entry) => String(entry || "").trim().length > 0)
@@ -168,8 +167,6 @@ export default function FlightRating({ flight }) {
           )}
           {(() => {
             const isCrash = flight?.xplane_data?.events?.crash;
-            // Use actual landing G-force, NOT max_g_force from the entire flight
-            const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? 0;
             return (
               <div>
                 <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('g_force_at_touch', lang)}</p>
@@ -177,12 +174,12 @@ export default function FlightRating({ flight }) {
                   <p className="text-xl font-mono font-bold text-red-500">CRASH</p>
                 ) : (
                   <p className={`text-xl font-mono font-bold ${
-                    landingG < 1.3 ? 'text-emerald-400' :
-                    landingG < 1.8 ? 'text-amber-400' :
-                    landingG < 2.5 ? 'text-orange-400' :
+                    landingGValue < 1.3 ? 'text-emerald-400' :
+                    landingGValue < 1.8 ? 'text-amber-400' :
+                    landingGValue < 2.5 ? 'text-orange-400' :
                     'text-red-400'
                   }`}>
-                    {landingG > 0 ? `${landingG.toFixed(2)} G` : "-"}
+                    {landingGValue > 0 ? `${landingGValue.toFixed(2)} G` : "-"}
                   </p>
                 )}
               </div>

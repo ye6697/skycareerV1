@@ -27,6 +27,7 @@ import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
+import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMetrics";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -183,13 +184,9 @@ export default function CompletedFlightDetails() {
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
-  const candidateLandingVsValues = [
-    Number(flight?.landing_vs || 0),
-    Number(flight?.xplane_data?.touchdown_vspeed || 0),
-    Number(flight?.xplane_data?.landing_vs || 0)
-  ];
-  const resolvedLandingVs = candidateLandingVsValues.find((v) => Number.isFinite(v) && Math.abs(v) > 0) || 0;
-  const landingVsValue = Math.max(0, Math.abs(Number(resolvedLandingVs) || 0));
+  const landingMetrics = React.useMemo(() => resolveLandingMetricsFromFlight(flight), [flight]);
+  const landingVsValue = Math.max(0, Math.abs(Number(landingMetrics?.landingVs || 0) || 0));
+  const resolvedLandingGValue = Math.max(0, Math.min(6, Number(landingMetrics?.landingG || 0) || 0));
   const flightDurationMinutes = Number(flight?.flight_duration_hours || 0) * 60;
   const fallbackDeadlineMinutes = (() => {
     const explicit = Number(
@@ -397,7 +394,7 @@ export default function CompletedFlightDetails() {
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(() => {
                     const isCrash = flight?.xplane_data?.events?.crash || flight?.status === 'failed';
-                    const landingG = flight?.xplane_data?.landingGForce ?? flight?.xplane_data?.landing_g_force ?? 0;
+                    const landingG = resolvedLandingGValue;
                     return (
                       <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                         <p className="text-slate-400 text-sm mb-1">{t('landing_g_touch', lang)}</p>
@@ -544,7 +541,7 @@ export default function CompletedFlightDetails() {
                 {(() => {
                   // Determine landing type: prefer stored, then compute from G-force
                   let lt = flight.xplane_data?.landingType;
-                  const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? 0;
+                  const landingG = resolvedLandingGValue;
                   if (!lt && landingG > 0 && !flight.xplane_data?.events?.crash) {
                     if (landingG < 0.5) lt = 'butter';
                     else if (landingG < 1.0) lt = 'soft';
