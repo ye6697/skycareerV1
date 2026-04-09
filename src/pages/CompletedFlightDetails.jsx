@@ -543,8 +543,8 @@ export default function CompletedFlightDetails() {
                   let lt = flight.xplane_data?.landingType;
                   const landingG = resolvedLandingGValue;
                   if (!lt && landingG > 0 && !flight.xplane_data?.events?.crash) {
-                    if (landingG < 0.5) lt = 'butter';
-                    else if (landingG < 1.0) lt = 'soft';
+                    if (landingG < 1.0) lt = 'butter';
+                    else if (landingG < 1.2) lt = 'soft';
                     else if (landingG < 1.6) lt = 'acceptable';
                     else if (landingG < 2.0) lt = 'hard';
                     else lt = 'very_hard';

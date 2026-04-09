@@ -320,21 +320,21 @@ export default function ContractDetails() {
               <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-2">{lang === 'de' ? 'Landequalität (nach G-Kraft)' : 'Landing Quality (by G-force)'}</p>
               <div className="space-y-1.5 text-sm mb-4">
                 <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
-                  <span className="text-slate-300">{lang === 'de' ? 'Butterweich' : 'Butter'} (&lt;0.5 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Butterweich' : 'Butter'} (&lt;1.0 G)</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-emerald-400 font-medium">+40 Score</span>
                     <span className="text-emerald-400">+4× Payout</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-emerald-900/20 rounded">
-                  <span className="text-slate-300">{lang === 'de' ? 'Weich' : 'Soft'} (&lt;1.0 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Weich' : 'Soft'} (1.0 - &lt;1.2 G)</span>
                   <div className="flex gap-3 text-xs">
                     <span className="text-emerald-400 font-medium">+20 Score</span>
                     <span className="text-emerald-400">+2× Payout</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-blue-900/20 rounded">
-                  <span className="text-slate-300">{lang === 'de' ? 'Akzeptabel' : 'Acceptable'} (&lt;1.6 G)</span>
+                  <span className="text-slate-300">{lang === 'de' ? 'Akzeptabel' : 'Acceptable'} (1.2 - &lt;1.6 G)</span>
                   <div className="flex gap-3 text-xs">
                    <span className="text-blue-400 font-medium">+5 Score</span>
                    <span className="text-slate-500">{lang === 'de' ? 'kein Bonus' : 'no bonus'}</span>

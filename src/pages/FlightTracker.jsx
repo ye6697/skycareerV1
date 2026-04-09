@@ -1876,14 +1876,15 @@ export default function FlightTracker() {
             const telemetryLandingG = Number(derivedLandingMetrics?.landingG || 0);
             const saveLandingTrusted = landingDataTrusted || existingLandingTrusted || localLandingVs > 0 || localLandingG > 0 || telemetryLandingVs > 0 || telemetryLandingG > 0;
             const resolvedTouchdownForSave = saveLandingTrusted
-              ? (localLandingVs > 0
-                  ? localLandingVs
+              ? (telemetryLandingVs > 0
+                  ? telemetryLandingVs
+                  : (localLandingVs > 0
+                      ? localLandingVs
                   : Number(
-                      telemetryLandingVs ||
                       xpData.touchdown_vspeed ||
                       liveData.touchdown_vspeed ||
                       0
-                    ))
+                    )))
               : 0;
             const resolvedLandingGForSave = saveLandingTrusted
               ? (localLandingG > 0
@@ -2488,11 +2489,11 @@ export default function FlightTracker() {
         // Revenue = contract payout (Gesamteinnahmen)
         const totalRevenue = contract?.payout || 0;
 
-        if (gForce < 0.5) {
+        if (gForce < 1.0) {
           landingType = 'butter';
           landingScoreChange = 40;
           landingBonus = totalRevenue * 4; // 4x Gesamteinnahmen
-        } else if (gForce < 1.0) {
+        } else if (gForce < 1.2) {
           landingType = 'soft';
           landingScoreChange = 20;
           landingBonus = totalRevenue * 2; // 2x Gesamteinnahmen

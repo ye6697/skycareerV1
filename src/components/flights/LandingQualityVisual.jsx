@@ -30,8 +30,8 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
 
   const effectiveLandingType = landingType || (() => {
     if (landingGforce <= 0) return null;
-    if (landingGforce < 0.5) return 'butter';
-    if (landingGforce < 1.0) return 'soft';
+    if (landingGforce < 1.0) return 'butter';
+    if (landingGforce < 1.2) return 'soft';
     if (landingGforce < 1.6) return 'acceptable';
     if (landingGforce < 2.0) return 'hard';
     return 'very_hard';
@@ -58,8 +58,8 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
   })();
 
   const getLandingQuality = () => {
-    if (landingGforce < 0.5) return { type: 'butter', label: lang === 'de' ? 'BUTTERWEICH!' : 'BUTTER LANDING!', color: 'amber', icon: Star };
-    if (landingGforce < 1.0) return { type: 'soft', label: lang === 'de' ? 'Weich' : 'Soft', color: 'emerald', icon: CheckCircle2 };
+    if (landingGforce < 1.0) return { type: 'butter', label: lang === 'de' ? 'BUTTERWEICH!' : 'BUTTER LANDING!', color: 'amber', icon: Star };
+    if (landingGforce < 1.2) return { type: 'soft', label: lang === 'de' ? 'Weich' : 'Soft', color: 'emerald', icon: CheckCircle2 };
     if (landingGforce < 1.6) return { type: 'acceptable', label: lang === 'de' ? 'Akzeptabel' : 'Acceptable', color: 'blue', icon: CheckCircle2 };
     if (landingGforce < 2.0) return { type: 'hard', label: lang === 'de' ? 'Harte Landung' : 'Hard Landing', color: 'red', icon: AlertTriangle };
     return { type: 'very_hard', label: lang === 'de' ? 'Sehr Harte Landung' : 'Very Hard Landing', color: 'red', icon: AlertTriangle };
@@ -146,7 +146,7 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
             />
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            {lang === 'de' ? 'Ideal: <1.5G' : 'Ideal: <1.5G'}
+            {lang === 'de' ? 'Butter <1.0G | Soft <1.2G' : 'Butter <1.0G | Soft <1.2G'}
           </p>
         </motion.div>
       </div>

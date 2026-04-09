@@ -196,8 +196,8 @@ export default function FreeFlight() {
       if (!prev.landingType && xp.on_ground && newWasAirborne && hasTouchdownEvidence) {
         const lg = Math.max(0, Math.min(6, Number(xp.landing_g_force || 0)));
         landingGForceValue = lg;
-        if (lg < 0.5) { landingType = 'butter'; landingScoreChange = 40; }
-        else if (lg < 1.0) { landingType = 'soft'; landingScoreChange = 20; }
+        if (lg < 1.0) { landingType = 'butter'; landingScoreChange = 40; }
+        else if (lg < 1.2) { landingType = 'soft'; landingScoreChange = 20; }
         else if (lg < 1.6) { landingType = 'acceptable'; landingScoreChange = 5; }
         else if (lg < 2.0) { landingType = 'hard'; landingScoreChange = -30; }
         else { landingType = 'very_hard'; landingScoreChange = -50; }

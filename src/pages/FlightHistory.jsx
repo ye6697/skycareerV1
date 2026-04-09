@@ -280,7 +280,7 @@ export default function FlightHistory() {
                     {/* Landing G */}
                     <div className="text-center hidden sm:block">
                       <span className={`text-[11px] font-bold ${
-                        landingG < 1.0 ? 'text-emerald-400' :
+                        landingG < 1.2 ? 'text-emerald-400' :
                         landingG < 1.6 ? 'text-amber-400' :
                         'text-red-400'
                       }`}>
