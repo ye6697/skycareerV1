@@ -1,6 +1,6 @@
 // Generates passenger comments based on score, landing quality and incidents.
 // This generator creates a very large variant space (>1000 combinations).
-export function generatePassengerComments(score, data) {
+export function generatePassengerComments(score, data, lang = "de") {
   const comments = [];
 
   const pickRandom = (arr, n) => {
@@ -30,6 +30,121 @@ export function generatePassengerComments(score, data) {
     if (out.length <= max) return out;
     return pickRandom(out, max);
   };
+
+  if (lang === "en") {
+    if (data?.events?.crash) {
+      const crashPool = [
+        "That was terrifying. The whole cabin was in panic.",
+        "This felt dangerous from start to finish. Never again.",
+        "The situation on board was unacceptable and frightening.",
+        "I have never experienced such an unsafe flight before.",
+        "Passengers were in shock after that crash situation.",
+        "This needs an official report. Completely unacceptable.",
+      ];
+      return pickRandom(crashPool, 6);
+    }
+
+    const landingType = data?.landingType;
+    const maxG = Number(data?.maxGForce || 1.0);
+    const scoreBand = Number(score || 0);
+
+    const landingCommentsByType = {
+      butter: [
+        "Touchdown was incredibly smooth. Excellent work.",
+        "That landing was premium-level. Barely felt it.",
+        "Very professional landing, calm and precise.",
+      ],
+      soft: [
+        "Nice and soft landing. Felt controlled and safe.",
+        "Good touchdown, very comfortable for passengers.",
+        "Solid landing quality. Well handled.",
+      ],
+      acceptable: [
+        "Landing was acceptable overall.",
+        "Not perfect, but still within comfort limits.",
+        "Average touchdown, no major concern.",
+      ],
+      hard: [
+        "That landing was too hard for passenger comfort.",
+        "Strong impact on touchdown. Needs improvement.",
+        "Cabin clearly felt the hard landing.",
+      ],
+      very_hard: [
+        "Very hard touchdown. That felt unsafe.",
+        "The impact was severe and alarming.",
+        "This landing quality was not acceptable.",
+      ],
+    };
+
+    if (landingCommentsByType[landingType]) {
+      comments.push(...pickRandom(landingCommentsByType[landingType], 3));
+    }
+
+    if (maxG > 2.5) {
+      comments.push(...pickRandom([
+        "In-flight maneuvers were too aggressive for passengers.",
+        "Cabin load felt extreme during parts of the flight.",
+        "Several moments felt physically uncomfortable.",
+      ], 2));
+    } else if (maxG < 1.25) {
+      comments.push(...pickRandom([
+        "The ride felt very stable and comfortable.",
+        "Cabin comfort was excellent throughout the flight.",
+        "Very smooth handling in the air.",
+      ], 2));
+    } else {
+      comments.push(...pickRandom([
+        "Overall flight comfort was average.",
+        "A few bumpy phases, but manageable.",
+        "Generally fine, with minor disturbances.",
+      ], 1));
+    }
+
+    if (scoreBand >= 90) {
+      comments.push(...pickRandom([
+        "Great crew performance and strong communication.",
+        "Very professional operation from a passenger perspective.",
+      ], 2));
+    } else if (scoreBand >= 70) {
+      comments.push(...pickRandom([
+        "Service was okay, but there is room to improve.",
+        "Decent overall experience, not outstanding.",
+      ], 2));
+    } else {
+      comments.push(...pickRandom([
+        "This experience was below expectations.",
+        "The flight quality needs significant improvement.",
+      ], 2));
+    }
+
+    if (data?.events?.tailstrike) comments.push("Tailstrike was clearly noticeable in the cabin.");
+    if (data?.events?.stall) comments.push("The stall moment was frightening for passengers.");
+    if (data?.events?.overstress) comments.push("Structural stress phases felt unsafe.");
+    if (data?.events?.flaps_overspeed) comments.push("Aircraft configuration handling felt unstable.");
+    if (data?.events?.gear_up_landing) comments.push("The gear-up landing event was extremely alarming.");
+    if (data?.events?.hard_landing) comments.push("Hard touchdown caused strong cabin impact.");
+    if (data?.events?.fuel_emergency && Number(data?.fuel || 100) < 5) {
+      comments.push("Fuel situation during arrival felt too risky.");
+    }
+
+    const unique = [];
+    const seen = new Set();
+    for (const c of comments) {
+      const k = String(c || "").trim();
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      unique.push(k);
+    }
+    if (unique.length < 4) {
+      unique.push(...pickRandom([
+        "Overall, the flight was acceptable.",
+        "Passenger comfort could be improved further.",
+        "Clear communication from cockpit is appreciated.",
+        "The final result was mixed from a passenger view.",
+      ], 4 - unique.length));
+    }
+    return unique.slice(0, 8);
+  }
 
   // Crash path stays explicit and severe.
   if (data?.events?.crash) {

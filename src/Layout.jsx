@@ -53,6 +53,13 @@ function LayoutInner({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { lang, setLang } = useLanguage();
   const navItems = getNavItems(lang);
+  const displayPageName = (() => {
+    const baseName = String(currentPageName || "").split("?")[0];
+    if (baseName === "CompletedFlightDetails") {
+      return lang === "de" ? "Flugerbeniss" : "Flight Result";
+    }
+    return baseName;
+  })();
 
   // Load all layout data ONCE and never refetch automatically
   const [layoutData, setLayoutData] = useState({ company: null, gameSettings: null, user: null, isPro: false, loaded: false });
@@ -119,7 +126,7 @@ function LayoutInner({ children, currentPageName }) {
               </button>
             </Link>
           )}
-          <span className="font-mono text-xs font-bold text-cyan-500 uppercase tracking-widest">{currentPageName}</span>
+          <span className="font-mono text-xs font-bold text-cyan-500 uppercase tracking-widest">{displayPageName}</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 relative z-[51]">
           <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">

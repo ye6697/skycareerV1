@@ -1991,7 +1991,7 @@ export default function FlightTracker() {
                 revenue,
                 profit,
                 maintenance_damage: roundedFlightDamage,
-                passenger_comments: generatePassengerComments(scoreWithInsurance, finalFlightData),
+                passenger_comments: generatePassengerComments(scoreWithInsurance, finalFlightData, lang),
                 xplane_data: {
                   ...finalFlightData,
                  landing_g_force: storedLandingG,
@@ -3375,7 +3375,7 @@ export default function FlightTracker() {
                       max_g_force: flightData.maxGForce,
                       fuel_used_liters: fuelUsed,
                       flight_duration_hours: flightHours,
-                      passenger_comments: generatePassengerComments(Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)), flightData),
+                      passenger_comments: generatePassengerComments(Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)), flightData, lang),
                       xplane_data: {
                         final_score: Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)),
                         landingGForce: flightData.landingGForce,

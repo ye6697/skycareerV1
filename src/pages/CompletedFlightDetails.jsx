@@ -26,6 +26,7 @@ import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
+import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -254,6 +255,17 @@ export default function CompletedFlightDetails() {
     : ((flight?.xplane_data?.maintenance_damage && typeof flight.xplane_data.maintenance_damage === 'object')
         ? flight.xplane_data.maintenance_damage
         : {});
+  const passengerCommentsDisplay = React.useMemo(() => {
+    const stored = Array.isArray(flight?.passenger_comments)
+      ? flight.passenger_comments.filter((entry) => String(entry || "").trim().length > 0)
+      : [];
+    if (lang !== 'en') return stored;
+    const germanHintRegex = /\b(der|die|das|und|nicht|flug|landung|kabine|passag|fuer|mit|keine|auf|waehrend)\b/i;
+    const looksGerman = stored.some((entry) => germanHintRegex.test(String(entry || "")));
+    if (stored.length > 0 && !looksGerman) return stored;
+    const scoreForFallback = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0) || 0;
+    return generatePassengerComments(scoreForFallback, flight?.xplane_data || {}, 'en');
+  }, [flight?.passenger_comments, flight?.xplane_data, flight?.flight_score, lang]);
 
   return (
     <div className="h-full flex flex-col gap-2">
@@ -959,11 +971,11 @@ export default function CompletedFlightDetails() {
               </Card>
 
               {/* Passenger Comments */}
-              {flight.passenger_comments && flight.passenger_comments.length > 0 && (
+              {passengerCommentsDisplay && passengerCommentsDisplay.length > 0 && (
                 <Card className="p-6 bg-slate-800/50 border-slate-700">
                   <h3 className="text-lg font-semibold mb-4 text-white">{t('passenger_comments', lang)}</h3>
                   <div className="space-y-2">
-                    {flight.passenger_comments.map((comment, idx) => (
+                    {passengerCommentsDisplay.map((comment, idx) => (
                       <p key={idx} className="text-slate-300 text-sm">
                         "{comment}"
                       </p>

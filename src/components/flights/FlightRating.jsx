@@ -11,6 +11,7 @@ import {
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { INSURANCE_PACKAGES } from "@/lib/insurance";
+import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
 
 export default function FlightRating({ flight }) {
   const { lang } = useLanguage();
@@ -19,6 +20,17 @@ export default function FlightRating({ flight }) {
     flight?.xplane_data?.touchdown_vspeed ??
     0
   ) || 0));
+  const passengerCommentsDisplay = React.useMemo(() => {
+    const stored = Array.isArray(flight?.passenger_comments)
+      ? flight.passenger_comments.filter((entry) => String(entry || "").trim().length > 0)
+      : [];
+    if (lang !== 'en') return stored;
+    const germanHintRegex = /\b(der|die|das|und|nicht|flug|landung|kabine|passag|fuer|mit|keine|auf|waehrend)\b/i;
+    const looksGerman = stored.some((entry) => germanHintRegex.test(String(entry || "")));
+    if (stored.length > 0 && !looksGerman) return stored;
+    const scoreForFallback = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0) || 0;
+    return generatePassengerComments(scoreForFallback, flight?.xplane_data || {}, 'en');
+  }, [flight?.passenger_comments, flight?.xplane_data, flight?.flight_score, lang]);
   const getRatingColor = (rating) => {
     if (rating >= 4.5) return "text-emerald-500";
     if (rating >= 3.5) return "text-blue-500";
@@ -274,14 +286,14 @@ export default function FlightRating({ flight }) {
         </div>
       )}
 
-      {flight?.passenger_comments?.length > 0 && (
+      {passengerCommentsDisplay?.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
             <MessageCircle className="w-4 h-4 text-slate-400" />
             <h4 className="font-medium text-white">{t('passenger_comments', lang)}</h4>
           </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
-            {flight.passenger_comments.map((comment, index) => (
+            {passengerCommentsDisplay.map((comment, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: -10 }}
