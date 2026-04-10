@@ -126,6 +126,21 @@ export default function CompletedFlightDetails() {
     return merged;
   }, [flight?.active_failures, flight?.xplane_data?.events, lang]);
 
+  // These useMemo hooks MUST be before early returns to avoid hook count mismatch
+  const landingMetrics = React.useMemo(() => resolveLandingMetricsFromFlight(flight), [flight]);
+  const passengerCommentsDisplay = React.useMemo(() => {
+    if (!flight) return [];
+    const stored = Array.isArray(flight?.passenger_comments)
+      ? flight.passenger_comments.filter((entry) => String(entry || "").trim().length > 0)
+      : [];
+    if (lang !== 'en') return stored;
+    const germanHintRegex = /\b(der|die|das|und|nicht|flug|landung|kabine|passag|fuer|mit|keine|auf|waehrend)\b/i;
+    const looksGerman = stored.some((entry) => germanHintRegex.test(String(entry || "")));
+    if (stored.length > 0 && !looksGerman) return stored;
+    const scoreForFallback = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0) || 0;
+    return generatePassengerComments(scoreForFallback, flight?.xplane_data || {}, 'en');
+  }, [flight?.passenger_comments, flight?.xplane_data, flight?.flight_score, lang]);
+
   if (!finalContract) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
@@ -184,7 +199,6 @@ export default function CompletedFlightDetails() {
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
-  const landingMetrics = React.useMemo(() => resolveLandingMetricsFromFlight(flight), [flight]);
   const landingVsValue = Math.max(0, Math.abs(Number(landingMetrics?.landingVs || 0) || 0));
   const resolvedLandingGValue = Math.max(0, Math.min(6, Number(landingMetrics?.landingG || 0) || 0));
   const flightDurationMinutes = Number(flight?.flight_duration_hours || 0) * 60;
@@ -252,17 +266,7 @@ export default function CompletedFlightDetails() {
     : ((flight?.xplane_data?.maintenance_damage && typeof flight.xplane_data.maintenance_damage === 'object')
         ? flight.xplane_data.maintenance_damage
         : {});
-  const passengerCommentsDisplay = React.useMemo(() => {
-    const stored = Array.isArray(flight?.passenger_comments)
-      ? flight.passenger_comments.filter((entry) => String(entry || "").trim().length > 0)
-      : [];
-    if (lang !== 'en') return stored;
-    const germanHintRegex = /\b(der|die|das|und|nicht|flug|landung|kabine|passag|fuer|mit|keine|auf|waehrend)\b/i;
-    const looksGerman = stored.some((entry) => germanHintRegex.test(String(entry || "")));
-    if (stored.length > 0 && !looksGerman) return stored;
-    const scoreForFallback = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0) || 0;
-    return generatePassengerComments(scoreForFallback, flight?.xplane_data || {}, 'en');
-  }, [flight?.passenger_comments, flight?.xplane_data, flight?.flight_score, lang]);
+
 
   return (
     <div className="h-full flex flex-col gap-2">
