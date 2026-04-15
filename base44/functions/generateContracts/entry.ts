@@ -228,7 +228,7 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   if (!route) return null;
   const { depAirport, arrAirport, distance } = route;
 
-  const contractType = randomItem(contractTypes);
+  const contractType = options.forceContractType || randomItem(contractTypes);
   
   const passengers = (contractType === "passenger" || contractType === "charter")
     ? Math.max(1, Math.floor(Math.random() * aircraftType.passengers * 0.8) + Math.floor(aircraftType.passengers * 0.2))
@@ -306,13 +306,20 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse optional distance filter from request body
+    // Parse optional filters from request body
     let minNm = 0;
     let maxNm = Infinity;
+    let filterContractType = null; // e.g. "passenger", "cargo", "charter"
+    let filterAircraftId = null;   // specific aircraft ID to generate for
     try {
       const body = await req.json();
       if (body.minNm && !isNaN(body.minNm)) minNm = Number(body.minNm);
       if (body.maxNm && !isNaN(body.maxNm)) maxNm = Number(body.maxNm);
+      if (body.contractType && typeof body.contractType === 'string') {
+        const validTypes = ["passenger", "cargo", "charter", "emergency"];
+        if (validTypes.includes(body.contractType)) filterContractType = body.contractType;
+      }
+      if (body.aircraftId && typeof body.aircraftId === 'string') filterAircraftId = body.aircraftId;
     } catch (_) {}
 
     // Get user's company - prefer company_id from user, fallback to created_by
@@ -360,28 +367,38 @@ Deno.serve(async (req) => {
       departureUsage.set(c.departure_airport, (departureUsage.get(c.departure_airport) || 0) + 1);
     }
 
-    // Get the types the user owns
-    const ownedTypes = [...new Set(availableAircraft.map(a => a.type))];
+    // If a specific aircraft was selected, narrow down to that aircraft's type
+    let filteredAircraft = availableAircraft;
+    if (filterAircraftId) {
+      const selectedAc = availableAircraft.find(a => a.id === filterAircraftId);
+      if (selectedAc) filteredAircraft = [selectedAc];
+    }
+
+    // Get the types the user owns (based on filtered aircraft)
+    const ownedTypes = [...new Set(filteredAircraft.map(a => a.type))];
     const ownedTypeSpecs = allAircraftTypes.filter(t => ownedTypes.includes(t.type));
     const notOwnedTypeSpecs = allAircraftTypes.filter(t => !ownedTypes.includes(t.type));
 
     const compatibleContracts = [];
     const incompatibleContracts = [];
 
-    // Generate 4 compatible contracts (with optional distance filter)
+    const genOptions = {
+      blockedPairs: usedRoutePairs,
+      departureUsage,
+      maxDepartureReuse: 2,
+      forceContractType: filterContractType || null,
+    };
+
+    // Generate 4 compatible contracts (with optional distance/type filter)
     let attempts = 0;
     while (compatibleContracts.length < 4 && attempts < 80) {
       attempts++;
       const acType = randomItem(ownedTypeSpecs);
-      const contract = generateContract(company.id, acType, company.level || 1, {
-        blockedPairs: usedRoutePairs,
-        departureUsage,
-        maxDepartureReuse: 2
-      });
+      const contract = generateContract(company.id, acType, company.level || 1, genOptions);
       if (contract) {
         // Apply distance filter
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
-        const canFulfill = availableAircraft.some(plane => {
+        const canFulfill = filteredAircraft.some(plane => {
           const typeMatch = contract.required_aircraft_type.includes(plane.type);
           const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
           const rangeMatch = !contract.distance_nm || (plane.range_nm && plane.range_nm >= contract.distance_nm);
@@ -401,11 +418,7 @@ Deno.serve(async (req) => {
       attempts++;
       if (notOwnedTypeSpecs.length > 0) {
         const acType = randomItem(notOwnedTypeSpecs);
-        const contract = generateContract(company.id, acType, company.level || 1, {
-          blockedPairs: usedRoutePairs,
-          departureUsage,
-          maxDepartureReuse: 2
-        });
+        const contract = generateContract(company.id, acType, company.level || 1, genOptions);
         if (contract) {
           if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
           incompatibleContracts.push(contract);
@@ -413,15 +426,11 @@ Deno.serve(async (req) => {
         }
       } else {
         const acType = randomItem(ownedTypeSpecs);
-        const contract = generateContract(company.id, acType, company.level || 1, {
-          blockedPairs: usedRoutePairs,
-          departureUsage,
-          maxDepartureReuse: 2
-        });
+        const contract = generateContract(company.id, acType, company.level || 1, genOptions);
         if (contract) {
-          const maxRange = Math.max(...availableAircraft.map(a => a.range_nm || 0));
-          const maxCargo = Math.max(...availableAircraft.map(a => a.cargo_capacity_kg || 0));
-          const maxPax = Math.max(...availableAircraft.map(a => a.passenger_capacity || 0));
+          const maxRange = Math.max(...filteredAircraft.map(a => a.range_nm || 0));
+          const maxCargo = Math.max(...filteredAircraft.map(a => a.cargo_capacity_kg || 0));
+          const maxPax = Math.max(...filteredAircraft.map(a => a.passenger_capacity || 0));
           const exceedType = Math.floor(Math.random() * 3);
           if (exceedType === 0) contract.distance_nm = maxRange + 500 + Math.floor(Math.random() * 1000);
           else if (exceedType === 1 && contract.cargo_weight_kg > 0) contract.cargo_weight_kg = maxCargo + 1000;

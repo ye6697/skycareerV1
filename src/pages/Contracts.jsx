@@ -56,6 +56,14 @@ export default function Contracts() {
       const params = {};
       if (minNm) params.minNm = parseInt(minNm);
       if (maxNm) params.maxNm = parseInt(maxNm);
+      // Pass active type filter (passenger, cargo, charter) to backend
+      if (activeTab && activeTab !== 'all' && activeTab !== 'accepted') {
+        params.contractType = activeTab;
+      }
+      // Pass selected aircraft ID so backend generates contracts for that aircraft type
+      if (selectedAircraftId && selectedAircraftId !== 'all') {
+        params.aircraftId = selectedAircraftId;
+      }
       const res = await base44.functions.invoke('generateContracts', params);
       return res.data;
     },
