@@ -41,6 +41,7 @@ export default function FlightProfileChart({ flight }) {
   const panStartX = useRef(null);
   const panStartIndices = useRef(null);
   const containerRef = useRef(null);
+  const touchRef = useRef({ startDist: null, startStart: 0, startEnd: 0, midX: 0, isPinching: false, panStartX: null });
 
   const chartData = useMemo(() => {
     const xpd = flight?.xplane_data || {};
@@ -149,6 +150,88 @@ export default function FlightProfileChart({ flight }) {
     setViewEnd(null);
   };
 
+  // --- Touch pinch-to-zoom + one-finger pan ---
+  const getTouchDist = (t1, t2) => Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+  const getTouchMidX = (t1, t2) => (t1.clientX + t2.clientX) / 2;
+
+  const handleTouchStart = useCallback((e) => {
+    if (!chartData || totalLen < 4) return;
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dist = getTouchDist(e.touches[0], e.touches[1]);
+      const midX = getTouchMidX(e.touches[0], e.touches[1]);
+      touchRef.current = {
+        startDist: dist,
+        startStart: viewStart,
+        startEnd: effectiveEnd,
+        midX,
+        isPinching: true,
+        panStartX: null,
+      };
+    } else if (e.touches.length === 1 && isZoomed) {
+      touchRef.current = {
+        ...touchRef.current,
+        isPinching: false,
+        panStartX: e.touches[0].clientX,
+        startStart: viewStart,
+        startEnd: effectiveEnd,
+      };
+    }
+  }, [chartData, totalLen, viewStart, effectiveEnd, isZoomed]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!chartData || totalLen < 4) return;
+
+    // Pinch zoom (2 fingers)
+    if (e.touches.length === 2 && touchRef.current.isPinching && touchRef.current.startDist) {
+      e.preventDefault();
+      const newDist = getTouchDist(e.touches[0], e.touches[1]);
+      const scale = newDist / touchRef.current.startDist;
+      const { startStart, startEnd } = touchRef.current;
+      const origSize = startEnd - startStart;
+      const newSize = Math.max(4, Math.min(totalLen, Math.round(origSize / scale)));
+
+      // Zoom centered on midpoint
+      const rect = containerRef.current?.getBoundingClientRect();
+      const midFrac = rect ? Math.max(0, Math.min(1, (touchRef.current.midX - rect.left) / rect.width)) : 0.5;
+      const origMidIndex = startStart + Math.round(origSize * midFrac);
+      let newStart = origMidIndex - Math.round(newSize * midFrac);
+      let newEnd = newStart + newSize;
+      if (newStart < 0) { newEnd -= newStart; newStart = 0; }
+      if (newEnd > totalLen) { newStart -= (newEnd - totalLen); newEnd = totalLen; }
+      newStart = Math.max(0, newStart);
+      if (newEnd - newStart >= totalLen) {
+        setViewStart(0);
+        setViewEnd(null);
+      } else {
+        setViewStart(newStart);
+        setViewEnd(newEnd);
+      }
+      return;
+    }
+
+    // One-finger pan (when zoomed)
+    if (e.touches.length === 1 && !touchRef.current.isPinching && touchRef.current.panStartX !== null && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const pxDelta = e.touches[0].clientX - touchRef.current.panStartX;
+      const curSize = touchRef.current.startEnd - touchRef.current.startStart;
+      const indexDelta = Math.round((-pxDelta / rect.width) * curSize);
+      let newStart = touchRef.current.startStart + indexDelta;
+      let newEnd = touchRef.current.startEnd + indexDelta;
+      if (newStart < 0) { newEnd -= newStart; newStart = 0; }
+      if (newEnd > totalLen) { newStart -= (newEnd - totalLen); newEnd = totalLen; }
+      newStart = Math.max(0, newStart);
+      setViewStart(newStart);
+      setViewEnd(newEnd);
+    }
+  }, [chartData, totalLen]);
+
+  const handleTouchEnd = useCallback(() => {
+    touchRef.current.isPinching = false;
+    touchRef.current.startDist = null;
+    touchRef.current.panStartX = null;
+  }, []);
+
   if (!chartData) {
     return (
       <Card className="bg-slate-900/80 border-slate-800 overflow-hidden p-4">
@@ -211,8 +294,8 @@ export default function FlightProfileChart({ flight }) {
         </div>
         <p className="text-[10px] text-slate-500 mb-1">
           {isZoomed
-            ? (lang === 'de' ? '🔍 Scrollen = Zoom · Ziehen = Verschieben' : '🔍 Scroll = Zoom · Drag = Pan')
-            : (lang === 'de' ? '🔍 Scrollen zum Zoomen' : '🔍 Scroll to zoom')}
+            ? (lang === 'de' ? '🔍 Scrollen/Pinch = Zoom · Ziehen = Verschieben' : '🔍 Scroll/Pinch = Zoom · Drag = Pan')
+            : (lang === 'de' ? '🔍 Scrollen oder Pinch zum Zoomen' : '🔍 Scroll or pinch to zoom')}
         </p>
       </div>
 
@@ -238,6 +321,10 @@ export default function FlightProfileChart({ flight }) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
