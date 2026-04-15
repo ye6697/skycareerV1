@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceArea } from 'recharts';
 import { useLanguage } from "@/components/LanguageContext";
 
 const SERIES_CONFIG = {
@@ -33,6 +33,11 @@ function CustomTooltip({ active, payload, label }) {
 export default function FlightProfileChart({ flight }) {
   const { lang } = useLanguage();
   const [activeSeries, setActiveSeries] = useState(['altitude', 'ias']);
+  const [zoomLeft, setZoomLeft] = useState(null);
+  const [zoomRight, setZoomRight] = useState(null);
+  const [refAreaLeft, setRefAreaLeft] = useState(null);
+  const [refAreaRight, setRefAreaRight] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const chartData = useMemo(() => {
     const xpd = flight?.xplane_data || {};
@@ -42,7 +47,7 @@ export default function FlightProfileChart({ flight }) {
 
     return history.map((pt) => {
       const ts = pt.t ? new Date(pt.t) : null;
-      const timeLabel = ts ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      const timeLabel = ts ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
       return {
         time: timeLabel,
         altitude: Math.round(pt.alt ?? 0),
@@ -73,14 +78,66 @@ export default function FlightProfileChart({ flight }) {
     );
   };
 
-  // Determine if we need dual Y axes
   const hasLeft = activeSeries.includes('altitude');
   const hasRight = activeSeries.some(k => k !== 'altitude');
+
+  // Sliced data for zoom
+  const displayData = zoomLeft !== null && zoomRight !== null
+    ? chartData.slice(Math.min(zoomLeft, zoomRight), Math.max(zoomLeft, zoomRight) + 1)
+    : chartData;
+
+  const isZoomed = zoomLeft !== null && zoomRight !== null;
+
+  const handleMouseDown = (e) => {
+    if (!e || !e.activeLabel) return;
+    const idx = chartData.findIndex(d => d.time === e.activeLabel);
+    if (idx < 0) return;
+    setRefAreaLeft(idx);
+    setRefAreaRight(idx);
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !e || !e.activeLabel) return;
+    const idx = chartData.findIndex(d => d.time === e.activeLabel);
+    if (idx >= 0) setRefAreaRight(idx);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    if (refAreaLeft === null || refAreaRight === null) {
+      setRefAreaLeft(null);
+      setRefAreaRight(null);
+      return;
+    }
+    const left = Math.min(refAreaLeft, refAreaRight);
+    const right = Math.max(refAreaLeft, refAreaRight);
+    if (right - left < 2) {
+      setRefAreaLeft(null);
+      setRefAreaRight(null);
+      return;
+    }
+    setZoomLeft(left);
+    setZoomRight(right);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  };
+
+  const handleZoomReset = () => {
+    setZoomLeft(null);
+    setZoomRight(null);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  };
+
+  const refLeftLabel = refAreaLeft !== null ? chartData[refAreaLeft]?.time : null;
+  const refRightLabel = refAreaRight !== null ? chartData[refAreaRight]?.time : null;
 
   return (
     <Card className="bg-slate-900/80 border-slate-800 overflow-hidden">
       <div className="px-4 pt-3 pb-1">
-        <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
           {TOGGLE_KEYS.map((key) => {
             const cfg = SERIES_CONFIG[key];
             const active = activeSeries.includes(key);
@@ -98,12 +155,31 @@ export default function FlightProfileChart({ flight }) {
               </button>
             );
           })}
+          {isZoomed && (
+            <button
+              onClick={handleZoomReset}
+              className="px-3 py-1 rounded-md text-xs font-bold border border-cyan-700 bg-cyan-900/40 text-cyan-300 hover:bg-cyan-800/50 transition-all ml-auto"
+            >
+              {lang === 'de' ? 'Zoom zurücksetzen' : 'Reset Zoom'}
+            </button>
+          )}
         </div>
+        {!isZoomed && (
+          <p className="text-[10px] text-slate-500 mb-1">
+            {lang === 'de' ? '↔ Im Chart ziehen um reinzuzoomen' : '↔ Drag on chart to zoom in'}
+          </p>
+        )}
       </div>
 
-      <div className="px-2 pb-3" style={{ height: 260 }}>
+      <div className="px-2 pb-3 select-none" style={{ height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <LineChart
+            data={displayData}
+            margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
             <XAxis
               dataKey="time"
               tick={{ fill: '#94a3b8', fontSize: 10 }}
@@ -120,6 +196,7 @@ export default function FlightProfileChart({ flight }) {
                 axisLine={false}
                 width={50}
                 tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+                domain={['auto', 'auto']}
               />
             )}
             {hasRight && (
@@ -130,6 +207,7 @@ export default function FlightProfileChart({ flight }) {
                 tickLine={false}
                 axisLine={false}
                 width={40}
+                domain={['auto', 'auto']}
               />
             )}
             <Tooltip content={<CustomTooltip />} />
@@ -149,6 +227,16 @@ export default function FlightProfileChart({ flight }) {
                 />
               );
             })}
+            {isDragging && refLeftLabel && refRightLabel && (
+              <ReferenceArea
+                x1={refLeftLabel}
+                x2={refRightLabel}
+                yAxisId={hasLeft ? 'left' : 'right'}
+                strokeOpacity={0.3}
+                fill="#22d3ee"
+                fillOpacity={0.15}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
