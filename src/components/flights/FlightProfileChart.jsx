@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Card } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceArea } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from "@/components/LanguageContext";
 
 const SERIES_CONFIG = {
@@ -33,18 +33,19 @@ function CustomTooltip({ active, payload, label }) {
 export default function FlightProfileChart({ flight }) {
   const { lang } = useLanguage();
   const [activeSeries, setActiveSeries] = useState(['altitude', 'ias']);
-  const [zoomLeft, setZoomLeft] = useState(null);
-  const [zoomRight, setZoomRight] = useState(null);
-  const [refAreaLeft, setRefAreaLeft] = useState(null);
-  const [refAreaRight, setRefAreaRight] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
+  
+  // Zoom state: start/end indices into chartData
+  const [viewStart, setViewStart] = useState(0);
+  const [viewEnd, setViewEnd] = useState(null); // null = full length
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartX = useRef(null);
+  const panStartIndices = useRef(null);
+  const containerRef = useRef(null);
 
   const chartData = useMemo(() => {
     const xpd = flight?.xplane_data || {};
     const history = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile;
-
     if (!Array.isArray(history) || history.length < 2) return null;
-
     return history.map((pt) => {
       const ts = pt.t ? new Date(pt.t) : null;
       const timeLabel = ts ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
@@ -58,6 +59,95 @@ export default function FlightProfileChart({ flight }) {
       };
     });
   }, [flight]);
+
+  const totalLen = chartData?.length || 0;
+  const effectiveEnd = viewEnd === null ? totalLen : viewEnd;
+  const windowSize = effectiveEnd - viewStart;
+  const isZoomed = totalLen > 0 && windowSize < totalLen;
+
+  const displayData = useMemo(() => {
+    if (!chartData) return null;
+    return chartData.slice(viewStart, effectiveEnd);
+  }, [chartData, viewStart, effectiveEnd]);
+
+  const handleWheel = useCallback((e) => {
+    if (!chartData || totalLen < 4) return;
+    e.preventDefault();
+
+    const zoomFactor = 0.15;
+    const delta = e.deltaY > 0 ? 1 : -1; // 1 = zoom out, -1 = zoom in
+
+    // Get mouse position as fraction of chart width
+    const rect = containerRef.current?.getBoundingClientRect();
+    const mouseXFrac = rect ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0.5;
+
+    const curStart = viewStart;
+    const curEnd = effectiveEnd;
+    const curSize = curEnd - curStart;
+
+    if (delta < 0) {
+      // Zoom in
+      const shrink = Math.max(2, Math.round(curSize * zoomFactor));
+      const leftShrink = Math.round(shrink * mouseXFrac);
+      const rightShrink = shrink - leftShrink;
+      const newStart = Math.min(curStart + leftShrink, curEnd - 4);
+      const newEnd = Math.max(curEnd - rightShrink, newStart + 4);
+      setViewStart(Math.max(0, newStart));
+      setViewEnd(Math.min(totalLen, newEnd));
+    } else {
+      // Zoom out
+      const grow = Math.max(2, Math.round(curSize * zoomFactor));
+      const leftGrow = Math.round(grow * mouseXFrac);
+      const rightGrow = grow - leftGrow;
+      let newStart = curStart - leftGrow;
+      let newEnd = curEnd + rightGrow;
+      // Clamp
+      if (newStart < 0) { newEnd = Math.min(totalLen, newEnd - newStart); newStart = 0; }
+      if (newEnd > totalLen) { newStart = Math.max(0, newStart - (newEnd - totalLen)); newEnd = totalLen; }
+      if (newEnd - newStart >= totalLen) {
+        setViewStart(0);
+        setViewEnd(null);
+      } else {
+        setViewStart(newStart);
+        setViewEnd(newEnd);
+      }
+    }
+  }, [chartData, totalLen, viewStart, effectiveEnd]);
+
+  const handlePointerDown = useCallback((e) => {
+    if (!isZoomed) return;
+    setIsPanning(true);
+    panStartX.current = e.clientX;
+    panStartIndices.current = { start: viewStart, end: effectiveEnd };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, [isZoomed, viewStart, effectiveEnd]);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!isPanning || !panStartX.current || !panStartIndices.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const pxDelta = e.clientX - panStartX.current;
+    const curSize = panStartIndices.current.end - panStartIndices.current.start;
+    const indexDelta = Math.round((-pxDelta / rect.width) * curSize);
+
+    let newStart = panStartIndices.current.start + indexDelta;
+    let newEnd = panStartIndices.current.end + indexDelta;
+    if (newStart < 0) { newEnd -= newStart; newStart = 0; }
+    if (newEnd > totalLen) { newStart -= (newEnd - totalLen); newEnd = totalLen; }
+    newStart = Math.max(0, newStart);
+    setViewStart(newStart);
+    setViewEnd(newEnd);
+  }, [isPanning, totalLen]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsPanning(false);
+    panStartX.current = null;
+    panStartIndices.current = null;
+  }, []);
+
+  const handleReset = () => {
+    setViewStart(0);
+    setViewEnd(null);
+  };
 
   if (!chartData) {
     return (
@@ -81,58 +171,8 @@ export default function FlightProfileChart({ flight }) {
   const hasLeft = activeSeries.includes('altitude');
   const hasRight = activeSeries.some(k => k !== 'altitude');
 
-  // Sliced data for zoom
-  const displayData = zoomLeft !== null && zoomRight !== null
-    ? chartData.slice(Math.min(zoomLeft, zoomRight), Math.max(zoomLeft, zoomRight) + 1)
-    : chartData;
-
-  const isZoomed = zoomLeft !== null && zoomRight !== null;
-
-  const handleMouseDown = (e) => {
-    if (!e || !e.activeLabel) return;
-    const idx = chartData.findIndex(d => d.time === e.activeLabel);
-    if (idx < 0) return;
-    setRefAreaLeft(idx);
-    setRefAreaRight(idx);
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging || !e || !e.activeLabel) return;
-    const idx = chartData.findIndex(d => d.time === e.activeLabel);
-    if (idx >= 0) setRefAreaRight(idx);
-  };
-
-  const handleMouseUp = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    if (refAreaLeft === null || refAreaRight === null) {
-      setRefAreaLeft(null);
-      setRefAreaRight(null);
-      return;
-    }
-    const left = Math.min(refAreaLeft, refAreaRight);
-    const right = Math.max(refAreaLeft, refAreaRight);
-    if (right - left < 2) {
-      setRefAreaLeft(null);
-      setRefAreaRight(null);
-      return;
-    }
-    setZoomLeft(left);
-    setZoomRight(right);
-    setRefAreaLeft(null);
-    setRefAreaRight(null);
-  };
-
-  const handleZoomReset = () => {
-    setZoomLeft(null);
-    setZoomRight(null);
-    setRefAreaLeft(null);
-    setRefAreaRight(null);
-  };
-
-  const refLeftLabel = refAreaLeft !== null ? chartData[refAreaLeft]?.time : null;
-  const refRightLabel = refAreaRight !== null ? chartData[refAreaRight]?.time : null;
+  // Zoom percentage for indicator
+  const zoomPct = totalLen > 0 ? Math.round((windowSize / totalLen) * 100) : 100;
 
   return (
     <Card className="bg-slate-900/80 border-slate-800 overflow-hidden">
@@ -155,30 +195,54 @@ export default function FlightProfileChart({ flight }) {
               </button>
             );
           })}
-          {isZoomed && (
-            <button
-              onClick={handleZoomReset}
-              className="px-3 py-1 rounded-md text-xs font-bold border border-cyan-700 bg-cyan-900/40 text-cyan-300 hover:bg-cyan-800/50 transition-all ml-auto"
-            >
-              {lang === 'de' ? 'Zoom zurücksetzen' : 'Reset Zoom'}
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {isZoomed && (
+              <>
+                <span className="text-[10px] font-mono text-cyan-400">{zoomPct}%</span>
+                <button
+                  onClick={handleReset}
+                  className="px-3 py-1 rounded-md text-xs font-bold border border-cyan-700 bg-cyan-900/40 text-cyan-300 hover:bg-cyan-800/50 transition-all"
+                >
+                  {lang === 'de' ? 'Reset' : 'Reset'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
-        {!isZoomed && (
-          <p className="text-[10px] text-slate-500 mb-1">
-            {lang === 'de' ? '↔ Im Chart ziehen um reinzuzoomen' : '↔ Drag on chart to zoom in'}
-          </p>
-        )}
+        <p className="text-[10px] text-slate-500 mb-1">
+          {isZoomed
+            ? (lang === 'de' ? '🔍 Scrollen = Zoom · Ziehen = Verschieben' : '🔍 Scroll = Zoom · Drag = Pan')
+            : (lang === 'de' ? '🔍 Scrollen zum Zoomen' : '🔍 Scroll to zoom')}
+        </p>
       </div>
 
-      <div className="px-2 pb-3 select-none" style={{ height: 260 }}>
+      {/* Minimap / overview bar */}
+      {isZoomed && (
+        <div className="mx-4 mb-1 h-2 bg-slate-800 rounded-full relative overflow-hidden border border-slate-700">
+          <div
+            className="absolute top-0 h-full bg-cyan-500/30 border border-cyan-500/50 rounded-full"
+            style={{
+              left: `${(viewStart / totalLen) * 100}%`,
+              width: `${(windowSize / totalLen) * 100}%`,
+            }}
+          />
+        </div>
+      )}
+
+      <div
+        ref={containerRef}
+        className="px-2 pb-3 select-none"
+        style={{ height: 260, cursor: isZoomed ? (isPanning ? 'grabbing' : 'grab') : 'default', touchAction: 'none' }}
+        onWheel={handleWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={displayData}
             margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
           >
             <XAxis
               dataKey="time"
@@ -227,16 +291,6 @@ export default function FlightProfileChart({ flight }) {
                 />
               );
             })}
-            {isDragging && refLeftLabel && refRightLabel && (
-              <ReferenceArea
-                x1={refLeftLabel}
-                x2={refRightLabel}
-                yAxisId={hasLeft ? 'left' : 'right'}
-                strokeOpacity={0.3}
-                fill="#22d3ee"
-                fillOpacity={0.15}
-              />
-            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
