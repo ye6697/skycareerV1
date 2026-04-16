@@ -228,27 +228,27 @@ export default function Dashboard() {
     <div className="h-full flex flex-col gap-3 max-w-5xl mx-auto">
       <InsolvencyBanner />
 
-      {/* Zibo Style Top Bar Info */}
-      <div className="grid grid-cols-4 gap-2">
-        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
-           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('balance', lang)}</span>
-           <span className="text-base sm:text-xl font-mono text-emerald-400 font-bold">{formatCurrency(company.balance)}</span>
-        </div>
-        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
-           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('level', lang)}</span>
-           <span className="text-base sm:text-xl font-mono text-cyan-400 font-bold">{companyLevel}</span>
-           <span className="text-[10px] text-cyan-500/80 font-mono mt-0.5">
-             XP: {currentXP.toLocaleString()} / {xpToNextLevel.toLocaleString()}
-           </span>
-        </div>
-        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
-           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">Reputation</span>
-           <span className="text-base sm:text-xl font-mono text-amber-400 font-bold">{company.reputation || 0}%</span>
-        </div>
-        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-col items-center justify-center shadow-lg">
-           <span className="text-[10px] sm:text-xs text-cyan-600/70 font-mono uppercase tracking-wider">{t('fleet', lang)}</span>
-           <span className="text-base sm:text-xl font-mono text-purple-400 font-bold">{allAircraft.filter(a => a.status !== 'sold').length}</span>
-        </div>
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[
+          { label: t('balance', lang), value: formatCurrency(company.balance), color: 'emerald', icon: DollarSign },
+          { label: t('level', lang), value: companyLevel, sub: `${currentXP.toLocaleString()} / ${xpToNextLevel.toLocaleString()} XP`, color: 'cyan', icon: Star },
+          { label: 'Reputation', value: `${company.reputation || 0}%`, color: 'amber', icon: Trophy },
+          { label: t('fleet', lang), value: allAircraft.filter(a => a.status !== 'sold').length, color: 'purple', icon: Plane },
+        ].map((s, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            className="group relative rounded-xl border border-slate-700/60 bg-gradient-to-br from-slate-800/90 to-slate-900/95 p-3 sm:p-4 flex items-center gap-3 overflow-hidden hover:border-slate-600/80 transition-colors shadow-lg">
+            <div className={`absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-[0.07] bg-${s.color}-400 blur-2xl`} />
+            <div className={`shrink-0 w-10 h-10 rounded-lg bg-${s.color}-500/10 border border-${s.color}-500/20 flex items-center justify-center`}>
+              <s.icon className={`w-5 h-5 text-${s.color}-400`} />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[10px] sm:text-[11px] text-slate-500 font-medium uppercase tracking-wider">{s.label}</span>
+              <span className={`block text-lg sm:text-xl font-bold font-mono text-${s.color}-400 leading-tight`}>{s.value}</span>
+              {s.sub && <span className="block text-[10px] text-slate-500 font-mono mt-0.5 truncate">{s.sub}</span>}
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       {/* Main Grid Menu */}
