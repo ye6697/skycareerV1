@@ -213,58 +213,45 @@ const firstPositive = (...values) => {
 export function resolveLandingMetricsFromFlight(flight) {
   const xpd = flight?.xplane_data || {};
 
-  // Priority 1: Backend-computed landing values from the real-time air→ground
-  // transition capture window. These are the most reliable because receiveXPlaneData
-  // detects the exact touchdown moment and locks the values with a 9s capture window.
-  const landingPacketTrusted = !!(
-    xpd?.touchdown_detected ||
-    xpd?.landing_data_locked ||
-    xpd?.bridge_local_landing_locked ||
-    xpd?.landing_data_source === "bridge_local"
-  );
+  // Simple approach: take the LAST 5 telemetry data points (same data as the chart)
+  // and pick the highest |V/S| and highest G-Force from those.
+  const telemetryHistory = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile || [];
 
-  const trustedVs = firstPositiveAbs(
-    landingPacketTrusted ? xpd?.touchdown_vspeed : 0,
-    landingPacketTrusted ? xpd?.landing_vs : 0
-  );
-  const trustedG = landingPacketTrusted ? firstPositive(xpd?.landing_g_force, xpd?.landingGForce) : 0;
+  if (Array.isArray(telemetryHistory) && telemetryHistory.length >= 2) {
+    const last5 = telemetryHistory.slice(-5);
 
-  // If we have trusted backend values, use them directly — no telemetry re-derivation needed.
-  if (trustedVs > 0 || trustedG > 0) {
-    return {
-      landingVs: Math.round(clamp(trustedVs, 0, 10000)),
-      landingG: Number(clamp(trustedG, 0, 6).toFixed(2)),
-    };
+    let peakVs = 0;
+    let peakG = 0;
+
+    for (const pt of last5) {
+      const vs = Math.abs(Number(pt?.vs ?? pt?.vertical_speed ?? 0));
+      if (Number.isFinite(vs) && vs > peakVs) peakVs = vs;
+
+      const g = Number(pt?.g ?? pt?.g_force ?? 0);
+      if (Number.isFinite(g) && g > peakG) peakG = g;
+    }
+
+    if (peakVs > 0 || peakG > 0) {
+      return {
+        landingVs: Math.round(clamp(peakVs, 0, 10000)),
+        landingG: Number(clamp(peakG, 0, 6).toFixed(2)),
+      };
+    }
   }
 
-  // Priority 2: Legacy stored values (from older flights or backends that store
-  // landing_vs / landing_g_force directly on the flight or xplane_data).
-  const legacyVs = firstPositiveAbs(
-    flight?.landing_vs,
+  // Fallback: use backend-stored values if no telemetry available
+  const fallbackVs = firstPositiveAbs(
     xpd?.touchdown_vspeed,
-    xpd?.landing_vs
+    xpd?.landing_vs,
+    flight?.landing_vs
   );
-  const legacyG = firstPositive(
+  const fallbackG = firstPositive(
     xpd?.landing_g_force,
     xpd?.landingGForce
   );
 
-  if (legacyVs > 0 || legacyG > 0) {
-    return {
-      landingVs: Math.round(clamp(legacyVs, 0, 10000)),
-      landingG: Number(clamp(legacyG, 0, 6).toFixed(2)),
-    };
-  }
-
-  // Priority 3: Derive from telemetry history as last resort.
-  // This uses on_ground transition detection which can be unreliable — only use
-  // when no backend-computed values are available at all.
-  const telemetryHistory = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile || [];
-  const sessionStartIso = flight?.departure_time || flight?.created_date || null;
-  const derived = deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStartIso);
-
   return {
-    landingVs: Math.round(clamp(derived.landingVs, 0, 10000)),
-    landingG: Number(clamp(derived.landingG, 0, 6).toFixed(2)),
+    landingVs: Math.round(clamp(fallbackVs, 0, 10000)),
+    landingG: Number(clamp(fallbackG, 0, 6).toFixed(2)),
   };
 }
