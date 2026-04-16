@@ -213,26 +213,8 @@ const firstPositive = (...values) => {
 export function resolveLandingMetricsFromFlight(flight) {
   const xpd = flight?.xplane_data || {};
 
-  // Priority 1: Backend-computed touchdown values (most reliable).
-  // receiveXPlaneData captures the exact air→ground transition with a 9s window.
-  const backendVs = firstPositiveAbs(
-    xpd?.touchdown_vspeed,
-    xpd?.landing_vs,
-    flight?.landing_vs
-  );
-  const backendG = firstPositive(
-    xpd?.landing_g_force,
-    xpd?.landingGForce
-  );
-
-  if (backendVs > 0 || backendG > 0) {
-    return {
-      landingVs: Math.round(clamp(backendVs, 0, 10000)),
-      landingG: Number(clamp(backendG, 0, 6).toFixed(2)),
-    };
-  }
-
-  // Priority 2: Last 5 telemetry points — peak |V/S| and peak G.
+  // ONLY use the last 5 telemetry data points (same as the chart shows).
+  // Pick peak |V/S| and peak G from those 5 points.
   const telemetryHistory = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile || [];
 
   if (Array.isArray(telemetryHistory) && telemetryHistory.length >= 2) {
@@ -247,12 +229,10 @@ export function resolveLandingMetricsFromFlight(flight) {
       if (Number.isFinite(g) && g > peakG) peakG = g;
     }
 
-    if (peakVs > 0 || peakG > 0) {
-      return {
-        landingVs: Math.round(clamp(peakVs, 0, 10000)),
-        landingG: Number(clamp(peakG, 0, 6).toFixed(2)),
-      };
-    }
+    return {
+      landingVs: Math.round(clamp(peakVs, 0, 10000)),
+      landingG: Number(clamp(peakG, 0, 6).toFixed(2)),
+    };
   }
 
   return { landingVs: 0, landingG: 0 };
