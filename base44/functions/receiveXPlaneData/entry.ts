@@ -1186,8 +1186,8 @@ Deno.serve(async (req) => {
     const landingDataSource = String(data.landing_data_source || "").trim().toLowerCase();
     const bridgeLocalLandingLocked = toBool(data.bridge_local_landing_locked ?? data.landing_data_locked, false);
     const useBridgeLocalLanding = bridgeLocalLandingLocked || landingDataSource.includes("bridge_local");
-    const prevTouchdownVspeed = Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0);
-    const prevLandingG = Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0);
+    const prevTouchdownVspeed = (hasBeenAirborne && prevOnGround) ? Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0) : 0;
+    const prevLandingG = (hasBeenAirborne && prevOnGround) ? Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0) : 0;
     const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
     const mergedLandingG = incomingLandingG > 0 ? incomingLandingG : prevLandingG;
 
@@ -2390,23 +2390,13 @@ Deno.serve(async (req) => {
         })();
       }
     }
-    // Background maintenance ratio recalculation (~10% of requests, fully async)
     if (Math.random() < 0.1 && flight.aircraft_id) {
-      (async () => {
-        try {
-          const aircraftList = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
-          const ac = aircraftList[0];
-          if (ac?.maintenance_categories) {
-            const cats = Object.values(ac.maintenance_categories);
-            if (cats.length > 0) {
-              const avg = cats.reduce((a, b) => a + (b || 0), 0) / cats.length;
-              await base44.asServiceRole.entities.Company.update(company.id, { 
-                current_maintenance_ratio: avg / 100 
-              });
-            }
-          }
-        } catch (_) { /* ignore */ }
-      })();
+      (async () => { try {
+        const acl = await base44.asServiceRole.entities.Aircraft.filter({ id: flight.aircraft_id });
+        const ac = acl[0]; if (!ac?.maintenance_categories) return;
+        const cats = Object.values(ac.maintenance_categories);
+        if (cats.length > 0) { const avg = cats.reduce((a, b) => a + (b || 0), 0) / cats.length; await base44.asServiceRole.entities.Company.update(company.id, { current_maintenance_ratio: avg / 100 }); }
+      } catch (_) {} })();
     }
 
     const mergedFms = incomingFmsWaypoints.length
@@ -2519,35 +2509,17 @@ Deno.serve(async (req) => {
     };
     const liveScore = computeLiveScore(mergedScorePacket);
 
-    // Keep a live XPlaneLog stream during active contracts, but throttle writes
-    // to reduce backend load and telemetry lag.
     const prevXPlaneLogAtMs = Number(prevXd.last_xplanelog_at_ms ?? 0);
     const nowLogMs = Date.now();
-    const shouldWriteLiveLog =
-      !Number.isFinite(prevXPlaneLogAtMs) ||
-      prevXPlaneLogAtMs <= 0 ||
-      (nowLogMs - prevXPlaneLogAtMs) >= 2000;
+    const shouldWriteLiveLog = !Number.isFinite(prevXPlaneLogAtMs) || prevXPlaneLogAtMs <= 0 || (nowLogMs - prevXPlaneLogAtMs) >= 2000;
     xplaneData.last_xplanelog_at_ms = shouldWriteLiveLog ? nowLogMs : prevXPlaneLogAtMs;
     if (shouldWriteLiveLog) {
-      base44.asServiceRole.entities.XPlaneLog.create({
-        company_id: company.id,
-        raw_data: xplaneData,
-        altitude,
-        speed,
-        on_ground,
-        flight_score: liveScore,
-        has_active_flight: true,
-      }).catch(() => {});
+      base44.asServiceRole.entities.XPlaneLog.create({ company_id: company.id, raw_data: xplaneData, altitude, speed, on_ground, flight_score: liveScore, has_active_flight: true }).catch(() => {});
     }
 
-    // Background cleanup so logs do not grow unbounded.
     if (Math.random() < 0.02) {
-      base44.asServiceRole.entities.XPlaneLog.filter(
-        { company_id: company.id }, '-created_date', 120
-      ).then(async (oldLogs) => {
-        if (oldLogs.length > 40) {
-          await Promise.all(oldLogs.slice(40).map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
-        }
+      base44.asServiceRole.entities.XPlaneLog.filter({ company_id: company.id }, '-created_date', 120).then(async (logs) => {
+        if (logs.length > 40) await Promise.all(logs.slice(40).map(l => base44.asServiceRole.entities.XPlaneLog.delete(l.id)));
       }).catch(() => {});
     }
 
