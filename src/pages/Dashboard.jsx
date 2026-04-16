@@ -228,27 +228,22 @@ export default function Dashboard() {
     <div className="h-full flex flex-col gap-3 max-w-5xl mx-auto">
       <InsolvencyBanner />
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          { label: t('balance', lang), value: formatCurrency(company.balance), color: 'emerald', icon: DollarSign },
-          { label: t('level', lang), value: companyLevel, sub: `${currentXP.toLocaleString()} / ${xpToNextLevel.toLocaleString()} XP`, color: 'cyan', icon: Star },
-          { label: 'Reputation', value: `${company.reputation || 0}%`, color: 'amber', icon: Trophy },
-          { label: t('fleet', lang), value: allAircraft.filter(a => a.status !== 'sold').length, color: 'purple', icon: Plane },
-        ].map((s, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className="group relative rounded-xl border border-slate-700/60 bg-gradient-to-br from-slate-800/90 to-slate-900/95 p-3 sm:p-4 flex items-center gap-3 overflow-hidden hover:border-slate-600/80 transition-colors shadow-lg">
-            <div className={`absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-[0.07] bg-${s.color}-400 blur-2xl`} />
-            <div className={`shrink-0 w-10 h-10 rounded-lg bg-${s.color}-500/10 border border-${s.color}-500/20 flex items-center justify-center`}>
-              <s.icon className={`w-5 h-5 text-${s.color}-400`} />
+      {/* PFD-Style Instrument Strip */}
+      <div className="bg-slate-950/90 border border-cyan-900/40 rounded-lg p-2 shadow-[inset_0_1px_0_rgba(34,211,238,0.08)]">
+        <div className="grid grid-cols-4 divide-x divide-cyan-900/30">
+          {[
+            { label: 'BAL', value: formatCurrency(company.balance), unit: 'USD', color: 'text-emerald-400' },
+            { label: 'LVL', value: String(companyLevel).padStart(2, '0'), unit: `${currentXP}/${xpToNextLevel} XP`, color: 'text-cyan-400' },
+            { label: 'REP', value: `${company.reputation || 0}`, unit: '%', color: 'text-amber-400' },
+            { label: 'FLT', value: String(allAircraft.filter(a => a.status !== 'sold').length).padStart(2, '0'), unit: 'ACFT', color: 'text-purple-400' },
+          ].map((g, i) => (
+            <div key={i} className="flex flex-col items-center justify-center px-2 py-1.5">
+              <span className="text-[9px] font-mono font-bold text-cyan-700 tracking-[0.25em] uppercase">{g.label}</span>
+              <span className={`text-xl sm:text-2xl font-mono font-black ${g.color} leading-none tabular-nums tracking-tight`}>{g.value}</span>
+              <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider mt-0.5">{g.unit}</span>
             </div>
-            <div className="min-w-0">
-              <span className="block text-[10px] sm:text-[11px] text-slate-500 font-medium uppercase tracking-wider">{s.label}</span>
-              <span className={`block text-lg sm:text-xl font-bold font-mono text-${s.color}-400 leading-tight`}>{s.value}</span>
-              {s.sub && <span className="block text-[10px] text-slate-500 font-mono mt-0.5 truncate">{s.sub}</span>}
-            </div>
-          </motion.div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Main Grid Menu */}
