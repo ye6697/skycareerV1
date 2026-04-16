@@ -1186,10 +1186,6 @@ Deno.serve(async (req) => {
     const landingDataSource = String(data.landing_data_source || "").trim().toLowerCase();
     const bridgeLocalLandingLocked = toBool(data.bridge_local_landing_locked ?? data.landing_data_locked, false);
     const useBridgeLocalLanding = bridgeLocalLandingLocked || landingDataSource.includes("bridge_local");
-    const prevTouchdownVspeed = (hasBeenAirborne && prevOnGround) ? Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0) : 0;
-    const prevLandingG = (hasBeenAirborne && prevOnGround) ? Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0) : 0;
-    const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
-    const mergedLandingG = incomingLandingG > 0 ? incomingLandingG : prevLandingG;
 
     // Extract aircraft/env fields from plugin - normalize across X-Plane and MSFS naming
     let total_weight_kg = data.total_weight_kg ?? data.gross_weight_kg ?? data.weight_kg ?? null;
@@ -1290,6 +1286,10 @@ Deno.serve(async (req) => {
     const prevOnGround = toBool(prevXd.on_ground, false);
     const _altAgl = (Number(ground_elevation_ft || prevXd.ground_elevation_ft || 0) > 0) ? Math.max(0, Number(altitude||0) - Number(ground_elevation_ft||prevXd.ground_elevation_ft||0)) : Number(altitude||0);
     const justTouchedDown = hasBeenAirborne && on_ground && !prevOnGround && (_altAgl < 500 || Number(altitude||0) < 1500);
+    const prevTouchdownVspeed = (hasBeenAirborne && prevOnGround) ? Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0) : 0;
+    const prevLandingG = (hasBeenAirborne && prevOnGround) ? Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0) : 0;
+    const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
+    const mergedLandingG = incomingLandingG > 0 ? incomingLandingG : prevLandingG;
     const prevFuelKg = Number(prevXd.fuel_kg ?? prevXd.last_valid_fuel_kg ?? 0);
     const incomingFuelKg = Number(fuel_kg ?? 0);
     let effectiveFuelKg = Number.isFinite(incomingFuelKg) ? incomingFuelKg : 0;
