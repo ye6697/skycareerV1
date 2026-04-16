@@ -213,20 +213,36 @@ const firstPositive = (...values) => {
 export function resolveLandingMetricsFromFlight(flight) {
   const xpd = flight?.xplane_data || {};
 
-  // Simple approach: take the LAST 5 telemetry data points (same data as the chart)
-  // and pick the highest |V/S| and highest G-Force from those.
+  // Priority 1: Backend-computed touchdown values (most reliable).
+  // receiveXPlaneData captures the exact air→ground transition with a 9s window.
+  const backendVs = firstPositiveAbs(
+    xpd?.touchdown_vspeed,
+    xpd?.landing_vs,
+    flight?.landing_vs
+  );
+  const backendG = firstPositive(
+    xpd?.landing_g_force,
+    xpd?.landingGForce
+  );
+
+  if (backendVs > 0 || backendG > 0) {
+    return {
+      landingVs: Math.round(clamp(backendVs, 0, 10000)),
+      landingG: Number(clamp(backendG, 0, 6).toFixed(2)),
+    };
+  }
+
+  // Priority 2: Last 5 telemetry points — peak |V/S| and peak G.
   const telemetryHistory = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile || [];
 
   if (Array.isArray(telemetryHistory) && telemetryHistory.length >= 2) {
     const last5 = telemetryHistory.slice(-5);
-
     let peakVs = 0;
     let peakG = 0;
 
     for (const pt of last5) {
       const vs = Math.abs(Number(pt?.vs ?? pt?.vertical_speed ?? 0));
       if (Number.isFinite(vs) && vs > peakVs) peakVs = vs;
-
       const g = Number(pt?.g ?? pt?.g_force ?? 0);
       if (Number.isFinite(g) && g > peakG) peakG = g;
     }
@@ -239,19 +255,5 @@ export function resolveLandingMetricsFromFlight(flight) {
     }
   }
 
-  // Fallback: use backend-stored values if no telemetry available
-  const fallbackVs = firstPositiveAbs(
-    xpd?.touchdown_vspeed,
-    xpd?.landing_vs,
-    flight?.landing_vs
-  );
-  const fallbackG = firstPositive(
-    xpd?.landing_g_force,
-    xpd?.landingGForce
-  );
-
-  return {
-    landingVs: Math.round(clamp(fallbackVs, 0, 10000)),
-    landingG: Number(clamp(fallbackG, 0, 6).toFixed(2)),
-  };
+  return { landingVs: 0, landingG: 0 };
 }
