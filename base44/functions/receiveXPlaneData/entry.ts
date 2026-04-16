@@ -1288,15 +1288,12 @@ Deno.serve(async (req) => {
     const payloadAirborneCredible = payloadWasAirborne && !on_ground && (speedNow > 20 || verticalNow > 100);
     const hasBeenAirborne = wasAirborne || isNowAirborne || payloadAirborneCredible;
     const prevOnGround = toBool(prevXd.on_ground, false);
-    const justTouchedDown = hasBeenAirborne && on_ground && !prevOnGround;
-
-    // Fuel smoothing: preserve last valid fuel value when packets arrive late/missing.
+    const _altAgl = (Number(ground_elevation_ft || prevXd.ground_elevation_ft || 0) > 0) ? Math.max(0, Number(altitude||0) - Number(ground_elevation_ft||prevXd.ground_elevation_ft||0)) : Number(altitude||0);
+    const justTouchedDown = hasBeenAirborne && on_ground && !prevOnGround && (_altAgl < 500 || Number(altitude||0) < 1500);
     const prevFuelKg = Number(prevXd.fuel_kg ?? prevXd.last_valid_fuel_kg ?? 0);
     const incomingFuelKg = Number(fuel_kg ?? 0);
     let effectiveFuelKg = Number.isFinite(incomingFuelKg) ? incomingFuelKg : 0;
-    if (effectiveFuelKg <= 0 && prevFuelKg > 0) {
-      effectiveFuelKg = prevFuelKg;
-    }
+    if (effectiveFuelKg <= 0 && prevFuelKg > 0) effectiveFuelKg = prevFuelKg;
     const airborneFuelJumpThresholdKg = 2500;
     if (hasBeenAirborne && prevFuelKg > 0 && effectiveFuelKg > (prevFuelKg + airborneFuelJumpThresholdKg)) {
       effectiveFuelKg = prevFuelKg;
@@ -1530,21 +1527,16 @@ Deno.serve(async (req) => {
       ? mergedTouchdownVspeedNum
       : (useBridgeLocalLanding ? 0 : transitionTouchdownVspeed);
     const touchdownCandidate = Math.max(0, Math.min(10000, touchdownCandidateRaw));
+    // During capture window: keep PEAK values so the real spike is never lost
     const effectiveTouchdownVspeedGround = landingCaptureActive
-      ? (touchdownCandidate > 0
-          ? touchdownCandidate
-          : Number(prevTouchdownVspeed || 0))
+      ? Math.max(touchdownCandidate, Number(prevTouchdownVspeed || 0))
       : ((Number(prevTouchdownVspeed || 0) > 0) ? Number(prevTouchdownVspeed || 0) : touchdownCandidate);
     const mergedLandingGNum = Number(mergedLandingG || 0);
     const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceCurrent) : 0;
-    const landingGCandidateRaw = mergedLandingGNum > 0
-      ? mergedLandingGNum
-      : (useBridgeLocalLanding ? 0 : transitionLandingG);
+    const landingGCandidateRaw = mergedLandingGNum > 0 ? mergedLandingGNum : (useBridgeLocalLanding ? 0 : transitionLandingG);
     const landingGCandidate = Math.max(0, Math.min(6, landingGCandidateRaw));
     const effectiveLandingGGround = landingCaptureActive
-      ? (landingGCandidate > 0
-          ? landingGCandidate
-          : Number(prevLandingG || 0))
+      ? Math.max(landingGCandidate, Number(prevLandingG || 0))
       : ((Number(prevLandingG || 0) > 0) ? Number(prevLandingG || 0) : landingGCandidate);
     const effectiveTouchdownVspeed = (hasBeenAirborne && on_ground) ? effectiveTouchdownVspeedGround : 0;
     const effectiveLandingG = (hasBeenAirborne && on_ground) ? effectiveLandingGGround : 0;

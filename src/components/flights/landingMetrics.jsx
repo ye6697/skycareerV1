@@ -97,15 +97,19 @@ const findTouchdownIndex = (history) => {
 
   if (touchdownIdx >= 0) return touchdownIdx;
 
+  // Fallback: find last on_ground point only if we actually saw airborne state
   if (airborneSeen) {
     for (let i = history.length - 1; i >= 0; i -= 1) {
       if (readOnGroundFlag(history[i]) === true) return i;
     }
   }
 
+  // Last resort: find most negative V/S, but ONLY in the last 15% of the flight
+  // to avoid picking a cruise-descent point 10+ minutes before landing.
+  const searchStart = Math.max(0, Math.floor(history.length * 0.85));
   let bestIdx = -1;
   let mostNegativeVs = Infinity;
-  for (let i = 0; i < history.length; i += 1) {
+  for (let i = searchStart; i < history.length; i += 1) {
     const vs = readVerticalSpeedFpm(history[i]);
     if (!Number.isFinite(vs)) continue;
     if (vs < mostNegativeVs) {
