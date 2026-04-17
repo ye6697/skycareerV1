@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { X, Play, Pause, RotateCcw, Eye, Compass } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import * as THREE from 'three';
+import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
 
 // Visualizes the last N seconds of a flight as a 3D approach path with replay.
 export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 }) {
@@ -243,156 +244,18 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
       scene.add(new THREE.Line(dropGeo, dropMat));
     });
 
-    // Aircraft - simplified airliner model
-    const planeMesh = new THREE.Group();
-
-    const fuselageMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff, roughness: 0.25, metalness: 0.85,
-      emissive: 0x8899aa, emissiveIntensity: 0.35,
-    });
-    const wingMat = new THREE.MeshStandardMaterial({
-      color: 0xf5f7fa, roughness: 0.3, metalness: 0.8,
-      emissive: 0x7788aa, emissiveIntensity: 0.3,
-    });
-    const accentMat = new THREE.MeshStandardMaterial({
-      color: 0x22d3ee, roughness: 0.3, metalness: 0.9,
-      emissive: 0x0891b2, emissiveIntensity: 0.6,
-    });
-    const bellyMat = new THREE.MeshStandardMaterial({
-      color: 0xcbd5e1, roughness: 0.35, metalness: 0.75,
-      emissive: 0x5a6a7a, emissiveIntensity: 0.25,
-    });
-    const windowMat = new THREE.MeshStandardMaterial({
-      color: 0x0a1220, roughness: 0.1, metalness: 0.95,
-      emissive: 0x1e3a5f, emissiveIntensity: 0.4,
-    });
-
-    // Fuselage (cylinder + nose cone)
-    const fuselageGeo = new THREE.CylinderGeometry(1.1, 1.1, 10, 16);
-    const fuselage = new THREE.Mesh(fuselageGeo, fuselageMat);
-    fuselage.rotation.z = Math.PI / 2;
-    planeMesh.add(fuselage);
-
-    const noseGeo = new THREE.ConeGeometry(1.1, 3, 16);
-    const nose = new THREE.Mesh(noseGeo, fuselageMat);
-    nose.rotation.z = -Math.PI / 2;
-    nose.position.x = 6.5;
-    planeMesh.add(nose);
-
-    const tailConeGeo = new THREE.ConeGeometry(1.1, 2.5, 16);
-    const tailCone = new THREE.Mesh(tailConeGeo, fuselageMat);
-    tailCone.rotation.z = Math.PI / 2;
-    tailCone.position.x = -6.2;
-    planeMesh.add(tailCone);
-
-    // Main wings (swept)
-    const wingGeo = new THREE.BoxGeometry(3.5, 0.2, 14);
-    const wings = new THREE.Mesh(wingGeo, wingMat);
-    wings.position.set(-0.5, -0.3, 0);
-    planeMesh.add(wings);
-
-    // Wing accent stripe
-    const wingStripeGeo = new THREE.BoxGeometry(0.6, 0.22, 14);
-    const wingStripe = new THREE.Mesh(wingStripeGeo, accentMat);
-    wingStripe.position.set(0.8, -0.3, 0);
-    planeMesh.add(wingStripe);
-
-    // Horizontal stabilizer
-    const hStabGeo = new THREE.BoxGeometry(1.8, 0.15, 5.5);
-    const hStab = new THREE.Mesh(hStabGeo, wingMat);
-    hStab.position.set(-5.2, 0.1, 0);
-    planeMesh.add(hStab);
-
-    // Vertical stabilizer (tail fin)
-    const vStabGeo = new THREE.BoxGeometry(2.2, 2.5, 0.2);
-    const vStab = new THREE.Mesh(vStabGeo, wingMat);
-    vStab.position.set(-5.4, 1.3, 0);
-    planeMesh.add(vStab);
-
-    // Tail accent
-    const tailAccentGeo = new THREE.BoxGeometry(2.2, 0.3, 0.22);
-    const tailAccent = new THREE.Mesh(tailAccentGeo, accentMat);
-    tailAccent.position.set(-5.4, 2.35, 0);
-    planeMesh.add(tailAccent);
-
-    // Belly accent (darker underside for silhouette)
-    const bellyGeo = new THREE.CylinderGeometry(1.05, 1.05, 10, 16, 1, false, Math.PI * 0.15, Math.PI * 0.7);
-    const belly = new THREE.Mesh(bellyGeo, bellyMat);
-    belly.rotation.z = Math.PI / 2;
-    belly.position.y = -0.02;
-    planeMesh.add(belly);
-
-    // Cockpit windows (dark band at nose)
-    const cockpitGeo = new THREE.SphereGeometry(0.95, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2.2);
-    const cockpit = new THREE.Mesh(cockpitGeo, windowMat);
-    cockpit.rotation.z = -Math.PI / 2;
-    cockpit.position.set(5.2, 0.25, 0);
-    planeMesh.add(cockpit);
-
-    // Cabin window row (both sides, small dark rectangles)
-    [-1, 1].forEach((side) => {
-      const windowRowGeo = new THREE.BoxGeometry(7.5, 0.3, 0.04);
-      const windowRow = new THREE.Mesh(windowRowGeo, windowMat);
-      windowRow.position.set(-0.5, 0.35, side * 1.08);
-      planeMesh.add(windowRow);
-    });
-
-    // Engines (under wings) - more detailed nacelles
-    [-4.5, 4.5].forEach((zOffset) => {
-      const engineGeo = new THREE.CylinderGeometry(0.75, 0.68, 2.6, 16);
-      const engine = new THREE.Mesh(engineGeo, fuselageMat);
-      engine.rotation.z = Math.PI / 2;
-      engine.position.set(-0.3, -1.0, zOffset);
-      planeMesh.add(engine);
-      // Engine intake ring
-      const intakeGeo = new THREE.TorusGeometry(0.78, 0.14, 8, 20);
-      const intake = new THREE.Mesh(intakeGeo, accentMat);
-      intake.rotation.y = Math.PI / 2;
-      intake.position.set(0.95, -1.0, zOffset);
-      planeMesh.add(intake);
-      // Intake darkness (fan)
-      const fanGeo = new THREE.CircleGeometry(0.62, 16);
-      const fan = new THREE.Mesh(fanGeo, windowMat);
-      fan.rotation.y = Math.PI / 2;
-      fan.position.set(0.96, -1.0, zOffset);
-      planeMesh.add(fan);
-      // Pylon connecting engine to wing
-      const pylonGeo = new THREE.BoxGeometry(1.6, 0.9, 0.25);
-      const pylon = new THREE.Mesh(pylonGeo, wingMat);
-      pylon.position.set(-0.3, -0.55, zOffset);
-      planeMesh.add(pylon);
-    });
-
-    // Winglets (bent-up wingtips)
-    [-7, 7].forEach((zOffset) => {
-      const wingletGeo = new THREE.BoxGeometry(1.4, 1.1, 0.18);
-      const winglet = new THREE.Mesh(wingletGeo, wingMat);
-      winglet.position.set(-0.7, 0.25, zOffset);
-      winglet.rotation.z = Math.sign(zOffset) * 0.1;
-      planeMesh.add(winglet);
-    });
-
-    // Navigation lights (red left, green right, strobe white)
-    const redNavGeo = new THREE.SphereGeometry(0.28, 8, 8);
-    const redNavMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
-    const redNav = new THREE.Mesh(redNavGeo, redNavMat);
-    redNav.position.set(-0.5, -0.3, -7);
-    planeMesh.add(redNav);
-
-    const greenNavGeo = new THREE.SphereGeometry(0.28, 8, 8);
-    const greenNavMat = new THREE.MeshBasicMaterial({ color: 0x22ff22 });
-    const greenNav = new THREE.Mesh(greenNavGeo, greenNavMat);
-    greenNav.position.set(-0.5, -0.3, 7);
-    planeMesh.add(greenNav);
-
-    const strobeGeo = new THREE.SphereGeometry(0.35, 8, 8);
-    const strobeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
-    const strobe = new THREE.Mesh(strobeGeo, strobeMat);
-    strobe.position.set(-5.4, 2.5, 0);
-    planeMesh.add(strobe);
-
+    // Aircraft - model picked based on the flight's actual aircraft type.
+    const xpdForModel = flight?.xplane_data || {};
+    const aircraftHint =
+      xpdForModel.fleet_aircraft_type ||
+      xpdForModel.aircraft_icao ||
+      xpdForModel.aircraft_type ||
+      xpdForModel.aircraft_name ||
+      xpdForModel.aircraft ||
+      flight?.aircraft_type ||
+      '';
+    const { group: planeMesh, strobe } = buildAircraftModel(aircraftHint);
     planeMesh.position.copy(path3D[0]);
-    planeMesh.scale.setScalar(1.5); // bigger, more readable
     scene.add(planeMesh);
 
     // Contrail trail behind aircraft
