@@ -1,7 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 // Recomputes runway centerline accuracy for a single flight.
-// Robust version with airport-proximity filtering + sanity checks.
+//
+// IMPORTANT: Accuracy is ONLY computed when we have high-frequency telemetry
+// samples with an explicit on_ground=true flag. flight_path (10-second-spaced
+// lat/lon pairs from the full flight) is NOT sufficient — with ground-roll
+// speeds of 70-150 kt, samples are 360-770 m apart, far too sparse to measure
+// centerline deviation. For flights without telemetry_history, we return
+// "unavailable" and apply zero score/cash delta.
 
 const EARTH_RADIUS_M = 6371000;
 const toRad = (d) => (Number(d) * Math.PI) / 180;
@@ -72,7 +78,6 @@ async function fetchRunwaysForAirport(icao) {
     const line = lines[i];
     if (!line) continue;
     const cols = parse(line);
-    // STRICT ident check — no substring matching.
     if (cols[cIdent] !== upper) continue;
     if (Number(cols[cClosed] || 0) === 1) continue;
     const leLat = parseFloat(cols[cLeLat]);
@@ -98,7 +103,7 @@ async function fetchRunwaysForAirport(icao) {
   return runways;
 }
 
-// Perpendicular distance from point P to segment AB, in meters.
+// Perpendicular distance from point P to the runway centerline segment AB.
 function perpToCenterline(rw, lat, lon) {
   const midLat = (rw.le_lat + rw.he_lat) / 2;
   const cosMid = Math.cos(toRad(midLat));
@@ -130,23 +135,89 @@ function airportCenter(runways) {
   };
 }
 
-// Pick the runway closest to a given point.
-function pickRunway(runways, lat, lon) {
-  if (!runways.length) return null;
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return runways[0];
+// Find the runway whose centerline is closest to the majority of points.
+// Uses median perpendicular distance (robust against outliers).
+function pickRunwayForPoints(runways, points) {
+  if (!runways.length || !points.length) return null;
   let best = null;
-  let bestDist = Infinity;
+  let bestMedian = Infinity;
   for (const rw of runways) {
-    const d = perpToCenterline(rw, lat, lon);
-    if (d < bestDist) { bestDist = d; best = rw; }
+    const dists = points.map((p) => perpToCenterline(rw, p.lat, p.lon))
+      .filter((d) => Number.isFinite(d))
+      .sort((a, b) => a - b);
+    if (dists.length === 0) continue;
+    const median = dists[Math.floor(dists.length / 2)];
+    if (median < bestMedian) { bestMedian = median; best = rw; }
   }
+  // If even the best runway has median > 200 m, nothing on this airport fits.
+  if (bestMedian > 200) return null;
   return best;
 }
 
-// Keep only track points within `maxKm` km of the airport center.
-function filterPointsNearAirport(points, center, maxKm = 5) {
-  if (!center) return [];
-  return points.filter((p) => haversine(p.lat, p.lon, center.lat, center.lon) <= maxKm * 1000);
+// Read on_ground flag from a telemetry point. Accepts multiple field names.
+function readOnGround(point) {
+  const raw = point?.on_ground ?? point?.onGround ?? point?.grounded ?? point?.og ?? point?.isOnGround;
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'number') return raw > 0.5;
+  if (typeof raw === 'string') {
+    const s = raw.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on', 'ground'].includes(s)) return true;
+    if (['0', 'false', 'no', 'off', 'air'].includes(s)) return false;
+  }
+  return null;
+}
+
+// Extract lat/lon from a point.
+function extractCoord(point) {
+  const lat = Number(point?.lat ?? point?.latitude);
+  const lon = Number(point?.lon ?? point?.lng ?? point?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) < 0.5 && Math.abs(lon) < 0.5) return null;
+  return { lat, lon };
+}
+
+// Extract the takeoff roll: on_ground=true samples with speed > 20 kt
+// ending at liftoff (first airborne transition).
+function extractTakeoffRoll(telemetry) {
+  const roll = [];
+  let airborneSeen = false;
+  for (let i = 0; i < telemetry.length; i += 1) {
+    const p = telemetry[i];
+    const og = readOnGround(p);
+    if (og === false) { airborneSeen = true; break; }
+    if (og !== true) continue;
+    const spd = Number(p?.spd ?? p?.speed ?? p?.gs ?? p?.ground_speed ?? 0);
+    if (!Number.isFinite(spd) || spd < 20) continue;
+    const coord = extractCoord(p);
+    if (!coord) continue;
+    roll.push(coord);
+  }
+  return airborneSeen ? roll : [];
+}
+
+// Extract the landing rollout: from touchdown (first on_ground=true after
+// airborne) until speed drops below 20 kt.
+function extractLandingRoll(telemetry) {
+  const roll = [];
+  let airborneSeen = false;
+  let touchdownIdx = -1;
+  for (let i = 0; i < telemetry.length; i += 1) {
+    const og = readOnGround(telemetry[i]);
+    if (og === false) airborneSeen = true;
+    if (airborneSeen && og === true) { touchdownIdx = i; break; }
+  }
+  if (touchdownIdx < 0) return [];
+  for (let i = touchdownIdx; i < telemetry.length; i += 1) {
+    const p = telemetry[i];
+    const og = readOnGround(p);
+    if (og !== true) break;
+    const spd = Number(p?.spd ?? p?.speed ?? p?.gs ?? p?.ground_speed ?? 0);
+    if (Number.isFinite(spd) && spd < 20 && roll.length > 3) break;
+    const coord = extractCoord(p);
+    if (!coord) continue;
+    roll.push(coord);
+  }
+  return roll;
 }
 
 // Measure RMS perpendicular distance from points to runway centerline.
@@ -164,9 +235,9 @@ function measureDeviation(points, runway) {
   }
   if (count < 3) return null;
   const rms = Math.sqrt(sumSq / count);
-  // SANITY: if RMS > 500 m, the runway picker hit the wrong runway or the
-  // track is garbage — refuse to score.
-  if (rms > 500) return null;
+  // Sanity: centerline measurement above 200 m means the runway picker was
+  // wrong — refuse to score rather than produce nonsense.
+  if (rms > 200) return null;
   return {
     rmsMeters: rms,
     maxMeters: maxAbs,
@@ -217,7 +288,7 @@ Deno.serve(async (req) => {
     const arrIcao = xpd.arrival_icao || xpd.arrival_airport || contract.arrival_airport || '';
     const basePayout = Number(contract.payout || flight.revenue || 0);
 
-    // ROLLBACK previous deltas if already applied, so recompute is idempotent.
+    // Roll back previous deltas (idempotent recompute).
     const prev = xpd.runway_accuracy || null;
     const prevScoreDelta = Number(prev?.totalScoreDelta || 0);
     const prevCashDelta = Number(prev?.totalCashDelta || 0);
@@ -225,49 +296,27 @@ Deno.serve(async (req) => {
     const baseRevenue = Number(flight.revenue || 0) - prevCashDelta;
     const baseProfit = Number(flight.profit || 0) - prevCashDelta;
 
-    // Build track points from telemetry_history OR flight_path fallback.
-    let trackPoints = [];
-    const th = Array.isArray(xpd.telemetry_history) ? xpd.telemetry_history : [];
-    if (th.length >= 10) {
-      trackPoints = th
-        .map((p) => ({ lat: Number(p?.lat ?? p?.latitude), lon: Number(p?.lon ?? p?.lng ?? p?.longitude) }))
-        .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon) && !(Math.abs(p.lat) < 0.01 && Math.abs(p.lon) < 0.01));
-    }
-    if (trackPoints.length < 10) {
-      const fp = Array.isArray(xpd.flight_path) ? xpd.flight_path : [];
-      trackPoints = fp
-        .map((p) => {
-          if (Array.isArray(p) && p.length >= 2) return { lat: Number(p[0]), lon: Number(p[1]) };
-          if (p && typeof p === 'object') return { lat: Number(p.lat ?? p.latitude), lon: Number(p.lon ?? p.lng ?? p.longitude) };
-          return null;
-        })
-        .filter((p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && !(Math.abs(p.lat) < 0.01 && Math.abs(p.lon) < 0.01));
-    }
-
-    const saveResult = async (payload, extraUpdates = {}) => {
-      await base44.asServiceRole.entities.Flight.update(flightId, {
-        ...extraUpdates,
-        xplane_data: {
-          ...xpd,
-          runway_accuracy_applied: true,
-          runway_accuracy: payload,
-        },
-      });
-    };
-
-    if (trackPoints.length < 10 || (!depIcao && !arrIcao)) {
-      // Roll back any previous deltas and save neutral result.
+    const saveUnavailable = async (reason) => {
       const neutralScore = Math.max(0, Math.min(100, baseScore));
-      await saveResult({
-        takeoff: null, landing: null,
-        totalScoreDelta: 0, totalCashDelta: 0,
-        unavailable_reason: trackPoints.length < 10 ? 'no_track_data' : 'no_icao',
-      }, {
+      await base44.asServiceRole.entities.Flight.update(flightId, {
         flight_score: neutralScore,
         overall_rating: (neutralScore / 100) * 5,
         revenue: baseRevenue,
         profit: baseProfit,
+        xplane_data: {
+          ...xpd,
+          final_score: neutralScore,
+          runway_accuracy_applied: true,
+          runway_accuracy: {
+            takeoff: null, landing: null,
+            totalScoreDelta: 0, totalCashDelta: 0,
+            unavailable_reason: reason,
+            dep_icao: depIcao,
+            arr_icao: arrIcao,
+          },
+        },
       });
+      // Reverse any previously applied cash delta on company balance.
       if (prevCashDelta !== 0) {
         const co = ownCompanies.find((c) => c.id === flight.company_id);
         if (co) {
@@ -276,11 +325,28 @@ Deno.serve(async (req) => {
           });
         }
       }
-      return Response.json({
-        status: 'no_data',
-        reason: trackPoints.length < 10 ? 'no_track_data' : 'no_icao',
-      });
+      return Response.json({ status: 'unavailable', reason });
+    };
+
+    // Only use telemetry_history with on_ground flag. flight_path is too sparse.
+    const telemetry = Array.isArray(xpd.telemetry_history) ? xpd.telemetry_history : [];
+    if (telemetry.length < 10) {
+      return await saveUnavailable('no_telemetry_history');
     }
+
+    // Check at least one sample has the on_ground flag — without it we can't
+    // distinguish ground roll from airborne.
+    const hasOnGroundFlag = telemetry.some((p) => readOnGround(p) !== null);
+    if (!hasOnGroundFlag) {
+      return await saveUnavailable('no_on_ground_flag');
+    }
+
+    if (!depIcao && !arrIcao) {
+      return await saveUnavailable('no_icao');
+    }
+
+    const takeoffPoints = extractTakeoffRoll(telemetry);
+    const landingPoints = extractLandingRoll(telemetry);
 
     // Resolve runways via OurAirports.
     const [depRunways, arrRunways] = await Promise.all([
@@ -288,21 +354,17 @@ Deno.serve(async (req) => {
       arrIcao ? fetchRunwaysForAirport(arrIcao).catch(() => []) : Promise.resolve([]),
     ]);
 
+    // Sanity: at least one takeoff point must be within 5 km of departure airport.
     const depCenter = airportCenter(depRunways);
+    const validTakeoff = depCenter && takeoffPoints.length >= 3
+      && takeoffPoints.some((p) => haversine(p.lat, p.lon, depCenter.lat, depCenter.lon) < 5000);
+
     const arrCenter = airportCenter(arrRunways);
+    const validLanding = arrCenter && landingPoints.length >= 3
+      && landingPoints.some((p) => haversine(p.lat, p.lon, arrCenter.lat, arrCenter.lon) < 5000);
 
-    // Filter track points by proximity to airport centers. This replaces the
-    // naïve "first/last 3% of points" slicing which could pick cruise points
-    // from anywhere on the globe when flight_path has sparse sampling.
-    const takeoffPoints = depCenter ? filterPointsNearAirport(trackPoints, depCenter, 3) : [];
-    const landingPoints = arrCenter ? filterPointsNearAirport(trackPoints, arrCenter, 3) : [];
-
-    const depRunway = depRunways.length && takeoffPoints.length
-      ? pickRunway(depRunways, takeoffPoints[0].lat, takeoffPoints[0].lon)
-      : null;
-    const arrRunway = arrRunways.length && landingPoints.length
-      ? pickRunway(arrRunways, landingPoints[landingPoints.length - 1].lat, landingPoints[landingPoints.length - 1].lon)
-      : null;
+    const depRunway = validTakeoff ? pickRunwayForPoints(depRunways, takeoffPoints) : null;
+    const arrRunway = validLanding ? pickRunwayForPoints(arrRunways, landingPoints) : null;
 
     const takeoffAcc = depRunway ? measureDeviation(takeoffPoints, depRunway) : null;
     const landingAcc = arrRunway ? measureDeviation(landingPoints, arrRunway) : null;
@@ -334,16 +396,12 @@ Deno.serve(async (req) => {
           arr_icao: arrIcao,
           takeoff_points_used: takeoffPoints.length,
           landing_points_used: landingPoints.length,
-          unavailable_reason: (!takeoffAcc && !landingAcc)
-            ? ((!depRunways.length && !arrRunways.length) ? 'no_runway_resolved'
-              : (!takeoffPoints.length && !landingPoints.length) ? 'no_points_near_airport'
-              : 'rms_out_of_range')
-            : null,
+          unavailable_reason: (!takeoffAcc && !landingAcc) ? 'no_runway_match' : null,
         },
       },
     });
 
-    // Apply net cash delta to company balance (previous delta rolled back, new one applied).
+    // Apply net cash delta (roll back old, apply new).
     const netCashChange = totalCashDelta - prevCashDelta;
     if (netCashChange !== 0) {
       const co = ownCompanies.find((c) => c.id === flight.company_id);
@@ -373,13 +431,6 @@ Deno.serve(async (req) => {
       landing: landingAcc ? { rmsMeters: landingAcc.rmsMeters, scoreDelta: landingEval.scoreDelta, cashDelta: landingEval.cashDelta } : null,
       totalScoreDelta,
       totalCashDelta,
-      debug: {
-        track_points: trackPoints.length,
-        takeoff_points_used: takeoffPoints.length,
-        landing_points_used: landingPoints.length,
-        dep_runways_found: depRunways.length,
-        arr_runways_found: arrRunways.length,
-      },
     });
   } catch (err) {
     return Response.json({ error: err.message, stack: err.stack }, { status: 500 });

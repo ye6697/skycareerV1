@@ -149,11 +149,18 @@ export default function RunwayAccuracyCard({ flight }) {
       )}
 
       {applied && !hasAny && result?.unavailable_reason && (
-        <p className="text-xs text-slate-400">
-          {lang === "de"
-            ? `Keine Daten verfügbar (${result.unavailable_reason}).`
-            : `No data available (${result.unavailable_reason}).`}
-        </p>
+        <div className="p-3 bg-slate-700/40 border border-slate-600/40 rounded-lg">
+          <p className="text-xs text-slate-300 mb-1">
+            {lang === "de"
+              ? "Centerline-Genauigkeit nicht verfügbar für diesen Flug."
+              : "Centerline accuracy not available for this flight."}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            {lang === "de"
+              ? "Benötigt wird hochfrequente Telemetrie mit on-ground-Flag. Ältere Flüge oder Flüge ohne aktives Plugin haben diese Daten nicht. Kein Score-/Cash-Abzug angewendet."
+              : "Requires high-frequency telemetry with on-ground flag. Older flights or flights without an active plugin don't have this data. No score/cash penalty applied."}
+          </p>
+        </div>
       )}
 
       {hasAny && (
