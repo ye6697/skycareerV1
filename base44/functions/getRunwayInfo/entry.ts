@@ -113,22 +113,50 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-// Pick the runway where landing happened, based on touchdown position.
-function pickLandingRunway(runways, touchdownLat, touchdownLon) {
+// Perpendicular distance from a point to the runway centerline segment (meters).
+// Uses equirectangular projection around the runway midpoint – good enough for
+// runway-scale distances (< 5 km).
+function perpendicularToCenterline(rw, lat, lon) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const midLat = (rw.le_lat + rw.he_lat) / 2;
+  const cosMid = Math.cos(toRad(midLat));
+  const R = 6371000;
+  const project = (la, lo) => ({
+    x: toRad(lo) * R * cosMid,
+    y: toRad(la) * R,
+  });
+  const A = project(rw.le_lat, rw.le_lon);
+  const B = project(rw.he_lat, rw.he_lon);
+  const P = project(lat, lon);
+  const ABx = B.x - A.x;
+  const ABy = B.y - A.y;
+  const lenSq = ABx * ABx + ABy * ABy;
+  if (lenSq < 1) return Infinity;
+  // Parametric position of P projected onto AB.
+  const tRaw = ((P.x - A.x) * ABx + (P.y - A.y) * ABy) / lenSq;
+  const t = Math.max(0, Math.min(1, tRaw));
+  const Cx = A.x + t * ABx;
+  const Cy = A.y + t * ABy;
+  return Math.hypot(P.x - Cx, P.y - Cy);
+}
+
+// Pick the runway the aircraft was on, based on a reference position (touchdown
+// for landing, liftoff for takeoff). We pick the runway whose centerline the
+// reference point lies closest to – this is robust against parallel runways.
+function pickLandingRunway(runways, refLat, refLon) {
   if (!runways.length) return null;
-  if (!Number.isFinite(touchdownLat) || !Number.isFinite(touchdownLon)) {
+  if (!Number.isFinite(refLat) || !Number.isFinite(refLon)) {
     return runways[0];
   }
   let best = null;
-  let bestDist = Infinity;
+  let bestCenterDist = Infinity;
   for (const rw of runways) {
-    // Distance from touchdown to the closest threshold (landing end).
-    const dLe = haversineMeters(touchdownLat, touchdownLon, rw.le_lat, rw.le_lon);
-    const dHe = haversineMeters(touchdownLat, touchdownLon, rw.he_lat, rw.he_lon);
-    const dMin = Math.min(dLe, dHe);
-    if (dMin < bestDist) {
-      bestDist = dMin;
-      // Mark which end is the landing threshold (the one the aircraft approached).
+    const dCenter = perpendicularToCenterline(rw, refLat, refLon);
+    if (dCenter < bestCenterDist) {
+      bestCenterDist = dCenter;
+      // Mark which end is the landing/rolling-out threshold: the one closer to the ref point.
+      const dLe = haversineMeters(refLat, refLon, rw.le_lat, rw.le_lon);
+      const dHe = haversineMeters(refLat, refLon, rw.he_lat, rw.he_lon);
       best = { ...rw, landing_end: dLe <= dHe ? 'le' : 'he' };
     }
   }

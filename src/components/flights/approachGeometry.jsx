@@ -158,9 +158,9 @@ export function buildRunwayScene(runway, makeLabelTexture) {
     mesh.renderOrder = 999;
     group.add(mesh);
   };
-  // Landing runway number (fallback "RWY" when OurAirports lookup failed).
-  buildLabel(runway?.landingIdent || 'RWY', -180, false);
-  // Opposite-end designator near the far end of the runway.
+  // Only paint the runway designator when we have real data from OurAirports.
+  // No fake "RWY" placeholder – the user wants to see the real ICAO or nothing.
+  if (runway?.landingIdent) buildLabel(runway.landingIdent, -180, false);
   if (runway?.oppositeIdent) buildLabel(runway.oppositeIdent, -lenM + 180, true);
 
   // Approach lighting (leading to threshold from +Z)

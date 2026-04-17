@@ -126,8 +126,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   }, [flight, durationSeconds, phase]);
 
   // Fetch real runway data from OurAirports.
-  // Landing: use arrival ICAO + last sample's position as touchdown hint.
-  // Takeoff: use departure ICAO + first-moving sample position as origin hint.
+  // Landing: use arrival ICAO + touchdown hint (first on-ground sample after airborne).
+  // Takeoff: use departure ICAO + liftoff hint (first airborne sample) – this is
+  //   always ON the runway, whereas the first-moving sample could still be on a taxiway
+  //   near a parallel runway and would mis-pick the wrong runway.
   useEffect(() => {
     if (!segment) return;
     const xpd = flight?.xplane_data || {};
@@ -135,15 +137,33 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       ? (xpd.departure_icao || xpd.departure_airport || flight?.departure_airport || '')
       : (xpd.arrival_icao || xpd.arrival_airport || flight?.arrival_airport || '');
     if (!icao) return;
-    const hintPoint = phase === 'takeoff'
-      ? (segment.points[0] || {})
-      : (segment.points[segment.points.length - 1] || {});
-    const hintLat = Number.isFinite(hintPoint.lat) && hintPoint.lat !== 0
+
+    // Find the liftoff sample for takeoff, touchdown sample for landing.
+    // Fall back to first/last sample if detection fails.
+    let hintIdx = phase === 'takeoff' ? 0 : segment.points.length - 1;
+    if (phase === 'takeoff') {
+      let groundSeen = false;
+      for (let i = 0; i < segment.points.length; i += 1) {
+        const og = segment.points[i].on_ground;
+        if (og === true || og === 1) groundSeen = true;
+        if (groundSeen && (og === false || og === 0)) { hintIdx = i; break; }
+      }
+    } else {
+      let airborneSeen = false;
+      for (let i = 0; i < segment.points.length; i += 1) {
+        const og = segment.points[i].on_ground;
+        if (og === false || og === 0) airborneSeen = true;
+        if (airborneSeen && (og === true || og === 1)) { hintIdx = i; break; }
+      }
+    }
+    const hintPoint = segment.points[hintIdx] || {};
+    const hintLat = Number.isFinite(hintPoint.lat) && Math.abs(hintPoint.lat) > 0.001
       ? hintPoint.lat
       : Number((phase === 'takeoff' ? xpd.departure_lat : xpd.arrival_lat) || 0);
-    const hintLon = Number.isFinite(hintPoint.lon) && hintPoint.lon !== 0
+    const hintLon = Number.isFinite(hintPoint.lon) && Math.abs(hintPoint.lon) > 0.001
       ? hintPoint.lon
       : Number((phase === 'takeoff' ? xpd.departure_lon : xpd.arrival_lon) || 0);
+
     let cancelled = false;
     (async () => {
       try {
@@ -154,7 +174,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         const picked = res?.data?.landing_runway;
         if (picked) setRunway(normalizeRunway(picked));
       } catch (_) {
-        // leave runway as null – scene will use generic runway fallback
+        // leave runway as null – scene will render without designator label
       }
     })();
     return () => { cancelled = true; };
