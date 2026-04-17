@@ -206,7 +206,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     scene.background = new THREE.Color(0x0a1528);
     scene.fog = new THREE.Fog(0x0a1528, 800, 6000);
 
-    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 12000);
+    // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
+    // which fixes the runway/shadow z-fighting flicker on large scenes.
+    const camera = new THREE.PerspectiveCamera(55, width / height, 2, 12000);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -267,7 +269,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const groundMat = new THREE.MeshStandardMaterial({ color: 0x0d1a2b, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.05;
+    // Drop ground well below runway so it never z-fights with the runway surface.
+    ground.position.y = -1.5;
     scene.add(ground);
 
     // Runway - built from real OurAirports data when available, else generic.
