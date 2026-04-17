@@ -84,6 +84,18 @@ export function buildRunwayScene(runway, makeLabelTexture) {
   const lenM = Math.max(800, runway?.lengthM || 2500);
   const widM = Math.max(30, runway?.widthM || 45);
 
+  // Paved shoulder strip (visible border around the actual runway surface).
+  // Real runways have asphalt shoulders 3-7.5m wide; we render 6m each side so
+  // that small GPS offsets (~5m) still appear "on the paved area".
+  const shoulderExtraM = 6;
+  const totalPavedWidM = widM + shoulderExtraM * 2;
+  const pavedGeo = new THREE.PlaneGeometry(totalPavedWidM, lenM);
+  const pavedMat = new THREE.MeshStandardMaterial({ color: 0x0f131b, roughness: 1, metalness: 0 });
+  const paved = new THREE.Mesh(pavedGeo, pavedMat);
+  paved.rotation.x = -Math.PI / 2;
+  paved.position.set(0, 0.015, -lenM / 2);
+  group.add(paved);
+
   // Runway surface (asphalt)
   const surfaceGeo = new THREE.PlaneGeometry(widM, lenM);
   const surfaceMat = new THREE.MeshStandardMaterial({ color: 0x1a1f2a, roughness: 0.95, metalness: 0 });
@@ -92,13 +104,13 @@ export function buildRunwayScene(runway, makeLabelTexture) {
   surface.position.set(0, 0.02, -lenM / 2);
   group.add(surface);
 
-  // White shoulders
+  // White edge stripes (sit just inside the runway edges, not on the shoulders)
   [-1, 1].forEach((side) => {
-    const shoulderGeo = new THREE.PlaneGeometry(1.2, lenM);
+    const shoulderGeo = new THREE.PlaneGeometry(0.9, lenM);
     const shoulderMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0 });
     const shoulder = new THREE.Mesh(shoulderGeo, shoulderMat);
     shoulder.rotation.x = -Math.PI / 2;
-    shoulder.position.set(side * (widM / 2 - 0.6), 0.04, -lenM / 2);
+    shoulder.position.set(side * (widM / 2 - 0.5), 0.04, -lenM / 2);
     group.add(shoulder);
   });
 
@@ -135,15 +147,17 @@ export function buildRunwayScene(runway, makeLabelTexture) {
     });
   });
 
-  // ICAO runway designator label (big number painted on the runway surface).
-  // Rendered on a plane that sits slightly above asphalt with depthTest off and
-  // a high renderOrder so it's guaranteed to draw on top of the runway paint.
+  // ICAO runway designator label painted on the runway surface. Uses a tall
+  // rectangle (ICAO-style) – taller along the runway axis than wide – and is
+  // drawn with depthTest off and a high renderOrder so it's always on top of
+  // the asphalt paint.
   const buildLabel = (text, zPos, flipForApproach) => {
     if (!text) return;
     const tex = makeLabelTexture(text);
     if (!tex) return;
-    const labelSize = Math.min(widM * 0.85, 34);
-    const geo = new THREE.PlaneGeometry(labelSize, labelSize);
+    const labelWidth = Math.min(widM * 0.7, 28);
+    const labelHeight = labelWidth * 1.4;
+    const geo = new THREE.PlaneGeometry(labelWidth, labelHeight);
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
@@ -154,14 +168,14 @@ export function buildRunwayScene(runway, makeLabelTexture) {
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
     if (flipForApproach) mesh.rotation.z = Math.PI;
-    mesh.position.set(0, 0.35, zPos);
+    mesh.position.set(0, 0.12, zPos);
     mesh.renderOrder = 999;
     group.add(mesh);
   };
   // Only paint the runway designator when we have real data from OurAirports.
-  // No fake "RWY" placeholder – the user wants to see the real ICAO or nothing.
-  if (runway?.landingIdent) buildLabel(runway.landingIdent, -180, false);
-  if (runway?.oppositeIdent) buildLabel(runway.oppositeIdent, -lenM + 180, true);
+  // Place it ~80m inside the runway (standard ICAO designator placement).
+  if (runway?.landingIdent) buildLabel(runway.landingIdent, -80, false);
+  if (runway?.oppositeIdent) buildLabel(runway.oppositeIdent, -lenM + 80, true);
 
   // Approach lighting (leading to threshold from +Z)
   const alsMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
@@ -195,30 +209,43 @@ export function buildRunwayScene(runway, makeLabelTexture) {
 }
 
 // Create a canvas-based texture of the runway designator (e.g. "25L").
-// Uses a transparent background so the label blends with the runway asphalt.
+// Uses a transparent background + tall rectangle (ICAO-style vertical stacking
+// for letter-suffixed designators like "25L").
 export function makeRunwayLabelTexture(text) {
   if (!text) return null;
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.width = 512;
+  canvas.height = 720;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Bright white fill with thick dark stroke for readability at low angles.
-  // Use a wide font stack so it works even if Arial Black isn't installed.
-  ctx.font = 'bold 680px Impact, "Arial Black", "Helvetica Neue", Helvetica, Arial, sans-serif';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const label = String(text).toUpperCase();
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  // Dark outline first, then bright fill.
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 36;
-  ctx.strokeStyle = '#0a0f1a';
-  ctx.strokeText(label, cx, cy);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(label, cx, cy);
+
+  const label = String(text).toUpperCase();
+  const match = label.match(/^(\d{1,2})([LRC])?$/);
+  const numberPart = match ? match[1] : label;
+  const letterPart = match && match[2] ? match[2] : '';
+
+  const cx = canvas.width / 2;
+  const drawText = (txt, y, size) => {
+    ctx.font = `bold ${size}px Impact, "Arial Black", "Helvetica Neue", Helvetica, Arial, sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = Math.max(18, size * 0.08);
+    ctx.strokeStyle = '#0a0f1a';
+    ctx.strokeText(txt, cx, y);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(txt, cx, y);
+  };
+
+  if (letterPart) {
+    // Number on top, letter stacked below (ICAO style).
+    drawText(numberPart, 250, 380);
+    drawText(letterPart, 580, 240);
+  } else {
+    drawText(numberPart, canvas.height / 2, 440);
+  }
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.anisotropy = 16;
   tex.needsUpdate = true;

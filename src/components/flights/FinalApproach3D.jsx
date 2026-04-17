@@ -23,7 +23,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   const animationFrameRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0); // 0..1
-  const [cameraMode, setCameraMode] = useState('side'); // chase | side | top
+  const [cameraMode, setCameraMode] = useState('chase'); // chase | side | top
   const playbackStartRef = useRef(null);
   const PLAYBACK_DURATION_MS = 12000; // 12s replay
 
@@ -672,99 +672,50 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           </div>
         )}
 
-        {/* Touchdown Analysis HUD */}
-        {touchdownInfo && (
-          <div className="absolute bottom-24 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md p-3 font-mono backdrop-blur-sm shadow-[0_0_20px_rgba(34,211,238,0.15)] min-w-[220px] max-w-[260px]">
-            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-cyan-900/50">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-              <span className="text-[9px] uppercase tracking-[0.25em] text-cyan-400">
-                {phase === 'takeoff' ? 'Liftoff Analysis' : 'Touchdown Analysis'}
+        {/* Touchdown / Liftoff Analysis HUD – compact single-line pill */}
+        {touchdownInfo && (() => {
+          const alongM = touchdownInfo.alongM;
+          const lateralM = touchdownInfo.lateralM;
+          // Include 6m shoulders on each side (matches rendered paved area and
+          // accounts for ~5m GPS offsets vs OurAirports centerline data).
+          const halfWidth = (touchdownInfo.runwayWidthM || 45) / 2 + 6;
+          const runwayLen = touchdownInfo.runwayLenM || 2500;
+          const distFromThreshold = -alongM;
+          let labelText;
+          let labelColor;
+          if (phase === 'takeoff') {
+            if (alongM > 0) { labelText = lang === 'de' ? 'FRUEH' : 'EARLY'; labelColor = 'text-amber-400'; }
+            else if (distFromThreshold > runwayLen) { labelText = lang === 'de' ? 'UEBER ENDE' : 'PAST END'; labelColor = 'text-red-400'; }
+            else if (distFromThreshold < 600) { labelText = lang === 'de' ? 'KURZ' : 'SHORT'; labelColor = 'text-emerald-400'; }
+            else if (distFromThreshold < 1800) { labelText = lang === 'de' ? 'NORMAL' : 'NORMAL'; labelColor = 'text-emerald-400'; }
+            else { labelText = lang === 'de' ? 'LANG' : 'LONG'; labelColor = 'text-amber-400'; }
+          } else if (alongM > 0) { labelText = lang === 'de' ? 'VOR SCHWELLE' : 'SHORT'; labelColor = 'text-red-400'; }
+          else if (distFromThreshold > runwayLen) { labelText = lang === 'de' ? 'UEBER ENDE' : 'OVERSHOOT'; labelColor = 'text-red-400'; }
+          else if (distFromThreshold < 600) { labelText = lang === 'de' ? 'TDZ' : 'TDZ'; labelColor = 'text-emerald-400'; }
+          else { labelText = lang === 'de' ? 'SPAET' : 'LATE'; labelColor = 'text-amber-400'; }
+          const onRwy = Math.abs(lateralM) < halfWidth;
+          const latColor = Math.abs(lateralM) < 5 ? 'text-emerald-300' : Math.abs(lateralM) < halfWidth ? 'text-amber-400' : 'text-red-400';
+          return (
+            <div className="absolute bottom-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md px-2.5 py-1.5 font-mono backdrop-blur-sm flex items-center gap-2.5 text-[10px]">
+              <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">
+                {phase === 'takeoff' ? (lang === 'de' ? 'LIFTOFF' : 'LIFTOFF') : (lang === 'de' ? 'TD' : 'TD')}
               </span>
               {runway?.landingIdent && (
-                <span className="ml-auto text-[9px] text-slate-500 uppercase">RWY {runway.landingIdent}</span>
+                <span className="text-[8px] text-slate-400 uppercase border-l border-slate-700 pl-2">RWY {runway.landingIdent}</span>
               )}
+              <span className={`font-bold uppercase ${labelColor}`}>{labelText}</span>
+              <span className="text-cyan-300 font-bold border-l border-slate-700 pl-2">
+                {Math.round(distFromThreshold)}m
+              </span>
+              <span className={`font-bold border-l border-slate-700 pl-2 ${latColor}`}>
+                {lateralM >= 0 ? 'R' : 'L'}{Math.abs(lateralM).toFixed(1)}m
+              </span>
+              <span className={`text-[9px] uppercase ${onRwy ? 'text-emerald-400' : 'text-red-400'}`}>
+                {onRwy ? '●' : '✕'}
+              </span>
             </div>
-            <div className="space-y-1.5 text-xs">
-              {(() => {
-                const alongM = touchdownInfo.alongM;
-                const lateralM = touchdownInfo.lateralM;
-                const halfWidth = (touchdownInfo.runwayWidthM || 45) / 2;
-                // alongM > 0 = short of threshold (undershoot, outside runway)
-                // alongM < 0 = past threshold, on runway (distance from threshold = -alongM)
-                // alongM < -runwayLen = overshoot
-                const runwayLen = touchdownInfo.runwayLenM || 2500;
-                const distFromThreshold = -alongM; // positive when on runway
-                let landingLabel;
-                let labelColor;
-                if (phase === 'takeoff') {
-                  // Takeoff: evaluate ground-roll distance used before liftoff.
-                  if (alongM > 0) {
-                    landingLabel = lang === 'de' ? 'FRUEH ABGEHOBEN' : 'EARLY LIFTOFF';
-                    labelColor = 'text-amber-400';
-                  } else if (distFromThreshold > runwayLen) {
-                    landingLabel = lang === 'de' ? 'UEBER BAHNENDE' : 'ROLL PAST END';
-                    labelColor = 'text-red-400';
-                  } else if (distFromThreshold < 600) {
-                    landingLabel = lang === 'de' ? 'KURZER TAKEOFF-ROLL' : 'SHORT TAKEOFF ROLL';
-                    labelColor = 'text-emerald-400';
-                  } else if (distFromThreshold < 1800) {
-                    landingLabel = lang === 'de' ? 'NORMALER TAKEOFF' : 'NORMAL TAKEOFF';
-                    labelColor = 'text-emerald-400';
-                  } else {
-                    landingLabel = lang === 'de' ? 'LANGER TAKEOFF-ROLL' : 'LONG TAKEOFF ROLL';
-                    labelColor = 'text-amber-400';
-                  }
-                } else if (alongM > 0) {
-                  landingLabel = lang === 'de' ? 'VOR DER SCHWELLE' : 'SHORT OF THRESHOLD';
-                  labelColor = 'text-red-400';
-                } else if (distFromThreshold > runwayLen) {
-                  landingLabel = lang === 'de' ? 'UEBER BAHNENDE' : 'OVERSHOOT';
-                  labelColor = 'text-red-400';
-                } else if (distFromThreshold < 150) {
-                  landingLabel = lang === 'de' ? 'AN DER SCHWELLE' : 'AT THRESHOLD';
-                  labelColor = 'text-emerald-400';
-                } else if (distFromThreshold < 600) {
-                  landingLabel = lang === 'de' ? 'TOUCHDOWN ZONE' : 'TOUCHDOWN ZONE';
-                  labelColor = 'text-emerald-400';
-                } else {
-                  landingLabel = lang === 'de' ? 'SPAET AUFGESETZT' : 'LATE TOUCHDOWN';
-                  labelColor = 'text-amber-400';
-                }
-                const centerlineStatus = Math.abs(lateralM) < halfWidth
-                  ? (lang === 'de' ? 'auf Bahn' : 'on runway')
-                  : (lang === 'de' ? 'NEBEN BAHN' : 'OFF RUNWAY');
-                const centerlineColor = Math.abs(lateralM) < halfWidth ? 'text-emerald-300' : 'text-red-400';
-                return (
-                  <>
-                    <div className={`font-bold text-sm ${labelColor}`}>{landingLabel}</div>
-                    <div className="flex items-center justify-between gap-6">
-                      <span className="text-[9px] uppercase tracking-widest text-slate-500">
-                        {lang === 'de' ? 'Ab Schwelle' : 'From threshold'}
-                      </span>
-                      <span className="text-cyan-300 font-bold">
-                        {distFromThreshold >= 0 ? '+' : ''}{Math.round(distFromThreshold)} m
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-6">
-                      <span className="text-[9px] uppercase tracking-widest text-slate-500">
-                        {lang === 'de' ? 'Quer-Abweichung' : 'Lateral offset'}
-                      </span>
-                      <span className={`font-bold ${Math.abs(lateralM) < 5 ? 'text-emerald-300' : Math.abs(lateralM) < 15 ? 'text-amber-400' : 'text-red-400'}`}>
-                        {lateralM >= 0 ? 'R ' : 'L '}{Math.abs(lateralM).toFixed(1)} m
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-6">
-                      <span className="text-[9px] uppercase tracking-widest text-slate-500">
-                        {lang === 'de' ? 'Mittellinie' : 'Centerline'}
-                      </span>
-                      <span className={`font-bold ${centerlineColor}`}>{centerlineStatus}</span>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Camera mode selector - MFD style */}
         <div className="absolute top-4 right-4 bg-slate-950/90 border border-cyan-500/40 rounded-md backdrop-blur-sm shadow-[0_0_20px_rgba(34,211,238,0.15)] overflow-hidden">
