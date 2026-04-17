@@ -412,6 +412,48 @@ export default function CompletedFlightDetails() {
         ? flight.xplane_data.maintenance_damage
         : {});
 
+  // --- FALLBACK FINANCIALS ---
+  // If the flight was aborted/closed without completeFlightMutation finishing,
+  // many financial fields (revenue, fuel_cost, crew_cost, etc.) are null on the
+  // Flight record. Derive best-effort display values from xplane_data + contract
+  // so the user still sees numbers instead of "$0" everywhere.
+  const xpdForFallback = flight?.xplane_data || {};
+  const fallbackFlightDurationHours = (() => {
+    if (Number(flight?.flight_duration_hours) > 0) return Number(flight.flight_duration_hours);
+    const airborneMs = Date.parse(String(xpdForFallback.airborne_started_at || ''));
+    const endMs = Date.parse(String(flight?.arrival_time || flight?.updated_date || ''));
+    if (Number.isFinite(airborneMs) && Number.isFinite(endMs) && endMs > airborneMs) {
+      return Math.max(0.01, (endMs - airborneMs) / 3600000);
+    }
+    const contractMin = Number(finalContract?.deadline_minutes || 0);
+    if (contractMin > 0) return contractMin / 60;
+    return 0;
+  })();
+  const fallbackFuelUsedLiters = estimateFuelUsedLiters();
+  const displayFuelCost = Number(flight?.fuel_cost) > 0
+    ? Number(flight.fuel_cost)
+    : Math.round(fallbackFuelUsedLiters * 1.2);
+  const displayCrewCost = Number(flight?.crew_cost) > 0
+    ? Number(flight.crew_cost)
+    : Math.round(fallbackFlightDurationHours * 250);
+  const displayMaintenanceCost = Number(flight?.maintenance_cost) > 0
+    ? Number(flight.maintenance_cost)
+    : Math.round(fallbackFlightDurationHours * 400);
+  const displayRevenue = Number(flight?.revenue) > 0
+    ? Number(flight.revenue)
+    : Math.round(Number(finalContract?.payout || 0)
+        + Number(xpdForFallback.landingBonus || 0)
+        - Number(xpdForFallback.landingPenalty || 0));
+  const displayProfit = flight?.profit !== null && flight?.profit !== undefined
+    ? Number(flight.profit)
+    : (displayRevenue - displayFuelCost - displayCrewCost - displayMaintenanceCost - 150);
+  const displayFlightDurationHours = fallbackFlightDurationHours;
+
+  // --- CENTERLINE DELTAS (for inclusion in landing-quality box) ---
+  const runwayAccuracyData = flight?.xplane_data?.runway_accuracy || null;
+  const centerlineScoreDelta = Number(runwayAccuracyData?.totalScoreDelta || 0);
+  const centerlineCashDelta = Number(runwayAccuracyData?.totalCashDelta || 0);
+
 
   return (
     <div className="h-full flex flex-col gap-2">
@@ -653,13 +695,13 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('fuel_used', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-blue-400">
-                      {estimateFuelUsedLiters().toLocaleString()} L
+                      {fallbackFuelUsedLiters.toLocaleString()} L
                     </p>
                   </div>
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('flight_duration', lang)}</p>
                     <p className="text-2xl font-mono font-bold text-slate-300">
-                      {flight.flight_duration_hours?.toFixed(1)} h
+                      {displayFlightDurationHours.toFixed(1)} h
                     </p>
                   </div>
                 </div>
@@ -865,6 +907,37 @@ export default function CompletedFlightDetails() {
                         )}
                       </div>
                       </div>
+
+                      {/* Centerline accuracy impact (takeoff + landing combined) */}
+                      {(centerlineScoreDelta !== 0 || centerlineCashDelta !== 0) && (
+                        <div className="pt-3 border-t border-slate-700">
+                          <p className="text-xs text-slate-400 mb-2 font-semibold">
+                            {lang === 'de' ? 'Centerline-Präzision (Start + Landung)' : 'Centerline precision (takeoff + landing)'}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1">{lang === 'de' ? 'Score-Auswirkung' : 'Score impact'}</p>
+                              <p className={`font-mono font-bold ${
+                                centerlineScoreDelta > 0 ? 'text-emerald-400' :
+                                centerlineScoreDelta < 0 ? 'text-red-400' :
+                                'text-slate-400'
+                              }`}>
+                                {centerlineScoreDelta > 0 ? '+' : ''}{centerlineScoreDelta} {lang === 'de' ? 'Punkte' : 'points'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1">{lang === 'de' ? 'Finanzielle Auswirkung' : 'Financial impact'}</p>
+                              {centerlineCashDelta > 0 ? (
+                                <p className="font-mono font-bold text-emerald-400">+${Math.round(centerlineCashDelta).toLocaleString()}</p>
+                              ) : centerlineCashDelta < 0 ? (
+                                <p className="font-mono font-bold text-red-400">-${Math.round(Math.abs(centerlineCashDelta)).toLocaleString()}</p>
+                              ) : (
+                                <p className="text-slate-400">$0</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       </div>
                   );
                 })()}
@@ -1147,26 +1220,26 @@ export default function CompletedFlightDetails() {
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                      <span className="text-slate-400">
                        {lang === 'de'
-                         ? `Treibstoff (${estimateFuelUsedLiters().toLocaleString()} L)`
-                         : `Fuel (${estimateFuelUsedLiters().toLocaleString()} L)`}
+                         ? `Treibstoff (${fallbackFuelUsedLiters.toLocaleString()} L)`
+                         : `Fuel (${fallbackFuelUsedLiters.toLocaleString()} L)`}
                      </span>
-                    <span className="text-red-400 font-mono">-${Math.round(flight.fuel_cost || 0).toLocaleString()}</span>
+                    <span className="text-red-400 font-mono">-${Math.round(displayFuelCost).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                     <span className="text-slate-400">
                       {lang === 'de'
-                        ? `Crew (${flight.flight_duration_hours?.toFixed(1)}h)`
-                        : `Crew (${flight.flight_duration_hours?.toFixed(1)}h)`}
+                        ? `Crew (${displayFlightDurationHours.toFixed(1)}h)`
+                        : `Crew (${displayFlightDurationHours.toFixed(1)}h)`}
                     </span>
-                    <span className="text-red-400 font-mono">-${Math.round(flight.crew_cost || 0).toLocaleString()}</span>
+                    <span className="text-red-400 font-mono">-${Math.round(displayCrewCost).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                     <span className="text-slate-400">
                       {lang === 'de'
-                        ? `Wartung (${flight.flight_duration_hours?.toFixed(1)}h + Events)`
-                        : `Maintenance (${flight.flight_duration_hours?.toFixed(1)}h + events)`}
+                        ? `Wartung (${displayFlightDurationHours.toFixed(1)}h + Events)`
+                        : `Maintenance (${displayFlightDurationHours.toFixed(1)}h + events)`}
                     </span>
-                    <span className="text-red-400 font-mono">-${Math.round(flight.maintenance_cost || 0).toLocaleString()}</span>
+                    <span className="text-red-400 font-mono">-${Math.round(displayMaintenanceCost).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-700">
                     <span className="text-slate-400">{lang === 'de' ? 'Flughafen-Gebuehren' : 'Airport fees'}</span>
@@ -1175,15 +1248,15 @@ export default function CompletedFlightDetails() {
                   <div className="flex justify-between items-center pt-3 border-t border-slate-700">
                     <span className="font-semibold text-white">{t('total_revenue', lang)}</span>
                     <span className="text-xl font-bold font-mono text-emerald-400">
-                      ${Math.round(flight.revenue || 0).toLocaleString()}
+                      ${Math.round(displayRevenue).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-3">
                     <span className="font-semibold text-white">{t('profit_loss', lang)}</span>
                     <span className={`text-xl font-bold font-mono ${
-                      flight.profit >= 0 ? 'text-emerald-400' : 'text-red-400'
+                      displayProfit >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
-                      ${Math.round(flight.profit || 0).toLocaleString()}
+                      ${Math.round(displayProfit).toLocaleString()}
                     </span>
                   </div>
                 </div>
