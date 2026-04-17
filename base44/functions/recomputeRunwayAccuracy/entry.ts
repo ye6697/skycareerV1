@@ -1,9 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 // Recomputes runway centerline accuracy for a single flight.
-// Uses flight_path (lat/lon only) as fallback when telemetry_history is missing.
-// Fetches runway info from OurAirports for departure + arrival ICAOs, then
-// measures perpendicular distance from the actual track to the true centerline.
+// Robust version with airport-proximity filtering + sanity checks.
 
 const EARTH_RADIUS_M = 6371000;
 const toRad = (d) => (Number(d) * Math.PI) / 180;
@@ -72,8 +70,9 @@ async function fetchRunwaysForAirport(icao) {
   const runways = [];
   for (let i = 1; i < lines.length; i += 1) {
     const line = lines[i];
-    if (!line || !line.includes(upper)) continue;
+    if (!line) continue;
     const cols = parse(line);
+    // STRICT ident check — no substring matching.
     if (cols[cIdent] !== upper) continue;
     if (Number(cols[cClosed] || 0) === 1) continue;
     const leLat = parseFloat(cols[cLeLat]);
@@ -99,8 +98,7 @@ async function fetchRunwaysForAirport(icao) {
   return runways;
 }
 
-// Perpendicular distance from point P to segment AB, in meters, using
-// equirectangular projection around the runway midpoint.
+// Perpendicular distance from point P to segment AB, in meters.
 function perpToCenterline(rw, lat, lon) {
   const midLat = (rw.le_lat + rw.he_lat) / 2;
   const cosMid = Math.cos(toRad(midLat));
@@ -122,6 +120,17 @@ function perpToCenterline(rw, lat, lon) {
   return Math.hypot(P.x - Cx, P.y - Cy);
 }
 
+// Airport center = midpoint of first runway's thresholds.
+function airportCenter(runways) {
+  if (!runways.length) return null;
+  const rw = runways[0];
+  return {
+    lat: (rw.le_lat + rw.he_lat) / 2,
+    lon: (rw.le_lon + rw.he_lon) / 2,
+  };
+}
+
+// Pick the runway closest to a given point.
 function pickRunway(runways, lat, lon) {
   if (!runways.length) return null;
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return runways[0];
@@ -134,8 +143,13 @@ function pickRunway(runways, lat, lon) {
   return best;
 }
 
-// Measure average perpendicular distance from a set of track points to the
-// true runway centerline. Returns { rmsMeters, maxMeters, sampleCount }.
+// Keep only track points within `maxKm` km of the airport center.
+function filterPointsNearAirport(points, center, maxKm = 5) {
+  if (!center) return [];
+  return points.filter((p) => haversine(p.lat, p.lon, center.lat, center.lon) <= maxKm * 1000);
+}
+
+// Measure RMS perpendicular distance from points to runway centerline.
 function measureDeviation(points, runway) {
   if (!runway || !Array.isArray(points) || points.length < 3) return null;
   let sumSq = 0;
@@ -149,15 +163,18 @@ function measureDeviation(points, runway) {
     count += 1;
   }
   if (count < 3) return null;
+  const rms = Math.sqrt(sumSq / count);
+  // SANITY: if RMS > 500 m, the runway picker hit the wrong runway or the
+  // track is garbage — refuse to score.
+  if (rms > 500) return null;
   return {
-    rmsMeters: Math.sqrt(sumSq / count),
+    rmsMeters: rms,
     maxMeters: maxAbs,
     sampleCount: count,
     valid: true,
   };
 }
 
-// Convert rmsMeters into score + cash delta (same thresholds as the frontend).
 function evaluate(rms, basePayout) {
   const r = Math.max(0, Number(rms) || 0);
   let qualityKey = 'acceptable';
@@ -182,19 +199,16 @@ Deno.serve(async (req) => {
     const flightId = String(body?.flight_id || '').trim();
     if (!flightId) return Response.json({ error: 'flight_id required' }, { status: 400 });
 
-    // Load flight (service role to bypass RLS quirks on older records).
     const flights = await base44.asServiceRole.entities.Flight.filter({ id: flightId });
     const flight = flights[0];
     if (!flight) return Response.json({ error: 'Flight not found' }, { status: 404 });
 
-    // Make sure this user owns the flight (company must be theirs).
     const ownCompanies = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
     const ownCompanyIds = new Set(ownCompanies.map((c) => c.id));
     if (!ownCompanyIds.has(flight.company_id)) {
-      return Response.json({ error: 'Forbidden', debug: { user_email: user.email, flight_company_id: flight.company_id, own_company_ids: [...ownCompanyIds] } }, { status: 403 });
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Load contract for ICAO codes + payout.
     const contracts = await base44.asServiceRole.entities.Contract.filter({ id: flight.contract_id });
     const contract = contracts[0] || {};
 
@@ -202,6 +216,14 @@ Deno.serve(async (req) => {
     const depIcao = xpd.departure_icao || xpd.departure_airport || contract.departure_airport || '';
     const arrIcao = xpd.arrival_icao || xpd.arrival_airport || contract.arrival_airport || '';
     const basePayout = Number(contract.payout || flight.revenue || 0);
+
+    // ROLLBACK previous deltas if already applied, so recompute is idempotent.
+    const prev = xpd.runway_accuracy || null;
+    const prevScoreDelta = Number(prev?.totalScoreDelta || 0);
+    const prevCashDelta = Number(prev?.totalCashDelta || 0);
+    const baseScore = Number(xpd.final_score ?? flight.flight_score ?? 0) - prevScoreDelta;
+    const baseRevenue = Number(flight.revenue || 0) - prevCashDelta;
+    const baseProfit = Number(flight.profit || 0) - prevCashDelta;
 
     // Build track points from telemetry_history OR flight_path fallback.
     let trackPoints = [];
@@ -222,36 +244,59 @@ Deno.serve(async (req) => {
         .filter((p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && !(Math.abs(p.lat) < 0.01 && Math.abs(p.lon) < 0.01));
     }
 
-    if (trackPoints.length < 10 || (!depIcao && !arrIcao)) {
+    const saveResult = async (payload, extraUpdates = {}) => {
       await base44.asServiceRole.entities.Flight.update(flightId, {
+        ...extraUpdates,
         xplane_data: {
           ...xpd,
           runway_accuracy_applied: true,
-          runway_accuracy: {
-            takeoff: null, landing: null,
-            totalScoreDelta: 0, totalCashDelta: 0,
-            unavailable_reason: trackPoints.length < 10 ? 'no_track_data' : 'no_icao',
-          },
+          runway_accuracy: payload,
         },
       });
+    };
+
+    if (trackPoints.length < 10 || (!depIcao && !arrIcao)) {
+      // Roll back any previous deltas and save neutral result.
+      const neutralScore = Math.max(0, Math.min(100, baseScore));
+      await saveResult({
+        takeoff: null, landing: null,
+        totalScoreDelta: 0, totalCashDelta: 0,
+        unavailable_reason: trackPoints.length < 10 ? 'no_track_data' : 'no_icao',
+      }, {
+        flight_score: neutralScore,
+        overall_rating: (neutralScore / 100) * 5,
+        revenue: baseRevenue,
+        profit: baseProfit,
+      });
+      if (prevCashDelta !== 0) {
+        const co = ownCompanies.find((c) => c.id === flight.company_id);
+        if (co) {
+          await base44.asServiceRole.entities.Company.update(co.id, {
+            balance: Number(co.balance || 0) - prevCashDelta,
+          });
+        }
+      }
       return Response.json({
         status: 'no_data',
         reason: trackPoints.length < 10 ? 'no_track_data' : 'no_icao',
       });
     }
 
-    // Isolate the first ~3% and last ~3% of points as ground-roll segments.
-    const n = trackPoints.length;
-    const takeoffEnd = Math.max(5, Math.floor(n * 0.03));
-    const landingStart = Math.min(n - 5, Math.max(takeoffEnd + 1, Math.floor(n * 0.97)));
-    const takeoffPoints = trackPoints.slice(0, takeoffEnd);
-    const landingPoints = trackPoints.slice(landingStart);
-
     // Resolve runways via OurAirports.
     const [depRunways, arrRunways] = await Promise.all([
       depIcao ? fetchRunwaysForAirport(depIcao).catch(() => []) : Promise.resolve([]),
       arrIcao ? fetchRunwaysForAirport(arrIcao).catch(() => []) : Promise.resolve([]),
     ]);
+
+    const depCenter = airportCenter(depRunways);
+    const arrCenter = airportCenter(arrRunways);
+
+    // Filter track points by proximity to airport centers. This replaces the
+    // naïve "first/last 3% of points" slicing which could pick cruise points
+    // from anywhere on the globe when flight_path has sparse sampling.
+    const takeoffPoints = depCenter ? filterPointsNearAirport(trackPoints, depCenter, 3) : [];
+    const landingPoints = arrCenter ? filterPointsNearAirport(trackPoints, arrCenter, 3) : [];
+
     const depRunway = depRunways.length && takeoffPoints.length
       ? pickRunway(depRunways, takeoffPoints[0].lat, takeoffPoints[0].lon)
       : null;
@@ -262,33 +307,14 @@ Deno.serve(async (req) => {
     const takeoffAcc = depRunway ? measureDeviation(takeoffPoints, depRunway) : null;
     const landingAcc = arrRunway ? measureDeviation(landingPoints, arrRunway) : null;
 
-    if (!takeoffAcc && !landingAcc) {
-      await base44.asServiceRole.entities.Flight.update(flightId, {
-        xplane_data: {
-          ...xpd,
-          runway_accuracy_applied: true,
-          runway_accuracy: {
-            takeoff: null, landing: null,
-            totalScoreDelta: 0, totalCashDelta: 0,
-            unavailable_reason: 'no_runway_resolved',
-            dep_icao: depIcao, arr_icao: arrIcao,
-            dep_runways_found: depRunways.length,
-            arr_runways_found: arrRunways.length,
-          },
-        },
-      });
-      return Response.json({ status: 'no_runway', dep_runways: depRunways.length, arr_runways: arrRunways.length });
-    }
-
     const takeoffEval = takeoffAcc ? evaluate(takeoffAcc.rmsMeters, basePayout) : null;
     const landingEval = landingAcc ? evaluate(landingAcc.rmsMeters, basePayout) : null;
     const totalScoreDelta = (takeoffEval?.scoreDelta || 0) + (landingEval?.scoreDelta || 0);
     const totalCashDelta = (takeoffEval?.cashDelta || 0) + (landingEval?.cashDelta || 0);
 
-    const currentScore = Number(xpd.final_score ?? flight.flight_score ?? 0);
-    const adjustedScore = Math.max(0, Math.min(100, currentScore + totalScoreDelta));
-    const adjustedProfit = Number(flight.profit || 0) + totalCashDelta;
-    const adjustedRevenue = Number(flight.revenue || 0) + totalCashDelta;
+    const adjustedScore = Math.max(0, Math.min(100, baseScore + totalScoreDelta));
+    const adjustedRevenue = baseRevenue + totalCashDelta;
+    const adjustedProfit = baseProfit + totalCashDelta;
 
     await base44.asServiceRole.entities.Flight.update(flightId, {
       flight_score: adjustedScore,
@@ -306,28 +332,38 @@ Deno.serve(async (req) => {
           totalCashDelta,
           dep_icao: depIcao,
           arr_icao: arrIcao,
+          takeoff_points_used: takeoffPoints.length,
+          landing_points_used: landingPoints.length,
+          unavailable_reason: (!takeoffAcc && !landingAcc)
+            ? ((!depRunways.length && !arrRunways.length) ? 'no_runway_resolved'
+              : (!takeoffPoints.length && !landingPoints.length) ? 'no_points_near_airport'
+              : 'rms_out_of_range')
+            : null,
         },
       },
     });
 
-    // Apply cash delta to company balance + add transaction.
-    if (totalCashDelta !== 0) {
+    // Apply net cash delta to company balance (previous delta rolled back, new one applied).
+    const netCashChange = totalCashDelta - prevCashDelta;
+    if (netCashChange !== 0) {
       const co = ownCompanies.find((c) => c.id === flight.company_id);
       if (co) {
         await base44.asServiceRole.entities.Company.update(co.id, {
-          balance: Number(co.balance || 0) + totalCashDelta,
+          balance: Number(co.balance || 0) + netCashChange,
         });
-        await base44.asServiceRole.entities.Transaction.create({
-          company_id: co.id,
-          type: totalCashDelta >= 0 ? 'income' : 'expense',
-          category: totalCashDelta >= 0 ? 'bonus' : 'other',
-          amount: Math.abs(totalCashDelta),
-          description: totalCashDelta >= 0
-            ? `Runway centerline bonus: ${contract.title || 'Flight'}`
-            : `Runway centerline penalty: ${contract.title || 'Flight'}`,
-          reference_id: flightId,
-          date: new Date().toISOString(),
-        });
+        if (totalCashDelta !== 0) {
+          await base44.asServiceRole.entities.Transaction.create({
+            company_id: co.id,
+            type: totalCashDelta >= 0 ? 'income' : 'expense',
+            category: totalCashDelta >= 0 ? 'bonus' : 'other',
+            amount: Math.abs(totalCashDelta),
+            description: totalCashDelta >= 0
+              ? `Runway centerline bonus: ${contract.title || 'Flight'}`
+              : `Runway centerline penalty: ${contract.title || 'Flight'}`,
+            reference_id: flightId,
+            date: new Date().toISOString(),
+          });
+        }
       }
     }
 
@@ -337,6 +373,13 @@ Deno.serve(async (req) => {
       landing: landingAcc ? { rmsMeters: landingAcc.rmsMeters, scoreDelta: landingEval.scoreDelta, cashDelta: landingEval.cashDelta } : null,
       totalScoreDelta,
       totalCashDelta,
+      debug: {
+        track_points: trackPoints.length,
+        takeoff_points_used: takeoffPoints.length,
+        landing_points_used: landingPoints.length,
+        dep_runways_found: depRunways.length,
+        arr_runways_found: arrRunways.length,
+      },
     });
   } catch (err) {
     return Response.json({ error: err.message, stack: err.stack }, { status: 500 });
