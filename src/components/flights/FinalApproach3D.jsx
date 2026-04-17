@@ -45,7 +45,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       g: Number(p?.g ?? p?.g_force ?? 1),
       lat: Number(p?.lat ?? p?.latitude ?? 0),
       lon: Number(p?.lon ?? p?.lng ?? p?.longitude ?? 0),
-      on_ground: p?.on_ground ?? p?.onGround ?? null,
+      pitch: Number.isFinite(Number(p?.pitch)) ? Number(p.pitch) : null,
+      on_ground: p?.on_ground ?? p?.onGround ?? p?.og ?? null,
     });
 
     let points;
@@ -134,8 +135,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     if (!segment) return;
     const xpd = flight?.xplane_data || {};
     const icao = phase === 'takeoff'
-      ? (xpd.departure_icao || xpd.departure_airport || flight?.departure_airport || '')
-      : (xpd.arrival_icao || xpd.arrival_airport || flight?.arrival_airport || '');
+      ? (xpd.departure_icao || xpd.departure_airport || xpd.contract_departure_airport || flight?.departure_airport || '')
+      : (xpd.arrival_icao || xpd.arrival_airport || xpd.contract_arrival_airport || flight?.arrival_airport || '');
     if (!icao) return;
 
     // Find the liftoff sample for takeoff, touchdown sample for landing.
@@ -488,7 +489,20 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       if (dir.length() > 0.001) {
         dir.normalize();
         const yaw = Math.atan2(-dir.z, dir.x);
-        const pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+
+        // Use REAL pitch from telemetry when available (X-Plane/MSFS send it
+        // in degrees, positive = nose up). Fall back to path-derived pitch only
+        // when the simulator didn't provide it.
+        const segPoints = sceneRef.current?.segment?.points || [];
+        const pathProgressIdx = Math.min(segPoints.length - 1, Math.floor(progress * (segPoints.length - 1)));
+        const realPitchDeg = segPoints[pathProgressIdx]?.pitch;
+        let pitch;
+        if (Number.isFinite(realPitchDeg)) {
+          pitch = (realPitchDeg * Math.PI) / 180;
+        } else {
+          pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+        }
+
         // Compute bank based on lateral path change (simple heuristic)
         const lookBack = Math.max(0, idx - 3);
         const lookFwd = Math.min(path3D.length - 1, idx + 3);
