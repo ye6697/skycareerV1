@@ -105,7 +105,6 @@ export default function CompletedFlightDetails() {
   const runwayBackfillDoneRef = React.useRef(new Set());
   React.useEffect(() => {
     if (!flight?.id) return;
-    if (flight?.status !== 'completed') return;
     if (flight?.xplane_data?.runway_accuracy_applied) return;
     if (runwayBackfillDoneRef.current.has(flight.id)) return;
     runwayBackfillDoneRef.current.add(flight.id);
