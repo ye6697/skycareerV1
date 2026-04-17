@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { X, Play, Pause, RotateCcw, Eye, Compass } from "lucide-react";
+import { X, Play, Pause, RotateCcw, Eye, Compass, Video, Square, Download, Share2, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import * as THREE from 'three';
 import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
 import { base44 } from '@/api/base44Client';
+import useReplayRecorder from '@/components/flights/useReplayRecorder';
 import {
   buildRunwayScene,
   makeRunwayLabelTexture,
@@ -35,6 +36,33 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
   const [runway, setRunway] = useState(null); // normalized runway or null
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
+  const recorder = useReplayRecorder();
+
+  const canvasEl = () => mountRef.current?.querySelector('canvas') || null;
+
+  const handleRecord = () => {
+    if (recorder.isRecording) {
+      recorder.stop();
+      return;
+    }
+    const canvas = canvasEl();
+    if (!canvas) return;
+    // Reset playback to start so the recording captures the full replay.
+    setProgress(0);
+    playbackStartRef.current = null;
+    setIsPlaying(true);
+    recorder.start(canvas, { fps: 30 });
+  };
+
+  // Auto-stop the recorder when playback reaches the end.
+  useEffect(() => {
+    if (recorder.isRecording && progress >= 1) {
+      recorder.stop();
+    }
+  }, [progress, recorder]);
+
+  const filenameBase = `skycareer-${phase}-${flight?.id || 'replay'}`;
+  const filename = `${filenameBase}.webm`;
 
   // Keep refs in sync with state.
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
@@ -662,13 +690,67 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="h-8 w-8 flex items-center justify-center rounded border border-slate-700 bg-slate-900 text-slate-400 hover:text-red-300 hover:border-red-500/50 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRecord}
+            className={`h-8 px-2.5 flex items-center gap-1.5 rounded border text-[10px] font-mono uppercase tracking-wider transition-colors ${
+              recorder.isRecording
+                ? 'border-red-500 bg-red-950/60 text-red-300 animate-pulse'
+                : 'border-cyan-700 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/50'
+            }`}
+            title={recorder.isRecording
+              ? (lang === 'de' ? 'Aufnahme stoppen' : 'Stop recording')
+              : (lang === 'de' ? 'Replay aufnehmen' : 'Record replay')}
+          >
+            {recorder.isRecording ? <Square className="w-3.5 h-3.5 fill-red-300" /> : <Video className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{recorder.isRecording ? 'REC' : (lang === 'de' ? 'REC' : 'REC')}</span>
+          </button>
+          {recorder.blobUrl && !recorder.isRecording && (
+            <>
+              <button
+                onClick={() => recorder.download(filename)}
+                className="h-8 px-2.5 flex items-center gap-1.5 rounded border border-emerald-700 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 text-[10px] font-mono uppercase tracking-wider transition-colors"
+                title={lang === 'de' ? 'Video speichern' : 'Save video'}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{lang === 'de' ? 'Speichern' : 'Save'}</span>
+              </button>
+              <button
+                onClick={() => recorder.share(filename, lang === 'de' ? 'Flug-Replay' : 'Flight Replay')}
+                className="h-8 px-2.5 flex items-center gap-1.5 rounded border border-cyan-700 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/50 text-[10px] font-mono uppercase tracking-wider transition-colors"
+                title={lang === 'de' ? 'Video teilen' : 'Share video'}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{lang === 'de' ? 'Teilen' : 'Share'}</span>
+              </button>
+            </>
+          )}
+          <button
+            onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center rounded border border-slate-700 bg-slate-900 text-slate-400 hover:text-red-300 hover:border-red-500/50 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
+
+      {recorder.error && (
+        <div className="px-4 py-1.5 bg-red-950/60 border-b border-red-800/50 text-[10px] font-mono text-red-300">
+          {recorder.error}
+        </div>
+      )}
+      {recorder.isRecording && (
+        <div className="px-4 py-1.5 bg-red-950/40 border-b border-red-800/50 flex items-center gap-2 text-[10px] font-mono text-red-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+          {lang === 'de' ? 'Aufnahme läuft … Replay wird aufgezeichnet' : 'Recording in progress … capturing replay'}
+        </div>
+      )}
+      {recorder.blobUrl && !recorder.isRecording && (
+        <div className="px-4 py-1.5 bg-emerald-950/40 border-b border-emerald-800/50 flex items-center gap-2 text-[10px] font-mono text-emerald-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          {lang === 'de' ? 'Aufnahme fertig — Speichern oder Teilen' : 'Recording ready — save or share'}
+        </div>
+      )}
 
       {/* 3D Canvas */}
       <div ref={mountRef} className="flex-1 relative" style={{ minHeight: 0 }}>
