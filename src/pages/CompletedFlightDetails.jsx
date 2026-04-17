@@ -100,20 +100,20 @@ export default function CompletedFlightDetails() {
   const flight = passedFlight || flights[0];
   const finalContract = passedContract || contract;
 
-  // One-time Runway Accuracy backfill: compute score & cash impact on first view.
-  // Stores result under xplane_data.runway_accuracy so it's only applied once.
-  // Guard per "flight.id + contract_loaded" so a failed run doesn't block retry
-  // after the contract query arrives.
+  // Runway Accuracy backfill is now handled by the RunwayAccuracyCard component
+  // itself, which calls the recomputeRunwayAccuracy backend function on demand.
+  // Kept disabled here to avoid duplicate computation & race conditions.
   const runwayBackfillDoneRef = React.useRef(new Set());
   React.useEffect(() => {
     if (!flight?.id) return;
     if (flight?.xplane_data?.runway_accuracy_applied) return;
-    // Wait until we have a contract (for ICAO codes). Without it, the runway
-    // lookup fails silently and the user sees "wird berechnet" forever.
     if (!finalContract?.departure_airport && !finalContract?.arrival_airport) return;
     const guardKey = `${flight.id}|${finalContract?.id || 'noc'}`;
     if (runwayBackfillDoneRef.current.has(guardKey)) return;
     runwayBackfillDoneRef.current.add(guardKey);
+    // Frontend auto-backfill disabled — user triggers it via the card button.
+    return;
+    // eslint-disable-next-line no-unreachable
     console.log('[RunwayBackfill] start', {
       flight_id: flight.id,
       dep_icao: finalContract?.departure_airport,

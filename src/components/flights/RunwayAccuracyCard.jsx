@@ -1,15 +1,15 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { PlaneTakeoff, PlaneLanding, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PlaneTakeoff, PlaneLanding, Target, RefreshCw, Loader2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 import { useLanguage } from "@/components/LanguageContext";
 import {
-  computeRunwayAccuracy,
-  evaluateRunwayAccuracy,
   RUNWAY_QUALITY_COLOR,
   RUNWAY_QUALITY_LABEL,
 } from "@/components/flights/runwayAccuracy";
 
-function MetricRow({ icon: Icon, title, accuracy, basePayout, lang }) {
+function MetricRow({ icon: Icon, title, accuracy, lang }) {
   if (!accuracy) {
     return (
       <div className="flex items-center justify-between p-3 bg-slate-700/40 border border-slate-600/40 rounded-lg">
@@ -24,13 +24,15 @@ function MetricRow({ icon: Icon, title, accuracy, basePayout, lang }) {
     );
   }
 
-  const evalResult = evaluateRunwayAccuracy(accuracy.rmsMeters, basePayout);
   const labelMap = RUNWAY_QUALITY_LABEL[lang] || RUNWAY_QUALITY_LABEL.en;
-  const colorClass = RUNWAY_QUALITY_COLOR[evalResult.qualityKey] || "text-slate-300";
-  const qualityLabel = labelMap[evalResult.qualityKey] || evalResult.qualityKey;
-  const scoreSign = evalResult.scoreDelta > 0 ? "+" : "";
-  const cashSign = evalResult.cashDelta > 0 ? "+" : evalResult.cashDelta < 0 ? "-" : "";
-  const cashAbs = Math.abs(evalResult.cashDelta);
+  const qualityKey = accuracy.qualityKey || "acceptable";
+  const colorClass = RUNWAY_QUALITY_COLOR[qualityKey] || "text-slate-300";
+  const qualityLabel = labelMap[qualityKey] || qualityKey;
+  const scoreDelta = Number(accuracy.scoreDelta || 0);
+  const cashDelta = Number(accuracy.cashDelta || 0);
+  const scoreSign = scoreDelta > 0 ? "+" : "";
+  const cashSign = cashDelta > 0 ? "+" : cashDelta < 0 ? "-" : "";
+  const cashAbs = Math.abs(cashDelta);
 
   return (
     <div className="p-3 bg-slate-700/40 border border-slate-600/40 rounded-lg space-y-2">
@@ -47,20 +49,20 @@ function MetricRow({ icon: Icon, title, accuracy, basePayout, lang }) {
             {lang === "de" ? "Ø Abw." : "Avg dev."}
           </p>
           <p className="font-mono font-bold text-slate-200">
-            {accuracy.rmsMeters.toFixed(1)} m
+            {Number(accuracy.rmsMeters || 0).toFixed(1)} m
           </p>
         </div>
         <div>
           <p className="text-slate-500 uppercase tracking-wide">Score</p>
-          <p className={`font-mono font-bold ${evalResult.scoreDelta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-            {scoreSign}{evalResult.scoreDelta}
+          <p className={`font-mono font-bold ${scoreDelta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {scoreSign}{scoreDelta}
           </p>
         </div>
         <div>
           <p className="text-slate-500 uppercase tracking-wide">
             {lang === "de" ? "Prämie" : "Payout"}
           </p>
-          <p className={`font-mono font-bold ${evalResult.cashDelta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+          <p className={`font-mono font-bold ${cashDelta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
             {cashAbs === 0 ? "0" : `${cashSign}$${cashAbs.toLocaleString()}`}
           </p>
         </div>
@@ -71,85 +73,105 @@ function MetricRow({ icon: Icon, title, accuracy, basePayout, lang }) {
 
 export default function RunwayAccuracyCard({ flight }) {
   const { lang } = useLanguage();
-  const telemetryHistory = flight?.xplane_data?.telemetry_history || [];
-  const basePayout = Number(flight?.xplane_data?.contract_payout || flight?.revenue || 0);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [result, setResult] = React.useState(flight?.xplane_data?.runway_accuracy || null);
+  const applied = !!flight?.xplane_data?.runway_accuracy_applied;
 
-  // Prefer stored values (computed at flight completion) over recomputing.
-  const stored = flight?.xplane_data?.runway_accuracy || null;
-  const computed = stored || computeRunwayAccuracy(telemetryHistory);
+  // If the flight changes, re-sync local result with stored data.
+  React.useEffect(() => {
+    setResult(flight?.xplane_data?.runway_accuracy || null);
+    setError(null);
+  }, [flight?.id, flight?.xplane_data?.runway_accuracy_applied]);
 
-  const hasAny = !!(computed?.takeoff || computed?.landing);
-  const backfillApplied = !!flight?.xplane_data?.runway_accuracy_applied;
-  const unavailableReason = flight?.xplane_data?.runway_accuracy?.unavailable_reason || null;
+  const handleCompute = async () => {
+    if (!flight?.id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await base44.functions.invoke("recomputeRunwayAccuracy", { flight_id: flight.id });
+      const data = res?.data || {};
+      if (data.status === "ok" || data.status === "no_data" || data.status === "no_runway") {
+        // Pull latest data from DB to avoid stale payload.
+        const updated = await base44.entities.Flight.filter({ id: flight.id });
+        setResult(updated?.[0]?.xplane_data?.runway_accuracy || null);
+      } else if (data.error) {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError(err?.message || "Unknown error");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  // Backfill ran but there is no usable runway/telemetry data for this flight.
-  if (!hasAny && backfillApplied) {
-    return (
-      <Card className="p-6 bg-slate-800/50 border-slate-700">
-        <div className="flex items-center gap-2 mb-2">
-          <Target className="w-5 h-5 text-slate-500" />
-          <h3 className="text-lg font-semibold text-white">
-            {lang === "de" ? "Centerline-Genauigkeit" : "Runway Centerline Accuracy"}
-          </h3>
-        </div>
-        <p className="text-xs text-slate-400">
-          {lang === "de"
-            ? "Für diesen Flug sind keine ausreichenden Telemetrie- oder Runway-Daten für eine Centerline-Auswertung verfügbar."
-            : "Not enough telemetry or runway data is available for this flight to evaluate centerline accuracy."}
-          {unavailableReason ? ` (${unavailableReason})` : ""}
-        </p>
-      </Card>
-    );
-  }
+  const hasAny = !!(result?.takeoff || result?.landing);
 
-  // Show a "computing" placeholder while the backfill is still running.
-  if (!hasAny) {
-    return (
-      <Card className="p-6 bg-slate-800/50 border-slate-700">
-        <div className="flex items-center gap-2 mb-2">
+  return (
+    <Card className="p-6 bg-slate-800/50 border-slate-700">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
           <Target className="w-5 h-5 text-cyan-400" />
           <h3 className="text-lg font-semibold text-white">
             {lang === "de" ? "Centerline-Genauigkeit" : "Runway Centerline Accuracy"}
           </h3>
         </div>
-        <p className="text-xs text-slate-400">
-          {lang === "de"
-            ? "Centerline-Auswertung wird berechnet... Bitte Seite in wenigen Sekunden neu laden."
-            : "Centerline analysis is being computed... Please reload the page in a few seconds."}
-        </p>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="p-6 bg-slate-800/50 border-slate-700">
-      <div className="flex items-center gap-2 mb-4">
-        <Target className="w-5 h-5 text-cyan-400" />
-        <h3 className="text-lg font-semibold text-white">
-          {lang === "de" ? "Centerline-Genauigkeit" : "Runway Centerline Accuracy"}
-        </h3>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleCompute}
+          disabled={busy}
+          className="h-7 px-2 text-[10px] font-mono uppercase border-cyan-800 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/40"
+        >
+          {busy ? (
+            <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> {lang === "de" ? "Berechne..." : "Computing..."}</>
+          ) : (
+            <><RefreshCw className="w-3 h-3 mr-1" /> {applied ? (lang === "de" ? "Neu berechnen" : "Recompute") : (lang === "de" ? "Berechnen" : "Compute")}</>
+          )}
+        </Button>
       </div>
       <p className="text-xs text-slate-500 mb-3">
         {lang === "de"
           ? "Misst, wie genau du während des Startlaufs und der Landung die Mittellinie gehalten hast."
           : "Measures how well you held the runway centerline during takeoff roll and landing."}
       </p>
-      <div className="space-y-3">
-        <MetricRow
-          icon={PlaneTakeoff}
-          title={lang === "de" ? "Startlauf" : "Takeoff Roll"}
-          accuracy={computed?.takeoff}
-          basePayout={basePayout}
-          lang={lang}
-        />
-        <MetricRow
-          icon={PlaneLanding}
-          title={lang === "de" ? "Landung" : "Landing"}
-          accuracy={computed?.landing}
-          basePayout={basePayout}
-          lang={lang}
-        />
-      </div>
+
+      {error && (
+        <p className="text-xs text-red-400 mb-3">{error}</p>
+      )}
+
+      {!applied && !busy && !hasAny && (
+        <p className="text-xs text-slate-400">
+          {lang === "de"
+            ? 'Noch nicht berechnet. Klicke auf "Berechnen".'
+            : 'Not computed yet. Click "Compute".'}
+        </p>
+      )}
+
+      {applied && !hasAny && result?.unavailable_reason && (
+        <p className="text-xs text-slate-400">
+          {lang === "de"
+            ? `Keine Daten verfügbar (${result.unavailable_reason}).`
+            : `No data available (${result.unavailable_reason}).`}
+        </p>
+      )}
+
+      {hasAny && (
+        <div className="space-y-3">
+          <MetricRow
+            icon={PlaneTakeoff}
+            title={lang === "de" ? "Startlauf" : "Takeoff Roll"}
+            accuracy={result?.takeoff}
+            lang={lang}
+          />
+          <MetricRow
+            icon={PlaneLanding}
+            title={lang === "de" ? "Landung" : "Landing"}
+            accuracy={result?.landing}
+            lang={lang}
+          />
+        </div>
+      )}
     </Card>
   );
 }
