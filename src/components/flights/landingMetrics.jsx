@@ -240,9 +240,10 @@ export function resolveLandingMetricsFromFlight(flight) {
   // A real airliner touchdown is between 0 and ~1000 fpm. Anything above 1500 fpm
   // is a sensor spike (the bridge sometimes logs 5000+ fpm garbage values).
   // In that case approximate V/S from landing G-force instead.
-  const bridgeG = Number(xpd.landing_g_force);
-  const bridgeVs = Math.abs(Number(xpd.touchdown_vspeed) || 0);
-  const safeG = Number.isFinite(bridgeG) && bridgeG > 0 && bridgeG < 4 ? bridgeG : 0;
+  // Reads both snake_case and camelCase variants of the bridge fields.
+  const bridgeG = firstPositive(xpd.landing_g_force, xpd.landingGForce, xpd.landing_gforce);
+  const bridgeVs = firstPositiveAbs(xpd.touchdown_vspeed, xpd.landingVs, xpd.landing_vs, xpd.touchdownVs);
+  const safeG = bridgeG > 0 && bridgeG < 4 ? bridgeG : 0;
   let safeVs = 0;
   if (bridgeVs > 0 && bridgeVs <= 1500) {
     safeVs = bridgeVs;
