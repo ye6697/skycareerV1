@@ -135,29 +135,27 @@ export function buildRunwayScene(runway, makeLabelTexture) {
     });
   });
 
-  // ICAO runway designator label (big number painted near threshold)
-  const labelTex = makeLabelTexture(runway?.landingIdent || '');
-  if (labelTex) {
-    const labelGeo = new THREE.PlaneGeometry(widM * 0.6, 40);
-    const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true });
-    const label = new THREE.Mesh(labelGeo, labelMat);
-    label.rotation.x = -Math.PI / 2;
-    // Label oriented so pilots read it approaching from +Z.
-    label.rotation.z = Math.PI;
-    label.position.set(0, 0.06, -60);
-    group.add(label);
-  }
-
-  // Opposite-end designator
-  const oppLabelTex = makeLabelTexture(runway?.oppositeIdent || '');
-  if (oppLabelTex) {
-    const labelGeo = new THREE.PlaneGeometry(widM * 0.6, 40);
-    const labelMat = new THREE.MeshBasicMaterial({ map: oppLabelTex, transparent: true });
-    const label = new THREE.Mesh(labelGeo, labelMat);
-    label.rotation.x = -Math.PI / 2;
-    label.position.set(0, 0.06, -lenM + 60);
-    group.add(label);
-  }
+  // ICAO runway designator label (big number painted near threshold).
+  // Painted AFTER the piano-keys (further down the runway) so it's not hidden,
+  // and rotated 180° around Y so pilots approaching from +Z read it right-way-up.
+  const buildLabel = (text, zPos, flipForApproach) => {
+    const tex = makeLabelTexture(text);
+    if (!tex) return;
+    const geo = new THREE.PlaneGeometry(Math.min(widM * 0.7, 24), 32);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+    const mesh = new THREE.Mesh(geo, mat);
+    // Lay flat on runway
+    mesh.rotation.x = -Math.PI / 2;
+    // Orient text so it reads from the correct approach direction
+    if (flipForApproach) mesh.rotation.z = Math.PI;
+    mesh.position.set(0, 0.08, zPos);
+    mesh.renderOrder = 2;
+    group.add(mesh);
+  };
+  // Landing runway number painted just past the piano keys (~60m from threshold).
+  buildLabel(runway?.landingIdent || '', -80, false);
+  // Opposite-end designator near the far end of the runway.
+  buildLabel(runway?.oppositeIdent || '', -lenM + 80, true);
 
   // Approach lighting (leading to threshold from +Z)
   const alsMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
@@ -191,21 +189,27 @@ export function buildRunwayScene(runway, makeLabelTexture) {
 }
 
 // Create a canvas-based texture of the runway designator (e.g. "25L").
+// Uses a transparent background so the label blends with the runway asphalt.
 export function makeRunwayLabelTexture(text) {
   if (!text) return null;
   const canvas = document.createElement('canvas');
   canvas.width = 512;
-  canvas.height = 256;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = 'bold 200px monospace';
+  // Bright white, thick stroke for readability from low angles.
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#0a0f1a';
+  ctx.lineWidth = 14;
+  ctx.font = 'bold 340px "Arial Black", Impact, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(text).toUpperCase(), canvas.width / 2, canvas.height / 2);
+  const label = String(text).toUpperCase();
+  ctx.strokeText(label, canvas.width / 2, canvas.height / 2);
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
   const tex = new THREE.CanvasTexture(canvas);
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   return tex;
 }
 
@@ -233,6 +237,100 @@ export function buildGeoPath(telemetryPoints, runway) {
     return new THREE.Vector3(x, altM, z);
   });
   return path;
+}
+
+// Given a phase ('takeoff' | 'landing') and telemetry history, compute the
+// RMS lateral deviation from the TRUE runway centerline (not a best-fit line).
+// Requires a normalized runway. Returns null if not enough ground samples.
+export function computeGeoCenterlineAccuracy(telemetryHistory, runway, phase) {
+  if (!runway || !Array.isArray(telemetryHistory) || telemetryHistory.length < 5) return null;
+  const readOnGround = (p) => {
+    const raw = p?.on_ground ?? p?.onGround ?? p?.grounded;
+    if (typeof raw === 'boolean') return raw;
+    if (typeof raw === 'number') return raw > 0.5;
+    if (typeof raw === 'string') {
+      const s = raw.trim().toLowerCase();
+      if (['1', 'true', 'yes', 'on', 'ground'].includes(s)) return true;
+      if (['0', 'false', 'no', 'off', 'air'].includes(s)) return false;
+    }
+    return null;
+  };
+  const readSpd = (p) => Number(p?.spd ?? p?.speed ?? p?.gs ?? p?.ground_speed ?? 0);
+  const extractCoord = (p) => {
+    const lat = Number(p?.lat ?? p?.latitude);
+    const lon = Number(p?.lon ?? p?.lng ?? p?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (Math.abs(lat) < 0.5 && Math.abs(lon) < 0.5) return null;
+    return { lat, lon };
+  };
+
+  // Find the indices bounding the relevant ground-roll phase.
+  let startIdx = -1;
+  let endIdx = -1;
+  if (phase === 'takeoff') {
+    // From first on_ground moving sample to last on_ground before liftoff.
+    let onGroundSeen = false;
+    for (let i = 0; i < telemetryHistory.length; i += 1) {
+      const og = readOnGround(telemetryHistory[i]);
+      const spd = readSpd(telemetryHistory[i]);
+      if (og === true && spd > 20) {
+        if (startIdx < 0) startIdx = i;
+        endIdx = i;
+        onGroundSeen = true;
+      } else if (onGroundSeen && og === false) {
+        break; // airborne => stop
+      }
+    }
+  } else {
+    // Landing: from touchdown to rollout stop (< 20 kts or airborne again).
+    let airborneSeen = false;
+    for (let i = 0; i < telemetryHistory.length; i += 1) {
+      const og = readOnGround(telemetryHistory[i]);
+      if (og === false) airborneSeen = true;
+      if (airborneSeen && og === true) {
+        if (startIdx < 0) startIdx = Math.max(0, i - 1);
+        endIdx = i;
+      }
+      if (startIdx >= 0) {
+        const spd = readSpd(telemetryHistory[i]);
+        if (i > startIdx + 2 && (og !== true || (Number.isFinite(spd) && spd < 20))) break;
+        endIdx = i;
+      }
+    }
+  }
+  if (startIdx < 0 || endIdx <= startIdx) return null;
+
+  const coords = [];
+  for (let i = startIdx; i <= endIdx; i += 1) {
+    const c = extractCoord(telemetryHistory[i]);
+    if (c) coords.push(c);
+  }
+  if (coords.length < 3) return null;
+
+  // Project each coord into runway frame and measure lateralM (= perpendicular
+  // distance to the true centerline through the threshold at the runway heading).
+  let sumSq = 0;
+  let maxAbs = 0;
+  let minAlong = Infinity;
+  let maxAlong = -Infinity;
+  for (const c of coords) {
+    const { alongM, lateralM } = projectToRunwayFrame(c.lat, c.lon, runway);
+    sumSq += lateralM * lateralM;
+    const abs = Math.abs(lateralM);
+    if (abs > maxAbs) maxAbs = abs;
+    if (alongM < minAlong) minAlong = alongM;
+    if (alongM > maxAlong) maxAlong = alongM;
+  }
+  const rms = Math.sqrt(sumSq / coords.length);
+  const lengthMeters = Number.isFinite(minAlong) && Number.isFinite(maxAlong) ? Math.abs(maxAlong - minAlong) : 0;
+  if (lengthMeters < 100) return null;
+  return {
+    rmsMeters: rms,
+    maxMeters: maxAbs,
+    sampleCount: coords.length,
+    lengthMeters,
+    valid: true,
+  };
 }
 
 // Fallback synthetic path when no geo data is available.

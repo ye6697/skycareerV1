@@ -13,8 +13,9 @@ import {
   buildSyntheticPath,
 } from '@/components/flights/approachGeometry';
 
-// Visualizes the last N seconds of a flight as a 3D approach path with replay.
-export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 }) {
+// Visualizes a slice of telemetry (final approach OR initial takeoff) as a 3D replay.
+// phase: 'landing' (last N seconds, default) | 'takeoff' (first N seconds after motion)
+export default function FinalApproach3D({ flight, onClose, durationSeconds = 30, phase = 'landing' }) {
   const { lang } = useLanguage();
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
@@ -28,30 +29,57 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
   const [runway, setRunway] = useState(null); // normalized runway or null
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
 
-  // Extract last N seconds from telemetry_history
+  // Extract the relevant window from telemetry history (first N sec for takeoff, last N sec for landing).
   const segment = useMemo(() => {
     const xpd = flight?.xplane_data || {};
     const history = xpd.telemetry_history || xpd.telemetryHistory || [];
     if (!Array.isArray(history) || history.length < 2) return null;
 
-    const lastTs = new Date(history[history.length - 1]?.t || Date.now()).getTime();
-    if (!Number.isFinite(lastTs)) return null;
-    const cutoffMs = lastTs - durationSeconds * 1000;
+    const mapPoint = (p) => ({
+      t: new Date(p?.t || 0).getTime(),
+      alt: Number(p?.alt ?? 0),
+      spd: Number(p?.spd ?? p?.ias ?? 0),
+      vs: Number(p?.vs ?? 0),
+      g: Number(p?.g ?? 1),
+      lat: Number(p?.lat ?? p?.latitude ?? 0),
+      lon: Number(p?.lon ?? p?.lng ?? p?.longitude ?? 0),
+      on_ground: p?.on_ground ?? p?.onGround ?? null,
+    });
 
-    const points = history
-      .filter((p) => {
-        const ts = new Date(p?.t || 0).getTime();
-        return Number.isFinite(ts) && ts >= cutoffMs;
-      })
-      .map((p) => ({
-        t: new Date(p.t).getTime(),
-        alt: Number(p.alt ?? 0),
-        spd: Number(p.spd ?? p.ias ?? 0),
-        vs: Number(p.vs ?? 0),
-        g: Number(p.g ?? 1),
-        lat: Number(p.lat ?? p.latitude ?? 0),
-        lon: Number(p.lon ?? p.lng ?? p.longitude ?? 0),
-      }));
+    let points;
+    if (phase === 'takeoff') {
+      // Find liftoff index, then take samples from (liftoff - durationSeconds) to (liftoff + 5s).
+      let liftoffIdx = -1;
+      let groundSeen = false;
+      for (let i = 0; i < history.length; i += 1) {
+        const og = history[i]?.on_ground ?? history[i]?.onGround;
+        if (og === true || og === 1) groundSeen = true;
+        if (groundSeen && (og === false || og === 0)) { liftoffIdx = i; break; }
+      }
+      if (liftoffIdx < 0) {
+        // Fallback: first quarter of flight
+        liftoffIdx = Math.min(history.length - 1, Math.floor(history.length * 0.1));
+      }
+      const liftoffTs = new Date(history[liftoffIdx]?.t || Date.now()).getTime();
+      const startMs = liftoffTs - durationSeconds * 1000;
+      const endMs = liftoffTs + 8000;
+      points = history
+        .filter((p) => {
+          const ts = new Date(p?.t || 0).getTime();
+          return Number.isFinite(ts) && ts >= startMs && ts <= endMs;
+        })
+        .map(mapPoint);
+    } else {
+      const lastTs = new Date(history[history.length - 1]?.t || Date.now()).getTime();
+      if (!Number.isFinite(lastTs)) return null;
+      const cutoffMs = lastTs - durationSeconds * 1000;
+      points = history
+        .filter((p) => {
+          const ts = new Date(p?.t || 0).getTime();
+          return Number.isFinite(ts) && ts >= cutoffMs;
+        })
+        .map(mapPoint);
+    }
 
     if (points.length < 2) return null;
 
@@ -62,22 +90,32 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
     const maxAlt = Math.max(...points.map(p => p.alt));
 
     return { points, t0, tEnd, totalSec, minAlt, maxAlt };
-  }, [flight, durationSeconds]);
+  }, [flight, durationSeconds, phase]);
 
-  // Fetch real runway data from OurAirports based on arrival airport + touchdown coords.
+  // Fetch real runway data from OurAirports.
+  // Landing: use arrival ICAO + last sample's position as touchdown hint.
+  // Takeoff: use departure ICAO + first-moving sample position as origin hint.
   useEffect(() => {
     if (!segment) return;
     const xpd = flight?.xplane_data || {};
-    const icao = xpd.arrival_icao || xpd.arrival_airport || flight?.arrival_airport || '';
+    const icao = phase === 'takeoff'
+      ? (xpd.departure_icao || xpd.departure_airport || flight?.departure_airport || '')
+      : (xpd.arrival_icao || xpd.arrival_airport || flight?.arrival_airport || '');
     if (!icao) return;
-    const last = segment.points[segment.points.length - 1] || {};
-    const tdLat = Number.isFinite(last.lat) ? last.lat : Number(xpd.arrival_lat || 0);
-    const tdLon = Number.isFinite(last.lon) ? last.lon : Number(xpd.arrival_lon || 0);
+    const hintPoint = phase === 'takeoff'
+      ? (segment.points[0] || {})
+      : (segment.points[segment.points.length - 1] || {});
+    const hintLat = Number.isFinite(hintPoint.lat) && hintPoint.lat !== 0
+      ? hintPoint.lat
+      : Number((phase === 'takeoff' ? xpd.departure_lat : xpd.arrival_lat) || 0);
+    const hintLon = Number.isFinite(hintPoint.lon) && hintPoint.lon !== 0
+      ? hintPoint.lon
+      : Number((phase === 'takeoff' ? xpd.departure_lon : xpd.arrival_lon) || 0);
     let cancelled = false;
     (async () => {
       try {
         const res = await base44.functions.invoke('getRunwayInfo', {
-          icao, touchdown_lat: tdLat, touchdown_lon: tdLon,
+          icao, touchdown_lat: hintLat, touchdown_lon: hintLon,
         });
         if (cancelled) return;
         const picked = res?.data?.landing_runway;
@@ -87,7 +125,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
       }
     })();
     return () => { cancelled = true; };
-  }, [segment, flight]);
+  }, [segment, flight, phase]);
 
   // Build 3D scene
   useEffect(() => {
@@ -170,14 +208,28 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
 
     // Build 3D path referenced to the runway frame (georeferenced when possible).
     const geoPath = runway ? buildGeoPath(segment.points, runway) : null;
-    const path3D = (geoPath && geoPath.length >= 2)
+    const rawPath = (geoPath && geoPath.length >= 2)
       ? geoPath
       : buildSyntheticPath(segment.points, runway);
 
-    // Identify touchdown point (first point where altitude ~ 0 AGL after approach).
+    // Smooth the path with a Catmull-Rom spline so aircraft glides between
+    // telemetry samples instead of linearly jumping.
+    const curve = new THREE.CatmullRomCurve3(rawPath, false, 'catmullrom', 0.25);
+    const smoothCount = Math.max(rawPath.length * 6, 120);
+    const path3D = curve.getPoints(smoothCount);
+
+    // Identify touchdown / liftoff point.
+    // Landing: first point where altitude crosses ~0 AGL downward.
+    // Takeoff: first point where altitude crosses ~0 AGL upward (climb starts).
     let touchdownIdx = -1;
-    for (let i = 1; i < path3D.length; i += 1) {
-      if (path3D[i].y < 2 && path3D[i - 1].y >= 2) { touchdownIdx = i; break; }
+    if (phase === 'takeoff') {
+      for (let i = 1; i < path3D.length; i += 1) {
+        if (path3D[i - 1].y < 2 && path3D[i].y >= 2) { touchdownIdx = i; break; }
+      }
+    } else {
+      for (let i = 1; i < path3D.length; i += 1) {
+        if (path3D[i].y < 2 && path3D[i - 1].y >= 2) { touchdownIdx = i; break; }
+      }
     }
     if (touchdownIdx < 0) {
       // Fallback: lowest altitude point
@@ -388,7 +440,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
         camera.position.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
         camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
       } else if (cameraMode === 'side') {
-        camera.position.set(300, Math.max(80, pos.y + 60), pos.z);
+        // Side view: from the LEFT side (negative X), closer for more detail.
+        // Aircraft flies right-to-left across the viewport in landing phase.
+        camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
         camera.lookAt(pos);
       } else if (cameraMode === 'top') {
         camera.position.set(0, 500, pos.z + 100);
@@ -460,7 +514,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-cyan-300 font-mono uppercase tracking-[0.25em]">
-                FLIGHT DATA REPLAY
+                {phase === 'takeoff' ? 'TAKEOFF REPLAY' : 'LANDING REPLAY'}
               </h2>
               <span className="text-[9px] font-mono text-slate-500 uppercase border border-slate-700 px-1.5 py-0.5 rounded">
                 T-{Math.round(segment.totalSec)}s
@@ -532,7 +586,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
           <div className="absolute bottom-24 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md p-3 font-mono backdrop-blur-sm shadow-[0_0_20px_rgba(34,211,238,0.15)] min-w-[220px] max-w-[260px]">
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-cyan-900/50">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-              <span className="text-[9px] uppercase tracking-[0.25em] text-cyan-400">Touchdown Analysis</span>
+              <span className="text-[9px] uppercase tracking-[0.25em] text-cyan-400">
+                {phase === 'takeoff' ? 'Liftoff Analysis' : 'Touchdown Analysis'}
+              </span>
               {runway?.landingIdent && (
                 <span className="ml-auto text-[9px] text-slate-500 uppercase">RWY {runway.landingIdent}</span>
               )}
@@ -549,7 +605,25 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
                 const distFromThreshold = -alongM; // positive when on runway
                 let landingLabel;
                 let labelColor;
-                if (alongM > 0) {
+                if (phase === 'takeoff') {
+                  // Takeoff: evaluate ground-roll distance used before liftoff.
+                  if (alongM > 0) {
+                    landingLabel = lang === 'de' ? 'FRUEH ABGEHOBEN' : 'EARLY LIFTOFF';
+                    labelColor = 'text-amber-400';
+                  } else if (distFromThreshold > runwayLen) {
+                    landingLabel = lang === 'de' ? 'UEBER BAHNENDE' : 'ROLL PAST END';
+                    labelColor = 'text-red-400';
+                  } else if (distFromThreshold < 600) {
+                    landingLabel = lang === 'de' ? 'KURZER TAKEOFF-ROLL' : 'SHORT TAKEOFF ROLL';
+                    labelColor = 'text-emerald-400';
+                  } else if (distFromThreshold < 1800) {
+                    landingLabel = lang === 'de' ? 'NORMALER TAKEOFF' : 'NORMAL TAKEOFF';
+                    labelColor = 'text-emerald-400';
+                  } else {
+                    landingLabel = lang === 'de' ? 'LANGER TAKEOFF-ROLL' : 'LONG TAKEOFF ROLL';
+                    labelColor = 'text-amber-400';
+                  }
+                } else if (alongM > 0) {
                   landingLabel = lang === 'de' ? 'VOR DER SCHWELLE' : 'SHORT OF THRESHOLD';
                   labelColor = 'text-red-400';
                 } else if (distFromThreshold > runwayLen) {

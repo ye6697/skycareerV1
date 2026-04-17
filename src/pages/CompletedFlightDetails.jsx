@@ -28,6 +28,7 @@ import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import FinalApproach3D from "@/components/flights/FinalApproach3D";
 import RunwayAccuracyCard from "@/components/flights/RunwayAccuracyCard";
 import { computeRunwayAccuracy, evaluateRunwayAccuracy } from "@/components/flights/runwayAccuracy";
+import { computeGeoCenterlineAccuracy, normalizeRunway } from "@/components/flights/approachGeometry";
 import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
@@ -43,6 +44,7 @@ export default function CompletedFlightDetails() {
   const urlParams = new URLSearchParams(window.location.search);
   const contractId = urlParams.get('contractId');
   const [showApproach3D, setShowApproach3D] = React.useState(false);
+  const [showTakeoff3D, setShowTakeoff3D] = React.useState(false);
   
   // Hole Daten aus State von FlightTracker
   const passedFlight = location.state?.flight;
@@ -109,19 +111,75 @@ export default function CompletedFlightDetails() {
     runwayBackfillDoneRef.current.add(flight.id);
 
     const telemetryHistory = flight?.xplane_data?.telemetry_history || [];
-    const accuracy = computeRunwayAccuracy(telemetryHistory);
-    if (!accuracy?.takeoff && !accuracy?.landing) return;
-
     const basePayout = Number(finalContract?.payout || flight?.revenue || 0);
-    const takeoffEval = accuracy.takeoff ? evaluateRunwayAccuracy(accuracy.takeoff.rmsMeters, basePayout) : null;
-    const landingEval = accuracy.landing ? evaluateRunwayAccuracy(accuracy.landing.rmsMeters, basePayout) : null;
-    const totalScoreDelta = (takeoffEval?.scoreDelta || 0) + (landingEval?.scoreDelta || 0);
-    const totalCashDelta = (takeoffEval?.cashDelta || 0) + (landingEval?.cashDelta || 0);
+    const xpd = flight?.xplane_data || {};
 
-    if (totalScoreDelta === 0 && totalCashDelta === 0) return;
-
+    // Resolve departure + arrival runways via OurAirports, then measure lateral
+    // deviation from the TRUE centerline. Fall back to best-fit-line (old method)
+    // only if runway info can't be resolved.
     (async () => {
       try {
+        const fetchRunway = async (icao, lat, lon) => {
+          if (!icao) return null;
+          try {
+            const res = await base44.functions.invoke('getRunwayInfo', {
+              icao, touchdown_lat: lat, touchdown_lon: lon,
+            });
+            const picked = res?.data?.landing_runway;
+            return picked ? normalizeRunway(picked) : null;
+          } catch (_) { return null; }
+        };
+
+        // Heuristic hint coords: first moving ground sample for departure,
+        // last sample for arrival. Falls back to airport coords in xplane_data.
+        const firstGround = telemetryHistory.find((p) => (p?.on_ground === true || p?.on_ground === 1) && Number(p?.spd ?? p?.speed ?? 0) > 20);
+        const lastSample = telemetryHistory[telemetryHistory.length - 1] || {};
+        const depIcao = xpd.departure_icao || xpd.departure_airport || flight?.departure_airport || '';
+        const arrIcao = xpd.arrival_icao || xpd.arrival_airport || flight?.arrival_airport || '';
+        const depHintLat = Number(firstGround?.lat ?? xpd.departure_lat ?? 0);
+        const depHintLon = Number(firstGround?.lon ?? xpd.departure_lon ?? 0);
+        const arrHintLat = Number(lastSample?.lat ?? xpd.arrival_lat ?? 0);
+        const arrHintLon = Number(lastSample?.lon ?? xpd.arrival_lon ?? 0);
+
+        const [depRunway, arrRunway] = await Promise.all([
+          fetchRunway(depIcao, depHintLat, depHintLon),
+          fetchRunway(arrIcao, arrHintLat, arrHintLon),
+        ]);
+
+        const takeoffGeo = depRunway ? computeGeoCenterlineAccuracy(telemetryHistory, depRunway, 'takeoff') : null;
+        const landingGeo = arrRunway ? computeGeoCenterlineAccuracy(telemetryHistory, arrRunway, 'landing') : null;
+
+        // Fallback to best-fit line where geo accuracy wasn't available.
+        const legacy = (!takeoffGeo || !landingGeo) ? computeRunwayAccuracy(telemetryHistory) : { takeoff: null, landing: null };
+        const takeoffAcc = takeoffGeo || legacy.takeoff || null;
+        const landingAcc = landingGeo || legacy.landing || null;
+        if (!takeoffAcc && !landingAcc) return;
+
+        const takeoffEval = takeoffAcc ? evaluateRunwayAccuracy(takeoffAcc.rmsMeters, basePayout) : null;
+        const landingEval = landingAcc ? evaluateRunwayAccuracy(landingAcc.rmsMeters, basePayout) : null;
+        const totalScoreDelta = (takeoffEval?.scoreDelta || 0) + (landingEval?.scoreDelta || 0);
+        const totalCashDelta = (takeoffEval?.cashDelta || 0) + (landingEval?.cashDelta || 0);
+
+        // Save accuracy even if no deltas so the UI can still show the result.
+        if (totalScoreDelta === 0 && totalCashDelta === 0) {
+          await base44.entities.Flight.update(flight.id, {
+            xplane_data: {
+              ...(flight.xplane_data || {}),
+              runway_accuracy_applied: true,
+              runway_accuracy: {
+                takeoff: takeoffAcc ? { ...takeoffAcc, ...(takeoffEval || {}), geoReferenced: !!takeoffGeo } : null,
+                landing: landingAcc ? { ...landingAcc, ...(landingEval || {}), geoReferenced: !!landingGeo } : null,
+                totalScoreDelta: 0,
+                totalCashDelta: 0,
+              },
+            },
+          });
+          return;
+        }
+
+        // Apply deltas (same logic as before).
+        const accuracy = { takeoff: takeoffAcc, landing: landingAcc };
+        void accuracy;
         const currentScore = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0);
         const adjustedScore = Math.max(0, Math.min(100, currentScore + totalScoreDelta));
         const adjustedProfit = Number(flight?.profit || 0) + totalCashDelta;
@@ -469,6 +527,40 @@ export default function CompletedFlightDetails() {
 
               {/* Flight Profile Chart */}
               <FlightProfileChart flight={flight} />
+
+              {/* Takeoff 3D Replay Button */}
+              <button
+                onClick={() => setShowTakeoff3D(true)}
+                className="group relative w-full overflow-hidden rounded-md border border-emerald-500/40 bg-slate-950 hover:border-emerald-400 transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:shadow-[0_0_30px_rgba(16,185,129,0.35)]"
+              >
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <span className="pointer-events-none absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-emerald-400" />
+                <span className="pointer-events-none absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-emerald-400" />
+                <span className="pointer-events-none absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-emerald-400" />
+                <span className="pointer-events-none absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-emerald-400" />
+                <div className="relative flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <span className="absolute inset-0 rounded-full bg-emerald-400/30 animate-ping" />
+                      <span className="relative flex items-center justify-center w-8 h-8 rounded-full border border-emerald-400 bg-emerald-950">
+                        <Play className="w-3.5 h-3.5 text-emerald-300 fill-emerald-300" />
+                      </span>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-emerald-500">
+                        {lang === 'de' ? 'Flight Data Replay' : 'Flight Data Replay'}
+                      </p>
+                      <p className="text-sm font-mono font-bold uppercase tracking-wider text-emerald-300">
+                        {lang === 'de' ? 'Takeoff · 3D' : 'Takeoff · 3D'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2 px-2 py-1 rounded border border-emerald-900/60 bg-emerald-950/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-400">T+30s</span>
+                  </div>
+                </div>
+              </button>
 
               {/* Final Approach 3D Replay Button */}
               <button
@@ -1124,7 +1216,10 @@ export default function CompletedFlightDetails() {
       </div>
 
       {showApproach3D && flight && (
-        <FinalApproach3D flight={flight} onClose={() => setShowApproach3D(false)} />
+        <FinalApproach3D flight={flight} phase="landing" onClose={() => setShowApproach3D(false)} />
+      )}
+      {showTakeoff3D && flight && (
+        <FinalApproach3D flight={flight} phase="takeoff" onClose={() => setShowTakeoff3D(false)} />
       )}
     </div>
   );
