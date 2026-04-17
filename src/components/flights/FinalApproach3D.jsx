@@ -368,10 +368,6 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
       pathMat.dispose();
       activePathGeo.dispose();
       activePathMat.dispose();
-      planeGeo.dispose();
-      planeMat.dispose();
-      ringGeo.dispose();
-      ringMat.dispose();
       groundGeo.dispose();
       groundMat.dispose();
       runwayGeo.dispose();
