@@ -11,6 +11,7 @@ import {
   normalizeRunway,
   buildGeoPath,
   buildSyntheticPath,
+  projectToRunwayFrame,
 } from '@/components/flights/approachGeometry';
 
 // Visualizes a slice of telemetry (final approach OR initial takeoff) as a 3D replay.
@@ -37,10 +38,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     const mapPoint = (p) => ({
       t: new Date(p?.t || 0).getTime(),
-      alt: Number(p?.alt ?? 0),
-      spd: Number(p?.spd ?? p?.ias ?? 0),
-      vs: Number(p?.vs ?? 0),
-      g: Number(p?.g ?? 1),
+      alt: Number(p?.alt ?? p?.altitude ?? 0),
+      // Cover all common speed field names: indicated, ground, true airspeed.
+      spd: Number(p?.spd ?? p?.ias ?? p?.speed ?? p?.gs ?? p?.ground_speed ?? p?.tas ?? 0),
+      vs: Number(p?.vs ?? p?.vertical_speed ?? 0),
+      g: Number(p?.g ?? p?.g_force ?? 1),
       lat: Number(p?.lat ?? p?.latitude ?? 0),
       lon: Number(p?.lon ?? p?.lng ?? p?.longitude ?? 0),
       on_ground: p?.on_ground ?? p?.onGround ?? null,
@@ -48,9 +50,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     let points;
     if (phase === 'takeoff') {
-      // Find liftoff index, then take a longer window: from takeoff-roll start
-      // through initial climb. -20s covers the ground roll from brake release,
-      // +40s shows a substantial initial climb after liftoff.
+      // Find liftoff index: first airborne sample after any ground motion.
+      // Fallback strategies (in order):
+      //  1. on_ground flag transition (ground → airborne)
+      //  2. altitude-based: first sample where alt rises significantly above min
+      //  3. take the first 60 seconds of the flight as-is
       let liftoffIdx = -1;
       let groundSeen = false;
       for (let i = 0; i < history.length; i += 1) {
@@ -59,17 +63,43 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         if (groundSeen && (og === false || og === 0)) { liftoffIdx = i; break; }
       }
       if (liftoffIdx < 0) {
-        liftoffIdx = Math.min(history.length - 1, Math.floor(history.length * 0.1));
+        // Altitude-based fallback: first sample > 100ft above the minimum of
+        // the first 20% of the flight (approximating ground elevation).
+        const scanEnd = Math.max(10, Math.floor(history.length * 0.2));
+        let groundAlt = Infinity;
+        for (let i = 0; i < scanEnd; i += 1) {
+          const a = Number(history[i]?.alt ?? 0);
+          if (Number.isFinite(a) && a < groundAlt) groundAlt = a;
+        }
+        if (!Number.isFinite(groundAlt)) groundAlt = 0;
+        for (let i = 0; i < scanEnd; i += 1) {
+          const a = Number(history[i]?.alt ?? 0);
+          if (Number.isFinite(a) && a > groundAlt + 100) { liftoffIdx = i; break; }
+        }
       }
-      const liftoffTs = new Date(history[liftoffIdx]?.t || Date.now()).getTime();
-      const startMs = liftoffTs - 20 * 1000;
-      const endMs = liftoffTs + 40 * 1000;
-      points = history
-        .filter((p) => {
-          const ts = new Date(p?.t || 0).getTime();
-          return Number.isFinite(ts) && ts >= startMs && ts <= endMs;
-        })
-        .map(mapPoint);
+
+      if (liftoffIdx >= 0) {
+        // Window around liftoff: -25s ground roll + 45s initial climb.
+        const liftoffTs = new Date(history[liftoffIdx]?.t || Date.now()).getTime();
+        const startMs = liftoffTs - 25 * 1000;
+        const endMs = liftoffTs + 45 * 1000;
+        points = history
+          .filter((p) => {
+            const ts = new Date(p?.t || 0).getTime();
+            return Number.isFinite(ts) && ts >= startMs && ts <= endMs;
+          })
+          .map(mapPoint);
+      } else {
+        // Last resort: take the first 70 seconds of telemetry as-is.
+        const firstTs = new Date(history[0]?.t || Date.now()).getTime();
+        const endMs = firstTs + 70 * 1000;
+        points = history
+          .filter((p) => {
+            const ts = new Date(p?.t || 0).getTime();
+            return Number.isFinite(ts) && ts >= firstTs && ts <= endMs;
+          })
+          .map(mapPoint);
+      }
     } else {
       const lastTs = new Date(history[history.length - 1]?.t || Date.now()).getTime();
       if (!Number.isFinite(lastTs)) return null;
@@ -220,26 +250,49 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const smoothCount = Math.max(rawPath.length * 8, 200);
     const path3D = curve.getSpacedPoints(smoothCount);
 
-    // Identify touchdown / liftoff point.
-    // Landing: first point where altitude crosses ~0 AGL downward.
-    // Takeoff: first point where altitude crosses ~0 AGL upward (climb starts).
-    let touchdownIdx = -1;
+    // Identify the REAL touchdown / liftoff telemetry sample (not spline).
+    // Landing: first on_ground=true after airborne. Takeoff: first on_ground=false after ground.
+    // Fallback uses altitude transitions in the actual telemetry.
+    let realTdPointIdx = -1;
     if (phase === 'takeoff') {
-      for (let i = 1; i < path3D.length; i += 1) {
-        if (path3D[i - 1].y < 2 && path3D[i].y >= 2) { touchdownIdx = i; break; }
+      let groundSeen = false;
+      for (let i = 0; i < segment.points.length; i += 1) {
+        const og = segment.points[i].on_ground;
+        if (og === true || og === 1) groundSeen = true;
+        if (groundSeen && (og === false || og === 0)) { realTdPointIdx = i; break; }
+      }
+      if (realTdPointIdx < 0) {
+        // Altitude fallback: first sample significantly above minimum.
+        const minA = Math.min(...segment.points.map(p => p.alt));
+        for (let i = 0; i < segment.points.length; i += 1) {
+          if (segment.points[i].alt > minA + 50) { realTdPointIdx = i; break; }
+        }
       }
     } else {
-      for (let i = 1; i < path3D.length; i += 1) {
-        if (path3D[i].y < 2 && path3D[i - 1].y >= 2) { touchdownIdx = i; break; }
+      let airborneSeen = false;
+      for (let i = 0; i < segment.points.length; i += 1) {
+        const og = segment.points[i].on_ground;
+        if (og === false || og === 0) airborneSeen = true;
+        if (airborneSeen && (og === true || og === 1)) { realTdPointIdx = i; break; }
+      }
+      if (realTdPointIdx < 0) {
+        // Altitude fallback: lowest altitude sample in the second half.
+        const half = Math.floor(segment.points.length / 2);
+        let minA = Infinity;
+        for (let i = half; i < segment.points.length; i += 1) {
+          if (segment.points[i].alt < minA) { minA = segment.points[i].alt; realTdPointIdx = i; }
+        }
       }
     }
-    if (touchdownIdx < 0) {
-      // Fallback: lowest altitude point
-      let minY = Infinity;
-      for (let i = 0; i < path3D.length; i += 1) {
-        if (path3D[i].y < minY) { minY = path3D[i].y; touchdownIdx = i; }
-      }
+
+    // Pick the spline index closest in time to the real touchdown for 3D visualization.
+    let touchdownIdx = -1;
+    if (realTdPointIdx >= 0) {
+      const targetT = segment.points[realTdPointIdx].t;
+      const tNorm = (targetT - segment.t0) / Math.max(1, segment.tEnd - segment.t0);
+      touchdownIdx = Math.round(tNorm * (path3D.length - 1));
     }
+    if (touchdownIdx < 0) touchdownIdx = Math.floor(path3D.length / 2);
 
     // Visualize the touchdown point (big cyan ring on the ground).
     if (touchdownIdx >= 0 && path3D[touchdownIdx]) {
@@ -251,25 +304,29 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       ring.position.set(td.x, 0.08, td.z);
       scene.add(ring);
 
-      // Vertical pillar from touchdown point up, labeled in HUD overlay.
       const pillarGeo = new THREE.CylinderGeometry(0.15, 0.15, 80, 8);
       const pillarMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.5 });
       const pillar = new THREE.Mesh(pillarGeo, pillarMat);
       pillar.position.set(td.x, 40, td.z);
       scene.add(pillar);
 
-      // Store touchdown info for HUD (only if georeferenced)
-      if (geoPath && runway) {
-        const alongM = td.z;
-        const lateralM = td.x;
-        setTouchdownInfo({
-          // Z=0 is the landing threshold. Z<0 = past threshold on runway. Z>0 = short of threshold.
-          alongM,
-          lateralM,
-          shortOfThreshold: alongM > 0,
-          runwayLenM,
-          runwayWidthM: runway.widthM,
-        });
+      // For the HUD readout, project the REAL telemetry coordinate (lat/lon)
+      // into the runway frame → true meters, no spline interpolation.
+      if (runway && realTdPointIdx >= 0) {
+        const realPt = segment.points[realTdPointIdx];
+        if (Number.isFinite(realPt.lat) && Number.isFinite(realPt.lon) &&
+            Math.abs(realPt.lat) + Math.abs(realPt.lon) > 0.001) {
+          const { alongM, lateralM } = projectToRunwayFrame(realPt.lat, realPt.lon, runway);
+          setTouchdownInfo({
+            alongM,         // >0 short of threshold, <0 past threshold
+            lateralM,       // >0 right of centerline, <0 left
+            shortOfThreshold: alongM > 0,
+            runwayLenM,
+            runwayWidthM: runway.widthM,
+          });
+        } else {
+          setTouchdownInfo(null);
+        }
       } else {
         setTouchdownInfo(null);
       }
@@ -442,19 +499,23 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       }
 
       // Camera positioning - scene units are meters now.
-      if (cameraMode === 'chase') {
-        const back = new THREE.Vector3().subVectors(cur, next).normalize().multiplyScalar(80);
-        camera.position.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
-        camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
-      } else if (cameraMode === 'side') {
-        // Side view: from the LEFT side (negative X), closer for more detail.
-        // Aircraft flies right-to-left across the viewport in landing phase.
-        camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
-        camera.lookAt(pos);
-      } else if (cameraMode === 'top') {
-        // Closer top-down view so the aircraft + runway fill the frame.
-        camera.position.set(0, 180, pos.z + 30);
-        camera.lookAt(pos.x, 0, pos.z);
+      // Top view uses a different up-vector so the runway stays axis-aligned;
+      // other views need the standard up so the world renders right-way-up.
+      if (cameraMode === 'top') {
+        camera.up.set(0, 0, -1); // -Z points "up" on screen (approach direction)
+        camera.position.set(0, 220, pos.z);
+        camera.lookAt(0, 0, pos.z);
+      } else {
+        camera.up.set(0, 1, 0);
+        if (cameraMode === 'chase') {
+          const back = new THREE.Vector3().subVectors(cur, next).normalize().multiplyScalar(80);
+          camera.position.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
+          camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
+        } else {
+          // Side view: from the LEFT side (negative X), close for more detail.
+          camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
+          camera.lookAt(pos);
+        }
       }
 
       renderer.render(scene, camera);

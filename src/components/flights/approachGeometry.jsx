@@ -135,26 +135,31 @@ export function buildRunwayScene(runway, makeLabelTexture) {
     });
   });
 
-  // ICAO runway designator label (big number painted near threshold).
-  // Square geometry to match square canvas texture → no distortion.
-  // Positioned ~150m past the piano-keys so it's clearly visible and not hidden.
+  // ICAO runway designator label (big number painted on the runway surface).
+  // Lifted 0.15m above the runway and rendered with polygonOffset + depthTest off
+  // so it never gets hidden by the asphalt, centerline, or TDZ markings.
   const buildLabel = (text, zPos, flipForApproach) => {
     const tex = makeLabelTexture(text);
     if (!tex) return;
-    const labelSize = Math.min(widM * 0.6, 22);
+    const labelSize = Math.min(widM * 0.7, 26);
     const geo = new THREE.PlaneGeometry(labelSize, labelSize);
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+    });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
     if (flipForApproach) mesh.rotation.z = Math.PI;
-    mesh.position.set(0, 0.1, zPos);
-    mesh.renderOrder = 3;
+    mesh.position.set(0, 0.2, zPos);
+    mesh.renderOrder = 10;
     group.add(mesh);
   };
-  // Landing runway number painted well past the piano keys for visibility.
-  buildLabel(runway?.landingIdent || '', -150, false);
+  // Landing runway number painted past the piano keys for visibility.
+  buildLabel(runway?.landingIdent || '', -200, false);
   // Opposite-end designator near the far end of the runway.
-  buildLabel(runway?.oppositeIdent || '', -lenM + 150, true);
+  buildLabel(runway?.oppositeIdent || '', -lenM + 200, true);
 
   // Approach lighting (leading to threshold from +Z)
   const alsMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
