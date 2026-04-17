@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from "@/components/LanguageContext";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 const SERIES_CONFIG = {
   altitude: { label: 'Altitude', unit: 'ft', color: '#a3e635', yAxisId: 'left' },
@@ -33,6 +34,7 @@ function CustomTooltip({ active, payload, label }) {
 export default function FlightProfileChart({ flight }) {
   const { lang } = useLanguage();
   const [activeSeries, setActiveSeries] = useState(['altitude', 'ias']);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Zoom state: start/end indices into chartData
   const [viewStart, setViewStart] = useState(0);
@@ -257,8 +259,12 @@ export default function FlightProfileChart({ flight }) {
   // Zoom percentage for indicator
   const zoomPct = totalLen > 0 ? Math.round((windowSize / totalLen) * 100) : 100;
 
+  const cardClass = isFullscreen
+    ? "fixed inset-0 z-[100] bg-slate-950 border-0 rounded-none overflow-hidden flex flex-col"
+    : "bg-slate-900/80 border-slate-800 overflow-hidden";
+
   return (
-    <Card className="bg-slate-900/80 border-slate-800 overflow-hidden">
+    <Card className={cardClass}>
       <div className="px-4 pt-3 pb-1">
         <div className="flex flex-wrap items-center gap-1.5 mb-2">
           {TOGGLE_KEYS.map((key) => {
@@ -290,6 +296,13 @@ export default function FlightProfileChart({ flight }) {
                 </button>
               </>
             )}
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-all"
+              title={isFullscreen ? (lang === 'de' ? 'Vollbild verlassen' : 'Exit fullscreen') : (lang === 'de' ? 'Vollbild' : 'Fullscreen')}
+            >
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
         <p className="text-[10px] text-slate-500 mb-1">
@@ -314,8 +327,8 @@ export default function FlightProfileChart({ flight }) {
 
       <div
         ref={containerRef}
-        className="px-2 pb-3 select-none"
-        style={{ height: 260, cursor: isZoomed ? (isPanning ? 'grabbing' : 'grab') : 'default', touchAction: 'none' }}
+        className={`px-2 pb-3 select-none ${isFullscreen ? 'flex-1' : ''}`}
+        style={{ height: isFullscreen ? 'auto' : 260, cursor: isZoomed ? (isPanning ? 'grabbing' : 'grab') : 'default', touchAction: 'none' }}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

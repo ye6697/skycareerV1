@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader,
-  Timer
+  Timer,
+  Play
 } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
@@ -24,6 +25,7 @@ import LandingQualityVisual from "@/components/flights/LandingQualityVisual";
 import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FlightProfileChart from "@/components/flights/FlightProfileChart";
+import FinalApproach3D from "@/components/flights/FinalApproach3D";
 import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
@@ -38,6 +40,7 @@ export default function CompletedFlightDetails() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const contractId = urlParams.get('contractId');
+  const [showApproach3D, setShowApproach3D] = React.useState(false);
   
   // Hole Daten aus State von FlightTracker
   const passedFlight = location.state?.flight;
@@ -382,6 +385,15 @@ export default function CompletedFlightDetails() {
 
               {/* Flight Profile Chart */}
               <FlightProfileChart flight={flight} />
+
+              {/* Final Approach 3D Replay Button */}
+              <Button
+                onClick={() => setShowApproach3D(true)}
+                className="w-full bg-gradient-to-r from-cyan-700 to-blue-700 hover:from-cyan-600 hover:to-blue-600 text-white font-mono uppercase tracking-wider border border-cyan-500/30 shadow-lg"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                {lang === 'de' ? 'Letzte 30 Sekunden in 3D ansehen' : 'View Last 30 Seconds in 3D'}
+              </Button>
 
               {/* Flight Rating */}
               <FlightRating flight={flight} />
@@ -996,6 +1008,10 @@ export default function CompletedFlightDetails() {
           </Card>
         )}
       </div>
+
+      {showApproach3D && flight && (
+        <FinalApproach3D flight={flight} onClose={() => setShowApproach3D(false)} />
+      )}
     </div>
   );
 }
