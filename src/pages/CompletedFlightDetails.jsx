@@ -169,12 +169,17 @@ export default function CompletedFlightDetails() {
         const fpFirstLon = Array.isArray(fpFirst) ? Number(fpFirst[1]) : Number(fpFirst?.lon ?? fpFirst?.lng);
         const fpLastLat = Array.isArray(fpLast) ? Number(fpLast[0]) : Number(fpLast?.lat);
         const fpLastLon = Array.isArray(fpLast) ? Number(fpLast[1]) : Number(fpLast?.lon ?? fpLast?.lng);
-        const depIcao = xpd.departure_icao || xpd.departure_airport || xpd.contract_departure_airport || flight?.departure_airport || '';
-        const arrIcao = xpd.arrival_icao || xpd.arrival_airport || xpd.contract_arrival_airport || flight?.arrival_airport || '';
+        const depIcao = xpd.departure_icao || xpd.departure_airport || xpd.contract_departure_airport || flight?.departure_airport || finalContract?.departure_airport || '';
+        const arrIcao = xpd.arrival_icao || xpd.arrival_airport || xpd.contract_arrival_airport || flight?.arrival_airport || finalContract?.arrival_airport || '';
         const pickCoord = (...vals) => {
           for (const v of vals) {
             const n = Number(v);
-            if (Number.isFinite(n) && Math.abs(n) > 0.1) return n;
+            if (Number.isFinite(n) && Math.abs(n) > 1.0) return n;
+          }
+          // Second pass: accept any non-trivial value if no "large" coord found.
+          for (const v of vals) {
+            const n = Number(v);
+            if (Number.isFinite(n) && Math.abs(n) > 0.01) return n;
           }
           return 0;
         };

@@ -79,7 +79,28 @@ export default function RunwayAccuracyCard({ flight }) {
   const computed = stored || computeRunwayAccuracy(telemetryHistory);
 
   const hasAny = !!(computed?.takeoff || computed?.landing);
-  if (!hasAny) return null;
+  const backfillApplied = !!flight?.xplane_data?.runway_accuracy_applied;
+
+  // Show a "computing" placeholder while the backfill is still running,
+  // so the user knows the section exists and is being prepared.
+  if (!hasAny) {
+    if (backfillApplied) return null; // backfill ran but found nothing usable
+    return (
+      <Card className="p-6 bg-slate-800/50 border-slate-700">
+        <div className="flex items-center gap-2 mb-2">
+          <Target className="w-5 h-5 text-cyan-400" />
+          <h3 className="text-lg font-semibold text-white">
+            {lang === "de" ? "Centerline-Genauigkeit" : "Runway Centerline Accuracy"}
+          </h3>
+        </div>
+        <p className="text-xs text-slate-400">
+          {lang === "de"
+            ? "Centerline-Auswertung wird berechnet... Bitte Seite in wenigen Sekunden neu laden."
+            : "Centerline analysis is being computed... Please reload the page in a few seconds."}
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-6 bg-slate-800/50 border-slate-700">

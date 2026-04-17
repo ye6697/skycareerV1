@@ -1,5 +1,16 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+// Approximate touchdown vertical speed (ft/min) from landing G-force.
+// Based on simplified impact dynamics: heavier G at touchdown implies
+// higher sink rate. Calibrated to typical airliner data:
+//   1.0 G  = ~0 fpm (butter), 1.3 G = ~200 fpm, 1.5 G = ~350 fpm,
+//   1.8 G = ~550 fpm, 2.0 G = ~700 fpm, 2.5 G = ~1000 fpm.
+const approximateVsFromG = (gForce) => {
+  const g = Number(gForce);
+  if (!Number.isFinite(g) || g <= 1.0) return 0;
+  return Math.round((g - 1.0) * 700);
+};
+
 const firstFiniteNumber = (...values) => {
   for (const value of values) {
     const n = Number(value);
@@ -185,8 +196,16 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     .filter((value) => Number.isFinite(value) && value > 0);
   const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
 
+  // Sanitize: a real airliner touchdown V/S is 0..1500 fpm. Anything above is a
+  // sensor spike (common when the sampler hits the exact ground-contact frame).
+  // In that case approximate from peak G instead.
+  let safeVs = clamp(resolvedVs, 0, 10000);
+  if (safeVs > 1500 && resolvedG > 0) {
+    safeVs = approximateVsFromG(resolvedG);
+  }
+
   return {
-    landingVs: Math.round(clamp(resolvedVs, 0, 10000)),
+    landingVs: Math.round(safeVs),
     landingG: Number(clamp(resolvedG, 0, 6).toFixed(2)),
     source: "telemetry",
   };
@@ -208,17 +227,6 @@ const firstPositive = (...values) => {
     if (Number.isFinite(n) && n > 0) return n;
   }
   return 0;
-};
-
-// Approximate touchdown vertical speed (ft/min) from landing G-force.
-// Based on simplified impact dynamics: heavier G at touchdown implies
-// higher sink rate. Calibrated to typical airliner data:
-//   1.0 G  = ~0 fpm (butter), 1.3 G = ~200 fpm, 1.5 G = ~350 fpm,
-//   1.8 G = ~550 fpm, 2.0 G = ~700 fpm, 2.5 G = ~1000 fpm.
-const approximateVsFromG = (gForce) => {
-  const g = Number(gForce);
-  if (!Number.isFinite(g) || g <= 1.0) return 0;
-  return Math.round((g - 1.0) * 700);
 };
 
 export function resolveLandingMetricsFromFlight(flight) {

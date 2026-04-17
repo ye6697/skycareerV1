@@ -19,6 +19,7 @@ import {
 
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMetrics";
 
 export default function FlightHistory() {
   const { lang } = useLanguage();
@@ -224,13 +225,9 @@ export default function FlightHistory() {
                 const contract = getContractForFlight(flight);
                 const ac = getAircraftForFlight(flight);
                 const isFailed = flight.status === 'failed';
-                const landingG = flight.xplane_data?.landingGForce ?? flight.xplane_data?.landing_g_force ?? 0;
-                const landingVs = Number(
-                  flight.landing_vs ??
-                  flight.xplane_data?.touchdown_vspeed ??
-                  flight.xplane_data?.landing_vs ??
-                  0
-                ) || 0;
+                const sanitized = resolveLandingMetricsFromFlight(flight);
+                const landingG = Number(sanitized?.landingG || 0);
+                const landingVs = Number(sanitized?.landingVs || 0);
                 const madeDeadline = flight.xplane_data?.madeDeadline;
                 return (
                   <motion.div
