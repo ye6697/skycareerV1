@@ -471,13 +471,40 @@ export default function CompletedFlightDetails() {
               <FlightProfileChart flight={flight} />
 
               {/* Final Approach 3D Replay Button */}
-              <Button
+              <button
                 onClick={() => setShowApproach3D(true)}
-                className="w-full bg-gradient-to-r from-cyan-700 to-blue-700 hover:from-cyan-600 hover:to-blue-600 text-white font-mono uppercase tracking-wider border border-cyan-500/30 shadow-lg"
+                className="group relative w-full overflow-hidden rounded-md border border-cyan-500/40 bg-slate-950 hover:border-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.15)] hover:shadow-[0_0_30px_rgba(34,211,238,0.35)]"
               >
-                <Play className="w-4 h-4 mr-2" />
-                {lang === 'de' ? 'Letzte 30 Sekunden in 3D ansehen' : 'View Last 30 Seconds in 3D'}
-              </Button>
+                {/* Animated scanline */}
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                {/* Corner brackets */}
+                <span className="pointer-events-none absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
+                <span className="pointer-events-none absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-cyan-400" />
+                <span className="pointer-events-none absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-cyan-400" />
+                <span className="pointer-events-none absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-cyan-400" />
+                <div className="relative flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <span className="absolute inset-0 rounded-full bg-cyan-400/30 animate-ping" />
+                      <span className="relative flex items-center justify-center w-8 h-8 rounded-full border border-cyan-400 bg-cyan-950">
+                        <Play className="w-3.5 h-3.5 text-cyan-300 fill-cyan-300" />
+                      </span>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-cyan-500">
+                        {lang === 'de' ? 'Flight Data Replay' : 'Flight Data Replay'}
+                      </p>
+                      <p className="text-sm font-mono font-bold uppercase tracking-wider text-cyan-300">
+                        {lang === 'de' ? 'Final Approach · 3D' : 'Final Approach · 3D'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2 px-2 py-1 rounded border border-cyan-900/60 bg-cyan-950/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-cyan-400">T-30s</span>
+                  </div>
+                </div>
+              </button>
 
               {/* Flight Rating */}
               <FlightRating flight={flight} />

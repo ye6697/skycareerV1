@@ -12,7 +12,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
   const animationFrameRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0); // 0..1
-  const [cameraMode, setCameraMode] = useState('chase'); // chase | side | top
+  const [cameraMode, setCameraMode] = useState('side'); // chase | side | top
   const playbackStartRef = useRef(null);
   const PLAYBACK_DURATION_MS = 12000; // 12s replay
 
