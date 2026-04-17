@@ -50,55 +50,57 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     let points;
     if (phase === 'takeoff') {
-      // Find liftoff index: first airborne sample after any ground motion.
-      // Fallback strategies (in order):
-      //  1. on_ground flag transition (ground → airborne)
-      //  2. altitude-based: first sample where alt rises significantly above min
-      //  3. take the first 60 seconds of the flight as-is
-      let liftoffIdx = -1;
-      let groundSeen = false;
-      for (let i = 0; i < history.length; i += 1) {
-        const og = history[i]?.on_ground ?? history[i]?.onGround;
-        if (og === true || og === 1) groundSeen = true;
-        if (groundSeen && (og === false || og === 0)) { liftoffIdx = i; break; }
-      }
-      if (liftoffIdx < 0) {
-        // Altitude-based fallback: first sample > 100ft above the minimum of
-        // the first 20% of the flight (approximating ground elevation).
-        const scanEnd = Math.max(10, Math.floor(history.length * 0.2));
-        let groundAlt = Infinity;
-        for (let i = 0; i < scanEnd; i += 1) {
-          const a = Number(history[i]?.alt ?? 0);
-          if (Number.isFinite(a) && a < groundAlt) groundAlt = a;
-        }
-        if (!Number.isFinite(groundAlt)) groundAlt = 0;
-        for (let i = 0; i < scanEnd; i += 1) {
-          const a = Number(history[i]?.alt ?? 0);
-          if (Number.isFinite(a) && a > groundAlt + 100) { liftoffIdx = i; break; }
+      // Map the entire history once so we can reason over it consistently.
+      const mapped = history.map(mapPoint);
+
+      // STEP 1: Find takeoff-roll START = the sample where ground speed transitions
+      // from near-zero (< 20 kn, i.e. still standing or taxi start) into acceleration
+      // reaching > 50 kn while still on the ground. This excludes taxi-out.
+      let rollStartIdx = -1;
+      for (let i = 0; i < mapped.length; i += 1) {
+        const og = mapped[i].on_ground;
+        const spd = mapped[i].spd;
+        if ((og === true || og === 1 || og === null) && Number.isFinite(spd) && spd > 50) {
+          // Walk backwards to the moment we were below 20 kn (start of acceleration).
+          let j = i;
+          while (j > 0 && Number.isFinite(mapped[j - 1].spd) && mapped[j - 1].spd > 20) {
+            const ogBack = mapped[j - 1].on_ground;
+            if (ogBack === false || ogBack === 0) break;
+            j -= 1;
+          }
+          rollStartIdx = j;
+          break;
         }
       }
 
-      if (liftoffIdx >= 0) {
-        // Window around liftoff: -25s ground roll + 45s initial climb.
-        const liftoffTs = new Date(history[liftoffIdx]?.t || Date.now()).getTime();
-        const startMs = liftoffTs - 25 * 1000;
-        const endMs = liftoffTs + 45 * 1000;
-        points = history
-          .filter((p) => {
-            const ts = new Date(p?.t || 0).getTime();
-            return Number.isFinite(ts) && ts >= startMs && ts <= endMs;
-          })
-          .map(mapPoint);
+      // STEP 2: Find the sample where we are >= 1000 ft above the takeoff-roll altitude.
+      let climbEndIdx = -1;
+      if (rollStartIdx >= 0) {
+        const groundAlt = Number(mapped[rollStartIdx].alt) || 0;
+        for (let i = rollStartIdx + 1; i < mapped.length; i += 1) {
+          const a = Number(mapped[i].alt);
+          if (Number.isFinite(a) && a - groundAlt >= 1000) { climbEndIdx = i; break; }
+        }
+        // If telemetry doesn't reach 1000 ft AGL within the window, use whatever we have.
+        if (climbEndIdx < 0) climbEndIdx = mapped.length - 1;
+      }
+
+      if (rollStartIdx >= 0 && climbEndIdx > rollStartIdx) {
+        points = mapped.slice(rollStartIdx, climbEndIdx + 1);
       } else {
-        // Last resort: take the first 70 seconds of telemetry as-is.
-        const firstTs = new Date(history[0]?.t || Date.now()).getTime();
-        const endMs = firstTs + 70 * 1000;
-        points = history
-          .filter((p) => {
-            const ts = new Date(p?.t || 0).getTime();
-            return Number.isFinite(ts) && ts >= firstTs && ts <= endMs;
-          })
-          .map(mapPoint);
+        // Last-resort fallback: first airborne transition or first 70s.
+        let liftoffIdx = -1;
+        let groundSeen = false;
+        for (let i = 0; i < mapped.length; i += 1) {
+          const og = mapped[i].on_ground;
+          if (og === true || og === 1) groundSeen = true;
+          if (groundSeen && (og === false || og === 0)) { liftoffIdx = i; break; }
+        }
+        if (liftoffIdx > 0) {
+          points = mapped.slice(Math.max(0, liftoffIdx - 10), Math.min(mapped.length, liftoffIdx + 60));
+        } else {
+          points = mapped.slice(0, Math.min(mapped.length, 70));
+        }
       }
     } else {
       const lastTs = new Date(history[history.length - 1]?.t || Date.now()).getTime();
@@ -241,7 +243,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const geoPath = runway ? buildGeoPath(segment.points, runway) : null;
     const rawPath = (geoPath && geoPath.length >= 2)
       ? geoPath
-      : buildSyntheticPath(segment.points, runway);
+      : buildSyntheticPath(segment.points, runway, phase);
 
     // Smooth the path with a Catmull-Rom spline and use getSpacedPoints to
     // distribute samples by arc-length (constant speed), not by parameter t

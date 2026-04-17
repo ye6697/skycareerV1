@@ -136,30 +136,32 @@ export function buildRunwayScene(runway, makeLabelTexture) {
   });
 
   // ICAO runway designator label (big number painted on the runway surface).
-  // Lifted 0.15m above the runway and rendered with polygonOffset + depthTest off
-  // so it never gets hidden by the asphalt, centerline, or TDZ markings.
+  // Rendered on a plane that sits slightly above asphalt with depthTest off and
+  // a high renderOrder so it's guaranteed to draw on top of the runway paint.
   const buildLabel = (text, zPos, flipForApproach) => {
+    if (!text) return;
     const tex = makeLabelTexture(text);
     if (!tex) return;
-    const labelSize = Math.min(widM * 0.7, 26);
+    const labelSize = Math.min(widM * 0.85, 34);
     const geo = new THREE.PlaneGeometry(labelSize, labelSize);
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
       depthWrite: false,
       depthTest: false,
+      side: THREE.DoubleSide,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
     if (flipForApproach) mesh.rotation.z = Math.PI;
-    mesh.position.set(0, 0.2, zPos);
-    mesh.renderOrder = 10;
+    mesh.position.set(0, 0.35, zPos);
+    mesh.renderOrder = 999;
     group.add(mesh);
   };
-  // Landing runway number painted past the piano keys for visibility.
-  buildLabel(runway?.landingIdent || '', -200, false);
+  // Landing runway number (fallback "RWY" when OurAirports lookup failed).
+  buildLabel(runway?.landingIdent || 'RWY', -180, false);
   // Opposite-end designator near the far end of the runway.
-  buildLabel(runway?.oppositeIdent || '', -lenM + 200, true);
+  if (runway?.oppositeIdent) buildLabel(runway.oppositeIdent, -lenM + 180, true);
 
   // Approach lighting (leading to threshold from +Z)
   const alsMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
@@ -197,23 +199,29 @@ export function buildRunwayScene(runway, makeLabelTexture) {
 export function makeRunwayLabelTexture(text) {
   if (!text) return null;
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 1024;
+  canvas.height = 1024;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Bright white, thick stroke for readability from low angles.
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#0a0f1a';
-  ctx.lineWidth = 14;
-  ctx.font = 'bold 340px "Arial Black", Impact, sans-serif';
+  // Bright white fill with thick dark stroke for readability at low angles.
+  // Use a wide font stack so it works even if Arial Black isn't installed.
+  ctx.font = 'bold 680px Impact, "Arial Black", "Helvetica Neue", Helvetica, Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const label = String(text).toUpperCase();
-  ctx.strokeText(label, canvas.width / 2, canvas.height / 2);
-  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  // Dark outline first, then bright fill.
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 36;
+  ctx.strokeStyle = '#0a0f1a';
+  ctx.strokeText(label, cx, cy);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(label, cx, cy);
   const tex = new THREE.CanvasTexture(canvas);
-  tex.anisotropy = 8;
+  tex.anisotropy = 16;
+  tex.needsUpdate = true;
   return tex;
 }
 
@@ -338,20 +346,63 @@ export function computeGeoCenterlineAccuracy(telemetryHistory, runway, phase) {
 }
 
 // Fallback synthetic path when no geo data is available.
-// Uses altitude + synthesized S-curve so the viewer still gets a visual.
-export function buildSyntheticPath(telemetryPoints, runway) {
+// Uses altitude + synthesized geometry so the viewer still gets a visual.
+// IMPORTANT: when telemetry contains lat/lon but no runway info we project into
+// a local metric frame centered on the first point so the lateral deviation
+// from the aircraft's own mean track is preserved (no "always centered" lie).
+export function buildSyntheticPath(telemetryPoints, runway, phase = 'landing') {
   const lenM = Math.max(800, runway?.lengthM || 2500);
-  const thresholdElevM = runway?.thresholdElevM || 0;
   const minAlt = Math.min(...telemetryPoints.map((p) => p.alt || 0));
   const n = telemetryPoints.length;
+
+  // If we have real lat/lon, compute local meters vs a best-fit track and keep
+  // the perpendicular offset. This reveals real lateral deviation even without
+  // a runway database entry.
+  const geoPts = telemetryPoints.filter((p) =>
+    Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) + Math.abs(p.lon) > 0.001,
+  );
+  let localXY = null;
+  if (geoPts.length >= 2) {
+    const R = 6371000;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const refLat = geoPts[0].lat;
+    const refLon = geoPts[0].lon;
+    const cosRef = Math.cos(toRad(refLat));
+    const xy = telemetryPoints.map((p) => {
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) return null;
+      const east = toRad(p.lon - refLon) * R * cosRef;
+      const north = toRad(p.lat - refLat) * R;
+      return { east, north };
+    });
+    // Best-fit direction = vector from first to last valid point.
+    const firstXY = xy.find((v) => v);
+    const lastXY = [...xy].reverse().find((v) => v);
+    if (firstXY && lastXY) {
+      const dx = lastXY.east - firstXY.east;
+      const dy = lastXY.north - firstXY.north;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      // along = projection on track, lateral = perpendicular (right positive).
+      localXY = xy.map((v) => {
+        if (!v) return { along: 0, lateral: 0 };
+        const along = (v.east - firstXY.east) * ux + (v.north - firstXY.north) * uy;
+        const lateral = (v.east - firstXY.east) * (-uy) + (v.north - firstXY.north) * ux;
+        return { along, lateral };
+      });
+    }
+  }
+
   return telemetryPoints.map((p, i) => {
     const t = i / Math.max(1, n - 1);
-    // Approach path: start far from runway, touch down near threshold, rollout on runway.
-    const z = 600 - t * (600 + lenM * 0.3); // from +600 (far approach) toward -lenM*0.3 (into runway)
+    // Z mapping: landing starts far from runway and rolls past threshold;
+    // takeoff starts at threshold and flies out in the approach direction.
+    const z = phase === 'takeoff'
+      ? -t * (lenM * 0.4) + (1 - t) * 30          // rollout from ~+30 toward -40% of rwy
+      : 600 - t * (600 + lenM * 0.3);
     const altM = Math.max(0, ((p.alt || 0) - minAlt) * 0.3048);
-    const x = Math.sin(t * Math.PI * 0.5) * 3;
-    const groundY = Math.max(0, altM);
-    void thresholdElevM;
-    return new THREE.Vector3(x, groundY, z);
+    // X: real lateral offset from track if we have geo, else 0.
+    const x = localXY ? Math.max(-60, Math.min(60, localXY[i]?.lateral || 0)) : 0;
+    return new THREE.Vector3(x, altM, z);
   });
 }
