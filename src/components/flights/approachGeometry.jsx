@@ -292,7 +292,7 @@ export function buildGeoPath(telemetryPoints, runway) {
 export function computeGeoCenterlineAccuracy(telemetryHistory, runway, phase) {
   if (!runway || !Array.isArray(telemetryHistory) || telemetryHistory.length < 5) return null;
   const readOnGround = (p) => {
-    const raw = p?.on_ground ?? p?.onGround ?? p?.grounded;
+    const raw = p?.on_ground ?? p?.onGround ?? p?.grounded ?? p?.og;
     if (typeof raw === 'boolean') return raw;
     if (typeof raw === 'number') return raw > 0.5;
     if (typeof raw === 'string') {

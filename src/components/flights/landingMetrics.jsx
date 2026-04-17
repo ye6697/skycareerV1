@@ -35,7 +35,7 @@ const readTelemetryPointTimestampMs = (point) => {
 };
 
 const readOnGroundFlag = (point) => {
-  const raw = point?.on_ground ?? point?.onGround ?? point?.is_on_ground ?? point?.grounded;
+  const raw = point?.on_ground ?? point?.onGround ?? point?.is_on_ground ?? point?.grounded ?? point?.og;
   if (typeof raw === "boolean") return raw;
   if (typeof raw === "number") return raw > 0.5;
   if (typeof raw === "string") {

@@ -23,7 +23,7 @@ const readNumber = (...values) => {
 };
 
 const readOnGround = (point) => {
-  const raw = point?.on_ground ?? point?.onGround ?? point?.grounded;
+  const raw = point?.on_ground ?? point?.onGround ?? point?.grounded ?? point?.og;
   if (typeof raw === "boolean") return raw;
   if (typeof raw === "number") return raw > 0.5;
   if (typeof raw === "string") {
