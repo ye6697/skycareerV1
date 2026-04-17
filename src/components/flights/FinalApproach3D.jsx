@@ -196,10 +196,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     if (!segment || !mountRef.current) return;
 
     const mount = mountRef.current;
-    // Guard against 0-size mount on first paint (causes black screen because
-    // aspect becomes NaN and nothing passes the frustum).
-    const width = Math.max(1, mount.clientWidth || mount.offsetWidth || 800);
-    const height = Math.max(1, mount.clientHeight || mount.offsetHeight || 600);
+    const width = mount.clientWidth;
+    const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
     // Dusk/sunset sky gradient feel. Fog pushed far enough that fast jets
@@ -462,137 +460,6 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     sceneRef.current = { scene, camera, renderer, path3D, planeMesh, ring, shadow, strobe, trailGeo, activePathGeo, activePathLine, segment };
 
-    // Playback duration scales with segment length so a 70-second takeoff
-    // doesn't get crammed into 12 seconds (which looked way too fast and jumpy).
-    // ~55% of real time, clamped so very short/long segments still feel good.
-    const playbackDurationMs = Math.max(
-      10000,
-      Math.min(22000, Math.round(segment.totalSec * 1000 * 0.55))
-    );
-
-    // Reset progress/playback state for this freshly built scene.
-    progressRef.current = 0;
-    playbackStartRef.current = null;
-    setProgress(0);
-    setIsPlaying(true);
-    isPlayingRef.current = true;
-
-    // --- Unified render + playback loop (runs ONCE per scene build). ---
-    // Reads progress/isPlaying/cameraMode from refs → no React-state-triggered
-    // effect re-runs, no stale closures, no flickering.
-    let lastUiSyncMs = 0;
-    const animate = (now) => {
-      if (!sceneRef.current) return;
-      const s = sceneRef.current;
-
-      // Advance playback
-      if (isPlayingRef.current) {
-        if (playbackStartRef.current === null) {
-          playbackStartRef.current = now - progressRef.current * playbackDurationMs;
-        }
-        const elapsed = now - playbackStartRef.current;
-        let p = elapsed / playbackDurationMs;
-        if (p >= 1) {
-          p = 1;
-          isPlayingRef.current = false;
-          playbackStartRef.current = null;
-          setIsPlaying(false);
-        }
-        progressRef.current = p;
-      }
-
-      // Sync React state ~20 Hz for slider/HUD – never every frame.
-      if (now - lastUiSyncMs > 50) {
-        lastUiSyncMs = now;
-        setProgress(progressRef.current);
-      }
-
-      const p3 = s.path3D;
-      const idxFloat = progressRef.current * (p3.length - 1);
-      const idx = Math.floor(idxFloat);
-      const frac = idxFloat - idx;
-      const cur = p3[idx];
-      const next = p3[Math.min(p3.length - 1, idx + 1)];
-      const pos = new THREE.Vector3().lerpVectors(cur, next, frac);
-      // Do NOT force a minimum ground clearance here – the aircraft model
-      // already has landing-gear geometry offset built in. Forcing +3m made
-      // the plane visibly float above the runway during rollout/takeoff.
-      s.planeMesh.position.copy(pos);
-
-      const altScale = Math.max(0.3, 1 - pos.y / 200);
-      s.shadow.position.set(pos.x, 0.06, pos.z);
-      s.shadow.scale.setScalar(altScale * 2);
-      s.shadow.material.opacity = 0.4 * altScale;
-
-      const dir = new THREE.Vector3().subVectors(next, cur);
-      if (dir.length() > 0.001) {
-        dir.normalize();
-        const yaw = Math.atan2(-dir.z, dir.x);
-        const segPoints = s.segment?.points || [];
-        const pathProgressIdx = Math.min(segPoints.length - 1, Math.floor(progressRef.current * (segPoints.length - 1)));
-        const realPitchDeg = segPoints[pathProgressIdx]?.pitch;
-        let pitch;
-        if (Number.isFinite(realPitchDeg)) pitch = (realPitchDeg * Math.PI) / 180;
-        else pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
-
-        const lookBack = Math.max(0, idx - 3);
-        const lookFwd = Math.min(p3.length - 1, idx + 3);
-        const dxFwd = p3[lookFwd].x - p3[lookBack].x;
-        const dzFwd = p3[lookFwd].z - p3[lookBack].z;
-        const turnRate = Math.atan2(dxFwd, Math.max(0.1, Math.abs(dzFwd))) * 0.8;
-        const bank = Math.max(-0.4, Math.min(0.4, turnRate));
-
-        s.planeMesh.rotation.set(0, 0, 0);
-        s.planeMesh.rotateY(yaw);
-        s.planeMesh.rotateZ(pitch);
-        s.planeMesh.rotateX(bank);
-      }
-
-      if (s.strobe) {
-        const flashPhase = (now % 1200) / 1200;
-        s.strobe.material.opacity = flashPhase < 0.05 ? 1 : flashPhase < 0.12 ? 0.8 : 0;
-      }
-
-      // Update active path + contrail. Reuse arrays where possible.
-      const activePoints = p3.slice(0, idx + 1);
-      activePoints.push(pos);
-      s.activePathGeo.setFromPoints(activePoints);
-      if (s.trailGeo) {
-        s.trailGeo.setFromPoints(activePoints.slice(-25));
-      }
-
-      // Camera
-      const mode = cameraModeRef.current;
-      if (mode === 'top') {
-        camera.up.set(0, 0, -1);
-        camera.position.set(0, 220, pos.z);
-        camera.lookAt(0, 0, pos.z);
-      } else {
-        camera.up.set(0, 1, 0);
-        if (mode === 'chase') {
-          // Look direction over a wider window so tiny sub-meter spline
-          // segments don't produce a near-zero vector that flips the camera.
-          const lbIdx = Math.max(0, idx - 8);
-          const lfIdx = Math.min(p3.length - 1, idx + 2);
-          const forward = new THREE.Vector3().subVectors(p3[lfIdx], p3[lbIdx]);
-          if (forward.lengthSq() < 1e-4) forward.set(0, 0, -1);
-          forward.normalize();
-          const back = forward.clone().multiplyScalar(-80);
-          camera.position.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
-          const lookAhead = forward.clone().multiplyScalar(40);
-          camera.lookAt(pos.x + lookAhead.x, pos.y + 5, pos.z + lookAhead.z);
-        } else {
-          camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
-          camera.lookAt(pos);
-        }
-      }
-
-      renderer.render(scene, camera);
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-    animationFrameRef.current = requestAnimationFrame(animate);
-    sceneRef.current.playbackDurationMs = playbackDurationMs;
-
     const handleResize = () => {
       if (!mount) return;
       const w = mount.clientWidth;
@@ -602,14 +469,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
-    // If the mount was still 0-sized on first measurement, catch up as soon
-    // as the browser has laid it out (prevents the "only dark blue" issue).
-    const initialSizeTimer = setTimeout(handleResize, 50);
-    const initialSizeTimer2 = setTimeout(handleResize, 250);
 
     return () => {
-      clearTimeout(initialSizeTimer);
-      clearTimeout(initialSizeTimer2);
       // Clear sceneRef first so animation loop bails out immediately
       sceneRef.current = null;
       window.removeEventListener('resize', handleResize);
@@ -629,34 +490,128 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     };
   }, [segment, runway]);
 
-  // --- legacy animation loop removed – now merged into the scene-build effect above ---
+  // Animation loop
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const sceneData = sceneRef.current;
+    const { path3D } = sceneData;
+    const PLAYBACK_DURATION_MS = 12000;
+
+    const animate = (now) => {
+      if (!sceneRef.current) return;
+      const { scene, camera, renderer, planeMesh, shadow, strobe, trailGeo, activePathGeo } = sceneRef.current;
+
+      if (isPlaying) {
+        if (playbackStartRef.current === null) {
+          playbackStartRef.current = now - progress * PLAYBACK_DURATION_MS;
+        }
+        const elapsed = now - playbackStartRef.current;
+        let p = Math.min(1, elapsed / PLAYBACK_DURATION_MS);
+        setProgress(p);
+        if (p >= 1) {
+          setIsPlaying(false);
+          playbackStartRef.current = null;
+        }
+      }
+
+      const idxFloat = progress * (path3D.length - 1);
+      const idx = Math.floor(idxFloat);
+      const frac = idxFloat - idx;
+      const cur = path3D[idx];
+      const next = path3D[Math.min(path3D.length - 1, idx + 1)];
+      const pos = new THREE.Vector3().lerpVectors(cur, next, frac);
+      const MIN_GROUND_CLEARANCE = 3;
+      if (pos.y < MIN_GROUND_CLEARANCE) pos.y = MIN_GROUND_CLEARANCE;
+      planeMesh.position.copy(pos);
+
+      const altScale = Math.max(0.3, 1 - pos.y / 200);
+      shadow.position.set(pos.x, 0.06, pos.z);
+      shadow.scale.setScalar(altScale * 2);
+      shadow.material.opacity = 0.4 * altScale;
+
+      const dir = new THREE.Vector3().subVectors(next, cur);
+      if (dir.length() > 0.001) {
+        dir.normalize();
+        const yaw = Math.atan2(-dir.z, dir.x);
+        const segPoints = sceneRef.current?.segment?.points || [];
+        const pathProgressIdx = Math.min(segPoints.length - 1, Math.floor(progress * (segPoints.length - 1)));
+        const realPitchDeg = segPoints[pathProgressIdx]?.pitch;
+        let pitch;
+        if (Number.isFinite(realPitchDeg)) pitch = (realPitchDeg * Math.PI) / 180;
+        else pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+
+        const lookBack = Math.max(0, idx - 3);
+        const lookFwd = Math.min(path3D.length - 1, idx + 3);
+        const dxFwd = path3D[lookFwd].x - path3D[lookBack].x;
+        const dzFwd = path3D[lookFwd].z - path3D[lookBack].z;
+        const turnRate = Math.atan2(dxFwd, Math.max(0.1, Math.abs(dzFwd))) * 0.8;
+        const bank = Math.max(-0.4, Math.min(0.4, turnRate));
+
+        planeMesh.rotation.set(0, 0, 0);
+        planeMesh.rotateY(yaw);
+        planeMesh.rotateZ(pitch);
+        planeMesh.rotateX(bank);
+      }
+
+      if (strobe) {
+        const flashPhase = (now % 1200) / 1200;
+        strobe.material.opacity = flashPhase < 0.05 ? 1 : flashPhase < 0.12 ? 0.8 : 0;
+      }
+
+      const activePoints = path3D.slice(0, idx + 1);
+      activePoints.push(pos);
+      activePathGeo.setFromPoints(activePoints);
+      if (trailGeo) {
+        const trailPts = activePoints.slice(-25);
+        trailGeo.setFromPoints(trailPts);
+      }
+
+      if (cameraMode === 'top') {
+        camera.up.set(0, 0, -1);
+        camera.position.set(0, 220, pos.z);
+        camera.lookAt(0, 0, pos.z);
+      } else {
+        camera.up.set(0, 1, 0);
+        if (cameraMode === 'chase') {
+          const back = new THREE.Vector3().subVectors(cur, next).normalize().multiplyScalar(80);
+          camera.position.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
+          camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
+        } else {
+          camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
+          camera.lookAt(pos);
+        }
+      }
+
+      renderer.render(scene, camera);
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [isPlaying, progress, cameraMode]);
 
   const handlePlayPause = () => {
-    const dur = sceneRef.current?.playbackDurationMs || 12000;
-    if (progressRef.current >= 1) {
-      progressRef.current = 0;
+    const PLAYBACK_DURATION_MS = 12000;
+    if (progress >= 1) {
       setProgress(0);
       playbackStartRef.current = null;
-      isPlayingRef.current = true;
       setIsPlaying(true);
-    } else if (isPlayingRef.current) {
-      // Pause
-      playbackStartRef.current = null;
-      isPlayingRef.current = false;
-      setIsPlaying(false);
     } else {
-      // Resume from current progress
-      playbackStartRef.current = performance.now() - progressRef.current * dur;
-      isPlayingRef.current = true;
-      setIsPlaying(true);
+      if (isPlaying) {
+        playbackStartRef.current = null;
+      } else {
+        playbackStartRef.current = performance.now() - progress * PLAYBACK_DURATION_MS;
+      }
+      setIsPlaying(!isPlaying);
     }
   };
 
   const handleReset = () => {
-    progressRef.current = 0;
-    playbackStartRef.current = null;
     setProgress(0);
-    isPlayingRef.current = true;
+    playbackStartRef.current = null;
     setIsPlaying(true);
   };
 
@@ -869,12 +824,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
                 max="1000"
                 value={Math.round(progress * 1000)}
                 onChange={(e) => {
-                  const p = Number(e.target.value) / 1000;
-                  isPlayingRef.current = false;
-                  playbackStartRef.current = null;
-                  progressRef.current = p;
                   setIsPlaying(false);
-                  setProgress(p);
+                  playbackStartRef.current = null;
+                  setProgress(Number(e.target.value) / 1000);
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
