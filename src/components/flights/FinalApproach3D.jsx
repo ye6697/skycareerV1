@@ -97,14 +97,18 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
     const sky = new THREE.Mesh(skyGeo, skyMat);
     scene.add(sky);
 
-    // Lights - sunset directional + cool fill
-    scene.add(new THREE.HemisphereLight(0x6b8cb8, 0x0a1528, 0.55));
-    const sunLight = new THREE.DirectionalLight(0xffb380, 1.2);
-    sunLight.position.set(-150, 60, -80);
+    // Lights - brighter setup so aircraft reads clearly from all angles
+    scene.add(new THREE.HemisphereLight(0xaac4e8, 0x1a2540, 1.1));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    const sunLight = new THREE.DirectionalLight(0xffd8b0, 1.6);
+    sunLight.position.set(-150, 120, -80);
     scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0x4a90e2, 0.3);
-    fillLight.position.set(80, 40, 120);
+    const fillLight = new THREE.DirectionalLight(0xb8d4ff, 0.8);
+    fillLight.position.set(180, 80, 120);
     scene.add(fillLight);
+    const sideLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    sideLight.position.set(200, 40, 0);
+    scene.add(sideLight);
 
     // Terrain grid (subtle, tactical look)
     const gridHelper = new THREE.GridHelper(2400, 60, 0x1e3a5f, 0x142033);
@@ -242,9 +246,26 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
     // Aircraft - simplified airliner model
     const planeMesh = new THREE.Group();
 
-    const fuselageMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.4, metalness: 0.6 });
-    const wingMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.5 });
-    const accentMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, roughness: 0.4, metalness: 0.7 });
+    const fuselageMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, roughness: 0.25, metalness: 0.85,
+      emissive: 0x8899aa, emissiveIntensity: 0.35,
+    });
+    const wingMat = new THREE.MeshStandardMaterial({
+      color: 0xf5f7fa, roughness: 0.3, metalness: 0.8,
+      emissive: 0x7788aa, emissiveIntensity: 0.3,
+    });
+    const accentMat = new THREE.MeshStandardMaterial({
+      color: 0x22d3ee, roughness: 0.3, metalness: 0.9,
+      emissive: 0x0891b2, emissiveIntensity: 0.6,
+    });
+    const bellyMat = new THREE.MeshStandardMaterial({
+      color: 0xcbd5e1, roughness: 0.35, metalness: 0.75,
+      emissive: 0x5a6a7a, emissiveIntensity: 0.25,
+    });
+    const windowMat = new THREE.MeshStandardMaterial({
+      color: 0x0a1220, roughness: 0.1, metalness: 0.95,
+      emissive: 0x1e3a5f, emissiveIntensity: 0.4,
+    });
 
     // Fuselage (cylinder + nose cone)
     const fuselageGeo = new THREE.CylinderGeometry(1.1, 1.1, 10, 16);
@@ -294,19 +315,61 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
     tailAccent.position.set(-5.4, 2.35, 0);
     planeMesh.add(tailAccent);
 
-    // Engines (under wings)
+    // Belly accent (darker underside for silhouette)
+    const bellyGeo = new THREE.CylinderGeometry(1.05, 1.05, 10, 16, 1, false, Math.PI * 0.15, Math.PI * 0.7);
+    const belly = new THREE.Mesh(bellyGeo, bellyMat);
+    belly.rotation.z = Math.PI / 2;
+    belly.position.y = -0.02;
+    planeMesh.add(belly);
+
+    // Cockpit windows (dark band at nose)
+    const cockpitGeo = new THREE.SphereGeometry(0.95, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2.2);
+    const cockpit = new THREE.Mesh(cockpitGeo, windowMat);
+    cockpit.rotation.z = -Math.PI / 2;
+    cockpit.position.set(5.2, 0.25, 0);
+    planeMesh.add(cockpit);
+
+    // Cabin window row (both sides, small dark rectangles)
+    [-1, 1].forEach((side) => {
+      const windowRowGeo = new THREE.BoxGeometry(7.5, 0.3, 0.04);
+      const windowRow = new THREE.Mesh(windowRowGeo, windowMat);
+      windowRow.position.set(-0.5, 0.35, side * 1.08);
+      planeMesh.add(windowRow);
+    });
+
+    // Engines (under wings) - more detailed nacelles
     [-4.5, 4.5].forEach((zOffset) => {
-      const engineGeo = new THREE.CylinderGeometry(0.7, 0.7, 2.2, 12);
+      const engineGeo = new THREE.CylinderGeometry(0.75, 0.68, 2.6, 16);
       const engine = new THREE.Mesh(engineGeo, fuselageMat);
       engine.rotation.z = Math.PI / 2;
-      engine.position.set(-0.3, -0.9, zOffset);
+      engine.position.set(-0.3, -1.0, zOffset);
       planeMesh.add(engine);
       // Engine intake ring
-      const intakeGeo = new THREE.TorusGeometry(0.72, 0.12, 6, 16);
+      const intakeGeo = new THREE.TorusGeometry(0.78, 0.14, 8, 20);
       const intake = new THREE.Mesh(intakeGeo, accentMat);
       intake.rotation.y = Math.PI / 2;
-      intake.position.set(0.85, -0.9, zOffset);
+      intake.position.set(0.95, -1.0, zOffset);
       planeMesh.add(intake);
+      // Intake darkness (fan)
+      const fanGeo = new THREE.CircleGeometry(0.62, 16);
+      const fan = new THREE.Mesh(fanGeo, windowMat);
+      fan.rotation.y = Math.PI / 2;
+      fan.position.set(0.96, -1.0, zOffset);
+      planeMesh.add(fan);
+      // Pylon connecting engine to wing
+      const pylonGeo = new THREE.BoxGeometry(1.6, 0.9, 0.25);
+      const pylon = new THREE.Mesh(pylonGeo, wingMat);
+      pylon.position.set(-0.3, -0.55, zOffset);
+      planeMesh.add(pylon);
+    });
+
+    // Winglets (bent-up wingtips)
+    [-7, 7].forEach((zOffset) => {
+      const wingletGeo = new THREE.BoxGeometry(1.4, 1.1, 0.18);
+      const winglet = new THREE.Mesh(wingletGeo, wingMat);
+      winglet.position.set(-0.7, 0.25, zOffset);
+      winglet.rotation.z = Math.sign(zOffset) * 0.1;
+      planeMesh.add(winglet);
     });
 
     // Navigation lights (red left, green right, strobe white)
@@ -329,6 +392,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
     planeMesh.add(strobe);
 
     planeMesh.position.copy(path3D[0]);
+    planeMesh.scale.setScalar(1.5); // bigger, more readable
     scene.add(planeMesh);
 
     // Contrail trail behind aircraft
@@ -360,32 +424,36 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
     window.addEventListener('resize', handleResize);
 
     return () => {
+      // Clear sceneRef first so animation loop bails out immediately
+      sceneRef.current = null;
       window.removeEventListener('resize', handleResize);
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
-      renderer.dispose();
-      pathGeo.dispose();
-      pathMat.dispose();
-      activePathGeo.dispose();
-      activePathMat.dispose();
-      groundGeo.dispose();
-      groundMat.dispose();
-      runwayGeo.dispose();
-      runwayMat.dispose();
-      trailGeo.dispose();
-      trailMat.dispose();
-      skyGeo.dispose();
-      skyMat.dispose();
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      try {
+        if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+        renderer.dispose();
+        pathGeo.dispose(); pathMat.dispose();
+        activePathGeo.dispose(); activePathMat.dispose();
+        groundGeo.dispose(); groundMat.dispose();
+        runwayGeo.dispose(); runwayMat.dispose();
+        trailGeo.dispose(); trailMat.dispose();
+        skyGeo.dispose(); skyMat.dispose();
+      } catch (_) { /* ignore cleanup errors */ }
     };
   }, [segment]);
 
   // Animation loop
   useEffect(() => {
     if (!sceneRef.current) return;
-    const { scene, camera, renderer, path3D, planeMesh, ring, shadow, strobe, trailGeo, activePathGeo } = sceneRef.current;
+    const sceneData = sceneRef.current;
+    const { path3D } = sceneData;
 
     const animate = (now) => {
+      // Bail out if scene was torn down during a pending frame
       if (!sceneRef.current) return;
+      const { scene, camera, renderer, planeMesh, shadow, strobe, trailGeo, activePathGeo } = sceneRef.current;
 
       if (isPlaying) {
         if (playbackStartRef.current === null) {
