@@ -60,24 +60,64 @@ function makeFuselage(radius, length, mat) {
   return mesh;
 }
 
-// Swept wing panel using ShapeGeometry - one per side, with dihedral.
-function makeSweptWing(mat, { rootChord, tipChord, halfSpan, sweep, thickness = 0.12, dihedral = 0.04 }) {
+// Build BOTH left + right swept wings as a single symmetric mesh.
+// This avoids the scale.z=-1 mirroring bug (which inverted normals / tilted wings).
+// Returns a Group so the caller can add it once.
+function makeSweptWingPair(mat, { rootChord, tipChord, halfSpan, sweep, thickness = 0.12, dihedral = 0.04 }) {
+  const group = new THREE.Group();
+  // Symmetric planform shape in the XZ plane (Z along span):
+  //   Leading edge sweeps back, trailing edge tapers forward.
   const shape = new THREE.Shape();
-  shape.moveTo(0, 0);
-  shape.lineTo(rootChord, 0);
-  shape.lineTo(rootChord - sweep * 0.6, halfSpan);
-  shape.lineTo(rootChord - sweep - tipChord * 0.2, halfSpan);
+  // Start at root trailing edge (+X = backward, -X = forward along aircraft direction).
+  // Using x = chordwise (negative = tail direction because our aircraft nose is +X),
+  // z = spanwise.
+  // For clarity we'll build in wing-local coords and rotate after.
+  shape.moveTo(0, -halfSpan);                       // left tip trailing
+  shape.lineTo(-tipChord, -halfSpan);               // left tip leading (pulled forward)
+  shape.lineTo(-rootChord + sweep * 0.2, 0);        // root leading edge
+  shape.lineTo(0, 0);                               // root trailing
+  shape.lineTo(0, halfSpan);                        // right tip trailing
+  shape.lineTo(-tipChord, halfSpan);                // right tip leading
+  // Close via root leading from right side.
+  shape.lineTo(-rootChord + sweep * 0.2, 0);
   shape.lineTo(0, 0);
-  const geo = new THREE.ExtrudeGeometry(shape, {
+
+  // Simpler: build left and right as two mirrored shapes glued at root.
+  const halfShape = new THREE.Shape();
+  halfShape.moveTo(0, 0);                                   // root trailing
+  halfShape.lineTo(-rootChord, 0);                          // root leading
+  halfShape.lineTo(-rootChord - sweep + (rootChord - tipChord), halfSpan); // tip leading (swept back)
+  halfShape.lineTo(-tipChord * 0.2, halfSpan);              // tip trailing
+  halfShape.lineTo(0, 0);
+
+  const extrudeOpts = {
     depth: thickness, bevelEnabled: true, bevelSize: thickness * 0.3,
     bevelThickness: thickness * 0.3, bevelSegments: 2, steps: 1,
-  });
-  // Center on leading edge root; flatten to XZ plane.
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(-rootChord * 0.3, -thickness / 2, 0);
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.rotation.x = dihedral; // slight upward dihedral
-  return mesh;
+  };
+
+  // Right wing (positive Z)
+  const rightGeo = new THREE.ExtrudeGeometry(halfShape, extrudeOpts);
+  rightGeo.rotateX(-Math.PI / 2); // flatten into XZ, extrude becomes Y-thickness
+  rightGeo.translate(0, -thickness / 2, 0);
+  const right = new THREE.Mesh(rightGeo, mat);
+  right.rotation.x = dihedral;
+  group.add(right);
+
+  // Left wing: mirror the shape around Z (build a new geometry instead of scaling).
+  const leftShape = new THREE.Shape();
+  leftShape.moveTo(0, 0);
+  leftShape.lineTo(-rootChord, 0);
+  leftShape.lineTo(-rootChord - sweep + (rootChord - tipChord), -halfSpan);
+  leftShape.lineTo(-tipChord * 0.2, -halfSpan);
+  leftShape.lineTo(0, 0);
+  const leftGeo = new THREE.ExtrudeGeometry(leftShape, extrudeOpts);
+  leftGeo.rotateX(-Math.PI / 2);
+  leftGeo.translate(0, -thickness / 2, 0);
+  const left = new THREE.Mesh(leftGeo, mat);
+  left.rotation.x = -dihedral; // mirror the dihedral the right way
+  group.add(left);
+
+  return group;
 }
 
 // Realistic jet engine nacelle with intake lip, fan, and exhaust.
@@ -178,15 +218,14 @@ function buildSmallProp(mats) {
   const fusR = 0.55;
   g.add(makeFuselage(fusR, fusLen, mats.fuselage));
 
-  // High straight wing with dihedral
+  // High straight wing with dihedral (symmetric pair)
+  const wings = makeSweptWingPair(mats.wing, {
+    rootChord: 1.3, tipChord: 1.0, halfSpan: 5.5, sweep: 0.15, thickness: 0.12, dihedral: 0.05,
+  });
+  wings.position.set(0.2, 1.0, 0);
+  g.add(wings);
+  // Wing struts (one each side, symmetric)
   [-1, 1].forEach((side) => {
-    const w = makeSweptWing(mats.wing, {
-      rootChord: 1.3, tipChord: 1.0, halfSpan: 5.5, sweep: 0.15, thickness: 0.12, dihedral: 0.05,
-    });
-    w.position.set(0.2, 1.0, 0);
-    w.scale.z = side;
-    g.add(w);
-    // wing strut
     const strut = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.1, 0.06), mats.wing);
     strut.position.set(0.3, 0.35, side * 2.0);
     strut.rotation.x = side * 0.3;
@@ -242,15 +281,12 @@ function buildTurboprop(mats) {
   const fusR = 0.85;
   g.add(makeFuselage(fusR, fusLen, mats.fuselage));
 
-  // High-mounted wings
-  [-1, 1].forEach((side) => {
-    const w = makeSweptWing(mats.wing, {
-      rootChord: 2.2, tipChord: 1.1, halfSpan: 7.5, sweep: 0.4, thickness: 0.18, dihedral: 0.06,
-    });
-    w.position.set(-0.3, fusR * 0.9, 0);
-    w.scale.z = side;
-    g.add(w);
+  // High-mounted wings (symmetric)
+  const wings = makeSweptWingPair(mats.wing, {
+    rootChord: 2.2, tipChord: 1.1, halfSpan: 7.5, sweep: 0.4, thickness: 0.18, dihedral: 0.06,
   });
+  wings.position.set(-0.3, fusR * 0.9, 0);
+  g.add(wings);
 
   // Nacelles with turboprops
   [-3.3, 3.3].forEach((zOffset) => {
@@ -302,15 +338,13 @@ function buildRegionalJet(mats) {
   const fusR = 0.85;
   g.add(makeFuselage(fusR, fusLen, mats.fuselage));
 
-  // Low-mounted swept wings
+  // Low-mounted swept wings (symmetric)
+  const wings = makeSweptWingPair(mats.wing, {
+    rootChord: 2.4, tipChord: 0.9, halfSpan: 6.5, sweep: 1.0, thickness: 0.16, dihedral: 0.08,
+  });
+  wings.position.set(-0.5, -fusR * 0.5, 0);
+  g.add(wings);
   [-1, 1].forEach((side) => {
-    const w = makeSweptWing(mats.wing, {
-      rootChord: 2.4, tipChord: 0.9, halfSpan: 6.5, sweep: 1.0, thickness: 0.16, dihedral: 0.08,
-    });
-    w.position.set(-0.5, -fusR * 0.5, 0);
-    w.scale.z = side;
-    g.add(w);
-    // winglet
     const winglet = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.1), mats.wing);
     winglet.position.set(-1.4, -fusR * 0.1, side * 6.5);
     winglet.rotation.z = side * 0.3;
@@ -363,15 +397,13 @@ function buildNarrowBody(mats) {
   const fusR = 1.05;
   g.add(makeFuselage(fusR, fusLen, mats.fuselage));
 
-  // Low swept wings
+  // Low swept wings (symmetric)
+  const wings = makeSweptWingPair(mats.wing, {
+    rootChord: 3.4, tipChord: 1.1, halfSpan: 8.5, sweep: 1.6, thickness: 0.22, dihedral: 0.08,
+  });
+  wings.position.set(-0.8, -fusR * 0.5, 0);
+  g.add(wings);
   [-1, 1].forEach((side) => {
-    const w = makeSweptWing(mats.wing, {
-      rootChord: 3.4, tipChord: 1.1, halfSpan: 8.5, sweep: 1.6, thickness: 0.22, dihedral: 0.08,
-    });
-    w.position.set(-0.8, -fusR * 0.5, 0);
-    w.scale.z = side;
-    g.add(w);
-    // sharklet / winglet
     const winglet = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.2, 0.12), mats.wing);
     winglet.position.set(-2.0, 0.2, side * 8.5);
     winglet.rotation.z = side * 0.4;
@@ -431,15 +463,13 @@ function buildWideBody(mats) {
   const fusR = 1.55;
   g.add(makeFuselage(fusR, fusLen, mats.fuselage));
 
-  // Big swept wings
+  // Big swept wings (symmetric)
+  const wings = makeSweptWingPair(mats.wing, {
+    rootChord: 4.8, tipChord: 1.4, halfSpan: 12, sweep: 2.6, thickness: 0.32, dihedral: 0.1,
+  });
+  wings.position.set(-1.2, -fusR * 0.5, 0);
+  g.add(wings);
   [-1, 1].forEach((side) => {
-    const w = makeSweptWing(mats.wing, {
-      rootChord: 4.8, tipChord: 1.4, halfSpan: 12, sweep: 2.6, thickness: 0.32, dihedral: 0.1,
-    });
-    w.position.set(-1.2, -fusR * 0.5, 0);
-    w.scale.z = side;
-    g.add(w);
-    // raked wingtip
     const winglet = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 0.14), mats.wing);
     winglet.position.set(-3.5, 0.0, side * 12);
     winglet.rotation.y = side * 0.3;
@@ -492,14 +522,11 @@ function buildFourEngine(mats) {
   const fusR = 1.55;
   g.add(makeFuselage(fusR, fusLen, mats.fuselage));
 
-  [-1, 1].forEach((side) => {
-    const w = makeSweptWing(mats.wing, {
-      rootChord: 5.2, tipChord: 1.3, halfSpan: 13, sweep: 3.0, thickness: 0.32, dihedral: 0.09,
-    });
-    w.position.set(-1.4, -fusR * 0.5, 0);
-    w.scale.z = side;
-    g.add(w);
+  const wings = makeSweptWingPair(mats.wing, {
+    rootChord: 5.2, tipChord: 1.3, halfSpan: 13, sweep: 3.0, thickness: 0.32, dihedral: 0.09,
   });
+  wings.position.set(-1.4, -fusR * 0.5, 0);
+  g.add(wings);
 
   // Four engines (inboard + outboard)
   [-8.5, -4.5, 4.5, 8.5].forEach((zOffset) => {

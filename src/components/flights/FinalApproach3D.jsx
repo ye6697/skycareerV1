@@ -4,6 +4,14 @@ import { X, Play, Pause, RotateCcw, Eye, Compass } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import * as THREE from 'three';
 import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
+import { base44 } from '@/api/base44Client';
+import {
+  buildRunwayScene,
+  makeRunwayLabelTexture,
+  normalizeRunway,
+  buildGeoPath,
+  buildSyntheticPath,
+} from '@/components/flights/approachGeometry';
 
 // Visualizes the last N seconds of a flight as a 3D approach path with replay.
 export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 }) {
@@ -16,6 +24,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
   const [cameraMode, setCameraMode] = useState('side'); // chase | side | top
   const playbackStartRef = useRef(null);
   const PLAYBACK_DURATION_MS = 12000; // 12s replay
+
+  const [runway, setRunway] = useState(null); // normalized runway or null
+  const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
 
   // Extract last N seconds from telemetry_history
   const segment = useMemo(() => {
@@ -38,6 +49,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
         spd: Number(p.spd ?? p.ias ?? 0),
         vs: Number(p.vs ?? 0),
         g: Number(p.g ?? 1),
+        lat: Number(p.lat ?? p.latitude ?? 0),
+        lon: Number(p.lon ?? p.lng ?? p.longitude ?? 0),
       }));
 
     if (points.length < 2) return null;
@@ -50,6 +63,31 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
 
     return { points, t0, tEnd, totalSec, minAlt, maxAlt };
   }, [flight, durationSeconds]);
+
+  // Fetch real runway data from OurAirports based on arrival airport + touchdown coords.
+  useEffect(() => {
+    if (!segment) return;
+    const xpd = flight?.xplane_data || {};
+    const icao = xpd.arrival_icao || xpd.arrival_airport || flight?.arrival_airport || '';
+    if (!icao) return;
+    const last = segment.points[segment.points.length - 1] || {};
+    const tdLat = Number.isFinite(last.lat) ? last.lat : Number(xpd.arrival_lat || 0);
+    const tdLon = Number.isFinite(last.lon) ? last.lon : Number(xpd.arrival_lon || 0);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await base44.functions.invoke('getRunwayInfo', {
+          icao, touchdown_lat: tdLat, touchdown_lon: tdLon,
+        });
+        if (cancelled) return;
+        const picked = res?.data?.landing_runway;
+        if (picked) setRunway(normalizeRunway(picked));
+      } catch (_) {
+        // leave runway as null – scene will use generic runway fallback
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [segment, flight]);
 
   // Build 3D scene
   useEffect(() => {
@@ -126,100 +164,62 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
     ground.position.y = -0.05;
     scene.add(ground);
 
-    // Runway - longer, proper proportions, asphalt color
-    const RUNWAY_LEN = 900;
-    const RUNWAY_WIDTH = 45;
-    const runwayGeo = new THREE.PlaneGeometry(RUNWAY_WIDTH, RUNWAY_LEN);
-    const runwayMat = new THREE.MeshStandardMaterial({ color: 0x1a1f2a, roughness: 0.95, metalness: 0 });
-    const runway = new THREE.Mesh(runwayGeo, runwayMat);
-    runway.rotation.x = -Math.PI / 2;
-    runway.position.set(0, 0.02, 0);
-    scene.add(runway);
+    // Runway - built from real OurAirports data when available, else generic.
+    const { group: runwayGroup, runwayLenM } = buildRunwayScene(runway, makeRunwayLabelTexture);
+    scene.add(runwayGroup);
 
-    // Runway shoulders (lighter edges)
-    [-1, 1].forEach((side) => {
-      const shoulderGeo = new THREE.PlaneGeometry(3, RUNWAY_LEN);
-      const shoulderMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0 });
-      const shoulder = new THREE.Mesh(shoulderGeo, shoulderMat);
-      shoulder.rotation.x = -Math.PI / 2;
-      shoulder.position.set(side * (RUNWAY_WIDTH / 2 - 1), 0.04, 0);
-      scene.add(shoulder);
-    });
+    // Build 3D path referenced to the runway frame (georeferenced when possible).
+    const geoPath = runway ? buildGeoPath(segment.points, runway) : null;
+    const path3D = (geoPath && geoPath.length >= 2)
+      ? geoPath
+      : buildSyntheticPath(segment.points, runway);
 
-    // Runway centerline dashes (white, ICAO-style)
-    for (let z = -RUNWAY_LEN / 2 + 40; z <= RUNWAY_LEN / 2 - 40; z += 60) {
-      const stripeGeo = new THREE.PlaneGeometry(0.9, 30);
-      const stripeMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
-      const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-      stripe.rotation.x = -Math.PI / 2;
-      stripe.position.set(0, 0.05, z);
-      scene.add(stripe);
+    // Identify touchdown point (first point where altitude ~ 0 AGL after approach).
+    let touchdownIdx = -1;
+    for (let i = 1; i < path3D.length; i += 1) {
+      if (path3D[i].y < 2 && path3D[i - 1].y >= 2) { touchdownIdx = i; break; }
+    }
+    if (touchdownIdx < 0) {
+      // Fallback: lowest altitude point
+      let minY = Infinity;
+      for (let i = 0; i < path3D.length; i += 1) {
+        if (path3D[i].y < minY) { minY = path3D[i].y; touchdownIdx = i; }
+      }
     }
 
-    // Threshold bars at landing end (piano keys)
-    for (let i = -6; i <= 6; i++) {
-      if (i === 0) continue;
-      const barGeo = new THREE.PlaneGeometry(2.8, 10);
-      const barMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
-      const bar = new THREE.Mesh(barGeo, barMat);
-      bar.rotation.x = -Math.PI / 2;
-      bar.position.set(i * 3.2, 0.05, RUNWAY_LEN / 2 - 12);
-      scene.add(bar);
+    // Visualize the touchdown point (big cyan ring on the ground).
+    if (touchdownIdx >= 0 && path3D[touchdownIdx]) {
+      const td = path3D[touchdownIdx];
+      const ringGeo = new THREE.RingGeometry(4, 6, 32);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(td.x, 0.08, td.z);
+      scene.add(ring);
+
+      // Vertical pillar from touchdown point up, labeled in HUD overlay.
+      const pillarGeo = new THREE.CylinderGeometry(0.15, 0.15, 80, 8);
+      const pillarMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.5 });
+      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+      pillar.position.set(td.x, 40, td.z);
+      scene.add(pillar);
+
+      // Store touchdown info for HUD (only if georeferenced)
+      if (geoPath && runway) {
+        const alongM = td.z;
+        const lateralM = td.x;
+        setTouchdownInfo({
+          // Z=0 is the landing threshold. Z<0 = past threshold on runway. Z>0 = short of threshold.
+          alongM,
+          lateralM,
+          shortOfThreshold: alongM > 0,
+          runwayLenM,
+          runwayWidthM: runway.widthM,
+        });
+      } else {
+        setTouchdownInfo(null);
+      }
     }
-
-    // Touchdown zone markers (short parallel bars at landing zone)
-    [80, 140, 200].forEach((offset) => {
-      [-1, 1].forEach((side) => {
-        const tdzGeo = new THREE.PlaneGeometry(3, 18);
-        const tdzMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
-        const tdz = new THREE.Mesh(tdzGeo, tdzMat);
-        tdz.rotation.x = -Math.PI / 2;
-        tdz.position.set(side * 8, 0.05, RUNWAY_LEN / 2 - offset);
-        scene.add(tdz);
-      });
-    });
-
-    // Approach lighting system (ALS) - line of lights leading to threshold
-    const alsLightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-    for (let i = 1; i <= 8; i++) {
-      const lightGeo = new THREE.SphereGeometry(0.6, 6, 6);
-      const light = new THREE.Mesh(lightGeo, alsLightMat);
-      light.position.set(0, 0.6, RUNWAY_LEN / 2 + i * 12);
-      scene.add(light);
-    }
-
-    // Edge lights along runway (white/amber)
-    for (let z = -RUNWAY_LEN / 2; z <= RUNWAY_LEN / 2; z += 25) {
-      [-1, 1].forEach((side) => {
-        const edgeGeo = new THREE.SphereGeometry(0.35, 6, 6);
-        const nearEnd = Math.abs(z - RUNWAY_LEN / 2) < 180;
-        const edgeMat = new THREE.MeshBasicMaterial({ color: nearEnd ? 0xfef08a : 0xf8fafc });
-        const edge = new THREE.Mesh(edgeGeo, edgeMat);
-        edge.position.set(side * (RUNWAY_WIDTH / 2 + 1.5), 0.5, z);
-        scene.add(edge);
-      });
-    }
-
-    // PAPI lights (4-light visual approach indicator, left of threshold)
-    [-3, -1, 1, 3].forEach((offset, idx) => {
-      const papiGeo = new THREE.SphereGeometry(0.8, 8, 8);
-      const papiMat = new THREE.MeshBasicMaterial({ color: idx < 2 ? 0xff4444 : 0xf8fafc });
-      const papi = new THREE.Mesh(papiGeo, papiMat);
-      papi.position.set(-RUNWAY_WIDTH / 2 - 6, 0.8, RUNWAY_LEN / 2 - 40 + offset * 2.5);
-      scene.add(papi);
-    });
-
-    // Map points to 3D positions
-    // X = lateral drift (small), Y = altitude AGL, Z = distance along approach
-    const altRange = Math.max(50, segment.maxAlt - segment.minAlt);
-    const path3D = segment.points.map((p, i) => {
-      const t = i / (segment.points.length - 1); // 0..1 along approach
-      const z = -300 + t * 600; // start far -Z, end at +Z (touchdown ahead of runway end)
-      const altAGL = Math.max(0, p.alt - segment.minAlt);
-      const y = (altAGL / altRange) * 80; // scale altitude to ~0..80 units
-      const x = Math.sin(t * Math.PI * 0.5) * 5; // slight S-curve drift
-      return new THREE.Vector3(x, y, z);
-    });
 
     // Path line (full)
     const pathGeo = new THREE.BufferGeometry().setFromPoints(path3D);
@@ -305,7 +305,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
         skyGeo.dispose(); skyMat.dispose();
       } catch (_) { /* ignore cleanup errors */ }
     };
-  }, [segment]);
+  }, [segment, runway]);
 
   // Animation loop
   useEffect(() => {
@@ -340,10 +340,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
       const pos = new THREE.Vector3().lerpVectors(cur, next, frac);
       planeMesh.position.copy(pos);
 
-      // Shadow on ground below aircraft (scale with altitude)
-      const altScale = Math.max(0.3, 1 - pos.y / 120);
+      // Shadow on ground below aircraft (scale with altitude, now in meters)
+      const altScale = Math.max(0.3, 1 - pos.y / 200);
       shadow.position.set(pos.x, 0.06, pos.z);
-      shadow.scale.setScalar(altScale);
+      shadow.scale.setScalar(altScale * 2);
       shadow.material.opacity = 0.4 * altScale;
 
       // Orient nose along path (model's nose points +X)
@@ -383,16 +383,16 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
         trailGeo.setFromPoints(trailPts);
       }
 
-      // Camera positioning
+      // Camera positioning - scene units are meters now.
       if (cameraMode === 'chase') {
-        const back = new THREE.Vector3().subVectors(cur, next).normalize().multiplyScalar(55);
-        camera.position.set(pos.x + back.x, pos.y + 18, pos.z + back.z);
-        camera.lookAt(pos.x, pos.y + 2, pos.z + 20);
+        const back = new THREE.Vector3().subVectors(cur, next).normalize().multiplyScalar(80);
+        camera.position.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
+        camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
       } else if (cameraMode === 'side') {
-        camera.position.set(140, Math.max(40, pos.y + 25), pos.z);
+        camera.position.set(300, Math.max(80, pos.y + 60), pos.z);
         camera.lookAt(pos);
       } else if (cameraMode === 'top') {
-        camera.position.set(0, 220, pos.z + 60);
+        camera.position.set(0, 500, pos.z + 100);
         camera.lookAt(0, 0, pos.z);
       }
 
@@ -524,6 +524,80 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
                   {currentReadout.g.toFixed(2)} G
                 </span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Touchdown Analysis HUD */}
+        {touchdownInfo && (
+          <div className="absolute bottom-24 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md p-3 font-mono backdrop-blur-sm shadow-[0_0_20px_rgba(34,211,238,0.15)] min-w-[220px] max-w-[260px]">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-cyan-900/50">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              <span className="text-[9px] uppercase tracking-[0.25em] text-cyan-400">Touchdown Analysis</span>
+              {runway?.landingIdent && (
+                <span className="ml-auto text-[9px] text-slate-500 uppercase">RWY {runway.landingIdent}</span>
+              )}
+            </div>
+            <div className="space-y-1.5 text-xs">
+              {(() => {
+                const alongM = touchdownInfo.alongM;
+                const lateralM = touchdownInfo.lateralM;
+                const halfWidth = (touchdownInfo.runwayWidthM || 45) / 2;
+                // alongM > 0 = short of threshold (undershoot, outside runway)
+                // alongM < 0 = past threshold, on runway (distance from threshold = -alongM)
+                // alongM < -runwayLen = overshoot
+                const runwayLen = touchdownInfo.runwayLenM || 2500;
+                const distFromThreshold = -alongM; // positive when on runway
+                let landingLabel;
+                let labelColor;
+                if (alongM > 0) {
+                  landingLabel = lang === 'de' ? 'VOR DER SCHWELLE' : 'SHORT OF THRESHOLD';
+                  labelColor = 'text-red-400';
+                } else if (distFromThreshold > runwayLen) {
+                  landingLabel = lang === 'de' ? 'UEBER BAHNENDE' : 'OVERSHOOT';
+                  labelColor = 'text-red-400';
+                } else if (distFromThreshold < 150) {
+                  landingLabel = lang === 'de' ? 'AN DER SCHWELLE' : 'AT THRESHOLD';
+                  labelColor = 'text-emerald-400';
+                } else if (distFromThreshold < 600) {
+                  landingLabel = lang === 'de' ? 'TOUCHDOWN ZONE' : 'TOUCHDOWN ZONE';
+                  labelColor = 'text-emerald-400';
+                } else {
+                  landingLabel = lang === 'de' ? 'SPAET AUFGESETZT' : 'LATE TOUCHDOWN';
+                  labelColor = 'text-amber-400';
+                }
+                const centerlineStatus = Math.abs(lateralM) < halfWidth
+                  ? (lang === 'de' ? 'auf Bahn' : 'on runway')
+                  : (lang === 'de' ? 'NEBEN BAHN' : 'OFF RUNWAY');
+                const centerlineColor = Math.abs(lateralM) < halfWidth ? 'text-emerald-300' : 'text-red-400';
+                return (
+                  <>
+                    <div className={`font-bold text-sm ${labelColor}`}>{landingLabel}</div>
+                    <div className="flex items-center justify-between gap-6">
+                      <span className="text-[9px] uppercase tracking-widest text-slate-500">
+                        {lang === 'de' ? 'Ab Schwelle' : 'From threshold'}
+                      </span>
+                      <span className="text-cyan-300 font-bold">
+                        {distFromThreshold >= 0 ? '+' : ''}{Math.round(distFromThreshold)} m
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-6">
+                      <span className="text-[9px] uppercase tracking-widest text-slate-500">
+                        {lang === 'de' ? 'Quer-Abweichung' : 'Lateral offset'}
+                      </span>
+                      <span className={`font-bold ${Math.abs(lateralM) < 5 ? 'text-emerald-300' : Math.abs(lateralM) < 15 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {lateralM >= 0 ? 'R ' : 'L '}{Math.abs(lateralM).toFixed(1)} m
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-6">
+                      <span className="text-[9px] uppercase tracking-widest text-slate-500">
+                        {lang === 'de' ? 'Mittellinie' : 'Centerline'}
+                      </span>
+                      <span className={`font-bold ${centerlineColor}`}>{centerlineStatus}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
