@@ -212,27 +212,21 @@ const firstPositive = (...values) => {
 
 export function resolveLandingMetricsFromFlight(flight) {
   const xpd = flight?.xplane_data || {};
-
-  // ONLY use the last 5 telemetry data points (same as the chart shows).
-  // Pick peak |V/S| and peak G from those 5 points.
   const telemetryHistory = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile || [];
 
+  // Use the proper touchdown-detection logic: find the on_ground transition
+  // (same way the profile chart and 3D approach replay locate the landing),
+  // then take peak |V/S| and peak G from a small window AROUND that moment.
+  // This matches what the chart and 3D replay show and ignores pre-landing
+  // sensor spikes stored in bridge-local fields.
   if (Array.isArray(telemetryHistory) && telemetryHistory.length >= 2) {
-    const last5 = telemetryHistory.slice(-5);
-    let peakVs = 0;
-    let peakG = 0;
-
-    for (const pt of last5) {
-      const vs = Math.abs(Number(pt?.vs ?? pt?.vertical_speed ?? 0));
-      if (Number.isFinite(vs) && vs > peakVs) peakVs = vs;
-      const g = Number(pt?.g ?? pt?.g_force ?? 0);
-      if (Number.isFinite(g) && g > peakG) peakG = g;
+    const derived = deriveLandingMetricsFromTelemetry(
+      telemetryHistory,
+      xpd.airborne_started_at || xpd.session_started_at || null
+    );
+    if (derived && (derived.landingVs > 0 || derived.landingG > 0)) {
+      return { landingVs: derived.landingVs, landingG: derived.landingG };
     }
-
-    return {
-      landingVs: Math.round(clamp(peakVs, 0, 10000)),
-      landingG: Number(clamp(peakG, 0, 6).toFixed(2)),
-    };
   }
 
   return { landingVs: 0, landingG: 0 };

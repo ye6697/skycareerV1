@@ -909,11 +909,31 @@ export default function CompletedFlightDetails() {
                       </div>
 
                       {/* Centerline accuracy impact (takeoff + landing combined) */}
-                      {(centerlineScoreDelta !== 0 || centerlineCashDelta !== 0) && (
+                      {runwayAccuracyData && (runwayAccuracyData.takeoff || runwayAccuracyData.landing) && (
                         <div className="pt-3 border-t border-slate-700">
                           <p className="text-xs text-slate-400 mb-2 font-semibold">
                             {lang === 'de' ? 'Centerline-Präzision (Start + Landung)' : 'Centerline precision (takeoff + landing)'}
                           </p>
+                          {(runwayAccuracyData.takeoff || runwayAccuracyData.landing) && (
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                              {runwayAccuracyData.takeoff && (
+                                <div className="p-2 bg-slate-800/60 rounded border border-slate-700">
+                                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">{lang === 'de' ? 'Start' : 'Takeoff'}</p>
+                                  <p className="text-xs font-mono text-slate-200">
+                                    Ø {Number(runwayAccuracyData.takeoff.rmsMeters || 0).toFixed(1)} m
+                                  </p>
+                                </div>
+                              )}
+                              {runwayAccuracyData.landing && (
+                                <div className="p-2 bg-slate-800/60 rounded border border-slate-700">
+                                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">{lang === 'de' ? 'Landung' : 'Landing'}</p>
+                                  <p className="text-xs font-mono text-slate-200">
+                                    Ø {Number(runwayAccuracyData.landing.rmsMeters || 0).toFixed(1)} m
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <p className="text-xs text-slate-400 mb-1">{lang === 'de' ? 'Score-Auswirkung' : 'Score impact'}</p>
