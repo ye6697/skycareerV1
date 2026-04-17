@@ -26,6 +26,8 @@ import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import FinalApproach3D from "@/components/flights/FinalApproach3D";
+import RunwayAccuracyCard from "@/components/flights/RunwayAccuracyCard";
+import { computeRunwayAccuracy, evaluateRunwayAccuracy } from "@/components/flights/runwayAccuracy";
 import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/flights/failureUtils";
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
@@ -95,6 +97,88 @@ export default function CompletedFlightDetails() {
   // Prefer passed flight from navigation state, fallback to latest from DB
   const flight = passedFlight || flights[0];
   const finalContract = passedContract || contract;
+
+  // One-time Runway Accuracy backfill: compute score & cash impact on first view.
+  // Stores result under xplane_data.runway_accuracy so it's only applied once.
+  const runwayBackfillDoneRef = React.useRef(new Set());
+  React.useEffect(() => {
+    if (!flight?.id) return;
+    if (flight?.status !== 'completed') return;
+    if (flight?.xplane_data?.runway_accuracy_applied) return;
+    if (runwayBackfillDoneRef.current.has(flight.id)) return;
+    runwayBackfillDoneRef.current.add(flight.id);
+
+    const telemetryHistory = flight?.xplane_data?.telemetry_history || [];
+    const accuracy = computeRunwayAccuracy(telemetryHistory);
+    if (!accuracy?.takeoff && !accuracy?.landing) return;
+
+    const basePayout = Number(finalContract?.payout || flight?.revenue || 0);
+    const takeoffEval = accuracy.takeoff ? evaluateRunwayAccuracy(accuracy.takeoff.rmsMeters, basePayout) : null;
+    const landingEval = accuracy.landing ? evaluateRunwayAccuracy(accuracy.landing.rmsMeters, basePayout) : null;
+    const totalScoreDelta = (takeoffEval?.scoreDelta || 0) + (landingEval?.scoreDelta || 0);
+    const totalCashDelta = (takeoffEval?.cashDelta || 0) + (landingEval?.cashDelta || 0);
+
+    if (totalScoreDelta === 0 && totalCashDelta === 0) return;
+
+    (async () => {
+      try {
+        const currentScore = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0);
+        const adjustedScore = Math.max(0, Math.min(100, currentScore + totalScoreDelta));
+        const adjustedProfit = Number(flight?.profit || 0) + totalCashDelta;
+        const adjustedRevenue = Number(flight?.revenue || 0) + totalCashDelta;
+
+        await base44.entities.Flight.update(flight.id, {
+          flight_score: adjustedScore,
+          overall_rating: (adjustedScore / 100) * 5,
+          revenue: adjustedRevenue,
+          profit: adjustedProfit,
+          xplane_data: {
+            ...(flight.xplane_data || {}),
+            final_score: adjustedScore,
+            runway_accuracy_applied: true,
+            runway_accuracy: {
+              takeoff: accuracy.takeoff ? { ...accuracy.takeoff, ...takeoffEval } : null,
+              landing: accuracy.landing ? { ...accuracy.landing, ...landingEval } : null,
+              totalScoreDelta,
+              totalCashDelta,
+            },
+          },
+        });
+
+        if (totalCashDelta !== 0) {
+          const user = await base44.auth.me();
+          const cid = user?.company_id || user?.data?.company_id;
+          let companyId = cid;
+          if (!companyId) {
+            const cs = await base44.entities.Company.filter({ created_by: user.email });
+            companyId = cs[0]?.id;
+          }
+          if (companyId) {
+            const companies = await base44.entities.Company.filter({ id: companyId });
+            const co = companies[0];
+            if (co) {
+              await base44.entities.Company.update(companyId, {
+                balance: (co.balance || 0) + totalCashDelta,
+              });
+              await base44.entities.Transaction.create({
+                company_id: companyId,
+                type: totalCashDelta >= 0 ? 'income' : 'expense',
+                category: totalCashDelta >= 0 ? 'bonus' : 'other',
+                amount: Math.abs(totalCashDelta),
+                description: totalCashDelta >= 0
+                  ? `Runway centerline bonus: ${finalContract?.title || 'Flight'}`
+                  : `Runway centerline penalty: ${finalContract?.title || 'Flight'}`,
+                reference_id: flight.id,
+                date: new Date().toISOString(),
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Runway accuracy backfill failed:', err);
+      }
+    })();
+  }, [flight?.id, flight?.status, flight?.xplane_data?.runway_accuracy_applied, finalContract?.payout]);
 
   // No route generation needed - map will use flight path data
 
@@ -400,6 +484,9 @@ export default function CompletedFlightDetails() {
 
               {/* Landing Quality Visual */}
               <LandingQualityVisual flight={flight} gameSettings={gameSettings} />
+
+              {/* Runway Centerline Accuracy (Takeoff + Landing) */}
+              <RunwayAccuracyCard flight={flight} />
 
               {/* Flight Details */}
               <Card className="p-4 sm:p-6 bg-slate-800/50 border-slate-700">
