@@ -48,7 +48,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     let points;
     if (phase === 'takeoff') {
-      // Find liftoff index, then take samples from (liftoff - durationSeconds) to (liftoff + 5s).
+      // Find liftoff index, then take a longer window: from takeoff-roll start
+      // through initial climb. -20s covers the ground roll from brake release,
+      // +40s shows a substantial initial climb after liftoff.
       let liftoffIdx = -1;
       let groundSeen = false;
       for (let i = 0; i < history.length; i += 1) {
@@ -57,12 +59,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         if (groundSeen && (og === false || og === 0)) { liftoffIdx = i; break; }
       }
       if (liftoffIdx < 0) {
-        // Fallback: first quarter of flight
         liftoffIdx = Math.min(history.length - 1, Math.floor(history.length * 0.1));
       }
       const liftoffTs = new Date(history[liftoffIdx]?.t || Date.now()).getTime();
-      const startMs = liftoffTs - durationSeconds * 1000;
-      const endMs = liftoffTs + 8000;
+      const startMs = liftoffTs - 20 * 1000;
+      const endMs = liftoffTs + 40 * 1000;
       points = history
         .filter((p) => {
           const ts = new Date(p?.t || 0).getTime();
@@ -212,11 +213,12 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       ? geoPath
       : buildSyntheticPath(segment.points, runway);
 
-    // Smooth the path with a Catmull-Rom spline so aircraft glides between
-    // telemetry samples instead of linearly jumping.
+    // Smooth the path with a Catmull-Rom spline and use getSpacedPoints to
+    // distribute samples by arc-length (constant speed), not by parameter t
+    // (which produces speed-up/slow-down artifacts between control points).
     const curve = new THREE.CatmullRomCurve3(rawPath, false, 'catmullrom', 0.25);
-    const smoothCount = Math.max(rawPath.length * 6, 120);
-    const path3D = curve.getPoints(smoothCount);
+    const smoothCount = Math.max(rawPath.length * 8, 200);
+    const path3D = curve.getSpacedPoints(smoothCount);
 
     // Identify touchdown / liftoff point.
     // Landing: first point where altitude crosses ~0 AGL downward.
@@ -389,6 +391,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       const cur = path3D[idx];
       const next = path3D[Math.min(path3D.length - 1, idx + 1)];
       const pos = new THREE.Vector3().lerpVectors(cur, next, frac);
+      // Keep aircraft above runway surface: landing gear + fuselage radius.
+      // Models are scaled 1.0-1.6x and fuselage radius ~0.55-1.55m → min 3m clearance
+      // ensures the aircraft sits ON the runway, not halfway buried in it.
+      const MIN_GROUND_CLEARANCE = 3;
+      if (pos.y < MIN_GROUND_CLEARANCE) pos.y = MIN_GROUND_CLEARANCE;
       planeMesh.position.copy(pos);
 
       // Shadow on ground below aircraft (scale with altitude, now in meters)
@@ -445,8 +452,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
         camera.lookAt(pos);
       } else if (cameraMode === 'top') {
-        camera.position.set(0, 500, pos.z + 100);
-        camera.lookAt(0, 0, pos.z);
+        // Closer top-down view so the aircraft + runway fill the frame.
+        camera.position.set(0, 180, pos.z + 30);
+        camera.lookAt(pos.x, 0, pos.z);
       }
 
       renderer.render(scene, camera);
