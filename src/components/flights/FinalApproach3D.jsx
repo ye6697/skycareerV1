@@ -196,8 +196,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     if (!segment || !mountRef.current) return;
 
     const mount = mountRef.current;
-    const width = mount.clientWidth;
-    const height = mount.clientHeight;
+    // Guard against 0-size mount on first paint (causes black screen because
+    // aspect becomes NaN and nothing passes the frustum).
+    const width = Math.max(1, mount.clientWidth || mount.offsetWidth || 800);
+    const height = Math.max(1, mount.clientHeight || mount.offsetHeight || 600);
 
     const scene = new THREE.Scene();
     // Dusk/sunset sky gradient feel. Fog pushed far enough that fast jets
@@ -512,8 +514,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       const cur = p3[idx];
       const next = p3[Math.min(p3.length - 1, idx + 1)];
       const pos = new THREE.Vector3().lerpVectors(cur, next, frac);
-      const MIN_GROUND_CLEARANCE = 3;
-      if (pos.y < MIN_GROUND_CLEARANCE) pos.y = MIN_GROUND_CLEARANCE;
+      // Do NOT force a minimum ground clearance here – the aircraft model
+      // already has landing-gear geometry offset built in. Forcing +3m made
+      // the plane visibly float above the runway during rollout/takeoff.
       s.planeMesh.position.copy(pos);
 
       const altScale = Math.max(0.3, 1 - pos.y / 200);
@@ -567,9 +570,17 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       } else {
         camera.up.set(0, 1, 0);
         if (mode === 'chase') {
-          const back = new THREE.Vector3().subVectors(cur, next).normalize().multiplyScalar(80);
+          // Look direction over a wider window so tiny sub-meter spline
+          // segments don't produce a near-zero vector that flips the camera.
+          const lbIdx = Math.max(0, idx - 8);
+          const lfIdx = Math.min(p3.length - 1, idx + 2);
+          const forward = new THREE.Vector3().subVectors(p3[lfIdx], p3[lbIdx]);
+          if (forward.lengthSq() < 1e-4) forward.set(0, 0, -1);
+          forward.normalize();
+          const back = forward.clone().multiplyScalar(-80);
           camera.position.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
-          camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
+          const lookAhead = forward.clone().multiplyScalar(40);
+          camera.lookAt(pos.x + lookAhead.x, pos.y + 5, pos.z + lookAhead.z);
         } else {
           camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
           camera.lookAt(pos);
@@ -591,8 +602,14 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
+    // If the mount was still 0-sized on first measurement, catch up as soon
+    // as the browser has laid it out (prevents the "only dark blue" issue).
+    const initialSizeTimer = setTimeout(handleResize, 50);
+    const initialSizeTimer2 = setTimeout(handleResize, 250);
 
     return () => {
+      clearTimeout(initialSizeTimer);
+      clearTimeout(initialSizeTimer2);
       // Clear sceneRef first so animation loop bails out immediately
       sceneRef.current = null;
       window.removeEventListener('resize', handleResize);
