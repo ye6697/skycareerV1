@@ -34,6 +34,7 @@ import ReputationGauge from "@/components/dashboard/ReputationGauge";
 import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
 import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
 import ContractCard from "@/components/contracts/ContractCard";
+import AchievementsWidget from "@/components/achievements/AchievementsWidget";
 import { Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -277,6 +278,9 @@ export default function Dashboard() {
         ))}
       </div>
       
+      {/* Achievements Widget */}
+      <AchievementsWidget companyId={companyId} company={company} />
+
       {/* SimBrief Bar at bottom */}
       <div className="bg-slate-900/80 border border-cyan-900/30 rounded-lg p-2 sm:p-3 flex flex-wrap items-center justify-between gap-3 shadow-lg mt-auto">
         <div className="flex items-center gap-2">

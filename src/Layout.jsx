@@ -40,6 +40,7 @@ function getNavItems(lang) {
     { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup" },
     { name: t('nav_xplane_debug', lang), icon: Activity, path: "XPlaneDebug" },
     { name: lang === 'de' ? 'Ranking' : 'Leaderboard', icon: Trophy, path: "Leaderboard" },
+    { name: lang === 'de' ? 'Errungenschaften' : 'Achievements', icon: Star, path: "Achievements" },
     { name: t('account', lang), icon: Settings, path: "Account" },
     { name: t('nav_game_settings', lang), icon: Settings, path: "GameSettingsAdmin", adminOnly: true },
     { name: t('nav_aircraft_images', lang), icon: Plane, path: "AdminAircraftImages", adminOnly: true },
