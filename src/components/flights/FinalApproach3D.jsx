@@ -300,7 +300,6 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30 
         pathGeo.dispose(); pathMat.dispose();
         activePathGeo.dispose(); activePathMat.dispose();
         groundGeo.dispose(); groundMat.dispose();
-        runwayGeo.dispose(); runwayMat.dispose();
         trailGeo.dispose(); trailMat.dispose();
         skyGeo.dispose(); skyMat.dispose();
       } catch (_) { /* ignore cleanup errors */ }
