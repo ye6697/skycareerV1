@@ -214,12 +214,14 @@ export function computeRunwayAccuracy(telemetryHistory) {
 }
 
 // Convert a single accuracy measurement (rmsMeters) into a score delta and cash delta.
-// Lower rms = better. Thresholds are in meters of average lateral deviation.
-//  - <= 2 m   : excellent  -> +5 score, +3% payout bonus
-//  - <= 5 m   : good       -> +2 score, +1% payout bonus
+// Lower rms = better. Centerline precision is a core piloting skill and is now
+// weighted more heavily in both score and payout. Thresholds in meters of
+// average lateral deviation:
+//  - <= 2 m   : excellent  -> +15 score, +8% payout bonus
+//  - <= 5 m   : good       -> +8 score, +4% payout bonus
 //  - <= 10 m  : acceptable -> 0 score, 0 cash
-//  - <= 20 m  : sloppy     -> -3 score, -1% payout penalty
-//  - >  20 m  : poor       -> -6 score, -2% payout penalty
+//  - <= 20 m  : sloppy     -> -12 score, -5% payout penalty
+//  - >  20 m  : poor       -> -25 score, -10% payout penalty
 export function evaluateRunwayAccuracy(rmsMeters, basePayout = 0) {
   const rms = Math.max(0, Number(rmsMeters) || 0);
   let qualityKey = "acceptable";
@@ -228,24 +230,24 @@ export function evaluateRunwayAccuracy(rmsMeters, basePayout = 0) {
 
   if (rms <= 2) {
     qualityKey = "excellent";
-    scoreDelta = 5;
-    cashPct = 0.03;
+    scoreDelta = 15;
+    cashPct = 0.08;
   } else if (rms <= 5) {
     qualityKey = "good";
-    scoreDelta = 2;
-    cashPct = 0.01;
+    scoreDelta = 8;
+    cashPct = 0.04;
   } else if (rms <= 10) {
     qualityKey = "acceptable";
     scoreDelta = 0;
     cashPct = 0;
   } else if (rms <= 20) {
     qualityKey = "sloppy";
-    scoreDelta = -3;
-    cashPct = -0.01;
+    scoreDelta = -12;
+    cashPct = -0.05;
   } else {
     qualityKey = "poor";
-    scoreDelta = -6;
-    cashPct = -0.02;
+    scoreDelta = -25;
+    cashPct = -0.10;
   }
 
   const cashDelta = Math.round(Math.max(0, Number(basePayout) || 0) * cashPct);

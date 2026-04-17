@@ -190,11 +190,13 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Dusk/sunset sky gradient feel
+    // Dusk/sunset sky gradient feel. Fog pushed far enough that fast jets
+    // during takeoff (which can travel 2+ km in the replay window) never
+    // "hit" the horizon wall.
     scene.background = new THREE.Color(0x0a1528);
-    scene.fog = new THREE.Fog(0x0a1528, 200, 1200);
+    scene.fog = new THREE.Fog(0x0a1528, 800, 6000);
 
-    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 3000);
+    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 12000);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -203,8 +205,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     renderer.toneMappingExposure = 1.1;
     mount.appendChild(renderer.domElement);
 
-    // Sky dome with gradient (horizon glow)
-    const skyGeo = new THREE.SphereGeometry(1500, 32, 16);
+    // Sky dome with gradient (horizon glow). Radius > camera.far / 2 so the
+    // camera never flies through the dome even during long takeoff replays.
+    const skyGeo = new THREE.SphereGeometry(8000, 32, 16);
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
@@ -241,15 +244,16 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     sideLight.position.set(200, 40, 0);
     scene.add(sideLight);
 
-    // Terrain grid (subtle, tactical look)
-    const gridHelper = new THREE.GridHelper(2400, 60, 0x1e3a5f, 0x142033);
+    // Terrain grid (subtle, tactical look) – expanded to match the larger sky
+    // so jets travelling several km still see terrain below them.
+    const gridHelper = new THREE.GridHelper(8000, 80, 0x1e3a5f, 0x142033);
     gridHelper.position.y = 0;
     gridHelper.material.opacity = 0.35;
     gridHelper.material.transparent = true;
     scene.add(gridHelper);
 
     // Ground plane (dark, solid for depth)
-    const groundGeo = new THREE.PlaneGeometry(3000, 3000);
+    const groundGeo = new THREE.PlaneGeometry(10000, 10000);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0x0d1a2b, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -317,21 +321,57 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     }
     if (touchdownIdx < 0) touchdownIdx = Math.floor(path3D.length / 2);
 
-    // Visualize the touchdown point (big cyan ring on the ground).
+    // Visualize the touchdown point – large ground crosshair + tall glowing
+    // beacon so it remains visible from the chase camera (which sits behind
+    // and above the aircraft and would otherwise let the plane occlude a
+    // small ground ring).
     if (touchdownIdx >= 0 && path3D[touchdownIdx]) {
       const td = path3D[touchdownIdx];
-      const ringGeo = new THREE.RingGeometry(4, 6, 32);
-      const ringMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+      const markerColor = 0x22d3ee;
+
+      // Inner ring (bright, thick) and outer pulsing halo.
+      const ringGeo = new THREE.RingGeometry(6, 9, 40);
+      const ringMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(td.x, 0.08, td.z);
+      ring.position.set(td.x, 0.09, td.z);
       scene.add(ring);
 
-      const pillarGeo = new THREE.CylinderGeometry(0.15, 0.15, 80, 8);
-      const pillarMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.5 });
+      const haloGeo = new THREE.RingGeometry(12, 18, 48);
+      const haloMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+      const halo = new THREE.Mesh(haloGeo, haloMat);
+      halo.rotation.x = -Math.PI / 2;
+      halo.position.set(td.x, 0.08, td.z);
+      scene.add(halo);
+
+      // Four ground crosshair bars (N/S/E/W) stretching out from the ring so
+      // the touchdown spot reads clearly even when the aircraft body covers
+      // the center.
+      [
+        { w: 60, d: 1.2, dx: 0, dz: 0 },   // along-runway bar
+        { w: 1.2, d: 60, dx: 0, dz: 0 },   // cross-runway bar
+      ].forEach(({ w, d, dx, dz }) => {
+        const barGeo = new THREE.PlaneGeometry(w, d);
+        const barMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
+        const bar = new THREE.Mesh(barGeo, barMat);
+        bar.rotation.x = -Math.PI / 2;
+        bar.position.set(td.x + dx, 0.07, td.z + dz);
+        scene.add(bar);
+      });
+
+      // Tall glowing beacon so the marker is visible above the aircraft too.
+      const pillarGeo = new THREE.CylinderGeometry(0.35, 0.35, 250, 10);
+      const pillarMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.55 });
       const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(td.x, 40, td.z);
+      pillar.position.set(td.x, 125, td.z);
       scene.add(pillar);
+
+      // Bright cap at the top of the beacon to draw the eye.
+      const capGeo = new THREE.SphereGeometry(1.8, 12, 12);
+      const capMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.9 });
+      const cap = new THREE.Mesh(capGeo, capMat);
+      cap.position.set(td.x, 250, td.z);
+      scene.add(cap);
 
       // For the HUD readout, project the REAL telemetry coordinate (lat/lon)
       // into the runway frame → true meters, no spline interpolation.
