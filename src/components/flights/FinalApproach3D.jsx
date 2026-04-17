@@ -538,7 +538,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       // Top view uses a different up-vector so the runway stays axis-aligned;
       // other views need the standard up so the world renders right-way-up.
       if (cameraMode === 'top') {
-        camera.up.set(0, 0, -1); // -Z points "up" on screen (approach direction)
+        // Aircraft should fly from bottom of screen toward top (south -> north).
+        // Scene: approach is at +Z (bottom of screen), rollout at -Z (top).
+        // So we want -Z pointing UP on screen.
+        camera.up.set(0, 0, -1);
         camera.position.set(0, 220, pos.z);
         camera.lookAt(0, 0, pos.z);
       } else {

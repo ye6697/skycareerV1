@@ -158,18 +158,22 @@ export function buildRunwayScene(runway, makeLabelTexture) {
     const labelWidth = Math.min(widM * 0.7, 28);
     const labelHeight = labelWidth * 1.4;
     const geo = new THREE.PlaneGeometry(labelWidth, labelHeight);
+    // depthTest stays TRUE so the aircraft correctly occludes the painted label
+    // when flying overhead. polygonOffset lifts the label just above the asphalt
+    // to prevent z-fighting with the runway surface.
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
       depthWrite: false,
-      depthTest: false,
       side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
     if (flipForApproach) mesh.rotation.z = Math.PI;
-    mesh.position.set(0, 0.12, zPos);
-    mesh.renderOrder = 999;
+    mesh.position.set(0, 0.05, zPos);
     group.add(mesh);
   };
   // Only paint the runway designator when we have real data from OurAirports.
@@ -263,15 +267,19 @@ export function buildGeoPath(telemetryPoints, runway) {
   if (geoPts.length < 2) return null;
 
   const thresholdElevM = runway.thresholdElevM || 0;
+  // Runway-frame convention from projectToRunwayFrame:
+  //   alongM = distance along landing heading (0 at threshold, + toward departure end)
+  //   lateralM = + right of centerline (looking along landing direction)
+  // Scene convention (buildRunwayScene):
+  //   Runway extends from Z=0 (threshold) to Z=-lenM (far end),
+  //   approach comes from +Z (in front of threshold = BEFORE touchdown).
+  //   Positive X = right of centerline (same as lateralM).
+  // Therefore: sceneZ = -alongM.  A point in front of the threshold has
+  // alongM < 0 (opposite to landing heading) and must map to Z > 0.
   const path = geoPts.map((p) => {
     const { alongM, lateralM } = projectToRunwayFrame(p.lat, p.lon, runway);
-    // alongM: positive = in front of threshold toward approach direction
-    // But approach direction from runway frame: threshold heading points away from approach.
-    // Since runway extends from Z=0 (threshold) to Z=-lenM (far end), approach comes from +Z.
-    // Project alongM accordingly: points on approach path are at positive Z (in front of threshold),
-    // points past threshold rolling down the runway are at negative Z.
-    const z = alongM; // alongM > 0 = not yet at threshold; alongM < 0 = past threshold
-    const x = lateralM; // + = right of centerline
+    const z = -alongM;
+    const x = lateralM;
     const altM = Math.max(0, (p.alt || 0) * 0.3048 - thresholdElevM);
     return new THREE.Vector3(x, altM, z);
   });
