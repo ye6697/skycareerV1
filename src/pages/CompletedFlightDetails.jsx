@@ -109,9 +109,37 @@ export default function CompletedFlightDetails() {
     if (runwayBackfillDoneRef.current.has(flight.id)) return;
     runwayBackfillDoneRef.current.add(flight.id);
 
-    const telemetryHistory = flight?.xplane_data?.telemetry_history || [];
+    const rawTelemetryHistory = flight?.xplane_data?.telemetry_history || [];
     const basePayout = Number(finalContract?.payout || flight?.revenue || 0);
     const xpd = flight?.xplane_data || {};
+
+    // Fallback: if no telemetry_history is stored, synthesize one from flight_path
+    // (lat/lon only) so we can at least measure lateral deviation from centerline.
+    // Tag samples near start as on_ground=true for takeoff, samples near end as
+    // on_ground=true for landing, so the accuracy algorithms pick them up.
+    let telemetryHistory = rawTelemetryHistory;
+    if ((!Array.isArray(telemetryHistory) || telemetryHistory.length < 5)
+        && Array.isArray(xpd.flight_path) && xpd.flight_path.length >= 10) {
+      const fp = xpd.flight_path
+        .map((p) => {
+          if (Array.isArray(p) && p.length >= 2) return { lat: Number(p[0]), lon: Number(p[1]) };
+          if (p && typeof p === 'object') return { lat: Number(p.lat ?? p.latitude), lon: Number(p.lon ?? p.lng ?? p.longitude) };
+          return null;
+        })
+        .filter((p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && !(Math.abs(p.lat) < 0.01 && Math.abs(p.lon) < 0.01));
+      if (fp.length >= 10) {
+        // Mark first ~3% of samples as ground-rolling (takeoff) and last ~3% as
+        // ground-rolling (landing rollout). Speed=50 so the roll detection triggers.
+        const n = fp.length;
+        const takeoffEnd = Math.max(3, Math.floor(n * 0.03));
+        const landingStart = Math.max(takeoffEnd + 1, Math.floor(n * 0.97));
+        telemetryHistory = fp.map((p, i) => ({
+          ...p,
+          on_ground: (i < takeoffEnd || i >= landingStart),
+          spd: (i < takeoffEnd || i >= landingStart) ? 50 : 250,
+        }));
+      }
+    }
 
     // Resolve departure + arrival runways via OurAirports, then measure lateral
     // deviation from the TRUE centerline. Fall back to best-fit-line (old method)
@@ -130,15 +158,30 @@ export default function CompletedFlightDetails() {
         };
 
         // Heuristic hint coords: first moving ground sample for departure,
-        // last sample for arrival. Falls back to airport coords in xplane_data.
+        // last sample for arrival. Falls back to airport coords in xplane_data,
+        // then to SimBrief departure/arrival coords, then to flight_path endpoints.
         const firstGround = telemetryHistory.find((p) => (p?.on_ground === true || p?.on_ground === 1) && Number(p?.spd ?? p?.speed ?? 0) > 20);
         const lastSample = telemetryHistory[telemetryHistory.length - 1] || {};
-        const depIcao = xpd.departure_icao || xpd.departure_airport || flight?.departure_airport || '';
-        const arrIcao = xpd.arrival_icao || xpd.arrival_airport || flight?.arrival_airport || '';
-        const depHintLat = Number(firstGround?.lat ?? xpd.departure_lat ?? 0);
-        const depHintLon = Number(firstGround?.lon ?? xpd.departure_lon ?? 0);
-        const arrHintLat = Number(lastSample?.lat ?? xpd.arrival_lat ?? 0);
-        const arrHintLon = Number(lastSample?.lon ?? xpd.arrival_lon ?? 0);
+        const flightPath = Array.isArray(xpd.flight_path) ? xpd.flight_path : [];
+        const fpFirst = flightPath[0];
+        const fpLast = flightPath[flightPath.length - 1];
+        const fpFirstLat = Array.isArray(fpFirst) ? Number(fpFirst[0]) : Number(fpFirst?.lat);
+        const fpFirstLon = Array.isArray(fpFirst) ? Number(fpFirst[1]) : Number(fpFirst?.lon ?? fpFirst?.lng);
+        const fpLastLat = Array.isArray(fpLast) ? Number(fpLast[0]) : Number(fpLast?.lat);
+        const fpLastLon = Array.isArray(fpLast) ? Number(fpLast[1]) : Number(fpLast?.lon ?? fpLast?.lng);
+        const depIcao = xpd.departure_icao || xpd.departure_airport || xpd.contract_departure_airport || flight?.departure_airport || '';
+        const arrIcao = xpd.arrival_icao || xpd.arrival_airport || xpd.contract_arrival_airport || flight?.arrival_airport || '';
+        const pickCoord = (...vals) => {
+          for (const v of vals) {
+            const n = Number(v);
+            if (Number.isFinite(n) && Math.abs(n) > 0.1) return n;
+          }
+          return 0;
+        };
+        const depHintLat = pickCoord(firstGround?.lat, xpd.departure_lat, xpd.simbrief_departure_coords?.lat, fpFirstLat);
+        const depHintLon = pickCoord(firstGround?.lon, xpd.departure_lon, xpd.simbrief_departure_coords?.lon, fpFirstLon);
+        const arrHintLat = pickCoord(lastSample?.lat, xpd.arrival_lat, xpd.simbrief_arrival_coords?.lat, fpLastLat);
+        const arrHintLon = pickCoord(lastSample?.lon, xpd.arrival_lon, xpd.simbrief_arrival_coords?.lon, fpLastLon);
 
         const [depRunway, arrRunway] = await Promise.all([
           fetchRunway(depIcao, depHintLat, depHintLon),

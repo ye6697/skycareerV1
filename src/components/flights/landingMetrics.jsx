@@ -210,15 +210,22 @@ const firstPositive = (...values) => {
   return 0;
 };
 
+// Approximate touchdown vertical speed (ft/min) from landing G-force.
+// Based on simplified impact dynamics: heavier G at touchdown implies
+// higher sink rate. Calibrated to typical airliner data:
+//   1.0 G  = ~0 fpm (butter), 1.3 G = ~200 fpm, 1.5 G = ~350 fpm,
+//   1.8 G = ~550 fpm, 2.0 G = ~700 fpm, 2.5 G = ~1000 fpm.
+const approximateVsFromG = (gForce) => {
+  const g = Number(gForce);
+  if (!Number.isFinite(g) || g <= 1.0) return 0;
+  return Math.round((g - 1.0) * 700);
+};
+
 export function resolveLandingMetricsFromFlight(flight) {
   const xpd = flight?.xplane_data || {};
   const telemetryHistory = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile || [];
 
-  // Use the proper touchdown-detection logic: find the on_ground transition
-  // (same way the profile chart and 3D approach replay locate the landing),
-  // then take peak |V/S| and peak G from a small window AROUND that moment.
-  // This matches what the chart and 3D replay show and ignores pre-landing
-  // sensor spikes stored in bridge-local fields.
+  // Preferred path: derive from telemetry_history (same as chart + 3D replay).
   if (Array.isArray(telemetryHistory) && telemetryHistory.length >= 2) {
     const derived = deriveLandingMetricsFromTelemetry(
       telemetryHistory,
@@ -229,5 +236,19 @@ export function resolveLandingMetricsFromFlight(flight) {
     }
   }
 
-  return { landingVs: 0, landingG: 0 };
+  // Fallback: use bridge-stored landing fields but sanitize unrealistic spikes.
+  // A real airliner touchdown is between 0 and ~1000 fpm. Anything above 1500 fpm
+  // is a sensor spike (the bridge sometimes logs 5000+ fpm garbage values).
+  // In that case approximate V/S from landing G-force instead.
+  const bridgeG = Number(xpd.landing_g_force);
+  const bridgeVs = Math.abs(Number(xpd.touchdown_vspeed) || 0);
+  const safeG = Number.isFinite(bridgeG) && bridgeG > 0 && bridgeG < 4 ? bridgeG : 0;
+  let safeVs = 0;
+  if (bridgeVs > 0 && bridgeVs <= 1500) {
+    safeVs = bridgeVs;
+  } else if (safeG > 0) {
+    safeVs = approximateVsFromG(safeG);
+  }
+
+  return { landingVs: Math.round(safeVs), landingG: Number(safeG.toFixed(2)) };
 }
