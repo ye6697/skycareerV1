@@ -102,12 +102,25 @@ export default function CompletedFlightDetails() {
 
   // One-time Runway Accuracy backfill: compute score & cash impact on first view.
   // Stores result under xplane_data.runway_accuracy so it's only applied once.
+  // Guard per "flight.id + contract_loaded" so a failed run doesn't block retry
+  // after the contract query arrives.
   const runwayBackfillDoneRef = React.useRef(new Set());
   React.useEffect(() => {
     if (!flight?.id) return;
     if (flight?.xplane_data?.runway_accuracy_applied) return;
-    if (runwayBackfillDoneRef.current.has(flight.id)) return;
-    runwayBackfillDoneRef.current.add(flight.id);
+    // Wait until we have a contract (for ICAO codes). Without it, the runway
+    // lookup fails silently and the user sees "wird berechnet" forever.
+    if (!finalContract?.departure_airport && !finalContract?.arrival_airport) return;
+    const guardKey = `${flight.id}|${finalContract?.id || 'noc'}`;
+    if (runwayBackfillDoneRef.current.has(guardKey)) return;
+    runwayBackfillDoneRef.current.add(guardKey);
+    console.log('[RunwayBackfill] start', {
+      flight_id: flight.id,
+      dep_icao: finalContract?.departure_airport,
+      arr_icao: finalContract?.arrival_airport,
+      has_telemetry_history: Array.isArray(flight?.xplane_data?.telemetry_history) && flight.xplane_data.telemetry_history.length > 0,
+      flight_path_len: Array.isArray(flight?.xplane_data?.flight_path) ? flight.xplane_data.flight_path.length : 0,
+    });
 
     const rawTelemetryHistory = flight?.xplane_data?.telemetry_history || [];
     const basePayout = Number(finalContract?.payout || flight?.revenue || 0);
@@ -200,7 +213,26 @@ export default function CompletedFlightDetails() {
         const legacy = (!takeoffGeo || !landingGeo) ? computeRunwayAccuracy(telemetryHistory) : { takeoff: null, landing: null };
         const takeoffAcc = takeoffGeo || legacy.takeoff || null;
         const landingAcc = landingGeo || legacy.landing || null;
-        if (!takeoffAcc && !landingAcc) return;
+        console.log('[RunwayBackfill] computed', {
+          flight_id: flight.id,
+          dep_icao: depIcao, arr_icao: arrIcao,
+          dep_hint: [depHintLat, depHintLon], arr_hint: [arrHintLat, arrHintLon],
+          dep_runway_resolved: !!depRunway, arr_runway_resolved: !!arrRunway,
+          takeoff_geo: !!takeoffGeo, landing_geo: !!landingGeo,
+          takeoff_legacy: !!legacy.takeoff, landing_legacy: !!legacy.landing,
+          telemetry_len: telemetryHistory.length,
+        });
+        if (!takeoffAcc && !landingAcc) {
+          // Mark as applied with empty result so UI stops showing "wird berechnet".
+          await base44.entities.Flight.update(flight.id, {
+            xplane_data: {
+              ...(flight.xplane_data || {}),
+              runway_accuracy_applied: true,
+              runway_accuracy: { takeoff: null, landing: null, totalScoreDelta: 0, totalCashDelta: 0, unavailable_reason: 'no_runway_data' },
+            },
+          });
+          return;
+        }
 
         const takeoffEval = takeoffAcc ? evaluateRunwayAccuracy(takeoffAcc.rmsMeters, basePayout) : null;
         const landingEval = landingAcc ? evaluateRunwayAccuracy(landingAcc.rmsMeters, basePayout) : null;
