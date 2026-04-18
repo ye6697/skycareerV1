@@ -4,6 +4,7 @@ import { X, Play, Pause, RotateCcw, Eye, Compass, Download, Share2, Loader2 } fr
 import { useLanguage } from "@/components/LanguageContext";
 import * as THREE from 'three';
 import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
+import { buildCustomAircraftModel } from '@/components/flights/customAircraftModel';
 import { base44 } from '@/api/base44Client';
 import useMp4Exporter from '@/components/flights/useMp4Exporter';
 import { lateralDeviationColor, buildPathColors } from '@/components/flights/centerlineColor';
@@ -880,7 +881,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       xpdForModel.aircraft ||
       flight?.aircraft_type ||
       '';
-    const { group: planeMesh, strobe } = buildAircraftModel(aircraftHint);
+    // Use the user-provided custom 3D model for all flights.
+    const { group: planeMesh, strobe } = buildCustomAircraftModel(aircraftHint);
     planeMesh.position.copy(path3D[0]);
     scene.add(planeMesh);
 
