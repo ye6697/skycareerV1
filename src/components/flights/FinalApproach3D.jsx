@@ -16,7 +16,7 @@ import {
   buildSyntheticPath,
   projectToRunwayFrame,
 } from '@/components/flights/approachGeometry';
-import { buildAirportEnvironment } from '@/components/flights/airportScene';
+import { buildCustomAirport } from '@/components/flights/customAirportModel';
 
 // Visualizes a slice of telemetry (final approach OR initial takeoff) as a 3D replay.
 // phase: 'landing' (last N seconds, default) | 'takeoff' (first N seconds after motion)
@@ -341,45 +341,25 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     fillLight.position.set(180, 150, 120);
     scene.add(fillLight);
 
-    // Ground – dusk-lit grass, visible but not daylight-bright.
+    // Minimal dark ground plane (the custom airport model provides all other
+    // scenery). Kept simple so the model sits on a clean base.
     const groundGeo = new THREE.PlaneGeometry(12000, 12000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x384a2e, roughness: 1, metalness: 0 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x1f2a26, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1.5;
     scene.add(ground);
 
-    // Darker grass patches (variation) scattered around the airfield to break
-    // up the uniform ground and give depth cues when flying over.
-    const patchMat = new THREE.MeshStandardMaterial({ color: 0x2a3a22, roughness: 1, metalness: 0 });
-    for (let i = 0; i < 40; i += 1) {
-      const w = 80 + Math.random() * 220;
-      const d = 80 + Math.random() * 220;
-      const patch = new THREE.Mesh(new THREE.PlaneGeometry(w, d), patchMat);
-      patch.rotation.x = -Math.PI / 2;
-      patch.rotation.z = Math.random() * Math.PI;
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 300 + Math.random() * 2500;
-      patch.position.set(Math.cos(angle) * radius, -1.4, Math.sin(angle) * radius);
-      scene.add(patch);
-    }
-
     // =================================================================
-    // Dense natural + built environment around the airfield.
-    // Uses InstancedMesh for trees & shrubs so we can place thousands of
-    // objects cheaply (one draw call each). Small houses and field patches
-    // add variety so the scene doesn't feel empty.
+    // Scenery is now provided by the custom airport 3D model loaded below;
+    // all the previous procedural trees/houses/mountains have been removed.
     // =================================================================
 
-    // Runway corridor approximation (real length resolved later via buildRunwayScene).
-    // The corridor is now wide enough to also protect the parallel taxiway,
-    // apron, terminal, hangars and tower on BOTH sides of the runway so trees
-    // and houses don't sprout through airport infrastructure.
-    const approxRwyLen = Math.max(800, runway?.lengthM || 2500);
-    const insideRunwayCorridor = (x, z) =>
-      Math.abs(x) < 450 && z < 250 && z > -approxRwyLen - 250;
-
-    // ---- Trees (3 instanced variants: conifers, broadleaf, tall pines) ----
+    // ---- Legacy procedural scenery (trees/houses/etc.) REMOVED ----
+    // The former procedural blocks were intentionally stripped to make room
+    // for the user's custom airport 3D model.
+    const _unusedLegacyStart = 0; void _unusedLegacyStart;
+    if (false) { // eslint-disable-line no-constant-condition
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 1 });
     const leafMatA = new THREE.MeshStandardMaterial({ color: 0x2a4a28, roughness: 0.95 });
     const leafMatB = new THREE.MeshStandardMaterial({ color: 0x1f3a20, roughness: 0.95 });
@@ -702,15 +682,14 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       mountain.rotation.y = -angle + Math.PI / 2;
       scene.add(mountain);
     }
+    } // end legacy procedural scenery block (disabled)
 
     // Runway - built from real OurAirports data when available, else generic.
     const { group: runwayGroup, runwayLenM, runwayWidthM } = buildRunwayScene(runway, makeRunwayLabelTexture);
     scene.add(runwayGroup);
 
-    // Airport environment around the runway: parallel taxiway, connecting
-    // stubs, apron, terminal with jet bridges, tower, hangars, fuel farm,
-    // parking lot, and GA apron on the other side.
-    const airportGroup = buildAirportEnvironment({ runwayLenM, runwayWidthM });
+    // Custom user-provided airport 3D model (replaces procedural scenery).
+    const airportGroup = buildCustomAirport({ runwayLenM });
     scene.add(airportGroup);
 
     // Build 3D path referenced to the runway frame (georeferenced when possible).
