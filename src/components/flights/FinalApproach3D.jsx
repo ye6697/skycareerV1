@@ -385,55 +385,24 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       }
       const markerColor = lateralDeviationColor(markerLateralM);
 
-      // Inner ring (bright, thick) and outer pulsing halo.
-      // depthTest off so the ring is never hidden behind the aircraft body in
-      // chase view. renderOrder boosts it above the runway paint.
-      const ringGeo = new THREE.RingGeometry(10, 14, 48);
+      // Compact ring marker – thin but bright. depthTest off so it stays
+      // visible when the aircraft is directly above.
+      const ringGeo = new THREE.RingGeometry(4, 5, 40);
       const ringMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 1, depthTest: false });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(td.x, 0.5, td.z);
+      ring.position.set(td.x, 0.3, td.z);
       ring.renderOrder = 10;
       scene.add(ring);
 
-      const haloGeo = new THREE.RingGeometry(18, 28, 64);
-      const haloMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.55, depthTest: false });
-      const halo = new THREE.Mesh(haloGeo, haloMat);
-      halo.rotation.x = -Math.PI / 2;
-      halo.position.set(td.x, 0.4, td.z);
-      halo.renderOrder = 9;
-      scene.add(halo);
-
-      // Cross bars drawn on top of everything (depthTest off) so the touchdown
-      // spot is always visible, even when the aircraft fuselage covers it.
-      [
-        { w: 90, d: 2.0 },   // along-runway bar
-        { w: 2.0, d: 90 },   // cross-runway bar
-      ].forEach(({ w, d }) => {
-        const barGeo = new THREE.PlaneGeometry(w, d);
-        const barMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false });
-        const bar = new THREE.Mesh(barGeo, barMat);
-        bar.rotation.x = -Math.PI / 2;
-        bar.position.set(td.x, 0.3, td.z);
-        bar.renderOrder = 11;
-        scene.add(bar);
-      });
-
-      // Tall glowing beacon so the marker is visible above the aircraft too.
-      const pillarGeo = new THREE.CylinderGeometry(0.6, 0.6, 400, 12);
-      const pillarMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.85, depthTest: false });
+      // Slim vertical beacon so the spot is findable from far away without
+      // dominating the scene like before.
+      const pillarGeo = new THREE.CylinderGeometry(0.2, 0.2, 200, 8);
+      const pillarMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.6, depthTest: false });
       const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(td.x, 200, td.z);
+      pillar.position.set(td.x, 100, td.z);
       pillar.renderOrder = 8;
       scene.add(pillar);
-
-      // Bright cap at the top of the beacon to draw the eye.
-      const capGeo = new THREE.SphereGeometry(3.5, 16, 16);
-      const capMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 1, depthTest: false });
-      const cap = new THREE.Mesh(capGeo, capMat);
-      cap.position.set(td.x, 400, td.z);
-      cap.renderOrder = 8;
-      scene.add(cap);
 
       // For the HUD readout, project the REAL telemetry coordinate (lat/lon)
       // into the runway frame → true meters, no spline interpolation.
