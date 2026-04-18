@@ -15,6 +15,7 @@ import {
   buildSyntheticPath,
   projectToRunwayFrame,
 } from '@/components/flights/approachGeometry';
+import { buildAirportEnvironment } from '@/components/flights/airportScene';
 
 // Visualizes a slice of telemetry (final approach OR initial takeoff) as a 3D replay.
 // phase: 'landing' (last N seconds, default) | 'takeoff' (first N seconds after motion)
@@ -81,6 +82,51 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Reset orbit when switching camera mode so the new view starts neutral.
     camOrbitRef.current = { yaw: 0, pitch: 0 };
   }, [cameraMode]);
+
+  // Attach drag handlers directly to the DOM node so React re-renders (which
+  // happen ~10x/sec as playback progresses) cannot tear them off mid-drag.
+  // Using native listeners with { passive: false } lets us reliably prevent
+  // the default touch scroll/zoom and keep the drag going for the whole gesture.
+  useEffect(() => {
+    const el = mountRef.current;
+    if (!el) return;
+    const onDown = (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const target = e.target;
+      if (target && target.closest && target.closest('button,input,a,[role="button"]')) return;
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+      dragStateRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, pointerId: e.pointerId };
+    };
+    const onMove = (e) => {
+      const s = dragStateRef.current;
+      if (!s.active || s.pointerId !== e.pointerId) return;
+      e.preventDefault();
+      const dx = e.clientX - s.lastX;
+      const dy = e.clientY - s.lastY;
+      s.lastX = e.clientX;
+      s.lastY = e.clientY;
+      camOrbitRef.current.yaw -= dx * 0.008;
+      camOrbitRef.current.pitch += dy * 0.006;
+    };
+    const endDrag = (e) => {
+      const s = dragStateRef.current;
+      if (s.pointerId === e.pointerId || e.type === 'pointercancel') {
+        s.active = false;
+        try { el.releasePointerCapture(e.pointerId); } catch (_) { /* noop */ }
+      }
+    };
+    el.addEventListener('pointerdown', onDown, { passive: false });
+    el.addEventListener('pointermove', onMove, { passive: false });
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', endDrag);
+      el.removeEventListener('pointercancel', endDrag);
+    };
+  }, []);
 
   // Extract the relevant window from telemetry history (first N sec for takeoff, last N sec for landing).
   const segment = useMemo(() => {
@@ -325,8 +371,12 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // =================================================================
 
     // Runway corridor approximation (real length resolved later via buildRunwayScene).
+    // The corridor is now wide enough to also protect the parallel taxiway,
+    // apron, terminal, hangars and tower on BOTH sides of the runway so trees
+    // and houses don't sprout through airport infrastructure.
     const approxRwyLen = Math.max(800, runway?.lengthM || 2500);
-    const insideRunwayCorridor = (x, z) => Math.abs(x) < 130 && z < 150 && z > -approxRwyLen - 150;
+    const insideRunwayCorridor = (x, z) =>
+      Math.abs(x) < 450 && z < 250 && z > -approxRwyLen - 250;
 
     // ---- Trees (3 instanced variants: conifers, broadleaf, tall pines) ----
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 1 });
@@ -653,8 +703,14 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     }
 
     // Runway - built from real OurAirports data when available, else generic.
-    const { group: runwayGroup, runwayLenM } = buildRunwayScene(runway, makeRunwayLabelTexture);
+    const { group: runwayGroup, runwayLenM, runwayWidthM } = buildRunwayScene(runway, makeRunwayLabelTexture);
     scene.add(runwayGroup);
+
+    // Airport environment around the runway: parallel taxiway, connecting
+    // stubs, apron, terminal with jet bridges, tower, hangars, fuel farm,
+    // parking lot, and GA apron on the other side.
+    const airportGroup = buildAirportEnvironment({ runwayLenM, runwayWidthM });
+    scene.add(airportGroup);
 
     // Build 3D path referenced to the runway frame (georeferenced when possible).
     const geoPath = runway ? buildGeoPath(segment.points, runway) : null;
@@ -1054,11 +1110,22 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           );
           camera.lookAt(pos.x, pos.y + 5, pos.z);
         } else {
-          // Side view: user can orbit around the plane horizontally/vertically.
+          // TRUE side view: camera sits perpendicular to the aircraft's
+          // heading so you see the plane's profile (wing-on). We derive a
+          // perpendicular vector from the smoothed flight direction and let
+          // the user orbit around the plane from that baseline.
           const radius = 140;
           const height = Math.max(40, pos.y + 35) + orbitPitch * 60;
-          // Default side view sits at -X; orbit.yaw rotates the viewpoint.
-          const angle = Math.PI + orbit.yaw; // start at -X
+          // Flight direction on the horizontal plane.
+          const fwd = new THREE.Vector3().subVectors(next, cur);
+          fwd.y = 0;
+          if (fwd.lengthSq() < 0.0001) fwd.set(1, 0, 0);
+          fwd.normalize();
+          // Perpendicular vector (left side of aircraft by default).
+          const perp = new THREE.Vector3(-fwd.z, 0, fwd.x);
+          // Start angle points along 'perp'; user yaw drag rotates around plane.
+          const baseAngle = Math.atan2(perp.x, perp.z);
+          const angle = baseAngle + orbit.yaw;
           const horiz = Math.cos(orbitPitch) * radius;
           camera.position.set(
             pos.x + Math.sin(angle) * horiz,
@@ -1191,30 +1258,6 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         ref={mountRef}
         className="flex-1 relative cursor-grab active:cursor-grabbing"
         style={{ minHeight: 0, touchAction: 'none' }}
-        onPointerDown={(e) => {
-          if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
-          const target = e.target;
-          if (target && target.closest && target.closest('button,input,a,[role="button"]')) return;
-          e.preventDefault();
-          try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
-          dragStateRef.current = { active: true, lastX: e.clientX, lastY: e.clientY };
-        }}
-        onPointerMove={(e) => {
-          const s = dragStateRef.current;
-          if (!s.active) return;
-          const dx = e.clientX - s.lastX;
-          const dy = e.clientY - s.lastY;
-          s.lastX = e.clientX;
-          s.lastY = e.clientY;
-          camOrbitRef.current.yaw -= dx * 0.008;
-          camOrbitRef.current.pitch += dy * 0.006;
-        }}
-        onPointerUp={(e) => {
-          dragStateRef.current.active = false;
-          try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) { /* noop */ }
-        }}
-        onPointerCancel={() => { dragStateRef.current.active = false; }}
-        onPointerLeave={() => { dragStateRef.current.active = false; }}
       >
         {/* HUD crosshair reticle in center */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
