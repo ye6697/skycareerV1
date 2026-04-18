@@ -39,7 +39,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
   const exporter = useMp4Exporter();
 
-  const PLAYBACK_DURATION_MS = 30000;
+  const PLAYBACK_DURATION_MS = 22000;
   const filenameBase = `skycareer-${phase}-${flight?.id || 'replay'}`;
   const filename = `${filenameBase}.mp4`;
 
@@ -231,11 +231,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Dusk/sunset sky gradient feel. Fog pushed far enough that fast jets
-    // during takeoff (which can travel 2+ km in the replay window) never
-    // "hit" the horizon wall.
-    scene.background = new THREE.Color(0x0a1528);
-    scene.fog = new THREE.Fog(0x0a1528, 800, 6000);
+    // Daylight sky with haze that fades distant terrain into the horizon.
+    scene.background = new THREE.Color(0x9ec9e8);
+    scene.fog = new THREE.Fog(0xb4d4ea, 1200, 7500);
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
     // which fixes the runway/shadow z-fighting flicker on large scenes.
@@ -254,9 +252,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x0a1528) },
-        horizonColor: { value: new THREE.Color(0x1e3a5f) },
-        glowColor: { value: new THREE.Color(0xff7a3d) },
+        topColor: { value: new THREE.Color(0x4a86c8) },
+        horizonColor: { value: new THREE.Color(0xcfe2f2) },
+        glowColor: { value: new THREE.Color(0xfff4d9) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -264,45 +262,111 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         varying vec3 vWorldPos;
         void main(){
           float h = normalize(vWorldPos).y;
-          float horizon = smoothstep(-0.05, 0.4, h);
+          float horizon = smoothstep(-0.05, 0.6, h);
           vec3 base = mix(horizonColor, topColor, horizon);
-          float glow = smoothstep(0.15, -0.05, h) * smoothstep(-0.3, -0.05, h);
-          base += glowColor * glow * 0.35;
+          float glow = smoothstep(0.1, -0.05, h) * smoothstep(-0.2, -0.02, h);
+          base += glowColor * glow * 0.25;
           gl_FragColor = vec4(base, 1.0);
         }`,
     });
     const sky = new THREE.Mesh(skyGeo, skyMat);
     scene.add(sky);
 
-    // Lights - brighter setup so aircraft reads clearly from all angles
-    scene.add(new THREE.HemisphereLight(0xaac4e8, 0x1a2540, 1.1));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-    const sunLight = new THREE.DirectionalLight(0xffd8b0, 1.6);
-    sunLight.position.set(-150, 120, -80);
+    // Daylight lighting: warm sun + blue sky fill.
+    scene.add(new THREE.HemisphereLight(0xcfe4f5, 0x4a6b3a, 1.1));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+    const sunLight = new THREE.DirectionalLight(0xfff0d4, 1.8);
+    sunLight.position.set(-150, 200, -80);
     scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0xb8d4ff, 0.8);
+    const fillLight = new THREE.DirectionalLight(0xb8d4ff, 0.6);
     fillLight.position.set(180, 80, 120);
     scene.add(fillLight);
-    const sideLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    sideLight.position.set(200, 40, 0);
-    scene.add(sideLight);
 
-    // Terrain grid (subtle, tactical look) – expanded to match the larger sky
-    // so jets travelling several km still see terrain below them.
-    const gridHelper = new THREE.GridHelper(8000, 80, 0x1e3a5f, 0x142033);
-    gridHelper.position.y = 0;
-    gridHelper.material.opacity = 0.35;
-    gridHelper.material.transparent = true;
-    scene.add(gridHelper);
-
-    // Ground plane (dark, solid for depth)
-    const groundGeo = new THREE.PlaneGeometry(10000, 10000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x0d1a2b, roughness: 1, metalness: 0 });
+    // Grass ground – large plane with a natural green tint.
+    const groundGeo = new THREE.PlaneGeometry(12000, 12000);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3f6b38, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    // Drop ground well below runway so it never z-fights with the runway surface.
     ground.position.y = -1.5;
     scene.add(ground);
+
+    // Darker grass patches (variation) scattered around the airfield to break
+    // up the uniform green and give depth cues when flying over.
+    const patchMat = new THREE.MeshStandardMaterial({ color: 0x35592f, roughness: 1, metalness: 0 });
+    for (let i = 0; i < 40; i += 1) {
+      const w = 80 + Math.random() * 220;
+      const d = 80 + Math.random() * 220;
+      const patch = new THREE.Mesh(new THREE.PlaneGeometry(w, d), patchMat);
+      patch.rotation.x = -Math.PI / 2;
+      patch.rotation.z = Math.random() * Math.PI;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 300 + Math.random() * 2500;
+      patch.position.set(Math.cos(angle) * radius, -1.4, Math.sin(angle) * radius);
+      scene.add(patch);
+    }
+
+    // Trees: simple cone + trunk, scattered in clusters around the airfield
+    // but kept well clear of the runway corridor (|x| > 120).
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 1 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5a2a, roughness: 0.95 });
+    const darkLeafMat = new THREE.MeshStandardMaterial({ color: 0x244a22, roughness: 0.95 });
+    for (let i = 0; i < 180; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 180 + Math.random() * 3200;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      // Keep trees out of the runway corridor so they don't clip the aircraft path.
+      if (Math.abs(x) < 120 && Math.abs(z) < 2500) continue;
+      const scale = 0.8 + Math.random() * 1.6;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4 * scale, 0.5 * scale, 3 * scale, 6), trunkMat);
+      trunk.position.set(x, 1.5 * scale - 1.5, z);
+      scene.add(trunk);
+      const leaves = new THREE.Mesh(
+        new THREE.ConeGeometry(2.2 * scale, 6 * scale, 7),
+        Math.random() > 0.5 ? leafMat : darkLeafMat,
+      );
+      leaves.position.set(x, 6 * scale - 1.5, z);
+      scene.add(leaves);
+    }
+
+    // Airport / hangar buildings: low rectangular blocks clustered off to the
+    // side of the runway. Creates a sense of scale and "this is an airport".
+    const buildingMats = [
+      new THREE.MeshStandardMaterial({ color: 0xb8beca, roughness: 0.7, metalness: 0.2 }),
+      new THREE.MeshStandardMaterial({ color: 0x8a95a8, roughness: 0.75, metalness: 0.25 }),
+      new THREE.MeshStandardMaterial({ color: 0xd4d8de, roughness: 0.8, metalness: 0.15 }),
+    ];
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x5a6270, roughness: 0.85 });
+    for (let i = 0; i < 28; i += 1) {
+      // Place buildings to the left of the runway (apron side) and scattered around.
+      const side = Math.random() > 0.5 ? -1 : 1;
+      const lateral = side * (180 + Math.random() * 400);
+      const along = -Math.random() * 1800 + 200;
+      const w = 20 + Math.random() * 40;
+      const h = 8 + Math.random() * 18;
+      const d = 30 + Math.random() * 60;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMats[i % buildingMats.length]);
+      body.position.set(lateral, h / 2 - 1.5, along);
+      scene.add(body);
+      // Flat roof cap for variation.
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 1.02, 0.6, d * 1.02), roofMat);
+      roof.position.set(lateral, h - 1.5 + 0.3, along);
+      scene.add(roof);
+    }
+
+    // Distant hills / terrain bumps around the horizon to fill the view out.
+    const hillMat = new THREE.MeshStandardMaterial({ color: 0x4a6b52, roughness: 1 });
+    for (let i = 0; i < 24; i += 1) {
+      const angle = (i / 24) * Math.PI * 2 + Math.random() * 0.2;
+      const radius = 3500 + Math.random() * 1800;
+      const hill = new THREE.Mesh(
+        new THREE.SphereGeometry(200 + Math.random() * 260, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+        hillMat,
+      );
+      hill.position.set(Math.cos(angle) * radius, -1.5, Math.sin(angle) * radius);
+      hill.scale.y = 0.3 + Math.random() * 0.4;
+      scene.add(hill);
+    }
 
     // Runway - built from real OurAirports data when available, else generic.
     const { group: runwayGroup, runwayLenM } = buildRunwayScene(runway, makeRunwayLabelTexture);
@@ -538,7 +602,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     if (!sceneRef.current) return;
     const sceneData = sceneRef.current;
     const { path3D } = sceneData;
-    const PLAYBACK_DURATION_MS = 30000;
+    const PLAYBACK_DURATION_MS = 22000;
     // Smooth rotation state (low-pass filter) so Yaw/Pitch/Bank transitions
     // across sparse telemetry samples don't look jittery.
     const rotState = { yaw: null, pitch: null, bank: null, lastTime: performance.now() };
@@ -630,7 +694,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
         planeMesh.rotation.set(0, 0, 0);
         planeMesh.rotateY(rotState.yaw);
-        planeMesh.rotateZ(rotState.pitch);
+        // Pitch axis is inverted for our aircraft model (nose points +X):
+        // positive pitch must lift the nose, so rotate by -pitch around Z.
+        planeMesh.rotateZ(-rotState.pitch);
         planeMesh.rotateX(rotState.bank);
       }
 
@@ -702,7 +768,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   }, [segment, runway]);
 
   const handlePlayPause = () => {
-    const PLAYBACK_DURATION_MS = 30000;
+    const PLAYBACK_DURATION_MS = 22000;
     if (progress >= 1) {
       setProgress(0);
       playbackStartRef.current = null;
