@@ -386,47 +386,53 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       const markerColor = lateralDeviationColor(markerLateralM);
 
       // Inner ring (bright, thick) and outer pulsing halo.
-      const ringGeo = new THREE.RingGeometry(6, 9, 40);
-      const ringMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
+      // depthTest off so the ring is never hidden behind the aircraft body in
+      // chase view. renderOrder boosts it above the runway paint.
+      const ringGeo = new THREE.RingGeometry(10, 14, 48);
+      const ringMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 1, depthTest: false });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(td.x, 0.09, td.z);
+      ring.position.set(td.x, 0.5, td.z);
+      ring.renderOrder = 10;
       scene.add(ring);
 
-      const haloGeo = new THREE.RingGeometry(12, 18, 48);
-      const haloMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+      const haloGeo = new THREE.RingGeometry(18, 28, 64);
+      const haloMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.55, depthTest: false });
       const halo = new THREE.Mesh(haloGeo, haloMat);
       halo.rotation.x = -Math.PI / 2;
-      halo.position.set(td.x, 0.08, td.z);
+      halo.position.set(td.x, 0.4, td.z);
+      halo.renderOrder = 9;
       scene.add(halo);
 
-      // Four ground crosshair bars (N/S/E/W) stretching out from the ring so
-      // the touchdown spot reads clearly even when the aircraft body covers
-      // the center.
+      // Cross bars drawn on top of everything (depthTest off) so the touchdown
+      // spot is always visible, even when the aircraft fuselage covers it.
       [
-        { w: 60, d: 1.2, dx: 0, dz: 0 },   // along-runway bar
-        { w: 1.2, d: 60, dx: 0, dz: 0 },   // cross-runway bar
-      ].forEach(({ w, d, dx, dz }) => {
+        { w: 90, d: 2.0 },   // along-runway bar
+        { w: 2.0, d: 90 },   // cross-runway bar
+      ].forEach(({ w, d }) => {
         const barGeo = new THREE.PlaneGeometry(w, d);
-        const barMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
+        const barMat = new THREE.MeshBasicMaterial({ color: markerColor, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false });
         const bar = new THREE.Mesh(barGeo, barMat);
         bar.rotation.x = -Math.PI / 2;
-        bar.position.set(td.x + dx, 0.07, td.z + dz);
+        bar.position.set(td.x, 0.3, td.z);
+        bar.renderOrder = 11;
         scene.add(bar);
       });
 
       // Tall glowing beacon so the marker is visible above the aircraft too.
-      const pillarGeo = new THREE.CylinderGeometry(0.35, 0.35, 250, 10);
-      const pillarMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.55 });
+      const pillarGeo = new THREE.CylinderGeometry(0.6, 0.6, 400, 12);
+      const pillarMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.85, depthTest: false });
       const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(td.x, 125, td.z);
+      pillar.position.set(td.x, 200, td.z);
+      pillar.renderOrder = 8;
       scene.add(pillar);
 
       // Bright cap at the top of the beacon to draw the eye.
-      const capGeo = new THREE.SphereGeometry(1.8, 12, 12);
-      const capMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.9 });
+      const capGeo = new THREE.SphereGeometry(3.5, 16, 16);
+      const capMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 1, depthTest: false });
       const cap = new THREE.Mesh(capGeo, capMat);
-      cap.position.set(td.x, 250, td.z);
+      cap.position.set(td.x, 400, td.z);
+      cap.renderOrder = 8;
       scene.add(cap);
 
       // For the HUD readout, project the REAL telemetry coordinate (lat/lon)
@@ -456,19 +462,29 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // have a georeferenced path; otherwise all vertices end up emerald).
     const pathColors = buildPathColors(path3D);
 
-    // Path line (full) – muted backdrop showing the entire trajectory.
+    // Path line (full) – backdrop showing the entire trajectory. Kept at
+    // high opacity so the color grading is clearly readable.
     const pathGeo = new THREE.BufferGeometry().setFromPoints(path3D);
     pathGeo.setAttribute('color', new THREE.BufferAttribute(pathColors, 3));
-    const pathMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35 });
+    const pathMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8 });
     const pathLine = new THREE.Line(pathGeo, pathMat);
     scene.add(pathLine);
 
-    // Active path (grows during replay) – uses the same per-vertex colors so
-    // segments above the runway get the centerline-quality coloring.
+    // Active path (grows during replay) – fully opaque, same per-vertex colors.
     const activePathGeo = new THREE.BufferGeometry();
-    const activePathMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 });
+    const activePathMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: false });
     const activePathLine = new THREE.Line(activePathGeo, activePathMat);
     scene.add(activePathLine);
+
+    // Glow halo: a second, thicker line underneath the main path with the
+    // same vertex colors but lower opacity – makes the colored path pop
+    // against the dark ground from any camera angle.
+    const pathHaloGeo = new THREE.BufferGeometry().setFromPoints(path3D);
+    pathHaloGeo.setAttribute('color', new THREE.BufferAttribute(pathColors, 3));
+    const pathHaloMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false });
+    const pathHalo = new THREE.Line(pathHaloGeo, pathHaloMat);
+    pathHalo.renderOrder = 1;
+    scene.add(pathHalo);
 
     // Vertical drop lines from path to ground (every 5th point)
     path3D.forEach((pt, i) => {

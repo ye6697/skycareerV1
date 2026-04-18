@@ -12,11 +12,13 @@ import * as THREE from 'three';
 //   >  20 m  : poor       -> red
 export function lateralDeviationColor(absLateralM) {
   const d = Math.max(0, Number(absLateralM) || 0);
-  if (d <= 2) return 0x10b981;   // emerald-500
-  if (d <= 5) return 0x4ade80;   // green-400
-  if (d <= 10) return 0xfbbf24;  // amber-400
-  if (d <= 20) return 0xfb923c;  // orange-400
-  return 0xef4444;               // red-500
+  // Brighter, high-contrast palette so the path reads clearly against the
+  // dark sky/terrain even with line opacity applied.
+  if (d <= 2) return 0x34ffb0;   // vivid emerald
+  if (d <= 5) return 0x86ff4d;   // vivid lime
+  if (d <= 10) return 0xffd633;  // vivid amber
+  if (d <= 20) return 0xff8a1f;  // vivid orange
+  return 0xff3b3b;               // vivid red
 }
 
 // Build a Float32 color buffer for a path of THREE.Vector3 points so each
