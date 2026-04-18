@@ -39,6 +39,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   // rotates around the vertical axis; pitch (vertical swipe) tilts up/down.
   // Reset whenever the user switches camera mode so each view starts neutral.
   const camOrbitRef = useRef({ yaw: 0, pitch: 0 });
+  // Drag tracking via a ref (using dataset on the div was unreliable on touch).
+  const dragStateRef = useRef({ active: false, lastX: 0, lastY: 0 });
 
   const [runway, setRunway] = useState(null); // normalized runway or null
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
@@ -315,28 +317,179 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       scene.add(patch);
     }
 
-    // Trees: simple cone + trunk, scattered in clusters around the airfield
-    // but kept well clear of the runway corridor (|x| > 120). Dusk tones.
+    // =================================================================
+    // Dense natural + built environment around the airfield.
+    // Uses InstancedMesh for trees & shrubs so we can place thousands of
+    // objects cheaply (one draw call each). Small houses and field patches
+    // add variety so the scene doesn't feel empty.
+    // =================================================================
+
+    // Runway corridor approximation (real length resolved later via buildRunwayScene).
+    const approxRwyLen = Math.max(800, runway?.lengthM || 2500);
+    const insideRunwayCorridor = (x, z) => Math.abs(x) < 130 && z < 150 && z > -approxRwyLen - 150;
+
+    // ---- Trees (3 instanced variants: conifers, broadleaf, tall pines) ----
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 1 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2a4a28, roughness: 0.95 });
-    const darkLeafMat = new THREE.MeshStandardMaterial({ color: 0x1f3a20, roughness: 0.95 });
-    for (let i = 0; i < 180; i += 1) {
+    const leafMatA = new THREE.MeshStandardMaterial({ color: 0x2a4a28, roughness: 0.95 });
+    const leafMatB = new THREE.MeshStandardMaterial({ color: 0x1f3a20, roughness: 0.95 });
+    const leafMatC = new THREE.MeshStandardMaterial({ color: 0x355a30, roughness: 0.95 });
+
+    const TREE_COUNT = 4500;
+    const trunkGeo = new THREE.CylinderGeometry(0.35, 0.45, 3, 5);
+    const coneLeavesGeo = new THREE.ConeGeometry(2.2, 6, 6);
+    const sphereLeavesGeo = new THREE.SphereGeometry(2.4, 6, 5);
+
+    const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, TREE_COUNT);
+    const coneInst = new THREE.InstancedMesh(coneLeavesGeo, leafMatA, Math.floor(TREE_COUNT * 0.6));
+    const broadInst = new THREE.InstancedMesh(sphereLeavesGeo, leafMatC, TREE_COUNT - Math.floor(TREE_COUNT * 0.6));
+
+    const dummy = new THREE.Object3D();
+    let coneIdx = 0;
+    let broadIdx = 0;
+    for (let i = 0; i < TREE_COUNT; i += 1) {
+      // Bias placement toward clusters (forests) by squaring uniform rand.
       const angle = Math.random() * Math.PI * 2;
-      const radius = 180 + Math.random() * 3200;
+      const radius = 160 + Math.pow(Math.random(), 0.6) * 3400;
+      const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 40;
+      const z = Math.sin(angle) * radius + (Math.random() - 0.5) * 40;
+      if (insideRunwayCorridor(x, z)) { // skip runway corridor
+        // Re-randomize to a guaranteed safe spot far off-axis.
+        const altAngle = (Math.random() * Math.PI) + (Math.random() > 0.5 ? Math.PI / 2 : -Math.PI / 2);
+        const altR = 400 + Math.random() * 2800;
+        dummy.position.set(Math.cos(altAngle) * altR, 0, Math.sin(altAngle) * altR);
+      } else {
+        dummy.position.set(x, 0, z);
+      }
+      const scale = 0.7 + Math.random() * 1.8;
+      dummy.scale.set(scale, scale, scale);
+      dummy.rotation.y = Math.random() * Math.PI * 2;
+
+      // Trunk
+      dummy.position.y = 1.5 * scale - 1.5;
+      dummy.updateMatrix();
+      trunkInst.setMatrixAt(i, dummy.matrix);
+
+      // Leaves (either conifer cone or broadleaf sphere)
+      const isConifer = Math.random() < 0.6;
+      dummy.position.y = (isConifer ? 6 : 5) * scale - 1.5;
+      dummy.updateMatrix();
+      if (isConifer && coneIdx < coneInst.count) {
+        coneInst.setMatrixAt(coneIdx, dummy.matrix);
+        coneIdx += 1;
+      } else if (!isConifer && broadIdx < broadInst.count) {
+        broadInst.setMatrixAt(broadIdx, dummy.matrix);
+        broadIdx += 1;
+      }
+    }
+    trunkInst.instanceMatrix.needsUpdate = true;
+    coneInst.instanceMatrix.needsUpdate = true;
+    broadInst.instanceMatrix.needsUpdate = true;
+    // Randomize conifer color variation via a second instanced mesh.
+    const darkConeInst = new THREE.InstancedMesh(coneLeavesGeo, leafMatB, 800);
+    for (let i = 0; i < 800; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 250 + Math.random() * 3200;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
-      // Keep trees out of the runway corridor so they don't clip the aircraft path.
-      if (Math.abs(x) < 120 && Math.abs(z) < 2500) continue;
-      const scale = 0.8 + Math.random() * 1.6;
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4 * scale, 0.5 * scale, 3 * scale, 6), trunkMat);
-      trunk.position.set(x, 1.5 * scale - 1.5, z);
-      scene.add(trunk);
-      const leaves = new THREE.Mesh(
-        new THREE.ConeGeometry(2.2 * scale, 6 * scale, 7),
-        Math.random() > 0.5 ? leafMat : darkLeafMat,
+      if (insideRunwayCorridor(x, z)) { i -= 1; continue; }
+      const s = 0.8 + Math.random() * 1.6;
+      dummy.position.set(x, 6 * s - 1.5, z);
+      dummy.scale.set(s, s, s);
+      dummy.rotation.y = Math.random() * Math.PI * 2;
+      dummy.updateMatrix();
+      darkConeInst.setMatrixAt(i, dummy.matrix);
+    }
+    darkConeInst.instanceMatrix.needsUpdate = true;
+    scene.add(trunkInst, coneInst, broadInst, darkConeInst);
+
+    // ---- Shrubs / bushes (small low spheres) ----
+    const shrubMat = new THREE.MeshStandardMaterial({ color: 0x2f4a2a, roughness: 1 });
+    const shrubGeo = new THREE.SphereGeometry(1.1, 5, 4);
+    const shrubInst = new THREE.InstancedMesh(shrubGeo, shrubMat, 2000);
+    for (let i = 0; i < 2000; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 160 + Math.random() * 3400;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      if (insideRunwayCorridor(x, z)) { i -= 1; continue; }
+      const s = 0.6 + Math.random() * 1.4;
+      dummy.position.set(x, 0.5 * s - 1.2, z);
+      dummy.scale.set(s, s * 0.7, s);
+      dummy.rotation.y = Math.random() * Math.PI * 2;
+      dummy.updateMatrix();
+      shrubInst.setMatrixAt(i, dummy.matrix);
+    }
+    shrubInst.instanceMatrix.needsUpdate = true;
+    scene.add(shrubInst);
+
+    // ---- Farmland patches (brown and yellow rectangles scattered in the distance) ----
+    const farmColors = [0x6b5a2e, 0x8a7a3e, 0x9a8a4a, 0x4a5a2a, 0x7a6a2a, 0x3a4a22];
+    for (let i = 0; i < 140; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 1200 + Math.random() * 2400;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      if (insideRunwayCorridor(x, z)) continue;
+      const w = 60 + Math.random() * 200;
+      const d = 60 + Math.random() * 200;
+      const field = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, d),
+        new THREE.MeshStandardMaterial({
+          color: farmColors[Math.floor(Math.random() * farmColors.length)],
+          roughness: 1,
+          metalness: 0,
+        }),
       );
-      leaves.position.set(x, 6 * scale - 1.5, z);
-      scene.add(leaves);
+      field.rotation.x = -Math.PI / 2;
+      field.rotation.z = Math.random() * Math.PI;
+      field.position.set(x, -1.35, z);
+      scene.add(field);
+    }
+
+    // ---- Small houses (suburban style, scattered off the runway axis) ----
+    const houseWallMat = new THREE.MeshStandardMaterial({ color: 0xbdaa8a, roughness: 0.9 });
+    const houseWallMatB = new THREE.MeshStandardMaterial({ color: 0xd4c4a0, roughness: 0.9 });
+    const houseWallMatC = new THREE.MeshStandardMaterial({ color: 0x9a8060, roughness: 0.9 });
+    const houseRoofMat = new THREE.MeshStandardMaterial({ color: 0x6a2a1e, roughness: 0.95 });
+    const houseRoofMatB = new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: 0.95 });
+    const houseWallMats = [houseWallMat, houseWallMatB, houseWallMatC];
+    const houseRoofMats = [houseRoofMat, houseRoofMatB];
+    for (let i = 0; i < 260; i += 1) {
+      const side = Math.random() > 0.5 ? -1 : 1;
+      const lateral = side * (250 + Math.random() * 2400);
+      const along = (Math.random() - 0.5) * 4000;
+      if (insideRunwayCorridor(lateral, along)) continue;
+      const w = 4 + Math.random() * 4;
+      const d = 5 + Math.random() * 6;
+      const h = 3 + Math.random() * 3;
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        houseWallMats[Math.floor(Math.random() * houseWallMats.length)],
+      );
+      wall.position.set(lateral, h / 2 - 1.5, along);
+      wall.rotation.y = Math.random() * Math.PI;
+      scene.add(wall);
+      // Pitched roof (triangular prism via scaled box rotated)
+      const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(Math.max(w, d) * 0.75, 2.2, 4),
+        houseRoofMats[Math.floor(Math.random() * houseRoofMats.length)],
+      );
+      roof.rotation.y = wall.rotation.y + Math.PI / 4;
+      roof.position.set(lateral, h - 1.5 + 1.0, along);
+      scene.add(roof);
+    }
+
+    // ---- Roads: a few long dark strips crossing the landscape ----
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 1 });
+    for (let i = 0; i < 6; i += 1) {
+      const length = 2500 + Math.random() * 2000;
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(8, length), roadMat);
+      road.rotation.x = -Math.PI / 2;
+      road.rotation.z = Math.random() * Math.PI;
+      const r = 600 + Math.random() * 2200;
+      const a = Math.random() * Math.PI * 2;
+      road.position.set(Math.cos(a) * r, -1.3, Math.sin(a) * r);
+      scene.add(road);
     }
 
     // Canvas-based window texture: dark facade with randomly lit windows so
@@ -1036,37 +1189,32 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       {/* 3D Canvas */}
       <div
         ref={mountRef}
-        className="flex-1 relative touch-none cursor-grab active:cursor-grabbing"
-        style={{ minHeight: 0 }}
+        className="flex-1 relative cursor-grab active:cursor-grabbing"
+        style={{ minHeight: 0, touchAction: 'none' }}
         onPointerDown={(e) => {
-          // Only left button / single touch; ignore if user starts on a UI element.
-          if (e.button !== undefined && e.button !== 0) return;
+          if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
           const target = e.target;
           if (target && target.closest && target.closest('button,input,a,[role="button"]')) return;
-          e.currentTarget.setPointerCapture(e.pointerId);
-          e.currentTarget.dataset.dragging = '1';
-          e.currentTarget.dataset.lastX = String(e.clientX);
-          e.currentTarget.dataset.lastY = String(e.clientY);
+          e.preventDefault();
+          try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+          dragStateRef.current = { active: true, lastX: e.clientX, lastY: e.clientY };
         }}
         onPointerMove={(e) => {
-          if (e.currentTarget.dataset.dragging !== '1') return;
-          const lastX = Number(e.currentTarget.dataset.lastX || e.clientX);
-          const lastY = Number(e.currentTarget.dataset.lastY || e.clientY);
-          const dx = e.clientX - lastX;
-          const dy = e.clientY - lastY;
-          e.currentTarget.dataset.lastX = String(e.clientX);
-          e.currentTarget.dataset.lastY = String(e.clientY);
-          // Sensitivity: roughly one screen width = ~180° of yaw.
+          const s = dragStateRef.current;
+          if (!s.active) return;
+          const dx = e.clientX - s.lastX;
+          const dy = e.clientY - s.lastY;
+          s.lastX = e.clientX;
+          s.lastY = e.clientY;
           camOrbitRef.current.yaw -= dx * 0.008;
           camOrbitRef.current.pitch += dy * 0.006;
         }}
         onPointerUp={(e) => {
-          e.currentTarget.dataset.dragging = '0';
+          dragStateRef.current.active = false;
           try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) { /* noop */ }
         }}
-        onPointerCancel={(e) => {
-          e.currentTarget.dataset.dragging = '0';
-        }}
+        onPointerCancel={() => { dragStateRef.current.active = false; }}
+        onPointerLeave={() => { dragStateRef.current.active = false; }}
       >
         {/* HUD crosshair reticle in center */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -1080,7 +1228,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
         {/* HUD overlay - PFD style */}
         {currentReadout && (
-          <div className="absolute top-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md p-3 font-mono backdrop-blur-sm shadow-[0_0_20px_rgba(34,211,238,0.15)] min-w-[200px]">
+          <div className="pointer-events-none absolute top-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md p-3 font-mono backdrop-blur-sm shadow-[0_0_20px_rgba(34,211,238,0.15)] min-w-[200px]">
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-cyan-900/50">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
               <span className="text-[9px] uppercase tracking-[0.25em] text-cyan-400">Primary Flight Display</span>
@@ -1146,7 +1294,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           const onRwy = Math.abs(lateralM) < halfWidth;
           const latColor = Math.abs(lateralM) < 5 ? 'text-emerald-300' : Math.abs(lateralM) < halfWidth ? 'text-amber-400' : 'text-red-400';
           return (
-            <div className="absolute bottom-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md px-2.5 py-1 font-mono backdrop-blur-sm text-[10px] space-y-0.5">
+            <div className="pointer-events-none absolute bottom-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md px-2.5 py-1 font-mono backdrop-blur-sm text-[10px] space-y-0.5">
               <div className="flex items-center gap-2.5">
                 <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">
                   {phase === 'takeoff' ? (lang === 'de' ? 'LIFTOFF' : 'LIFTOFF') : (lang === 'de' ? 'TD' : 'TD')}
