@@ -5,41 +5,63 @@ import * as THREE from 'three';
 // surface with real photographic textures (asphalt, concrete, grass) so the
 // ground actually looks like a real airport instead of flat gray.
 
+// Every texture has a matching normal map so surfaces show real surface
+// relief under the scene lights instead of looking painted-on.
+const BASE = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k';
 const TEX_URLS = {
-  grassDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_grass_rock/aerial_grass_rock_diff_1k.jpg',
-  asphaltDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_diff_1k.jpg',
-  concreteDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_floor_worn_001/concrete_floor_worn_001_diff_1k.jpg',
-  rockDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_rocks_02/aerial_rocks_02_diff_1k.jpg',
-  brickDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/red_brick_03/red_brick_03_diff_1k.jpg',
-  roofDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/roof_tiles_14/roof_tiles_14_diff_1k.jpg',
-  barkDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bark_brown_02/bark_brown_02_diff_1k.jpg',
-  leavesDiff: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leaves_forest_ground/leaves_forest_ground_diff_1k.jpg',
+  grassDiff: `${BASE}/aerial_grass_rock/aerial_grass_rock_diff_2k.jpg`,
+  grassNor: `${BASE}/aerial_grass_rock/aerial_grass_rock_nor_gl_2k.jpg`,
+  asphaltDiff: `${BASE}/asphalt_02/asphalt_02_diff_2k.jpg`,
+  asphaltNor: `${BASE}/asphalt_02/asphalt_02_nor_gl_2k.jpg`,
+  concreteDiff: `${BASE}/concrete_floor_worn_001/concrete_floor_worn_001_diff_2k.jpg`,
+  concreteNor: `${BASE}/concrete_floor_worn_001/concrete_floor_worn_001_nor_gl_2k.jpg`,
+  rockDiff: `${BASE}/aerial_rocks_02/aerial_rocks_02_diff_2k.jpg`,
+  rockNor: `${BASE}/aerial_rocks_02/aerial_rocks_02_nor_gl_2k.jpg`,
+  brickDiff: `${BASE}/red_brick_03/red_brick_03_diff_2k.jpg`,
+  brickNor: `${BASE}/red_brick_03/red_brick_03_nor_gl_2k.jpg`,
+  roofDiff: `${BASE}/roof_tiles_14/roof_tiles_14_diff_2k.jpg`,
+  roofNor: `${BASE}/roof_tiles_14/roof_tiles_14_nor_gl_2k.jpg`,
+  barkDiff: `${BASE}/bark_brown_02/bark_brown_02_diff_2k.jpg`,
+  leavesDiff: `${BASE}/leaves_forest_ground/leaves_forest_ground_diff_2k.jpg`,
+  // Modern glass office facade, reads perfectly as a skyscraper from distance.
+  facadeDiff: `${BASE}/office_building_facade_04/office_building_facade_04_diff_2k.jpg`,
+  facadeNor: `${BASE}/office_building_facade_04/office_building_facade_04_nor_gl_2k.jpg`,
+  // Metal sheet for hangars.
+  metalDiff: `${BASE}/corrugated_iron_03/corrugated_iron_03_diff_2k.jpg`,
+  metalNor: `${BASE}/corrugated_iron_03/corrugated_iron_03_nor_gl_2k.jpg`,
 };
 
 const textureCache = new Map();
-function loadTex(url) {
-  if (textureCache.has(url)) return textureCache.get(url);
-  const tex = new THREE.TextureLoader().load(url, (t) => { t.needsUpdate = true; });
+function loadTex(url, srgb = true) {
+  const key = `${url}|${srgb}`;
+  if (textureCache.has(key)) return textureCache.get(key);
+  const tex = new THREE.TextureLoader().load(url);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   tex.anisotropy = 8;
-  textureCache.set(url, tex);
+  textureCache.set(key, tex);
   return tex;
 }
 
-function texturedMat(url, repeatU, repeatV, baseColor = 0xffffff, roughness = 0.9) {
-  const tex = loadTex(url).clone();
-  tex.needsUpdate = true;
-  tex.repeat.set(repeatU, repeatV);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    color: baseColor,
-    roughness,
-    metalness: 0,
+// Build a proper PBR material: diffuse + normal + (optional) color tint + roughness.
+function texturedMat(diffUrl, norUrl, repeatU, repeatV, baseColor = 0xffffff, roughness = 0.9, metalness = 0) {
+  const diff = loadTex(diffUrl, true).clone();
+  diff.needsUpdate = true;
+  diff.repeat.set(repeatU, repeatV);
+  diff.wrapS = THREE.RepeatWrapping; diff.wrapT = THREE.RepeatWrapping;
+  const mat = new THREE.MeshStandardMaterial({
+    map: diff, color: baseColor, roughness, metalness,
   });
+  if (norUrl) {
+    const nor = loadTex(norUrl, false).clone();
+    nor.needsUpdate = true;
+    nor.repeat.set(repeatU, repeatV);
+    nor.wrapS = THREE.RepeatWrapping; nor.wrapT = THREE.RepeatWrapping;
+    mat.normalMap = nor;
+    mat.normalScale = new THREE.Vector2(1, 1);
+  }
+  return mat;
 }
 
 export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
@@ -49,7 +71,7 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   const fieldSize = 8000;
   const field = new THREE.Mesh(
     new THREE.PlaneGeometry(fieldSize, fieldSize),
-    texturedMat(TEX_URLS.grassDiff, 120, 120, 0xbfd3a8, 1),
+    texturedMat(TEX_URLS.grassDiff, TEX_URLS.grassNor, 120, 120, 0xbfd3a8, 1),
   );
   field.rotation.x = -Math.PI / 2;
   field.position.set(0, -1.4, -runwayLenM / 2);
@@ -61,7 +83,7 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   const taxiLenM = runwayLenM + 80;
   const taxi = new THREE.Mesh(
     new THREE.PlaneGeometry(taxiWidth, taxiLenM),
-    texturedMat(TEX_URLS.asphaltDiff, taxiWidth / 4, taxiLenM / 4, 0x6e7480),
+    texturedMat(TEX_URLS.asphaltDiff, TEX_URLS.asphaltNor, taxiWidth / 4, taxiLenM / 4, 0x6e7480, 0.95),
   );
   taxi.rotation.x = -Math.PI / 2;
   taxi.position.set(taxiOffset, 0.02, -runwayLenM / 2);
@@ -81,7 +103,7 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     const stubLen = 60;
     const stub = new THREE.Mesh(
       new THREE.PlaneGeometry(stubLen, 21),
-      texturedMat(TEX_URLS.asphaltDiff, stubLen / 4, 21 / 4, 0x6e7480),
+      texturedMat(TEX_URLS.asphaltDiff, TEX_URLS.asphaltNor, stubLen / 4, 21 / 4, 0x6e7480, 0.95),
     );
     stub.rotation.x = -Math.PI / 2;
     stub.position.set(taxiOffset / 2, 0.019, z);
@@ -94,7 +116,7 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   const apronD = Math.min(runwayLenM * 0.7, 1600);
   const apron = new THREE.Mesh(
     new THREE.PlaneGeometry(apronW, apronD),
-    texturedMat(TEX_URLS.concreteDiff, apronW / 6, apronD / 6, 0xc5ccd5, 0.85),
+    texturedMat(TEX_URLS.concreteDiff, TEX_URLS.concreteNor, apronW / 6, apronD / 6, 0xc5ccd5, 0.85),
   );
   apron.rotation.x = -Math.PI / 2;
   apron.position.set(apronX, 0.018, -runwayLenM / 2);
@@ -112,47 +134,51 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     group.add(lead);
   }
 
-  // ------- Terminal with glass facade -------
+  // ------- Terminal with real office-facade photo texture -------
+  // Mapped with a real modern glass-office facade so the building reads as a
+  // proper airport terminal at any distance, plus a curved roof overhang and
+  // support columns that are characteristic of large airport terminals.
   const termX = apronX + apronW / 2 + 35;
   const termLen = Math.min(apronD * 0.82, 900);
-  const termH = 20;
-  // Concrete-textured body (real photo of weathered concrete).
+  const termH = 22;
   const terminalBody = new THREE.Mesh(
-    new THREE.BoxGeometry(48, termH, termLen),
-    texturedMat(TEX_URLS.concreteDiff, 4, termLen / 16, 0xdfe4ec, 0.75),
+    new THREE.BoxGeometry(50, termH, termLen),
+    texturedMat(TEX_URLS.facadeDiff, TEX_URLS.facadeNor, 6, termLen / 12, 0xdfe4ec, 0.45, 0.35),
   );
   terminalBody.position.set(termX, termH / 2 - 1.4, -runwayLenM / 2);
   group.add(terminalBody);
-  // Glass facade toward apron (emissive for dusk mood).
+  // Full glass wall facing the apron — highly reflective modern glazing.
   const glass = new THREE.Mesh(
-    new THREE.BoxGeometry(0.6, termH - 3, termLen * 0.97),
+    new THREE.BoxGeometry(0.8, termH - 2, termLen * 0.98),
     new THREE.MeshStandardMaterial({
-      color: 0x0a1220,
-      emissive: 0x7fc2e8,
-      emissiveIntensity: 0.55,
-      roughness: 0.15,
-      metalness: 0.65,
+      color: 0x152032,
+      emissive: 0x88bfe0,
+      emissiveIntensity: 0.45,
+      roughness: 0.08,
+      metalness: 0.85,
     }),
   );
-  glass.position.set(termX - 24.1, (termH - 3) / 2 - 1.4, -runwayLenM / 2);
+  glass.position.set(termX - 25.2, (termH - 2) / 2 - 1.4, -runwayLenM / 2);
   group.add(glass);
-  // Dark roof.
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(54, 0.6, termLen + 4),
-    new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.9 }),
+  // Curved steel roof overhang (signature airport silhouette).
+  const overhang = new THREE.Mesh(
+    new THREE.BoxGeometry(64, 0.6, termLen + 10),
+    new THREE.MeshStandardMaterial({ color: 0xc0c6d0, roughness: 0.45, metalness: 0.7 }),
   );
-  roof.position.set(termX, termH - 1.4 + 0.3, -runwayLenM / 2);
-  group.add(roof);
-  // Warm interior window bands (visible from the landside).
-  for (let row = 0; row < 3; row += 1) {
-    const band = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 2.4, termLen * 0.95),
-      new THREE.MeshStandardMaterial({
-        color: 0x0a0f1a, emissive: 0xffd68a, emissiveIntensity: 1.2, roughness: 0.3,
-      }),
+  overhang.position.set(termX - 7, termH - 1.4 + 0.3, -runwayLenM / 2);
+  group.add(overhang);
+  // Support columns holding up the overhang.
+  for (let c = 0; c < 7; c += 1) {
+    const col = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.7, 0.7, termH + 1, 12),
+      new THREE.MeshStandardMaterial({ color: 0xb6bac4, roughness: 0.5, metalness: 0.75 }),
     );
-    band.position.set(termX + 24.1, 2 + row * 5.5, -runwayLenM / 2);
-    group.add(band);
+    col.position.set(
+      termX - 34,
+      (termH + 1) / 2 - 1.4,
+      -runwayLenM / 2 - termLen / 2 + (c + 0.5) * (termLen / 7),
+    );
+    group.add(col);
   }
 
   // ------- Parked airliners at gates -------
@@ -205,7 +231,7 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   const towerZ = -runwayLenM / 2 + apronD / 2 + 70;
   const tower = new THREE.Mesh(
     new THREE.CylinderGeometry(3.5, 5.5, 42, 18),
-    texturedMat(TEX_URLS.concreteDiff, 2, 6, 0xbac2d0, 0.8),
+    texturedMat(TEX_URLS.concreteDiff, TEX_URLS.concreteNor, 2, 6, 0xbac2d0, 0.8),
   );
   tower.position.set(towerX, 19.6, towerZ);
   group.add(tower);
@@ -237,14 +263,14 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     const hz = -runwayLenM / 2 + (i - 1) * 160;
     const hangar = new THREE.Mesh(
       new THREE.BoxGeometry(55, 15, 65),
-      texturedMat(TEX_URLS.concreteDiff, 4, 1, 0x6a7280, 0.9),
+      texturedMat(TEX_URLS.metalDiff, TEX_URLS.metalNor, 8, 3, 0x8a92a0, 0.55, 0.6),
     );
     hangar.position.set(hx, 6.1, hz);
     group.add(hangar);
-    // Arched corrugated roof.
+    // Arched corrugated roof (real corrugated iron texture).
     const hroof = new THREE.Mesh(
       new THREE.CylinderGeometry(27.5, 27.5, 65, 16, 1, false, 0, Math.PI),
-      new THREE.MeshStandardMaterial({ color: 0x2a3040, roughness: 0.9 }),
+      texturedMat(TEX_URLS.metalDiff, TEX_URLS.metalNor, 10, 6, 0x5a6070, 0.55, 0.6),
     );
     hroof.rotation.z = Math.PI / 2;
     hroof.rotation.y = Math.PI / 2;
@@ -262,8 +288,8 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   // ------- Suburban houses scattered off the runway axis -------
   // Brick walls with textured tile roofs. Placed on both sides so the approach
   // flies over inhabited terrain rather than empty grass.
-  const brickWallMat = texturedMat(TEX_URLS.brickDiff, 2, 1.2, 0xd8c0a0, 0.85);
-  const roofMat = texturedMat(TEX_URLS.roofDiff, 1, 1, 0xb8756a, 0.9);
+  const brickWallMat = texturedMat(TEX_URLS.brickDiff, TEX_URLS.brickNor, 2, 1.2, 0xd8c0a0, 0.85);
+  const roofMat = texturedMat(TEX_URLS.roofDiff, TEX_URLS.roofNor, 1, 1, 0xb8756a, 0.9);
   for (let i = 0; i < 140; i += 1) {
     const side = Math.random() > 0.5 ? -1 : 1;
     const lateral = side * (280 + Math.random() * 1800);
@@ -288,8 +314,8 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   }
 
   // ------- Trees (textured trunk + textured leaf canopy) -------
-  const trunkMat = texturedMat(TEX_URLS.barkDiff, 1, 2, 0x6a4a32, 1);
-  const leavesMat = texturedMat(TEX_URLS.leavesDiff, 1.5, 1.5, 0x4a7a3a, 1);
+  const trunkMat = texturedMat(TEX_URLS.barkDiff, null, 1, 2, 0x6a4a32, 1);
+  const leavesMat = texturedMat(TEX_URLS.leavesDiff, null, 1.5, 1.5, 0x4a7a3a, 1);
   const trunkGeo = new THREE.CylinderGeometry(0.35, 0.45, 3, 6);
   const canopyGeo = new THREE.SphereGeometry(2.4, 8, 6);
   const coneCanopyGeo = new THREE.ConeGeometry(2.2, 6, 7);
@@ -315,11 +341,55 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     group.add(canopy);
   }
 
+  // ------- Distant city skyline with photographic office-facade textures -------
+  // A ring of tall rectangular towers at ~2500 m, each skinned with real
+  // modern office-facade photos. This is what makes the far background
+  // read as a major city next to an international airport.
+  const cityFacadeMat = texturedMat(TEX_URLS.facadeDiff, TEX_URLS.facadeNor, 2, 8, 0xdee3ea, 0.55, 0.45);
+  for (let i = 0; i < 65; i += 1) {
+    const angle = Math.random() * Math.PI * 2;
+    // Keep skyline on the horizon - far from the runway but closer than mountains.
+    const radius = 2200 + Math.random() * 700;
+    const w = 28 + Math.random() * 55;
+    const d = 28 + Math.random() * 55;
+    const h = 45 + Math.random() * 130;
+    const tower = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      cityFacadeMat,
+    );
+    tower.position.set(
+      Math.cos(angle) * radius,
+      h / 2 - 1.4,
+      -runwayLenM / 2 + Math.sin(angle) * radius,
+    );
+    tower.rotation.y = Math.random() * Math.PI;
+    group.add(tower);
+    // Dark roof cap.
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(w * 1.03, 1.2, d * 1.03),
+      new THREE.MeshStandardMaterial({ color: 0x1a1e26, roughness: 0.85 }),
+    );
+    cap.position.copy(tower.position);
+    cap.position.y = h - 1.4 + 0.6;
+    cap.rotation.y = tower.rotation.y;
+    group.add(cap);
+    // Small red obstruction beacon on top of the taller towers.
+    if (h > 90) {
+      const obsLight = new THREE.Mesh(
+        new THREE.SphereGeometry(0.8, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xff3030 }),
+      );
+      obsLight.position.copy(tower.position);
+      obsLight.position.y = h - 1.4 + 1.6;
+      group.add(obsLight);
+    }
+  }
+
   // ------- Distant mountain range with real rock texture -------
   // Ring of rugged mountains with multi-octave noise displacement and a real
   // aerial rock photo as their surface. Snow-capped peaks via a subtle white
   // overlay mesh.
-  const rockMat = texturedMat(TEX_URLS.rockDiff, 3, 3, 0x8a8278, 1);
+  const rockMat = texturedMat(TEX_URLS.rockDiff, TEX_URLS.rockNor, 3, 3, 0x8a8278, 1);
   rockMat.flatShading = true;
   const snowMat = new THREE.MeshStandardMaterial({ color: 0xf4f6fa, roughness: 0.85, flatShading: true });
   const hash2 = (a, b) => {
