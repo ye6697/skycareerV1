@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addCityDistrict, addWarehouseCluster, makeLitBuildingMaterial } from '@/components/flights/cityBuildings';
 
 // Realistic textured airport environment using CC0 PBR textures from Poly Haven.
 // No external model loading — we build the layout procedurally but skin every
@@ -290,11 +291,12 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   // flies over inhabited terrain rather than empty grass.
   const brickWallMat = texturedMat(TEX_URLS.brickDiff, TEX_URLS.brickNor, 2, 1.2, 0xd8c0a0, 0.85);
   const roofMat = texturedMat(TEX_URLS.roofDiff, TEX_URLS.roofNor, 1, 1, 0xb8756a, 0.9);
-  for (let i = 0; i < 140; i += 1) {
+  for (let i = 0; i < 60; i += 1) {
     const side = Math.random() > 0.5 ? -1 : 1;
-    const lateral = side * (280 + Math.random() * 1800);
+    // Push suburban houses further out so the new lit city districts (200-900m)
+    // dominate the mid-ground view instead of competing with brick houses.
+    const lateral = side * (950 + Math.random() * 1100);
     const along = (Math.random() - 0.5) * 5000;
-    // Skip anything inside a 200 m runway corridor so houses don't clip.
     if (Math.abs(lateral) < 200) continue;
     const w = 5 + Math.random() * 5;
     const d = 6 + Math.random() * 6;
@@ -341,22 +343,25 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     group.add(canopy);
   }
 
-  // ------- Distant city skyline with photographic office-facade textures -------
-  // A ring of tall rectangular towers at ~2500 m, each skinned with real
-  // modern office-facade photos. This is what makes the far background
-  // read as a major city next to an international airport.
-  const cityFacadeMat = texturedMat(TEX_URLS.facadeDiff, TEX_URLS.facadeNor, 2, 8, 0xdee3ea, 0.55, 0.45);
-  for (let i = 0; i < 65; i += 1) {
+  // ------- Distant city skyline with LIT office windows -------
+  // A ring of tall towers at ~2500 m skinned with the procedural lit-window
+  // texture so every tower has dozens of individually glowing windows at
+  // dusk — this is what makes the skyline actually read as a city at night.
+  const skylineMats = [
+    makeLitBuildingMaterial({ cols: 12, rows: 28, tint: 'warm', emissiveBoost: 1.4 }),
+    makeLitBuildingMaterial({ cols: 16, rows: 32, tint: 'cool', emissiveBoost: 1.2 }),
+    makeLitBuildingMaterial({ cols: 10, rows: 24, tint: 'warm', emissiveBoost: 1.6 }),
+    makeLitBuildingMaterial({ cols: 14, rows: 36, tint: 'warm', emissiveBoost: 1.3 }),
+  ];
+  const skylineRoofMat = new THREE.MeshStandardMaterial({ color: 0x1a1e26, roughness: 0.85 });
+  for (let i = 0; i < 120; i += 1) {
     const angle = Math.random() * Math.PI * 2;
-    // Keep skyline on the horizon - far from the runway but closer than mountains.
-    const radius = 2200 + Math.random() * 700;
+    const radius = 2000 + Math.random() * 900;
     const w = 28 + Math.random() * 55;
     const d = 28 + Math.random() * 55;
-    const h = 45 + Math.random() * 130;
-    const tower = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      cityFacadeMat,
-    );
+    const h = 50 + Math.random() * 150;
+    const mat = skylineMats[Math.floor(Math.random() * skylineMats.length)];
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     tower.position.set(
       Math.cos(angle) * radius,
       h / 2 - 1.4,
@@ -364,16 +369,11 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     );
     tower.rotation.y = Math.random() * Math.PI;
     group.add(tower);
-    // Dark roof cap.
-    const cap = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 1.03, 1.2, d * 1.03),
-      new THREE.MeshStandardMaterial({ color: 0x1a1e26, roughness: 0.85 }),
-    );
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(w * 1.03, 1.2, d * 1.03), skylineRoofMat);
     cap.position.copy(tower.position);
     cap.position.y = h - 1.4 + 0.6;
     cap.rotation.y = tower.rotation.y;
     group.add(cap);
-    // Small red obstruction beacon on top of the taller towers.
     if (h > 90) {
       const obsLight = new THREE.Mesh(
         new THREE.SphereGeometry(0.8, 6, 6),
@@ -384,6 +384,45 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
       group.add(obsLight);
     }
   }
+
+  // ------- Mid-range city districts with lit windows on BOTH sides of runway -------
+  // These are the buildings you actually fly over on final/takeoff. Each one
+  // has a procedurally generated texture with dozens of glowing windows.
+  const runwayCorridor = {
+    x0: -180, x1: 180,
+    z0: -runwayLenM - 100, z1: 100,
+  };
+  // Big district on the approach side (in front of landing threshold).
+  addCityDistrict(group, {
+    centerX: 0, centerZ: 400,
+    radius: 900, buildingCount: 100,
+    avoidCorridor: runwayCorridor,
+    minHeight: 20, maxHeight: 75,
+  });
+  // District behind the departure end.
+  addCityDistrict(group, {
+    centerX: 0, centerZ: -runwayLenM - 400,
+    radius: 900, buildingCount: 100,
+    avoidCorridor: runwayCorridor,
+    minHeight: 20, maxHeight: 70,
+  });
+  // Residential / office zone east of the airport.
+  addCityDistrict(group, {
+    centerX: 1200, centerZ: -runwayLenM / 2,
+    radius: 700, buildingCount: 80,
+    minHeight: 15, maxHeight: 55,
+  });
+  // West district.
+  addCityDistrict(group, {
+    centerX: -1200, centerZ: -runwayLenM / 2,
+    radius: 700, buildingCount: 80,
+    minHeight: 15, maxHeight: 60,
+  });
+
+  // ------- Industrial zone with warehouses / logistics buildings -------
+  addWarehouseCluster(group, { centerX: 700, centerZ: 500, radius: 250, count: 18 });
+  addWarehouseCluster(group, { centerX: -700, centerZ: -runwayLenM - 200, radius: 300, count: 22 });
+  addWarehouseCluster(group, { centerX: 1500, centerZ: -runwayLenM - 300, radius: 250, count: 15 });
 
   // ------- Distant mountain range with real rock texture -------
   // Ring of rugged mountains with multi-octave noise displacement and a real
