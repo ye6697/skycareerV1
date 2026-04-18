@@ -231,9 +231,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Daylight sky with haze that fades distant terrain into the horizon.
-    scene.background = new THREE.Color(0x9ec9e8);
-    scene.fog = new THREE.Fog(0xb4d4ea, 1200, 7500);
+    // Evening / night sky with deep blue fog fading distant terrain.
+    scene.background = new THREE.Color(0x0a1428);
+    scene.fog = new THREE.Fog(0x0a1428, 1200, 7500);
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
     // which fixes the runway/shadow z-fighting flicker on large scenes.
@@ -252,9 +252,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x4a86c8) },
-        horizonColor: { value: new THREE.Color(0xcfe2f2) },
-        glowColor: { value: new THREE.Color(0xfff4d9) },
+        topColor: { value: new THREE.Color(0x05091a) },
+        horizonColor: { value: new THREE.Color(0x1a2a4a) },
+        glowColor: { value: new THREE.Color(0xff6a2d) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -262,37 +262,38 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         varying vec3 vWorldPos;
         void main(){
           float h = normalize(vWorldPos).y;
-          float horizon = smoothstep(-0.05, 0.6, h);
+          float horizon = smoothstep(-0.05, 0.55, h);
           vec3 base = mix(horizonColor, topColor, horizon);
-          float glow = smoothstep(0.1, -0.05, h) * smoothstep(-0.2, -0.02, h);
-          base += glowColor * glow * 0.25;
+          // Warm sunset glow band at the horizon.
+          float glow = smoothstep(0.2, -0.02, h) * smoothstep(-0.25, -0.02, h);
+          base += glowColor * glow * 0.4;
           gl_FragColor = vec4(base, 1.0);
         }`,
     });
     const sky = new THREE.Mesh(skyGeo, skyMat);
     scene.add(sky);
 
-    // Daylight lighting: warm sun + blue sky fill.
-    scene.add(new THREE.HemisphereLight(0xcfe4f5, 0x4a6b3a, 1.1));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-    const sunLight = new THREE.DirectionalLight(0xfff0d4, 1.8);
-    sunLight.position.set(-150, 200, -80);
+    // Evening lighting: dim cool ambient + warm low sun on the horizon.
+    scene.add(new THREE.HemisphereLight(0x3a4a6a, 0x0a0f1a, 0.5));
+    scene.add(new THREE.AmbientLight(0x6a7a9a, 0.25));
+    const sunLight = new THREE.DirectionalLight(0xff8a4a, 0.9);
+    sunLight.position.set(-400, 60, -200);
     scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0xb8d4ff, 0.6);
-    fillLight.position.set(180, 80, 120);
+    const fillLight = new THREE.DirectionalLight(0x4a6a9a, 0.35);
+    fillLight.position.set(180, 120, 120);
     scene.add(fillLight);
 
-    // Grass ground – large plane with a natural green tint.
+    // Dark ground – dim grass at night.
     const groundGeo = new THREE.PlaneGeometry(12000, 12000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3f6b38, roughness: 1, metalness: 0 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a2418, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1.5;
     scene.add(ground);
 
     // Darker grass patches (variation) scattered around the airfield to break
-    // up the uniform green and give depth cues when flying over.
-    const patchMat = new THREE.MeshStandardMaterial({ color: 0x35592f, roughness: 1, metalness: 0 });
+    // up the uniform ground and give depth cues when flying over.
+    const patchMat = new THREE.MeshStandardMaterial({ color: 0x121a10, roughness: 1, metalness: 0 });
     for (let i = 0; i < 40; i += 1) {
       const w = 80 + Math.random() * 220;
       const d = 80 + Math.random() * 220;
@@ -306,10 +307,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     }
 
     // Trees: simple cone + trunk, scattered in clusters around the airfield
-    // but kept well clear of the runway corridor (|x| > 120).
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 1 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5a2a, roughness: 0.95 });
-    const darkLeafMat = new THREE.MeshStandardMaterial({ color: 0x244a22, roughness: 0.95 });
+    // but kept well clear of the runway corridor (|x| > 120). Dark silhouettes.
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x1a1208, roughness: 1 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x14231a, roughness: 0.95 });
+    const darkLeafMat = new THREE.MeshStandardMaterial({ color: 0x0c1810, roughness: 0.95 });
     for (let i = 0; i < 180; i += 1) {
       const angle = Math.random() * Math.PI * 2;
       const radius = 180 + Math.random() * 3200;
@@ -329,43 +330,108 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       scene.add(leaves);
     }
 
-    // Airport / hangar buildings: low rectangular blocks clustered off to the
-    // side of the runway. Creates a sense of scale and "this is an airport".
-    const buildingMats = [
-      new THREE.MeshStandardMaterial({ color: 0xb8beca, roughness: 0.7, metalness: 0.2 }),
-      new THREE.MeshStandardMaterial({ color: 0x8a95a8, roughness: 0.75, metalness: 0.25 }),
-      new THREE.MeshStandardMaterial({ color: 0xd4d8de, roughness: 0.8, metalness: 0.15 }),
-    ];
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x5a6270, roughness: 0.85 });
-    for (let i = 0; i < 28; i += 1) {
-      // Place buildings to the left of the runway (apron side) and scattered around.
+    // Canvas-based window texture: dark facade with randomly lit windows so
+    // buildings read as a night skyline. Each call produces a unique pattern.
+    const makeWindowTexture = (cols, rows, litChance = 0.55) => {
+      const c = document.createElement('canvas');
+      c.width = cols * 16;
+      c.height = rows * 20;
+      const ctx = c.getContext('2d');
+      // Dark facade base.
+      ctx.fillStyle = '#0a0d14';
+      ctx.fillRect(0, 0, c.width, c.height);
+      const warmColors = ['#ffd68a', '#ffc062', '#ffe3a8', '#f7b45c', '#d9e9ff', '#c9d8ff'];
+      for (let r = 0; r < rows; r += 1) {
+        for (let col = 0; col < cols; col += 1) {
+          if (Math.random() > litChance) continue;
+          const x = col * 16 + 3;
+          const y = r * 20 + 4;
+          ctx.fillStyle = warmColors[Math.floor(Math.random() * warmColors.length)];
+          ctx.globalAlpha = 0.7 + Math.random() * 0.3;
+          ctx.fillRect(x, y, 10, 12);
+        }
+      }
+      ctx.globalAlpha = 1;
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    };
+
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x1a1e26, roughness: 0.9 });
+
+    // Airport / hangar + skyline buildings: tall blocks with emissive window
+    // textures so they glow like a night skyline. Scattered around the runway.
+    for (let i = 0; i < 48; i += 1) {
       const side = Math.random() > 0.5 ? -1 : 1;
-      const lateral = side * (180 + Math.random() * 400);
-      const along = -Math.random() * 1800 + 200;
-      const w = 20 + Math.random() * 40;
-      const h = 8 + Math.random() * 18;
-      const d = 30 + Math.random() * 60;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMats[i % buildingMats.length]);
+      const lateral = side * (180 + Math.random() * 900);
+      const along = -Math.random() * 3000 + 400;
+      const w = 22 + Math.random() * 50;
+      // Mix of short hangars (~10m) and taller skyline blocks (up to 90m).
+      const tall = Math.random() > 0.5;
+      const h = tall ? 30 + Math.random() * 70 : 8 + Math.random() * 14;
+      const d = 25 + Math.random() * 55;
+      const cols = Math.max(3, Math.round(w / 5));
+      const rows = Math.max(2, Math.round(h / 4));
+      const tex = makeWindowTexture(cols, rows, tall ? 0.6 : 0.35);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        map: tex,
+        emissiveMap: tex,
+        emissive: 0xffd68a,
+        emissiveIntensity: 1.1,
+        color: 0x0a0d14,
+        roughness: 0.85,
+        metalness: 0.1,
+      });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bodyMat);
       body.position.set(lateral, h / 2 - 1.5, along);
       scene.add(body);
-      // Flat roof cap for variation.
       const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 1.02, 0.6, d * 1.02), roofMat);
       roof.position.set(lateral, h - 1.5 + 0.3, along);
       scene.add(roof);
     }
 
-    // Distant hills / terrain bumps around the horizon to fill the view out.
-    const hillMat = new THREE.MeshStandardMaterial({ color: 0x4a6b52, roughness: 1 });
-    for (let i = 0; i < 24; i += 1) {
-      const angle = (i / 24) * Math.PI * 2 + Math.random() * 0.2;
-      const radius = 3500 + Math.random() * 1800;
-      const hill = new THREE.Mesh(
-        new THREE.SphereGeometry(200 + Math.random() * 260, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
-        hillMat,
-      );
-      hill.position.set(Math.cos(angle) * radius, -1.5, Math.sin(angle) * radius);
-      hill.scale.y = 0.3 + Math.random() * 0.4;
-      scene.add(hill);
+    // Realistic mountain range at the horizon: jagged cones with varied height.
+    // Built procedurally as low-poly peaks with dark evening tones and a hint of
+    // snow on the tallest ones so they read as real mountains, not bumps.
+    const mountainRockMat = new THREE.MeshStandardMaterial({ color: 0x1f2a3a, roughness: 1, flatShading: true });
+    const mountainSnowMat = new THREE.MeshStandardMaterial({ color: 0x6a7a90, roughness: 0.9, flatShading: true });
+    for (let i = 0; i < 70; i += 1) {
+      const angle = (i / 70) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+      const radius = 3800 + Math.random() * 1600;
+      const height = 350 + Math.random() * 650;
+      const baseRadius = 280 + Math.random() * 320;
+      // Distort the cone vertices slightly so no two peaks look identical.
+      const geo = new THREE.ConeGeometry(baseRadius, height, 7, 1);
+      const posAttr = geo.attributes.position;
+      for (let v = 0; v < posAttr.count; v += 1) {
+        const y = posAttr.getY(v);
+        // Leave tip and base rings alone, jitter the middle.
+        if (y > -height / 2 + 1 && y < height / 2 - 1) {
+          posAttr.setX(v, posAttr.getX(v) * (0.85 + Math.random() * 0.3));
+          posAttr.setZ(v, posAttr.getZ(v) * (0.85 + Math.random() * 0.3));
+        }
+      }
+      geo.computeVertexNormals();
+      const mountain = new THREE.Mesh(geo, mountainRockMat);
+      mountain.position.set(Math.cos(angle) * radius, height / 2 - 1.5, Math.sin(angle) * radius);
+      mountain.rotation.y = Math.random() * Math.PI;
+      scene.add(mountain);
+      // Snow cap on the taller peaks.
+      if (height > 700) {
+        const capHeight = height * 0.25;
+        const cap = new THREE.Mesh(
+          new THREE.ConeGeometry(baseRadius * 0.28, capHeight, 7, 1),
+          mountainSnowMat,
+        );
+        cap.position.set(
+          mountain.position.x,
+          mountain.position.y + height / 2 - capHeight / 2,
+          mountain.position.z,
+        );
+        cap.rotation.y = mountain.rotation.y;
+        scene.add(cap);
+      }
     }
 
     // Runway - built from real OurAirports data when available, else generic.
