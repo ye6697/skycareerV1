@@ -984,7 +984,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       const cur = path3D[idx];
       const next = path3D[Math.min(path3D.length - 1, idx + 1)];
       const pos = new THREE.Vector3().lerpVectors(cur, next, frac);
-      const MIN_GROUND_CLEARANCE = 3;
+      // The custom model is authored so its belly sits at y = 1.2 of its
+      // local frame; clamp the reference point to 0 so wheels rest exactly on
+      // the runway on touchdown, instead of floating several meters above it.
+      const MIN_GROUND_CLEARANCE = 0;
       if (pos.y < MIN_GROUND_CLEARANCE) pos.y = MIN_GROUND_CLEARANCE;
       planeMesh.position.copy(pos);
 
