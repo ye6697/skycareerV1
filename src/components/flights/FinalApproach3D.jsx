@@ -1121,8 +1121,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           fwd.y = 0;
           if (fwd.lengthSq() < 0.0001) fwd.set(1, 0, 0);
           fwd.normalize();
-          // Perpendicular vector (left side of aircraft by default).
-          const perp = new THREE.Vector3(-fwd.z, 0, fwd.x);
+          // Perpendicular vector pointing to the LEFT side of the aircraft
+          // (pilot's left, i.e. captain's side).
+          const perp = new THREE.Vector3(fwd.z, 0, -fwd.x);
           // Start angle points along 'perp'; user yaw drag rotates around plane.
           const baseAngle = Math.atan2(perp.x, perp.z);
           const angle = baseAngle + orbit.yaw;
