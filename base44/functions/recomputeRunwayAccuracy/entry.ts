@@ -176,27 +176,40 @@ function extractCoord(point) {
   return { lat, lon };
 }
 
-// Extract the takeoff roll: on_ground=true samples with speed > 20 kt
-// ending at liftoff (first airborne transition).
+// Extract the takeoff roll: all samples between start of acceleration on the
+// ground and the moment of liftoff. We do NOT require every sample to have a
+// confirmed on_ground=true flag — some telemetry streams only send the flag
+// when it changes, so intermediate samples have og=null. We therefore include
+// samples that are either on_ground=true OR og=null, as long as we've seen at
+// least one on_ground=true before liftoff. Includes all samples with speed >
+// 10 kt (covers the entire acceleration phase, not just > 20 kt).
 function extractTakeoffRoll(telemetry) {
   const roll = [];
+  let groundConfirmed = false;
   let airborneSeen = false;
   for (let i = 0; i < telemetry.length; i += 1) {
     const p = telemetry[i];
     const og = readOnGround(p);
+    if (og === true) groundConfirmed = true;
     if (og === false) { airborneSeen = true; break; }
-    if (og !== true) continue;
+    // Accept og=true or og=null (unknown) samples. Skip og=false — that means
+    // airborne, which we shouldn't see before the liftoff break above, but be safe.
+    if (og === false) continue;
     const spd = Number(p?.spd ?? p?.speed ?? p?.gs ?? p?.ground_speed ?? 0);
-    if (!Number.isFinite(spd) || spd < 20) continue;
+    if (!Number.isFinite(spd) || spd < 10) continue;
     const coord = extractCoord(p);
     if (!coord) continue;
     roll.push(coord);
   }
-  return airborneSeen ? roll : [];
+  // Require at least one confirmed ground sample AND an airborne transition,
+  // OR (fallback) enough speed progression that it clearly was a takeoff roll.
+  if (!groundConfirmed && !airborneSeen) return [];
+  return roll;
 }
 
 // Extract the landing rollout: from touchdown (first on_ground=true after
-// airborne) until speed drops below 20 kt.
+// airborne) until speed drops below 10 kt OR we see another airborne sample
+// (e.g. bounce). Intermediate og=null samples are included.
 function extractLandingRoll(telemetry) {
   const roll = [];
   let airborneSeen = false;
@@ -210,9 +223,10 @@ function extractLandingRoll(telemetry) {
   for (let i = touchdownIdx; i < telemetry.length; i += 1) {
     const p = telemetry[i];
     const og = readOnGround(p);
-    if (og !== true) break;
+    // og=false = bounce/go-around → stop. og=true or og=null = still rolling.
+    if (og === false) break;
     const spd = Number(p?.spd ?? p?.speed ?? p?.gs ?? p?.ground_speed ?? 0);
-    if (Number.isFinite(spd) && spd < 20 && roll.length > 3) break;
+    if (Number.isFinite(spd) && spd < 10 && roll.length > 3) break;
     const coord = extractCoord(p);
     if (!coord) continue;
     roll.push(coord);

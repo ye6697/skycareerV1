@@ -1,71 +1,68 @@
 import { useRef, useState, useCallback } from 'react';
 
-// Records a <canvas> element via MediaRecorder (WebM) and converts the result
-// to MP4 (H.264) using ffmpeg.wasm. Exposes a single `exportAndHandle` method
-// that captures the full replay, converts it, and then either downloads or
-// shares the resulting MP4. The caller provides:
-//   - getCanvas():     returns the canvas element to capture
-//   - resetPlayback(): rewinds the replay to the beginning and starts playback
-//   - durationMs:      total length of the replay in ms (so we know when to stop)
-let ffmpegSingleton = null;
+// Records a <canvas> element via MediaRecorder and saves/shares the resulting
+// video. We prefer MP4 directly when the browser supports MediaRecorder output
+// in H.264 (Safari, modern Chrome on Mac/iOS, recent Android). Otherwise we
+// fall back to WebM (VP9/VP8), which every modern platform can play. We do NOT
+// run ffmpeg.wasm transcoding anymore: it requires SharedArrayBuffer and
+// cross-origin-isolation headers, which our preview iframe / mobile browsers
+// often don't provide, so it silently hung. Direct MediaRecorder output is
+// fast, reliable, and works everywhere.
 
-async function loadFfmpeg(setStatus) {
-  if (ffmpegSingleton) return ffmpegSingleton;
-  const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-  const { toBlobURL } = await import('@ffmpeg/util');
-  const ff = new FFmpeg();
-  setStatus?.('loading_ffmpeg');
-  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-  await ff.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-  });
-  ffmpegSingleton = ff;
-  return ff;
+function pickBestMimeType() {
+  if (typeof window === 'undefined' || !window.MediaRecorder) return null;
+  const candidates = [
+    { mime: 'video/mp4;codecs=h264', ext: 'mp4' },
+    { mime: 'video/mp4', ext: 'mp4' },
+    { mime: 'video/webm;codecs=vp9', ext: 'webm' },
+    { mime: 'video/webm;codecs=vp8', ext: 'webm' },
+    { mime: 'video/webm', ext: 'webm' },
+  ];
+  for (const c of candidates) {
+    try {
+      if (MediaRecorder.isTypeSupported(c.mime)) return c;
+    } catch (_) { /* ignore */ }
+  }
+  return null;
 }
 
 export default function useMp4Exporter() {
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
   const [isExporting, setIsExporting] = useState(false);
-  const [status, setStatus] = useState(null); // 'recording' | 'loading_ffmpeg' | 'converting' | null
+  const [status, setStatus] = useState(null); // 'recording' | null
   const [error, setError] = useState(null);
 
-  const recordCanvasToWebm = useCallback((canvas, durationMs, fps = 30) => {
+  const recordCanvas = useCallback((canvas, durationMs, fps = 30) => {
     return new Promise((resolve, reject) => {
       if (!canvas || typeof canvas.captureStream !== 'function') {
         reject(new Error('Canvas recording not supported on this device.'));
         return;
       }
+      const picked = pickBestMimeType();
+      if (!picked) {
+        reject(new Error('MediaRecorder not supported in this browser.'));
+        return;
+      }
       try {
         chunksRef.current = [];
         const stream = canvas.captureStream(fps);
-        const candidates = [
-          'video/webm;codecs=vp9',
-          'video/webm;codecs=vp8',
-          'video/webm',
-        ];
-        const supported = candidates.find((t) => {
-          try { return window.MediaRecorder && MediaRecorder.isTypeSupported(t); } catch { return false; }
+        const rec = new MediaRecorder(stream, {
+          mimeType: picked.mime,
+          videoBitsPerSecond: 6_000_000,
         });
-        const rec = new MediaRecorder(
-          stream,
-          supported ? { mimeType: supported, videoBitsPerSecond: 6_000_000 } : { videoBitsPerSecond: 6_000_000 }
-        );
         recorderRef.current = rec;
 
         rec.ondataavailable = (e) => {
           if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
         };
         rec.onstop = () => {
-          const type = supported || 'video/webm';
-          const blob = new Blob(chunksRef.current, { type });
-          resolve(blob);
+          const blob = new Blob(chunksRef.current, { type: picked.mime });
+          resolve({ blob, ext: picked.ext, mime: picked.mime });
         };
         rec.onerror = (e) => reject(e?.error || new Error('Recording error'));
 
         rec.start(250);
-        // Stop after the replay duration plus a small tail to capture the final frame.
         setTimeout(() => {
           if (rec.state !== 'inactive') rec.stop();
         }, durationMs + 300);
@@ -75,32 +72,6 @@ export default function useMp4Exporter() {
     });
   }, []);
 
-  const convertToMp4 = useCallback(async (webmBlob) => {
-    setStatus('loading_ffmpeg');
-    const ff = await loadFfmpeg(setStatus);
-    setStatus('converting');
-    const inputName = 'input.webm';
-    const outputName = 'output.mp4';
-    const arrayBuffer = await webmBlob.arrayBuffer();
-    await ff.writeFile(inputName, new Uint8Array(arrayBuffer));
-    // Transcode to H.264 MP4 with broad compatibility (yuv420p, faststart).
-    await ff.exec([
-      '-i', inputName,
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-pix_fmt', 'yuv420p',
-      '-movflags', '+faststart',
-      '-an',
-      outputName,
-    ]);
-    const data = await ff.readFile(outputName);
-    try { await ff.deleteFile(inputName); } catch (_) {}
-    try { await ff.deleteFile(outputName); } catch (_) {}
-    return new Blob([data.buffer], { type: 'video/mp4' });
-  }, []);
-
-  // Main entry: record + convert, then run an action with the final MP4 blob.
-  // action: 'download' | 'share'
   const exportAndHandle = useCallback(async ({
     action,
     getCanvas,
@@ -116,32 +87,33 @@ export default function useMp4Exporter() {
       const canvas = getCanvas();
       if (!canvas) throw new Error('Canvas not available');
 
-      // Rewind and play from start so the full replay is captured.
       resetPlayback?.();
       setStatus('recording');
-      const webm = await recordCanvasToWebm(canvas, durationMs);
-      const mp4 = await convertToMp4(webm);
+      const { blob, ext, mime } = await recordCanvas(canvas, durationMs);
+
+      // Swap extension if the recorder produced a different format than the
+      // caller assumed (e.g. asked for .mp4 but we got webm).
+      const finalName = filename.replace(/\.(mp4|webm|mov)$/i, '') + '.' + ext;
 
       if (action === 'share') {
-        const file = new File([mp4], filename, { type: 'video/mp4' });
+        const file = new File([blob], finalName, { type: mime });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file], title, text: title });
         } else {
-          // Fallback: download if sharing unsupported.
-          const url = URL.createObjectURL(mp4);
+          const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = filename;
+          a.download = finalName;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
       } else {
-        const url = URL.createObjectURL(mp4);
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = finalName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -155,7 +127,7 @@ export default function useMp4Exporter() {
       setIsExporting(false);
       setStatus(null);
     }
-  }, [convertToMp4, isExporting, recordCanvasToWebm]);
+  }, [isExporting, recordCanvas]);
 
   return { exportAndHandle, isExporting, status, error };
 }
