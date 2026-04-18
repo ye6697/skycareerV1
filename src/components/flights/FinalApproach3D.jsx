@@ -802,6 +802,14 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
         {/* Touchdown / Liftoff Analysis HUD – compact single-line pill */}
         {touchdownInfo && (() => {
+          // Phase-specific centerline impact from the flight record.
+          const rwAcc = flight?.xplane_data?.runway_accuracy || null;
+          const phaseAcc = phase === 'takeoff' ? rwAcc?.takeoff : rwAcc?.landing;
+          const scoreDelta = Number(phaseAcc?.scoreDelta || 0);
+          const cashDelta = Number(phaseAcc?.cashDelta || 0);
+          const rmsM = Number(phaseAcc?.rmsMeters || 0);
+          const scoreColor = scoreDelta > 0 ? 'text-emerald-400' : scoreDelta < 0 ? 'text-red-400' : 'text-slate-400';
+          const cashColor = cashDelta > 0 ? 'text-emerald-400' : cashDelta < 0 ? 'text-red-400' : 'text-slate-400';
           const alongM = touchdownInfo.alongM;
           const lateralM = touchdownInfo.lateralM;
           // Include 6m shoulders on each side (matches rendered paved area and
@@ -824,23 +832,37 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           const onRwy = Math.abs(lateralM) < halfWidth;
           const latColor = Math.abs(lateralM) < 5 ? 'text-emerald-300' : Math.abs(lateralM) < halfWidth ? 'text-amber-400' : 'text-red-400';
           return (
-            <div className="absolute bottom-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md px-2.5 py-1.5 font-mono backdrop-blur-sm flex items-center gap-2.5 text-[10px]">
-              <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">
-                {phase === 'takeoff' ? (lang === 'de' ? 'LIFTOFF' : 'LIFTOFF') : (lang === 'de' ? 'TD' : 'TD')}
-              </span>
-              {runway?.landingIdent && (
-                <span className="text-[8px] text-slate-400 uppercase border-l border-slate-700 pl-2">RWY {runway.landingIdent}</span>
+            <div className="absolute bottom-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md px-2.5 py-1 font-mono backdrop-blur-sm text-[10px] space-y-0.5">
+              <div className="flex items-center gap-2.5">
+                <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">
+                  {phase === 'takeoff' ? (lang === 'de' ? 'LIFTOFF' : 'LIFTOFF') : (lang === 'de' ? 'TD' : 'TD')}
+                </span>
+                {runway?.landingIdent && (
+                  <span className="text-[8px] text-slate-400 uppercase border-l border-slate-700 pl-2">RWY {runway.landingIdent}</span>
+                )}
+                <span className={`font-bold uppercase ${labelColor}`}>{labelText}</span>
+                <span className="text-cyan-300 font-bold border-l border-slate-700 pl-2">
+                  {Math.round(distFromThreshold)}m
+                </span>
+                <span className={`font-bold border-l border-slate-700 pl-2 ${latColor}`}>
+                  {lateralM >= 0 ? 'R' : 'L'}{Math.abs(lateralM).toFixed(1)}m
+                </span>
+                <span className={`text-[9px] uppercase ${onRwy ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {onRwy ? '●' : '✕'}
+                </span>
+              </div>
+              {phaseAcc && (
+                <div className="flex items-center gap-2 text-[9px] pt-0.5 border-t border-slate-800/80">
+                  <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">CL</span>
+                  <span className="text-slate-300">Ø{rmsM.toFixed(1)}m</span>
+                  <span className={`font-bold border-l border-slate-700 pl-2 ${scoreColor}`}>
+                    {scoreDelta > 0 ? '+' : ''}{scoreDelta} pts
+                  </span>
+                  <span className={`font-bold border-l border-slate-700 pl-2 ${cashColor}`}>
+                    {cashDelta > 0 ? '+' : cashDelta < 0 ? '-' : ''}${Math.abs(cashDelta).toLocaleString()}
+                  </span>
+                </div>
               )}
-              <span className={`font-bold uppercase ${labelColor}`}>{labelText}</span>
-              <span className="text-cyan-300 font-bold border-l border-slate-700 pl-2">
-                {Math.round(distFromThreshold)}m
-              </span>
-              <span className={`font-bold border-l border-slate-700 pl-2 ${latColor}`}>
-                {lateralM >= 0 ? 'R' : 'L'}{Math.abs(lateralM).toFixed(1)}m
-              </span>
-              <span className={`text-[9px] uppercase ${onRwy ? 'text-emerald-400' : 'text-red-400'}`}>
-                {onRwy ? '●' : '✕'}
-              </span>
             </div>
           );
         })()}
