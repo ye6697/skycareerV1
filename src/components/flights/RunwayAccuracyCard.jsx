@@ -84,6 +84,19 @@ export default function RunwayAccuracyCard({ flight }) {
     setError(null);
   }, [flight?.id, flight?.xplane_data?.runway_accuracy_applied]);
 
+  // Auto-compute centerline accuracy as soon as we have a completed flight
+  // without applied accuracy. Guarded per flight id so it runs at most once.
+  const autoRanRef = React.useRef(new Set());
+  React.useEffect(() => {
+    if (!flight?.id) return;
+    if (applied) return;
+    if (busy) return;
+    if (autoRanRef.current.has(flight.id)) return;
+    autoRanRef.current.add(flight.id);
+    handleCompute();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flight?.id, applied]);
+
   const handleCompute = async () => {
     if (!flight?.id) return;
     setBusy(true);

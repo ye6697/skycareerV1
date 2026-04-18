@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
 import { base44 } from '@/api/base44Client';
 import useMp4Exporter from '@/components/flights/useMp4Exporter';
+import { lateralDeviationColor, buildPathColors } from '@/components/flights/centerlineColor';
 import {
   buildRunwayScene,
   makeRunwayLabelTexture,
@@ -370,7 +371,19 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // small ground ring).
     if (touchdownIdx >= 0 && path3D[touchdownIdx]) {
       const td = path3D[touchdownIdx];
-      const markerColor = 0x22d3ee;
+      // Color the touchdown / liftoff marker by lateral deviation from the
+      // centerline. Prefer the REAL telemetry lateral (projected from lat/lon)
+      // when available; otherwise fall back to the spline x-coordinate.
+      let markerLateralM = Math.abs(td.x);
+      if (runway && realTdPointIdx >= 0) {
+        const rp = segment.points[realTdPointIdx];
+        if (Number.isFinite(rp.lat) && Number.isFinite(rp.lon) &&
+            Math.abs(rp.lat) + Math.abs(rp.lon) > 0.001) {
+          const proj = projectToRunwayFrame(rp.lat, rp.lon, runway);
+          markerLateralM = Math.abs(proj.lateralM);
+        }
+      }
+      const markerColor = lateralDeviationColor(markerLateralM);
 
       // Inner ring (bright, thick) and outer pulsing halo.
       const ringGeo = new THREE.RingGeometry(6, 9, 40);
@@ -438,15 +451,22 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       }
     }
 
-    // Path line (full)
+    // Pre-compute vertex colors for the path: each vertex is colored based on
+    // its lateral distance from the runway centerline (only meaningful when we
+    // have a georeferenced path; otherwise all vertices end up emerald).
+    const pathColors = buildPathColors(path3D);
+
+    // Path line (full) – muted backdrop showing the entire trajectory.
     const pathGeo = new THREE.BufferGeometry().setFromPoints(path3D);
-    const pathMat = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.4 });
+    pathGeo.setAttribute('color', new THREE.BufferAttribute(pathColors, 3));
+    const pathMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35 });
     const pathLine = new THREE.Line(pathGeo, pathMat);
     scene.add(pathLine);
 
-    // Active path (grows during replay)
+    // Active path (grows during replay) – uses the same per-vertex colors so
+    // segments above the runway get the centerline-quality coloring.
     const activePathGeo = new THREE.BufferGeometry();
-    const activePathMat = new THREE.LineBasicMaterial({ color: 0x22d3ee, linewidth: 3 });
+    const activePathMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 });
     const activePathLine = new THREE.Line(activePathGeo, activePathMat);
     scene.add(activePathLine);
 
@@ -491,7 +511,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Ring/reticle removed - use shadow for ground position instead
     const ring = shadow;
 
-    sceneRef.current = { scene, camera, renderer, path3D, planeMesh, ring, shadow, strobe, trailGeo, activePathGeo, activePathLine, segment };
+    sceneRef.current = { scene, camera, renderer, path3D, pathColors, planeMesh, ring, shadow, strobe, trailGeo, activePathGeo, activePathLine, segment };
 
     const handleResize = () => {
       if (!mount) return;
@@ -594,6 +614,21 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       const activePoints = path3D.slice(0, idx + 1);
       activePoints.push(pos);
       activePathGeo.setFromPoints(activePoints);
+      // Carry over per-vertex colors for the active path so each segment is
+      // colored by its centerline deviation. Last vertex (current position)
+      // reuses the color of the previous sample.
+      const colorsSrc = sceneRef.current?.pathColors;
+      if (colorsSrc) {
+        const subColors = new Float32Array(activePoints.length * 3);
+        const copyLen = Math.min(idx + 1, path3D.length) * 3;
+        subColors.set(colorsSrc.subarray(0, copyLen));
+        const lastBase = (Math.min(idx, path3D.length - 1)) * 3;
+        const tail = (activePoints.length - 1) * 3;
+        subColors[tail] = colorsSrc[lastBase];
+        subColors[tail + 1] = colorsSrc[lastBase + 1];
+        subColors[tail + 2] = colorsSrc[lastBase + 2];
+        activePathGeo.setAttribute('color', new THREE.BufferAttribute(subColors, 3));
+      }
       if (trailGeo) {
         const trailPts = activePoints.slice(-25);
         trailGeo.setFromPoints(trailPts);
