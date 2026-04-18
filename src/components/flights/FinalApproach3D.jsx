@@ -35,6 +35,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   const isPlayingRef = useRef(true);
   const cameraModeRef = useRef('chase');
 
+  // User-controlled camera orbit around the aircraft. Yaw (horizontal swipe)
+  // rotates around the vertical axis; pitch (vertical swipe) tilts up/down.
+  // Reset whenever the user switches camera mode so each view starts neutral.
+  const camOrbitRef = useRef({ yaw: 0, pitch: 0 });
+
   const [runway, setRunway] = useState(null); // normalized runway or null
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
   const exporter = useMp4Exporter();
@@ -69,7 +74,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
   // Keep refs in sync with state.
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(() => { cameraModeRef.current = cameraMode; }, [cameraMode]);
+  useEffect(() => {
+    cameraModeRef.current = cameraMode;
+    // Reset orbit when switching camera mode so the new view starts neutral.
+    camOrbitRef.current = { yaw: 0, pitch: 0 };
+  }, [cameraMode]);
 
   // Extract the relevant window from telemetry history (first N sec for takeoff, last N sec for landing).
   const segment = useMemo(() => {
@@ -851,29 +860,58 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       }
 
       const camMode = cameraModeRef.current;
+      const orbit = camOrbitRef.current;
       if (camMode === 'top') {
+        // Top-down view: horizontal swipe rotates, vertical swipe zooms via pitch.
         camera.up.set(0, 0, -1);
-        camera.position.set(0, 220, pos.z);
+        const zoom = 1 + orbit.pitch * 1.5; // pitch drag moves closer / farther
+        const radius = 220 * Math.max(0.4, Math.min(3, zoom));
+        const cos = Math.cos(orbit.yaw);
+        const sin = Math.sin(orbit.yaw);
+        camera.position.set(sin * radius * 0.2, radius, pos.z + cos * radius * 0.2);
         camera.lookAt(0, 0, pos.z);
       } else {
         camera.up.set(0, 1, 0);
+        // Shared orbit parameters: horizontal swipe rotates around the plane,
+        // vertical swipe tilts the view up/down. Pitch is clamped so the
+        // camera can't flip upside down or go below the ground.
+        const orbitPitch = Math.max(-0.4, Math.min(1.0, orbit.pitch));
         if (camMode === 'chase') {
-          // Smooth the chase-camera offset so the camera doesn't jump between
-          // spline segments. Low-pass filter toward the current back-direction.
+          // Base "behind the aircraft" direction, smoothed so it doesn't snap.
           const rawBack = new THREE.Vector3().subVectors(cur, next);
           if (rawBack.length() < 0.001) rawBack.set(0, 0, 1);
-          rawBack.normalize().multiplyScalar(80);
+          rawBack.normalize();
           if (!camState.backDir) {
             camState.backDir = rawBack.clone();
           } else {
             const dt = Math.max(0.001, Math.min(0.1, (now - rotState.lastTime) / 1000));
             const camSmooth = 1 - Math.exp(-dt * 5);
-            camState.backDir.lerp(rawBack, camSmooth);
+            camState.backDir.lerp(rawBack, camSmooth).normalize();
           }
-          camera.position.set(pos.x + camState.backDir.x, pos.y + 30, pos.z + camState.backDir.z);
-          camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
+          // Rotate the back-direction around Y by user yaw, then tilt by pitch.
+          const baseAngle = Math.atan2(camState.backDir.x, camState.backDir.z);
+          const angle = baseAngle + orbit.yaw;
+          const radius = 80;
+          const height = 30 + orbitPitch * 60;
+          const horiz = Math.cos(orbitPitch) * radius;
+          camera.position.set(
+            pos.x + Math.sin(angle) * horiz,
+            pos.y + height,
+            pos.z + Math.cos(angle) * horiz,
+          );
+          camera.lookAt(pos.x, pos.y + 5, pos.z);
         } else {
-          camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
+          // Side view: user can orbit around the plane horizontally/vertically.
+          const radius = 140;
+          const height = Math.max(40, pos.y + 35) + orbitPitch * 60;
+          // Default side view sits at -X; orbit.yaw rotates the viewpoint.
+          const angle = Math.PI + orbit.yaw; // start at -X
+          const horiz = Math.cos(orbitPitch) * radius;
+          camera.position.set(
+            pos.x + Math.sin(angle) * horiz,
+            height,
+            pos.z + Math.cos(angle) * horiz,
+          );
           camera.lookAt(pos);
         }
       }
@@ -996,7 +1034,40 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       )}
 
       {/* 3D Canvas */}
-      <div ref={mountRef} className="flex-1 relative" style={{ minHeight: 0 }}>
+      <div
+        ref={mountRef}
+        className="flex-1 relative touch-none cursor-grab active:cursor-grabbing"
+        style={{ minHeight: 0 }}
+        onPointerDown={(e) => {
+          // Only left button / single touch; ignore if user starts on a UI element.
+          if (e.button !== undefined && e.button !== 0) return;
+          const target = e.target;
+          if (target && target.closest && target.closest('button,input,a,[role="button"]')) return;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          e.currentTarget.dataset.dragging = '1';
+          e.currentTarget.dataset.lastX = String(e.clientX);
+          e.currentTarget.dataset.lastY = String(e.clientY);
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.dataset.dragging !== '1') return;
+          const lastX = Number(e.currentTarget.dataset.lastX || e.clientX);
+          const lastY = Number(e.currentTarget.dataset.lastY || e.clientY);
+          const dx = e.clientX - lastX;
+          const dy = e.clientY - lastY;
+          e.currentTarget.dataset.lastX = String(e.clientX);
+          e.currentTarget.dataset.lastY = String(e.clientY);
+          // Sensitivity: roughly one screen width = ~180° of yaw.
+          camOrbitRef.current.yaw -= dx * 0.008;
+          camOrbitRef.current.pitch += dy * 0.006;
+        }}
+        onPointerUp={(e) => {
+          e.currentTarget.dataset.dragging = '0';
+          try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) { /* noop */ }
+        }}
+        onPointerCancel={(e) => {
+          e.currentTarget.dataset.dragging = '0';
+        }}
+      >
         {/* HUD crosshair reticle in center */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="relative w-32 h-32 opacity-30">
