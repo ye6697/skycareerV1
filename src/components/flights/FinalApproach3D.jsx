@@ -39,7 +39,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
   const exporter = useMp4Exporter();
 
-  const PLAYBACK_DURATION_MS = 12000;
+  const PLAYBACK_DURATION_MS = 30000;
   const filenameBase = `skycareer-${phase}-${flight?.id || 'replay'}`;
   const filename = `${filenameBase}.mp4`;
 
@@ -528,58 +528,51 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     };
   }, [segment, runway]);
 
-  // Keep progress ref in sync with slider scrubs.
+  // Keep progress ref in sync for the animation loop.
   useEffect(() => { progressRef.current = progress; }, [progress]);
 
-  // Animation loop – installed ONCE per scene build. Reads play/progress/camera
-  // from refs so state changes don't tear down and rebuild the RAF loop (which
-  // was the root cause of the stuttering motion).
+  // Animation loop – depends ONLY on segment/runway (via sceneRef).
+  // Reads all playback state through refs so the RAF loop is never torn
+  // down mid-animation (which caused the stuttering).
   useEffect(() => {
     if (!sceneRef.current) return;
     const sceneData = sceneRef.current;
     const { path3D } = sceneData;
-    const PLAYBACK_DURATION_MS = 24000;
-
-    // Smoothed rotation state – low-pass filtered every frame for natural motion.
-    let smoothedYaw = null;
-    let smoothedPitch = 0;
-    let smoothedBank = 0;
-    // Smoothed camera target & position for chase/side cams.
-    const smoothedCamPos = new THREE.Vector3();
-    const smoothedCamTgt = new THREE.Vector3();
-    let camInitialized = false;
-    let lastFrameTs = null;
-
-    const lerpAngle = (a, b, t) => {
-      let diff = b - a;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      return a + diff * t;
-    };
+    const PLAYBACK_DURATION_MS = 30000;
+    // Smooth rotation state (low-pass filter) so Yaw/Pitch/Bank transitions
+    // across sparse telemetry samples don't look jittery.
+    const rotState = { yaw: null, pitch: null, bank: null, lastTime: performance.now() };
+    // Smooth chase-camera direction vector so it doesn't snap between samples.
+    const camState = { backDir: null };
+    let lastStateSyncAt = 0;
 
     const animate = (now) => {
       if (!sceneRef.current) return;
       const { scene, camera, renderer, planeMesh, shadow, strobe, trailGeo, activePathGeo } = sceneRef.current;
 
-      const dtMs = lastFrameTs === null ? 16 : Math.min(100, now - lastFrameTs);
-      lastFrameTs = now;
-
+      let currentProgress = progressRef.current;
       if (isPlayingRef.current) {
         if (playbackStartRef.current === null) {
-          playbackStartRef.current = now - progressRef.current * PLAYBACK_DURATION_MS;
+          playbackStartRef.current = now - currentProgress * PLAYBACK_DURATION_MS;
         }
         const elapsed = now - playbackStartRef.current;
-        const p = Math.min(1, elapsed / PLAYBACK_DURATION_MS);
-        progressRef.current = p;
-        setProgress(p);
-        if (p >= 1) {
+        currentProgress = Math.min(1, elapsed / PLAYBACK_DURATION_MS);
+        progressRef.current = currentProgress;
+        // Only sync to React state ~10x/sec (HUD + slider) – every-frame
+        // setState caused re-renders that made the whole loop hitch.
+        if (now - lastStateSyncAt > 100) {
+          lastStateSyncAt = now;
+          setProgress(currentProgress);
+        }
+        if (currentProgress >= 1) {
+          isPlayingRef.current = false;
           setIsPlaying(false);
           playbackStartRef.current = null;
+          setProgress(1);
         }
       }
 
-      const prog = progressRef.current;
-      const idxFloat = prog * (path3D.length - 1);
+      const idxFloat = currentProgress * (path3D.length - 1);
       const idx = Math.floor(idxFloat);
       const frac = idxFloat - idx;
       const cur = path3D[idx];
@@ -594,38 +587,51 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       shadow.scale.setScalar(altScale * 2);
       shadow.material.opacity = 0.4 * altScale;
 
-      // Direction from a wider window (not just cur→next) so yaw doesn't
-      // jitter when neighbor spline points are nearly collinear.
-      const dirLookBack = Math.max(0, idx - 4);
-      const dirLookFwd = Math.min(path3D.length - 1, idx + 4);
-      const dir = new THREE.Vector3().subVectors(path3D[dirLookFwd], path3D[dirLookBack]);
-      if (dir.length() > 0.001) {
-        dir.normalize();
-        const targetYaw = Math.atan2(-dir.z, dir.x);
+      // Use a wider look-ahead window for yaw so the direction vector doesn't
+      // snap between adjacent sparse samples.
+      const lookBackIdx = Math.max(0, idx - 2);
+      const lookFwdIdx = Math.min(path3D.length - 1, idx + 3);
+      const dirSmooth = new THREE.Vector3().subVectors(path3D[lookFwdIdx], path3D[lookBackIdx]);
+      if (dirSmooth.length() > 0.001) {
+        dirSmooth.normalize();
+        const targetYaw = Math.atan2(-dirSmooth.z, dirSmooth.x);
         const segPoints = sceneRef.current?.segment?.points || [];
-        const pathProgressIdx = Math.min(segPoints.length - 1, Math.floor(prog * (segPoints.length - 1)));
+        const pathProgressIdx = Math.min(segPoints.length - 1, Math.floor(currentProgress * (segPoints.length - 1)));
         const realPitchDeg = segPoints[pathProgressIdx]?.pitch;
         let targetPitch;
         if (Number.isFinite(realPitchDeg)) targetPitch = (realPitchDeg * Math.PI) / 180;
-        else targetPitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+        else targetPitch = Math.asin(Math.max(-1, Math.min(1, dirSmooth.y)));
 
-        const lookBack = Math.max(0, idx - 6);
-        const lookFwd = Math.min(path3D.length - 1, idx + 6);
-        const dxFwd = path3D[lookFwd].x - path3D[lookBack].x;
-        const dzFwd = path3D[lookFwd].z - path3D[lookBack].z;
+        const dxFwd = path3D[lookFwdIdx].x - path3D[lookBackIdx].x;
+        const dzFwd = path3D[lookFwdIdx].z - path3D[lookBackIdx].z;
         const turnRate = Math.atan2(dxFwd, Math.max(0.1, Math.abs(dzFwd))) * 0.8;
         const targetBank = Math.max(-0.4, Math.min(0.4, turnRate));
 
-        // Exponential smoothing (time-constant ~250ms).
-        const alpha = 1 - Math.exp(-dtMs / 250);
-        smoothedYaw = smoothedYaw === null ? targetYaw : lerpAngle(smoothedYaw, targetYaw, alpha);
-        smoothedPitch = smoothedPitch + (targetPitch - smoothedPitch) * alpha;
-        smoothedBank = smoothedBank + (targetBank - smoothedBank) * alpha;
+        // Low-pass filter (exponential smoothing) for all three axes. dt-based
+        // so it behaves the same regardless of framerate.
+        const dt = Math.max(0.001, Math.min(0.1, (now - rotState.lastTime) / 1000));
+        rotState.lastTime = now;
+        const smoothFactor = 1 - Math.exp(-dt * 6); // ~160ms time constant
+        const shortestAngle = (a, b) => {
+          let d = b - a;
+          while (d > Math.PI) d -= Math.PI * 2;
+          while (d < -Math.PI) d += Math.PI * 2;
+          return d;
+        };
+        if (rotState.yaw === null) {
+          rotState.yaw = targetYaw;
+          rotState.pitch = targetPitch;
+          rotState.bank = targetBank;
+        } else {
+          rotState.yaw += shortestAngle(rotState.yaw, targetYaw) * smoothFactor;
+          rotState.pitch += (targetPitch - rotState.pitch) * smoothFactor;
+          rotState.bank += (targetBank - rotState.bank) * smoothFactor;
+        }
 
         planeMesh.rotation.set(0, 0, 0);
-        planeMesh.rotateY(smoothedYaw);
-        planeMesh.rotateZ(smoothedPitch);
-        planeMesh.rotateX(smoothedBank);
+        planeMesh.rotateY(rotState.yaw);
+        planeMesh.rotateZ(rotState.pitch);
+        planeMesh.rotateX(rotState.bank);
       }
 
       if (strobe) {
@@ -656,36 +662,33 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         trailGeo.setFromPoints(trailPts);
       }
 
-      // Camera – compute desired target, then low-pass smooth it for a cinematic feel.
       const camMode = cameraModeRef.current;
-      const desiredPos = new THREE.Vector3();
-      const desiredTgt = new THREE.Vector3();
       if (camMode === 'top') {
         camera.up.set(0, 0, -1);
-        desiredPos.set(0, 220, pos.z);
-        desiredTgt.set(0, 0, pos.z);
+        camera.position.set(0, 220, pos.z);
+        camera.lookAt(0, 0, pos.z);
       } else {
         camera.up.set(0, 1, 0);
         if (camMode === 'chase') {
-          const back = new THREE.Vector3().subVectors(cur, next).normalize().multiplyScalar(80);
-          desiredPos.set(pos.x + back.x, pos.y + 30, pos.z + back.z);
-          desiredTgt.set(pos.x, pos.y + 5, pos.z - 40);
+          // Smooth the chase-camera offset so the camera doesn't jump between
+          // spline segments. Low-pass filter toward the current back-direction.
+          const rawBack = new THREE.Vector3().subVectors(cur, next);
+          if (rawBack.length() < 0.001) rawBack.set(0, 0, 1);
+          rawBack.normalize().multiplyScalar(80);
+          if (!camState.backDir) {
+            camState.backDir = rawBack.clone();
+          } else {
+            const dt = Math.max(0.001, Math.min(0.1, (now - rotState.lastTime) / 1000));
+            const camSmooth = 1 - Math.exp(-dt * 5);
+            camState.backDir.lerp(rawBack, camSmooth);
+          }
+          camera.position.set(pos.x + camState.backDir.x, pos.y + 30, pos.z + camState.backDir.z);
+          camera.lookAt(pos.x, pos.y + 5, pos.z - 40);
         } else {
-          desiredPos.set(-140, Math.max(40, pos.y + 35), pos.z);
-          desiredTgt.copy(pos);
+          camera.position.set(-140, Math.max(40, pos.y + 35), pos.z);
+          camera.lookAt(pos);
         }
       }
-      if (!camInitialized) {
-        smoothedCamPos.copy(desiredPos);
-        smoothedCamTgt.copy(desiredTgt);
-        camInitialized = true;
-      } else {
-        const camAlpha = 1 - Math.exp(-dtMs / 200);
-        smoothedCamPos.lerp(desiredPos, camAlpha);
-        smoothedCamTgt.lerp(desiredTgt, camAlpha);
-      }
-      camera.position.copy(smoothedCamPos);
-      camera.lookAt(smoothedCamTgt);
 
       renderer.render(scene, camera);
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -699,7 +702,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   }, [segment, runway]);
 
   const handlePlayPause = () => {
-    const PLAYBACK_DURATION_MS = 24000;
+    const PLAYBACK_DURATION_MS = 30000;
     if (progress >= 1) {
       setProgress(0);
       playbackStartRef.current = null;
