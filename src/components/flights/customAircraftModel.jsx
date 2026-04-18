@@ -126,25 +126,30 @@ async function loadCustomObject() {
     box.getSize(size);
     const longest = Math.max(size.x, size.y, size.z);
     const scale = longest > 0.001 ? TARGET_LENGTH / longest : 1;
-
-    // Wrap in a container so we can apply scale + orientation cleanly.
-    const wrapper = new THREE.Group();
     raw.scale.setScalar(scale);
-    wrapper.add(raw);
 
-    // Orient so the nose points +X (authored OBJ's long axis is Z).
-    wrapper.rotation.y = Math.PI / 2;
-    wrapper.updateMatrixWorld(true);
+    // Orient so the nose points along +X. The OBJ's long axis is Z, so rotate
+    // the mesh itself (not a wrapper) — this way the mesh's local origin
+    // travels with it and we can then recenter it precisely.
+    raw.rotation.y = Math.PI / 2;
+    raw.updateMatrixWorld(true);
 
-    // Re-measure after scale + rotation, then recenter so wrapper origin sits
-    // at the aircraft's geometric center (X and Z) with belly on the ground.
-    box = new THREE.Box3().setFromObject(wrapper);
+    // Measure after scale + rotation, then shift the mesh so its geometric
+    // center lies exactly at (0, GROUND_CLEARANCE - minY, 0) — meaning the
+    // outer Group's origin sits at the aircraft's true geometric center in X/Z
+    // and the belly rests on the ground in Y.
+    box = new THREE.Box3().setFromObject(raw);
     const center = new THREE.Vector3();
     box.getCenter(center);
     raw.position.x -= center.x;
     raw.position.z -= center.z;
-    raw.position.y -= box.min.y - GROUND_CLEARANCE;
-    wrapper.updateMatrixWorld(true);
+    raw.position.y -= (box.min.y - GROUND_CLEARANCE);
+    raw.updateMatrixWorld(true);
+
+    // Wrap in a Group so callers get a consistent handle. The wrapper has
+    // identity transform — all centering is baked into `raw.position`.
+    const wrapper = new THREE.Group();
+    wrapper.add(raw);
 
     cachedObject = wrapper;
     return wrapper;
