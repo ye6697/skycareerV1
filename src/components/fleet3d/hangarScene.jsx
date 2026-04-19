@@ -1,96 +1,356 @@
 import * as THREE from 'three';
 
-// Real PBR textures from Poly Haven (CC0) so every surface is photographic
-// instead of flat colored geometry.
-const PH = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k';
-const TEX_URLS = {
-  // Floor: polished concrete with subtle cracks
-  floorDiff: `${PH}/concrete_floor_worn_001/concrete_floor_worn_001_diff_2k.jpg`,
-  floorNor: `${PH}/concrete_floor_worn_001/concrete_floor_worn_001_nor_gl_2k.jpg`,
-  floorRough: `${PH}/concrete_floor_worn_001/concrete_floor_worn_001_rough_2k.jpg`,
-  // Walls: corrugated iron (classic hangar cladding)
-  wallDiff: `${PH}/corrugated_iron_03/corrugated_iron_03_diff_2k.jpg`,
-  wallNor: `${PH}/corrugated_iron_03/corrugated_iron_03_nor_gl_2k.jpg`,
-  wallRough: `${PH}/corrugated_iron_03/corrugated_iron_03_rough_2k.jpg`,
-  // Ceiling: painted metal panels
-  ceilDiff: `${PH}/metal_plate/metal_plate_diff_2k.jpg`,
-  ceilNor: `${PH}/metal_plate/metal_plate_nor_gl_2k.jpg`,
-  // Structural beams: rusty steel I-beams
-  steelDiff: `${PH}/rust_coarse_01/rust_coarse_01_diff_2k.jpg`,
-  steelNor: `${PH}/rust_coarse_01/rust_coarse_01_nor_gl_2k.jpg`,
-  // Wood for pallets / crates
-  woodDiff: `${PH}/plywood_diff_2k.jpg`,
-  woodNor: `${PH}/plywood_nor_gl_2k.jpg`,
-  // Painted red metal for fire extinguishers / tool carts
-  paintedRedDiff: `${PH}/painted_metal_02/painted_metal_02_diff_2k.jpg`,
-  paintedRedNor: `${PH}/painted_metal_02/painted_metal_02_nor_gl_2k.jpg`,
-};
+// Fully procedural hangar with canvas-generated PBR textures so we never
+// depend on external texture CDNs (which were blocked and left everything
+// flat-black). Every wall, floor, pillar, and door panel has its own
+// procedural texture so the hangar actually reads as a real industrial
+// building in 3D.
 
 const texCache = new Map();
-function loadTex(url, srgb = true) {
-  const key = `${url}|${srgb}`;
+
+function makeCanvasTex(key, w, h, draw) {
   if (texCache.has(key)) return texCache.get(key);
-  const t = new THREE.TextureLoader().load(url);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   texCache.set(key, t);
   return t;
 }
 
-function pbrMat({ diff, nor, rough, repeat = [1, 1], color = 0xffffff, roughness = 0.8, metalness = 0.1 }) {
-  const map = loadTex(diff, true).clone();
-  map.needsUpdate = true;
-  map.repeat.set(repeat[0], repeat[1]);
-  map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  const mat = new THREE.MeshStandardMaterial({ map, color, roughness, metalness });
-  if (nor) {
-    const normalMap = loadTex(nor, false).clone();
-    normalMap.needsUpdate = true;
-    normalMap.repeat.set(repeat[0], repeat[1]);
-    normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-    mat.normalMap = normalMap;
-    mat.normalScale = new THREE.Vector2(1, 1);
+// Noise helper
+function noisePx(g, w, h, base, variance, alpha = 1) {
+  const img = g.getImageData(0, 0, w, h);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * variance;
+    img.data[i] = Math.max(0, Math.min(255, base[0] + n));
+    img.data[i + 1] = Math.max(0, Math.min(255, base[1] + n));
+    img.data[i + 2] = Math.max(0, Math.min(255, base[2] + n));
+    img.data[i + 3] = alpha * 255;
   }
-  if (rough) {
-    const roughnessMap = loadTex(rough, false).clone();
-    roughnessMap.needsUpdate = true;
-    roughnessMap.repeat.set(repeat[0], repeat[1]);
-    roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
-    mat.roughnessMap = roughnessMap;
-  }
-  return mat;
+  g.putImageData(img, 0, 0);
 }
 
-// Procedural painted line texture for safety zones (fallback for details)
-function makePaintedLineCanvas() {
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = 32;
-  const g = c.getContext('2d');
-  g.fillStyle = '#f0c040'; g.fillRect(0, 0, 256, 32);
-  g.fillStyle = '#1a1a1a';
-  for (let i = 0; i < 256; i += 32) g.fillRect(i, 0, 16, 32);
-  const t = new THREE.CanvasTexture(c);
+// --- Concrete floor texture ---
+function concreteTex() {
+  return makeCanvasTex('concrete', 512, 512, (g, w, h) => {
+    noisePx(g, w, h, [168, 170, 175], 40);
+    // Expansion joints (cross grid)
+    g.strokeStyle = '#3a3d42'; g.lineWidth = 2;
+    for (let x = 0; x < w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    for (let y = 0; y < h; y += 128) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    // Oil stains
+    for (let i = 0; i < 8; i += 1) {
+      const x = Math.random() * w, y = Math.random() * h;
+      const r = 15 + Math.random() * 40;
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, 'rgba(20,20,25,0.7)');
+      grd.addColorStop(1, 'rgba(20,20,25,0)');
+      g.fillStyle = grd;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    // Cracks
+    g.strokeStyle = 'rgba(40,40,45,0.4)'; g.lineWidth = 1;
+    for (let i = 0; i < 20; i += 1) {
+      g.beginPath();
+      let x = Math.random() * w, y = Math.random() * h;
+      g.moveTo(x, y);
+      for (let s = 0; s < 8; s += 1) {
+        x += (Math.random() - 0.5) * 30;
+        y += (Math.random() - 0.5) * 30;
+        g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+  });
+}
+
+// --- Corrugated metal wall texture ---
+function wallTex() {
+  return makeCanvasTex('wall', 256, 512, (g, w, h) => {
+    // Base coat
+    const grd = g.createLinearGradient(0, 0, w, 0);
+    grd.addColorStop(0, '#5a6470');
+    grd.addColorStop(0.5, '#7a8494');
+    grd.addColorStop(1, '#5a6470');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
+    // Vertical corrugations (dark/light stripes)
+    for (let x = 0; x < w; x += 16) {
+      g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x, 0, 4, h);
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x + 4, 0, 4, h);
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x + 8, 0, 2, h);
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(x + 12, 0, 2, h);
+    }
+    // Horizontal panel seams every ~170px
+    g.fillStyle = 'rgba(0,0,0,0.45)';
+    for (let y = 0; y < h; y += 170) g.fillRect(0, y, w, 2);
+    // Rust streaks
+    for (let i = 0; i < 6; i += 1) {
+      const x = Math.random() * w;
+      const grd2 = g.createLinearGradient(x, 0, x + 8, 0);
+      grd2.addColorStop(0, 'rgba(110,55,30,0)');
+      grd2.addColorStop(0.5, 'rgba(110,55,30,0.45)');
+      grd2.addColorStop(1, 'rgba(110,55,30,0)');
+      g.fillStyle = grd2;
+      g.fillRect(x, Math.random() * h, 10, 40 + Math.random() * 80);
+    }
+  });
+}
+
+// --- Metal roof panels ---
+function roofTex() {
+  return makeCanvasTex('roof', 512, 512, (g, w, h) => {
+    g.fillStyle = '#3a434e'; g.fillRect(0, 0, w, h);
+    // Panel grid
+    g.strokeStyle = '#222830'; g.lineWidth = 2;
+    for (let x = 0; x < w; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    for (let y = 0; y < h; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    // Rivets at intersections
+    g.fillStyle = '#1a2028';
+    for (let x = 0; x <= w; x += 64) {
+      for (let y = 0; y <= h; y += 64) {
+        g.beginPath(); g.arc(x, y, 2, 0, Math.PI * 2); g.fill();
+      }
+    }
+    // Highlights
+    noisePx(g, w, h, [58, 67, 78], 15, 0.3);
+  });
+}
+
+// --- Steel I-beam texture (painted with rust streaks) ---
+function steelTex() {
+  return makeCanvasTex('steel', 256, 256, (g, w, h) => {
+    g.fillStyle = '#9aa0a8'; g.fillRect(0, 0, w, h);
+    // Horizontal painted streaks
+    for (let i = 0; i < 20; i += 1) {
+      g.fillStyle = `rgba(${80 + Math.random() * 40}, ${80 + Math.random() * 40}, ${80 + Math.random() * 40}, 0.3)`;
+      g.fillRect(0, Math.random() * h, w, 2 + Math.random() * 4);
+    }
+    // Bolt rows
+    g.fillStyle = '#3a3a3a';
+    for (let y = 20; y < h; y += 40) {
+      for (let x = 20; x < w; x += 40) {
+        g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.3)';
+        g.beginPath(); g.arc(x - 1, y - 1, 1, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#3a3a3a';
+      }
+    }
+    // Rust
+    for (let i = 0; i < 4; i += 1) {
+      const x = Math.random() * w, y = Math.random() * h;
+      const grd = g.createRadialGradient(x, y, 0, x, y, 20 + Math.random() * 30);
+      grd.addColorStop(0, 'rgba(120,55,25,0.6)');
+      grd.addColorStop(1, 'rgba(120,55,25,0)');
+      g.fillStyle = grd;
+      g.beginPath(); g.arc(x, y, 40, 0, Math.PI * 2); g.fill();
+    }
+  });
+}
+
+// --- Hangar door (large metal roll-up door) ---
+function hangarDoorTex() {
+  return makeCanvasTex('hangardoor', 1024, 512, (g, w, h) => {
+    // Background metal
+    g.fillStyle = '#b8bcc4'; g.fillRect(0, 0, w, h);
+    // Horizontal panel segments (typical hangar roll-up door)
+    const panels = 12;
+    const ph = h / panels;
+    for (let i = 0; i < panels; i += 1) {
+      const y = i * ph;
+      // Panel gradient (top lighter, bottom darker)
+      const grd = g.createLinearGradient(0, y, 0, y + ph);
+      grd.addColorStop(0, '#d0d4dc');
+      grd.addColorStop(0.5, '#a8acb4');
+      grd.addColorStop(1, '#888c94');
+      g.fillStyle = grd; g.fillRect(0, y, w, ph);
+      // Top/bottom seam
+      g.fillStyle = '#3a3d42'; g.fillRect(0, y, w, 2);
+      g.fillStyle = '#4a4d52'; g.fillRect(0, y + ph - 2, w, 2);
+    }
+    // Vertical reinforcement ribs
+    g.strokeStyle = 'rgba(60,60,70,0.5)'; g.lineWidth = 2;
+    for (let x = 0; x < w; x += 80) {
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+    }
+    // Rivets along seams
+    g.fillStyle = '#2a2d32';
+    for (let i = 0; i < panels; i += 1) {
+      const y = i * ph + 3;
+      for (let x = 12; x < w; x += 50) {
+        g.beginPath(); g.arc(x, y, 2, 0, Math.PI * 2); g.fill();
+      }
+    }
+    // Red warning stripe along the bottom
+    g.fillStyle = '#c02020';
+    g.fillRect(0, h - 30, w, 12);
+    g.fillStyle = '#f0f0f0';
+    for (let x = 0; x < w; x += 40) {
+      g.fillRect(x, h - 30, 20, 12);
+    }
+    // Wear / dirt along the bottom
+    for (let i = 0; i < 40; i += 1) {
+      g.fillStyle = `rgba(40,40,40,${Math.random() * 0.4})`;
+      g.fillRect(Math.random() * w, h - 50 - Math.random() * 60, 3 + Math.random() * 15, 2 + Math.random() * 3);
+    }
+  });
+}
+
+// --- Outside view: sunset sky + airport scene painted onto a backdrop ---
+function outsideViewTex() {
+  return makeCanvasTex('outsideview', 1024, 512, (g, w, h) => {
+    // Sky gradient (dusk)
+    const sky = g.createLinearGradient(0, 0, 0, h * 0.75);
+    sky.addColorStop(0, '#1a2a4a');
+    sky.addColorStop(0.35, '#4a5a82');
+    sky.addColorStop(0.6, '#d88050');
+    sky.addColorStop(0.85, '#f0b070');
+    sky.addColorStop(1, '#fdd090');
+    g.fillStyle = sky; g.fillRect(0, 0, w, h * 0.75);
+
+    // Sun
+    const sunX = w * 0.72, sunY = h * 0.5;
+    const sunGrd = g.createRadialGradient(sunX, sunY, 0, sunX, sunY, 120);
+    sunGrd.addColorStop(0, 'rgba(255,245,220,1)');
+    sunGrd.addColorStop(0.3, 'rgba(255,200,130,0.8)');
+    sunGrd.addColorStop(1, 'rgba(255,150,80,0)');
+    g.fillStyle = sunGrd;
+    g.fillRect(sunX - 120, sunY - 120, 240, 240);
+    g.fillStyle = '#fff6d8';
+    g.beginPath(); g.arc(sunX, sunY, 35, 0, Math.PI * 2); g.fill();
+
+    // Distant mountains
+    g.fillStyle = '#2a3550';
+    g.beginPath(); g.moveTo(0, h * 0.7);
+    const peaks = [0.05, 0.12, 0.2, 0.28, 0.38, 0.48, 0.58, 0.68, 0.78, 0.88, 1.0];
+    peaks.forEach((p) => g.lineTo(p * w, h * (0.55 + Math.random() * 0.1)));
+    g.lineTo(w, h * 0.7); g.closePath(); g.fill();
+
+    // Ground / apron
+    const ground = g.createLinearGradient(0, h * 0.75, 0, h);
+    ground.addColorStop(0, '#3a3f48');
+    ground.addColorStop(1, '#2a2d34');
+    g.fillStyle = ground; g.fillRect(0, h * 0.75, w, h * 0.25);
+
+    // Runway (horizontal strip)
+    g.fillStyle = '#1a1d22'; g.fillRect(0, h * 0.78, w, h * 0.04);
+    // Runway centerline dashes
+    g.fillStyle = '#f0e8c0';
+    for (let x = 0; x < w; x += 40) g.fillRect(x, h * 0.80, 20, 2);
+    // Runway edge lights
+    g.fillStyle = '#ffe080';
+    for (let x = 0; x < w; x += 25) {
+      g.beginPath(); g.arc(x, h * 0.78, 2, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(x, h * 0.82, 2, 0, Math.PI * 2); g.fill();
+    }
+
+    // Terminal building
+    g.fillStyle = '#3a4454';
+    g.fillRect(w * 0.08, h * 0.62, w * 0.3, h * 0.16);
+    // Glass windows (lit)
+    for (let x = 0; x < w * 0.3; x += 12) {
+      for (let y = 0; y < h * 0.14; y += 8) {
+        g.fillStyle = Math.random() > 0.3 ? `rgba(255,${220 + Math.random() * 35},${100 + Math.random() * 80},0.9)` : 'rgba(60,70,85,0.9)';
+        g.fillRect(w * 0.08 + 3 + x, h * 0.63 + y, 7, 4);
+      }
+    }
+    // Terminal roof
+    g.fillStyle = '#2a313c';
+    g.fillRect(w * 0.075, h * 0.61, w * 0.31, h * 0.012);
+
+    // Control tower
+    g.fillStyle = '#4a5462';
+    g.fillRect(w * 0.42, h * 0.48, w * 0.025, h * 0.27);
+    g.fillStyle = '#1a2230';
+    g.fillRect(w * 0.41, h * 0.45, w * 0.045, h * 0.04);
+    // Tower lit windows
+    g.fillStyle = '#ffd580';
+    g.fillRect(w * 0.415, h * 0.455, w * 0.035, h * 0.02);
+    // Beacon
+    g.fillStyle = '#ff3030';
+    g.beginPath(); g.arc(w * 0.4325, h * 0.44, 3, 0, Math.PI * 2); g.fill();
+
+    // Parked airliner
+    g.fillStyle = '#e8ecf2';
+    g.fillRect(w * 0.5, h * 0.73, w * 0.18, h * 0.025);
+    // Tail fin
+    g.fillStyle = '#2a4a8a';
+    g.beginPath();
+    g.moveTo(w * 0.5, h * 0.73);
+    g.lineTo(w * 0.505, h * 0.69);
+    g.lineTo(w * 0.515, h * 0.73);
+    g.closePath(); g.fill();
+    // Wings
+    g.fillStyle = '#d0d4dc';
+    g.fillRect(w * 0.56, h * 0.745, w * 0.06, h * 0.01);
+    // Windows strip
+    g.fillStyle = '#0a0f1a';
+    g.fillRect(w * 0.52, h * 0.737, w * 0.14, h * 0.003);
+
+    // Distant hangars
+    g.fillStyle = '#3a4250';
+    g.fillRect(w * 0.75, h * 0.66, w * 0.15, h * 0.1);
+    g.fillStyle = '#2a313c';
+    g.beginPath();
+    g.moveTo(w * 0.745, h * 0.66);
+    g.lineTo(w * 0.825, h * 0.63);
+    g.lineTo(w * 0.905, h * 0.66);
+    g.closePath(); g.fill();
+
+    // Ground markings (taxiway line)
+    g.strokeStyle = '#e8c040'; g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(0, h * 0.92);
+    g.bezierCurveTo(w * 0.4, h * 0.86, w * 0.6, h * 0.95, w, h * 0.9);
+    g.stroke();
+  });
+}
+
+// Build a matte PBR-like material from a texture with optional repeat.
+function makeTexturedMat({ tex, repeat = [1, 1], color = 0xffffff, roughness = 0.85, metalness = 0.1 }) {
+  const t = tex.clone();
+  t.needsUpdate = true;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  t.repeat.set(repeat[0], repeat[1]);
+  return new THREE.MeshStandardMaterial({ map: t, color, roughness, metalness });
+}
+
+// Hazard-striped band
+function makeHazardMat() {
+  const t = makeCanvasTex('hazard', 128, 16, (g, w, h) => {
+    g.fillStyle = '#f0c040'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#1a1a1a';
+    for (let i = 0; i < w; i += 32) g.fillRect(i, 0, 16, h);
+  });
+  const tex = t.clone(); tex.needsUpdate = true;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 });
 }
 
 export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   const group = new THREE.Group();
 
-  // ---------- Floor (real concrete PBR, large repeat for scale) ----------
-  const floorMat = pbrMat({
-    diff: TEX_URLS.floorDiff, nor: TEX_URLS.floorNor, rough: TEX_URLS.floorRough,
-    repeat: [width / 6, depth / 6], color: 0xb5b8bd, roughness: 0.85, metalness: 0.1,
-  });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
+  const concreteMap = concreteTex();
+  const wallMap = wallTex();
+  const roofMap = roofTex();
+  const steelMap = steelTex();
+  const doorMap = hangarDoorTex();
+  const outsideMap = outsideViewTex();
+
+  // ---------- Floor ----------
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, depth),
+    makeTexturedMat({ tex: concreteMap, repeat: [width / 10, depth / 10], color: 0xc0c4ca, roughness: 0.9 }),
+  );
   floor.rotation.x = -Math.PI / 2;
   group.add(floor);
 
-  // Painted parking circle (yellow ring + cross)
+  // Yellow parking circle + cross
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(13, 13.6, 64),
+    new THREE.RingGeometry(13, 13.8, 64),
     new THREE.MeshBasicMaterial({ color: 0xf0c040, side: THREE.DoubleSide }),
   );
   ring.rotation.x = -Math.PI / 2;
@@ -98,7 +358,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   group.add(ring);
   [0, Math.PI / 2].forEach((rot) => {
     const bar = new THREE.Mesh(
-      new THREE.PlaneGeometry(26, 0.45),
+      new THREE.PlaneGeometry(26, 0.5),
       new THREE.MeshBasicMaterial({ color: 0xf0c040 }),
     );
     bar.rotation.x = -Math.PI / 2;
@@ -107,664 +367,272 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     group.add(bar);
   });
 
-  // Dashed red safety perimeter
-  for (let i = 0; i < 4; i += 1) {
-    const isLong = i % 2 === 0;
-    const len = isLong ? width * 0.75 : depth * 0.65;
-    const segments = Math.floor(len / 4);
-    for (let s = 0; s < segments; s += 1) {
-      if (s % 2 === 1) continue;
-      const seg = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.5, 0.4),
-        new THREE.MeshBasicMaterial({ color: 0xc02020 }),
-      );
-      seg.rotation.x = -Math.PI / 2;
-      const offset = -len / 2 + (s + 0.5) * 4;
-      if (i === 0) seg.position.set(offset, 0.024, -depth * 0.32);
-      if (i === 1) { seg.rotation.z = Math.PI / 2; seg.position.set(width * 0.37, 0.024, offset); }
-      if (i === 2) seg.position.set(offset, 0.024, depth * 0.32);
-      if (i === 3) { seg.rotation.z = Math.PI / 2; seg.position.set(-width * 0.37, 0.024, offset); }
-      group.add(seg);
-    }
-  }
-
-  // Painted yellow/black hatched hazard strips (safety zones)
-  const hazardTex = makePaintedLineCanvas();
-  hazardTex.repeat.set(10, 1);
-  const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTex, roughness: 0.9 });
+  // Hazard strips along each side of the parking spot
+  const hazardMat = makeHazardMat();
+  hazardMat.map.repeat.set(20, 1);
   [-1, 1].forEach((side) => {
-    const strip = new THREE.Mesh(new THREE.PlaneGeometry(60, 1.2), hazardMat);
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(60, 1.4), hazardMat);
     strip.rotation.x = -Math.PI / 2;
-    strip.position.set(side * 25, 0.027, side * 30);
+    strip.position.set(0, 0.03, side * 22);
     group.add(strip);
   });
 
-  // Tire skid marks
-  const skidMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0d, transparent: true, opacity: 0.55 });
-  for (let i = 0; i < 10; i += 1) {
-    const skid = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 6 + Math.random() * 8), skidMat);
-    skid.rotation.x = -Math.PI / 2;
-    skid.rotation.z = (Math.random() - 0.5) * 0.4;
-    skid.position.set((Math.random() - 0.5) * width * 0.4, 0.026, (Math.random() - 0.5) * depth * 0.5);
-    group.add(skid);
-  }
+  // ---------- Back wall ----------
+  const backWall = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    makeTexturedMat({ tex: wallMap, repeat: [width / 8, height / 8], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+  );
+  backWall.position.set(0, height / 2, -depth / 2);
+  group.add(backWall);
 
-  // ---------- Walls (real corrugated iron PBR) ----------
-  const wallMat = pbrMat({
-    diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor, rough: TEX_URLS.wallRough,
-    repeat: [width / 8, height / 6], color: 0x8a9098, roughness: 0.7, metalness: 0.4,
-  });
-  const sideWallMat = pbrMat({
-    diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor, rough: TEX_URLS.wallRough,
-    repeat: [depth / 8, height / 6], color: 0x8a9098, roughness: 0.7, metalness: 0.4,
-  });
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(width, height), wallMat);
-  back.position.set(0, height / 2, -depth / 2);
-  group.add(back);
+  // ---------- Side walls ----------
   [-1, 1].forEach((side) => {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(depth, height), sideWallMat);
-    w.rotation.y = side * Math.PI / 2;
-    w.position.set(side * width / 2, height / 2, 0);
-    group.add(w);
+    const sideWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(depth, height),
+      makeTexturedMat({ tex: wallMap, repeat: [depth / 8, height / 8], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+    );
+    sideWall.rotation.y = side * Math.PI / 2;
+    sideWall.position.set(side * width / 2, height / 2, 0);
+    group.add(sideWall);
   });
 
-  // Front wall with OPEN doorway. Make it taller and wider so there is a
-  // clear view outside, plus textured side panels (same PBR material as back
-  // wall) with a proper repeat so the corrugation is clearly visible.
-  const doorOpening = width * 0.78;
-  const sidePanel = (width - doorOpening) / 2;
-  const frontPanelMat = pbrMat({
-    diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor, rough: TEX_URLS.wallRough,
-    repeat: [sidePanel / 4, height / 5], color: 0x8a9098, roughness: 0.65, metalness: 0.45,
-  });
+  // ---------- Front wall with OPEN DOORWAY ----------
+  const doorOpeningW = width * 0.78;
+  const doorOpeningH = height * 0.82;
+  const sidePanelW = (width - doorOpeningW) / 2;
+  const topBandH = height - doorOpeningH;
+
+  // Top band (header) above the door
+  const headerBand = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, topBandH),
+    makeTexturedMat({ tex: wallMap, repeat: [width / 8, topBandH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+  );
+  headerBand.position.set(0, height - topBandH / 2, depth / 2);
+  headerBand.rotation.y = Math.PI;
+  group.add(headerBand);
+
+  // Side panels flanking the door
   [-1, 1].forEach((side) => {
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(sidePanel, height), frontPanelMat);
-    panel.position.set(side * (doorOpening / 2 + sidePanel / 2), height / 2, depth / 2);
-    panel.rotation.y = Math.PI;
-    group.add(panel);
+    const sp = new THREE.Mesh(
+      new THREE.PlaneGeometry(sidePanelW, doorOpeningH),
+      makeTexturedMat({ tex: wallMap, repeat: [sidePanelW / 6, doorOpeningH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+    );
+    sp.position.set(side * (doorOpeningW / 2 + sidePanelW / 2), doorOpeningH / 2, depth / 2);
+    sp.rotation.y = Math.PI;
+    group.add(sp);
   });
-  const headerHeight = height * 0.1;
-  const headerMat = pbrMat({
-    diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor, rough: TEX_URLS.wallRough,
-    repeat: [doorOpening / 4, headerHeight / 2], color: 0x8a9098, roughness: 0.65, metalness: 0.45,
-  });
-  const headerPanel = new THREE.Mesh(new THREE.PlaneGeometry(doorOpening, headerHeight), headerMat);
-  headerPanel.position.set(0, height - headerHeight / 2, depth / 2);
-  headerPanel.rotation.y = Math.PI;
-  group.add(headerPanel);
 
-  // -------- View through the open hangar door: sky + distant runway/airport --------
-  // Large backdrop seen through the open door with terminal silhouette, runway
-  // lights, and a warm sunset glow so the opening looks like a real exit.
-  const outsideW = width * 1.3;
-  const outsideH = height * 1.1;
-  const outsideZ = depth / 2 + 60;
-  // Gradient sky (warm sunset -> pale blue).
-  const outsideSkyMat = new THREE.ShaderMaterial({
-    uniforms: {
-      top: { value: new THREE.Color(0x2a4266) },
-      mid: { value: new THREE.Color(0xe8a060) },
-      bottom: { value: new THREE.Color(0xffcf8a) },
-    },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec2 vUv;
-      void main(){
-        vec3 col = mix(mid, top, smoothstep(0.35, 0.9, vUv.y));
-        col = mix(bottom, col, smoothstep(0.0, 0.35, vUv.y));
-        // Warm sun disc
-        float d = distance(vUv, vec2(0.72, 0.38));
-        float sun = smoothstep(0.09, 0.0, d);
-        col = mix(col, vec3(1.0, 0.9, 0.7), sun);
-        gl_FragColor = vec4(col, 1.0);
-      }`,
-    side: THREE.DoubleSide,
-  });
-  const outsideSky = new THREE.Mesh(new THREE.PlaneGeometry(outsideW, outsideH), outsideSkyMat);
-  outsideSky.position.set(0, outsideH / 2 - 1.4, outsideZ);
-  group.add(outsideSky);
-  // Distant tarmac strip (outside the hangar).
-  const outsideTarmac = new THREE.Mesh(
-    new THREE.PlaneGeometry(outsideW, 50),
-    new THREE.MeshStandardMaterial({ color: 0x2e333a, roughness: 0.9 }),
+  // ---------- OUTSIDE VIEW BACKDROP (airport scene) ----------
+  // A big textured plane positioned behind the door opening so the painted
+  // airport scene reads as what's outside the hangar.
+  const outsideBackdropW = doorOpeningW * 2.5;
+  const outsideBackdropH = doorOpeningH * 1.8;
+  const outsideBackdrop = new THREE.Mesh(
+    new THREE.PlaneGeometry(outsideBackdropW, outsideBackdropH),
+    new THREE.MeshBasicMaterial({ map: outsideMap.clone() }),
   );
-  outsideTarmac.rotation.x = -Math.PI / 2;
-  outsideTarmac.position.set(0, -1.38, depth / 2 + 30);
-  group.add(outsideTarmac);
-  // Painted line on the apron outside.
-  const outsideLine = new THREE.Mesh(
-    new THREE.PlaneGeometry(outsideW * 0.9, 0.5),
-    new THREE.MeshBasicMaterial({ color: 0xf0c040 }),
-  );
-  outsideLine.rotation.x = -Math.PI / 2;
-  outsideLine.position.set(0, -1.36, depth / 2 + 25);
-  group.add(outsideLine);
-  // Distant terminal silhouette.
-  const distantTerminal = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 10, 4),
-    new THREE.MeshStandardMaterial({ color: 0x3a4656, roughness: 0.8 }),
-  );
-  distantTerminal.position.set(-30, 4, depth / 2 + 55);
-  group.add(distantTerminal);
-  // Distant control tower.
-  const distantTower = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.4, 2.2, 22, 12),
-    new THREE.MeshStandardMaterial({ color: 0x4a5564, roughness: 0.75 }),
-  );
-  distantTower.position.set(25, 10, depth / 2 + 56);
-  group.add(distantTower);
-  const distantTowerCab = new THREE.Mesh(
-    new THREE.CylinderGeometry(3, 2.8, 2.2, 12),
+  outsideBackdrop.position.set(0, outsideBackdropH / 2 - 1, depth / 2 + 80);
+  group.add(outsideBackdrop);
+
+  // ---------- HANGAR ROLL-UP DOOR (partially open, showing texture clearly) ----------
+  // Door is rolled up ~70% so the opening reveals the outside view, but the
+  // remaining door panel at the top is fully visible with texture.
+  const doorPanelH = doorOpeningH * 0.25; // visible portion at the top
+  const hangarDoor = new THREE.Mesh(
+    new THREE.PlaneGeometry(doorOpeningW, doorPanelH),
     new THREE.MeshStandardMaterial({
-      color: 0x101620, emissive: 0x88bfe0, emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.5,
+      map: doorMap, roughness: 0.55, metalness: 0.6,
     }),
   );
-  distantTowerCab.position.set(25, 22, depth / 2 + 56);
-  group.add(distantTowerCab);
-  // Distant parked airliner.
-  const distantPlane = new THREE.Group();
-  const distFuse = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.2, 1.2, 18, 12),
-    new THREE.MeshStandardMaterial({ color: 0xecf0f4, roughness: 0.45, metalness: 0.6 }),
-  );
-  distFuse.rotation.z = Math.PI / 2;
-  distantPlane.add(distFuse);
-  const distWing = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 0.3, 18),
-    new THREE.MeshStandardMaterial({ color: 0xecf0f4, roughness: 0.5, metalness: 0.55 }),
-  );
-  distWing.position.y = -0.4;
-  distantPlane.add(distWing);
-  const distTail = new THREE.Mesh(
-    new THREE.BoxGeometry(2.5, 3.5, 0.25),
-    new THREE.MeshStandardMaterial({ color: 0x2a4a8a, roughness: 0.55 }),
-  );
-  distTail.position.set(-8, 2.3, 0);
-  distantPlane.add(distTail);
-  distantPlane.position.set(-10, 1.5, depth / 2 + 45);
-  distantPlane.rotation.y = 0.2;
-  group.add(distantPlane);
-  // Runway lights in the distance (small emissive dots).
-  for (let i = 0; i < 12; i += 1) {
-    const lightDot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 6, 6),
-      new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xff2030 : 0xfff0a0 }),
-    );
-    lightDot.position.set(-outsideW / 2 + (i / 11) * outsideW, 0.3, depth / 2 + 58);
-    group.add(lightDot);
-  }
+  hangarDoor.position.set(0, doorOpeningH - doorPanelH / 2, depth / 2 - 0.2);
+  hangarDoor.rotation.y = Math.PI;
+  group.add(hangarDoor);
 
-  // -------- Warm sunlight streaming in through the open door --------
-  // A strong directional light placed outside the hangar so its rays enter
-  // through the doorway and land on the floor / aircraft.
-  const doorSun = new THREE.DirectionalLight(0xffd9a8, 2.4);
-  doorSun.position.set(30, height * 0.6, depth / 2 + 80);
-  doorSun.target.position.set(-5, 2, -depth / 4);
-  group.add(doorSun);
-  group.add(doorSun.target);
-  // Soft orange fill bouncing off the front half of the floor.
-  const doorFill = new THREE.PointLight(0xffb070, 1.5, 90, 1.8);
-  doorFill.position.set(0, 8, depth / 2 - 10);
-  group.add(doorFill);
-
-  // Volumetric sun shafts (flat additive planes aligned with sun direction).
-  // Each shaft is a thin white-ish plane with additive blending & radial alpha
-  // falloff — cheap trick that reads as "god rays" through the hangar door.
-  const sunShaftMat = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-    uniforms: { color: { value: new THREE.Color(0xffd4a0) } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: `uniform vec3 color; varying vec2 vUv;
-      void main(){
-        // Soft edges + length falloff
-        float edge = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
-        float length = 1.0 - smoothstep(0.2, 1.0, vUv.y);
-        float a = edge * length * 0.35;
-        gl_FragColor = vec4(color, a);
-      }`,
+  // Door tracks/frame around the opening (I-beams)
+  const frameMat = new THREE.MeshStandardMaterial({
+    map: steelMap, roughness: 0.5, metalness: 0.65,
   });
-  for (let i = 0; i < 6; i += 1) {
-    const shaft = new THREE.Mesh(new THREE.PlaneGeometry(8, 60), sunShaftMat);
-    // Tilt the shafts to follow the sun direction (coming from upper-right outside).
-    shaft.rotation.z = -0.35 + (i - 2.5) * 0.02;
-    shaft.rotation.x = -0.25;
-    shaft.position.set(
-      -20 + i * 9 + Math.random() * 2,
-      height * 0.55,
-      depth / 2 - 8 - i * 3,
-    );
-    group.add(shaft);
-  }
-  // Floor light patch where the sun hits the concrete (soft bright glow).
-  const floorPatch = new THREE.Mesh(
-    new THREE.PlaneGeometry(45, 30),
-    new THREE.MeshBasicMaterial({
-      color: 0xffd4a0, transparent: true, opacity: 0.22, depthWrite: false,
-    }),
-  );
-  floorPatch.rotation.x = -Math.PI / 2;
-  floorPatch.position.set(-5, 0.03, depth / 4);
-  group.add(floorPatch);
-
-  // Door track frame — PBR painted steel I-beams (not flat black).
-  const doorFrameMat = pbrMat({
-    diff: TEX_URLS.steelDiff, nor: TEX_URLS.steelNor,
-    repeat: [6, 1.5], color: 0xa8a298, roughness: 0.55, metalness: 0.6,
-  });
-  const header = new THREE.Mesh(new THREE.BoxGeometry(width, 1.8, 1.4), doorFrameMat);
-  header.position.set(0, height - headerHeight - 0.6, depth / 2 - 0.2);
-  group.add(header);
-  // Hazard-striped lower band on the header (classic hangar look).
-  const headerHazard = new THREE.Mesh(
-    new THREE.BoxGeometry(width * 0.98, 0.6, 1.45),
-    new THREE.MeshStandardMaterial({ map: makePaintedLineCanvas(), roughness: 0.7 }),
-  );
-  headerHazard.material.map.repeat.set(40, 1);
-  headerHazard.position.set(0, height - headerHeight - 1.6, depth / 2 - 0.15);
-  group.add(headerHazard);
-  // Side door pillars: proper I-beam silhouette with PBR texture.
+  // Top track
+  const topTrack = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 3, 2, 1.5), frameMat);
+  topTrack.position.set(0, doorOpeningH + 0.5, depth / 2 - 0.3);
+  group.add(topTrack);
+  // Side tracks (proper I-beam pillars)
   [-1, 1].forEach((side) => {
-    const pillar = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, height, 1.6),
-      doorFrameMat,
-    );
-    pillar.position.set(side * doorOpening / 2, height / 2, depth / 2 - 0.2);
-    group.add(pillar);
-    // Flange details (outer plates) so the pillar reads as an I-beam.
-    [-1, 1].forEach((fs) => {
-      const flange = new THREE.Mesh(
-        new THREE.BoxGeometry(0.3, height, 2.4),
-        doorFrameMat,
-      );
-      flange.position.set(side * doorOpening / 2 + fs * 0.7, height / 2, depth / 2 - 0.2);
-      group.add(flange);
-    });
-    // Rivet pattern (small dark spheres) along the pillar.
-    const rivetMat = new THREE.MeshStandardMaterial({ color: 0x2a2820, roughness: 0.5, metalness: 0.7 });
-    for (let i = 0; i < 20; i += 1) {
-      [-1, 1].forEach((rs) => {
-        const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), rivetMat);
-        rivet.position.set(side * doorOpening / 2 + rs * 0.9, 1 + i * (height - 2) / 19, depth / 2 + 1.05);
-        group.add(rivet);
-      });
-    }
-    // Concrete base plinth under each pillar.
+    const track = new THREE.Mesh(new THREE.BoxGeometry(1.8, doorOpeningH + 2, 1.8), frameMat);
+    track.position.set(side * doorOpeningW / 2, doorOpeningH / 2, depth / 2 - 0.3);
+    group.add(track);
+    // Concrete plinth at base
     const plinth = new THREE.Mesh(
-      new THREE.BoxGeometry(3.2, 1.2, 3.2),
-      pbrMat({
-        diff: TEX_URLS.floorDiff, nor: TEX_URLS.floorNor, rough: TEX_URLS.floorRough,
-        repeat: [1, 1], color: 0x9aa0a8, roughness: 0.9,
-      }),
+      new THREE.BoxGeometry(3, 1.5, 3),
+      makeTexturedMat({ tex: concreteMap, repeat: [1, 1], color: 0xa0a4ac, roughness: 0.9 }),
     );
-    plinth.position.set(side * doorOpening / 2, 0.6, depth / 2 - 0.2);
+    plinth.position.set(side * doorOpeningW / 2, 0.75, depth / 2 - 0.3);
     group.add(plinth);
   });
-  // Overhead door rail (horizontal track above the opening).
-  const doorRail = new THREE.Mesh(
-    new THREE.BoxGeometry(width * 0.95, 0.5, 0.4),
-    new THREE.MeshStandardMaterial({ color: 0x3a3630, roughness: 0.45, metalness: 0.8 }),
-  );
-  doorRail.position.set(0, height - headerHeight - 2.2, depth / 2 - 0.6);
-  group.add(doorRail);
 
-  // ---------- Ceiling (metal plate PBR) ----------
-  const ceilMat = pbrMat({
-    diff: TEX_URLS.ceilDiff, nor: TEX_URLS.ceilNor,
-    repeat: [width / 10, depth / 10], color: 0x3a4048, roughness: 0.9, metalness: 0.3,
-  });
-  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), ceilMat);
+  // Hazard stripe at the bottom of the door frame
+  const frameHazard = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 3, 0.8, 1.6), makeHazardMat());
+  frameHazard.material.map.repeat.set(30, 1);
+  frameHazard.position.set(0, 0.4, depth / 2 - 0.2);
+  group.add(frameHazard);
+
+  // ---------- Ceiling ----------
+  const ceiling = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, depth),
+    makeTexturedMat({ tex: roofMap, repeat: [width / 12, depth / 12], color: 0x4a5460, roughness: 0.9, metalness: 0.3 }),
+  );
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = height;
   group.add(ceiling);
 
-  // Steel trusses (rusty I-beam look via PBR)
-  const trussMat = pbrMat({
-    diff: TEX_URLS.steelDiff, nor: TEX_URLS.steelNor,
-    repeat: [3, 0.5], color: 0x5a5048, roughness: 0.65, metalness: 0.7,
+  // ---------- Steel trusses ----------
+  const trussMat = new THREE.MeshStandardMaterial({
+    map: steelMap, roughness: 0.6, metalness: 0.65, color: 0x8a8890,
   });
-  for (let i = 0; i < 8; i += 1) {
-    const z = -depth / 2 + (i + 0.5) * (depth / 8);
-    const truss = new THREE.Mesh(new THREE.BoxGeometry(width - 2, 0.8, 1.0), trussMat);
-    truss.position.set(0, height - 2.5, z);
+  for (let i = 0; i < 6; i += 1) {
+    const z = -depth / 2 + (i + 0.5) * (depth / 6);
+    const truss = new THREE.Mesh(new THREE.BoxGeometry(width - 2, 1, 1.2), trussMat);
+    truss.position.set(0, height - 3, z);
     group.add(truss);
-    for (let j = 0; j < 8; j += 1) {
-      const x = -width / 2 + 5 + j * ((width - 10) / 7);
-      const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 5, 6), trussMat);
-      sup.position.set(x, height - 5.5, z);
+    // Vertical supports for truss
+    for (let j = 0; j < 6; j += 1) {
+      const x = -width / 2 + 6 + j * ((width - 12) / 5);
+      const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 6, 6), trussMat);
+      sup.position.set(x, height - 6, z);
       group.add(sup);
-      if (j < 7) {
-        const diag = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 6, 6), trussMat);
-        const dx = (width - 10) / 7;
-        diag.position.set(x + dx / 2, height - 5.5, z);
-        diag.rotation.z = Math.atan2(5, dx);
-        group.add(diag);
-      }
     }
   }
-  for (let i = 0; i < 4; i += 1) {
-    const x = -width / 2 + 8 + i * ((width - 16) / 3);
-    const t = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, depth - 2), trussMat);
-    t.position.set(x, height - 3.5, 0);
-    group.add(t);
-  }
 
-  // ---------- Hangar lights (chained from ceiling) ----------
-  for (let i = 0; i < 5; i += 1) {
-    const z = -depth / 2 + 12 + i * ((depth - 24) / 4);
+  // ---------- Ceiling lights ----------
+  for (let i = 0; i < 4; i += 1) {
+    const z = -depth / 2 + 15 + i * ((depth - 30) / 3);
     [-1, 1].forEach((side) => {
-      const x = side * width * 0.28;
-      const chain = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.08, 8, 6),
-        new THREE.MeshStandardMaterial({ color: 0x1a1f28, roughness: 0.8 }),
-      );
-      chain.position.set(x, height - 6, z);
-      group.add(chain);
+      const x = side * width * 0.3;
       const housing = new THREE.Mesh(
-        new THREE.ConeGeometry(2.2, 1.8, 16, 1, true),
-        new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.4, metalness: 0.6, side: THREE.DoubleSide }),
+        new THREE.ConeGeometry(2.5, 2, 16, 1, true),
+        new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.4, metalness: 0.5, side: THREE.DoubleSide }),
       );
-      housing.position.set(x, height - 11, z);
+      housing.position.set(x, height - 5, z);
       group.add(housing);
       const bulb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.7, 12, 8),
+        new THREE.SphereGeometry(0.8, 12, 8),
         new THREE.MeshBasicMaterial({ color: 0xfff4d8 }),
       );
-      bulb.position.set(x, height - 11.5, z);
+      bulb.position.set(x, height - 6, z);
       group.add(bulb);
-      const point = new THREE.PointLight(0xfff0d0, 1.8, 95, 1.6);
-      point.position.set(x, height - 12, z);
-      group.add(point);
+      const pl = new THREE.PointLight(0xfff0d0, 1.6, 85, 1.8);
+      pl.position.set(x, height - 7, z);
+      group.add(pl);
     });
   }
 
-  // ---------- Windows (emissive glass) ----------
+  // ---------- Side windows (with daylight) ----------
   const windowMat = new THREE.MeshStandardMaterial({
-    color: 0x4a6a90, emissive: 0x6a90c0, emissiveIntensity: 0.4,
-    roughness: 0.2, metalness: 0.6, transparent: true, opacity: 0.85,
+    color: 0xaec8e0, emissive: 0xc8deee, emissiveIntensity: 0.5,
+    roughness: 0.15, metalness: 0.5, transparent: true, opacity: 0.85,
   });
   [-1, 1].forEach((side) => {
-    for (let i = 0; i < 6; i += 1) {
-      const z = -depth / 2 + 10 + i * ((depth - 20) / 5);
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), windowMat);
-      win.position.set(side * (width / 2 - 0.05), height - 6, z);
+    for (let i = 0; i < 5; i += 1) {
+      const z = -depth / 2 + 15 + i * ((depth - 30) / 4);
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(9, 4.5), windowMat);
+      win.position.set(side * (width / 2 - 0.05), height - 7, z);
       win.rotation.y = -side * Math.PI / 2;
       group.add(win);
       const frame = new THREE.Mesh(
-        new THREE.PlaneGeometry(8.4, 0.3),
+        new THREE.BoxGeometry(0.1, 0.25, 9.5),
         new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.6 }),
       );
-      frame.position.set(side * (width / 2 - 0.04), height - 4, z);
-      frame.rotation.y = -side * Math.PI / 2;
+      frame.position.set(side * (width / 2 - 0.04), height - 7, z);
       group.add(frame);
     }
   });
 
-  // ---------- Workbenches along walls (with toolboxes) ----------
-  const benchMat = pbrMat({
-    diff: TEX_URLS.steelDiff, nor: TEX_URLS.steelNor,
-    repeat: [2, 0.8], color: 0x7a8088, roughness: 0.6, metalness: 0.45,
-  });
-  const drawerMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.75 });
-  const toolboxRedMat = pbrMat({
-    diff: TEX_URLS.paintedRedDiff, nor: TEX_URLS.paintedRedNor,
-    repeat: [1.5, 1], color: 0xc04030, roughness: 0.55, metalness: 0.45,
-  });
-  const toolboxBlueMat = pbrMat({
-    diff: TEX_URLS.paintedRedDiff, nor: TEX_URLS.paintedRedNor,
-    repeat: [1.5, 1], color: 0x3050a0, roughness: 0.55, metalness: 0.45,
-  });
-  for (let i = 0; i < 6; i += 1) {
-    const z = -depth / 2 + 10 + i * 12;
-    [-1, 1].forEach((side) => {
-      const bench = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.2, 5), benchMat);
-      bench.position.set(side * (width / 2 - 1.7), 0.6, z);
-      group.add(bench);
-      const drawers = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.0, 5), drawerMat);
-      drawers.position.set(side * (width / 2 - 1.7), 0, z);
-      group.add(drawers);
-      if (i % 2 === 0) {
-        const tb = new THREE.Mesh(
-          new THREE.BoxGeometry(2.0, 1.6, 1.4),
-          i % 4 === 0 ? toolboxRedMat : toolboxBlueMat,
-        );
-        tb.position.set(side * (width / 2 - 1.7), 2.0, z);
-        group.add(tb);
-      }
-    });
-  }
-
-  // (Maintenance stairs removed by request)
-
-  // ---------- Shipping containers (blue/orange) along back wall ----------
-  const containerColors = [0x2060a0, 0xc06020, 0x208050, 0x8a2020];
+  // ---------- Workbenches and toolboxes ----------
+  const benchMat = new THREE.MeshStandardMaterial({ map: steelMap, roughness: 0.55, metalness: 0.5, color: 0x888c94 });
+  const toolboxColors = [0xc03030, 0x2050a0, 0x30a060, 0xe0a020];
   for (let i = 0; i < 5; i += 1) {
-    const color = containerColors[i % containerColors.length];
-    const cMat = pbrMat({
-      diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor,
-      repeat: [3, 1], color, roughness: 0.6, metalness: 0.4,
+    const z = -depth / 2 + 15 + i * 18;
+    [-1, 1].forEach((side) => {
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.4, 5.5), benchMat);
+      bench.position.set(side * (width / 2 - 2), 0.7, z);
+      group.add(bench);
+      const drawers = new THREE.Mesh(
+        new THREE.BoxGeometry(2.8, 1.2, 5.5),
+        new THREE.MeshStandardMaterial({ color: 0x404550, roughness: 0.75 }),
+      );
+      drawers.position.set(side * (width / 2 - 2), 0, z);
+      group.add(drawers);
+      // Toolbox
+      const tb = new THREE.Mesh(
+        new THREE.BoxGeometry(2.2, 1.8, 1.5),
+        new THREE.MeshStandardMaterial({
+          color: toolboxColors[(i + (side > 0 ? 0 : 2)) % toolboxColors.length],
+          roughness: 0.55, metalness: 0.4,
+        }),
+      );
+      tb.position.set(side * (width / 2 - 2), 2.3, z);
+      group.add(tb);
     });
-    const container = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 5), cMat);
-    container.position.set(-width / 2 + 8 + i * 13, 3, -depth / 2 + 6);
-    group.add(container);
-    // Stack some on top
-    if (i % 2 === 0) {
-      const cMat2 = pbrMat({
-        diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor,
-        repeat: [3, 1], color: containerColors[(i + 1) % containerColors.length],
-        roughness: 0.6, metalness: 0.4,
-      });
-      const stacked = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 5), cMat2);
-      stacked.position.set(-width / 2 + 8 + i * 13, 9.1, -depth / 2 + 6);
-      group.add(stacked);
-    }
   }
 
-  // ---------- Wooden pallets with crates ----------
-  const woodMat = pbrMat({
-    diff: TEX_URLS.woodDiff, nor: TEX_URLS.woodNor,
-    repeat: [1, 1], color: 0xc49060, roughness: 0.85, metalness: 0.05,
-  });
-  const palletPositions = [
-    [-30, -25], [-35, -22], [28, -30], [32, -28], [-40, 20], [38, 15],
-    [-15, -38], [20, -40],
-  ];
-  palletPositions.forEach(([x, z]) => {
-    // Pallet base
-    const pallet = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.3, 2.5), woodMat);
-    pallet.position.set(x, 0.15, z);
-    group.add(pallet);
-    // Stacked crate
-    if (Math.random() > 0.3) {
-      const crate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.8, 2.2), woodMat);
-      crate.position.set(x, 1.2, z);
-      crate.rotation.y = Math.random() * 0.4 - 0.2;
-      group.add(crate);
-    }
-  });
+  // ---------- Shipping containers along back wall ----------
+  const containerColors = [0x2060a0, 0xc06020, 0x208050, 0x8a2020, 0xa05080];
+  for (let i = 0; i < 4; i += 1) {
+    const color = containerColors[i % containerColors.length];
+    const cMat = new THREE.MeshStandardMaterial({
+      map: wallMap, roughness: 0.65, metalness: 0.4, color,
+    });
+    const container = new THREE.Mesh(new THREE.BoxGeometry(14, 6.5, 5.5), cMat);
+    container.position.set(-width / 2 + 10 + i * 16, 3.25, -depth / 2 + 5);
+    group.add(container);
+  }
 
   // ---------- Oil drums ----------
-  const drumMat = pbrMat({
-    diff: TEX_URLS.paintedRedDiff, nor: TEX_URLS.paintedRedNor,
-    repeat: [1, 1], color: 0x206ba0, roughness: 0.6, metalness: 0.5,
-  });
-  const drumGroupPositions = [[-42, -35], [42, -38], [-38, 35], [40, 32]];
-  drumGroupPositions.forEach(([cx, cz]) => {
-    for (let i = 0; i < 5; i += 1) {
-      const ox = (Math.random() - 0.5) * 4;
-      const oz = (Math.random() - 0.5) * 4;
-      const drum = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.6, 0.6, 1.4, 18),
-        drumMat,
-      );
-      drum.position.set(cx + ox, 0.7, cz + oz);
+  const drumMat = new THREE.MeshStandardMaterial({ color: 0x2070b0, roughness: 0.55, metalness: 0.6 });
+  const drumPositions = [[-42, -35], [42, -35], [-38, 38], [40, 36]];
+  drumPositions.forEach(([cx, cz]) => {
+    for (let i = 0; i < 4; i += 1) {
+      const ox = (Math.random() - 0.5) * 3.5;
+      const oz = (Math.random() - 0.5) * 3.5;
+      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 1.5, 18), drumMat);
+      drum.position.set(cx + ox, 0.75, cz + oz);
       group.add(drum);
-      // Top rim
-      const rim = new THREE.Mesh(
-        new THREE.TorusGeometry(0.6, 0.05, 6, 18),
-        new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.6, metalness: 0.7 }),
-      );
-      rim.rotation.x = Math.PI / 2;
-      rim.position.set(cx + ox, 1.4, cz + oz);
-      group.add(rim);
     }
   });
 
-  // ---------- Fuel truck silhouette parked in back ----------
-  const truckBodyMat = new THREE.MeshStandardMaterial({ color: 0xd4d8dc, roughness: 0.5, metalness: 0.55 });
-  const truckTankMat = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.4, metalness: 0.6 });
-  const truckTireMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
-  const truck = new THREE.Group();
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.8, 2.8), truckBodyMat);
-  cab.position.set(-3, 1.6, 0);
-  truck.add(cab);
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 7, 20), truckTankMat);
-  tank.rotation.z = Math.PI / 2;
-  tank.position.set(2.5, 2, 0);
-  truck.add(tank);
-  [-1.5, 1.5].forEach((xOff) => {
-    [-1.4, 1.4].forEach((zOff) => {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.5, 16), truckTireMat);
-      wheel.rotation.x = Math.PI / 2;
-      wheel.position.set(xOff, 0.7, zOff);
-      truck.add(wheel);
-    });
-  });
-  // "FUEL" text plate
-  const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(3, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0xd43030, roughness: 0.5 }),
-  );
-  plate.position.set(2.5, 3.7, 1.7);
-  truck.add(plate);
-  truck.position.set(-35, 0, 25);
-  truck.rotation.y = Math.PI / 6;
-  group.add(truck);
-
-  // ---------- Fire extinguisher stations ----------
-  const extMat = pbrMat({
-    diff: TEX_URLS.paintedRedDiff, nor: TEX_URLS.paintedRedNor,
-    repeat: [1, 1], color: 0xc02020, roughness: 0.5, metalness: 0.4,
-  });
-  for (let i = 0; i < 4; i += 1) {
-    const z = -depth / 2 + 16 + i * 20;
-    [-1, 1].forEach((side) => {
-      const ext = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.2, 14), extMat);
-      ext.position.set(side * (width / 2 - 0.3), 1.2, z);
-      group.add(ext);
-      // Mount plate
-      const mount = new THREE.Mesh(
-        new THREE.BoxGeometry(0.15, 1.8, 0.8),
-        new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.3 }),
-      );
-      mount.position.set(side * (width / 2 - 0.05), 1.2, z);
-      group.add(mount);
-    });
-  }
-
-  // ---------- Ceiling ventilation ducts ----------
-  const ductMat = new THREE.MeshStandardMaterial({ color: 0xa0a5ad, roughness: 0.5, metalness: 0.7 });
+  // ---------- Fire extinguishers ----------
+  const extMat = new THREE.MeshStandardMaterial({ color: 0xc02020, roughness: 0.5, metalness: 0.45 });
   for (let i = 0; i < 3; i += 1) {
-    const x = -20 + i * 20;
-    const duct = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, depth - 10, 12), ductMat);
-    duct.rotation.x = Math.PI / 2;
-    duct.position.set(x, height - 6, 0);
-    group.add(duct);
+    const z = -depth / 2 + 25 + i * 28;
+    [-1, 1].forEach((side) => {
+      const ext = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 1.3, 14), extMat);
+      ext.position.set(side * (width / 2 - 0.4), 1.3, z);
+      group.add(ext);
+    });
   }
 
-  // ---------- Hanging warning signs ----------
-  const signs = [
-    { color: 0xf0c040, text: 'CAUTION' },
-    { color: 0xc02020, text: 'NO SMOKING' },
-    { color: 0x20a0c0, text: 'HANGAR 3' },
-  ];
-  signs.forEach((s, i) => {
-    const sign = new THREE.Mesh(
-      new THREE.PlaneGeometry(4, 1),
-      new THREE.MeshStandardMaterial({ color: s.color, roughness: 0.6, side: THREE.DoubleSide }),
-    );
-    sign.position.set(-20 + i * 20, height - 10, -depth / 2 + 8);
-    group.add(sign);
-    // Hang strings
-    [-1.5, 1.5].forEach((xOff) => {
-      const string = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.03, 3, 6),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a }),
-      );
-      string.position.set(-20 + i * 20 + xOff, height - 8.5, -depth / 2 + 8);
-      group.add(string);
-    });
-  });
+  // ---------- Warm sunlight from the open door ----------
+  const doorSun = new THREE.DirectionalLight(0xffd0a0, 2.0);
+  doorSun.position.set(20, height * 0.45, depth / 2 + 60);
+  doorSun.target.position.set(-5, 2, -depth / 4);
+  group.add(doorSun);
+  group.add(doorSun.target);
 
-  // ---------- Conveyor belt (baggage loader) ----------
-  const conveyorMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
-  const conveyorFrame = new THREE.MeshStandardMaterial({ color: 0xf0c020, roughness: 0.6, metalness: 0.4 });
-  const conveyor = new THREE.Group();
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.15, 10), conveyorMat);
-  belt.position.y = 1.5;
-  conveyor.add(belt);
-  const frame1 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.15, 10), conveyorFrame);
-  frame1.position.y = 1.3;
-  conveyor.add(frame1);
-  // Legs
-  [-4, 4].forEach((zOff) => {
-    [-0.9, 0.9].forEach((xOff) => {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.5, 0.15), conveyorFrame);
-      leg.position.set(xOff, 0.75, zOff);
-      conveyor.add(leg);
-    });
-  });
-  // Tilt it up
-  conveyor.rotation.x = -0.15;
-  conveyor.position.set(25, 0, -15);
-  conveyor.rotation.y = Math.PI / 4;
-  group.add(conveyor);
+  // Warm orange bounce light just inside the doorway (pool of light on floor)
+  const doorBounce = new THREE.PointLight(0xffb070, 1.2, 70, 2);
+  doorBounce.position.set(0, 6, depth / 2 - 12);
+  group.add(doorBounce);
 
-  // ---------- Tow tractor (tug) ----------
-  const tugBodyMat = new THREE.MeshStandardMaterial({ color: 0xf04020, roughness: 0.5, metalness: 0.5 });
-  const tug = new THREE.Group();
-  const tugBody = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 2), tugBodyMat);
-  tugBody.position.y = 1.0;
-  tug.add(tugBody);
-  const tugCab = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 1.8), tugBodyMat);
-  tugCab.position.set(-0.5, 2.3, 0);
-  tug.add(tugCab);
-  [-1, 1].forEach((xOff) => {
-    [-0.8, 0.8].forEach((zOff) => {
-      const wheel = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.45, 0.45, 0.4, 12),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 }),
-      );
-      wheel.rotation.x = Math.PI / 2;
-      wheel.position.set(xOff * 1.2, 0.45, zOff);
-      tug.add(wheel);
-    });
-  });
-  tug.position.set(30, 0, 25);
-  tug.rotation.y = -Math.PI / 3;
-  group.add(tug);
-
-  // ---------- Distant view: sky gradient + tarmac ----------
-  const skyMat = new THREE.ShaderMaterial({
-    uniforms: {
-      top: { value: new THREE.Color(0x6a90c0) },
-      bottom: { value: new THREE.Color(0xc4d4e8) },
-    },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying vec2 vUv; void main(){ gl_FragColor=vec4(mix(bottom,top,vUv.y),1.0); }',
-    side: THREE.DoubleSide,
-  });
-  const sky = new THREE.Mesh(new THREE.PlaneGeometry(width * 1.5, height), skyMat);
-  sky.position.set(0, height / 2, depth / 2 + 12);
-  group.add(sky);
-  const tarmac = new THREE.Mesh(
-    new THREE.PlaneGeometry(width * 1.5, 30),
-    new THREE.MeshStandardMaterial({ color: 0x383d44, roughness: 0.85 }),
+  // Warm floor patch where sun hits the concrete (flat additive glow)
+  const sunPatch = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 35),
+    new THREE.MeshBasicMaterial({
+      color: 0xffc080, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending,
+    }),
   );
-  tarmac.rotation.x = -Math.PI / 2;
-  tarmac.position.set(0, 0.01, depth / 2 + 14);
-  group.add(tarmac);
+  sunPatch.rotation.x = -Math.PI / 2;
+  sunPatch.position.set(0, 0.04, depth / 4);
+  group.add(sunPatch);
 
   return { group };
 }
