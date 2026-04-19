@@ -22,6 +22,9 @@ export default function AircraftHangar3D({ aircraft }) {
   const [isReady, setIsReady] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  // Popup position is captured ONCE at open-time and stays fixed on screen
+  // (doesn't follow the rotating aircraft / hotspot).
+  const [popupAnchor, setPopupAnchor] = useState(null);
   const camOrbitRef = useRef({ yaw: 0.6, pitch: 0.18, dist: 55 });
   const dragStateRef = useRef({ active: false });
 
@@ -110,7 +113,10 @@ export default function AircraftHangar3D({ aircraft }) {
       const targets = Object.values(hotspotMeshes).map((h) => h.sphere);
       const hits = raycaster.intersectObjects(targets, false);
       if (hits.length > 0) {
-        setSelectedCategory(hits[0].object.userData.key);
+        const key = hits[0].object.userData.key;
+        setSelectedCategory(key);
+        // Anchor popup at click location so it stays put.
+        setPopupAnchor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
         setAutoRotate(false);
       }
     };
@@ -278,7 +284,13 @@ export default function AircraftHangar3D({ aircraft }) {
         return (
           <button
             key={key}
-            onClick={(e) => { e.stopPropagation(); setSelectedCategory(key); setAutoRotate(false); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedCategory(key);
+              const rect = mountRef.current?.getBoundingClientRect();
+              if (rect) setPopupAnchor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+              setAutoRotate(false);
+            }}
             onPointerDown={(e) => e.stopPropagation()}
             className={`absolute flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[9px] uppercase font-bold transition-all -translate-x-1/2 -translate-y-[200%] ${isSelected ? 'z-30 scale-110' : 'z-20 hover:scale-110'}`}
             style={{
@@ -294,16 +306,16 @@ export default function AircraftHangar3D({ aircraft }) {
         );
       })}
 
-      {/* Info popup */}
+      {/* Info popup - anchored to the click position, doesn't follow the hotspot */}
       <AnimatePresence>
-        {selectedCategory && hotspotScreen[selectedCategory]?.visible && (
+        {selectedCategory && popupAnchor && (
           <div data-popup className="absolute inset-0 pointer-events-none">
             <div className="pointer-events-auto">
               <HotspotInfoPopup
                 aircraft={aircraft}
                 categoryKey={selectedCategory}
-                screenPos={hotspotScreen[selectedCategory]}
-                onClose={() => setSelectedCategory(null)}
+                screenPos={popupAnchor}
+                onClose={() => { setSelectedCategory(null); setPopupAnchor(null); }}
               />
             </div>
           </div>
