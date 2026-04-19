@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { addCityDistrict, addWarehouseCluster, makeLitBuildingMaterial } from '@/components/flights/cityBuildings';
+import { scatterTrees, scatterBuildings, scatterClouds } from '@/components/flights/glbScenery';
 
 // Realistic textured airport environment using CC0 PBR textures from Poly Haven.
 // No external model loading — we build the layout procedurally but skin every
@@ -315,33 +316,14 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     group.add(rf);
   }
 
-  // ------- Trees (textured trunk + textured leaf canopy) -------
-  const trunkMat = texturedMat(TEX_URLS.barkDiff, null, 1, 2, 0x6a4a32, 1);
-  const leavesMat = texturedMat(TEX_URLS.leavesDiff, null, 1.5, 1.5, 0x4a7a3a, 1);
-  const trunkGeo = new THREE.CylinderGeometry(0.35, 0.45, 3, 6);
-  const canopyGeo = new THREE.SphereGeometry(2.4, 8, 6);
-  const coneCanopyGeo = new THREE.ConeGeometry(2.2, 6, 7);
-  for (let i = 0; i < 1800; i += 1) {
-    const angle = Math.random() * Math.PI * 2;
-    const radius = 220 + Math.pow(Math.random(), 0.6) * 3400;
-    const x = Math.cos(angle) * radius;
-    const z = -runwayLenM / 2 + Math.sin(angle) * radius;
-    // Avoid the runway corridor.
-    if (Math.abs(x) < 200 && Math.abs(z + runwayLenM / 2) < runwayLenM / 2) continue;
-    // Avoid apron area.
-    if (x > apronX - apronW / 2 - 20 && x < apronX + apronW / 2 + 20 &&
-        Math.abs(z + runwayLenM / 2) < apronD / 2 + 20) continue;
-    const scale = 0.8 + Math.random() * 1.8;
-    const isConifer = Math.random() < 0.55;
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.scale.setScalar(scale);
-    trunk.position.set(x, 1.5 * scale - 1.4, z);
-    group.add(trunk);
-    const canopy = new THREE.Mesh(isConifer ? coneCanopyGeo : canopyGeo, leavesMat);
-    canopy.scale.setScalar(scale);
-    canopy.position.set(x, (isConifer ? 6 : 5) * scale - 1.4, z);
-    group.add(canopy);
-  }
+  // ------- Trees (GLB model, user-provided) -------
+  scatterTrees(group, { runwayLenM, apronX, apronW, apronD, count: 400 });
+
+  // ------- Extra GLB buildings scattered around the airport -------
+  scatterBuildings(group, { runwayLenM, count: 60 });
+
+  // ------- Clouds (GLB model, user-provided) -------
+  scatterClouds(group, { runwayLenM, count: 25 });
 
   // ------- Distant city skyline with LIT office windows -------
   // A ring of tall towers at ~2500 m skinned with the procedural lit-window

@@ -1,9 +1,24 @@
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { loadGLB, normalizeModel } from '@/components/flights/glbLoader';
 
 // User-provided airplane model hosted on catbox.moe.
 const OBJ_URL = 'https://files.catbox.moe/szsofq.obj';
 const TEX_URL = 'https://files.catbox.moe/ylgpjo.jpg';
+
+// Propeller-aircraft GLB models. Picked randomly for prop/turboprop flights.
+const PROP_GLB_URLS = [
+  'https://files.catbox.moe/oyc0jm.glb',
+  'https://files.catbox.moe/y4rer7.glb',
+];
+
+function isPropAircraft(hint) {
+  const s = String(hint || '').toLowerCase();
+  if (!s) return false;
+  if (s.includes('small_prop') || s.includes('turboprop')) return true;
+  if (/\b(c172|c152|c182|p28|sr22|da40|pa28|pc12|dh8|dhc|atr|saab|sf34|e120|e110|c208|king\s?air|baron|caravan)\b/.test(s)) return true;
+  return false;
+}
 
 // Target length (meters) for the aircraft's longest axis in world space.
 const TARGET_LENGTH = 30;
@@ -163,7 +178,7 @@ async function loadCustomObject() {
   }
 }
 
-export function buildCustomAircraftModel() {
+export function buildCustomAircraftModel(aircraftHint) {
   const group = new THREE.Group();
 
   // Strobe placeholder - gets parented to the model and repositioned once loaded.
@@ -171,6 +186,30 @@ export function buildCustomAircraftModel() {
     new THREE.SphereGeometry(0.3, 10, 10),
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
   );
+
+  // For propeller aircraft, load one of the user-provided GLB models instead
+  // of the default OBJ jet. Pick one randomly from the pool.
+  if (isPropAircraft(aircraftHint)) {
+    const url = PROP_GLB_URLS[Math.floor(Math.random() * PROP_GLB_URLS.length)];
+    loadGLB(url)
+      .then((obj) => {
+        normalizeModel(obj, { targetSize: 15, yOffset: 1.2 });
+        // Orient nose along +X (same convention as OBJ model).
+        obj.rotation.y = Math.PI / 2;
+        obj.updateMatrixWorld(true);
+        group.add(obj);
+        attachLightsToModel(obj, strobe);
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn('[propAircraftGLB] load failed, falling back to OBJ:', err?.message || err);
+        loadCustomObject().then((obj) => {
+          group.add(obj);
+          attachLightsToModel(obj, strobe);
+        }).catch(() => {});
+      });
+    return { group, strobe };
+  }
 
   loadCustomObject()
     .then((obj) => {
