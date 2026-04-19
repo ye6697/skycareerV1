@@ -123,19 +123,35 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
     },
   });
 
-  // Position popup near the hotspot but keep it inside viewport.
-  const style = (() => {
-    if (!screenPos) return { left: '50%', top: '50%', transform: 'translate(-50%,-50%)' };
-    const offset = 24;
-    return { left: `${screenPos.x + offset}px`, top: `${screenPos.y - 20}px` };
-  })();
+  // Position popup near the click but clamp inside the viewer bounds so it
+  // never overflows offscreen. We read the parent container's size via ref.
+  const popupRef = React.useRef(null);
+  const [style, setStyle] = React.useState({ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' });
+  React.useLayoutEffect(() => {
+    if (!screenPos || !popupRef.current) return;
+    const parent = popupRef.current.offsetParent;
+    if (!parent) return;
+    const pW = parent.clientWidth;
+    const pH = parent.clientHeight;
+    const w = popupRef.current.offsetWidth || 280;
+    const h = popupRef.current.offsetHeight || 260;
+    const margin = 8;
+    // Prefer to the right of the click; if it would overflow, place it left.
+    let left = screenPos.x + 24;
+    if (left + w > pW - margin) left = screenPos.x - w - 24;
+    left = Math.max(margin, Math.min(pW - w - margin, left));
+    let top = screenPos.y - h / 2;
+    top = Math.max(margin, Math.min(pH - h - margin, top));
+    setStyle({ left: `${left}px`, top: `${top}px` });
+  }, [screenPos, categoryKey]);
 
   return (
     <motion.div
+      ref={popupRef}
       initial={{ opacity: 0, scale: 0.9, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className={`absolute z-50 w-[280px] max-w-[85vw] rounded-lg border ${colors.border} bg-slate-950/95 backdrop-blur-md shadow-2xl`}
+      className={`absolute z-50 w-[280px] max-w-[calc(100%-16px)] rounded-lg border ${colors.border} bg-slate-950/95 backdrop-blur-md shadow-2xl`}
       style={style}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
