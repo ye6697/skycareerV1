@@ -34,37 +34,52 @@ function noisePx(g, w, h, base, variance, alpha = 1) {
   g.putImageData(img, 0, 0);
 }
 
-// --- Concrete floor texture ---
+// --- Modern sealed-concrete / epoxy floor texture ---
 function concreteTex() {
   return makeCanvasTex('concrete', 512, 512, (g, w, h) => {
-    noisePx(g, w, h, [168, 170, 175], 40);
-    // Expansion joints (cross grid)
-    g.strokeStyle = '#3a3d42'; g.lineWidth = 2;
-    for (let x = 0; x < w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
-    for (let y = 0; y < h; y += 128) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
-    // Oil stains
-    for (let i = 0; i < 8; i += 1) {
-      const x = Math.random() * w, y = Math.random() * h;
-      const r = 15 + Math.random() * 40;
+    // Slight cool gradient base to avoid flat/dirty-looking concrete.
+    const base = g.createLinearGradient(0, 0, w, h);
+    base.addColorStop(0, '#cfd5dd');
+    base.addColorStop(0.5, '#c4cad3');
+    base.addColorStop(1, '#bcc3cd');
+    g.fillStyle = base;
+    g.fillRect(0, 0, w, h);
+
+    // Fine aggregate noise (small, subtle grain).
+    noisePx(g, w, h, [198, 204, 212], 18, 0.5);
+
+    // Very soft cloud variation so repeats are less obvious.
+    for (let i = 0; i < 18; i += 1) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      const r = 60 + Math.random() * 120;
       const grd = g.createRadialGradient(x, y, 0, x, y, r);
-      grd.addColorStop(0, 'rgba(20,20,25,0.7)');
-      grd.addColorStop(1, 'rgba(20,20,25,0)');
+      grd.addColorStop(0, `rgba(255,255,255,${0.03 + Math.random() * 0.05})`);
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = grd;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
-    // Cracks
-    g.strokeStyle = 'rgba(40,40,45,0.4)'; g.lineWidth = 1;
-    for (let i = 0; i < 20; i += 1) {
+
+    // Polishing/machine sweep lines to make it feel newer + premium.
+    for (let i = 0; i < 45; i += 1) {
+      g.strokeStyle = `rgba(255,255,255,${0.03 + Math.random() * 0.04})`;
+      g.lineWidth = 1 + Math.random() * 1.5;
+      const y = (i / 45) * h + (Math.random() - 0.5) * 10;
       g.beginPath();
-      let x = Math.random() * w, y = Math.random() * h;
-      g.moveTo(x, y);
-      for (let s = 0; s < 8; s += 1) {
-        x += (Math.random() - 0.5) * 30;
-        y += (Math.random() - 0.5) * 30;
-        g.lineTo(x, y);
-      }
+      g.moveTo(0, y);
+      g.bezierCurveTo(w * 0.25, y - 6, w * 0.75, y + 6, w, y);
       g.stroke();
     }
+
+    // Sparse modern saw-cut seams (no tile grid look).
+    g.strokeStyle = 'rgba(72,78,90,0.35)';
+    g.lineWidth = 1.5;
+    [w * 0.33, w * 0.68].forEach((x) => {
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+    });
+    [h * 0.42].forEach((y) => {
+      g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+    });
   });
 }
 
@@ -343,7 +358,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   // ---------- Floor ----------
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(width, depth),
-    makeTexturedMat({ tex: concreteMap, repeat: [width / 10, depth / 10], color: 0xc0c4ca, roughness: 0.9 }),
+    makeTexturedMat({ tex: concreteMap, repeat: [width / 14, depth / 14], color: 0xd2d7df, roughness: 0.58, metalness: 0.04 }),
   );
   floor.rotation.x = -Math.PI / 2;
   group.add(floor);
