@@ -49,20 +49,39 @@ function loadTexture(url) {
 // Attach navigation, strobe, and beacon lights as CHILDREN of the model so
 // they move/rotate exactly with it. Positions are derived from the model's
 // actual bounding box so wingtips line up with the real geometry.
+// Light sizes scale with the model so small props don't get giant beach-ball
+// wingtip lights.
 function attachLightsToModel(model, strobe) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  // Long axis = X (we orient the model that way). Z spans the wings.
-  const halfSpan = size.z / 2;
-  const noseX = box.max.x;
-  const tailX = box.min.x;
-  const midY = (box.min.y + box.max.y) / 2;
-  const topY = box.max.y;
-  const bottomY = box.min.y;
+  // Measure in world space to respect any scale that was applied to the model
+  // before this function is called (e.g. GLB normalizeModel scaling).
+  model.updateMatrixWorld(true);
+  const worldBox = new THREE.Box3().setFromObject(model);
+  const worldSize = new THREE.Vector3();
+  worldBox.getSize(worldSize);
+  const worldLongest = Math.max(worldSize.x, worldSize.y, worldSize.z) || 1;
 
-  // Red wingtip (left = -Z) and green wingtip (right = +Z).
-  const navGeo = new THREE.SphereGeometry(0.3, 10, 10);
+  // Invert the model's world scale so positions we set below (in model-local
+  // space) land at world positions derived from the world bounding box.
+  const modelWorldScale = new THREE.Vector3();
+  model.getWorldScale(modelWorldScale);
+  const invScale = 1 / (modelWorldScale.x || 1);
+
+  // Local-frame bounding box (divide world bbox by world scale).
+  const halfSpan = (worldSize.z / 2) * invScale;
+  const tailX = worldBox.min.x * invScale - model.position.x;
+  const topY = worldBox.max.y * invScale - model.position.y;
+  const bottomY = worldBox.min.y * invScale - model.position.y;
+  const midY = ((worldBox.min.y + worldBox.max.y) / 2) * invScale - model.position.y;
+
+  // Light radius scales with aircraft size so both small props and airliners
+  // get proportional lights. Base radius ~0.7% of the longest axis (world),
+  // then converted back to local space.
+  const navRadiusWorld = Math.max(0.12, worldLongest * 0.007);
+  const navRadiusLocal = navRadiusWorld * invScale;
+  const strobeRadiusLocal = navRadiusLocal * 0.8;
+  const beaconRadiusLocal = navRadiusLocal * 0.9;
+
+  const navGeo = new THREE.SphereGeometry(navRadiusLocal, 10, 10);
   const red = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0xff2020 }));
   red.position.set(0, midY, -halfSpan);
   model.add(red);
@@ -70,12 +89,14 @@ function attachLightsToModel(model, strobe) {
   green.position.set(0, midY, halfSpan);
   model.add(green);
 
-  // White tail strobe on top of fin (this is the mesh whose opacity pulses).
-  strobe.position.set(tailX + 1, topY, 0);
+  // Tail strobe: resize and reposition the caller-provided mesh.
+  strobe.geometry.dispose();
+  strobe.geometry = new THREE.SphereGeometry(strobeRadiusLocal, 10, 10);
+  strobe.position.set(tailX + navRadiusLocal * 3, topY, 0);
   model.add(strobe);
 
-  // Wing strobes at each wingtip (flash in sync with tail strobe).
-  const wingStrobeGeo = new THREE.SphereGeometry(0.22, 8, 8);
+  // Wing strobes at each wingtip.
+  const wingStrobeGeo = new THREE.SphereGeometry(strobeRadiusLocal * 0.9, 8, 8);
   const leftStrobe = new THREE.Mesh(
     wingStrobeGeo,
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
@@ -93,10 +114,10 @@ function attachLightsToModel(model, strobe) {
 
   // Red belly beacon.
   const beacon = new THREE.Mesh(
-    new THREE.SphereGeometry(0.3, 10, 10),
+    new THREE.SphereGeometry(beaconRadiusLocal, 10, 10),
     new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9 }),
   );
-  beacon.position.set(0, bottomY + 0.1, 0);
+  beacon.position.set(0, bottomY + beaconRadiusLocal * 0.5, 0);
   beacon.name = 'beacon';
   model.add(beacon);
 
@@ -193,10 +214,12 @@ export function buildCustomAircraftModel(aircraftHint) {
     const url = PROP_GLB_URLS[Math.floor(Math.random() * PROP_GLB_URLS.length)];
     loadGLB(url)
       .then((obj) => {
-        normalizeModel(obj, { targetSize: 15, yOffset: 1.2 });
-        // Orient nose along +X (same convention as OBJ model).
+        // Orient nose along +X FIRST, then normalize/center so the X/Z
+        // centering happens after rotation — this keeps the aircraft
+        // perfectly centered on the chase path.
         obj.rotation.y = Math.PI / 2;
         obj.updateMatrixWorld(true);
+        normalizeModel(obj, { targetSize: 15, yOffset: 1.2 });
         group.add(obj);
         attachLightsToModel(obj, strobe);
       })

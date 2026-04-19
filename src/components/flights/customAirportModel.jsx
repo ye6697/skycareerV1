@@ -3,6 +3,7 @@ import { addCityDistrict, addWarehouseCluster, makeLitBuildingMaterial } from '@
 import { scatterBuildings, scatterClouds } from '@/components/flights/glbScenery';
 import { scatterRealisticTrees } from '@/components/flights/realisticTrees';
 import { addRunwayMarkings, addApproachLights, addGroundServiceEquipment, addJetBridges } from '@/components/flights/airportDetails';
+import { addRoadNetwork } from '@/components/flights/roadNetwork';
 
 // Realistic textured airport environment using CC0 PBR textures from Poly Haven.
 // No external model loading — we build the layout procedurally but skin every
@@ -325,6 +326,9 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   addApproachLights(group, { runwayLenM });
   addGroundServiceEquipment(group, { apronX, apronW, gatePositions });
   addJetBridges(group, { termX, gatePositions });
+
+  // ------- Road network around the airport -------
+  addRoadNetwork(group, { runwayLenM });
 
   // ------- Trees (procedural realistic) -------
   scatterRealisticTrees(group, { runwayLenM, apronX, apronW, apronD, count: 1200 });
