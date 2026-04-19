@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { AnimatePresence } from 'framer-motion';
 import { buildCustomAircraftModel } from '@/components/flights/customAircraftModel';
-import { buildHangar } from '@/components/fleet3d/hangarScene';
+import { buildCustomHangar } from '@/components/fleet3d/customHangarModel';
 import { HOTSPOT_LAYOUT, getHotspotColor } from '@/components/fleet3d/maintenanceHotspots';
 import { normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, MAINTENANCE_CATEGORY_KEYS } from '@/lib/maintenance';
 import { useLanguage } from '@/components/LanguageContext';
@@ -58,8 +58,8 @@ export default function AircraftHangar3D({ aircraft }) {
     renderer.toneMappingExposure = 1.15;
     mount.appendChild(renderer.domElement);
 
-    // Hangar (much taller now: 55m)
-    const { group: hangar } = buildHangar({ width: 110, depth: 130, height: 55 });
+    // User-provided hangar 3D model
+    const { group: hangar } = buildCustomHangar();
     scene.add(hangar);
 
     // Lighting
