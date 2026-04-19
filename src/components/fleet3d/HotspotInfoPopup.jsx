@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Wrench, X, AlertTriangle, Cog, Gauge, CircuitBoard, Shield, Plane, Zap, Wind } from 'lucide-react';
+import { Wrench, X, AlertTriangle, Cog, Gauge, CircuitBoard, Shield, Plane, Zap, Wind, Skull } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageContext';
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, applyPermanentWearIncrease } from '@/lib/maintenance';
 import { resolveAircraftInsurance } from '@/lib/insurance';
+import { isAtOverdraftLimit } from '@/components/InsolvencyBanner';
 
 const CATEGORY_ICONS = {
   engine: Cog, hydraulics: Gauge, avionics: CircuitBoard, airframe: Shield,
@@ -56,6 +57,22 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
   const permanentWear = clampPct(perm[categoryKey]);
   const totalWear = Math.min(100, activeWear + permanentWear);
   const colors = getColor(totalWear);
+
+  const { data: companyForLimit } = useQuery({
+    queryKey: ['company-hotspot-limit'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      const cid = user?.company_id || user?.data?.company_id;
+      if (cid) {
+        const cs = await base44.entities.Company.filter({ id: cid });
+        if (cs[0]) return cs[0];
+      }
+      const cs = await base44.entities.Company.filter({ created_by: user.email });
+      return cs[0] || null;
+    },
+    staleTime: 30000,
+  });
+  const overdraftBlocked = isAtOverdraftLimit(companyForLimit);
 
   const insurance = resolveAircraftInsurance(aircraft);
   const insuranceCovPct = Math.max(0, Math.min(1, Number(insurance.maintenanceCoveragePct || 0)));
@@ -213,12 +230,20 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
           </div>
         )}
 
+        {/* Insolvency block */}
+        {grossCost > 0 && overdraftBlocked && (
+          <div className="flex items-center gap-1.5 text-[10px] text-red-300 bg-red-950/60 border border-red-500/40 rounded px-2 py-1.5">
+            <Skull className="w-3 h-3 shrink-0" />
+            {lang === 'de' ? 'Dispo-Limit erreicht – Wartung gesperrt!' : 'Overdraft limit – maintenance blocked!'}
+          </div>
+        )}
+
         {/* Repair button */}
         {grossCost > 0 && (
           <Button
             onClick={() => repairMutation.mutate()}
-            disabled={repairMutation.isPending}
-            className={`w-full h-8 text-[11px] font-mono uppercase ${colors.text.replace('text-', 'bg-').replace('-400', '-600')} hover:opacity-90 text-white`}
+            disabled={repairMutation.isPending || overdraftBlocked}
+            className={`w-full h-8 text-[11px] font-mono uppercase ${colors.text.replace('text-', 'bg-').replace('-400', '-600')} hover:opacity-90 text-white disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <Wrench className="w-3 h-3 mr-1.5" />
             {repairMutation.isPending

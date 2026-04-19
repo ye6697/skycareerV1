@@ -25,7 +25,7 @@ export default function AircraftHangar3D({ aircraft }) {
   // Popup position is captured ONCE at open-time and stays fixed on screen
   // (doesn't follow the rotating aircraft / hotspot).
   const [popupAnchor, setPopupAnchor] = useState(null);
-  const camOrbitRef = useRef({ yaw: 0.6, pitch: 0.18, dist: 55 });
+  const camOrbitRef = useRef({ yaw: 0.6, pitch: 0.22, dist: 55 });
   const dragStateRef = useRef({ active: false });
 
   const wear = useMemo(() => {
@@ -174,9 +174,11 @@ export default function AircraftHangar3D({ aircraft }) {
       s.lastX = e.clientX; s.lastY = e.clientY;
       s.moved += Math.abs(dx) + Math.abs(dy);
       if (s.moved > 5) {
-        setAutoRotate(false);
-        camOrbitRef.current.yaw -= dx * 0.008;
-        camOrbitRef.current.pitch = Math.max(-0.15, Math.min(1.2, camOrbitRef.current.pitch + dy * 0.006));
+      setAutoRotate(false);
+      camOrbitRef.current.yaw -= dx * 0.008;
+      // Clamp pitch: minimum 0.08 rad keeps the camera above the floor so
+      // you can never look under the ground plane.
+      camOrbitRef.current.pitch = Math.max(0.08, Math.min(1.2, camOrbitRef.current.pitch + dy * 0.006));
       }
     };
     const onUp = (e) => {

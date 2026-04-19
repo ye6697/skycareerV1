@@ -168,34 +168,246 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     group.add(w);
   });
 
-  // Front wall with open doorway
-  const doorOpening = width * 0.7;
+  // Front wall with OPEN doorway. Make it taller and wider so there is a
+  // clear view outside, plus textured side panels (same PBR material as back
+  // wall) with a proper repeat so the corrugation is clearly visible.
+  const doorOpening = width * 0.78;
   const sidePanel = (width - doorOpening) / 2;
+  const frontPanelMat = pbrMat({
+    diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor, rough: TEX_URLS.wallRough,
+    repeat: [sidePanel / 4, height / 5], color: 0x8a9098, roughness: 0.65, metalness: 0.45,
+  });
   [-1, 1].forEach((side) => {
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(sidePanel, height), wallMat);
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(sidePanel, height), frontPanelMat);
     panel.position.set(side * (doorOpening / 2 + sidePanel / 2), height / 2, depth / 2);
     panel.rotation.y = Math.PI;
     group.add(panel);
   });
-  const headerHeight = height * 0.12;
-  const headerPanel = new THREE.Mesh(new THREE.PlaneGeometry(doorOpening, headerHeight), wallMat);
+  const headerHeight = height * 0.1;
+  const headerMat = pbrMat({
+    diff: TEX_URLS.wallDiff, nor: TEX_URLS.wallNor, rough: TEX_URLS.wallRough,
+    repeat: [doorOpening / 4, headerHeight / 2], color: 0x8a9098, roughness: 0.65, metalness: 0.45,
+  });
+  const headerPanel = new THREE.Mesh(new THREE.PlaneGeometry(doorOpening, headerHeight), headerMat);
   headerPanel.position.set(0, height - headerHeight / 2, depth / 2);
   headerPanel.rotation.y = Math.PI;
   group.add(headerPanel);
 
-  // Door track frame (rusty steel)
-  const steelMat = pbrMat({
+  // -------- View through the open hangar door: sky + distant runway/airport --------
+  // Large backdrop seen through the open door with terminal silhouette, runway
+  // lights, and a warm sunset glow so the opening looks like a real exit.
+  const outsideW = width * 1.3;
+  const outsideH = height * 1.1;
+  const outsideZ = depth / 2 + 60;
+  // Gradient sky (warm sunset -> pale blue).
+  const outsideSkyMat = new THREE.ShaderMaterial({
+    uniforms: {
+      top: { value: new THREE.Color(0x2a4266) },
+      mid: { value: new THREE.Color(0xe8a060) },
+      bottom: { value: new THREE.Color(0xffcf8a) },
+    },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec2 vUv;
+      void main(){
+        vec3 col = mix(mid, top, smoothstep(0.35, 0.9, vUv.y));
+        col = mix(bottom, col, smoothstep(0.0, 0.35, vUv.y));
+        // Warm sun disc
+        float d = distance(vUv, vec2(0.72, 0.38));
+        float sun = smoothstep(0.09, 0.0, d);
+        col = mix(col, vec3(1.0, 0.9, 0.7), sun);
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+    side: THREE.DoubleSide,
+  });
+  const outsideSky = new THREE.Mesh(new THREE.PlaneGeometry(outsideW, outsideH), outsideSkyMat);
+  outsideSky.position.set(0, outsideH / 2 - 1.4, outsideZ);
+  group.add(outsideSky);
+  // Distant tarmac strip (outside the hangar).
+  const outsideTarmac = new THREE.Mesh(
+    new THREE.PlaneGeometry(outsideW, 50),
+    new THREE.MeshStandardMaterial({ color: 0x2e333a, roughness: 0.9 }),
+  );
+  outsideTarmac.rotation.x = -Math.PI / 2;
+  outsideTarmac.position.set(0, -1.38, depth / 2 + 30);
+  group.add(outsideTarmac);
+  // Painted line on the apron outside.
+  const outsideLine = new THREE.Mesh(
+    new THREE.PlaneGeometry(outsideW * 0.9, 0.5),
+    new THREE.MeshBasicMaterial({ color: 0xf0c040 }),
+  );
+  outsideLine.rotation.x = -Math.PI / 2;
+  outsideLine.position.set(0, -1.36, depth / 2 + 25);
+  group.add(outsideLine);
+  // Distant terminal silhouette.
+  const distantTerminal = new THREE.Mesh(
+    new THREE.BoxGeometry(60, 10, 4),
+    new THREE.MeshStandardMaterial({ color: 0x3a4656, roughness: 0.8 }),
+  );
+  distantTerminal.position.set(-30, 4, depth / 2 + 55);
+  group.add(distantTerminal);
+  // Distant control tower.
+  const distantTower = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.4, 2.2, 22, 12),
+    new THREE.MeshStandardMaterial({ color: 0x4a5564, roughness: 0.75 }),
+  );
+  distantTower.position.set(25, 10, depth / 2 + 56);
+  group.add(distantTower);
+  const distantTowerCab = new THREE.Mesh(
+    new THREE.CylinderGeometry(3, 2.8, 2.2, 12),
+    new THREE.MeshStandardMaterial({
+      color: 0x101620, emissive: 0x88bfe0, emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.5,
+    }),
+  );
+  distantTowerCab.position.set(25, 22, depth / 2 + 56);
+  group.add(distantTowerCab);
+  // Distant parked airliner.
+  const distantPlane = new THREE.Group();
+  const distFuse = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2, 1.2, 18, 12),
+    new THREE.MeshStandardMaterial({ color: 0xecf0f4, roughness: 0.45, metalness: 0.6 }),
+  );
+  distFuse.rotation.z = Math.PI / 2;
+  distantPlane.add(distFuse);
+  const distWing = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 0.3, 18),
+    new THREE.MeshStandardMaterial({ color: 0xecf0f4, roughness: 0.5, metalness: 0.55 }),
+  );
+  distWing.position.y = -0.4;
+  distantPlane.add(distWing);
+  const distTail = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 3.5, 0.25),
+    new THREE.MeshStandardMaterial({ color: 0x2a4a8a, roughness: 0.55 }),
+  );
+  distTail.position.set(-8, 2.3, 0);
+  distantPlane.add(distTail);
+  distantPlane.position.set(-10, 1.5, depth / 2 + 45);
+  distantPlane.rotation.y = 0.2;
+  group.add(distantPlane);
+  // Runway lights in the distance (small emissive dots).
+  for (let i = 0; i < 12; i += 1) {
+    const lightDot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.25, 6, 6),
+      new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xff2030 : 0xfff0a0 }),
+    );
+    lightDot.position.set(-outsideW / 2 + (i / 11) * outsideW, 0.3, depth / 2 + 58);
+    group.add(lightDot);
+  }
+
+  // -------- Warm sunlight streaming in through the open door --------
+  // A strong directional light placed outside the hangar so its rays enter
+  // through the doorway and land on the floor / aircraft.
+  const doorSun = new THREE.DirectionalLight(0xffd9a8, 2.4);
+  doorSun.position.set(30, height * 0.6, depth / 2 + 80);
+  doorSun.target.position.set(-5, 2, -depth / 4);
+  group.add(doorSun);
+  group.add(doorSun.target);
+  // Soft orange fill bouncing off the front half of the floor.
+  const doorFill = new THREE.PointLight(0xffb070, 1.5, 90, 1.8);
+  doorFill.position.set(0, 8, depth / 2 - 10);
+  group.add(doorFill);
+
+  // Volumetric sun shafts (flat additive planes aligned with sun direction).
+  // Each shaft is a thin white-ish plane with additive blending & radial alpha
+  // falloff — cheap trick that reads as "god rays" through the hangar door.
+  const sunShaftMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    uniforms: { color: { value: new THREE.Color(0xffd4a0) } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: `uniform vec3 color; varying vec2 vUv;
+      void main(){
+        // Soft edges + length falloff
+        float edge = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
+        float length = 1.0 - smoothstep(0.2, 1.0, vUv.y);
+        float a = edge * length * 0.35;
+        gl_FragColor = vec4(color, a);
+      }`,
+  });
+  for (let i = 0; i < 6; i += 1) {
+    const shaft = new THREE.Mesh(new THREE.PlaneGeometry(8, 60), sunShaftMat);
+    // Tilt the shafts to follow the sun direction (coming from upper-right outside).
+    shaft.rotation.z = -0.35 + (i - 2.5) * 0.02;
+    shaft.rotation.x = -0.25;
+    shaft.position.set(
+      -20 + i * 9 + Math.random() * 2,
+      height * 0.55,
+      depth / 2 - 8 - i * 3,
+    );
+    group.add(shaft);
+  }
+  // Floor light patch where the sun hits the concrete (soft bright glow).
+  const floorPatch = new THREE.Mesh(
+    new THREE.PlaneGeometry(45, 30),
+    new THREE.MeshBasicMaterial({
+      color: 0xffd4a0, transparent: true, opacity: 0.22, depthWrite: false,
+    }),
+  );
+  floorPatch.rotation.x = -Math.PI / 2;
+  floorPatch.position.set(-5, 0.03, depth / 4);
+  group.add(floorPatch);
+
+  // Door track frame — PBR painted steel I-beams (not flat black).
+  const doorFrameMat = pbrMat({
     diff: TEX_URLS.steelDiff, nor: TEX_URLS.steelNor,
-    repeat: [4, 1], color: 0x8a8278, roughness: 0.65, metalness: 0.55,
+    repeat: [6, 1.5], color: 0xa8a298, roughness: 0.55, metalness: 0.6,
   });
-  const header = new THREE.Mesh(new THREE.BoxGeometry(width, 1.5, 1.2), steelMat);
-  header.position.set(0, height - headerHeight - 0.5, depth / 2 - 0.2);
+  const header = new THREE.Mesh(new THREE.BoxGeometry(width, 1.8, 1.4), doorFrameMat);
+  header.position.set(0, height - headerHeight - 0.6, depth / 2 - 0.2);
   group.add(header);
+  // Hazard-striped lower band on the header (classic hangar look).
+  const headerHazard = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.98, 0.6, 1.45),
+    new THREE.MeshStandardMaterial({ map: makePaintedLineCanvas(), roughness: 0.7 }),
+  );
+  headerHazard.material.map.repeat.set(40, 1);
+  headerHazard.position.set(0, height - headerHeight - 1.6, depth / 2 - 0.15);
+  group.add(headerHazard);
+  // Side door pillars: proper I-beam silhouette with PBR texture.
   [-1, 1].forEach((side) => {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(1.2, height, 1.2), steelMat);
-    p.position.set(side * doorOpening / 2, height / 2, depth / 2 - 0.2);
-    group.add(p);
+    const pillar = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, height, 1.6),
+      doorFrameMat,
+    );
+    pillar.position.set(side * doorOpening / 2, height / 2, depth / 2 - 0.2);
+    group.add(pillar);
+    // Flange details (outer plates) so the pillar reads as an I-beam.
+    [-1, 1].forEach((fs) => {
+      const flange = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, height, 2.4),
+        doorFrameMat,
+      );
+      flange.position.set(side * doorOpening / 2 + fs * 0.7, height / 2, depth / 2 - 0.2);
+      group.add(flange);
+    });
+    // Rivet pattern (small dark spheres) along the pillar.
+    const rivetMat = new THREE.MeshStandardMaterial({ color: 0x2a2820, roughness: 0.5, metalness: 0.7 });
+    for (let i = 0; i < 20; i += 1) {
+      [-1, 1].forEach((rs) => {
+        const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), rivetMat);
+        rivet.position.set(side * doorOpening / 2 + rs * 0.9, 1 + i * (height - 2) / 19, depth / 2 + 1.05);
+        group.add(rivet);
+      });
+    }
+    // Concrete base plinth under each pillar.
+    const plinth = new THREE.Mesh(
+      new THREE.BoxGeometry(3.2, 1.2, 3.2),
+      pbrMat({
+        diff: TEX_URLS.floorDiff, nor: TEX_URLS.floorNor, rough: TEX_URLS.floorRough,
+        repeat: [1, 1], color: 0x9aa0a8, roughness: 0.9,
+      }),
+    );
+    plinth.position.set(side * doorOpening / 2, 0.6, depth / 2 - 0.2);
+    group.add(plinth);
   });
+  // Overhead door rail (horizontal track above the opening).
+  const doorRail = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.95, 0.5, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0x3a3630, roughness: 0.45, metalness: 0.8 }),
+  );
+  doorRail.position.set(0, height - headerHeight - 2.2, depth / 2 - 0.6);
+  group.add(doorRail);
 
   // ---------- Ceiling (metal plate PBR) ----------
   const ceilMat = pbrMat({
@@ -323,36 +535,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     });
   }
 
-  // ---------- Rolling maintenance stairs ----------
-  const stairsMat = new THREE.MeshStandardMaterial({ color: 0xf0c020, roughness: 0.55, metalness: 0.55 });
-  const buildStairs = () => {
-    const s = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.3, 5), stairsMat);
-    base.position.y = 0.15;
-    s.add(base);
-    for (let i = 0; i < 12; i += 1) {
-      const step = new THREE.Mesh(new THREE.BoxGeometry(3, 0.18, 0.7), stairsMat);
-      step.position.set(0, 0.4 + i * 0.55, -2 + i * 0.4);
-      s.add(step);
-    }
-    const platform = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.25, 2.5), stairsMat);
-    platform.position.set(0, 6.9, 2.8);
-    s.add(platform);
-    [-1, 1].forEach((side) => {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.4, 5), stairsMat);
-      rail.position.set(side * 1.6, 7.6, 0.5);
-      s.add(rail);
-    });
-    return s;
-  };
-  const stairs1 = buildStairs();
-  stairs1.position.set(22, 0, 8);
-  stairs1.rotation.y = -Math.PI / 4;
-  group.add(stairs1);
-  const stairs2 = buildStairs();
-  stairs2.position.set(-22, 0, -8);
-  stairs2.rotation.y = (Math.PI * 3) / 4;
-  group.add(stairs2);
+  // (Maintenance stairs removed by request)
 
   // ---------- Shipping containers (blue/orange) along back wall ----------
   const containerColors = [0x2060a0, 0xc06020, 0x208050, 0x8a2020];
