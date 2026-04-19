@@ -334,8 +334,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Dark dusk lighting: very low ambient/hemisphere keeps the scene dark,
     // while a strong warm directional light creates the sunset rim glow on
     // the aircraft and runway surface.
-    scene.add(new THREE.HemisphereLight(0x2a3a58, 0x0a0f08, 0.35));
-    scene.add(new THREE.AmbientLight(0x2a3348, 0.18));
+    scene.add(new THREE.HemisphereLight(0x3a4a68, 0x1a1f14, 0.55));
+    scene.add(new THREE.AmbientLight(0x3a4458, 0.3));
     const sunLight = new THREE.DirectionalLight(0xff8040, 2.2);
     sunLight.position.set(-400, 80, -200);
     scene.add(sunLight);
