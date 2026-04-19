@@ -80,6 +80,22 @@ function concreteTex() {
     [h * 0.42].forEach((y) => {
       g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
     });
+
+    // Micro metallic flakes + subtle wet reflection streaks for a
+    // "new epoxy hangar floor" look.
+    for (let i = 0; i < 850; i += 1) {
+      g.fillStyle = `rgba(255,255,255,${0.02 + Math.random() * 0.08})`;
+      g.fillRect(Math.random() * w, Math.random() * h, 1, 1);
+    }
+    g.strokeStyle = 'rgba(255,255,255,0.06)';
+    for (let i = 0; i < 14; i += 1) {
+      const y = h * (0.12 + i * 0.055) + (Math.random() - 0.5) * 8;
+      g.lineWidth = 1 + Math.random() * 2;
+      g.beginPath();
+      g.moveTo(0, y);
+      g.bezierCurveTo(w * 0.2, y - 4, w * 0.8, y + 4, w, y);
+      g.stroke();
+    }
   });
 }
 
@@ -102,15 +118,22 @@ function wallTex() {
     // Horizontal panel seams every ~170px
     g.fillStyle = 'rgba(0,0,0,0.45)';
     for (let y = 0; y < h; y += 170) g.fillRect(0, y, w, 2);
-    // Rust streaks
-    for (let i = 0; i < 6; i += 1) {
+    // Rust streaks (kept subtle for a modern but used industrial look)
+    for (let i = 0; i < 4; i += 1) {
       const x = Math.random() * w;
       const grd2 = g.createLinearGradient(x, 0, x + 8, 0);
       grd2.addColorStop(0, 'rgba(110,55,30,0)');
-      grd2.addColorStop(0.5, 'rgba(110,55,30,0.45)');
+      grd2.addColorStop(0.5, 'rgba(110,55,30,0.25)');
       grd2.addColorStop(1, 'rgba(110,55,30,0)');
       g.fillStyle = grd2;
       g.fillRect(x, Math.random() * h, 10, 40 + Math.random() * 80);
+    }
+    // Painted panel accents for richer texture depth.
+    for (let y = 30; y < h; y += 90) {
+      g.fillStyle = 'rgba(255,255,255,0.08)';
+      g.fillRect(0, y, w, 8);
+      g.fillStyle = 'rgba(0,0,0,0.2)';
+      g.fillRect(0, y + 8, w, 2);
     }
   });
 }
@@ -413,7 +436,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
 
   // ---------- Front wall with OPEN DOORWAY ----------
   const doorOpeningW = width * 0.78;
-  const doorOpeningH = height * 0.82;
+  const doorOpeningH = height * 0.9;
   const sidePanelW = (width - doorOpeningW) / 2;
   const topBandH = height - doorOpeningH;
 
@@ -450,9 +473,8 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   group.add(outsideBackdrop);
 
   // ---------- HANGAR ROLL-UP DOOR (partially open, showing texture clearly) ----------
-  // Door is rolled up ~70% so the opening reveals the outside view, but the
-  // remaining door panel at the top is fully visible with texture.
-  const doorPanelH = doorOpeningH * 0.25; // visible portion at the top
+  // Door is rolled up far beyond half-open (~85%) for stronger exterior read.
+  const doorPanelH = doorOpeningH * 0.15; // visible portion at the top
   const hangarDoor = new THREE.Mesh(
     new THREE.PlaneGeometry(doorOpeningW, doorPanelH),
     new THREE.MeshStandardMaterial({
@@ -490,6 +512,20 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   frameHazard.material.map.repeat.set(30, 1);
   frameHazard.position.set(0, 0.4, depth / 2 - 0.2);
   group.add(frameHazard);
+
+  // Extra inner cladding strips so the entire front wall reads textured.
+  const claddingMat = makeTexturedMat({
+    tex: wallMap, repeat: [6, 1], color: 0x8f98a5, roughness: 0.74, metalness: 0.42,
+  });
+  for (let i = 0; i < 4; i += 1) {
+    const y = 3 + i * ((doorOpeningH - 6) / 3);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(sidePanelW * 0.9, 0.45, 0.8), claddingMat);
+    lintel.position.set(-(doorOpeningW / 2 + sidePanelW / 2), y, depth / 2 - 0.35);
+    group.add(lintel);
+    const lintelR = lintel.clone();
+    lintelR.position.x *= -1;
+    group.add(lintelR);
+  }
 
   // ---------- Ceiling ----------
   const ceiling = new THREE.Mesh(
@@ -637,6 +673,20 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   const doorBounce = new THREE.PointLight(0xffb070, 1.2, 70, 2);
   doorBounce.position.set(0, 6, depth / 2 - 12);
   group.add(doorBounce);
+
+  // Volumetric-style sunlight beams through the mostly-open gate.
+  for (let i = 0; i < 3; i += 1) {
+    const beam = new THREE.Mesh(
+      new THREE.PlaneGeometry(18 + i * 5, 36 + i * 8),
+      new THREE.MeshBasicMaterial({
+        color: 0xffc98a, transparent: true, opacity: 0.08 - i * 0.018,
+        depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      }),
+    );
+    beam.position.set(-14 + i * 14, 11 + i * 1.2, depth / 2 - 8 - i * 4);
+    beam.rotation.x = -0.42;
+    group.add(beam);
+  }
 
   // Warm floor patch where sun hits the concrete (flat additive glow)
   const sunPatch = new THREE.Mesh(
