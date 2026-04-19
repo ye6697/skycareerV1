@@ -289,9 +289,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Dusk sky – deep blue but bright enough to see the whole scene clearly.
-    scene.background = new THREE.Color(0x1e2e4a);
-    scene.fog = new THREE.Fog(0x1e2e4a, 1500, 8500);
+    // Deep dusk sky – darker so the sunset rim light on the aircraft/runway pops.
+    scene.background = new THREE.Color(0x0a1426);
+    scene.fog = new THREE.Fog(0x0a1426, 1500, 8500);
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
     // which fixes the runway/shadow z-fighting flicker on large scenes.
@@ -310,9 +310,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x162440) },
-        horizonColor: { value: new THREE.Color(0x4a5a7a) },
-        glowColor: { value: new THREE.Color(0xff9a5a) },
+        topColor: { value: new THREE.Color(0x050a18) },
+        horizonColor: { value: new THREE.Color(0x1e2a42) },
+        glowColor: { value: new THREE.Color(0xff7030) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -331,13 +331,16 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const sky = new THREE.Mesh(skyGeo, skyMat);
     scene.add(sky);
 
-    // Dusk lighting: bright enough to read the scene but keeping the evening mood.
-    scene.add(new THREE.HemisphereLight(0x8ea4c8, 0x2a3020, 1.1));
-    scene.add(new THREE.AmbientLight(0xc8d4e8, 0.6));
-    const sunLight = new THREE.DirectionalLight(0xffb070, 1.4);
-    sunLight.position.set(-400, 120, -200);
+    // Dark dusk lighting: very low ambient/hemisphere keeps the scene dark,
+    // while a strong warm directional light creates the sunset rim glow on
+    // the aircraft and runway surface.
+    scene.add(new THREE.HemisphereLight(0x2a3a58, 0x0a0f08, 0.35));
+    scene.add(new THREE.AmbientLight(0x2a3348, 0.18));
+    const sunLight = new THREE.DirectionalLight(0xff8040, 2.2);
+    sunLight.position.set(-400, 80, -200);
     scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0x7aa0d4, 0.7);
+    // Cool weak back-fill so the unlit side isn't pitch black.
+    const fillLight = new THREE.DirectionalLight(0x4060a0, 0.25);
     fillLight.position.set(180, 150, 120);
     scene.add(fillLight);
 
