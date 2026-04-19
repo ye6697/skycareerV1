@@ -347,6 +347,30 @@ function outsideViewTex() {
   });
 }
 
+// Soft alpha gradient for sunlight shafts (prevents hard dark quads).
+function sunBeamTex() {
+  return makeCanvasTex('sunbeam', 128, 512, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const grd = g.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, 'rgba(255,255,255,0.38)');
+    grd.addColorStop(0.25, 'rgba(255,255,255,0.22)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, w, h);
+
+    // Feather edges left/right so each shaft fades smoothly.
+    const edge = g.createLinearGradient(0, 0, w, 0);
+    edge.addColorStop(0, 'rgba(0,0,0,1)');
+    edge.addColorStop(0.2, 'rgba(0,0,0,0)');
+    edge.addColorStop(0.8, 'rgba(0,0,0,0)');
+    edge.addColorStop(1, 'rgba(0,0,0,1)');
+    g.globalCompositeOperation = 'destination-out';
+    g.fillStyle = edge;
+    g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = 'source-over';
+  });
+}
+
 // Build a matte PBR-like material from a texture with optional repeat.
 function makeTexturedMat({ tex, repeat = [1, 1], color = 0xffffff, roughness = 0.85, metalness = 0.1 }) {
   const t = tex.clone();
@@ -470,6 +494,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     new THREE.MeshBasicMaterial({ map: outsideMap.clone() }),
   );
   outsideBackdrop.position.set(0, outsideBackdropH / 2 - 1, depth / 2 + 80);
+  outsideBackdrop.rotation.y = Math.PI; // make textured front face visible from inside hangar
   group.add(outsideBackdrop);
 
   // ---------- HANGAR ROLL-UP DOOR (partially open, showing texture clearly) ----------
@@ -675,12 +700,14 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   group.add(doorBounce);
 
   // Volumetric-style sunlight beams through the mostly-open gate.
+  const beamMap = sunBeamTex();
   for (let i = 0; i < 3; i += 1) {
     const beam = new THREE.Mesh(
       new THREE.PlaneGeometry(18 + i * 5, 36 + i * 8),
       new THREE.MeshBasicMaterial({
+        map: beamMap,
         color: 0xffc98a, transparent: true, opacity: 0.08 - i * 0.018,
-        depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+        depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       }),
     );
     beam.position.set(-14 + i * 14, 11 + i * 1.2, depth / 2 - 8 - i * 4);
