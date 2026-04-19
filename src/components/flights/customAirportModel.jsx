@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { addCityDistrict, addWarehouseCluster, makeLitBuildingMaterial } from '@/components/flights/cityBuildings';
 import { scatterBuildings, scatterClouds } from '@/components/flights/glbScenery';
 import { scatterRealisticTrees } from '@/components/flights/realisticTrees';
+import { addRunwayMarkings, addApproachLights, addGroundServiceEquipment, addJetBridges } from '@/components/flights/airportDetails';
 
 // Realistic textured airport environment using CC0 PBR textures from Poly Haven.
 // No external model loading — we build the layout procedurally but skin every
@@ -185,8 +186,10 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   }
 
   // ------- Parked airliners at gates -------
+  const gatePositions = [];
   for (let g = 0; g < gateCount; g += 1) {
     const gz = -runwayLenM / 2 - termLen / 2 + (g + 0.5) * (termLen / gateCount);
+    gatePositions.push(gz);
     const liveryColor = [0xeef1f6, 0xfafbfc, 0xf5f7fa][g % 3];
     const tailColor = [0x2a4a8a, 0xc0404a, 0x2a8a4a][g % 3];
     const fuselage = new THREE.Mesh(
@@ -316,6 +319,12 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     rf.position.set(lateral, h - 1.4 + 1.1, along);
     group.add(rf);
   }
+
+  // ------- Realistic airport details: markings, lighting, GSE, jet bridges -------
+  addRunwayMarkings(group, { runwayLenM, runwayWidthM: 45 });
+  addApproachLights(group, { runwayLenM });
+  addGroundServiceEquipment(group, { apronX, apronW, gatePositions });
+  addJetBridges(group, { termX, gatePositions });
 
   // ------- Trees (procedural realistic) -------
   scatterRealisticTrees(group, { runwayLenM, apronX, apronW, apronD, count: 1200 });

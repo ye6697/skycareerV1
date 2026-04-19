@@ -289,9 +289,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Deep dusk sky – darker so the sunset rim light on the aircraft/runway pops.
-    scene.background = new THREE.Color(0x0a1426);
-    scene.fog = new THREE.Fog(0x0a1426, 1500, 8500);
+    // Soft late-afternoon sky – brighter and more neutral than dusk.
+    scene.background = new THREE.Color(0x6b8db5);
+    scene.fog = new THREE.Fog(0x8aa8c8, 2000, 9000);
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
     // which fixes the runway/shadow z-fighting flicker on large scenes.
@@ -310,9 +310,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x050a18) },
-        horizonColor: { value: new THREE.Color(0x1e2a42) },
-        glowColor: { value: new THREE.Color(0xff7030) },
+        topColor: { value: new THREE.Color(0x4a6f9c) },
+        horizonColor: { value: new THREE.Color(0xb5c8dc) },
+        glowColor: { value: new THREE.Color(0xffd090) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -322,9 +322,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           float h = normalize(vWorldPos).y;
           float horizon = smoothstep(-0.05, 0.55, h);
           vec3 base = mix(horizonColor, topColor, horizon);
-          // Warm sunset glow band at the horizon.
-          float glow = smoothstep(0.25, -0.02, h) * smoothstep(-0.25, -0.02, h);
-          base += glowColor * glow * 0.55;
+          // Soft warm horizon glow (much more subtle than dusk).
+          float glow = smoothstep(0.18, -0.02, h) * smoothstep(-0.18, -0.02, h);
+          base += glowColor * glow * 0.25;
           gl_FragColor = vec4(base, 1.0);
         }`,
     });
@@ -334,20 +334,20 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Dark dusk lighting: very low ambient/hemisphere keeps the scene dark,
     // while a strong warm directional light creates the sunset rim glow on
     // the aircraft and runway surface.
-    scene.add(new THREE.HemisphereLight(0x3a4a68, 0x1a1f14, 0.55));
-    scene.add(new THREE.AmbientLight(0x3a4458, 0.3));
-    const sunLight = new THREE.DirectionalLight(0xff8040, 2.2);
-    sunLight.position.set(-400, 80, -200);
+    // Brighter, more neutral daylight: strong sky-tinted hemisphere + soft warm sun.
+    scene.add(new THREE.HemisphereLight(0xb8d0ec, 0x6a7560, 1.1));
+    scene.add(new THREE.AmbientLight(0xc0d0e0, 0.55));
+    const sunLight = new THREE.DirectionalLight(0xfff2d8, 1.6);
+    sunLight.position.set(-300, 400, -150);
     scene.add(sunLight);
-    // Cool weak back-fill so the unlit side isn't pitch black.
-    const fillLight = new THREE.DirectionalLight(0x4060a0, 0.25);
-    fillLight.position.set(180, 150, 120);
+    // Soft sky-tinted back-fill on the shadow side.
+    const fillLight = new THREE.DirectionalLight(0x9ec0e8, 0.5);
+    fillLight.position.set(250, 200, 180);
     scene.add(fillLight);
 
-    // Minimal dark ground plane (the custom airport model provides all other
-    // scenery). Kept simple so the model sits on a clean base.
+    // Brighter ground plane in a natural grass tone.
     const groundGeo = new THREE.PlaneGeometry(12000, 12000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x1f2a26, roughness: 1, metalness: 0 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a6042, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1.5;
