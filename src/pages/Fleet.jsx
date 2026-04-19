@@ -22,6 +22,7 @@ import {
 "lucide-react";
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
+import Fleet3DView from "@/components/fleet3d/Fleet3DView";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -296,6 +297,7 @@ export default function Fleet() {
   const { lang } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [viewMode, setViewMode] = useState('3d'); // '3d' | 'grid'
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [marketSection, setMarketSection] = useState('new');
@@ -944,20 +946,40 @@ export default function Fleet() {
           </TabsList>
         </Tabs>
 
-        {/* Aircraft Grid */}
+        {/* View mode toggle */}
+        <div className="flex items-center gap-1 mb-2">
+          <Button
+            size="sm"
+            onClick={() => setViewMode('3d')}
+            className={`h-7 text-[10px] font-mono uppercase ${viewMode === '3d' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+          >
+            🛩 {lang === 'de' ? '3D Hangar' : '3D Hangar'}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setViewMode('grid')}
+            className={`h-7 text-[10px] font-mono uppercase ${viewMode === 'grid' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+          >
+            ▦ {lang === 'de' ? 'Liste' : 'Grid'}
+          </Button>
+        </div>
+
+        {/* Aircraft view */}
         {isLoading ?
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             {[1, 2, 3, 4].map((i) => <Card key={i} className="h-32 animate-pulse bg-slate-900 border-cyan-900/30" />)}
           </div> :
         filteredAircraft.length > 0 ?
-        <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
-            <AnimatePresence>
-              {filteredAircraft.map((ac) =>
-            <AircraftCard key={ac.id} aircraft={ac} />
-            )}
-            </AnimatePresence>
-          </motion.div> :
-
+          (viewMode === '3d' ?
+            <Fleet3DView aircraft={filteredAircraft} /> :
+            <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
+              <AnimatePresence>
+                {filteredAircraft.map((ac) =>
+              <AircraftCard key={ac.id} aircraft={ac} />
+              )}
+              </AnimatePresence>
+            </motion.div>
+          ) :
         <Card className="p-8 text-center bg-slate-900/80 border border-cyan-900/30 flex flex-col items-center">
             <Plane className="w-10 h-10 text-cyan-900 mx-auto mb-2" />
             <h3 className="text-sm font-mono text-cyan-600 mb-1">{t('no_aircraft', lang).toUpperCase()}</h3>
