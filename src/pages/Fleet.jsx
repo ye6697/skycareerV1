@@ -23,6 +23,7 @@ import {
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
 import Fleet3DView from "@/components/fleet3d/Fleet3DView";
+import MarketHangar3DView from "@/components/fleet3d/MarketHangar3DView";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -301,6 +302,7 @@ export default function Fleet() {
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [marketSection, setMarketSection] = useState('new');
+  const [marketViewMode, setMarketViewMode] = useState('3d');
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
@@ -663,6 +665,22 @@ export default function Fleet() {
                   
                   {lang === 'de' ? 'Gebrauchtmarkt' : 'Used market'}
                  </Button>
+                 <div className="ml-auto flex items-center gap-1">
+                   <Button
+                    size="sm"
+                    className={`h-7 text-[10px] ${marketViewMode === '3d' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+                    onClick={() => setMarketViewMode('3d')}>
+                    
+                    🛩 3D
+                   </Button>
+                   <Button
+                    size="sm"
+                    className={`h-7 text-[10px] ${marketViewMode === 'grid' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+                    onClick={() => setMarketViewMode('grid')}>
+                    
+                    ▦ GRID
+                   </Button>
+                 </div>
                 </div>
                {marketSection === 'used' &&
               <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
@@ -698,6 +716,16 @@ export default function Fleet() {
                  </div>
               }
               
+              {marketViewMode === '3d' ?
+              <MarketHangar3DView
+                listings={marketAircraft}
+                lang={lang}
+                company={company}
+                canAfford={canAfford}
+                canPurchase={canPurchase}
+                onBuy={(ac) => {setSelectedAircraft(ac);purchaseMutation.mutate(ac);}}
+                isBuying={purchaseMutation.isPending}
+                selectedListingId={selectedAircraft?.market_listing_id || selectedAircraft?.name} /> :
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {company &&
                 <motion.div
@@ -820,6 +848,7 @@ export default function Fleet() {
 
                 })}
               </div>
+              }
 
               {maintenancePreviewListing &&
               <div
