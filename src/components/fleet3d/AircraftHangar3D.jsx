@@ -9,6 +9,44 @@ import { useLanguage } from '@/components/LanguageContext';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import HotspotInfoPopup from '@/components/fleet3d/HotspotInfoPopup';
 
+function buildFrontAirportScenery() {
+  const group = new THREE.Group();
+
+  const runway = new THREE.Mesh(
+    new THREE.PlaneGeometry(120, 420),
+    new THREE.MeshStandardMaterial({ color: 0x1f252d, roughness: 0.92, metalness: 0.08 }),
+  );
+  runway.rotation.x = -Math.PI / 2;
+  runway.position.set(0, 0.02, -245);
+  group.add(runway);
+
+  const centerLineMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fb, roughness: 0.45, metalness: 0.1 });
+  for (let i = 0; i < 13; i += 1) {
+    const mark = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 14), centerLineMat);
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.set(0, 0.03, -80 - i * 28);
+    group.add(mark);
+  }
+
+  const taxiway = new THREE.Mesh(
+    new THREE.PlaneGeometry(42, 210),
+    new THREE.MeshStandardMaterial({ color: 0x2c3338, roughness: 0.9 }),
+  );
+  taxiway.rotation.x = -Math.PI / 2;
+  taxiway.position.set(94, 0.018, -180);
+  group.add(taxiway);
+
+  const grass = new THREE.Mesh(
+    new THREE.PlaneGeometry(900, 900),
+    new THREE.MeshStandardMaterial({ color: 0x32422f, roughness: 1.0, metalness: 0.0 }),
+  );
+  grass.rotation.x = -Math.PI / 2;
+  grass.position.set(0, -0.05, -220);
+  group.add(grass);
+
+  return group;
+}
+
 // Fully interactive 3D hangar:
 // - Click hotspot sphere on the model → opens info popup (with repair action)
 // - Drag to rotate camera, scroll to zoom
@@ -64,6 +102,7 @@ export default function AircraftHangar3D({ aircraft }) {
     // Procedural textured hangar (tall, with full PBR textures + props)
     const { group: hangar } = buildHangar({ width: 110, depth: 130, height: 55 });
     scene.add(hangar);
+    scene.add(buildFrontAirportScenery());
 
     // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
