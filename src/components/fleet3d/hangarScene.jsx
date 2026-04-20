@@ -117,55 +117,41 @@ function concreteTex() {
 // --- Corrugated metal wall texture ---
 function wallTex() {
   return makeCanvasTex('wall', 256, 512, (g, w, h) => {
-    // Base coat
-    const grd = g.createLinearGradient(0, 0, w, 0);
-    grd.addColorStop(0, '#5a6470');
-    grd.addColorStop(0.5, '#7a8494');
-    grd.addColorStop(1, '#5a6470');
-    g.fillStyle = grd; g.fillRect(0, 0, w, h);
-    // Vertical corrugations (dark/light stripes)
-    for (let x = 0; x < w; x += 16) {
-      g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x, 0, 4, h);
-      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x + 4, 0, 4, h);
-      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x + 8, 0, 2, h);
-      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(x + 12, 0, 2, h);
+    // Warm base coat for a premium hangar interior.
+    const base = g.createLinearGradient(0, 0, w, h);
+    base.addColorStop(0, '#8f99a7');
+    base.addColorStop(0.5, '#a8b1bd');
+    base.addColorStop(1, '#7f8998');
+    g.fillStyle = base;
+    g.fillRect(0, 0, w, h);
+
+    // Vertical metal cladding rhythm.
+    for (let x = 0; x < w; x += 18) {
+      g.fillStyle = 'rgba(255,255,255,0.12)';
+      g.fillRect(x, 0, 3, h);
+      g.fillStyle = 'rgba(25,30,40,0.22)';
+      g.fillRect(x + 3, 0, 5, h);
+      g.fillStyle = 'rgba(255,255,255,0.05)';
+      g.fillRect(x + 8, 0, 5, h);
     }
-    // Horizontal panel seams every ~170px
-    g.fillStyle = 'rgba(0,0,0,0.45)';
-    for (let y = 0; y < h; y += 170) g.fillRect(0, y, w, 2);
-    // Rust streaks (kept subtle for a modern but used industrial look)
-    for (let i = 0; i < 4; i += 1) {
-      const x = Math.random() * w;
-      const grd2 = g.createLinearGradient(x, 0, x + 8, 0);
-      grd2.addColorStop(0, 'rgba(110,55,30,0)');
-      grd2.addColorStop(0.5, 'rgba(110,55,30,0.25)');
-      grd2.addColorStop(1, 'rgba(110,55,30,0)');
-      g.fillStyle = grd2;
-      g.fillRect(x, Math.random() * h, 10, 40 + Math.random() * 80);
-    }
-    // Painted panel accents for richer texture depth.
-    for (let y = 30; y < h; y += 90) {
+
+    // Horizontal seams.
+    for (let y = 64; y < h; y += 64) {
+      g.fillStyle = 'rgba(28,34,44,0.36)';
+      g.fillRect(0, y, w, 2);
       g.fillStyle = 'rgba(255,255,255,0.08)';
-      g.fillRect(0, y, w, 8);
-      g.fillStyle = 'rgba(0,0,0,0.2)';
-      g.fillRect(0, y + 8, w, 2);
+      g.fillRect(0, y + 2, w, 1);
     }
 
-    // Additional grunge/noise breakup so large walls feel less smooth.
-    for (let i = 0; i < 700; i += 1) {
-      g.fillStyle = `rgba(${110 + Math.random() * 55},${120 + Math.random() * 55},${130 + Math.random() * 55},${0.02 + Math.random() * 0.08})`;
-      const px = Math.random() * w;
-      const py = Math.random() * h;
-      g.fillRect(px, py, 1 + Math.random() * 2, 1 + Math.random() * 2);
-    }
-
-    for (let i = 0; i < 40; i += 1) {
+    // Soft weathering and specular breakup.
+    noisePx(g, w, h, [148, 155, 166], 26, 0.28);
+    for (let i = 0; i < 18; i += 1) {
       const y = Math.random() * h;
-      g.strokeStyle = `rgba(25,30,38,${0.08 + Math.random() * 0.1})`;
-      g.lineWidth = 0.8 + Math.random() * 1.2;
+      g.strokeStyle = `rgba(35,40,50,${0.05 + Math.random() * 0.08})`;
+      g.lineWidth = 1 + Math.random() * 1.4;
       g.beginPath();
       g.moveTo(0, y);
-      g.lineTo(w, y + (Math.random() - 0.5) * 10);
+      g.bezierCurveTo(w * 0.35, y + (Math.random() - 0.5) * 8, w * 0.7, y + (Math.random() - 0.5) * 8, w, y);
       g.stroke();
     }
   });
@@ -222,54 +208,6 @@ function steelTex() {
   });
 }
 
-// --- Hangar door (large metal roll-up door) ---
-function hangarDoorTex() {
-  return makeCanvasTex('hangardoor', 1024, 512, (g, w, h) => {
-    // Background metal
-    g.fillStyle = '#b8bcc4'; g.fillRect(0, 0, w, h);
-    // Horizontal panel segments (typical hangar roll-up door)
-    const panels = 12;
-    const ph = h / panels;
-    for (let i = 0; i < panels; i += 1) {
-      const y = i * ph;
-      // Panel gradient (top lighter, bottom darker)
-      const grd = g.createLinearGradient(0, y, 0, y + ph);
-      grd.addColorStop(0, '#d0d4dc');
-      grd.addColorStop(0.5, '#a8acb4');
-      grd.addColorStop(1, '#888c94');
-      g.fillStyle = grd; g.fillRect(0, y, w, ph);
-      // Top/bottom seam
-      g.fillStyle = '#3a3d42'; g.fillRect(0, y, w, 2);
-      g.fillStyle = '#4a4d52'; g.fillRect(0, y + ph - 2, w, 2);
-    }
-    // Vertical reinforcement ribs
-    g.strokeStyle = 'rgba(60,60,70,0.5)'; g.lineWidth = 2;
-    for (let x = 0; x < w; x += 80) {
-      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-    }
-    // Rivets along seams
-    g.fillStyle = '#2a2d32';
-    for (let i = 0; i < panels; i += 1) {
-      const y = i * ph + 3;
-      for (let x = 12; x < w; x += 50) {
-        g.beginPath(); g.arc(x, y, 2, 0, Math.PI * 2); g.fill();
-      }
-    }
-    // Red warning stripe along the bottom
-    g.fillStyle = '#c02020';
-    g.fillRect(0, h - 30, w, 12);
-    g.fillStyle = '#f0f0f0';
-    for (let x = 0; x < w; x += 40) {
-      g.fillRect(x, h - 30, 20, 12);
-    }
-    // Wear / dirt along the bottom
-    for (let i = 0; i < 40; i += 1) {
-      g.fillStyle = `rgba(40,40,40,${Math.random() * 0.4})`;
-      g.fillRect(Math.random() * w, h - 50 - Math.random() * 60, 3 + Math.random() * 15, 2 + Math.random() * 3);
-    }
-  });
-}
-
 // Build a matte PBR-like material from a texture with optional repeat.
 function makeTexturedMat({ tex, repeat = [1, 1], color = 0xffffff, roughness = 0.85, metalness = 0.1 }) {
   const t = tex.clone();
@@ -308,7 +246,6 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   const wallMap = wallTex();
   const roofMap = roofTex();
   const steelMap = steelTex();
-  const doorMap = hangarDoorTex();
   const logoMap = logoTex();
 
   // ---------- Floor ----------
@@ -357,44 +294,34 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     group.add(lane);
   });
 
-  // ---------- Back wall ----------
-  const rearDoorOpeningW = width * 0.62;
-  const rearDoorOpeningH = height * 0.76;
-  const rearPanelW = (width - rearDoorOpeningW) / 2;
-  const rearTopBandH = height - rearDoorOpeningH;
-
-  const rearHeader = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, rearTopBandH),
-    makeTexturedMat({ tex: wallMap, repeat: [width / 8, rearTopBandH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
-  );
-  rearHeader.position.set(0, height - rearTopBandH / 2, -depth / 2);
-  group.add(rearHeader);
-
-  [-1, 1].forEach((side) => {
-    const rearPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(rearPanelW, rearDoorOpeningH),
-      makeTexturedMat({ tex: wallMap, repeat: [rearPanelW / 6, rearDoorOpeningH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
-    );
-    rearPanel.position.set(side * (rearDoorOpeningW / 2 + rearPanelW / 2), rearDoorOpeningH / 2, -depth / 2);
-    group.add(rearPanel);
+  // ---------- Rebuilt wall shell ----------
+  // Previous walls are replaced with a cleaner segmented cladding system.
+  const wallMat = makeTexturedMat({
+    tex: wallMap,
+    repeat: [8, 5],
+    color: 0xb4bcc9,
+    roughness: 0.8,
+    metalness: 0.28,
   });
 
-  // ---------- Side walls ----------
+  const sideWallThickness = 1.1;
+  const sideWallHeight = height * 0.95;
+
   [-1, 1].forEach((side) => {
     const sideWall = new THREE.Mesh(
-      new THREE.PlaneGeometry(depth, height),
-      makeTexturedMat({
-        tex: wallMap,
-        repeat: [depth / 6, height / 6],
-        color: 0xaab2bf,
-        roughness: 0.86,
-        metalness: 0.2,
-      }),
+      new THREE.BoxGeometry(sideWallThickness, sideWallHeight, depth - 4),
+      wallMat,
     );
-    sideWall.rotation.y = side * Math.PI / 2;
-    sideWall.position.set(side * width / 2, height / 2, 0);
+    sideWall.position.set(side * (width / 2 - sideWallThickness / 2), sideWallHeight / 2, 0);
     group.add(sideWall);
   });
+
+  const rearWall = new THREE.Mesh(
+    new THREE.BoxGeometry(width - 2, sideWallHeight, 1.1),
+    wallMat,
+  );
+  rearWall.position.set(0, sideWallHeight / 2, -depth / 2 + 0.55);
+  group.add(rearWall);
 
   // ---------- Side wall logos ----------
   [-1, 1].forEach((side) => {
@@ -416,19 +343,19 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   });
 
   // ---------- Front wall with OPEN DOORWAY ----------
-  const doorOpeningW = width * 0.78;
-  const doorOpeningH = height * 0.9;
+  const doorOpeningW = width * 0.92;
+  const doorOpeningH = height * 0.88;
   const sidePanelW = (width - doorOpeningW) / 2;
   const topBandH = height - doorOpeningH;
 
   // Top band (header) above the door
-  const headerBand = new THREE.Mesh(
+  const frontHeaderBand = new THREE.Mesh(
     new THREE.PlaneGeometry(width, topBandH),
     makeTexturedMat({ tex: wallMap, repeat: [width / 8, topBandH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
   );
-  headerBand.position.set(0, height - topBandH / 2, depth / 2);
-  headerBand.rotation.y = Math.PI;
-  group.add(headerBand);
+  frontHeaderBand.position.set(0, height - topBandH / 2, depth / 2 - 0.45);
+  frontHeaderBand.rotation.y = Math.PI;
+  group.add(frontHeaderBand);
 
   // Side panels flanking the door
   [-1, 1].forEach((side) => {
@@ -436,7 +363,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
       new THREE.PlaneGeometry(sidePanelW, doorOpeningH),
       makeTexturedMat({ tex: wallMap, repeat: [sidePanelW / 6, doorOpeningH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
     );
-    sp.position.set(side * (doorOpeningW / 2 + sidePanelW / 2), doorOpeningH / 2, depth / 2);
+    sp.position.set(side * (doorOpeningW / 2 + sidePanelW / 2), doorOpeningH / 2, depth / 2 - 0.45);
     sp.rotation.y = Math.PI;
     group.add(sp);
   });
@@ -452,12 +379,12 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     map: steelMap, roughness: 0.5, metalness: 0.65,
   });
   // Top track
-  const topTrack = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 3, 2, 1.5), frameMat);
+  const topTrack = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 2.2, 2, 1.5), frameMat);
   topTrack.position.set(0, doorOpeningH + 0.5, depth / 2 - 0.3);
   group.add(topTrack);
   // Side tracks (proper I-beam pillars)
   [-1, 1].forEach((side) => {
-    const track = new THREE.Mesh(new THREE.BoxGeometry(1.8, doorOpeningH + 2, 1.8), frameMat);
+    const track = new THREE.Mesh(new THREE.BoxGeometry(1.4, doorOpeningH + 2, 1.8), frameMat);
     track.position.set(side * doorOpeningW / 2, doorOpeningH / 2, depth / 2 - 0.3);
     group.add(track);
     // Concrete plinth at base
@@ -470,7 +397,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   });
 
   // Hazard stripe at the bottom of the door frame
-  const frameHazard = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 3, 0.25, 1.1), makeHazardMat());
+  const frameHazard = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 2.2, 0.25, 1.1), makeHazardMat());
   frameHazard.material.map.repeat.set(30, 1);
   frameHazard.position.set(0, 0.125, depth / 2 - 0.2);
   group.add(frameHazard);
