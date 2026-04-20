@@ -71,16 +71,6 @@ function concreteTex() {
       g.stroke();
     }
 
-    // Sparse modern saw-cut seams (no tile grid look).
-    g.strokeStyle = 'rgba(72,78,90,0.35)';
-    g.lineWidth = 1.5;
-    [w * 0.33, w * 0.68].forEach((x) => {
-      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-    });
-    [h * 0.42].forEach((y) => {
-      g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
-    });
-
     // Slight dirt accumulation and micro-cracks to prevent flat look.
     for (let i = 0; i < 34; i += 1) {
       const y = Math.random() * h;
@@ -113,26 +103,11 @@ function concreteTex() {
       g.stroke();
     }
 
-    // Industrial floor details: expansion joints + darker wheel paths.
-    g.strokeStyle = 'rgba(35,40,48,0.24)';
-    g.lineWidth = 2.2;
-    [w * 0.2, w * 0.5, w * 0.8].forEach((x) => {
-      g.beginPath();
-      g.moveTo(x, 0);
-      g.lineTo(x, h);
-      g.stroke();
-    });
-    [h * 0.3, h * 0.6, h * 0.86].forEach((y) => {
-      g.beginPath();
-      g.moveTo(0, y);
-      g.lineTo(w, y);
-      g.stroke();
-    });
-
+    // Very soft wheel wear only (no hard dark line pattern on the floor).
     const wheelPath = g.createLinearGradient(0, h * 0.35, 0, h * 0.65);
-    wheelPath.addColorStop(0, 'rgba(35,40,45,0)');
-    wheelPath.addColorStop(0.5, 'rgba(35,40,45,0.2)');
-    wheelPath.addColorStop(1, 'rgba(35,40,45,0)');
+    wheelPath.addColorStop(0, 'rgba(45,50,58,0)');
+    wheelPath.addColorStop(0.5, 'rgba(45,50,58,0.08)');
+    wheelPath.addColorStop(1, 'rgba(45,50,58,0)');
     g.fillStyle = wheelPath;
     g.fillRect(0, h * 0.34, w, h * 0.08);
     g.fillRect(0, h * 0.58, w, h * 0.08);
@@ -515,7 +490,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     group.add(strip);
   });
 
-  // Taxi / tow lane markings and a service trench for stronger hangar feel.
+  // Taxi / tow lane markings (subtle, no center trench obstruction).
   const laneMarkMat = new THREE.MeshBasicMaterial({ color: 0xe8eef7, transparent: true, opacity: 0.72 });
   [-1, 1].forEach((side) => {
     const lane = new THREE.Mesh(new THREE.PlaneGeometry(1.1, depth * 0.85), laneMarkMat);
@@ -523,22 +498,6 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     lane.position.set(side * 11.5, 0.032, -4);
     group.add(lane);
   });
-  const trench = new THREE.Mesh(
-    new THREE.BoxGeometry(2.4, 0.08, depth * 0.55),
-    new THREE.MeshStandardMaterial({ color: 0x2b313a, roughness: 0.93, metalness: 0.1 }),
-  );
-  trench.position.set(0, 0.04, -depth * 0.12);
-  group.add(trench);
-
-  for (let i = 0; i < 16; i += 1) {
-    const z = -depth * 0.385 + i * ((depth * 0.5) / 15);
-    const grate = new THREE.Mesh(
-      new THREE.BoxGeometry(2.3, 0.02, 0.16),
-      new THREE.MeshStandardMaterial({ color: 0x606875, roughness: 0.7, metalness: 0.45 }),
-    );
-    grate.position.set(0, 0.09, z);
-    group.add(grate);
-  }
 
   // ---------- Back wall ----------
   const backWall = new THREE.Mesh(
@@ -622,18 +581,8 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   outsideBackdrop.rotation.y = Math.PI; // make textured front face visible from inside hangar
   group.add(outsideBackdrop);
 
-  // ---------- HANGAR ROLL-UP DOOR (partially open, showing texture clearly) ----------
-  // Door is rolled up far beyond half-open (~85%) for stronger exterior read.
-  const doorPanelH = doorOpeningH * 0.15; // visible portion at the top
-  const hangarDoor = new THREE.Mesh(
-    new THREE.PlaneGeometry(doorOpeningW, doorPanelH),
-    new THREE.MeshStandardMaterial({
-      map: doorMap, roughness: 0.55, metalness: 0.6,
-    }),
-  );
-  hangarDoor.position.set(0, doorOpeningH - doorPanelH / 2, depth / 2 - 0.2);
-  hangarDoor.rotation.y = Math.PI;
-  group.add(hangarDoor);
+  // ---------- HANGAR ROLL-UP DOOR ----------
+  // Keep door fully open so the outside view is never blocked by shutter slats.
 
   // Door tracks/frame around the opening (I-beams)
   const frameMat = new THREE.MeshStandardMaterial({
