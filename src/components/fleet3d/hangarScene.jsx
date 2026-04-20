@@ -81,6 +81,22 @@ function concreteTex() {
       g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
     });
 
+    // Slight dirt accumulation and micro-cracks to prevent flat look.
+    for (let i = 0; i < 34; i += 1) {
+      const y = Math.random() * h;
+      g.strokeStyle = `rgba(52,58,68,${0.06 + Math.random() * 0.08})`;
+      g.lineWidth = 0.6 + Math.random() * 1.2;
+      g.beginPath();
+      g.moveTo(Math.random() * (w * 0.2), y);
+      g.bezierCurveTo(w * 0.35, y + (Math.random() - 0.5) * 12, w * 0.7, y + (Math.random() - 0.5) * 12, w - Math.random() * (w * 0.2), y + (Math.random() - 0.5) * 8);
+      g.stroke();
+    }
+
+    for (let i = 0; i < 450; i += 1) {
+      g.fillStyle = `rgba(75,82,94,${0.03 + Math.random() * 0.08})`;
+      g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1);
+    }
+
     // Micro metallic flakes + subtle wet reflection streaks for a
     // "new epoxy hangar floor" look.
     for (let i = 0; i < 850; i += 1) {
@@ -134,6 +150,24 @@ function wallTex() {
       g.fillRect(0, y, w, 8);
       g.fillStyle = 'rgba(0,0,0,0.2)';
       g.fillRect(0, y + 8, w, 2);
+    }
+
+    // Additional grunge/noise breakup so large walls feel less smooth.
+    for (let i = 0; i < 700; i += 1) {
+      g.fillStyle = `rgba(${110 + Math.random() * 55},${120 + Math.random() * 55},${130 + Math.random() * 55},${0.02 + Math.random() * 0.08})`;
+      const px = Math.random() * w;
+      const py = Math.random() * h;
+      g.fillRect(px, py, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+
+    for (let i = 0; i < 40; i += 1) {
+      const y = Math.random() * h;
+      g.strokeStyle = `rgba(25,30,38,${0.08 + Math.random() * 0.1})`;
+      g.lineWidth = 0.8 + Math.random() * 1.2;
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(w, y + (Math.random() - 0.5) * 10);
+      g.stroke();
     }
   });
 }
@@ -347,30 +381,6 @@ function outsideViewTex() {
   });
 }
 
-// Soft alpha gradient for sunlight shafts (prevents hard dark quads).
-function sunBeamTex() {
-  return makeCanvasTex('sunbeam', 128, 512, (g, w, h) => {
-    g.clearRect(0, 0, w, h);
-    const grd = g.createLinearGradient(0, 0, 0, h);
-    grd.addColorStop(0, 'rgba(255,255,255,0.38)');
-    grd.addColorStop(0.25, 'rgba(255,255,255,0.22)');
-    grd.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, w, h);
-
-    // Feather edges left/right so each shaft fades smoothly.
-    const edge = g.createLinearGradient(0, 0, w, 0);
-    edge.addColorStop(0, 'rgba(0,0,0,1)');
-    edge.addColorStop(0.2, 'rgba(0,0,0,0)');
-    edge.addColorStop(0.8, 'rgba(0,0,0,0)');
-    edge.addColorStop(1, 'rgba(0,0,0,1)');
-    g.globalCompositeOperation = 'destination-out';
-    g.fillStyle = edge;
-    g.fillRect(0, 0, w, h);
-    g.globalCompositeOperation = 'source-over';
-  });
-}
-
 // Build a matte PBR-like material from a texture with optional repeat.
 function makeTexturedMat({ tex, repeat = [1, 1], color = 0xffffff, roughness = 0.85, metalness = 0.1 }) {
   const t = tex.clone();
@@ -405,7 +415,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   // ---------- Floor ----------
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(width, depth),
-    makeTexturedMat({ tex: concreteMap, repeat: [width / 14, depth / 14], color: 0xd2d7df, roughness: 0.58, metalness: 0.04 }),
+    makeTexturedMat({ tex: concreteMap, repeat: [width / 10, depth / 10], color: 0xd2d7df, roughness: 0.58, metalness: 0.04 }),
   );
   floor.rotation.x = -Math.PI / 2;
   group.add(floor);
@@ -442,7 +452,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   // ---------- Back wall ----------
   const backWall = new THREE.Mesh(
     new THREE.PlaneGeometry(width, height),
-    makeTexturedMat({ tex: wallMap, repeat: [width / 8, height / 8], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+    makeTexturedMat({ tex: wallMap, repeat: [width / 6, height / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
   );
   backWall.position.set(0, height / 2, -depth / 2);
   group.add(backWall);
@@ -451,7 +461,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   [-1, 1].forEach((side) => {
     const sideWall = new THREE.Mesh(
       new THREE.PlaneGeometry(depth, height),
-      makeTexturedMat({ tex: wallMap, repeat: [depth / 8, height / 8], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+      makeTexturedMat({ tex: wallMap, repeat: [depth / 6, height / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
     );
     sideWall.rotation.y = side * Math.PI / 2;
     sideWall.position.set(side * width / 2, height / 2, 0);
@@ -698,22 +708,6 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   const doorBounce = new THREE.PointLight(0xffb070, 1.2, 70, 2);
   doorBounce.position.set(0, 6, depth / 2 - 12);
   group.add(doorBounce);
-
-  // Volumetric-style sunlight beams through the mostly-open gate.
-  const beamMap = sunBeamTex();
-  for (let i = 0; i < 3; i += 1) {
-    const beam = new THREE.Mesh(
-      new THREE.PlaneGeometry(18 + i * 5, 36 + i * 8),
-      new THREE.MeshBasicMaterial({
-        map: beamMap,
-        color: 0xffc98a, transparent: true, opacity: 0.08 - i * 0.018,
-        depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      }),
-    );
-    beam.position.set(-14 + i * 14, 11 + i * 1.2, depth / 2 - 8 - i * 4);
-    beam.rotation.x = -0.42;
-    group.add(beam);
-  }
 
   // Warm floor patch where sun hits the concrete (flat additive glow)
   const sunPatch = new THREE.Mesh(
