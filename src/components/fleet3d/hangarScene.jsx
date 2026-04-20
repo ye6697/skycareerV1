@@ -294,7 +294,10 @@ function makeHazardMat() {
 function logoTex() {
   const tex = new THREE.TextureLoader().load('/skycareer-logo-clean.png');
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  tex.anisotropy = 16;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
   return tex;
 }
 
@@ -396,7 +399,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   // ---------- Side wall logos ----------
   [-1, 1].forEach((side) => {
     const logo = new THREE.Mesh(
-      new THREE.PlaneGeometry(depth * 0.32, height * 0.3),
+      new THREE.PlaneGeometry(depth * 0.18, height * 0.14),
       new THREE.MeshStandardMaterial({
         map: logoMap.clone(),
         transparent: true,
