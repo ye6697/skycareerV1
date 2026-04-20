@@ -1,3 +1,5 @@
+import { ADDITIONAL_AIRPORT_COORDS } from './additionalAirportCoordinates';
+
 const AIRPORT_COORDS = {
   // ========== EUROPE ==========
   // Germany
@@ -608,5 +610,5 @@ const AIRPORT_COORDS = {
 export function getAirportCoords(icao) {
   if (!icao || typeof icao !== 'string') return null;
   const key = icao.trim().toUpperCase();
-  return AIRPORT_COORDS[key] || null;
+  return AIRPORT_COORDS[key] || ADDITIONAL_AIRPORT_COORDS[key] || null;
 }
