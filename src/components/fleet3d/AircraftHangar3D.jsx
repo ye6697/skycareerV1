@@ -25,7 +25,10 @@ export default function AircraftHangar3D({ aircraft }) {
   // Popup position is captured ONCE at open-time and stays fixed on screen
   // (doesn't follow the rotating aircraft / hotspot).
   const [popupAnchor, setPopupAnchor] = useState(null);
-  const camOrbitRef = useRef({ yaw: 0.6, pitch: 0.22, dist: 55 });
+  // Default camera starts outside the open front gate (negative Z), looking
+  // into the hangar. This avoids the impression that the gate is "closed" by
+  // the rear wall.
+  const camOrbitRef = useRef({ yaw: -0.6, pitch: 0.22, dist: 55 });
   const dragStateRef = useRef({ active: false });
 
   const wear = useMemo(() => {
