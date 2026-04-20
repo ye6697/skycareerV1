@@ -270,116 +270,6 @@ function hangarDoorTex() {
   });
 }
 
-// --- Outside view: sunset sky + airport scene painted onto a backdrop ---
-function outsideViewTex() {
-  return makeCanvasTex('outsideview', 1024, 512, (g, w, h) => {
-    // Sky gradient (dusk)
-    const sky = g.createLinearGradient(0, 0, 0, h * 0.75);
-    sky.addColorStop(0, '#1a2a4a');
-    sky.addColorStop(0.35, '#4a5a82');
-    sky.addColorStop(0.6, '#d88050');
-    sky.addColorStop(0.85, '#f0b070');
-    sky.addColorStop(1, '#fdd090');
-    g.fillStyle = sky; g.fillRect(0, 0, w, h * 0.75);
-
-    // Sun
-    const sunX = w * 0.72, sunY = h * 0.5;
-    const sunGrd = g.createRadialGradient(sunX, sunY, 0, sunX, sunY, 120);
-    sunGrd.addColorStop(0, 'rgba(255,245,220,1)');
-    sunGrd.addColorStop(0.3, 'rgba(255,200,130,0.8)');
-    sunGrd.addColorStop(1, 'rgba(255,150,80,0)');
-    g.fillStyle = sunGrd;
-    g.fillRect(sunX - 120, sunY - 120, 240, 240);
-    g.fillStyle = '#fff6d8';
-    g.beginPath(); g.arc(sunX, sunY, 35, 0, Math.PI * 2); g.fill();
-
-    // Distant mountains
-    g.fillStyle = '#2a3550';
-    g.beginPath(); g.moveTo(0, h * 0.7);
-    const peaks = [0.05, 0.12, 0.2, 0.28, 0.38, 0.48, 0.58, 0.68, 0.78, 0.88, 1.0];
-    peaks.forEach((p) => g.lineTo(p * w, h * (0.55 + Math.random() * 0.1)));
-    g.lineTo(w, h * 0.7); g.closePath(); g.fill();
-
-    // Ground / apron
-    const ground = g.createLinearGradient(0, h * 0.75, 0, h);
-    ground.addColorStop(0, '#3a3f48');
-    ground.addColorStop(1, '#2a2d34');
-    g.fillStyle = ground; g.fillRect(0, h * 0.75, w, h * 0.25);
-
-    // Runway (horizontal strip)
-    g.fillStyle = '#1a1d22'; g.fillRect(0, h * 0.78, w, h * 0.04);
-    // Runway centerline dashes
-    g.fillStyle = '#f0e8c0';
-    for (let x = 0; x < w; x += 40) g.fillRect(x, h * 0.80, 20, 2);
-    // Runway edge lights
-    g.fillStyle = '#ffe080';
-    for (let x = 0; x < w; x += 25) {
-      g.beginPath(); g.arc(x, h * 0.78, 2, 0, Math.PI * 2); g.fill();
-      g.beginPath(); g.arc(x, h * 0.82, 2, 0, Math.PI * 2); g.fill();
-    }
-
-    // Terminal building
-    g.fillStyle = '#3a4454';
-    g.fillRect(w * 0.08, h * 0.62, w * 0.3, h * 0.16);
-    // Glass windows (lit)
-    for (let x = 0; x < w * 0.3; x += 12) {
-      for (let y = 0; y < h * 0.14; y += 8) {
-        g.fillStyle = Math.random() > 0.3 ? `rgba(255,${220 + Math.random() * 35},${100 + Math.random() * 80},0.9)` : 'rgba(60,70,85,0.9)';
-        g.fillRect(w * 0.08 + 3 + x, h * 0.63 + y, 7, 4);
-      }
-    }
-    // Terminal roof
-    g.fillStyle = '#2a313c';
-    g.fillRect(w * 0.075, h * 0.61, w * 0.31, h * 0.012);
-
-    // Control tower
-    g.fillStyle = '#4a5462';
-    g.fillRect(w * 0.42, h * 0.48, w * 0.025, h * 0.27);
-    g.fillStyle = '#1a2230';
-    g.fillRect(w * 0.41, h * 0.45, w * 0.045, h * 0.04);
-    // Tower lit windows
-    g.fillStyle = '#ffd580';
-    g.fillRect(w * 0.415, h * 0.455, w * 0.035, h * 0.02);
-    // Beacon
-    g.fillStyle = '#ff3030';
-    g.beginPath(); g.arc(w * 0.4325, h * 0.44, 3, 0, Math.PI * 2); g.fill();
-
-    // Parked airliner
-    g.fillStyle = '#e8ecf2';
-    g.fillRect(w * 0.5, h * 0.73, w * 0.18, h * 0.025);
-    // Tail fin
-    g.fillStyle = '#2a4a8a';
-    g.beginPath();
-    g.moveTo(w * 0.5, h * 0.73);
-    g.lineTo(w * 0.505, h * 0.69);
-    g.lineTo(w * 0.515, h * 0.73);
-    g.closePath(); g.fill();
-    // Wings
-    g.fillStyle = '#d0d4dc';
-    g.fillRect(w * 0.56, h * 0.745, w * 0.06, h * 0.01);
-    // Windows strip
-    g.fillStyle = '#0a0f1a';
-    g.fillRect(w * 0.52, h * 0.737, w * 0.14, h * 0.003);
-
-    // Distant hangars
-    g.fillStyle = '#3a4250';
-    g.fillRect(w * 0.75, h * 0.66, w * 0.15, h * 0.1);
-    g.fillStyle = '#2a313c';
-    g.beginPath();
-    g.moveTo(w * 0.745, h * 0.66);
-    g.lineTo(w * 0.825, h * 0.63);
-    g.lineTo(w * 0.905, h * 0.66);
-    g.closePath(); g.fill();
-
-    // Ground markings (taxiway line)
-    g.strokeStyle = '#e8c040'; g.lineWidth = 2;
-    g.beginPath();
-    g.moveTo(0, h * 0.92);
-    g.bezierCurveTo(w * 0.4, h * 0.86, w * 0.6, h * 0.95, w, h * 0.9);
-    g.stroke();
-  });
-}
-
 // Build a matte PBR-like material from a texture with optional repeat.
 function makeTexturedMat({ tex, repeat = [1, 1], color = 0xffffff, roughness = 0.85, metalness = 0.1 }) {
   const t = tex.clone();
@@ -450,7 +340,6 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   const roofMap = roofTex();
   const steelMap = steelTex();
   const doorMap = hangarDoorTex();
-  const outsideMap = outsideViewTex();
   const logoMap = logoTex();
 
   // ---------- Floor ----------
@@ -568,18 +457,8 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     group.add(sp);
   });
 
-  // ---------- OUTSIDE VIEW BACKDROP (airport scene) ----------
-  // A big textured plane positioned behind the door opening so the painted
-  // airport scene reads as what's outside the hangar.
-  const outsideBackdropW = doorOpeningW * 3.2;
-  const outsideBackdropH = doorOpeningH * 2.1;
-  const outsideBackdrop = new THREE.Mesh(
-    new THREE.PlaneGeometry(outsideBackdropW, outsideBackdropH),
-    new THREE.MeshBasicMaterial({ map: outsideMap.clone() }),
-  );
-  outsideBackdrop.position.set(0, outsideBackdropH / 2 - 8, depth / 2 + 120);
-  outsideBackdrop.rotation.y = Math.PI; // make textured front face visible from inside hangar
-  group.add(outsideBackdrop);
+  // Keep the doorway genuinely open: no backdrop plane behind it.
+  // This prevents a dark "wall" feeling and lets the camera look through.
 
   // ---------- HANGAR ROLL-UP DOOR ----------
   // Keep door fully open so the outside view is never blocked by shutter slats.
