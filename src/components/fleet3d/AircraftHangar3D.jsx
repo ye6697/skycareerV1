@@ -12,19 +12,22 @@ import HotspotInfoPopup from '@/components/fleet3d/HotspotInfoPopup';
 function buildFrontAirportScenery() {
   const group = new THREE.Group();
 
+  // Place airport scenery IN FRONT of the open hangar door (+Z), so it is
+  // visible from the default hangar camera and does not appear like a flat
+  // background card.
   const runway = new THREE.Mesh(
     new THREE.PlaneGeometry(120, 420),
     new THREE.MeshStandardMaterial({ color: 0x1f252d, roughness: 0.92, metalness: 0.08 }),
   );
   runway.rotation.x = -Math.PI / 2;
-  runway.position.set(0, 0.02, -245);
+  runway.position.set(0, 0.02, 245);
   group.add(runway);
 
   const centerLineMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fb, roughness: 0.45, metalness: 0.1 });
   for (let i = 0; i < 13; i += 1) {
     const mark = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 14), centerLineMat);
     mark.rotation.x = -Math.PI / 2;
-    mark.position.set(0, 0.03, -80 - i * 28);
+    mark.position.set(0, 0.03, 80 + i * 28);
     group.add(mark);
   }
 
@@ -33,7 +36,7 @@ function buildFrontAirportScenery() {
     new THREE.MeshStandardMaterial({ color: 0x2c3338, roughness: 0.9 }),
   );
   taxiway.rotation.x = -Math.PI / 2;
-  taxiway.position.set(94, 0.018, -180);
+  taxiway.position.set(94, 0.018, 180);
   group.add(taxiway);
 
   const grass = new THREE.Mesh(
@@ -41,8 +44,43 @@ function buildFrontAirportScenery() {
     new THREE.MeshStandardMaterial({ color: 0x32422f, roughness: 1.0, metalness: 0.0 }),
   );
   grass.rotation.x = -Math.PI / 2;
-  grass.position.set(0, -0.05, -220);
+  grass.position.set(0, -0.05, 220);
   group.add(grass);
+
+  const apron = new THREE.Mesh(
+    new THREE.PlaneGeometry(180, 140),
+    new THREE.MeshStandardMaterial({ color: 0x788694, roughness: 0.86, metalness: 0.08 }),
+  );
+  apron.rotation.x = -Math.PI / 2;
+  apron.position.set(-120, 0.03, 170);
+  group.add(apron);
+
+  const terminalMat = new THREE.MeshStandardMaterial({ color: 0xb8c4d3, roughness: 0.8, metalness: 0.12 });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0x93b7d9,
+    roughness: 0.2,
+    metalness: 0.35,
+    transparent: true,
+    opacity: 0.85,
+    emissive: 0x1e3248,
+    emissiveIntensity: 0.18,
+  });
+
+  const terminalBase = new THREE.Mesh(new THREE.BoxGeometry(90, 16, 26), terminalMat);
+  terminalBase.position.set(-120, 8, 210);
+  group.add(terminalBase);
+
+  const terminalGlass = new THREE.Mesh(new THREE.BoxGeometry(84, 9, 14), glassMat);
+  terminalGlass.position.set(-120, 16, 210);
+  group.add(terminalGlass);
+
+  const towerBase = new THREE.Mesh(new THREE.BoxGeometry(14, 30, 14), terminalMat);
+  towerBase.position.set(-60, 15, 182);
+  group.add(towerBase);
+
+  const towerCab = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 12), glassMat);
+  towerCab.position.set(-60, 31, 182);
+  group.add(towerCab);
 
   return group;
 }
@@ -89,7 +127,7 @@ export default function AircraftHangar3D({ aircraft }) {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0e14);
-    scene.fog = new THREE.Fog(0x0a0e14, 80, 220);
+    scene.fog = new THREE.Fog(0x0a0e14, 120, 420);
 
     const camera = new THREE.PerspectiveCamera(50, w / h, 0.5, 600);
     const renderer = new THREE.WebGLRenderer({ antialias: true });

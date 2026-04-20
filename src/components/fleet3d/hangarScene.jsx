@@ -567,12 +567,12 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     new THREE.MeshBasicMaterial({
       color: 0x9cc3ef,
       transparent: true,
-      opacity: 0.86,
+      opacity: 0.2,
       fog: false,
       side: THREE.DoubleSide,
     }),
   );
-  horizonBackdrop.position.set(0, height * 0.68, depth / 2 + 125);
+  horizonBackdrop.position.set(0, height * 0.68, depth / 2 + 330);
   group.add(horizonBackdrop);
 
   // ---------- Warm sunlight from the open door ----------
