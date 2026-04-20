@@ -219,7 +219,30 @@ function extractLandingRoll(telemetry) {
     if (og === false) airborneSeen = true;
     if (airborneSeen && og === true) { touchdownIdx = i; break; }
   }
-  if (touchdownIdx < 0) return [];
+  if (touchdownIdx < 0) {
+    // Fallback for streams with missing on_ground transition near touchdown:
+    // find the lowest-altitude point in the last ~40% of the flight where the
+    // aircraft still has rollout-like speed. This is a conservative proxy for
+    // touchdown and avoids "No data" when telemetry exists but on_ground flags
+    // are sparse around landing.
+    const start = Math.max(0, Math.floor(telemetry.length * 0.6));
+    let bestAlt = Infinity;
+    let bestIdx = -1;
+    for (let i = start; i < telemetry.length; i += 1) {
+      const p = telemetry[i];
+      const coord = extractCoord(p);
+      if (!coord) continue;
+      const spd = Number(p?.spd ?? p?.speed ?? p?.gs ?? p?.ground_speed ?? 0);
+      if (Number.isFinite(spd) && spd < 20) continue;
+      const alt = Number(p?.alt ?? p?.altitude ?? p?.elevation ?? Infinity);
+      if (Number.isFinite(alt) && alt < bestAlt) {
+        bestAlt = alt;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx < 0) return [];
+    touchdownIdx = bestIdx;
+  }
   for (let i = touchdownIdx; i < telemetry.length; i += 1) {
     const p = telemetry[i];
     const og = readOnGround(p);
