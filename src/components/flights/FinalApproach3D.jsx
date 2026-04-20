@@ -173,15 +173,36 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         }
       }
 
-      // STEP 2: Find the sample where we are >= 1000 ft above the takeoff-roll altitude.
+      // STEP 2: End the replay shortly after liftoff so lateral drift in climb
+      // (crosswind / pilot correction) does not visually look like runway-roll
+      // centerline error. This keeps the 3D replay proportional to the
+      // centerline score, which only uses ground-roll samples.
+      let liftoffIdx = -1;
+      if (rollStartIdx >= 0) {
+        for (let i = rollStartIdx + 1; i < mapped.length; i += 1) {
+          const og = mapped[i].on_ground;
+          if (og === false || og === 0) { liftoffIdx = i; break; }
+        }
+      }
+
       let climbEndIdx = -1;
       if (rollStartIdx >= 0) {
         const groundAlt = Number(mapped[rollStartIdx].alt) || 0;
-        for (let i = rollStartIdx + 1; i < mapped.length; i += 1) {
-          const a = Number(mapped[i].alt);
-          if (Number.isFinite(a) && a - groundAlt >= 1000) { climbEndIdx = i; break; }
+        if (liftoffIdx > 0) {
+          const liftoffT = Number(mapped[liftoffIdx].t) || 0;
+          for (let i = liftoffIdx; i < mapped.length; i += 1) {
+            const a = Number(mapped[i].alt);
+            const dtMs = (Number(mapped[i].t) || 0) - liftoffT;
+            if (
+              (Number.isFinite(a) && a - groundAlt >= 100) || // ~100 ft AGL
+              dtMs >= 8000                                    // or max ~8 sec after liftoff
+            ) { climbEndIdx = i; break; }
+          }
+        } else {
+          // If no clear liftoff flag exists, fall back to a short slice.
+          climbEndIdx = Math.min(mapped.length - 1, rollStartIdx + 80);
         }
-        // If telemetry doesn't reach 1000 ft AGL within the window, use whatever we have.
+        // If telemetry doesn't reach a cut condition within the window, use what's available.
         if (climbEndIdx < 0) climbEndIdx = mapped.length - 1;
       }
 
@@ -226,10 +247,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   }, [flight, durationSeconds, phase]);
 
   // Fetch real runway data from OurAirports.
-  // Landing: use arrival ICAO + touchdown hint (first on-ground sample after airborne).
-  // Takeoff: use departure ICAO + liftoff hint (first airborne sample) – this is
-  //   always ON the runway, whereas the first-moving sample could still be on a taxiway
-  //   near a parallel runway and would mis-pick the wrong runway.
+    // Landing: use arrival ICAO + touchdown hint (first on-ground sample after airborne).
+    // Takeoff: use departure ICAO + last confirmed on-ground sample before liftoff.
+    // This avoids selecting a parallel runway based on an already air-drifting
+    // liftoff sample in crosswind.
   useEffect(() => {
     if (!segment) return;
     const xpd = flight?.xplane_data || {};
@@ -242,12 +263,14 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Fall back to first/last sample if detection fails.
     let hintIdx = phase === 'takeoff' ? 0 : segment.points.length - 1;
     if (phase === 'takeoff') {
+      let lastGroundIdx = 0;
       let groundSeen = false;
       for (let i = 0; i < segment.points.length; i += 1) {
         const og = segment.points[i].on_ground;
-        if (og === true || og === 1) groundSeen = true;
-        if (groundSeen && (og === false || og === 0)) { hintIdx = i; break; }
+        if (og === true || og === 1) { groundSeen = true; lastGroundIdx = i; }
+        if (groundSeen && (og === false || og === 0)) { hintIdx = lastGroundIdx; break; }
       }
+      if (!groundSeen) hintIdx = 0;
     } else {
       let airborneSeen = false;
       for (let i = 0; i < segment.points.length; i += 1) {
@@ -381,12 +404,16 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Fallback uses altitude transitions in the actual telemetry.
     let realTdPointIdx = -1;
     if (phase === 'takeoff') {
+      // Use last confirmed on-ground point (not first airborne) to avoid
+      // showing crosswind drift after rotation as runway-centerline offset.
       let groundSeen = false;
+      let lastGroundIdx = -1;
       for (let i = 0; i < segment.points.length; i += 1) {
         const og = segment.points[i].on_ground;
-        if (og === true || og === 1) groundSeen = true;
-        if (groundSeen && (og === false || og === 0)) { realTdPointIdx = i; break; }
+        if (og === true || og === 1) { groundSeen = true; lastGroundIdx = i; }
+        if (groundSeen && (og === false || og === 0)) { realTdPointIdx = lastGroundIdx; break; }
       }
+      if (realTdPointIdx < 0 && lastGroundIdx >= 0) realTdPointIdx = lastGroundIdx;
       if (realTdPointIdx < 0) {
         // Altitude fallback: first sample significantly above minimum.
         const minA = Math.min(...segment.points.map(p => p.alt));
