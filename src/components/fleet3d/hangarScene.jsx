@@ -551,6 +551,30 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     });
   }
 
+  // ---------- Exterior apron + sky backdrop ----------
+  // Add an outside ground extension and bright backdrop so the open gate
+  // never looks like a dark wall when viewed from inside the hangar.
+  const exteriorFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(width * 2.2, depth * 1.4),
+    makeTexturedMat({ tex: concreteMap, repeat: [width / 5, depth / 7], color: 0xc9d1db, roughness: 0.6, metalness: 0.08 }),
+  );
+  exteriorFloor.rotation.x = -Math.PI / 2;
+  exteriorFloor.position.set(0, 0.015, depth / 2 + depth * 0.55);
+  group.add(exteriorFloor);
+
+  const horizonBackdrop = new THREE.Mesh(
+    new THREE.PlaneGeometry(width * 3, height * 1.9),
+    new THREE.MeshBasicMaterial({
+      color: 0x9cc3ef,
+      transparent: true,
+      opacity: 0.86,
+      fog: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  horizonBackdrop.position.set(0, height * 0.68, depth / 2 + 125);
+  group.add(horizonBackdrop);
+
   // ---------- Warm sunlight from the open door ----------
   const doorSun = new THREE.DirectionalLight(0xffd0a0, 2.0);
   doorSun.position.set(20, height * 0.45, depth / 2 + 60);
