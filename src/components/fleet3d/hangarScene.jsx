@@ -663,47 +663,5 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   sunPatch.position.set(0, 0.04, depth / 4);
   group.add(sunPatch);
 
-  // ---------- Exterior backdrop so doorway never looks like a dark wall ----------
-  // Sky dome that sits outside the hangar opening. Rendering on the inside faces
-  // gives us a bright horizon through the open door from most camera angles.
-  const skyGeo = new THREE.SphereGeometry(420, 40, 24, 0, Math.PI, 0, Math.PI * 0.5);
-  const skyMat = new THREE.MeshBasicMaterial({
-    color: 0xa8d8ff,
-    side: THREE.BackSide,
-    transparent: true,
-    opacity: 0.92,
-    fog: false,
-  });
-  const skyDome = new THREE.Mesh(skyGeo, skyMat);
-  skyDome.position.set(0, 0, depth / 2 + 180);
-  group.add(skyDome);
-
-  // Distant horizon card to add stronger daylight contrast in the door opening.
-  const horizon = new THREE.Mesh(
-    new THREE.PlaneGeometry(width * 3.4, height * 1.8),
-    new THREE.MeshBasicMaterial({
-      color: 0xc9ecff,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-      fog: false,
-    }),
-  );
-  horizon.position.set(0, height * 0.45, depth / 2 + 165);
-  group.add(horizon);
-
-  // Exterior apron so "outside" reads as real space instead of empty void.
-  const apron = new THREE.Mesh(
-    new THREE.PlaneGeometry(width * 2.4, depth * 2),
-    new THREE.MeshStandardMaterial({
-      color: 0xd8dde5,
-      roughness: 0.9,
-      metalness: 0.03,
-    }),
-  );
-  apron.rotation.x = -Math.PI / 2;
-  apron.position.set(0, 0.01, depth / 2 + depth * 0.52);
-  group.add(apron);
-
   return { group };
 }
