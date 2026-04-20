@@ -112,6 +112,30 @@ function concreteTex() {
       g.bezierCurveTo(w * 0.2, y - 4, w * 0.8, y + 4, w, y);
       g.stroke();
     }
+
+    // Industrial floor details: expansion joints + darker wheel paths.
+    g.strokeStyle = 'rgba(35,40,48,0.24)';
+    g.lineWidth = 2.2;
+    [w * 0.2, w * 0.5, w * 0.8].forEach((x) => {
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x, h);
+      g.stroke();
+    });
+    [h * 0.3, h * 0.6, h * 0.86].forEach((y) => {
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(w, y);
+      g.stroke();
+    });
+
+    const wheelPath = g.createLinearGradient(0, h * 0.35, 0, h * 0.65);
+    wheelPath.addColorStop(0, 'rgba(35,40,45,0)');
+    wheelPath.addColorStop(0.5, 'rgba(35,40,45,0.2)');
+    wheelPath.addColorStop(1, 'rgba(35,40,45,0)');
+    g.fillStyle = wheelPath;
+    g.fillRect(0, h * 0.34, w, h * 0.08);
+    g.fillRect(0, h * 0.58, w, h * 0.08);
   });
 }
 
@@ -402,6 +426,47 @@ function makeHazardMat() {
   return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 });
 }
 
+function logoTex() {
+  return makeCanvasTex('slycareer-logo', 1024, 512, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+
+    const bg = g.createLinearGradient(0, 0, w, h);
+    bg.addColorStop(0, 'rgba(11,21,38,0.7)');
+    bg.addColorStop(1, 'rgba(16,30,52,0.35)');
+    g.fillStyle = bg;
+    g.fillRect(0, 0, w, h);
+
+    g.strokeStyle = 'rgba(117,180,255,0.55)';
+    g.lineWidth = 6;
+    g.strokeRect(18, 18, w - 36, h - 36);
+
+    g.beginPath();
+    g.fillStyle = '#2f86ff';
+    g.moveTo(125, h * 0.73);
+    g.lineTo(350, h * 0.42);
+    g.lineTo(590, h * 0.52);
+    g.lineTo(380, h * 0.3);
+    g.lineTo(330, h * 0.18);
+    g.lineTo(245, h * 0.36);
+    g.lineTo(130, h * 0.52);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 112px "Arial Black", Arial, sans-serif';
+    g.fillText('SKYCAREER', 390, h * 0.52);
+
+    g.fillStyle = '#7cc2ff';
+    g.font = 'bold 96px "Arial Black", Arial, sans-serif';
+    g.fillText('V1', 770, h * 0.74);
+
+    g.fillStyle = 'rgba(255,255,255,0.3)';
+    for (let i = 0; i < 32; i += 1) {
+      g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1);
+    }
+  });
+}
+
 export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   const group = new THREE.Group();
 
@@ -411,6 +476,7 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   const steelMap = steelTex();
   const doorMap = hangarDoorTex();
   const outsideMap = outsideViewTex();
+  const logoMap = logoTex();
 
   // ---------- Floor ----------
   const floor = new THREE.Mesh(
@@ -449,6 +515,31 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
     group.add(strip);
   });
 
+  // Taxi / tow lane markings and a service trench for stronger hangar feel.
+  const laneMarkMat = new THREE.MeshBasicMaterial({ color: 0xe8eef7, transparent: true, opacity: 0.72 });
+  [-1, 1].forEach((side) => {
+    const lane = new THREE.Mesh(new THREE.PlaneGeometry(1.1, depth * 0.85), laneMarkMat);
+    lane.rotation.x = -Math.PI / 2;
+    lane.position.set(side * 11.5, 0.032, -4);
+    group.add(lane);
+  });
+  const trench = new THREE.Mesh(
+    new THREE.BoxGeometry(2.4, 0.08, depth * 0.55),
+    new THREE.MeshStandardMaterial({ color: 0x2b313a, roughness: 0.93, metalness: 0.1 }),
+  );
+  trench.position.set(0, 0.04, -depth * 0.12);
+  group.add(trench);
+
+  for (let i = 0; i < 16; i += 1) {
+    const z = -depth * 0.385 + i * ((depth * 0.5) / 15);
+    const grate = new THREE.Mesh(
+      new THREE.BoxGeometry(2.3, 0.02, 0.16),
+      new THREE.MeshStandardMaterial({ color: 0x606875, roughness: 0.7, metalness: 0.45 }),
+    );
+    grate.position.set(0, 0.09, z);
+    group.add(grate);
+  }
+
   // ---------- Back wall ----------
   const backWall = new THREE.Mesh(
     new THREE.PlaneGeometry(width, height),
@@ -461,11 +552,35 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   [-1, 1].forEach((side) => {
     const sideWall = new THREE.Mesh(
       new THREE.PlaneGeometry(depth, height),
-      makeTexturedMat({ tex: wallMap, repeat: [depth / 6, height / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+      makeTexturedMat({
+        tex: wallMap,
+        repeat: [depth / 6, height / 6],
+        color: 0xaab2bf,
+        roughness: 0.86,
+        metalness: 0.2,
+      }),
     );
     sideWall.rotation.y = side * Math.PI / 2;
     sideWall.position.set(side * width / 2, height / 2, 0);
     group.add(sideWall);
+  });
+
+  // ---------- Side wall logos ----------
+  [-1, 1].forEach((side) => {
+    const logo = new THREE.Mesh(
+      new THREE.PlaneGeometry(depth * 0.3, height * 0.2),
+      new THREE.MeshStandardMaterial({
+        map: logoMap.clone(),
+        transparent: true,
+        roughness: 0.6,
+        metalness: 0.1,
+        emissive: 0x1a2e4a,
+        emissiveIntensity: 0.22,
+      }),
+    );
+    logo.position.set(side * (width / 2 - 0.12), height * 0.68, 0);
+    logo.rotation.y = -side * Math.PI / 2;
+    group.add(logo);
   });
 
   // ---------- Front wall with OPEN DOORWAY ----------
@@ -497,13 +612,13 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   // ---------- OUTSIDE VIEW BACKDROP (airport scene) ----------
   // A big textured plane positioned behind the door opening so the painted
   // airport scene reads as what's outside the hangar.
-  const outsideBackdropW = doorOpeningW * 2.5;
-  const outsideBackdropH = doorOpeningH * 1.8;
+  const outsideBackdropW = doorOpeningW * 3.2;
+  const outsideBackdropH = doorOpeningH * 2.1;
   const outsideBackdrop = new THREE.Mesh(
     new THREE.PlaneGeometry(outsideBackdropW, outsideBackdropH),
     new THREE.MeshBasicMaterial({ map: outsideMap.clone() }),
   );
-  outsideBackdrop.position.set(0, outsideBackdropH / 2 - 1, depth / 2 + 80);
+  outsideBackdrop.position.set(0, outsideBackdropH / 2 - 8, depth / 2 + 120);
   outsideBackdrop.rotation.y = Math.PI; // make textured front face visible from inside hangar
   group.add(outsideBackdrop);
 
@@ -543,9 +658,9 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   });
 
   // Hazard stripe at the bottom of the door frame
-  const frameHazard = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 3, 0.8, 1.6), makeHazardMat());
+  const frameHazard = new THREE.Mesh(new THREE.BoxGeometry(doorOpeningW + 3, 0.25, 1.1), makeHazardMat());
   frameHazard.material.map.repeat.set(30, 1);
-  frameHazard.position.set(0, 0.4, depth / 2 - 0.2);
+  frameHazard.position.set(0, 0.125, depth / 2 - 0.2);
   group.add(frameHazard);
 
   // Extra inner cladding strips so the entire front wall reads textured.
