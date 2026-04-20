@@ -292,44 +292,10 @@ function makeHazardMat() {
 }
 
 function logoTex() {
-  return makeCanvasTex('slycareer-logo', 1024, 512, (g, w, h) => {
-    g.clearRect(0, 0, w, h);
-
-    const bg = g.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, 'rgba(11,21,38,0.7)');
-    bg.addColorStop(1, 'rgba(16,30,52,0.35)');
-    g.fillStyle = bg;
-    g.fillRect(0, 0, w, h);
-
-    g.strokeStyle = 'rgba(117,180,255,0.55)';
-    g.lineWidth = 6;
-    g.strokeRect(18, 18, w - 36, h - 36);
-
-    g.beginPath();
-    g.fillStyle = '#2f86ff';
-    g.moveTo(125, h * 0.73);
-    g.lineTo(350, h * 0.42);
-    g.lineTo(590, h * 0.52);
-    g.lineTo(380, h * 0.3);
-    g.lineTo(330, h * 0.18);
-    g.lineTo(245, h * 0.36);
-    g.lineTo(130, h * 0.52);
-    g.closePath();
-    g.fill();
-
-    g.fillStyle = '#ffffff';
-    g.font = 'bold 112px "Arial Black", Arial, sans-serif';
-    g.fillText('SKYCAREER', 390, h * 0.52);
-
-    g.fillStyle = '#7cc2ff';
-    g.font = 'bold 96px "Arial Black", Arial, sans-serif';
-    g.fillText('V1', 770, h * 0.74);
-
-    g.fillStyle = 'rgba(255,255,255,0.3)';
-    for (let i = 0; i < 32; i += 1) {
-      g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1);
-    }
-  });
+  const tex = new THREE.TextureLoader().load('/skycareer-logo-clean.png');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }
 
 export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
@@ -389,12 +355,26 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   });
 
   // ---------- Back wall ----------
-  const backWall = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    makeTexturedMat({ tex: wallMap, repeat: [width / 6, height / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+  const rearDoorOpeningW = width * 0.62;
+  const rearDoorOpeningH = height * 0.76;
+  const rearPanelW = (width - rearDoorOpeningW) / 2;
+  const rearTopBandH = height - rearDoorOpeningH;
+
+  const rearHeader = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, rearTopBandH),
+    makeTexturedMat({ tex: wallMap, repeat: [width / 8, rearTopBandH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
   );
-  backWall.position.set(0, height / 2, -depth / 2);
-  group.add(backWall);
+  rearHeader.position.set(0, height - rearTopBandH / 2, -depth / 2);
+  group.add(rearHeader);
+
+  [-1, 1].forEach((side) => {
+    const rearPanel = new THREE.Mesh(
+      new THREE.PlaneGeometry(rearPanelW, rearDoorOpeningH),
+      makeTexturedMat({ tex: wallMap, repeat: [rearPanelW / 6, rearDoorOpeningH / 6], color: 0x9aa0aa, roughness: 0.75, metalness: 0.45 }),
+    );
+    rearPanel.position.set(side * (rearDoorOpeningW / 2 + rearPanelW / 2), rearDoorOpeningH / 2, -depth / 2);
+    group.add(rearPanel);
+  });
 
   // ---------- Side walls ----------
   [-1, 1].forEach((side) => {
@@ -416,17 +396,18 @@ export function buildHangar({ width = 110, depth = 130, height = 55 } = {}) {
   // ---------- Side wall logos ----------
   [-1, 1].forEach((side) => {
     const logo = new THREE.Mesh(
-      new THREE.PlaneGeometry(depth * 0.3, height * 0.2),
+      new THREE.PlaneGeometry(depth * 0.32, height * 0.3),
       new THREE.MeshStandardMaterial({
         map: logoMap.clone(),
         transparent: true,
+        alphaTest: 0.08,
         roughness: 0.6,
         metalness: 0.1,
-        emissive: 0x1a2e4a,
-        emissiveIntensity: 0.22,
+        emissive: 0x101f33,
+        emissiveIntensity: 0.15,
       }),
     );
-    logo.position.set(side * (width / 2 - 0.12), height * 0.68, 0);
+    logo.position.set(side * (width / 2 - 0.16), height * 0.64, 0);
     logo.rotation.y = -side * Math.PI / 2;
     group.add(logo);
   });
