@@ -320,8 +320,12 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // which fixes the runway/shadow z-fighting flicker on large scenes.
     const camera = new THREE.PerspectiveCamera(55, width / height, 2, 12000);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const renderer = new THREE.WebGLRenderer({
+      antialias: window.devicePixelRatio <= 1.5,
+      alpha: true,
+      powerPreference: 'high-performance',
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.75;
@@ -356,12 +360,12 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     // Dusk lighting: low ambient, warm low-angle sun, cool sky fill – gives the
     // scene a darker, more cinematic mood while still revealing detail.
-    scene.add(new THREE.HemisphereLight(0x4a6a90, 0x2a3020, 0.55));
-    scene.add(new THREE.AmbientLight(0x40506a, 0.3));
-    const sunLight = new THREE.DirectionalLight(0xffb070, 0.85);
+    scene.add(new THREE.HemisphereLight(0x4a6a90, 0x2a3020, 0.3));
+    scene.add(new THREE.AmbientLight(0x40506a, 0.14));
+    const sunLight = new THREE.DirectionalLight(0xffb070, 0.45);
     sunLight.position.set(-300, 180, -150);
     scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0x5078a0, 0.35);
+    const fillLight = new THREE.DirectionalLight(0x5078a0, 0.2);
     fillLight.position.set(250, 200, 180);
     scene.add(fillLight);
 
@@ -381,6 +385,13 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Runway - built from real OurAirports data when available, else generic.
     const { group: runwayGroup, runwayLenM, runwayWidthM } = buildRunwayScene(runway, makeRunwayLabelTexture);
     scene.add(runwayGroup);
+    // Local runway spotlight: keeps runway/touchdown zone readable without
+    // brightening the full world background.
+    const runwaySpot = new THREE.SpotLight(0xf8f4df, 2.2, 1800, Math.PI / 5.5, 0.5, 1.1);
+    runwaySpot.position.set(0, 220, -runwayLenM * 0.35);
+    runwaySpot.target.position.set(0, 0, -runwayLenM * 0.35);
+    scene.add(runwaySpot);
+    scene.add(runwaySpot.target);
 
     // Custom user-provided airport 3D model (replaces procedural scenery).
     const airportGroup = buildCustomAirport({ runwayLenM });
@@ -396,7 +407,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // distribute samples by arc-length (constant speed), not by parameter t
     // (which produces speed-up/slow-down artifacts between control points).
     const curve = new THREE.CatmullRomCurve3(rawPath, false, 'catmullrom', 0.25);
-    const smoothCount = Math.max(rawPath.length * 8, 200);
+    const smoothCount = Math.max(rawPath.length * 6, 160);
     const path3D = curve.getSpacedPoints(smoothCount);
 
     // Identify the REAL touchdown / liftoff telemetry sample (not spline).
@@ -539,7 +550,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     // Vertical drop lines from path to ground (every 5th point)
     path3D.forEach((pt, i) => {
-      if (i % 5 !== 0) return;
+      if (i % 10 !== 0) return;
       const dropGeo = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(pt.x, pt.y, pt.z),
         new THREE.Vector3(pt.x, 0, pt.z),
@@ -579,7 +590,14 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Ring/reticle removed - use shadow for ground position instead
     const ring = shadow;
 
-    sceneRef.current = { scene, camera, renderer, path3D, pathColors, planeMesh, ring, shadow, strobe, trailGeo, activePathGeo, activePathLine, segment };
+    const planeKeyLight = new THREE.PointLight(0xfff2de, 2.1, 260, 2);
+    planeKeyLight.position.copy(planeMesh.position).add(new THREE.Vector3(0, 12, 14));
+    scene.add(planeKeyLight);
+
+    sceneRef.current = {
+      scene, camera, renderer, path3D, pathColors, planeMesh, ring, shadow, strobe, trailGeo, activePathGeo, activePathLine, segment,
+      planeKeyLight,
+    };
 
     const handleResize = () => {
       if (!mount) return;
@@ -631,7 +649,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     const animate = (now) => {
       if (!sceneRef.current) return;
-      const { scene, camera, renderer, planeMesh, shadow, strobe, trailGeo, activePathGeo } = sceneRef.current;
+      const { scene, camera, renderer, planeMesh, shadow, strobe, trailGeo, activePathGeo, planeKeyLight } = sceneRef.current;
 
       let currentProgress = progressRef.current;
       if (isPlayingRef.current) {
@@ -667,6 +685,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       const MIN_GROUND_CLEARANCE = 0;
       if (pos.y < MIN_GROUND_CLEARANCE) pos.y = MIN_GROUND_CLEARANCE;
       planeMesh.position.copy(pos);
+      if (planeKeyLight) {
+        planeKeyLight.position.set(pos.x, pos.y + 10, pos.z + 12);
+      }
 
       const altScale = Math.max(0.3, 1 - pos.y / 200);
       shadow.position.set(pos.x, 0.06, pos.z);
