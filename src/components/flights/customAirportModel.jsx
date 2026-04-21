@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { addCityDistrict, addWarehouseCluster, makeLitBuildingMaterial } from '@/components/flights/cityBuildings';
-import { scatterBuildings, scatterClouds } from '@/components/flights/glbScenery';
+import { scatterBuildings } from '@/components/flights/glbScenery';
 import { scatterRealisticTrees } from '@/components/flights/realisticTrees';
 import { addRunwayMarkings, addApproachLights, addGroundServiceEquipment, addJetBridges } from '@/components/flights/airportDetails';
 import { addRoadNetwork } from '@/components/flights/roadNetwork';
@@ -331,13 +331,12 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   addRoadNetwork(group, { runwayLenM });
 
   // ------- Trees (procedural realistic) -------
-  scatterRealisticTrees(group, { runwayLenM, apronX, apronW, apronD, count: 1200 });
+  // Slightly denser tree coverage to avoid a "bare map" look; this stays
+  // performance-safe because we also removed cloud GLBs and reduced city/building counts.
+  scatterRealisticTrees(group, { runwayLenM, apronX, apronW, apronD, count: 1400 });
 
   // ------- Extra GLB buildings scattered around the airport -------
-  scatterBuildings(group, { runwayLenM, count: 60 });
-
-  // ------- Clouds (GLB model, user-provided) -------
-  scatterClouds(group, { runwayLenM, count: 25 });
+  scatterBuildings(group, { runwayLenM, count: 28 });
 
   // ------- Distant city skyline with LIT office windows -------
   // A ring of tall towers at ~2500 m skinned with the procedural lit-window
@@ -350,7 +349,7 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
     makeLitBuildingMaterial({ cols: 14, rows: 36, tint: 'warm', emissiveBoost: 1.3 }),
   ];
   const skylineRoofMat = new THREE.MeshStandardMaterial({ color: 0x1a1e26, roughness: 0.85 });
-  for (let i = 0; i < 120; i += 1) {
+  for (let i = 0; i < 72; i += 1) {
     const angle = Math.random() * Math.PI * 2;
     const radius = 2000 + Math.random() * 900;
     const w = 28 + Math.random() * 55;
@@ -391,27 +390,27 @@ export function buildCustomAirport({ runwayLenM = 2500 } = {}) {
   // Big district on the approach side (in front of landing threshold).
   addCityDistrict(group, {
     centerX: 0, centerZ: 400,
-    radius: 900, buildingCount: 100,
+    radius: 850, buildingCount: 64,
     avoidCorridor: runwayCorridor,
     minHeight: 20, maxHeight: 75,
   });
   // District behind the departure end.
   addCityDistrict(group, {
     centerX: 0, centerZ: -runwayLenM - 400,
-    radius: 900, buildingCount: 100,
+    radius: 850, buildingCount: 64,
     avoidCorridor: runwayCorridor,
     minHeight: 20, maxHeight: 70,
   });
   // Residential / office zone east of the airport.
   addCityDistrict(group, {
     centerX: 1200, centerZ: -runwayLenM / 2,
-    radius: 700, buildingCount: 80,
+    radius: 650, buildingCount: 52,
     minHeight: 15, maxHeight: 55,
   });
   // West district.
   addCityDistrict(group, {
     centerX: -1200, centerZ: -runwayLenM / 2,
-    radius: 700, buildingCount: 80,
+    radius: 650, buildingCount: 52,
     minHeight: 15, maxHeight: 60,
   });
 
