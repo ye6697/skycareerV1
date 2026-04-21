@@ -33,7 +33,7 @@ export default function useMp4Exporter() {
   const [status, setStatus] = useState(null); // 'recording' | null
   const [error, setError] = useState(null);
 
-  const recordCanvas = useCallback((canvas, durationMs, fps = 30) => {
+  const recordCanvas = useCallback((canvas, durationMs, fps = 45) => {
     return new Promise((resolve, reject) => {
       if (!canvas || typeof canvas.captureStream !== 'function') {
         reject(new Error('Canvas recording not supported on this device.'));
@@ -49,7 +49,7 @@ export default function useMp4Exporter() {
         const stream = canvas.captureStream(fps);
         const rec = new MediaRecorder(stream, {
           mimeType: picked.mime,
-          videoBitsPerSecond: 6_000_000,
+          videoBitsPerSecond: 10_000_000,
         });
         recorderRef.current = rec;
 
