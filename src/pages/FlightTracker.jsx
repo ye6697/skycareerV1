@@ -335,6 +335,42 @@ export default function FlightTracker() {
     failure_engine: false, failure_electrical: false, failure_avionics: false,
     failure_landing_gear: false, failure_airframe: false
   };
+  const buildRestoredFlightData = React.useCallback((sourceFlight) => {
+    const xpd = sourceFlight?.xplane_data || {};
+    const events = {
+      ...defaultFlightEvents,
+      ...((xpd.events && typeof xpd.events === 'object') ? xpd.events : {}),
+    };
+    return {
+      altitude: Number(xpd.altitude || 0),
+      speed: Number(xpd.speed || 0),
+      verticalSpeed: Number(xpd.vertical_speed || 0),
+      heading: Number(xpd.heading || 0),
+      fuel: Number(xpd.fuel_percentage || 100),
+      fuelKg: Number(xpd.fuel_kg || xpd.last_valid_fuel_kg || 0),
+      gForce: Number(xpd.g_force || 1.0),
+      maxGForce: Math.max(1.0, Number(xpd.max_g_force || xpd.g_force || 1.0)),
+      landingGForce: Number(xpd.landing_g_force || 0),
+      landingVs: Math.abs(Number(xpd.touchdown_vspeed || 0)),
+      landingType: xpd.landing_type || null,
+      landingScoreChange: Number(xpd.landing_score_change || 0),
+      landingMaintenanceCost: Number(xpd.landing_maintenance_cost || 0),
+      landingBonus: Number(xpd.landing_bonus || 0),
+      flightScore: Number(xpd.flight_score || xpd.final_score || 100),
+      maintenanceCost: Number(xpd.maintenance_cost || 0),
+      reputation: xpd.reputation || 'EXCELLENT',
+      latitude: Number(xpd.latitude || 0),
+      longitude: Number(xpd.longitude || 0),
+      events,
+      maxControlInput: Number(xpd.max_control_input || xpd.control_input || 0),
+      departure_lat: Number(xpd.departure_lat || 0),
+      departure_lon: Number(xpd.departure_lon || 0),
+      arrival_lat: Number(xpd.arrival_lat || 0),
+      arrival_lon: Number(xpd.arrival_lon || 0),
+      wasAirborne: !!(xpd.was_airborne || xpd.completion_armed),
+      previousSpeed: Number(xpd.speed || 0),
+    };
+  }, [defaultFlightEvents]);
   const [failurePopup, setFailurePopup] = useState(null);
   const failurePopupTimerRef = React.useRef(null);
   const showFailurePopup = React.useCallback((message) => {
@@ -921,21 +957,13 @@ export default function FlightTracker() {
       // The timestamp filter was incorrectly blocking ALL existing data
       setFlightStartedAt(null);
       setIsCompletingFlight(false);
-      // Reset flightData komplett für sauberen Start
-      const cleanData = {
-        altitude: 0, speed: 0, verticalSpeed: 0, heading: 0,
-        fuel: 100, fuelKg: 0, gForce: 1.0, maxGForce: 1.0,
-        landingGForce: 0, landingVs: 0, landingScoreChange: 0,
-        landingMaintenanceCost: 0, landingBonus: 0, flightScore: 100,
-        maintenanceCost: 0, reputation: 'EXCELLENT', latitude: 0, longitude: 0,
-        events: { ...defaultFlightEvents },
-        maxControlInput: 0, departure_lat: 0, departure_lon: 0,
-        arrival_lat: 0, arrival_lon: 0, wasAirborne: false, previousSpeed: 0, landingType: null
-      };
-      setFlightData(cleanData);
-      flightDataRef.current = cleanData;
+      // Restore last known live values so reopening SkyCareer mid-flight does
+      // not visually reset deadline/incidents while telemetry keeps running.
+      const restoredData = buildRestoredFlightData(existingFlight);
+      setFlightData(restoredData);
+      flightDataRef.current = restoredData;
     }
-  }, [existingFlight, flight]);
+  }, [existingFlight, flight, buildRestoredFlightData]);
 
   const { data: company } = useQuery({
     queryKey: ['company'],
