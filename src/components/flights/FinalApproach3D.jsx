@@ -328,7 +328,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.75;
+    renderer.toneMappingExposure = 0.92;
     mount.appendChild(renderer.domElement);
 
     // Sky dome with gradient (horizon glow). Radius > camera.far / 2 so the
@@ -358,11 +358,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const sky = new THREE.Mesh(skyGeo, skyMat);
     scene.add(sky);
 
-    // Dusk lighting: low ambient, warm low-angle sun, cool sky fill – gives the
-    // scene a darker, more cinematic mood while still revealing detail.
-    scene.add(new THREE.HemisphereLight(0x4a6a90, 0x2a3020, 0.3));
-    scene.add(new THREE.AmbientLight(0x40506a, 0.14));
-    const sunLight = new THREE.DirectionalLight(0xffb070, 0.45);
+    // Dusk lighting with a stronger sun key so the replay feels brighter and
+    // the aircraft/runway highlights read more clearly in the 3D video.
+    scene.add(new THREE.HemisphereLight(0x4a6a90, 0x2a3020, 0.38));
+    scene.add(new THREE.AmbientLight(0x40506a, 0.2));
+    const sunLight = new THREE.DirectionalLight(0xffb070, 0.78);
     sunLight.position.set(-300, 180, -150);
     scene.add(sunLight);
     const fillLight = new THREE.DirectionalLight(0x5078a0, 0.2);
