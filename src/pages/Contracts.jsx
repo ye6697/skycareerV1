@@ -422,8 +422,7 @@ export default function Contracts() {
     return compatibleContracts.filter((contract) => {
       const departureMatch =
         selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
-      const ownedDepartureMatch =
-        ownedHangarAirportSet.size === 0 || ownedHangarAirportSet.has(normIcao(contract.departure_airport));
+      const ownedDepartureMatch = ownedHangarAirportSet.has(normIcao(contract.departure_airport));
       return (
         tabMatches(contract, activeTab) &&
         searchMatches(contract, searchTerm) &&
@@ -438,8 +437,7 @@ export default function Contracts() {
     return incompatibleContracts.filter((contract) => {
       const departureMatch =
         selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
-      const ownedDepartureMatch =
-        ownedHangarAirportSet.size === 0 || ownedHangarAirportSet.has(normIcao(contract.departure_airport));
+      const ownedDepartureMatch = ownedHangarAirportSet.has(normIcao(contract.departure_airport));
       return (
         tabMatches(contract, activeTab) &&
         searchMatches(contract, searchTerm) &&
@@ -462,7 +460,12 @@ export default function Contracts() {
             const departureMatch =
               selectedDepartureAirport === "all" ||
               normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
-            return tabMatches(contract, activeTab) && searchMatches(contract, searchTerm) && departureMatch;
+            return (
+              tabMatches(contract, activeTab) &&
+              searchMatches(contract, searchTerm) &&
+              departureMatch &&
+              ownedHangarAirportSet.has(normIcao(contract.departure_airport))
+            );
           });
 
     return fallbackSelection
@@ -503,6 +506,7 @@ export default function Contracts() {
     searchTerm,
     selectedDepartureAirport,
     visibleIncompatibleContracts,
+    ownedHangarAirportSet,
   ]);
 
   useEffect(() => {
@@ -703,30 +707,6 @@ export default function Contracts() {
     () => ownedAircraft.filter((aircraft) => aircraft.status !== "sold"),
     [ownedAircraft]
   );
-  const [aircraftMoveTargets, setAircraftMoveTargets] = useState({});
-
-  useEffect(() => {
-    setAircraftMoveTargets((previous) => {
-      const next = { ...previous };
-      const validIds = new Set(activeOwnedAircraft.map((aircraft) => aircraft.id));
-      Object.keys(next).forEach((aircraftId) => {
-        if (!validIds.has(aircraftId)) delete next[aircraftId];
-      });
-
-      activeOwnedAircraft.forEach((aircraft) => {
-        const currentAirport = normIcao(aircraft.hangar_airport);
-        const fallbackAirport = normIcao(ownedHangars[0]?.airport_icao);
-        const alternativeAirport = normIcao(
-          ownedHangars.find((hangar) => normIcao(hangar.airport_icao) !== currentAirport)?.airport_icao
-        );
-        if (!next[aircraft.id]) {
-          next[aircraft.id] = alternativeAirport || currentAirport || fallbackAirport || "";
-        }
-      });
-
-      return next;
-    });
-  }, [activeOwnedAircraft, ownedHangars]);
 
   function getAircraftNewValue(aircraft) {
     return Number(
@@ -1039,13 +1019,6 @@ export default function Contracts() {
           onSelectMarketVariantId={setSelectedMarketVariantId}
           hangarVariants={HANGAR_MODEL_VARIANTS}
           ownedAircraft={activeOwnedAircraft}
-          aircraftMoveTargets={aircraftMoveTargets}
-          onChangeAircraftMoveTarget={(aircraftId, targetAirportIcao) =>
-            setAircraftMoveTargets((previous) => ({
-              ...previous,
-              [aircraftId]: normIcao(targetAirportIcao),
-            }))
-          }
           onMoveAircraft={({ aircraft, targetAirportIcao }) =>
             moveAircraftMutation.mutate({
               aircraft,
