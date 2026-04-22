@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X } from "lucide-react";
 import ContractWorldMap from "@/components/contracts/ContractWorldMap";
+import HangarModelPreview3D from "@/components/contracts/HangarModelPreview3D";
 import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
 
 function normIcao(value) {
@@ -161,6 +162,10 @@ export default function HangarWorldGlobe3D({
       hangarVariants.find((variant) => variant.id === selectedMarketVariantId) || hangarVariants[0] || null
     );
   }, [hangarVariants, selectedMarketVariantId]);
+  const selectedVariantSpec = useMemo(
+    () => getVariantSizeSpec(selectedVariant?.id) || null,
+    [selectedVariant?.id]
+  );
 
   const actionContext = useMemo(
     () =>
@@ -337,6 +342,13 @@ export default function HangarWorldGlobe3D({
                 : (lang === "de" ? "Status: Not owned" : "Status: Not owned")}
             </p>
           </div>
+
+          <HangarModelPreview3D
+            modelPath={selectedVariant?.path || ""}
+            sizeKey={selectedVariantSpec?.key || selectedAirportHangar?.size || "small"}
+            owned={Boolean(selectedAirportHangar)}
+            lang={lang}
+          />
 
           {selectedAirportHangar && (
             <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/75 p-2">

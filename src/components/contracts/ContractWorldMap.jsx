@@ -142,11 +142,10 @@ function FitToRoutes({ bounds, fitKey }) {
   return null;
 }
 
-function MapClickCatcher({ onBackgroundClick, suppressNextBackgroundClickRef }) {
+function MapClickCatcher({ onBackgroundClick, suppressBackgroundClickUntilRef }) {
   useMapEvents({
     click: () => {
-      if (suppressNextBackgroundClickRef?.current) {
-        suppressNextBackgroundClickRef.current = false;
+      if ((suppressBackgroundClickUntilRef?.current || 0) > Date.now()) {
         return;
       }
       onBackgroundClick?.();
@@ -233,7 +232,10 @@ export default function ContractWorldMap({
   );
 
   const normalizedSelectedAirport = String(selectedAirportIcao || "").toUpperCase();
-  const suppressNextBackgroundClickRef = useRef(false);
+  const suppressBackgroundClickUntilRef = useRef(0);
+  const markForegroundInteraction = () => {
+    suppressBackgroundClickUntilRef.current = Date.now() + 320;
+  };
 
   const mapContent = (
     <>
@@ -287,7 +289,7 @@ export default function ContractWorldMap({
         <FitToRoutes bounds={bounds} fitKey={fitKey} />
         <MapClickCatcher
           onBackgroundClick={onBackgroundClick}
-          suppressNextBackgroundClickRef={suppressNextBackgroundClickRef}
+          suppressBackgroundClickUntilRef={suppressBackgroundClickUntilRef}
         />
 
         <TileLayer
@@ -322,6 +324,10 @@ export default function ContractWorldMap({
                   weight: selected ? 10 : 6,
                   opacity: selected ? 0.22 : 0.1,
                 }}
+                eventHandlers={{
+                  mousedown: markForegroundInteraction,
+                  touchstart: markForegroundInteraction,
+                }}
               />
               <Polyline
                 positions={route.points}
@@ -333,9 +339,11 @@ export default function ContractWorldMap({
                   dashArray: selected ? undefined : "7 10",
                 }}
                 eventHandlers={{
+                  mousedown: markForegroundInteraction,
+                  touchstart: markForegroundInteraction,
                   click: (event) => {
                     event.originalEvent?.stopPropagation?.();
-                    suppressNextBackgroundClickRef.current = true;
+                    markForegroundInteraction();
                     onSelectContract?.(route.id);
                   },
                 }}
@@ -364,9 +372,11 @@ export default function ContractWorldMap({
                   opacity: 0.96,
                 }}
                 eventHandlers={{
+                  mousedown: markForegroundInteraction,
+                  touchstart: markForegroundInteraction,
                   click: (event) => {
                     event.originalEvent?.stopPropagation?.();
-                    suppressNextBackgroundClickRef.current = true;
+                    markForegroundInteraction();
                     onSelectAirport?.(icao);
                   },
                 }}
