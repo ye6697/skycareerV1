@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -28,11 +28,28 @@ import { getAirportCoords } from "@/utils/airportCoordinates";
 const HANGAR_MARKET = [
   { airport_icao: 'EDDF', label: 'Frankfurt' },
   { airport_icao: 'EGLL', label: 'London Heathrow' },
+  { airport_icao: 'LFPG', label: 'Paris CDG' },
+  { airport_icao: 'LEMD', label: 'Madrid' },
+  { airport_icao: 'LIRF', label: 'Rome Fiumicino' },
   { airport_icao: 'KJFK', label: 'New York JFK' },
   { airport_icao: 'KLAX', label: 'Los Angeles' },
+  { airport_icao: 'KORD', label: 'Chicago O’Hare' },
+  { airport_icao: 'KATL', label: 'Atlanta' },
+  { airport_icao: 'CYYZ', label: 'Toronto' },
+  { airport_icao: 'MMMX', label: 'Mexico City' },
+  { airport_icao: 'SBGR', label: 'São Paulo' },
   { airport_icao: 'OMDB', label: 'Dubai' },
+  { airport_icao: 'OTHH', label: 'Doha' },
+  { airport_icao: 'FAOR', label: 'Johannesburg' },
+  { airport_icao: 'HECA', label: 'Cairo' },
+  { airport_icao: 'VTBS', label: 'Bangkok' },
+  { airport_icao: 'WSSS', label: 'Singapore' },
   { airport_icao: 'RJTT', label: 'Tokyo Haneda' },
-  { airport_icao: 'YSSY', label: 'Sydney' }
+  { airport_icao: 'RKSI', label: 'Seoul Incheon' },
+  { airport_icao: 'ZSPD', label: 'Shanghai Pudong' },
+  { airport_icao: 'YSSY', label: 'Sydney' },
+  { airport_icao: 'YMML', label: 'Melbourne' },
+  { airport_icao: 'NZAA', label: 'Auckland' }
 ];
 
 const HANGAR_SIZES = [
@@ -50,6 +67,7 @@ export default function Contracts() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedAircraftId, setSelectedAircraftId] = useState('all');
   const [selectedHangarAirport, setSelectedHangarAirport] = useState('all');
+  const [selectedHangarId, setSelectedHangarId] = useState(null);
   const [hangarPurchase, setHangarPurchase] = useState({ airport_icao: HANGAR_MARKET[0].airport_icao, size: 'small' });
   const [minNm, setMinNm] = useState('');
   const [maxNm, setMaxNm] = useState('');
@@ -147,6 +165,10 @@ export default function Contracts() {
   // Separate contracts into compatible and incompatible based on selected aircraft or all available
   const aircraftToCheck = selectedAircraft ? [selectedAircraft] : availableAircraft;
 
+  const selectedHangarAircraft = selectedHangarId
+    ? availableAircraft.filter((plane) => plane.hangar_id === selectedHangarId)
+    : aircraftToCheck;
+
   const compatibleContracts = allContracts.filter(contract => {
     return aircraftToCheck.some(plane => {
       const typeMatch = !contract.required_aircraft_type || 
@@ -196,20 +218,52 @@ export default function Contracts() {
       contract.arrival_airport?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesHangar = selectedHangarAirport === 'all' || contract.departure_airport === selectedHangarAirport;
+    const matchesSelectedHangarAircraft = !selectedHangarId || selectedHangarAircraft.some((plane) => {
+      const typeMatch = !contract.required_aircraft_type ||
+        contract.required_aircraft_type.length === 0 ||
+        contract.required_aircraft_type.includes(plane.type);
+      const cargoMatch = !contract.cargo_weight_kg ||
+        (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
+      const rangeMatch = !contract.distance_nm ||
+        (plane.range_nm && plane.range_nm >= contract.distance_nm);
+      return typeMatch && cargoMatch && rangeMatch;
+    });
 
-    if (activeTab === 'all') return matchesSearch && matchesHangar && contract.status === 'available';
-    if (activeTab === 'accepted') return matchesSearch && matchesHangar && contract.status === 'accepted';
-    if (activeTab === 'passenger') return matchesSearch && matchesHangar && contract.type === 'passenger' && contract.status === 'available';
-    if (activeTab === 'cargo') return matchesSearch && matchesHangar && contract.type === 'cargo' && contract.status === 'available';
-    if (activeTab === 'charter') return matchesSearch && matchesHangar && contract.type === 'charter' && contract.status === 'available';
+    if (activeTab === 'all') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.status === 'available';
+    if (activeTab === 'accepted') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.status === 'accepted';
+    if (activeTab === 'passenger') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.type === 'passenger' && contract.status === 'available';
+    if (activeTab === 'cargo') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.type === 'cargo' && contract.status === 'available';
+    if (activeTab === 'charter') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.type === 'charter' && contract.status === 'available';
     return matchesSearch;
   });
+
+  const hangarContractsMap = useMemo(() => {
+    const result = {};
+    ownedHangars.forEach((hangar) => {
+      const stationed = availableAircraft.filter((plane) => plane.hangar_id === hangar.id);
+      const list = filteredContracts.filter((contract) => {
+        if (contract.departure_airport !== hangar.airport_icao) return false;
+        return stationed.some((plane) => {
+          const typeMatch = !contract.required_aircraft_type || contract.required_aircraft_type.includes(plane.type);
+          const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
+          const rangeMatch = !contract.distance_nm || (plane.range_nm && plane.range_nm >= contract.distance_nm);
+          return typeMatch && cargoMatch && rangeMatch;
+        });
+      });
+      result[hangar.id] = list;
+    });
+    return result;
+  }, [ownedHangars, availableAircraft, filteredContracts]);
 
   const globeHangars = ownedHangars
     .map((hangar) => {
       const coords = getAirportCoords(hangar.airport_icao);
       if (!coords) return null;
-      return { ...hangar, ...coords };
+      return {
+        ...hangar,
+        ...coords,
+        stationedAircraft: availableAircraft.filter((plane) => plane.hangar_id === hangar.id)
+      };
     })
     .filter(Boolean);
 
@@ -313,14 +367,29 @@ export default function Contracts() {
           <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
             <div className="text-[10px] font-mono text-cyan-500 uppercase mb-2">{lang === 'de' ? 'Aufträge pro Hangar' : 'Contracts by hangar'}</div>
             <div className="flex flex-wrap gap-1 mb-2">
-              <button onClick={() => setSelectedHangarAirport('all')} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === 'all' ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>All</button>
+              <button onClick={() => { setSelectedHangarAirport('all'); setSelectedHangarId(null); }} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === 'all' ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>All</button>
               {ownedHangars.map((hangar) => (
-                <button key={hangar.id} onClick={() => setSelectedHangarAirport(hangar.airport_icao)} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === hangar.airport_icao ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>
+                <button
+                  key={hangar.id}
+                  onClick={() => {
+                    setSelectedHangarAirport(hangar.airport_icao);
+                    setSelectedHangarId(hangar.id);
+                  }}
+                  className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === hangar.airport_icao ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}
+                >
                   {hangar.airport_icao} · {hangar.size}
                 </button>
               ))}
             </div>
-            <HangarWorldGlobe3D hangars={globeHangars} contracts={globeContracts} />
+            <HangarWorldGlobe3D
+              hangars={globeHangars}
+              contracts={globeContracts}
+              contractsByHangar={hangarContractsMap}
+              onSelectHangar={(hangar) => {
+                setSelectedHangarAirport(hangar.airport_icao);
+                setSelectedHangarId(hangar.id);
+              }}
+            />
           </Card>
         )}
 

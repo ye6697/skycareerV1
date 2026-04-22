@@ -105,6 +105,22 @@ const HANGAR_SIZE_RULES = {
   mega: { slots: 10, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'] }
 };
 
+const findHangarForAircraftType = (hangars = [], aircraft = [], aircraftType) => {
+  const candidates = hangars
+    .map((hangar) => {
+      const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+      const used = aircraft.filter((entry) => entry.status !== 'sold' && entry.hangar_id === hangar.id).length;
+      return {
+        hangar,
+        rule,
+        freeSlots: Math.max(0, rule.slots - used)
+      };
+    })
+    .filter((entry) => entry.rule.allowed_types.includes(aircraftType) && entry.freeSlots > 0)
+    .sort((a, b) => b.freeSlots - a.freeSlots);
+  return candidates[0]?.hangar || null;
+};
+
 
 const MAINTENANCE_CATEGORY_KEYS = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
 const makeCategoryMap = (source, fallbackValue = 0) =>
@@ -482,12 +498,8 @@ export default function Fleet() {
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
       const companyHangars = Array.isArray(company?.hangars) ? company.hangars : [];
-      const totalCapacityForType = companyHangars.reduce((acc, hangar) => {
-        const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
-        return rule.allowed_types.includes(specs.type) ? acc + rule.slots : acc;
-      }, 0);
-      const occupiedSlotsForType = aircraft.filter((entry) => entry.status !== 'sold' && entry.type === specs.type).length;
-      if (occupiedSlotsForType >= totalCapacityForType) {
+      const assignedHangar = findHangarForAircraftType(companyHangars, aircraft, specs.type);
+      if (!assignedHangar) {
         throw new Error(
           lang === 'de'
             ? `Kein Hangarplatz für ${specs.type}. Kaufe zuerst einen passenden Hangar.`
@@ -559,7 +571,9 @@ export default function Fleet() {
         source_market_listing_id: aircraftData.market_listing_id || null,
         used_wear_avg: Number(aircraftData.used_wear_avg || 0),
         used_wear_peak: Number(aircraftData.used_wear_peak || 0),
-        used_permanent_avg: Number(aircraftData.used_permanent_avg || persistedPermanentAvg || 0)
+        used_permanent_avg: Number(aircraftData.used_permanent_avg || persistedPermanentAvg || 0),
+        hangar_id: assignedHangar.id,
+        hangar_airport: assignedHangar.airport_icao
       });
 
       if (company) {
