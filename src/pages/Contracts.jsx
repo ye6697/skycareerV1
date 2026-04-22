@@ -16,6 +16,7 @@ import {
   Plane,
   RefreshCw
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import ContractCard from "@/components/contracts/ContractCard";
 import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
