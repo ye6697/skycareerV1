@@ -394,6 +394,14 @@ function getActionContext(hangars, airportIcao, selectedVariant, lang) {
 
 export default function HangarWorldGlobe3D({
   hangars = [],
+  ownedAircraft = [],
+  aircraftMoveTargets = {},
+  onChangeAircraftMoveTarget,
+  onMoveAircraft,
+  isMovingAircraft = false,
+  getMoveValidation,
+  getTransferCost,
+  getAircraftModelName,
   contracts = [],
   contractsByHangar = {},
   marketAirports = [],
@@ -495,6 +503,20 @@ export default function HangarWorldGlobe3D({
     if (Array.isArray(airportContracts) && airportContracts.length > 0) return airportContracts;
     return normalizedContracts.filter((contract) => normIcao(contract.departure_airport) === selectedIcao);
   }, [normalizedContracts, normalizedContractsByAirport, selectedAirportIcao]);
+  const selectedAirportHangar = useMemo(() => {
+    const selectedIcao = normIcao(selectedAirportIcao);
+    if (!selectedIcao) return null;
+    return normalizedHangars.find((hangar) => normIcao(hangar.airport_icao) === selectedIcao) || null;
+  }, [normalizedHangars, selectedAirportIcao]);
+  const airportAircraft = useMemo(() => {
+    const selectedIcao = normIcao(selectedAirportIcao);
+    if (!selectedIcao) return [];
+    return ownedAircraft.filter(
+      (aircraft) =>
+        String(aircraft?.status || "").toLowerCase() !== "sold" &&
+        normIcao(aircraft?.hangar_airport) === selectedIcao
+    );
+  }, [ownedAircraft, selectedAirportIcao]);
 
   const visibleContracts = useMemo(() => normalizedContracts.slice(0, 80), [normalizedContracts]);
 
@@ -1018,10 +1040,10 @@ export default function HangarWorldGlobe3D({
       )}
 
       {showMarketPanel && selectedAirportData && !leafletMode && (
-        <div className={`absolute left-3 bottom-3 z-20 w-[320px] rounded-xl border border-cyan-900/50 bg-slate-950/90 p-3 backdrop-blur ${isFullscreen ? "max-h-[48vh]" : ""}`}>
+        <div className={`absolute left-3 bottom-3 z-20 w-[360px] rounded-xl border border-cyan-900/50 bg-slate-950/90 p-3 backdrop-blur ${isFullscreen ? "max-h-[62vh]" : "max-h-[52vh]"} overflow-y-auto`}>
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-              {lang === "de" ? "Hangar Marketplace" : "Hangar marketplace"}
+              {lang === "de" ? "Hangar Popup" : "Hangar popup"}
             </div>
             <div className="text-[10px] text-slate-400">{selectedAirportData.airport_icao}</div>
           </div>
@@ -1035,6 +1057,78 @@ export default function HangarWorldGlobe3D({
               {lang === "de" ? "Verfuegbare Auftraege ab hier" : "Available departures here"}: {selectedAirportContracts.length}
             </p>
           </div>
+
+          {selectedAirportHangar && (
+            <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/70 p-2">
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
+                  {lang === "de" ? "Hangar Management" : "Hangar management"}
+                </p>
+                <span className="text-[10px] font-mono text-emerald-300">
+                  {airportAircraft.length}/{Number(selectedAirportHangar?.slots || 0)}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {airportAircraft.length > 0 ? (
+                  airportAircraft.map((aircraft) => {
+                    const currentAirport = normIcao(aircraft?.hangar_airport);
+                    const selectedTarget = normIcao(aircraftMoveTargets?.[aircraft.id]) || currentAirport;
+                    const moveInfo = getMoveValidation?.(aircraft, selectedTarget) || { valid: false, reason: "" };
+                    const sameHangar = Boolean(currentAirport && selectedTarget && currentAirport === selectedTarget);
+                    const transferCost = Number(getTransferCost?.(aircraft, selectedTarget) || 0);
+                    return (
+                      <div key={aircraft.id} className="rounded border border-slate-700/70 bg-slate-950/70 p-2">
+                        <p className="truncate text-[11px] font-semibold text-cyan-100">
+                          {getAircraftModelName?.(aircraft) || aircraft?.name || aircraft?.type || aircraft?.id}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {(aircraft?.registration || aircraft?.id)} | {currentAirport || "-"}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <select
+                            value={selectedTarget}
+                            onChange={(event) => onChangeAircraftMoveTarget?.(aircraft.id, normIcao(event.target.value))}
+                            className="h-7 flex-1 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] text-cyan-100"
+                          >
+                            {normalizedHangars.map((hangar) => {
+                              const icao = normIcao(hangar.airport_icao);
+                              return (
+                                <option key={`${aircraft.id}_${icao}`} value={icao}>
+                                  {icao}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <Button
+                            type="button"
+                            disabled={sameHangar || !moveInfo.valid || isMovingAircraft}
+                            onClick={() => onMoveAircraft?.({ aircraft, targetAirportIcao: selectedTarget })}
+                            className="h-7 bg-emerald-600 px-2 text-[10px] font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
+                          >
+                            {isMovingAircraft
+                              ? (lang === "de" ? "..." : "...")
+                              : sameHangar
+                                ? (lang === "de" ? "Zugewiesen" : "Assigned")
+                                : (lang === "de" ? "Verschieben" : "Move")}
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {lang === "de" ? "Transfer" : "Transfer"}: ${Math.round(transferCost).toLocaleString()}
+                        </p>
+                        {!sameHangar && !moveInfo.valid && (
+                          <p className="text-[10px] text-amber-300">{moveInfo.reason}</p>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-[10px] text-slate-400">
+                    {lang === "de" ? "Keine Flugzeuge in diesem Hangar." : "No aircraft in this hangar."}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {hangarVariants.length > 0 && (
             <div className="mb-2">

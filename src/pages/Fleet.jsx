@@ -26,6 +26,7 @@ import MarketHangar3DView from "@/components/fleet3d/MarketHangar3DView";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { useToast } from "@/components/ui/use-toast";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
@@ -327,10 +328,15 @@ const buildUsedMarketInventory = ({ companyLevel = 1, marketSeed = '' } = {}) =>
   slice(0, 24);
 };
 
+function normIcao(value) {
+  return String(value || '').toUpperCase();
+}
+
 export default function Fleet() {
   const { state } = useLocation();
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [viewMode, setViewMode] = useState('3d'); // '3d' | 'grid'
@@ -632,6 +638,155 @@ export default function Fleet() {
   };
 
   const ownedHangars = React.useMemo(() => Array.isArray(company?.hangars) ? company.hangars : [], [company?.hangars]);
+  const movableAircraft = React.useMemo(
+    () => aircraft.filter((entry) => String(entry?.status || '').toLowerCase() !== 'sold'),
+    [aircraft]
+  );
+  const [fleetMoveTargets, setFleetMoveTargets] = useState({});
+
+  React.useEffect(() => {
+    setFleetMoveTargets((previous) => {
+      const next = { ...previous };
+      const validIds = new Set(movableAircraft.map((entry) => entry.id));
+      Object.keys(next).forEach((aircraftId) => {
+        if (!validIds.has(aircraftId)) delete next[aircraftId];
+      });
+      movableAircraft.forEach((entry) => {
+        const currentAirport = normIcao(entry?.hangar_airport);
+        const alternativeAirport = normIcao(
+          ownedHangars.find((hangar) => normIcao(hangar.airport_icao) !== currentAirport)?.airport_icao
+        );
+        if (!next[entry.id]) {
+          next[entry.id] = alternativeAirport || currentAirport || normIcao(ownedHangars[0]?.airport_icao);
+        }
+      });
+      return next;
+    });
+  }, [movableAircraft, ownedHangars]);
+
+  const getAircraftTransferCost = React.useCallback((aircraftEntry, targetAirportIcao) => {
+    const currentAirport = normIcao(aircraftEntry?.hangar_airport);
+    const targetAirport = normIcao(targetAirportIcao);
+    if (!targetAirport || !currentAirport || targetAirport === currentAirport) return 0;
+    const newValue = Number(
+      aircraftEntry?.original_purchase_price ||
+      aircraftEntry?.purchase_price ||
+      aircraftEntry?.current_value ||
+      0
+    );
+    if (newValue <= 0) return 0;
+    return Math.round(newValue * 0.1);
+  }, []);
+
+  const getFleetMoveValidation = React.useCallback((aircraftEntry, targetAirportIcao) => {
+    const targetAirport = normIcao(targetAirportIcao);
+    const currentAirport = normIcao(aircraftEntry?.hangar_airport);
+    const targetHangar = ownedHangars.find((hangar) => normIcao(hangar.airport_icao) === targetAirport);
+    if (!targetAirport || !targetHangar) {
+      return { valid: false, reason: lang === 'de' ? 'Hangar waehlen.' : 'Select hangar.' };
+    }
+    if (targetAirport === currentAirport) {
+      return { valid: false, reason: lang === 'de' ? 'Bereits in diesem Hangar.' : 'Already in this hangar.' };
+    }
+    const rule = resolveHangarRule(targetHangar);
+    if (Array.isArray(rule.allowed_types) && rule.allowed_types.length > 0 && !rule.allowed_types.includes(aircraftEntry.type)) {
+      return {
+        valid: false,
+        reason: lang === 'de' ? `Typ ${aircraftEntry.type} nicht erlaubt.` : `Type ${aircraftEntry.type} not allowed.`
+      };
+    }
+    const usedSlots = movableAircraft.filter((entry) => entry.id !== aircraftEntry.id && normIcao(entry.hangar_airport) === targetAirport).length;
+    if (Number(rule.slots || 0) > 0 && usedSlots >= Number(rule.slots || 0)) {
+      return { valid: false, reason: lang === 'de' ? 'Keine freien Slots.' : 'No free slots.' };
+    }
+    const transferCost = getAircraftTransferCost(aircraftEntry, targetAirport);
+    if (Number(company?.balance || 0) < transferCost) {
+      return { valid: false, reason: lang === 'de' ? 'Nicht genug Guthaben.' : 'Insufficient balance.' };
+    }
+    return { valid: true, reason: '', transferCost, targetHangar };
+  }, [ownedHangars, lang, movableAircraft, getAircraftTransferCost, company?.balance]);
+
+  const moveAircraftMutation = useMutation({
+    mutationFn: async ({ aircraftEntry, targetAirportIcao }) => {
+      if (!company?.id) throw new Error('Company not found.');
+      const validation = getFleetMoveValidation(aircraftEntry, targetAirportIcao);
+      if (!validation.valid || !validation.targetHangar) {
+        throw new Error(validation.reason || 'Invalid transfer.');
+      }
+      const targetAirport = normIcao(targetAirportIcao);
+      const transferCost = Number(validation.transferCost || 0);
+      const currentBalance = Number(company?.balance || 0);
+      if (currentBalance < transferCost) throw new Error('Insufficient balance.');
+
+      await base44.entities.Aircraft.update(aircraftEntry.id, {
+        hangar_id: validation.targetHangar.id,
+        hangar_airport: targetAirport,
+      });
+
+      if (transferCost > 0) {
+        await base44.entities.Company.update(company.id, {
+          balance: currentBalance - transferCost,
+        });
+        await base44.entities.Transaction.create({
+          company_id: company.id,
+          type: 'expense',
+          category: 'hangar_transfer',
+          amount: transferCost,
+          description:
+            lang === 'de'
+              ? `Hangar-Transfer ${aircraftEntry.registration || aircraftEntry.name || aircraftEntry.id} -> ${targetAirport}`
+              : `Hangar transfer ${aircraftEntry.registration || aircraftEntry.name || aircraftEntry.id} -> ${targetAirport}`,
+          date: new Date().toISOString(),
+        });
+      }
+
+      return { aircraftEntry, targetAirport, transferCost };
+    },
+    onSuccess: (result) => {
+      setFleetMoveTargets((previous) => ({
+        ...previous,
+        [result.aircraftEntry.id]: result.targetAirport,
+      }));
+      queryClient.setQueryData(['aircraft', company?.id], (previous) =>
+        Array.isArray(previous)
+          ? previous.map((entry) =>
+              entry.id === result.aircraftEntry.id
+                ? {
+                    ...entry,
+                    hangar_airport: result.targetAirport,
+                  }
+                : entry
+            )
+          : previous
+      );
+      queryClient.setQueryData(['company', resolveUserCompanyId(currentUser)], (previous) =>
+        previous
+          ? {
+              ...previous,
+              balance: Math.max(0, Number(previous.balance || 0) - Number(result.transferCost || 0)),
+            }
+          : previous
+      );
+      queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      toast({
+        title: lang === 'de' ? 'Flugzeug verschoben' : 'Aircraft moved',
+        description:
+          lang === 'de'
+            ? `${result.aircraftEntry.registration || result.aircraftEntry.name || 'Aircraft'} -> ${result.targetAirport}`
+            : `${result.aircraftEntry.registration || result.aircraftEntry.name || 'Aircraft'} -> ${result.targetAirport}`,
+        duration: 3500,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: lang === 'de' ? 'Transfer fehlgeschlagen' : 'Transfer failed',
+        description: error?.message || (lang === 'de' ? 'Unbekannter Fehler.' : 'Unknown error.'),
+        duration: 3500,
+      });
+    },
+  });
 
   const getHangarCapacityByType = React.useCallback((aircraftType) => {
     return ownedHangars.reduce((acc, hangar) => {
@@ -1031,6 +1186,80 @@ export default function Fleet() {
       <InsolvencyBanner />
 
       <div className="flex-1 overflow-y-auto min-h-0">
+        {ownedHangars.length > 0 && movableAircraft.length > 0 && (
+          <Card className="mb-2 border border-cyan-900/40 bg-slate-950/90 p-2">
+            <div className="mb-1 text-[10px] font-mono uppercase tracking-wide text-cyan-300">
+              {lang === 'de' ? 'Hangar Transfer' : 'Hangar transfer'}
+            </div>
+            {ownedHangars.length < 2 ? (
+              <p className="text-[11px] text-amber-300">
+                {lang === 'de'
+                  ? 'Du brauchst mindestens 2 Hangars, um Flugzeuge zu verschieben.'
+                  : 'You need at least 2 hangars to move aircraft.'}
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {movableAircraft.map((aircraftEntry) => {
+                  const currentAirport = normIcao(aircraftEntry.hangar_airport);
+                  const selectedTarget = normIcao(fleetMoveTargets[aircraftEntry.id]) || currentAirport;
+                  const moveInfo = getFleetMoveValidation(aircraftEntry, selectedTarget);
+                  const sameHangar = Boolean(currentAirport && selectedTarget && currentAirport === selectedTarget);
+                  const transferCost = getAircraftTransferCost(aircraftEntry, selectedTarget);
+                  return (
+                    <div key={aircraftEntry.id} className="rounded border border-slate-700/70 bg-slate-900/70 p-2">
+                      <p className="truncate text-[11px] font-semibold text-cyan-100">
+                        {aircraftEntry.name || aircraftEntry.model || aircraftEntry.type}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        {(aircraftEntry.registration || aircraftEntry.id)} | {lang === 'de' ? 'Aktuell' : 'Current'}: {currentAirport || '-'}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <select
+                          value={selectedTarget}
+                          onChange={(event) =>
+                            setFleetMoveTargets((previous) => ({
+                              ...previous,
+                              [aircraftEntry.id]: normIcao(event.target.value),
+                            }))
+                          }
+                          className="h-7 flex-1 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] text-cyan-100"
+                        >
+                          {ownedHangars.map((hangar) => {
+                            const icao = normIcao(hangar.airport_icao);
+                            return (
+                              <option key={`${aircraftEntry.id}_${icao}`} value={icao}>
+                                {icao}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <Button
+                          type="button"
+                          disabled={sameHangar || !moveInfo.valid || moveAircraftMutation.isPending}
+                          onClick={() => moveAircraftMutation.mutate({ aircraftEntry, targetAirportIcao: selectedTarget })}
+                          className="h-7 bg-emerald-600 px-2 text-[10px] font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
+                        >
+                          {moveAircraftMutation.isPending
+                            ? '...'
+                            : sameHangar
+                              ? (lang === 'de' ? 'Zugewiesen' : 'Assigned')
+                              : (lang === 'de' ? 'Verschieben' : 'Move')}
+                        </Button>
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        {lang === 'de' ? 'Transferkosten' : 'Transfer cost'}: ${Math.round(transferCost).toLocaleString()}
+                      </p>
+                      {!sameHangar && !moveInfo.valid && (
+                        <p className="text-[10px] text-amber-300">{moveInfo.reason}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-2">
           <TabsList className="bg-slate-900/80 border border-cyan-900/30 flex-wrap h-auto p-0.5 rounded-lg w-full justify-start overflow-x-auto">
             <TabsTrigger value="all" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1">ALL</TabsTrigger>

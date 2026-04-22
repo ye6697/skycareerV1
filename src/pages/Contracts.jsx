@@ -20,12 +20,10 @@ import {
   Search,
   Star,
   Users,
-  Warehouse,
 } from "lucide-react";
 
 import ContractCard from "@/components/contracts/ContractCard";
 import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
-import HangarMarket3D from "@/components/contracts/HangarMarket3D";
 import {
   HANGAR_SIZES,
   getDefaultVariantId,
@@ -730,16 +728,6 @@ export default function Contracts() {
     });
   }, [activeOwnedAircraft, ownedHangars]);
 
-  const occupancyByAirport = useMemo(() => {
-    const map = new Map();
-    activeOwnedAircraft.forEach((aircraft) => {
-      const airport = normIcao(aircraft.hangar_airport);
-      if (!airport) return;
-      map.set(airport, (map.get(airport) || 0) + 1);
-    });
-    return map;
-  }, [activeOwnedAircraft]);
-
   function getAircraftNewValue(aircraft) {
     return Number(
       aircraft?.original_purchase_price ||
@@ -858,6 +846,46 @@ export default function Contracts() {
       return { transferCost, targetAirport, aircraft };
     },
     onSuccess: (result) => {
+      setAircraftMoveTargets((previous) => ({
+        ...previous,
+        [result.aircraft.id]: result.targetAirport,
+      }));
+      queryClient.setQueryData(["contractsPageData"], (previous) => {
+        if (!previous) return previous;
+        const currentBalance = Number(previous?.company?.balance || 0);
+        const nextBalance = Math.max(0, currentBalance - Number(result.transferCost || 0));
+        return {
+          ...previous,
+          company: previous.company
+            ? {
+                ...previous.company,
+                balance: nextBalance,
+              }
+            : previous.company,
+          aircraft: Array.isArray(previous.aircraft)
+            ? previous.aircraft.map((entry) =>
+                entry.id === result.aircraft.id
+                  ? {
+                      ...entry,
+                      hangar_airport: result.targetAirport,
+                    }
+                  : entry
+              )
+            : previous.aircraft,
+        };
+      });
+      queryClient.setQueryData(["aircraft", company?.id], (previous) =>
+        Array.isArray(previous)
+          ? previous.map((entry) =>
+              entry.id === result.aircraft.id
+                ? {
+                    ...entry,
+                    hangar_airport: result.targetAirport,
+                  }
+                : entry
+            )
+          : previous
+      );
       queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
       queryClient.invalidateQueries({ queryKey: ["aircraft"] });
       queryClient.invalidateQueries({ queryKey: ["company"] });
@@ -867,6 +895,7 @@ export default function Contracts() {
           lang === "de"
             ? `${result.aircraft.registration || result.aircraft.name || "Aircraft"} -> ${result.targetAirport} (${result.transferCost > 0 ? `$${Math.round(result.transferCost).toLocaleString()}` : "ohne Kosten"})`
             : `${result.aircraft.registration || result.aircraft.name || "Aircraft"} -> ${result.targetAirport} (${result.transferCost > 0 ? `$${Math.round(result.transferCost).toLocaleString()}` : "no cost"})`,
+        duration: 3500,
       });
     },
     onError: (error) => {
@@ -903,14 +932,6 @@ export default function Contracts() {
 
   const selectedMarketHangar =
     ownedHangars.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedMarketAirportIcao)) || null;
-  const selectedVariantMeta = useMemo(
-    () => getVariantMeta(selectedMarketVariantId) || HANGAR_MODEL_VARIANTS[0] || null,
-    [selectedMarketVariantId]
-  );
-  const selectedSizeSpec = useMemo(
-    () => getVariantSizeSpec(selectedVariantMeta?.id) || HANGAR_SIZES[0],
-    [selectedVariantMeta?.id]
-  );
 
   useEffect(() => {
     if (selectedMarketHangar?.model_variant) {
@@ -930,78 +951,12 @@ export default function Contracts() {
       return;
     }
 
-    const variantSize = String(selectedSizeSpec?.key || "small").toLowerCase();
+    const variantSpec = getVariantSizeSpec(selectedMarketVariantId) || HANGAR_SIZES[0];
+    const variantSize = String(variantSpec?.key || "small").toLowerCase();
     if (variantSize !== selectedMarketSize) {
       setSelectedMarketSize(variantSize);
     }
-  }, [selectedMarketHangar?.model_variant, selectedMarketHangar?.size, selectedMarketSize, selectedMarketVariantId, selectedSizeSpec?.key]);
-
-  const marketActionInfo = useMemo(() => {
-    if (!selectedMarketAirportIcao) {
-      return {
-        label: lang === "de" ? "Airport waehlen" : "Select airport",
-        cost: 0,
-        canSubmit: false,
-        helper: lang === "de" ? "Bitte zuerst einen Airport waehlen." : "Please choose an airport first.",
-      };
-    }
-
-    if (!selectedMarketHangar) {
-      return {
-        label: lang === "de" ? "Hangar kaufen" : "Buy hangar",
-        cost: selectedSizeSpec.price,
-        canSubmit: true,
-        helper:
-          lang === "de"
-            ? `${selectedVariantMeta?.label || "-"} | ${selectedSizeSpec.key.toUpperCase()} | ${selectedSizeSpec.slots} Slots`
-            : `${selectedVariantMeta?.label || "-"} | ${selectedSizeSpec.key.toUpperCase()} | ${selectedSizeSpec.slots} slots`,
-      };
-    }
-
-    if (String(selectedMarketHangar.model_variant || "") === String(selectedVariantMeta?.id || "")) {
-      return {
-        label: lang === "de" ? "Bereits gekauft" : "Already owned",
-        cost: 0,
-        canSubmit: false,
-        helper:
-          lang === "de"
-            ? `Aktuell: ${selectedVariantMeta?.label || "-"}`
-            : `Current: ${selectedVariantMeta?.label || "-"}`,
-      };
-    }
-
-    const currentVariant = getVariantMeta(selectedMarketHangar.model_variant);
-    const currentVariantSpec = getVariantSizeSpec(currentVariant?.id);
-    const currentTier = Number(
-      selectedMarketHangar.upgrade_tier ??
-        currentVariantSpec?.tier ??
-        0
-    );
-    const targetTier = Number(selectedSizeSpec.tier || 0);
-    if (targetTier <= currentTier) {
-      return {
-        label: lang === "de" ? "Upgrade waehlen" : "Choose upgrade",
-        cost: 0,
-        canSubmit: false,
-        helper: lang === "de" ? "Nur Upgrades auf groessere Hangars moeglich." : "Only upgrades to larger sizes are possible.",
-      };
-    }
-    const baseCurrentPrice =
-      Number(selectedMarketHangar.purchase_price || 0) ||
-      Number(currentVariantSpec?.price || 0);
-    return {
-      label:
-        lang === "de"
-          ? `Upgrade auf ${selectedSizeSpec.key.toUpperCase()}`
-          : `Upgrade to ${selectedSizeSpec.key.toUpperCase()}`,
-      cost: Math.max(0, selectedSizeSpec.price - baseCurrentPrice),
-      canSubmit: true,
-      helper:
-        lang === "de"
-          ? `Aktuell: ${String(selectedMarketHangar.size || "small").toUpperCase()} / ${String(selectedMarketHangar.model_variant || "-")} -> ${selectedVariantMeta?.label || "-"}`
-          : `Current: ${String(selectedMarketHangar.size || "small").toUpperCase()} / ${String(selectedMarketHangar.model_variant || "-")} -> ${selectedVariantMeta?.label || "-"}`,
-    };
-  }, [lang, selectedMarketAirportIcao, selectedMarketHangar, selectedMarketSize, selectedSizeSpec, selectedVariantMeta?.id, selectedVariantMeta?.label]);
+  }, [selectedMarketHangar?.model_variant, selectedMarketHangar?.size, selectedMarketSize, selectedMarketVariantId]);
 
   const selectedContract =
     mapContracts.find((contract) => contract.id === selectedContractId) || null;
@@ -1060,24 +1015,6 @@ export default function Contracts() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-cyan-900/40 bg-slate-950/70 p-2">
-            <div className="inline-flex items-center gap-1 text-[11px] text-cyan-200"><Warehouse className="h-3.5 w-3.5" />{lang === "de" ? "Marketplace Airport" : "Marketplace airport"}</div>
-            <select value={selectedMarketAirportIcao} onChange={(event) => { const nextAirport = normIcao(event.target.value); setSelectedMarketAirportIcao(nextAirport); setSelectedDepartureAirport(nextAirport || "all"); }} className="h-7 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-xs text-cyan-100">
-              <option value="">{lang === "de" ? "Airport waehlen" : "Select airport"}</option>
-              {marketAirports.map((airport) => (
-                <option key={airport.airport_icao} value={airport.airport_icao}>{airport.airport_icao} - {airport.label}</option>
-              ))}
-            </select>
-            <Badge className="border-emerald-700/40 bg-emerald-900/20 text-[10px] font-mono text-emerald-200">
-              {marketActionInfo.label}: ${Math.round(marketActionInfo.cost || 0).toLocaleString()}
-            </Badge>
-            <Badge className="border-cyan-700/40 bg-cyan-900/20 text-[10px] font-mono text-cyan-200">
-              {selectedVariantMeta?.label || "-"} | {selectedSizeSpec.key.toUpperCase()} | {selectedSizeSpec.slots} Slots
-            </Badge>
-            <span className="text-[11px] text-slate-400">
-              {lang === "de" ? "Nur Modell waehlen, Preis/Infos kommen aus dem Modell." : "Model-only selection, price/details come from the model."}
-            </span>
-          </div>
         </div>
       </section>
 
@@ -1101,6 +1038,24 @@ export default function Contracts() {
           selectedMarketVariantId={selectedMarketVariantId}
           onSelectMarketVariantId={setSelectedMarketVariantId}
           hangarVariants={HANGAR_MODEL_VARIANTS}
+          ownedAircraft={activeOwnedAircraft}
+          aircraftMoveTargets={aircraftMoveTargets}
+          onChangeAircraftMoveTarget={(aircraftId, targetAirportIcao) =>
+            setAircraftMoveTargets((previous) => ({
+              ...previous,
+              [aircraftId]: normIcao(targetAirportIcao),
+            }))
+          }
+          onMoveAircraft={({ aircraft, targetAirportIcao }) =>
+            moveAircraftMutation.mutate({
+              aircraft,
+              targetAirportIcao,
+            })
+          }
+          isMovingAircraft={moveAircraftMutation.isPending}
+          getMoveValidation={getMoveValidation}
+          getTransferCost={getTransferCost}
+          getAircraftModelName={getAircraftModelName}
           onBuyOrUpgrade={({ airportIcao, modelVariant }) =>
             upsertHangarMutation.mutate({
               airportIcao,
@@ -1110,162 +1065,6 @@ export default function Contracts() {
           isBuyingOrUpgrading={upsertHangarMutation.isPending}
           lang={lang}
         />
-      )}
-
-      {!isLoading && (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
-          <Card className="xl:col-span-4 border border-cyan-900/40 bg-slate-950/90 p-3">
-            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-cyan-300/80">
-              {lang === "de" ? "Hangar Management" : "Hangar management"}
-            </div>
-            <div className="space-y-2">
-              {ownedHangarsWithCoords.length > 0 ? (
-                <>
-                  <div className="rounded-md border border-slate-700/70 bg-slate-900/70 p-2">
-                    <p className="mb-1 text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-                      {lang === "de" ? "1) Deine Hangars" : "1) Your hangars"}
-                    </p>
-                    {ownedHangarsWithCoords.map((hangar) => {
-                      const airportIcao = normIcao(hangar.airport_icao);
-                      const occupied = Number(occupancyByAirport.get(airportIcao) || 0);
-                      const total = Number(hangar.slots || 0);
-                      const variant = getVariantMeta(hangar.model_variant);
-                      return (
-                        <div key={`${hangar.airport_icao}_${hangar.size}`} className="mb-1.5 rounded-md border border-slate-700/70 bg-slate-950/70 p-2 last:mb-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-mono text-cyan-100">{hangar.airport_icao}</p>
-                            <Badge className="border-emerald-700/40 bg-emerald-900/25 text-[10px] font-mono text-emerald-200">
-                              {occupied}/{total}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 text-[11px] text-slate-300">{variant?.label || String(hangar.model_variant || "-")}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="rounded-md border border-slate-700/70 bg-slate-900/70 p-2">
-                    <p className="mb-2 text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-                      {lang === "de" ? "2) Flugzeug einem Hangar zuweisen" : "2) Assign aircraft to hangar"}
-                    </p>
-                    {ownedHangarsWithCoords.length < 2 && (
-                      <p className="mb-2 rounded border border-amber-700/40 bg-amber-900/20 px-2 py-1 text-[10px] text-amber-200">
-                        {lang === "de"
-                          ? "Fuer Transfers brauchst du mindestens 2 Hangars."
-                          : "You need at least 2 hangars for transfers."}
-                      </p>
-                    )}
-                    <div className="space-y-1.5">
-                      {activeOwnedAircraft.map((aircraft) => {
-                        const modelName = getAircraftModelName(aircraft);
-                        const registration = aircraft.registration || aircraft.tail_number || aircraft.id;
-                        const currentAirport = normIcao(aircraft.hangar_airport);
-                        const selectedTarget = normIcao(aircraftMoveTargets[aircraft.id]);
-                        const moveInfo = getMoveValidation(aircraft, selectedTarget);
-                        const transferCost = getTransferCost(aircraft, selectedTarget);
-                        const sameHangar = Boolean(currentAirport && selectedTarget && currentAirport === selectedTarget);
-                        return (
-                          <div key={aircraft.id} className="rounded-md border border-slate-700/70 bg-slate-950/70 p-2">
-                            <p className="truncate text-[11px] font-semibold text-cyan-100">
-                              {modelName}
-                            </p>
-                            <p className="mt-0.5 text-[10px] text-slate-400">
-                              {registration} | {lang === "de" ? "Aktuell" : "Current"}: {currentAirport || "-"}
-                            </p>
-                            <div className="mt-1.5 flex items-center gap-1.5">
-                              <select
-                                value={selectedTarget}
-                                onChange={(event) =>
-                                  setAircraftMoveTargets((previous) => ({
-                                    ...previous,
-                                    [aircraft.id]: normIcao(event.target.value),
-                                  }))
-                                }
-                                className="h-7 flex-1 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] text-cyan-100"
-                              >
-                                {ownedHangarsWithCoords.map((hangar) => (
-                                  <option key={`${aircraft.id}_${hangar.airport_icao}`} value={hangar.airport_icao}>
-                                    {hangar.airport_icao}
-                                  </option>
-                                ))}
-                              </select>
-                              <Button
-                                type="button"
-                                disabled={sameHangar || !moveInfo.valid || moveAircraftMutation.isPending}
-                                onClick={() =>
-                                  moveAircraftMutation.mutate({
-                                    aircraft,
-                                    targetAirportIcao: selectedTarget,
-                                  })
-                                }
-                                className="h-7 bg-emerald-600 px-2 text-[10px] font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
-                              >
-                                {moveAircraftMutation.isPending ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  (sameHangar
-                                    ? (lang === "de" ? "Zugewiesen" : "Assigned")
-                                    : (lang === "de" ? "Verschieben" : "Move"))
-                                )}
-                              </Button>
-                            </div>
-                            <p className="mt-1 text-[10px] text-slate-400">
-                              {lang === "de" ? "Transferkosten" : "Transfer cost"}: ${Math.round(transferCost || 0).toLocaleString()}
-                            </p>
-                            {!sameHangar && !moveInfo.valid && (
-                              <p className="mt-0.5 text-[10px] text-amber-300">{moveInfo.reason}</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <p className="mt-2 text-[10px] text-slate-400">
-                      {lang === "de"
-                        ? "Hinweis: Verlegung in einen anderen Hangar kostet 10% des Flugzeug-Neuwerts."
-                        : "Note: Moving to another hangar costs 10% of aircraft new value."}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <p className="rounded-md border border-slate-700/70 bg-slate-900/70 p-2 text-[11px] text-slate-400">
-                  {lang === "de"
-                    ? "Noch keine eigenen Hangars vorhanden."
-                    : "No owned hangars available yet."}
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <div className="xl:col-span-8">
-            <HangarMarket3D
-              marketAirports={marketAirports}
-              selectedAirportIcao={selectedMarketAirportIcao}
-              onSelectAirport={(airportIcao) => {
-                const nextAirport = normIcao(airportIcao);
-                setSelectedMarketAirportIcao(nextAirport);
-                setSelectedDepartureAirport(nextAirport || "all");
-              }}
-              selectedMarketSize={selectedMarketSize}
-              hangarVariants={HANGAR_MODEL_VARIANTS}
-              selectedMarketVariantId={selectedMarketVariantId}
-              onSelectMarketVariantId={setSelectedMarketVariantId}
-              selectedHangar={selectedMarketHangar}
-              actionLabel={marketActionInfo.label}
-              actionCost={marketActionInfo.cost}
-              actionHelper={`${marketActionInfo.helper} ${selectedVariantMeta ? `| ${selectedVariantMeta.label}` : ""}`}
-              canSubmit={marketActionInfo.canSubmit}
-              onBuyOrUpgrade={({ airportIcao, modelVariant } = {}) =>
-                upsertHangarMutation.mutate({
-                  airportIcao: airportIcao || selectedMarketAirportIcao,
-                  modelVariantId: modelVariant || selectedMarketVariantId,
-                })
-              }
-              isProcessing={upsertHangarMutation.isPending}
-              departureCount={mapContracts.filter((contract) => normIcao(contract.departure_airport) === normIcao(selectedMarketAirportIcao)).length}
-              lang={lang}
-            />
-          </div>
-        </div>
       )}
 
       {availableAircraft.length > 0 && (
@@ -1297,7 +1096,7 @@ export default function Contracts() {
       <div className="flex-1 overflow-y-auto min-h-0 pr-0.5">
         <div className="mb-3 flex items-start gap-2 rounded-lg border border-cyan-900/40 bg-cyan-950/25 p-2.5 text-xs text-cyan-100">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-300" />
-          <p>{lang === "de" ? "Globe koppelt Route-Fokus, Auftragsliste und Hangar-Market. Klick auf Route zoomt rein. Klick auf Airport oeffnet Kauf/Upgrade direkt im Globe." : "Globe now couples route focus, contract list and hangar market. Click route to zoom. Click airport to buy or upgrade directly from globe."}</p>
+          <p>{lang === "de" ? "Alles laeuft jetzt im Globe-Popup: Klick auf Airport oeffnet Hangar Market + Hangar Management direkt in der Karte." : "Everything now runs in the globe popup: click an airport to open hangar market + hangar management directly on the map."}</p>
         </div>
 
         {filteredCompatibleContracts.length > 0 ? (
