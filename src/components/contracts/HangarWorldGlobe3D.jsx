@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X } from "lucide-react";
@@ -108,6 +107,7 @@ export default function HangarWorldGlobe3D({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showContractsPanel, setShowContractsPanel] = useState(true);
   const [showMarketPanel, setShowMarketPanel] = useState(true);
+  const fullscreenRootRef = useRef(null);
 
   const normalizedHangars = useMemo(
     () =>
@@ -228,8 +228,53 @@ export default function HangarWorldGlobe3D({
       document.body.style.overflow = previousOverflow;
     };
   }, [isFullscreen]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const handleFullscreenChange = () => {
+      const activeElement = document.fullscreenElement;
+      setIsFullscreen(Boolean(activeElement && activeElement === fullscreenRootRef.current));
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (typeof document === "undefined") return;
+    const node = fullscreenRootRef.current;
+    if (!node) return;
+
+    try {
+      if (document.fullscreenElement === node) {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+        return;
+      }
+
+      if (document.fullscreenElement && document.fullscreenElement !== node) {
+        await document.exitFullscreen();
+      }
+
+      if (typeof node.requestFullscreen === "function") {
+        await node.requestFullscreen();
+      } else {
+        setIsFullscreen((value) => !value);
+      }
+      window.scrollTo({ top: 0, behavior: "auto" });
+      setIsFullscreen(true);
+    } catch {
+      setIsFullscreen((value) => !value);
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  };
+
   const content = (
-    <div className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "fixed inset-0 z-[220] rounded-none" : "rounded-xl"}`}>
+    <div
+      ref={fullscreenRootRef}
+      className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "fixed inset-0 z-[9999] h-[100dvh] w-[100vw] rounded-none" : "rounded-xl"}`}
+    >
       <div className="absolute left-3 top-3 z-[1400] flex items-center gap-2">
         <Badge className="border-cyan-700/50 bg-slate-950/90 text-[10px] font-mono uppercase text-cyan-100">
           <RouteIcon className="mr-1 h-3 w-3" />
@@ -263,7 +308,7 @@ export default function HangarWorldGlobe3D({
           type="button"
           size="icon"
           variant="outline"
-          onClick={() => setIsFullscreen((value) => !value)}
+          onClick={toggleFullscreen}
           className="h-8 w-8 border-cyan-700/50 bg-slate-950/90 text-cyan-200 hover:bg-cyan-950/40"
         >
           {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -504,10 +549,6 @@ export default function HangarWorldGlobe3D({
       </div>
     </div>
   );
-
-  if (isFullscreen && typeof document !== "undefined") {
-    return createPortal(content, document.body);
-  }
 
   return content;
 }
