@@ -272,6 +272,12 @@ export default function Contracts() {
     arrival: getAirportCoords(contract.arrival_airport)
   }));
 
+  const selectedHangarSpec = HANGAR_SIZES.find((size) => size.key === hangarPurchase.size) || HANGAR_SIZES[0];
+  const marketAirportsWithCoords = HANGAR_MARKET.map((airport) => ({
+    ...airport,
+    ...getAirportCoords(airport.airport_icao)
+  })).filter((airport) => Number.isFinite(airport.lat) && Number.isFinite(airport.lon));
+
   const handleAccept = (contract) => {
     acceptContractMutation.mutate(contract);
   };
@@ -316,20 +322,10 @@ export default function Contracts() {
 
       <div className="flex-1 overflow-y-auto min-h-0">
         <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[10px] font-mono text-cyan-300">
-              {lang === 'de'
-                ? '3D Hangar-Markt und 3D Welt findest du in der Flotte.'
-                : 'You can find the 3D hangar market and 3D world in Fleet.'}
-            </div>
-            <Button size="sm" onClick={() => navigate(createPageUrl('Fleet'))}>
-              {lang === 'de' ? 'Zur Flotte (3D)' : 'Go to Fleet (3D)'}
-            </Button>
+          <div className="text-[10px] font-mono text-cyan-500 uppercase mb-2">
+            {lang === 'de' ? '3D Hangar-Markt & Weltkarte' : '3D Hangar market & world map'}
           </div>
-        </Card>
-
-        <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
-          <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex flex-wrap gap-2 items-end mb-3">
             <div>
               <div className="text-[10px] font-mono text-cyan-500 uppercase">{lang === 'de' ? 'Flughafen' : 'Airport'}</div>
               <select
@@ -361,37 +357,50 @@ export default function Contracts() {
               {lang === 'de' ? 'Eigene Hangars' : 'Owned hangars'}: {ownedHangars.length}
             </div>
           </div>
-        </Card>
 
-        {ownedHangars.length > 0 && (
-          <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
-            <div className="text-[10px] font-mono text-cyan-500 uppercase mb-2">{lang === 'de' ? 'Aufträge pro Hangar' : 'Contracts by hangar'}</div>
-            <div className="flex flex-wrap gap-1 mb-2">
-              <button onClick={() => { setSelectedHangarAirport('all'); setSelectedHangarId(null); }} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === 'all' ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>All</button>
-              {ownedHangars.map((hangar) => (
-                <button
-                  key={hangar.id}
-                  onClick={() => {
-                    setSelectedHangarAirport(hangar.airport_icao);
-                    setSelectedHangarId(hangar.id);
-                  }}
-                  className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === hangar.airport_icao ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}
-                >
-                  {hangar.airport_icao} · {hangar.size}
-                </button>
-              ))}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 mb-2">
+            <div className="rounded bg-slate-950/80 border border-cyan-900/40 p-2 text-[10px] font-mono">
+              <div className="text-cyan-500 uppercase mb-1">{lang === 'de' ? 'Ausgewählte Größe' : 'Selected size'}</div>
+              <div className="text-cyan-200">{selectedHangarSpec.key.toUpperCase()} · {selectedHangarSpec.slots} slots</div>
+              <div className="text-emerald-400">${Math.round(selectedHangarSpec.price).toLocaleString()}</div>
             </div>
-            <HangarWorldGlobe3D
-              hangars={globeHangars}
-              contracts={globeContracts}
-              contractsByHangar={hangarContractsMap}
-              onSelectHangar={(hangar) => {
-                setSelectedHangarAirport(hangar.airport_icao);
-                setSelectedHangarId(hangar.id);
-              }}
-            />
-          </Card>
-        )}
+            <div className="rounded bg-slate-950/80 border border-cyan-900/40 p-2 text-[10px] font-mono lg:col-span-2">
+              <div className="text-cyan-500 uppercase mb-1">{lang === 'de' ? 'Erlaubte Flugzeugtypen' : 'Allowed aircraft types'}</div>
+              <div className="text-cyan-200">{selectedHangarSpec.allowedTypes.join(', ')}</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1 mb-2">
+            <button onClick={() => { setSelectedHangarAirport('all'); setSelectedHangarId(null); }} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === 'all' ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>All</button>
+            {ownedHangars.map((hangar) => (
+              <button
+                key={hangar.id}
+                onClick={() => {
+                  setSelectedHangarAirport(hangar.airport_icao);
+                  setSelectedHangarId(hangar.id);
+                }}
+                className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === hangar.airport_icao ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}
+              >
+                {hangar.airport_icao} · {hangar.size}
+              </button>
+            ))}
+          </div>
+
+          <HangarWorldGlobe3D
+            hangars={globeHangars}
+            contracts={globeContracts}
+            contractsByHangar={hangarContractsMap}
+            marketAirports={marketAirportsWithCoords}
+            lang={lang}
+            onSelectHangar={(hangar) => {
+              setSelectedHangarAirport(hangar.airport_icao);
+              setSelectedHangarId(hangar.id);
+            }}
+            onSelectMarketAirport={(airport) => {
+              setHangarPurchase((prev) => ({ ...prev, airport_icao: airport.airport_icao }));
+            }}
+          />
+        </Card>
 
         {/* Aircraft Selector */}
         {availableAircraft.length > 0 && (
