@@ -7,10 +7,10 @@ import { Card } from "@/components/ui/card";
 import { Building2, Loader2, MapPin } from "lucide-react";
 
 const SIZE_STYLE = {
-  small: { width: 2.7, height: 2.3, depth: 2.2, color: 0x22d3ee },
-  medium: { width: 3.4, height: 2.9, depth: 2.8, color: 0x38bdf8 },
-  large: { width: 4.2, height: 3.5, depth: 3.5, color: 0x22c55e },
-  mega: { width: 5.2, height: 4.2, depth: 4.3, color: 0xeab308 },
+  small: { width: 2.7, height: 2.3, depth: 2.2, color: 0x64748b },
+  medium: { width: 3.4, height: 2.9, depth: 2.8, color: 0x475569 },
+  large: { width: 4.2, height: 3.5, depth: 3.5, color: 0x334155 },
+  mega: { width: 5.2, height: 4.2, depth: 4.3, color: 0x1e293b },
 };
 
 function normIcao(value) {
@@ -32,30 +32,92 @@ function buildHangarModel(sizeKey, owned) {
   apron.position.y = 0.07;
   group.add(apron);
 
-  const shell = new THREE.Mesh(
-    new THREE.BoxGeometry(spec.width, spec.height * 0.66, spec.depth),
-    new THREE.MeshStandardMaterial({
-      color: owned ? spec.color : 0xea580c,
-      emissive: owned ? 0x063046 : 0x3c1a0e,
-      emissiveIntensity: owned ? 0.42 : 0.18,
-      metalness: 0.3,
-      roughness: 0.54,
-    })
-  );
-  shell.position.y = spec.height * 0.35;
-  group.add(shell);
+  const hangarBodyMaterial = new THREE.MeshStandardMaterial({
+    color: owned ? spec.color : 0x52525b,
+    emissive: owned ? 0x082f49 : 0x0f172a,
+    emissiveIntensity: owned ? 0.24 : 0.08,
+    metalness: 0.34,
+    roughness: 0.56,
+  });
+  const roofMaterial = new THREE.MeshStandardMaterial({
+    color: 0xcbd5e1,
+    metalness: 0.58,
+    roughness: 0.26,
+  });
 
-  const roof = new THREE.Mesh(
-    new THREE.CylinderGeometry(spec.depth * 0.52, spec.depth * 0.52, spec.width * 0.94, 22, 1, false, 0, Math.PI),
-    new THREE.MeshStandardMaterial({
-      color: owned ? 0xe2e8f0 : 0xfdba74,
-      metalness: 0.52,
-      roughness: 0.3,
-    })
-  );
-  roof.rotation.z = Math.PI / 2;
-  roof.position.y = spec.height * 0.72;
-  group.add(roof);
+  if (sizeKey === "small") {
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(spec.width, spec.height * 0.62, spec.depth), hangarBodyMaterial);
+    shell.position.y = spec.height * 0.33;
+    group.add(shell);
+
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(spec.width * 0.5, spec.height * 0.42, 4), roofMaterial);
+    roof.position.y = spec.height * 0.82;
+    roof.rotation.y = Math.PI / 4;
+    group.add(roof);
+  } else if (sizeKey === "medium") {
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(spec.width, spec.height * 0.64, spec.depth), hangarBodyMaterial);
+    shell.position.y = spec.height * 0.33;
+    group.add(shell);
+
+    const roof = new THREE.Mesh(
+      new THREE.CylinderGeometry(spec.depth * 0.52, spec.depth * 0.52, spec.width * 0.94, 22, 1, false, 0, Math.PI),
+      roofMaterial
+    );
+    roof.rotation.z = Math.PI / 2;
+    roof.position.y = spec.height * 0.72;
+    group.add(roof);
+  } else if (sizeKey === "large") {
+    const left = new THREE.Mesh(new THREE.BoxGeometry(spec.width * 0.45, spec.height * 0.62, spec.depth * 0.84), hangarBodyMaterial);
+    left.position.set(-spec.width * 0.3, spec.height * 0.33, 0);
+    group.add(left);
+
+    const right = left.clone();
+    right.position.x = spec.width * 0.3;
+    group.add(right);
+
+    const connector = new THREE.Mesh(
+      new THREE.BoxGeometry(spec.width * 0.2, spec.height * 0.4, spec.depth * 0.78),
+      new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.42, roughness: 0.4 })
+    );
+    connector.position.y = spec.height * 0.21;
+    group.add(connector);
+
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(spec.width * 0.96, spec.height * 0.12, spec.depth * 0.9),
+      roofMaterial
+    );
+    roof.position.y = spec.height * 0.75;
+    group.add(roof);
+  } else {
+    const terminal = new THREE.Mesh(new THREE.BoxGeometry(spec.width * 0.88, spec.height * 0.66, spec.depth * 0.82), hangarBodyMaterial);
+    terminal.position.y = spec.height * 0.35;
+    group.add(terminal);
+
+    const sideL = new THREE.Mesh(
+      new THREE.BoxGeometry(spec.width * 0.28, spec.height * 0.46, spec.depth * 0.56),
+      new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.35, roughness: 0.48 })
+    );
+    sideL.position.set(-spec.width * 0.6, spec.height * 0.24, -spec.depth * 0.06);
+    group.add(sideL);
+
+    const sideR = sideL.clone();
+    sideR.position.x = spec.width * 0.6;
+    group.add(sideR);
+
+    const tower = new THREE.Mesh(
+      new THREE.BoxGeometry(spec.width * 0.12, spec.height * 0.42, spec.depth * 0.12),
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.62, roughness: 0.2 })
+    );
+    tower.position.set(0, spec.height * 0.88, spec.depth * 0.18);
+    group.add(tower);
+
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(spec.width * 0.94, spec.height * 0.12, spec.depth * 0.86),
+      roofMaterial
+    );
+    roof.position.y = spec.height * 0.75;
+    group.add(roof);
+  }
 
   const frame = new THREE.Mesh(
     new THREE.PlaneGeometry(spec.width * 0.62, spec.height * 0.54),
@@ -327,6 +389,7 @@ export default function HangarMarket3D({
               onChange={(event) => onSelectAirport?.(event.target.value)}
               className="h-8 w-full rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-xs text-cyan-100"
             >
+              <option value="">{lang === "de" ? "Airport waehlen" : "Select airport"}</option>
               {marketAirports.map((airport) => (
                 <option key={airport.airport_icao} value={airport.airport_icao}>
                   {airport.airport_icao} - {airport.label}

@@ -612,3 +612,14 @@ export function getAirportCoords(icao) {
   const key = icao.trim().toUpperCase();
   return AIRPORT_COORDS[key] || ADDITIONAL_AIRPORT_COORDS[key] || null;
 }
+
+export function getAllAirportCoords() {
+  return Object.entries({
+    ...AIRPORT_COORDS,
+    ...ADDITIONAL_AIRPORT_COORDS,
+  }).map(([airport_icao, value]) => ({
+    airport_icao,
+    lat: value.lat,
+    lon: value.lon,
+  }));
+}

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Globe2, MountainSnow, Route, Satellite } from "lucide-react";
 import {
+  CircleMarker,
   LayersControl,
   MapContainer,
   Marker,
@@ -10,6 +11,7 @@ import {
   TileLayer,
   Tooltip,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -76,10 +78,25 @@ function FitToRoutes({ bounds, fitKey }) {
   return null;
 }
 
+function MapClickCatcher({ onBackgroundClick }) {
+  useMapEvents({
+    click: () => {
+      onBackgroundClick?.();
+    },
+  });
+  return null;
+}
+
 export default function ContractWorldMap({
   contracts = [],
+  hangars = [],
+  marketAirports = [],
   selectedContractId = null,
   onSelectContract,
+  selectedAirportIcao = "",
+  onSelectAirport,
+  onBackgroundClick,
+  embedded = false,
   lang = "de",
 }) {
   const routes = useMemo(
@@ -113,7 +130,25 @@ export default function ContractWorldMap({
     ? `selected:${selectedRoute.id}:${routes.length}`
     : `all:${routes.length}`;
 
+  const ownedSet = useMemo(
+    () => new Set(hangars.map((hangar) => String(hangar?.airport_icao || "").toUpperCase())),
+    [hangars]
+  );
+
+  const normalizedSelectedAirport = String(selectedAirportIcao || "").toUpperCase();
+
   if (!routes.length) {
+    if (embedded) {
+      return (
+        <div className="flex h-full w-full items-center justify-center bg-slate-900/95">
+          <p className="text-sm text-slate-400">
+            {lang === "de"
+              ? "Keine Route mit bekannten Flughafenkoordinaten gefunden."
+              : "No route with known airport coordinates found."}
+          </p>
+        </div>
+      );
+    }
     return (
       <Card className="h-full min-h-[420px] border border-cyan-900/40 bg-slate-950/90 p-4">
         <div className="mb-4 flex items-center gap-2">
@@ -131,6 +166,134 @@ export default function ContractWorldMap({
         </div>
       </Card>
     );
+  }
+
+  const mapContent = (
+    <>
+      <MapContainer
+        center={selectedRoute ? selectedRoute.points[0] : [47.3, 10.6]}
+        zoom={4}
+        style={{ width: "100%", height: "100%" }}
+        zoomControl
+        attributionControl
+      >
+        <FitToRoutes bounds={bounds} fitKey={fitKey} />
+        <MapClickCatcher onBackgroundClick={onBackgroundClick} />
+
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Satellite">
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="Tiles &copy; Esri"
+            />
+          </LayersControl.BaseLayer>
+
+          <LayersControl.BaseLayer name="Topographic">
+            <TileLayer
+              url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+              attribution="Map data &copy; OpenStreetMap contributors, SRTM"
+            />
+          </LayersControl.BaseLayer>
+
+          <LayersControl.BaseLayer name="Dark">
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+            />
+          </LayersControl.BaseLayer>
+
+          <LayersControl.Overlay checked name="Labels">
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
+              opacity={0.75}
+              attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+            />
+          </LayersControl.Overlay>
+        </LayersControl>
+
+        {marketAirports.map((airport) => {
+          if (!Number.isFinite(airport?.lat) || !Number.isFinite(airport?.lon)) return null;
+          const icao = String(airport.airport_icao || "").toUpperCase();
+          const owned = ownedSet.has(icao);
+          const selected = normalizedSelectedAirport === icao;
+          return (
+            <CircleMarker
+              key={`airport_${icao}`}
+              center={[airport.lat, airport.lon]}
+              radius={selected ? 5.5 : owned ? 4 : 2.3}
+              pathOptions={{
+                color: selected ? "#e2e8f0" : owned ? "#22d3ee" : "#f59e0b",
+                weight: selected ? 2 : 1,
+                fillColor: selected ? "#0ea5e9" : owned ? "#22d3ee" : "#f59e0b",
+                fillOpacity: selected ? 0.9 : owned ? 0.8 : 0.4,
+                opacity: selected ? 1 : 0.8,
+              }}
+              eventHandlers={{
+                click: (event) => {
+                  event.originalEvent?.stopPropagation?.();
+                  onSelectAirport?.(icao);
+                },
+              }}
+            />
+          );
+        })}
+
+        {routes.map((route) => {
+          const selected = route.id === selectedContractId;
+          const color = getRouteColor(route.type);
+
+          return (
+            <Polyline
+              key={route.id}
+              positions={route.points}
+              pathOptions={{
+                color,
+                weight: selected ? 5 : 2,
+                opacity: selected ? 0.95 : 0.34,
+                dashArray: selected ? undefined : "8 11",
+              }}
+              eventHandlers={{
+                click: (event) => {
+                  event.originalEvent?.stopPropagation?.();
+                  onSelectContract?.(route.id);
+                },
+              }}
+            />
+          );
+        })}
+
+        {selectedRoute && (
+          <>
+            <Polyline
+              positions={selectedRoute.points}
+              pathOptions={{
+                color: "#ffffff",
+                weight: 8,
+                opacity: 0.18,
+              }}
+            />
+            <Marker position={selectedRoute.points[0]} icon={departureIcon}>
+              <Tooltip direction="right" offset={[12, 0]} opacity={1}>
+                <span className="font-mono text-xs font-semibold">
+                  {selectedRoute.departure_airport}
+                </span>
+              </Tooltip>
+            </Marker>
+            <Marker position={selectedRoute.points[1]} icon={arrivalIcon}>
+              <Tooltip direction="right" offset={[12, 0]} opacity={1}>
+                <span className="font-mono text-xs font-semibold">
+                  {selectedRoute.arrival_airport}
+                </span>
+              </Tooltip>
+            </Marker>
+          </>
+        )}
+      </MapContainer>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="h-full w-full">{mapContent}</div>;
   }
 
   return (
@@ -161,94 +324,7 @@ export default function ContractWorldMap({
       </div>
 
       <div className="h-[380px] lg:h-[470px]">
-        <MapContainer
-          center={selectedRoute ? selectedRoute.points[0] : [47.3, 10.6]}
-          zoom={4}
-          style={{ width: "100%", height: "100%" }}
-          zoomControl
-          attributionControl
-        >
-          <FitToRoutes bounds={bounds} fitKey={fitKey} />
-
-          <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="Satellite">
-              <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                attribution="Tiles &copy; Esri"
-              />
-            </LayersControl.BaseLayer>
-
-            <LayersControl.BaseLayer name="Topographic">
-              <TileLayer
-                url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-                attribution="Map data &copy; OpenStreetMap contributors, SRTM"
-              />
-            </LayersControl.BaseLayer>
-
-            <LayersControl.BaseLayer name="Dark">
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-              />
-            </LayersControl.BaseLayer>
-
-            <LayersControl.Overlay checked name="Labels">
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
-                opacity={0.75}
-                attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-              />
-            </LayersControl.Overlay>
-          </LayersControl>
-
-          {routes.map((route) => {
-            const selected = route.id === selectedContractId;
-            const color = getRouteColor(route.type);
-
-            return (
-              <Polyline
-                key={route.id}
-                positions={route.points}
-                pathOptions={{
-                  color,
-                  weight: selected ? 5 : 2,
-                  opacity: selected ? 0.95 : 0.34,
-                  dashArray: selected ? undefined : "8 11",
-                }}
-                eventHandlers={{
-                  click: () => onSelectContract?.(route.id),
-                }}
-              />
-            );
-          })}
-
-          {selectedRoute && (
-            <>
-              <Polyline
-                positions={selectedRoute.points}
-                pathOptions={{
-                  color: "#ffffff",
-                  weight: 8,
-                  opacity: 0.18,
-                }}
-              />
-              <Marker position={selectedRoute.points[0]} icon={departureIcon}>
-                <Tooltip direction="right" offset={[12, 0]} opacity={1}>
-                  <span className="font-mono text-xs font-semibold">
-                    {selectedRoute.departure_airport}
-                  </span>
-                </Tooltip>
-              </Marker>
-              <Marker position={selectedRoute.points[1]} icon={arrivalIcon}>
-                <Tooltip direction="right" offset={[12, 0]} opacity={1}>
-                  <span className="font-mono text-xs font-semibold">
-                    {selectedRoute.arrival_airport}
-                  </span>
-                </Tooltip>
-              </Marker>
-            </>
-          )}
-        </MapContainer>
+        {mapContent}
       </div>
 
       <div className="border-t border-cyan-900/40 bg-slate-950/80 px-3 py-2">

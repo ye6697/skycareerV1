@@ -3,20 +3,14 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin } from "lucide-react";
+import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X } from "lucide-react";
+import ContractWorldMap from "@/components/contracts/ContractWorldMap";
 
 const ROUTE_COLORS = {
-  passenger: 0x22d3ee,
-  cargo: 0xfb923c,
-  charter: 0xc084fc,
-  emergency: 0xf43f5e,
-};
-
-const HANGAR_VISUAL_SCALE = {
-  small: { width: 0.95, height: 1.05, depth: 0.9, color: 0x22d3ee },
-  medium: { width: 1.22, height: 1.28, depth: 1.15, color: 0x38bdf8 },
-  large: { width: 1.52, height: 1.54, depth: 1.4, color: 0x22c55e },
-  mega: { width: 1.86, height: 1.9, depth: 1.72, color: 0xeab308 },
+  passenger: 0x38bdf8,
+  cargo: 0xf59e0b,
+  charter: 0xa78bfa,
+  emergency: 0xef4444,
 };
 
 const CONTINENTS = [
@@ -56,19 +50,19 @@ function createEarthTexture() {
   const ctx = canvas.getContext("2d");
 
   const oceanGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  oceanGradient.addColorStop(0, "#060f22");
-  oceanGradient.addColorStop(0.55, "#0b1a35");
-  oceanGradient.addColorStop(1, "#040b19");
+  oceanGradient.addColorStop(0, "#050c1c");
+  oceanGradient.addColorStop(0.55, "#0a1831");
+  oceanGradient.addColorStop(1, "#030915");
   ctx.fillStyle = oceanGradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const aurora = ctx.createRadialGradient(canvas.width * 0.7, canvas.height * 0.18, 40, canvas.width * 0.7, canvas.height * 0.18, 560);
-  aurora.addColorStop(0, "rgba(34,211,238,0.22)");
-  aurora.addColorStop(1, "rgba(34,211,238,0)");
+  aurora.addColorStop(0, "rgba(56,189,248,0.20)");
+  aurora.addColorStop(1, "rgba(56,189,248,0)");
   ctx.fillStyle = aurora;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = "rgba(124,158,212,0.12)";
+  ctx.strokeStyle = "rgba(148,163,184,0.12)";
   ctx.lineWidth = 1;
   for (let lat = -75; lat <= 75; lat += 15) {
     const y = ((90 - lat) / 180) * canvas.height;
@@ -86,8 +80,8 @@ function createEarthTexture() {
   }
 
   CONTINENTS.forEach((poly, idx) => {
-    const landFill = ["#2f6348", "#376f53", "#3f7a5d", "#487f62"][idx % 4];
-    const landStroke = "rgba(174,255,208,0.22)";
+    const landFill = ["#3a4f45", "#40564b", "#455e52", "#4b6659"][idx % 4];
+    const landStroke = "rgba(203,213,225,0.20)";
     ctx.beginPath();
     poly.forEach(([lon, lat], i) => {
       const [x, y] = lonLatToUv(lon, lat, canvas.width, canvas.height);
@@ -116,11 +110,11 @@ function createStarTexture() {
   ctx.fillStyle = "#01030d";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (let i = 0; i < 6800; i += 1) {
+  for (let i = 0; i < 6000; i += 1) {
     const x = Math.random() * canvas.width;
     const y = Math.random() * canvas.height;
-    const size = Math.random() * 1.8;
-    const alpha = Math.random() * 0.95;
+    const size = Math.random() * 1.6;
+    const alpha = Math.random() * 0.85;
     ctx.fillStyle = `rgba(255,255,255,${alpha})`;
     ctx.fillRect(x, y, size, size);
   }
@@ -130,107 +124,126 @@ function createStarTexture() {
   return tex;
 }
 
-function buildHangarMesh(sizeKey, isOwned) {
-  const visual = HANGAR_VISUAL_SCALE[sizeKey] || HANGAR_VISUAL_SCALE.small;
-
-  const shellMaterial = new THREE.MeshStandardMaterial({
-    color: isOwned ? visual.color : 0xea580c,
-    emissive: isOwned ? 0x0b263a : 0x4e1d0a,
-    emissiveIntensity: isOwned ? 0.4 : 0.16,
-    metalness: 0.28,
-    roughness: 0.56,
+function createMaterial(owned, baseColor) {
+  return new THREE.MeshStandardMaterial({
+    color: owned ? baseColor : 0x475569,
+    emissive: owned ? 0x082f49 : 0x111827,
+    emissiveIntensity: owned ? 0.32 : 0.08,
+    metalness: 0.35,
+    roughness: 0.52,
   });
+}
 
-  const roofMaterial = new THREE.MeshStandardMaterial({
-    color: isOwned ? 0xe2e8f0 : 0xfdba74,
-    emissive: isOwned ? 0x164e63 : 0x000000,
-    emissiveIntensity: isOwned ? 0.14 : 0,
-    metalness: 0.45,
-    roughness: 0.35,
-  });
-
-  const doorMaterial = new THREE.MeshStandardMaterial({
-    color: isOwned ? 0x0f172a : 0x1f2937,
-    emissive: isOwned ? 0x22d3ee : 0x000000,
-    emissiveIntensity: isOwned ? 0.25 : 0,
-    metalness: 0.38,
-    roughness: 0.35,
-  });
-
+function buildSmallHangar(owned) {
   const group = new THREE.Group();
+  const shellMaterial = createMaterial(owned, 0x60a5fa);
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.5, roughness: 0.34 });
 
-  const width = visual.width;
-  const height = visual.height;
-  const depth = visual.depth;
-
-  const foundation = new THREE.Mesh(
-    new THREE.CylinderGeometry(width * 0.75, width * 0.75, 0.2, 16),
-    new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.18, roughness: 0.78 })
-  );
-  foundation.position.y = 0.08;
-  group.add(foundation);
-
-  const shell = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height * 0.68, depth),
-    shellMaterial
-  );
-  shell.position.y = height * 0.36;
+  const shell = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.62, 0.84), shellMaterial);
+  shell.position.y = 0.34;
   group.add(shell);
 
-  const roof = new THREE.Mesh(
-    new THREE.CylinderGeometry(depth * 0.52, depth * 0.52, width * 0.95, 20, 1, false, 0, Math.PI),
-    roofMaterial
-  );
-  roof.rotation.z = Math.PI / 2;
-  roof.position.y = height * 0.72;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.58, 0.46, 4), roofMaterial);
+  roof.position.y = 0.9;
+  roof.rotation.y = Math.PI / 4;
   group.add(roof);
 
-  const doorFrame = new THREE.Mesh(
-    new THREE.PlaneGeometry(width * 0.64, height * 0.56),
-    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.55, roughness: 0.28 })
-  );
-  doorFrame.position.set(0, height * 0.34, depth * 0.5 + 0.005);
-  group.add(doorFrame);
+  return { group, visualHeight: 1.18, ringRadius: 0.75 };
+}
 
-  const door = new THREE.Mesh(
-    new THREE.PlaneGeometry(width * 0.56, height * 0.46),
-    doorMaterial
-  );
-  door.position.set(0, height * 0.34, depth * 0.5 + 0.015);
-  group.add(door);
+function buildMediumHangar(owned) {
+  const group = new THREE.Group();
+  const shellMaterial = createMaterial(owned, 0x38bdf8);
 
-  const wing = new THREE.Mesh(
-    new THREE.BoxGeometry(width * 1.2, 0.08, depth * 0.3),
-    new THREE.MeshStandardMaterial({
-      color: isOwned ? 0x1f2937 : 0x3f3f46,
-      metalness: 0.16,
-      roughness: 0.82,
-    })
-  );
-  wing.position.y = 0.12;
-  wing.position.z = depth * 0.62;
-  group.add(wing);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.06), shellMaterial);
+  body.position.y = 0.42;
+  group.add(body);
 
-  const beacon = new THREE.Mesh(
-    new THREE.SphereGeometry(0.08, 12, 12),
-    new THREE.MeshStandardMaterial({
-      color: isOwned ? 0x22d3ee : 0xfb923c,
-      emissive: isOwned ? 0x22d3ee : 0xf97316,
-      emissiveIntensity: isOwned ? 1 : 0.45,
-    })
+  const arch = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.56, 0.56, 1.06, 18, 1, false, 0, Math.PI),
+    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.54, roughness: 0.28 })
   );
-  beacon.position.set(0, height + 0.22, 0);
-  group.add(beacon);
+  arch.rotation.z = Math.PI / 2;
+  arch.position.y = 0.9;
+  group.add(arch);
 
-  return {
-    group,
-    visualHeight: height + 0.45,
-    ringRadius: Math.max(width, depth) * 0.86,
-  };
+  return { group, visualHeight: 1.35, ringRadius: 0.9 };
+}
+
+function buildLargeHangar(owned) {
+  const group = new THREE.Group();
+  const shellMaterial = createMaterial(owned, 0x22c55e);
+
+  const left = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.72, 0.96), shellMaterial);
+  left.position.set(-0.58, 0.38, 0);
+  group.add(left);
+
+  const right = left.clone();
+  right.position.x = 0.58;
+  group.add(right);
+
+  const connector = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.5, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.4, roughness: 0.45 })
+  );
+  connector.position.y = 0.26;
+  group.add(connector);
+
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(2.35, 0.16, 1.03),
+    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.56, roughness: 0.28 })
+  );
+  roof.position.y = 0.84;
+  group.add(roof);
+
+  return { group, visualHeight: 1.42, ringRadius: 1.15 };
+}
+
+function buildMegaHangar(owned) {
+  const group = new THREE.Group();
+  const shellMaterial = createMaterial(owned, 0x0ea5e9);
+
+  const terminal = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.86, 1.35), shellMaterial);
+  terminal.position.y = 0.44;
+  group.add(terminal);
+
+  const sideWingL = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.56, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.36, roughness: 0.44 })
+  );
+  sideWingL.position.set(-1.45, 0.29, -0.08);
+  group.add(sideWingL);
+
+  const sideWingR = sideWingL.clone();
+  sideWingR.position.x = 1.45;
+  group.add(sideWingR);
+
+  const tower = new THREE.Mesh(
+    new THREE.BoxGeometry(0.34, 1.15, 0.34),
+    new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.6, roughness: 0.2 })
+  );
+  tower.position.set(0, 1.1, 0.3);
+  group.add(tower);
+
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(2.55, 0.2, 1.42),
+    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.62, roughness: 0.24 })
+  );
+  roof.position.y = 0.94;
+  group.add(roof);
+
+  return { group, visualHeight: 1.8, ringRadius: 1.36 };
+}
+
+function buildHangarMesh(sizeKey, owned) {
+  if (sizeKey === "mega") return buildMegaHangar(owned);
+  if (sizeKey === "large") return buildLargeHangar(owned);
+  if (sizeKey === "medium") return buildMediumHangar(owned);
+  return buildSmallHangar(owned);
 }
 
 function getRouteColor(type) {
-  return ROUTE_COLORS[type] || 0x60a5fa;
+  return ROUTE_COLORS[type] || 0x93c5fd;
 }
 
 function createRouteCurve(start, end, globeRadius) {
@@ -242,10 +255,10 @@ function createRouteCurve(start, end, globeRadius) {
 
 function buildRouteMeshes(contract, curve, isSelected) {
   const color = getRouteColor(contract.type);
-  const baseOpacity = isSelected ? 0.74 : 0.44;
-  const coreOpacity = isSelected ? 0.98 : 0.76;
-  const baseRadius = isSelected ? 0.16 : 0.105;
-  const coreRadius = isSelected ? 0.082 : 0.05;
+  const baseOpacity = isSelected ? 0.76 : 0.42;
+  const coreOpacity = isSelected ? 0.95 : 0.7;
+  const baseRadius = isSelected ? 0.15 : 0.1;
+  const coreRadius = isSelected ? 0.08 : 0.05;
 
   const outer = new THREE.Mesh(
     new THREE.TubeGeometry(curve, 90, baseRadius, 10, false),
@@ -254,27 +267,27 @@ function buildRouteMeshes(contract, curve, isSelected) {
       transparent: true,
       opacity: baseOpacity,
       emissive: color,
-      emissiveIntensity: isSelected ? 0.72 : 0.3,
+      emissiveIntensity: isSelected ? 0.6 : 0.24,
       metalness: 0.15,
-      roughness: 0.35,
+      roughness: 0.4,
     })
   );
 
   const inner = new THREE.Mesh(
     new THREE.TubeGeometry(curve, 90, coreRadius, 10, false),
     new THREE.MeshStandardMaterial({
-      color: 0xe0f2fe,
+      color: 0xe2e8f0,
       transparent: true,
       opacity: coreOpacity,
       emissive: color,
-      emissiveIntensity: isSelected ? 0.92 : 0.55,
+      emissiveIntensity: isSelected ? 0.8 : 0.38,
       metalness: 0.08,
-      roughness: 0.25,
+      roughness: 0.28,
     })
   );
 
   const hitbox = new THREE.Mesh(
-    new THREE.TubeGeometry(curve, 72, Math.max(baseRadius * 1.95, 0.22), 8, false),
+    new THREE.TubeGeometry(curve, 72, Math.max(baseRadius * 2.0, 0.22), 8, false),
     new THREE.MeshBasicMaterial({ visible: false })
   );
 
@@ -292,8 +305,17 @@ function getActionContext(hangars, hangarSizes, airportIcao, sizeKey, lang) {
     };
   }
 
-  const normalizedAirport = normIcao(airportIcao);
-  const existing = hangars.find((h) => normIcao(h.airport_icao) === normalizedAirport);
+  const selectedAirport = normIcao(airportIcao);
+  if (!selectedAirport) {
+    return {
+      canSubmit: false,
+      cost: 0,
+      label: lang === "de" ? "Airport waehlen" : "Select airport",
+      helper: lang === "de" ? "Bitte zuerst einen Airport waehlen." : "Please choose an airport first.",
+    };
+  }
+
+  const existing = hangars.find((h) => normIcao(h.airport_icao) === selectedAirport);
   if (!existing) {
     return {
       canSubmit: true,
@@ -306,7 +328,7 @@ function getActionContext(hangars, hangarSizes, airportIcao, sizeKey, lang) {
   const currentIndex = hangarSizes.findIndex((s) => s.key === existing.size);
   const nextIndex = hangarSizes.findIndex((s) => s.key === sizeKey);
 
-  if (nextIndex <= currentIndex) {
+  if (currentIndex < 0 || nextIndex <= currentIndex) {
     return {
       canSubmit: false,
       cost: 0,
@@ -334,7 +356,7 @@ export default function HangarWorldGlobe3D({
   marketAirports = [],
   selectedContractId = null,
   onSelectContract,
-  selectedAirportIcao = null,
+  selectedAirportIcao = "",
   onSelectAirport,
   selectedMarketSize = "small",
   onSelectMarketSize,
@@ -345,9 +367,15 @@ export default function HangarWorldGlobe3D({
 }) {
   const mountRef = useRef(null);
   const focusRef = useRef(null);
-  const isManualControlRef = useRef(false);
+  const manualControlRef = useRef(false);
   const clickStartRef = useRef(null);
+  const leafletModeRef = useRef(false);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [leafletMode, setLeafletMode] = useState(false);
+  const [globeResetKey, setGlobeResetKey] = useState(0);
+  const [showContractsPanel, setShowContractsPanel] = useState(true);
+  const [showMarketPanel, setShowMarketPanel] = useState(true);
 
   const normalizedHangars = useMemo(
     () =>
@@ -368,7 +396,7 @@ export default function HangarWorldGlobe3D({
     [contracts]
   );
 
-  const normalizedContractsByHangar = useMemo(() => {
+  const normalizedContractsByAirport = useMemo(() => {
     const map = {};
     Object.entries(contractsByHangar || {}).forEach(([key, value]) => {
       map[normIcao(key)] = Array.isArray(value) ? value : [];
@@ -376,46 +404,24 @@ export default function HangarWorldGlobe3D({
     return map;
   }, [contractsByHangar]);
 
-  const displayAirports = useMemo(() => {
-    const merged = new Map();
-
+  const marketByIcao = useMemo(() => {
+    const map = new Map();
     marketAirports.forEach((airport) => {
       const icao = normIcao(airport.airport_icao);
       if (!icao) return;
-      merged.set(icao, {
+      map.set(icao, {
         ...airport,
         airport_icao: icao,
         label: airport.label || icao,
       });
     });
-
-    normalizedHangars.forEach((hangar) => {
-      const icao = normIcao(hangar.airport_icao);
-      if (!icao) return;
-      if (!Number.isFinite(hangar.lat) || !Number.isFinite(hangar.lon)) return;
-      if (!merged.has(icao)) {
-        merged.set(icao, {
-          airport_icao: icao,
-          label: hangar.label || `${icao} (Owned)`,
-          lat: hangar.lat,
-          lon: hangar.lon,
-        });
-      }
-    });
-
-    return Array.from(merged.values());
-  }, [marketAirports, normalizedHangars]);
-
-  const marketByIcao = useMemo(() => {
-    const map = new Map();
-    displayAirports.forEach((airport) => map.set(normIcao(airport.airport_icao), airport));
     return map;
-  }, [displayAirports]);
+  }, [marketAirports]);
 
-  const selectedAirportData = useMemo(() => {
-    if (!selectedAirportIcao) return null;
-    return marketByIcao.get(normIcao(selectedAirportIcao)) || null;
-  }, [marketByIcao, selectedAirportIcao]);
+  const selectedAirportData = useMemo(
+    () => marketByIcao.get(normIcao(selectedAirportIcao)) || null,
+    [marketByIcao, selectedAirportIcao]
+  );
 
   const actionContext = useMemo(
     () =>
@@ -432,16 +438,25 @@ export default function HangarWorldGlobe3D({
   const selectedAirportContracts = useMemo(() => {
     const selectedIcao = normIcao(selectedAirportIcao);
     if (!selectedIcao) return [];
-
-    const airportContracts = normalizedContractsByHangar[selectedIcao];
-    if (Array.isArray(airportContracts) && airportContracts.length > 0) {
-      return airportContracts;
-    }
-
+    const airportContracts = normalizedContractsByAirport[selectedIcao];
+    if (Array.isArray(airportContracts) && airportContracts.length > 0) return airportContracts;
     return normalizedContracts.filter((contract) => normIcao(contract.departure_airport) === selectedIcao);
-  }, [normalizedContracts, normalizedContractsByHangar, selectedAirportIcao]);
+  }, [normalizedContracts, normalizedContractsByAirport, selectedAirportIcao]);
 
   const visibleContracts = useMemo(() => normalizedContracts.slice(0, 80), [normalizedContracts]);
+
+  useEffect(() => {
+    leafletModeRef.current = leafletMode;
+  }, [leafletMode]);
+
+  useEffect(() => {
+    if (!isFullscreen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -452,14 +467,14 @@ export default function HangarWorldGlobe3D({
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 2800);
-    camera.position.set(0, 44, 112);
+    camera.position.set(0, 42, 110);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = 1.1;
     mount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -471,25 +486,25 @@ export default function HangarWorldGlobe3D({
     controls.rotateSpeed = 0.72;
     controls.zoomSpeed = 0.95;
     controls.panSpeed = 0.42;
-    controls.minDistance = 40;
+    controls.minDistance = 38;
     controls.maxDistance = 190;
-    controls.minPolarAngle = 0.22;
-    controls.maxPolarAngle = Math.PI - 0.22;
+    controls.minPolarAngle = 0.18;
+    controls.maxPolarAngle = Math.PI - 0.18;
     controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
     controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
     controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
     controls.touches.ONE = THREE.TOUCH.ROTATE;
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
     controls.autoRotate = !selectedContractId;
-    controls.autoRotateSpeed = 0.45;
+    controls.autoRotateSpeed = 0.4;
 
     const onControlStart = () => {
-      isManualControlRef.current = true;
+      manualControlRef.current = true;
       focusRef.current = null;
       controls.autoRotate = false;
     };
     const onControlEnd = () => {
-      isManualControlRef.current = false;
+      manualControlRef.current = false;
     };
     controls.addEventListener("start", onControlStart);
     controls.addEventListener("end", onControlEnd);
@@ -507,31 +522,36 @@ export default function HangarWorldGlobe3D({
       new THREE.MeshStandardMaterial({
         map: createEarthTexture(),
         metalness: 0.1,
-        roughness: 0.82,
+        roughness: 0.84,
         emissive: 0x020617,
-        emissiveIntensity: 0.35,
+        emissiveIntensity: 0.33,
       })
     );
     scene.add(earth);
 
     const clouds = new THREE.Mesh(
       new THREE.SphereGeometry(globeRadius + 0.46, 96, 96),
-      new THREE.MeshStandardMaterial({ color: 0xa5f3fc, transparent: true, opacity: 0.072 })
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.055 })
     );
     scene.add(clouds);
 
     const atmosphere = new THREE.Mesh(
-      new THREE.SphereGeometry(globeRadius + 1.24, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.14, side: THREE.BackSide })
+      new THREE.SphereGeometry(globeRadius + 1.22, 64, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.13,
+        side: THREE.BackSide,
+      })
     );
     scene.add(atmosphere);
 
-    scene.add(new THREE.AmbientLight(0xa5b4fc, 0.5));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.42);
-    sun.position.set(120, 65, 90);
+    scene.add(new THREE.AmbientLight(0x94a3b8, 0.55));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.3);
+    sun.position.set(120, 60, 80);
     scene.add(sun);
 
-    const rim = new THREE.PointLight(0x0ea5e9, 0.7, 420);
+    const rim = new THREE.PointLight(0x0ea5e9, 0.58, 420);
     rim.position.set(-120, -40, -120);
     scene.add(rim);
 
@@ -539,65 +559,74 @@ export default function HangarWorldGlobe3D({
     const clickableObjects = [];
     const airportFocusMap = new Map();
 
-    displayAirports.forEach((airport) => {
-      if (!Number.isFinite(airport.lat) || !Number.isFinite(airport.lon)) return;
+    const marketMarkerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b,
+      emissive: 0x451a03,
+      emissiveIntensity: 0.2,
+      metalness: 0.2,
+      roughness: 0.6,
+    });
 
+    marketAirports.forEach((airport) => {
+      if (!Number.isFinite(airport.lat) || !Number.isFinite(airport.lon)) return;
       const airportIcao = normIcao(airport.airport_icao);
       const owned = ownedByAirport.get(airportIcao);
-      const sizeKey = owned?.size || selectedMarketSize;
-      const { group, visualHeight, ringRadius } = buildHangarMesh(sizeKey, Boolean(owned));
-
-      const markerPos = latLonToVector3(airport.lat, airport.lon, globeRadius + 1.42 + visualHeight * 0.2);
+      const selectedAirport = normIcao(selectedAirportIcao) === airportIcao;
+      const renderHangarModel = Boolean(owned || selectedAirport);
+      const markerPos = latLonToVector3(airport.lat, airport.lon, globeRadius + 1.3);
       const normal = markerPos.clone().normalize();
 
-      group.position.copy(markerPos);
-      group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+      if (renderHangarModel) {
+        const sizeKey = owned?.size || selectedMarketSize || "small";
+        const { group, visualHeight, ringRadius } = buildHangarMesh(sizeKey, Boolean(owned));
+        const elevated = latLonToVector3(airport.lat, airport.lon, globeRadius + 1.25 + visualHeight * 0.22);
+        const n = elevated.clone().normalize();
 
-      group.traverse((child) => {
-        if (child.isMesh) {
-          child.userData = {
-            markerType: "airport",
-            airportIcao,
-            pointPos: markerPos,
-            isOwned: Boolean(owned),
-          };
-          clickableObjects.push(child);
-        }
-      });
+        group.position.copy(elevated);
+        group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
 
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(ringRadius * 0.7, ringRadius, 26),
-        new THREE.MeshBasicMaterial({
-          color: owned ? 0x22d3ee : 0xfb923c,
-          transparent: true,
-          opacity: owned ? 0.6 : 0.42,
-          side: THREE.DoubleSide,
-        })
-      );
-      ring.position.copy(markerPos.clone().add(normal.clone().multiplyScalar(0.02)));
-      ring.lookAt(markerPos.clone().add(normal));
-      scene.add(ring);
+        group.traverse((child) => {
+          if (child.isMesh) {
+            child.userData = { markerType: "airport", airportIcao };
+            clickableObjects.push(child);
+          }
+        });
 
-      if (owned) {
-        const beam = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.05, 0.16, 1.45, 12),
-          new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.35 })
+        scene.add(group);
+
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(ringRadius * 0.72, ringRadius, 24),
+          new THREE.MeshBasicMaterial({
+            color: owned ? 0x22d3ee : 0xf59e0b,
+            transparent: true,
+            opacity: selectedAirport ? 0.82 : owned ? 0.6 : 0.35,
+            side: THREE.DoubleSide,
+          })
         );
-        beam.position.copy(markerPos.clone().add(normal.clone().multiplyScalar(0.85)));
-        beam.lookAt(markerPos.clone().add(normal.clone().multiplyScalar(2)));
-        scene.add(beam);
+        ring.position.copy(elevated.clone().add(n.clone().multiplyScalar(0.02)));
+        ring.lookAt(elevated.clone().add(n));
+        scene.add(ring);
+      } else {
+        const pin = new THREE.Mesh(
+          new THREE.ConeGeometry(0.18, 0.56, 8),
+          marketMarkerMaterial
+        );
+        pin.position.copy(markerPos.clone().add(normal.clone().multiplyScalar(0.45)));
+        pin.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+        pin.userData = { markerType: "airport", airportIcao };
+        scene.add(pin);
+        clickableObjects.push(pin);
       }
 
-      scene.add(group);
       airportFocusMap.set(airportIcao, markerPos.clone());
     });
 
     const routePulse = new THREE.Mesh(
-      new THREE.SphereGeometry(0.42, 16, 16),
+      new THREE.SphereGeometry(0.38, 16, 16),
       new THREE.MeshStandardMaterial({
-        color: 0xe0f2fe,
-        emissive: 0x22d3ee,
-        emissiveIntensity: 1.1,
+        color: 0xe2e8f0,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 1.0,
         metalness: 0.15,
         roughness: 0.2,
       })
@@ -618,7 +647,6 @@ export default function HangarWorldGlobe3D({
 
       const isSelected = contract.id === selectedContractId;
       const { outer, inner, hitbox } = buildRouteMeshes(contract, curve, isSelected);
-
       outer.userData = { markerType: "route", contractId: contract.id };
       inner.userData = { markerType: "route", contractId: contract.id };
       hitbox.userData = { markerType: "route", contractId: contract.id };
@@ -630,19 +658,14 @@ export default function HangarWorldGlobe3D({
 
       const mid = curve.getPoint(0.5);
       routeFocusMap.set(contract.id, {
-        cameraPos: mid.clone().normalize().multiplyScalar(globeRadius + 52),
+        position: mid.clone().normalize().multiplyScalar(globeRadius + 52),
         target: mid.clone().normalize().multiplyScalar(globeRadius * 0.96),
       });
 
       if (isSelected) {
         selectedCurve = curve;
         const focus = routeFocusMap.get(contract.id);
-        if (focus) {
-          focusRef.current = {
-            position: focus.cameraPos.clone(),
-            target: focus.target.clone(),
-          };
-        }
+        if (focus) focusRef.current = { position: focus.position.clone(), target: focus.target.clone() };
       }
     });
 
@@ -669,7 +692,7 @@ export default function HangarWorldGlobe3D({
       if (!start) return;
       const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
       clickStartRef.current = null;
-      if (moved > 4) return;
+      if (moved > 5) return;
 
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -677,27 +700,33 @@ export default function HangarWorldGlobe3D({
       raycaster.setFromCamera(pointer, camera);
 
       const hit = raycaster.intersectObjects(clickableObjects, false)[0];
-      if (!hit?.object?.userData) return;
+      if (!hit?.object?.userData) {
+        setShowContractsPanel(false);
+        setShowMarketPanel(false);
+        onSelectContract?.(null);
+        onSelectAirport?.("");
+        focusRef.current = null;
+        return;
+      }
 
       const data = hit.object.userData;
       if (data.markerType === "route") {
         onSelectContract?.(data.contractId);
+        setShowContractsPanel(true);
         const focus = routeFocusMap.get(data.contractId);
         if (focus) {
-          isManualControlRef.current = false;
-          focusRef.current = {
-            position: focus.cameraPos.clone(),
-            target: focus.target.clone(),
-          };
+          manualControlRef.current = false;
+          focusRef.current = { position: focus.position.clone(), target: focus.target.clone() };
         }
         return;
       }
 
       if (data.markerType === "airport") {
         onSelectAirport?.(data.airportIcao);
+        setShowMarketPanel(true);
         const base = airportFocusMap.get(data.airportIcao);
         if (base) {
-          isManualControlRef.current = false;
+          manualControlRef.current = false;
           focusRef.current = {
             position: base.clone().normalize().multiplyScalar(globeRadius + 40),
             target: base.clone().normalize().multiplyScalar(globeRadius * 0.95),
@@ -720,37 +749,44 @@ export default function HangarWorldGlobe3D({
 
     let disposed = false;
     const clock = new THREE.Clock();
+
     const animate = () => {
       if (disposed) return;
 
       const elapsed = clock.getElapsedTime();
-      clouds.rotation.y += 0.00045;
-      earth.rotation.y += 0.0002;
-      stars.rotation.y += 0.00005;
+      clouds.rotation.y += 0.00035;
+      earth.rotation.y += 0.00016;
+      stars.rotation.y += 0.00004;
 
       if (selectedCurve) {
         const t = (elapsed * 0.09) % 1;
-        const pulsePos = selectedCurve.getPoint(t);
         routePulse.visible = true;
-        routePulse.position.copy(pulsePos);
+        routePulse.position.copy(selectedCurve.getPoint(t));
       } else {
         routePulse.visible = false;
       }
 
-      if (focusRef.current && !isManualControlRef.current) {
+      if (focusRef.current && !manualControlRef.current) {
         controls.autoRotate = false;
         camera.position.lerp(focusRef.current.position, 0.06);
         controls.target.lerp(focusRef.current.target, 0.08);
-
-        if (camera.position.distanceTo(focusRef.current.position) < 0.4) {
+        if (camera.position.distanceTo(focusRef.current.position) < 0.35) {
           focusRef.current = null;
         }
+      }
+
+      const distance = camera.position.distanceTo(controls.target);
+      const shouldLeaflet = distance <= 58;
+      if (shouldLeaflet !== leafletModeRef.current) {
+        leafletModeRef.current = shouldLeaflet;
+        setLeafletMode(shouldLeaflet);
       }
 
       controls.update();
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     };
+
     animate();
 
     return () => {
@@ -762,190 +798,238 @@ export default function HangarWorldGlobe3D({
       controls.removeEventListener("end", onControlEnd);
       controls.dispose();
 
-      if (mount.contains(renderer.domElement)) {
-        mount.removeChild(renderer.domElement);
-      }
-
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
       renderer.dispose();
 
       scene.traverse((obj) => {
         if (obj.geometry) obj.geometry.dispose?.();
         if (obj.material) {
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((material) => material.dispose?.());
-          } else {
-            obj.material.dispose?.();
-          }
+          if (Array.isArray(obj.material)) obj.material.forEach((material) => material.dispose?.());
+          else obj.material.dispose?.();
         }
       });
     };
   }, [
     normalizedHangars,
     visibleContracts,
-    displayAirports,
+    marketAirports,
     selectedContractId,
     selectedAirportIcao,
     selectedMarketSize,
     onSelectContract,
     onSelectAirport,
     isFullscreen,
+    globeResetKey,
   ]);
 
   const ownedAirportCount = useMemo(() => {
     const ownedSet = new Set(normalizedHangars.map((hangar) => normIcao(hangar.airport_icao)));
-    return displayAirports.reduce((count, airport) => {
+    return marketAirports.reduce((count, airport) => {
       if (ownedSet.has(normIcao(airport.airport_icao))) return count + 1;
       return count;
     }, 0);
-  }, [displayAirports, normalizedHangars]);
+  }, [marketAirports, normalizedHangars]);
 
   return (
-    <div className={`relative overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-950/95 ${isFullscreen ? "fixed inset-2 z-[120]" : ""}`}>
+    <div className={`relative overflow-hidden border border-cyan-900/40 bg-slate-950/95 ${isFullscreen ? "fixed inset-0 z-[220] rounded-none" : "rounded-xl"}`}>
       <div className="absolute left-3 top-3 z-20 flex items-center gap-2">
-        <Badge className="border-cyan-700/50 bg-slate-950/80 text-[10px] font-mono uppercase text-cyan-100">
+        <Badge className="border-cyan-700/50 bg-slate-950/85 text-[10px] font-mono uppercase text-cyan-100">
           <RouteIcon className="mr-1 h-3 w-3" />
           {visibleContracts.length} {lang === "de" ? "Routen" : "Routes"}
         </Badge>
-        <Badge className="border-emerald-700/50 bg-slate-950/80 text-[10px] font-mono uppercase text-emerald-200">
-          {ownedAirportCount}/{displayAirports.length} {lang === "de" ? "Owned" : "Owned"}
-        </Badge>
-        <Badge className="border-cyan-700/50 bg-slate-950/80 text-[10px] font-mono uppercase text-cyan-100">
-          {lang === "de" ? "Globe Deck" : "Globe Deck"}
+        <Badge className="border-emerald-700/50 bg-slate-950/85 text-[10px] font-mono uppercase text-emerald-200">
+          {ownedAirportCount}/{marketAirports.length} {lang === "de" ? "Owned" : "Owned"}
         </Badge>
       </div>
 
-      <div className="absolute right-3 top-3 z-20">
+      <div className="absolute right-3 top-3 z-20 flex gap-2">
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={() => setShowContractsPanel((value) => !value)}
+          className="h-8 w-8 border-cyan-700/50 bg-slate-950/85 text-cyan-200 hover:bg-cyan-950/40"
+        >
+          {showContractsPanel ? <X className="h-4 w-4" /> : <List className="h-4 w-4" />}
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={() => setShowMarketPanel((value) => !value)}
+          className="h-8 w-8 border-cyan-700/50 bg-slate-950/85 text-cyan-200 hover:bg-cyan-950/40"
+        >
+          {showMarketPanel ? <X className="h-4 w-4" /> : <Store className="h-4 w-4" />}
+        </Button>
         <Button
           type="button"
           size="icon"
           variant="outline"
           onClick={() => setIsFullscreen((value) => !value)}
-          className="h-8 w-8 border-cyan-700/50 bg-slate-950/80 text-cyan-200 hover:bg-cyan-950/40"
+          className="h-8 w-8 border-cyan-700/50 bg-slate-950/85 text-cyan-200 hover:bg-cyan-950/40"
         >
           {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </Button>
       </div>
 
-      <div ref={mountRef} className={`w-full ${isFullscreen ? "h-[calc(100vh-16px)]" : "h-[620px]"}`} />
+      <div
+        ref={mountRef}
+        className={`w-full ${isFullscreen ? "h-screen" : "h-[620px]"}`}
+        style={{ opacity: leafletMode ? 0 : 1, pointerEvents: leafletMode ? "none" : "auto" }}
+      />
 
-      <div className={`absolute right-3 top-14 z-20 w-[320px] rounded-xl border border-cyan-900/50 bg-slate-950/86 p-2.5 backdrop-blur ${isFullscreen ? "max-h-[72vh]" : "max-h-[52vh]"}`}>
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-            {lang === "de" ? "Auftragsliste" : "Contract list"}
-          </div>
-          <div className="text-[10px] text-slate-400">{visibleContracts.length}</div>
-        </div>
-
-        <div className="space-y-1 overflow-y-auto pr-1" style={{ maxHeight: isFullscreen ? "66vh" : "44vh" }}>
-          {visibleContracts.map((contract) => {
-            const selected = contract.id === selectedContractId;
-            return (
-              <button
-                key={contract.id}
+      {leafletMode && (
+        <div className="absolute inset-0 z-30">
+          <ContractWorldMap
+            embedded
+            contracts={visibleContracts}
+            hangars={normalizedHangars}
+            marketAirports={marketAirports}
+            selectedAirportIcao={selectedAirportIcao}
+            onSelectAirport={(icao) => {
+              onSelectAirport?.(icao);
+              setShowMarketPanel(true);
+            }}
+            selectedContractId={selectedContractId}
+            onSelectContract={(id) => {
+              onSelectContract?.(id);
+              setShowContractsPanel(true);
+            }}
+            onBackgroundClick={() => {
+              setShowContractsPanel(false);
+              setShowMarketPanel(false);
+              onSelectContract?.(null);
+              onSelectAirport?.("");
+            }}
+            lang={lang}
+          />
+          <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2">
+            <div className="flex items-center gap-2">
+              <Badge className="border-cyan-700/50 bg-slate-950/90 text-[10px] font-mono uppercase text-cyan-100">
+                {lang === "de" ? "Leaflet Modus aktiv" : "Leaflet mode active"}
+              </Badge>
+              <Button
                 type="button"
-                onClick={() => onSelectContract?.(contract.id)}
-                className={`w-full rounded-md border px-2 py-1.5 text-left transition ${
-                  selected
-                    ? "border-cyan-500/70 bg-cyan-900/35"
-                    : "border-slate-700/80 bg-slate-900/70 hover:border-cyan-800/70"
-                }`}
+                size="sm"
+                className="h-7 bg-cyan-600 px-2 text-[10px] font-mono uppercase text-slate-950 hover:bg-cyan-500"
+                onClick={() => {
+                  setLeafletMode(false);
+                  setGlobeResetKey((value) => value + 1);
+                }}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-[11px] font-semibold text-cyan-100">{contract.title || "Contract"}</p>
-                  <span className="text-[10px] text-emerald-300">${Math.round(contract.payout || 0).toLocaleString()}</span>
-                </div>
-                <p className="mt-0.5 text-[10px] font-mono text-slate-300">
-                  {contract.departure_airport} -&gt; {contract.arrival_airport}
-                </p>
-              </button>
-            );
-          })}
-          {!visibleContracts.length && (
-            <p className="rounded-md border border-slate-700/80 bg-slate-900/70 p-2 text-[11px] text-slate-400">
-              {lang === "de" ? "Keine Contracts fuer aktuelle Filter." : "No contracts for current filters."}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="absolute left-3 bottom-3 z-20 w-[360px] rounded-xl border border-cyan-900/50 bg-slate-950/90 p-3 backdrop-blur">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-            {lang === "de" ? "Hangar Marketplace" : "Hangar marketplace"}
-          </div>
-          <div className="text-[10px] text-slate-400">
-            {selectedAirportIcao || (lang === "de" ? "Kein Airport" : "No airport")}
-          </div>
-        </div>
-
-        {selectedAirportData ? (
-          <>
-            <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/70 p-2">
-              <p className="text-[11px] font-semibold text-cyan-100">
-                <MapPin className="mr-1 inline h-3.5 w-3.5" />
-                {selectedAirportData.airport_icao} - {selectedAirportData.label}
-              </p>
-              <p className="mt-1 text-[10px] text-slate-400">
-                {lang === "de" ? "Verfuegbare Auftraege ab hier" : "Available departures here"}: {selectedAirportContracts.length}
-              </p>
+                {lang === "de" ? "Zurueck zum Globus" : "Back to globe"}
+              </Button>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="mb-2 grid grid-cols-2 gap-1.5">
-              {hangarSizes.map((size) => (
+      {showContractsPanel && !leafletMode && (
+        <div className={`absolute right-3 top-14 z-20 w-[280px] rounded-xl border border-cyan-900/50 bg-slate-950/86 p-2.5 backdrop-blur ${isFullscreen ? "max-h-[54vh]" : "max-h-[44vh]"}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
+              {lang === "de" ? "Auftragsliste" : "Contract list"}
+            </div>
+            <div className="text-[10px] text-slate-400">{visibleContracts.length}</div>
+          </div>
+          <div className="space-y-1 overflow-y-auto pr-1" style={{ maxHeight: isFullscreen ? "46vh" : "36vh" }}>
+            {visibleContracts.map((contract) => {
+              const selected = contract.id === selectedContractId;
+              return (
                 <button
-                  key={size.key}
+                  key={contract.id}
                   type="button"
-                  onClick={() => onSelectMarketSize?.(size.key)}
-                  className={`rounded-md border px-2 py-1 text-left text-[10px] font-mono uppercase transition ${
-                    selectedMarketSize === size.key
-                      ? "border-cyan-500/70 bg-cyan-900/35 text-cyan-100"
-                      : "border-slate-700/80 bg-slate-900/70 text-slate-300 hover:border-cyan-800/70"
+                  onClick={() => onSelectContract?.(contract.id)}
+                  className={`w-full rounded-md border px-2 py-1.5 text-left transition ${
+                    selected
+                      ? "border-cyan-500/70 bg-cyan-900/30"
+                      : "border-slate-700/80 bg-slate-900/70 hover:border-cyan-800/70"
                   }`}
                 >
-                  <div>{size.key}</div>
-                  <div className="text-[9px] text-slate-400">{size.slots} slots</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[11px] font-semibold text-cyan-100">{contract.title || "Contract"}</p>
+                    <span className="text-[10px] text-emerald-300">${Math.round(contract.payout || 0).toLocaleString()}</span>
+                  </div>
+                  <p className="mt-0.5 text-[10px] font-mono text-slate-300">
+                    {contract.departure_airport} -&gt; {contract.arrival_airport}
+                  </p>
                 </button>
-              ))}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {showMarketPanel && selectedAirportData && !leafletMode && (
+        <div className={`absolute left-3 bottom-3 z-20 w-[320px] rounded-xl border border-cyan-900/50 bg-slate-950/90 p-3 backdrop-blur ${isFullscreen ? "max-h-[48vh]" : ""}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
+              {lang === "de" ? "Hangar Marketplace" : "Hangar marketplace"}
             </div>
+            <div className="text-[10px] text-slate-400">{selectedAirportData.airport_icao}</div>
+          </div>
 
-            <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/70 p-2 text-[10px]">
-              <p className="text-slate-300">{actionContext.helper}</p>
-              <p className="mt-1 font-mono text-emerald-300">${Math.round(actionContext.cost || 0).toLocaleString()}</p>
-            </div>
+          <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/70 p-2">
+            <p className="text-[11px] font-semibold text-cyan-100">
+              <MapPin className="mr-1 inline h-3.5 w-3.5" />
+              {selectedAirportData.airport_icao} - {selectedAirportData.label}
+            </p>
+            <p className="mt-1 text-[10px] text-slate-400">
+              {lang === "de" ? "Verfuegbare Auftraege ab hier" : "Available departures here"}: {selectedAirportContracts.length}
+            </p>
+          </div>
 
-            <Button
-              type="button"
-              disabled={!actionContext.canSubmit || isBuyingOrUpgrading}
-              onClick={() => onBuyOrUpgrade?.({ airportIcao: normIcao(selectedAirportIcao), size: selectedMarketSize })}
-              className="h-8 w-full bg-cyan-600 text-xs font-mono uppercase text-slate-950 hover:bg-cyan-500"
-            >
-              {isBuyingOrUpgrading ? (
-                <>
-                  <ArrowUpCircle className="mr-1.5 h-3.5 w-3.5 animate-pulse" />
-                  {lang === "de" ? "Wird verarbeitet" : "Processing"}
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
-                  {actionContext.label}
-                </>
-              )}
-            </Button>
-          </>
-        ) : (
-          <p className="rounded-md border border-slate-700/80 bg-slate-900/70 p-2 text-[11px] text-slate-400">
-            {lang === "de"
-              ? "Klicke auf einen Airport-Marker am Globus, um Hangar kaufen oder upgraden zu koennen."
-              : "Click an airport marker on the globe to buy or upgrade a hangar."}
-          </p>
-        )}
-      </div>
+          <div className="mb-2 grid grid-cols-2 gap-1.5">
+            {hangarSizes.map((size) => (
+              <button
+                key={size.key}
+                type="button"
+                onClick={() => onSelectMarketSize?.(size.key)}
+                className={`rounded-md border px-2 py-1 text-left text-[10px] font-mono uppercase transition ${
+                  selectedMarketSize === size.key
+                    ? "border-cyan-500/70 bg-cyan-900/35 text-cyan-100"
+                    : "border-slate-700/80 bg-slate-900/70 text-slate-300 hover:border-cyan-800/70"
+                }`}
+              >
+                <div>{size.key}</div>
+                <div className="text-[9px] text-slate-400">{size.slots} slots</div>
+              </button>
+            ))}
+          </div>
 
-      <div className="absolute left-3 top-14 z-20 rounded-md border border-cyan-900/50 bg-slate-950/80 px-2 py-1 text-[10px] text-cyan-200">
-        {lang === "de"
-          ? "Linksklick ziehen = Globus drehen | Rechtsklick ziehen = Pan | Scroll = Zoom | Klick auf Route/Airport = Fokus"
-          : "Left drag = rotate globe | Right drag = pan | Scroll = zoom | Click route/airport = focus"}
-      </div>
+          <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/70 p-2 text-[10px]">
+            <p className="text-slate-300">{actionContext.helper}</p>
+            <p className="mt-1 font-mono text-emerald-300">${Math.round(actionContext.cost || 0).toLocaleString()}</p>
+          </div>
+
+          <Button
+            type="button"
+            disabled={!actionContext.canSubmit || isBuyingOrUpgrading}
+            onClick={() => onBuyOrUpgrade?.({ airportIcao: normIcao(selectedAirportIcao), size: selectedMarketSize })}
+            className="h-8 w-full bg-emerald-600 text-xs font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
+          >
+            {isBuyingOrUpgrading ? (
+              <>
+                <ArrowUpCircle className="mr-1.5 h-3.5 w-3.5 animate-pulse" />
+                {lang === "de" ? "Wird verarbeitet" : "Processing"}
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
+                {actionContext.label}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {!leafletMode && (
+        <div className="absolute left-3 top-14 z-20 rounded-md border border-cyan-900/50 bg-slate-950/80 px-2 py-1 text-[10px] text-cyan-200">
+          {lang === "de"
+            ? "Linksklick ziehen = drehen | Rechtsklick ziehen = pan | Scroll = zoom | weit reinzoomen = Leaflet"
+            : "Left drag = rotate | right drag = pan | scroll = zoom | deep zoom = Leaflet"}
+        </div>
+      )}
     </div>
   );
 }
