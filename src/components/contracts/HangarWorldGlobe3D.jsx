@@ -632,7 +632,8 @@ export default function HangarWorldGlobe3D({
     scene.add(rim);
 
     const ownedByAirport = new Map(normalizedHangars.map((hangar) => [normIcao(hangar.airport_icao), hangar]));
-    const clickableObjects = [];
+    const airportClickableObjects = [];
+    const routeClickableObjects = [];
     const airportFocusMap = new Map();
 
     const marketMarkerMaterial = new THREE.MeshStandardMaterial({
@@ -652,6 +653,16 @@ export default function HangarWorldGlobe3D({
       const markerPos = latLonToVector3(airport.lat, airport.lon, globeRadius + 1.3);
       const normal = markerPos.clone().normalize();
 
+      // Dedicated airport hit-target keeps click behavior reliable even with dense routes.
+      const airportHitTarget = new THREE.Mesh(
+        new THREE.SphereGeometry(1.08, 14, 14),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      airportHitTarget.position.copy(markerPos.clone().add(normal.clone().multiplyScalar(0.62)));
+      airportHitTarget.userData = { markerType: "airport", airportIcao };
+      scene.add(airportHitTarget);
+      airportClickableObjects.push(airportHitTarget);
+
       if (renderHangarModel) {
         const ownedSpec = getVariantSizeSpec(owned?.model_variant);
         const sizeKey = ownedSpec?.key || owned?.size || selectedVariantSpec?.key || selectedMarketSize || "small";
@@ -665,7 +676,7 @@ export default function HangarWorldGlobe3D({
         group.traverse((child) => {
           if (child.isMesh) {
             child.userData = { markerType: "airport", airportIcao };
-            clickableObjects.push(child);
+            airportClickableObjects.push(child);
           }
         });
 
@@ -692,7 +703,7 @@ export default function HangarWorldGlobe3D({
         pin.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
         pin.userData = { markerType: "airport", airportIcao };
         scene.add(pin);
-        clickableObjects.push(pin);
+        airportClickableObjects.push(pin);
       }
 
       airportFocusMap.set(airportIcao, markerPos.clone());
@@ -731,7 +742,7 @@ export default function HangarWorldGlobe3D({
       scene.add(outer);
       scene.add(inner);
       scene.add(hitbox);
-      clickableObjects.push(hitbox);
+      routeClickableObjects.push(hitbox);
 
       const mid = curve.getPoint(0.5);
       routeFocusMap.set(contract.id, {
@@ -769,15 +780,31 @@ export default function HangarWorldGlobe3D({
       if (!start) return;
       const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
       clickStartRef.current = null;
-      if (moved > 5) return;
+      if (moved > 9) return;
 
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
 
-      const hit = raycaster.intersectObjects(clickableObjects, false)[0];
-      if (!hit?.object?.userData) {
+      const airportHit = raycaster.intersectObjects(airportClickableObjects, false)[0];
+      if (airportHit?.object?.userData?.markerType === "airport") {
+        const data = airportHit.object.userData;
+        onSelectAirport?.(data.airportIcao);
+        setShowMarketPanel(true);
+        const base = airportFocusMap.get(data.airportIcao);
+        if (base) {
+          manualControlRef.current = false;
+          focusRef.current = {
+            position: base.clone().normalize().multiplyScalar(globeRadius + 40),
+            target: base.clone().normalize().multiplyScalar(globeRadius * 0.95),
+          };
+        }
+        return;
+      }
+
+      const routeHit = raycaster.intersectObjects(routeClickableObjects, false)[0];
+      if (!routeHit?.object?.userData) {
         setShowContractsPanel(false);
         setShowMarketPanel(false);
         onSelectContract?.(null);
@@ -786,7 +813,7 @@ export default function HangarWorldGlobe3D({
         return;
       }
 
-      const data = hit.object.userData;
+      const data = routeHit.object.userData;
       if (data.markerType === "route") {
         onSelectContract?.(data.contractId);
         setShowContractsPanel(true);
@@ -798,18 +825,7 @@ export default function HangarWorldGlobe3D({
         return;
       }
 
-      if (data.markerType === "airport") {
-        onSelectAirport?.(data.airportIcao);
-        setShowMarketPanel(true);
-        const base = airportFocusMap.get(data.airportIcao);
-        if (base) {
-          manualControlRef.current = false;
-          focusRef.current = {
-            position: base.clone().normalize().multiplyScalar(globeRadius + 40),
-            target: base.clone().normalize().multiplyScalar(globeRadius * 0.95),
-          };
-        }
-      }
+      if (data.markerType === "airport") return;
     };
 
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
