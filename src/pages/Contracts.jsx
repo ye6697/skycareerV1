@@ -29,6 +29,7 @@ import HangarMarket3D from "@/components/contracts/HangarMarket3D";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { getAirportCoords } from "@/utils/airportCoordinates";
+import { useToast } from "@/components/ui/use-toast";
 
 const HANGAR_MARKET = [
   { airport_icao: "EDDF", label: "Frankfurt" },
@@ -187,6 +188,7 @@ export default function Contracts() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
+  const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -416,10 +418,31 @@ export default function Contracts() {
         hangars: nextHangars,
         balance: currentBalance - balanceChange,
       });
+
+      return {
+        airport: targetAirport,
+        size: targetSize.key,
+        cost: balanceChange,
+        upgraded: Boolean(existing),
+      };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
       queryClient.invalidateQueries({ queryKey: ["company"] });
+      toast({
+        title: lang === "de" ? "Hangar aktualisiert" : "Hangar updated",
+        description:
+          lang === "de"
+            ? `${result.upgraded ? "Upgrade" : "Kauf"} ${result.airport} (${result.size.toUpperCase()}) erfolgreich.`
+            : `${result.upgraded ? "Upgrade" : "Purchase"} ${result.airport} (${result.size.toUpperCase()}) completed.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: lang === "de" ? "Hangar Kauf fehlgeschlagen" : "Hangar purchase failed",
+        description: error?.message || (lang === "de" ? "Unbekannter Fehler." : "Unknown error."),
+      });
     },
   });
 
@@ -471,17 +494,33 @@ export default function Contracts() {
     HANGAR_SIZES.find((size) => size.key === selectedMarketSize) || HANGAR_SIZES[0];
 
   const marketActionInfo = useMemo(() => {
+    if (!selectedMarketAirportIcao) {
+      return {
+        label: lang === "de" ? "Airport waehlen" : "Select airport",
+        cost: 0,
+        canSubmit: false,
+        helper: lang === "de" ? "Bitte zuerst einen Airport waehlen." : "Please choose an airport first.",
+      };
+    }
+
     if (!selectedMarketHangar) {
       return {
         label: lang === "de" ? "Hangar kaufen" : "Buy hangar",
         cost: selectedSizeSpec.price,
+        canSubmit: true,
+        helper: lang === "de" ? "Neuer Standortkauf." : "New base purchase.",
       };
     }
 
     const currentIndex = HANGAR_SIZES.findIndex((s) => s.key === selectedMarketHangar.size);
     const targetIndex = HANGAR_SIZES.findIndex((s) => s.key === selectedMarketSize);
     if (currentIndex < 0 || targetIndex < 0 || targetIndex <= currentIndex) {
-      return { label: lang === "de" ? "Upgrade waehlen" : "Choose upgrade", cost: 0 };
+      return {
+        label: lang === "de" ? "Upgrade waehlen" : "Choose upgrade",
+        cost: 0,
+        canSubmit: false,
+        helper: lang === "de" ? "Nur Upgrades auf groessere Hangars moeglich." : "Only upgrades to larger sizes are possible.",
+      };
     }
     const currentSize = HANGAR_SIZES[currentIndex];
     const baseCurrentPrice = currentSize?.price || selectedMarketHangar.purchase_price || 0;
@@ -491,8 +530,10 @@ export default function Contracts() {
           ? `Upgrade auf ${selectedSizeSpec.key.toUpperCase()}`
           : `Upgrade to ${selectedSizeSpec.key.toUpperCase()}`,
       cost: Math.max(0, selectedSizeSpec.price - baseCurrentPrice),
+      canSubmit: true,
+      helper: lang === "de" ? `Aktuell: ${String(selectedMarketHangar.size || "small").toUpperCase()}` : `Current: ${String(selectedMarketHangar.size || "small").toUpperCase()}`,
     };
-  }, [lang, selectedMarketHangar, selectedMarketSize, selectedSizeSpec]);
+  }, [lang, selectedMarketAirportIcao, selectedMarketHangar, selectedMarketSize, selectedSizeSpec]);
 
   const selectedContract =
     mapContracts.find((contract) => contract.id === selectedContractId) || null;
@@ -563,10 +604,12 @@ export default function Contracts() {
                 <option key={size.key} value={size.key}>{size.key.toUpperCase()} ({size.slots} slots)</option>
               ))}
             </select>
-            <Button type="button" disabled={upsertHangarMutation.isPending} onClick={() => upsertHangarMutation.mutate({ airportIcao: selectedMarketAirportIcao, sizeKey: selectedMarketSize })} className="h-7 bg-emerald-600 px-2.5 text-xs font-mono uppercase text-slate-950 hover:bg-emerald-500">
-              {upsertHangarMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : marketActionInfo.label}
-            </Button>
-            <span className="text-[11px] font-mono text-emerald-300">${Math.round(marketActionInfo.cost || 0).toLocaleString()}</span>
+            <Badge className="border-emerald-700/40 bg-emerald-900/20 text-[10px] font-mono text-emerald-200">
+              {marketActionInfo.label}: ${Math.round(marketActionInfo.cost || 0).toLocaleString()}
+            </Badge>
+            <span className="text-[11px] text-slate-400">
+              {lang === "de" ? "Kauf/Upgrade im 3D Hangar Markt unten." : "Buy/upgrade in the 3D hangar market below."}
+            </span>
           </div>
         </div>
       </section>
@@ -623,10 +666,28 @@ export default function Contracts() {
 
           <div className="xl:col-span-8">
             <HangarMarket3D
-              aircraft={availableAircraft}
-              contracts={filteredCompatibleContracts}
-              selectedAircraftId={selectedAircraftId}
-              onSelectAircraft={setSelectedAircraftId}
+              marketAirports={marketAirports}
+              selectedAirportIcao={selectedMarketAirportIcao}
+              onSelectAirport={(airportIcao) => {
+                setSelectedMarketAirportIcao(airportIcao);
+                setSelectedDepartureAirport(airportIcao);
+              }}
+              hangarSizes={HANGAR_SIZES}
+              selectedMarketSize={selectedMarketSize}
+              onSelectMarketSize={setSelectedMarketSize}
+              selectedHangar={selectedMarketHangar}
+              actionLabel={marketActionInfo.label}
+              actionCost={marketActionInfo.cost}
+              actionHelper={marketActionInfo.helper}
+              canSubmit={marketActionInfo.canSubmit}
+              onBuyOrUpgrade={() =>
+                upsertHangarMutation.mutate({
+                  airportIcao: selectedMarketAirportIcao,
+                  sizeKey: selectedMarketSize,
+                })
+              }
+              isProcessing={upsertHangarMutation.isPending}
+              departureCount={mapContracts.filter((contract) => normIcao(contract.departure_airport) === normIcao(selectedMarketAirportIcao)).length}
               lang={lang}
             />
           </div>

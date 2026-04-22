@@ -551,8 +551,7 @@ export default function HangarWorldGlobe3D({
       const normal = markerPos.clone().normalize();
 
       group.position.copy(markerPos);
-      group.lookAt(markerPos.clone().add(normal));
-      group.rotateX(Math.PI / 2);
+      group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
 
       group.traverse((child) => {
         if (child.isMesh) {
