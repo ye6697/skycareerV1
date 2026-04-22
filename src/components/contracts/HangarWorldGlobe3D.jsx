@@ -385,6 +385,9 @@ export default function HangarWorldGlobe3D({
   onSelectAirport,
   selectedMarketSize = "small",
   onSelectMarketSize,
+  selectedMarketVariantId = "",
+  onSelectMarketVariantId,
+  hangarVariants = [],
   hangarSizes = [],
   onBuyOrUpgrade,
   isBuyingOrUpgrading = false,
@@ -1023,6 +1026,30 @@ export default function HangarWorldGlobe3D({
             ))}
           </div>
 
+          {hangarVariants.length > 0 && (
+            <div className="mb-2">
+              <div className="mb-1 text-[10px] font-mono uppercase tracking-wide text-cyan-300">
+                {lang === "de" ? "Hangar Modell" : "Hangar model"}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {hangarVariants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => onSelectMarketVariantId?.(variant.id)}
+                    className={`rounded-md border px-2 py-1 text-left text-[10px] font-mono uppercase transition ${
+                      selectedMarketVariantId === variant.id
+                        ? "border-cyan-500/70 bg-cyan-900/35 text-cyan-100"
+                        : "border-slate-700/80 bg-slate-900/70 text-slate-300 hover:border-cyan-800/70"
+                    }`}
+                  >
+                    {variant.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/70 p-2 text-[10px]">
             <p className="text-slate-300">{actionContext.helper}</p>
             <p className="mt-1 font-mono text-emerald-300">${Math.round(actionContext.cost || 0).toLocaleString()}</p>
@@ -1031,7 +1058,13 @@ export default function HangarWorldGlobe3D({
           <Button
             type="button"
             disabled={!actionContext.canSubmit || isBuyingOrUpgrading}
-            onClick={() => onBuyOrUpgrade?.({ airportIcao: normIcao(selectedAirportIcao), size: selectedMarketSize })}
+            onClick={() =>
+              onBuyOrUpgrade?.({
+                airportIcao: normIcao(selectedAirportIcao),
+                size: selectedMarketSize,
+                modelVariant: selectedMarketVariantId,
+              })
+            }
             className="h-8 w-full bg-emerald-600 text-xs font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
           >
             {isBuyingOrUpgrading ? (

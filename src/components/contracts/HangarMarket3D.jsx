@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -178,6 +179,9 @@ export default function HangarMarket3D({
   hangarSizes = [],
   selectedMarketSize = "small",
   onSelectMarketSize,
+  hangarVariants = [],
+  selectedMarketVariantId = "",
+  onSelectMarketVariantId,
   selectedHangar = null,
   actionLabel = "Buy hangar",
   actionCost = 0,
@@ -190,11 +194,20 @@ export default function HangarMarket3D({
 }) {
   const viewportRef = useRef(null);
   const [renderFailed, setRenderFailed] = useState(false);
+  const [modelLoadError, setModelLoadError] = useState("");
+  const [isModelLoading, setIsModelLoading] = useState(false);
 
   const selectedAirport = useMemo(() => {
     const selected = normIcao(selectedAirportIcao);
     return marketAirports.find((airport) => normIcao(airport.airport_icao) === selected) || null;
   }, [marketAirports, selectedAirportIcao]);
+
+  const selectedVariant = useMemo(() => {
+    if (!Array.isArray(hangarVariants) || hangarVariants.length === 0) return null;
+    return (
+      hangarVariants.find((variant) => variant.id === selectedMarketVariantId) || hangarVariants[0] || null
+    );
+  }, [hangarVariants, selectedMarketVariantId]);
 
   useEffect(() => {
     const container = viewportRef.current;
@@ -312,22 +325,104 @@ export default function HangarMarket3D({
     rightWall.position.x = 17.4;
     scene.add(rightWall);
 
-    const model = buildHangarModel(selectedMarketSize, Boolean(selectedHangar));
-    model.position.set(0, 0, 0.2);
-    model.traverse((node) => {
-      if (node.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
+    const previewRoot = new THREE.Group();
+    previewRoot.position.set(0, 0, 0.2);
+    scene.add(previewRoot);
+
+    let activeModel = null;
+    const disposeObject = (object3d) => {
+      object3d.traverse((node) => {
+        if (node.geometry) node.geometry.dispose?.();
+        if (node.material) {
+          if (Array.isArray(node.material)) {
+            node.material.forEach((material) => material.dispose?.());
+          } else {
+            node.material.dispose?.();
+          }
+        }
+      });
+    };
+
+    const applyModelTransform = (object) => {
+      const sizePreset = SIZE_STYLE[selectedMarketSize] || SIZE_STYLE.small;
+      const box = new THREE.Box3().setFromObject(object);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x || 1, size.y || 1, size.z || 1);
+      const targetDim = Math.max(3.6, sizePreset.width * 1.35);
+      const scale = targetDim / maxDim;
+      object.scale.setScalar(scale);
+
+      const centeredBox = new THREE.Box3().setFromObject(object);
+      const center = new THREE.Vector3();
+      centeredBox.getCenter(center);
+      object.position.sub(center);
+
+      const groundedBox = new THREE.Box3().setFromObject(object);
+      object.position.y -= groundedBox.min.y;
+      object.position.z += 0.2;
+    };
+
+    const addPreviewModel = (object3d) => {
+      if (activeModel) {
+        previewRoot.remove(activeModel);
+        disposeObject(activeModel);
       }
-    });
-    scene.add(model);
+      applyModelTransform(object3d);
+      object3d.traverse((node) => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+          node.frustumCulled = false;
+        }
+      });
+      previewRoot.add(object3d);
+      activeModel = object3d;
+    };
+
+    const fallbackModel = buildHangarModel(selectedMarketSize, Boolean(selectedHangar));
+    addPreviewModel(fallbackModel);
+
+    let cancelled = false;
+    if (selectedVariant?.path) {
+      setIsModelLoading(true);
+      setModelLoadError("");
+      const loader = new GLTFLoader();
+      loader.load(
+        selectedVariant.path,
+        (gltf) => {
+          if (cancelled) return;
+          const modelRoot = gltf?.scene;
+          if (!modelRoot) {
+            setModelLoadError("Model scene is empty.");
+            setIsModelLoading(false);
+            return;
+          }
+          addPreviewModel(modelRoot);
+          setIsModelLoading(false);
+        },
+        undefined,
+        () => {
+          if (cancelled) return;
+          setModelLoadError(
+            lang === "de"
+              ? "GLB konnte nicht geladen werden, Fallback-Modell aktiv."
+              : "Could not load GLB, fallback model active."
+          );
+          setIsModelLoading(false);
+        }
+      );
+    } else {
+      setIsModelLoading(false);
+      setModelLoadError("");
+    }
 
     const clock = new THREE.Clock();
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
-      if (controls.autoRotate) {
-        model.rotation.y = Math.sin(elapsed * 0.35) * 0.08;
+      if (controls.autoRotate && activeModel) {
+        activeModel.rotation.y = Math.sin(elapsed * 0.35) * 0.08;
       }
       controls.update();
       renderer.render(scene, camera);
@@ -335,6 +430,11 @@ export default function HangarMarket3D({
     animate();
 
     return () => {
+      cancelled = true;
+      if (activeModel) {
+        previewRoot.remove(activeModel);
+        disposeObject(activeModel);
+      }
       if (frameId) window.cancelAnimationFrame(frameId);
       if (resizeObserver) resizeObserver.disconnect();
       controls.dispose();
@@ -358,7 +458,7 @@ export default function HangarMarket3D({
         }
       }
     };
-  }, [selectedMarketSize, selectedHangar]);
+  }, [lang, selectedHangar, selectedMarketSize, selectedVariant?.path]);
 
   return (
     <Card className="h-full min-h-[460px] overflow-hidden border border-cyan-900/40 bg-slate-950/90">
@@ -378,8 +478,16 @@ export default function HangarMarket3D({
 
       <div className="grid grid-cols-1 gap-3 p-3 xl:grid-cols-12">
         <div className="xl:col-span-7">
-          <div className="overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-900/80">
+          <div className="relative overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-900/80">
             <div ref={viewportRef} className="h-[280px] w-full" />
+            {isModelLoading && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/35">
+                <div className="rounded-md border border-cyan-800/50 bg-slate-950/80 px-3 py-1.5 text-[11px] font-mono text-cyan-100">
+                  <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
+                  {lang === "de" ? "GLB wird geladen..." : "Loading GLB..."}
+                </div>
+              </div>
+            )}
             {renderFailed && (
               <div className="flex h-[280px] items-center justify-center px-4 text-center text-sm text-slate-400">
                 {lang === "de"
@@ -388,6 +496,9 @@ export default function HangarMarket3D({
               </div>
             )}
           </div>
+          {modelLoadError && !renderFailed && (
+            <p className="mt-1.5 text-[11px] text-amber-300">{modelLoadError}</p>
+          )}
         </div>
 
         <div className="space-y-2.5 xl:col-span-5">
@@ -439,6 +550,33 @@ export default function HangarMarket3D({
             </div>
           </div>
 
+          {hangarVariants.length > 0 && (
+            <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-2.5">
+              <p className="mb-1 text-[10px] font-mono uppercase text-slate-400">
+                {lang === "de" ? "Hangar Modell" : "Hangar model"}
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {hangarVariants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => onSelectMarketVariantId?.(variant.id)}
+                    className={`rounded-md border px-2 py-1.5 text-left text-[10px] font-mono uppercase transition ${
+                      selectedMarketVariantId === variant.id
+                        ? "border-cyan-500/70 bg-cyan-900/35 text-cyan-100"
+                        : "border-slate-700/80 bg-slate-900/70 text-slate-300 hover:border-cyan-800/70"
+                    }`}
+                  >
+                    <div>{variant.label}</div>
+                    <div className="text-[9px] text-slate-400">
+                      {(variant.recommendedSizes || []).map((entry) => String(entry).toUpperCase()).join(", ")}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-2.5">
             <p className="text-[11px] text-slate-300">{actionHelper}</p>
             <p className="mt-1 text-sm font-mono text-emerald-300">${Math.round(actionCost || 0).toLocaleString()}</p>
@@ -447,7 +585,13 @@ export default function HangarMarket3D({
           <Button
             type="button"
             disabled={!canSubmit || isProcessing}
-            onClick={() => onBuyOrUpgrade?.()}
+            onClick={() =>
+              onBuyOrUpgrade?.({
+                airportIcao: normIcao(selectedAirportIcao),
+                size: selectedMarketSize,
+                modelVariant: selectedMarketVariantId,
+              })
+            }
             className="h-9 w-full bg-emerald-600 text-xs font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
           >
             {isProcessing ? (

@@ -26,6 +26,11 @@ import {
 import ContractCard from "@/components/contracts/ContractCard";
 import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
 import HangarMarket3D from "@/components/contracts/HangarMarket3D";
+import {
+  getDefaultVariantBySize,
+  getVariantMeta,
+  HANGAR_MODEL_VARIANTS,
+} from "@/components/contracts/hangarModelCatalog";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { getAirportCoords, getAllAirportCoords, isRealAirportIcao } from "@/utils/airportCoordinates";
@@ -126,11 +131,15 @@ function normalizeHangarEntry(hangar, sizeMap) {
   const rawSize = String(hangar.size || "small").toLowerCase();
   const size = Object.prototype.hasOwnProperty.call(sizeMap, rawSize) ? rawSize : "small";
   const sizeSpec = HANGAR_SIZES.find((entry) => entry.key === size) || HANGAR_SIZES[0];
+  const variantIdRaw = String(hangar.model_variant || "").trim();
+  const variantMeta = getVariantMeta(variantIdRaw);
+  const modelVariant = variantMeta?.id || getDefaultVariantBySize(size);
 
   return {
     ...hangar,
     airport_icao,
     size,
+    model_variant: modelVariant,
     slots: hangar.slots ?? sizeSpec.slots,
     allowed_types: Array.isArray(hangar.allowed_types) ? hangar.allowed_types : sizeSpec.allowedTypes,
   };
@@ -259,6 +268,9 @@ export default function Contracts() {
   const [selectedDepartureAirport, setSelectedDepartureAirport] = useState("all");
   const [selectedMarketAirportIcao, setSelectedMarketAirportIcao] = useState(INITIAL_AIRPORT);
   const [selectedMarketSize, setSelectedMarketSize] = useState("small");
+  const [selectedMarketVariantId, setSelectedMarketVariantId] = useState(
+    getDefaultVariantBySize("small")
+  );
   const [minNm, setMinNm] = useState("");
   const [maxNm, setMaxNm] = useState("");
 
@@ -474,12 +486,14 @@ export default function Contracts() {
   });
 
   const upsertHangarMutation = useMutation({
-    mutationFn: async ({ airportIcao, sizeKey }) => {
+    mutationFn: async ({ airportIcao, sizeKey, modelVariantId }) => {
       if (!company?.id) throw new Error("Company not found.");
       const targetAirport = normIcao(airportIcao);
       if (!targetAirport) throw new Error("Select an airport first.");
       const targetSize = HANGAR_SIZES.find((size) => size.key === sizeKey);
       if (!targetSize) throw new Error("Invalid hangar size.");
+      const targetVariant = getVariantMeta(modelVariantId) || getVariantMeta(getDefaultVariantBySize(targetSize.key));
+      if (!targetVariant) throw new Error("Invalid hangar model.");
 
       const companyRows = await base44.entities.Company.filter({ id: company.id });
       const latestCompany = companyRows?.[0] || company;
@@ -501,6 +515,7 @@ export default function Contracts() {
             id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `hangar_${Date.now()}`,
             airport_icao: targetAirport,
             size: targetSize.key,
+            model_variant: targetVariant.id,
             purchase_price: targetSize.price,
             slots: targetSize.slots,
             allowed_types: targetSize.allowedTypes,
@@ -524,6 +539,7 @@ export default function Contracts() {
             ...hangar,
             airport_icao: targetAirport,
             size: targetSize.key,
+            model_variant: targetVariant.id,
             purchase_price: targetSize.price,
             slots: targetSize.slots,
             allowed_types: targetSize.allowedTypes,
@@ -559,6 +575,7 @@ export default function Contracts() {
       return {
         airport: targetAirport,
         size: targetSize.key,
+        modelVariant: targetVariant.id,
         cost: balanceChange,
         upgraded: Boolean(existing),
         nextHangars: persistedHangars,
@@ -587,8 +604,8 @@ export default function Contracts() {
         title: lang === "de" ? "Hangar aktualisiert" : "Hangar updated",
         description:
           lang === "de"
-            ? `${result.upgraded ? "Upgrade" : "Kauf"} ${result.airport} (${result.size.toUpperCase()}) erfolgreich.`
-            : `${result.upgraded ? "Upgrade" : "Purchase"} ${result.airport} (${result.size.toUpperCase()}) completed.`,
+            ? `${result.upgraded ? "Upgrade" : "Kauf"} ${result.airport} (${result.size.toUpperCase()} / ${String(result.modelVariant || "").toUpperCase()}) erfolgreich.`
+            : `${result.upgraded ? "Upgrade" : "Purchase"} ${result.airport} (${result.size.toUpperCase()} / ${String(result.modelVariant || "").toUpperCase()}) completed.`,
       });
     },
     onError: (error) => {
@@ -644,8 +661,26 @@ export default function Contracts() {
 
   const selectedMarketHangar =
     ownedHangars.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedMarketAirportIcao)) || null;
+  const selectedVariantMeta = useMemo(
+    () => getVariantMeta(selectedMarketVariantId) || HANGAR_MODEL_VARIANTS[0] || null,
+    [selectedMarketVariantId]
+  );
   const selectedSizeSpec =
     HANGAR_SIZES.find((size) => size.key === selectedMarketSize) || HANGAR_SIZES[0];
+
+  useEffect(() => {
+    if (selectedMarketHangar?.model_variant) {
+      if (selectedMarketHangar.model_variant !== selectedMarketVariantId) {
+        setSelectedMarketVariantId(selectedMarketHangar.model_variant);
+      }
+      return;
+    }
+
+    if (!getVariantMeta(selectedMarketVariantId)) {
+      const fallback = getDefaultVariantBySize(selectedMarketSize);
+      setSelectedMarketVariantId(fallback);
+    }
+  }, [selectedMarketHangar?.model_variant, selectedMarketSize, selectedMarketVariantId]);
 
   const marketActionInfo = useMemo(() => {
     if (!selectedMarketAirportIcao) {
@@ -685,7 +720,10 @@ export default function Contracts() {
           : `Upgrade to ${selectedSizeSpec.key.toUpperCase()}`,
       cost: Math.max(0, selectedSizeSpec.price - baseCurrentPrice),
       canSubmit: true,
-      helper: lang === "de" ? `Aktuell: ${String(selectedMarketHangar.size || "small").toUpperCase()}` : `Current: ${String(selectedMarketHangar.size || "small").toUpperCase()}`,
+      helper:
+        lang === "de"
+          ? `Aktuell: ${String(selectedMarketHangar.size || "small").toUpperCase()} / ${String(selectedMarketHangar.model_variant || "-")}`
+          : `Current: ${String(selectedMarketHangar.size || "small").toUpperCase()} / ${String(selectedMarketHangar.model_variant || "-")}`,
     };
   }, [lang, selectedMarketAirportIcao, selectedMarketHangar, selectedMarketSize, selectedSizeSpec]);
 
@@ -787,8 +825,17 @@ export default function Contracts() {
           }}
           selectedMarketSize={selectedMarketSize}
           onSelectMarketSize={setSelectedMarketSize}
+          selectedMarketVariantId={selectedMarketVariantId}
+          onSelectMarketVariantId={setSelectedMarketVariantId}
+          hangarVariants={HANGAR_MODEL_VARIANTS}
           hangarSizes={HANGAR_SIZES}
-          onBuyOrUpgrade={({ airportIcao, size }) => upsertHangarMutation.mutate({ airportIcao, sizeKey: size })}
+          onBuyOrUpgrade={({ airportIcao, size, modelVariant }) =>
+            upsertHangarMutation.mutate({
+              airportIcao,
+              sizeKey: size,
+              modelVariantId: modelVariant || selectedMarketVariantId,
+            })
+          }
           isBuyingOrUpgrading={upsertHangarMutation.isPending}
           lang={lang}
         />
@@ -835,15 +882,19 @@ export default function Contracts() {
               hangarSizes={HANGAR_SIZES}
               selectedMarketSize={selectedMarketSize}
               onSelectMarketSize={setSelectedMarketSize}
+              hangarVariants={HANGAR_MODEL_VARIANTS}
+              selectedMarketVariantId={selectedMarketVariantId}
+              onSelectMarketVariantId={setSelectedMarketVariantId}
               selectedHangar={selectedMarketHangar}
               actionLabel={marketActionInfo.label}
               actionCost={marketActionInfo.cost}
-              actionHelper={marketActionInfo.helper}
+              actionHelper={`${marketActionInfo.helper} ${selectedVariantMeta ? `| ${selectedVariantMeta.label}` : ""}`}
               canSubmit={marketActionInfo.canSubmit}
-              onBuyOrUpgrade={() =>
+              onBuyOrUpgrade={({ airportIcao, size, modelVariant } = {}) =>
                 upsertHangarMutation.mutate({
-                  airportIcao: selectedMarketAirportIcao,
-                  sizeKey: selectedMarketSize,
+                  airportIcao: airportIcao || selectedMarketAirportIcao,
+                  sizeKey: size || selectedMarketSize,
+                  modelVariantId: modelVariant || selectedMarketVariantId,
                 })
               }
               isProcessing={upsertHangarMutation.isPending}
