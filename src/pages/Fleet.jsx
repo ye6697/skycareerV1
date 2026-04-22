@@ -4,7 +4,6 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -96,7 +95,15 @@ const AIRCRAFT_MARKET_SPECS = [
 { name: "Boeing 777F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 102000, fuel_consumption_per_hour: 9500, range_nm: 4435, purchase_price: 330000000, maintenance_cost_per_hour: 3600, level_requirement: 28 },
 { name: "Boeing 747-8", type: "wide_body", passenger_capacity: 467, cargo_capacity_kg: 21870, fuel_consumption_per_hour: 11200, range_nm: 8000, purchase_price: 360000000, maintenance_cost_per_hour: 4200, level_requirement: 29 },
 { name: "Boeing 747-8F", type: "cargo", passenger_capacity: 0, cargo_capacity_kg: 134000, fuel_consumption_per_hour: 14500, range_nm: 4120, purchase_price: 400000000, maintenance_cost_per_hour: 4500, level_requirement: 30 },
+{ name: "Aérospatiale/BAC Concorde", type: "wide_body", passenger_capacity: 120, cargo_capacity_kg: 2500, fuel_consumption_per_hour: 15000, range_nm: 3900, purchase_price: 395000000, maintenance_cost_per_hour: 5200, level_requirement: 28 },
 { name: "Airbus A380", type: "wide_body", passenger_capacity: 555, cargo_capacity_kg: 18600, fuel_consumption_per_hour: 12500, range_nm: 8000, purchase_price: 440000000, maintenance_cost_per_hour: 5000, level_requirement: 31 }];
+
+const HANGAR_SIZE_RULES = {
+  small: { slots: 2, allowed_types: ['small_prop', 'turboprop'] },
+  medium: { slots: 4, allowed_types: ['small_prop', 'turboprop', 'regional_jet'] },
+  large: { slots: 6, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'cargo'] },
+  mega: { slots: 10, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'] }
+};
 
 
 const MAINTENANCE_CATEGORY_KEYS = ['engine', 'hydraulics', 'avionics', 'airframe', 'landing_gear', 'electrical', 'flight_controls', 'pressurization'];
@@ -474,6 +481,19 @@ export default function Fleet() {
       const template = templates.find((t) => t.name === aircraftData.name);
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
+      const companyHangars = Array.isArray(company?.hangars) ? company.hangars : [];
+      const totalCapacityForType = companyHangars.reduce((acc, hangar) => {
+        const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+        return rule.allowed_types.includes(specs.type) ? acc + rule.slots : acc;
+      }, 0);
+      const occupiedSlotsForType = aircraft.filter((entry) => entry.status !== 'sold' && entry.type === specs.type).length;
+      if (occupiedSlotsForType >= totalCapacityForType) {
+        throw new Error(
+          lang === 'de'
+            ? `Kein Hangarplatz für ${specs.type}. Kaufe zuerst einen passenden Hangar.`
+            : `No hangar capacity for ${specs.type}. Buy a compatible hangar first.`
+        );
+      }
       const maintenanceCategories = makeCategoryMap(aircraftData.maintenance_categories, 0);
       const dynamicWearValues = Object.values(maintenanceCategories).map((value) => Math.max(0, Number(value || 0)));
       const avgDynamicWearPct = dynamicWearValues.length > 0
@@ -585,11 +605,30 @@ export default function Fleet() {
     cargo: t('cargo_type', lang)
   };
 
+  const ownedHangars = React.useMemo(() => Array.isArray(company?.hangars) ? company.hangars : [], [company?.hangars]);
+
+  const getHangarCapacityByType = React.useCallback((aircraftType) => {
+    return ownedHangars.reduce((acc, hangar) => {
+      const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+      if (rule.allowed_types.includes(aircraftType)) {
+        return acc + rule.slots;
+      }
+      return acc;
+    }, 0);
+  }, [ownedHangars]);
+
+  const getOwnedAircraftCountByType = React.useCallback((aircraftType) => {
+    return aircraft.filter((entry) => entry.status !== 'sold' && entry.type === aircraftType).length;
+  }, [aircraft]);
+
   const canAfford = (price) => (company?.balance || 0) >= price;
   const canPurchase = (ac) => {
     const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
     const hasBalance = canAfford(ac.purchase_price);
-    return hasLevel && hasBalance;
+    const totalCapacity = getHangarCapacityByType(ac.type);
+    const occupiedSlots = getOwnedAircraftCountByType(ac.type);
+    const hasHangarCapacity = occupiedSlots < totalCapacity;
+    return hasLevel && hasBalance && hasHangarCapacity;
   };
 
   const marketAircraft = (marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS).
