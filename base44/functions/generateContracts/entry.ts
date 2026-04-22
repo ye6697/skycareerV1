@@ -404,55 +404,74 @@ Deno.serve(async (req) => {
 
     const compatibleContracts = [];
     const incompatibleContracts = [];
-
-    const genOptions = {
+    const globalGenerationOptions = {
       blockedPairs: usedRoutePairs,
       departureUsage,
-      maxDepartureReuse: 2,
+      maxDepartureReuse: 3,
       forceContractType: filterContractType || null,
       departurePool: hangarAirports.length > 0
         ? airports.filter((airport) => hangarAirports.includes(airport.icao))
         : airports,
     };
 
-    // Generate 4 compatible contracts (with optional distance/type filter)
-    let attempts = 0;
-    while (compatibleContracts.length < 4 && attempts < 80) {
-      attempts++;
-      const hangarAllowedTypes = new Set(
-        normalizedHangars.flatMap((hangar) => {
-          const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
-          return rule.allowed_types;
-        })
-      );
-      const candidateOwnedTypes = ownedTypeSpecs.filter((entry) => hangarAllowedTypes.has(entry.type));
-      const pool = candidateOwnedTypes.length > 0 ? candidateOwnedTypes : ownedTypeSpecs;
-      const acType = randomItem(pool);
-      const contract = generateContract(company.id, acType, company.level || 1, genOptions);
-      if (contract) {
-        // Apply distance filter
+    const hangarsForGeneration = normalizedHangars.length > 0
+      ? normalizedHangars
+      : [{
+          id: 'legacy-world-hangar',
+          airport_icao: hangarAirports[0] || airports[0].icao,
+          size: 'mega'
+        }];
+
+    for (const hangar of hangarsForGeneration) {
+      const hangarRule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+      const hangarAirport = String(hangar?.airport_icao || '').toUpperCase();
+      const departurePool = airports.filter((airport) => airport.icao === hangarAirport);
+      const hangarAircraft = filteredAircraft.filter((plane) => {
+        const stationedHere = !plane.hangar_id || plane.hangar_id === hangar.id;
+        return stationedHere && hangarRule.allowed_types.includes(plane.type);
+      });
+      const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];
+      const typePool = allAircraftTypes.filter((entry) => ownedTypesAtHangar.includes(entry.type));
+      if (typePool.length === 0 || departurePool.length === 0) continue;
+
+      const genOptions = {
+        blockedPairs: usedRoutePairs,
+        departureUsage,
+        maxDepartureReuse: 3,
+        forceContractType: filterContractType || null,
+        departurePool,
+      };
+
+      let attempts = 0;
+      while (attempts < 60) {
+        attempts++;
+        const acType = randomItem(typePool);
+        const contract = generateContract(company.id, acType, company.level || 1, genOptions);
+        if (!contract) continue;
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
-        const canFulfill = filteredAircraft.some(plane => {
+        const canFulfill = hangarAircraft.some((plane) => {
           const typeMatch = contract.required_aircraft_type.includes(plane.type);
           const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
           const rangeMatch = !contract.distance_nm || (plane.range_nm && plane.range_nm >= contract.distance_nm);
           const passengerMatch = !contract.passenger_count || (plane.passenger_capacity && plane.passenger_capacity >= contract.passenger_count);
           return typeMatch && cargoMatch && rangeMatch && passengerMatch;
         });
-        if (canFulfill) {
-          compatibleContracts.push(contract);
-          rememberRoute(contract, usedRoutePairs, departureUsage);
-        }
+        if (!canFulfill) continue;
+        contract.hangar_airport = hangarAirport;
+        contract.hangar_id = hangar.id;
+        compatibleContracts.push(contract);
+        rememberRoute(contract, usedRoutePairs, departureUsage);
+        if (compatibleContracts.filter((entry) => entry.hangar_id === hangar.id).length >= 4) break;
       }
     }
 
     // Generate 3 incompatible contracts
-    attempts = 0;
+    let attempts = 0;
     while (incompatibleContracts.length < 3 && attempts < 50) {
       attempts++;
       if (notOwnedTypeSpecs.length > 0) {
         const acType = randomItem(notOwnedTypeSpecs);
-        const contract = generateContract(company.id, acType, company.level || 1, genOptions);
+        const contract = generateContract(company.id, acType, company.level || 1, globalGenerationOptions);
         if (contract) {
           if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
           incompatibleContracts.push(contract);
@@ -460,7 +479,7 @@ Deno.serve(async (req) => {
         }
       } else {
         const acType = randomItem(ownedTypeSpecs);
-        const contract = generateContract(company.id, acType, company.level || 1, genOptions);
+        const contract = generateContract(company.id, acType, company.level || 1, globalGenerationOptions);
         if (contract) {
           const maxRange = Math.max(...filteredAircraft.map(a => a.range_nm || 0));
           const maxCargo = Math.max(...filteredAircraft.map(a => a.cargo_capacity_kg || 0));
