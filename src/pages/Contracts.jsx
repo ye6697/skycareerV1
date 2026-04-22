@@ -25,6 +25,7 @@ import {
 
 import ContractCard from "@/components/contracts/ContractCard";
 import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
+import HangarMarket3D from "@/components/contracts/HangarMarket3D";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { getAirportCoords } from "@/utils/airportCoordinates";
@@ -96,6 +97,10 @@ const MARKET_WITH_COORDS = HANGAR_MARKET.map((airport) => {
 }).filter(Boolean);
 
 const INITIAL_AIRPORT = MARKET_WITH_COORDS[0]?.airport_icao || "EDDF";
+
+function normIcao(value) {
+  return String(value || "").toUpperCase();
+}
 
 function isContractCompatibleWithAircraft(contract, aircraft) {
   if (!contract || !aircraft) return false;
@@ -217,6 +222,38 @@ export default function Contracts() {
     return ownedAircraft.filter((aircraft) => aircraft.status === "available");
   }, [ownedAircraft]);
 
+  const marketAirports = useMemo(() => {
+    const merged = new Map(MARKET_WITH_COORDS.map((airport) => [normIcao(airport.airport_icao), airport]));
+
+    ownedHangars.forEach((hangar) => {
+      const icao = normIcao(hangar.airport_icao);
+      if (!icao || merged.has(icao)) return;
+      const coords = getAirportCoords(icao);
+      if (!coords) return;
+      merged.set(icao, {
+        airport_icao: icao,
+        label: `${icao} (Owned)`,
+        ...coords,
+      });
+    });
+
+    return Array.from(merged.values());
+  }, [ownedHangars]);
+
+  useEffect(() => {
+    if (selectedAircraftId === "all") return;
+    if (!availableAircraft.some((aircraft) => aircraft.id === selectedAircraftId)) {
+      setSelectedAircraftId("all");
+    }
+  }, [availableAircraft, selectedAircraftId]);
+
+  useEffect(() => {
+    if (!marketAirports.length) return;
+    if (!marketAirports.some((airport) => airport.airport_icao === normIcao(selectedMarketAirportIcao))) {
+      setSelectedMarketAirportIcao(marketAirports[0].airport_icao);
+    }
+  }, [marketAirports, selectedMarketAirportIcao]);
+
   const selectedAircraft =
     selectedAircraftId !== "all"
       ? availableAircraft.find((aircraft) => aircraft.id === selectedAircraftId) || null
@@ -242,7 +279,7 @@ export default function Contracts() {
   const filteredCompatibleContracts = useMemo(() => {
     return compatibleContracts.filter((contract) => {
       const departureMatch =
-        selectedDepartureAirport === "all" || contract.departure_airport === selectedDepartureAirport;
+        selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
       return (
         tabMatches(contract, activeTab) &&
         searchMatches(contract, searchTerm) &&
@@ -255,7 +292,7 @@ export default function Contracts() {
     if (activeTab === "accepted") return [];
     return incompatibleContracts.filter((contract) => {
       const departureMatch =
-        selectedDepartureAirport === "all" || contract.departure_airport === selectedDepartureAirport;
+        selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
       return (
         tabMatches(contract, activeTab) &&
         searchMatches(contract, searchTerm) &&
@@ -272,11 +309,13 @@ export default function Contracts() {
 
     return Array.from(merged.values())
       .map((contract) => {
-        const dep = getAirportCoords(contract.departure_airport);
-        const arr = getAirportCoords(contract.arrival_airport);
+        const dep = getAirportCoords(normIcao(contract.departure_airport));
+        const arr = getAirportCoords(normIcao(contract.arrival_airport));
         if (!dep || !arr) return null;
         return {
           ...contract,
+          departure_airport: normIcao(contract.departure_airport),
+          arrival_airport: normIcao(contract.arrival_airport),
           dep_lat: dep.lat,
           dep_lon: dep.lon,
           arr_lat: arr.lat,
@@ -291,8 +330,8 @@ export default function Contracts() {
       setSelectedContractId(null);
       return;
     }
-    if (!mapContracts.some((contract) => contract.id === selectedContractId)) {
-      setSelectedContractId(mapContracts[0].id);
+    if (selectedContractId && !mapContracts.some((contract) => contract.id === selectedContractId)) {
+      setSelectedContractId(null);
     }
   }, [mapContracts, selectedContractId]);
 
@@ -319,11 +358,12 @@ export default function Contracts() {
   const upsertHangarMutation = useMutation({
     mutationFn: async ({ airportIcao, sizeKey }) => {
       if (!company) throw new Error("Company not found.");
+      const targetAirport = normIcao(airportIcao);
       const targetSize = HANGAR_SIZES.find((size) => size.key === sizeKey);
       if (!targetSize) throw new Error("Invalid hangar size.");
 
       const currentHangars = Array.isArray(company.hangars) ? [...company.hangars] : [];
-      const existing = currentHangars.find((hangar) => hangar.airport_icao === airportIcao);
+      const existing = currentHangars.find((hangar) => normIcao(hangar.airport_icao) === targetAirport);
 
       let balanceChange = 0;
       let nextHangars = currentHangars;
@@ -334,7 +374,7 @@ export default function Contracts() {
           ...currentHangars,
           {
             id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `hangar_${Date.now()}`,
-            airport_icao: airportIcao,
+            airport_icao: targetAirport,
             size: targetSize.key,
             purchase_price: targetSize.price,
             slots: targetSize.slots,
@@ -354,9 +394,10 @@ export default function Contracts() {
         balanceChange = Math.max(0, targetSize.price - baseCurrentPrice);
 
         nextHangars = currentHangars.map((hangar) => {
-          if (hangar.airport_icao !== airportIcao) return hangar;
+          if (normIcao(hangar.airport_icao) !== targetAirport) return hangar;
           return {
             ...hangar,
+            airport_icao: targetAirport,
             size: targetSize.key,
             purchase_price: targetSize.price,
             slots: targetSize.slots,
@@ -404,26 +445,28 @@ export default function Contracts() {
   const ownedHangarsWithCoords = useMemo(() => {
     return ownedHangars
       .map((hangar) => {
-        const coords = getAirportCoords(hangar.airport_icao);
+        const airportIcao = normIcao(hangar.airport_icao);
+        const coords = getAirportCoords(airportIcao);
         if (!coords) return null;
-        const meta = HANGAR_MARKET.find((airport) => airport.airport_icao === hangar.airport_icao);
-        return { ...hangar, ...coords, label: meta?.label || hangar.airport_icao };
+        const meta = marketAirports.find((airport) => airport.airport_icao === airportIcao);
+        return { ...hangar, airport_icao: airportIcao, ...coords, label: meta?.label || airportIcao };
       })
       .filter(Boolean);
-  }, [ownedHangars]);
+  }, [ownedHangars, marketAirports]);
 
   const contractsByHangar = useMemo(() => {
     const map = {};
     ownedHangars.forEach((hangar) => {
-      map[hangar.id] = mapContracts.filter(
-        (contract) => contract.departure_airport === hangar.airport_icao
+      const airportIcao = normIcao(hangar.airport_icao);
+      map[airportIcao] = mapContracts.filter(
+        (contract) => normIcao(contract.departure_airport) === airportIcao
       );
     });
     return map;
   }, [ownedHangars, mapContracts]);
 
   const selectedMarketHangar =
-    ownedHangars.find((hangar) => hangar.airport_icao === selectedMarketAirportIcao) || null;
+    ownedHangars.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedMarketAirportIcao)) || null;
   const selectedSizeSpec =
     HANGAR_SIZES.find((size) => size.key === selectedMarketSize) || HANGAR_SIZES[0];
 
@@ -437,7 +480,7 @@ export default function Contracts() {
 
     const currentIndex = HANGAR_SIZES.findIndex((s) => s.key === selectedMarketHangar.size);
     const targetIndex = HANGAR_SIZES.findIndex((s) => s.key === selectedMarketSize);
-    if (targetIndex <= currentIndex) {
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex <= currentIndex) {
       return { label: lang === "de" ? "Upgrade waehlen" : "Choose upgrade", cost: 0 };
     }
     const currentSize = HANGAR_SIZES[currentIndex];
@@ -495,7 +538,7 @@ export default function Contracts() {
 
             <select value={selectedDepartureAirport} onChange={(event) => setSelectedDepartureAirport(event.target.value)} className="h-8 rounded-md border border-cyan-900/60 bg-slate-950/90 px-2 text-xs text-cyan-100 lg:col-span-3">
               <option value="all">{lang === "de" ? "Alle Departure-Airports" : "All departure airports"}</option>
-              {MARKET_WITH_COORDS.map((airport) => (
+              {marketAirports.map((airport) => (
                 <option key={airport.airport_icao} value={airport.airport_icao}>
                   {airport.airport_icao} - {airport.label}
                 </option>
@@ -511,7 +554,7 @@ export default function Contracts() {
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-cyan-900/40 bg-slate-950/70 p-2">
             <div className="inline-flex items-center gap-1 text-[11px] text-cyan-200"><Warehouse className="h-3.5 w-3.5" />{lang === "de" ? "Marketplace Airport" : "Marketplace airport"}</div>
             <select value={selectedMarketAirportIcao} onChange={(event) => { setSelectedMarketAirportIcao(event.target.value); setSelectedDepartureAirport(event.target.value); }} className="h-7 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-xs text-cyan-100">
-              {MARKET_WITH_COORDS.map((airport) => (
+              {marketAirports.map((airport) => (
                 <option key={airport.airport_icao} value={airport.airport_icao}>{airport.airport_icao} - {airport.label}</option>
               ))}
             </select>
@@ -535,7 +578,7 @@ export default function Contracts() {
           hangars={ownedHangarsWithCoords}
           contracts={mapContracts}
           contractsByHangar={contractsByHangar}
-          marketAirports={MARKET_WITH_COORDS}
+          marketAirports={marketAirports}
           selectedContractId={selectedContractId}
           onSelectContract={setSelectedContractId}
           selectedAirportIcao={selectedMarketAirportIcao}
@@ -547,6 +590,47 @@ export default function Contracts() {
           isBuyingOrUpgrading={upsertHangarMutation.isPending}
           lang={lang}
         />
+      )}
+
+      {!isLoading && (
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
+          <Card className="xl:col-span-4 border border-cyan-900/40 bg-slate-950/90 p-3">
+            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-cyan-300/80">
+              {lang === "de" ? "Hangar Uebersicht" : "Hangar overview"}
+            </div>
+            <div className="space-y-1.5">
+              {ownedHangarsWithCoords.length > 0 ? (
+                ownedHangarsWithCoords.map((hangar) => (
+                  <div key={`${hangar.airport_icao}_${hangar.size}`} className="rounded-md border border-slate-700/70 bg-slate-900/70 p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-mono text-cyan-100">{hangar.airport_icao}</p>
+                      <Badge className="border-emerald-700/40 bg-emerald-900/25 text-[10px] font-mono text-emerald-200">
+                        {String(hangar.size || "small").toUpperCase()}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-300">{hangar.label || hangar.airport_icao}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-md border border-slate-700/70 bg-slate-900/70 p-2 text-[11px] text-slate-400">
+                  {lang === "de"
+                    ? "Noch keine eigenen Hangars vorhanden."
+                    : "No owned hangars available yet."}
+                </p>
+              )}
+            </div>
+          </Card>
+
+          <div className="xl:col-span-8">
+            <HangarMarket3D
+              aircraft={availableAircraft}
+              contracts={filteredCompatibleContracts}
+              selectedAircraftId={selectedAircraftId}
+              onSelectAircraft={setSelectedAircraftId}
+              lang={lang}
+            />
+          </div>
+        </div>
       )}
 
       {availableAircraft.length > 0 && (

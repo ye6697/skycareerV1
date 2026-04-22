@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,10 @@ const ROUTE_COLORS = {
 };
 
 const HANGAR_VISUAL_SCALE = {
-  small: { width: 0.8, height: 0.95, depth: 0.8, color: 0x22d3ee },
-  medium: { width: 1.05, height: 1.18, depth: 1.0, color: 0x38bdf8 },
-  large: { width: 1.35, height: 1.4, depth: 1.2, color: 0x22c55e },
-  mega: { width: 1.7, height: 1.8, depth: 1.45, color: 0xeab308 },
+  small: { width: 0.95, height: 1.05, depth: 0.9, color: 0x22d3ee },
+  medium: { width: 1.22, height: 1.28, depth: 1.15, color: 0x38bdf8 },
+  large: { width: 1.52, height: 1.54, depth: 1.4, color: 0x22c55e },
+  mega: { width: 1.86, height: 1.9, depth: 1.72, color: 0xeab308 },
 };
 
 const CONTINENTS = [
@@ -29,6 +29,10 @@ const CONTINENTS = [
   [[-52, 80], [-35, 82], [-23, 74], [-45, 60], [-60, 70]],
   [[-180, -62], [180, -62], [180, -84], [-180, -84]],
 ];
+
+function normIcao(value) {
+  return String(value || "").toUpperCase();
+}
 
 function latLonToVector3(lat, lon, radius) {
   const phi = (90 - lat) * (Math.PI / 180);
@@ -52,19 +56,19 @@ function createEarthTexture() {
   const ctx = canvas.getContext("2d");
 
   const oceanGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  oceanGradient.addColorStop(0, "#061023");
-  oceanGradient.addColorStop(0.55, "#0b1a37");
-  oceanGradient.addColorStop(1, "#040c1b");
+  oceanGradient.addColorStop(0, "#060f22");
+  oceanGradient.addColorStop(0.55, "#0b1a35");
+  oceanGradient.addColorStop(1, "#040b19");
   ctx.fillStyle = oceanGradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const aurora = ctx.createRadialGradient(canvas.width * 0.72, canvas.height * 0.2, 40, canvas.width * 0.72, canvas.height * 0.2, 580);
-  aurora.addColorStop(0, "rgba(34,211,238,0.2)");
+  const aurora = ctx.createRadialGradient(canvas.width * 0.7, canvas.height * 0.18, 40, canvas.width * 0.7, canvas.height * 0.18, 560);
+  aurora.addColorStop(0, "rgba(34,211,238,0.22)");
   aurora.addColorStop(1, "rgba(34,211,238,0)");
   ctx.fillStyle = aurora;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = "rgba(124,158,212,0.15)";
+  ctx.strokeStyle = "rgba(124,158,212,0.12)";
   ctx.lineWidth = 1;
   for (let lat = -75; lat <= 75; lat += 15) {
     const y = ((90 - lat) / 180) * canvas.height;
@@ -82,8 +86,8 @@ function createEarthTexture() {
   }
 
   CONTINENTS.forEach((poly, idx) => {
-    const landFill = ["#29573f", "#2f6246", "#3b7a57", "#457f62"][idx % 4];
-    const landStroke = "rgba(174,255,208,0.25)";
+    const landFill = ["#2f6348", "#376f53", "#3f7a5d", "#487f62"][idx % 4];
+    const landStroke = "rgba(174,255,208,0.22)";
     ctx.beginPath();
     poly.forEach(([lon, lat], i) => {
       const [x, y] = lonLatToUv(lon, lat, canvas.width, canvas.height);
@@ -112,7 +116,7 @@ function createStarTexture() {
   ctx.fillStyle = "#01030d";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (let i = 0; i < 7000; i += 1) {
+  for (let i = 0; i < 6800; i += 1) {
     const x = Math.random() * canvas.width;
     const y = Math.random() * canvas.height;
     const size = Math.random() * 1.8;
@@ -129,53 +133,100 @@ function createStarTexture() {
 function buildHangarMesh(sizeKey, isOwned) {
   const visual = HANGAR_VISUAL_SCALE[sizeKey] || HANGAR_VISUAL_SCALE.small;
 
-  const bodyMaterial = new THREE.MeshStandardMaterial({
-    color: isOwned ? visual.color : 0xf97316,
-    emissive: isOwned ? 0x082f35 : 0x5a1f0a,
-    emissiveIntensity: isOwned ? 0.45 : 0.28,
-    metalness: 0.2,
-    roughness: 0.6,
+  const shellMaterial = new THREE.MeshStandardMaterial({
+    color: isOwned ? visual.color : 0xea580c,
+    emissive: isOwned ? 0x0b263a : 0x4e1d0a,
+    emissiveIntensity: isOwned ? 0.4 : 0.16,
+    metalness: 0.28,
+    roughness: 0.56,
   });
 
   const roofMaterial = new THREE.MeshStandardMaterial({
-    color: isOwned ? 0x94a3b8 : 0xfbbf24,
-    metalness: 0.35,
-    roughness: 0.4,
+    color: isOwned ? 0xe2e8f0 : 0xfdba74,
+    emissive: isOwned ? 0x164e63 : 0x000000,
+    emissiveIntensity: isOwned ? 0.14 : 0,
+    metalness: 0.45,
+    roughness: 0.35,
   });
 
   const doorMaterial = new THREE.MeshStandardMaterial({
-    color: isOwned ? 0x0f172a : 0x111827,
+    color: isOwned ? 0x0f172a : 0x1f2937,
     emissive: isOwned ? 0x22d3ee : 0x000000,
-    emissiveIntensity: isOwned ? 0.2 : 0,
-    metalness: 0.45,
+    emissiveIntensity: isOwned ? 0.25 : 0,
+    metalness: 0.38,
     roughness: 0.35,
   });
 
   const group = new THREE.Group();
 
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(visual.width, visual.height, visual.depth),
-    bodyMaterial
+  const width = visual.width;
+  const height = visual.height;
+  const depth = visual.depth;
+
+  const foundation = new THREE.Mesh(
+    new THREE.CylinderGeometry(width * 0.75, width * 0.75, 0.2, 16),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.18, roughness: 0.78 })
   );
-  body.position.y = visual.height * 0.5;
-  group.add(body);
+  foundation.position.y = 0.08;
+  group.add(foundation);
+
+  const shell = new THREE.Mesh(
+    new THREE.BoxGeometry(width, height * 0.68, depth),
+    shellMaterial
+  );
+  shell.position.y = height * 0.36;
+  group.add(shell);
 
   const roof = new THREE.Mesh(
-    new THREE.ConeGeometry(visual.width * 0.68, visual.height * 0.55, 4),
+    new THREE.CylinderGeometry(depth * 0.52, depth * 0.52, width * 0.95, 20, 1, false, 0, Math.PI),
     roofMaterial
   );
-  roof.rotation.y = Math.PI * 0.25;
-  roof.position.y = visual.height + visual.height * 0.24;
+  roof.rotation.z = Math.PI / 2;
+  roof.position.y = height * 0.72;
   group.add(roof);
 
+  const doorFrame = new THREE.Mesh(
+    new THREE.PlaneGeometry(width * 0.64, height * 0.56),
+    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.55, roughness: 0.28 })
+  );
+  doorFrame.position.set(0, height * 0.34, depth * 0.5 + 0.005);
+  group.add(doorFrame);
+
   const door = new THREE.Mesh(
-    new THREE.PlaneGeometry(visual.width * 0.48, visual.height * 0.55),
+    new THREE.PlaneGeometry(width * 0.56, height * 0.46),
     doorMaterial
   );
-  door.position.set(0, visual.height * 0.45, visual.depth * 0.5 + 0.01);
+  door.position.set(0, height * 0.34, depth * 0.5 + 0.015);
   group.add(door);
 
-  return { group, visualHeight: visual.height + visual.height * 0.45 };
+  const wing = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 1.2, 0.08, depth * 0.3),
+    new THREE.MeshStandardMaterial({
+      color: isOwned ? 0x1f2937 : 0x3f3f46,
+      metalness: 0.16,
+      roughness: 0.82,
+    })
+  );
+  wing.position.y = 0.12;
+  wing.position.z = depth * 0.62;
+  group.add(wing);
+
+  const beacon = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 12, 12),
+    new THREE.MeshStandardMaterial({
+      color: isOwned ? 0x22d3ee : 0xfb923c,
+      emissive: isOwned ? 0x22d3ee : 0xf97316,
+      emissiveIntensity: isOwned ? 1 : 0.45,
+    })
+  );
+  beacon.position.set(0, height + 0.22, 0);
+  group.add(beacon);
+
+  return {
+    group,
+    visualHeight: height + 0.45,
+    ringRadius: Math.max(width, depth) * 0.86,
+  };
 }
 
 function getRouteColor(type) {
@@ -191,10 +242,10 @@ function createRouteCurve(start, end, globeRadius) {
 
 function buildRouteMeshes(contract, curve, isSelected) {
   const color = getRouteColor(contract.type);
-  const baseOpacity = isSelected ? 0.7 : 0.42;
-  const coreOpacity = isSelected ? 0.96 : 0.72;
-  const baseRadius = isSelected ? 0.16 : 0.11;
-  const coreRadius = isSelected ? 0.08 : 0.055;
+  const baseOpacity = isSelected ? 0.74 : 0.44;
+  const coreOpacity = isSelected ? 0.98 : 0.76;
+  const baseRadius = isSelected ? 0.16 : 0.105;
+  const coreRadius = isSelected ? 0.082 : 0.05;
 
   const outer = new THREE.Mesh(
     new THREE.TubeGeometry(curve, 90, baseRadius, 10, false),
@@ -203,7 +254,7 @@ function buildRouteMeshes(contract, curve, isSelected) {
       transparent: true,
       opacity: baseOpacity,
       emissive: color,
-      emissiveIntensity: isSelected ? 0.68 : 0.32,
+      emissiveIntensity: isSelected ? 0.72 : 0.3,
       metalness: 0.15,
       roughness: 0.35,
     })
@@ -216,14 +267,14 @@ function buildRouteMeshes(contract, curve, isSelected) {
       transparent: true,
       opacity: coreOpacity,
       emissive: color,
-      emissiveIntensity: isSelected ? 0.9 : 0.5,
+      emissiveIntensity: isSelected ? 0.92 : 0.55,
       metalness: 0.08,
       roughness: 0.25,
     })
   );
 
   const hitbox = new THREE.Mesh(
-    new THREE.TubeGeometry(curve, 72, Math.max(baseRadius * 1.9, 0.22), 8, false),
+    new THREE.TubeGeometry(curve, 72, Math.max(baseRadius * 1.95, 0.22), 8, false),
     new THREE.MeshBasicMaterial({ visible: false })
   );
 
@@ -241,7 +292,8 @@ function getActionContext(hangars, hangarSizes, airportIcao, sizeKey, lang) {
     };
   }
 
-  const existing = hangars.find((h) => h.airport_icao === airportIcao);
+  const normalizedAirport = normIcao(airportIcao);
+  const existing = hangars.find((h) => normIcao(h.airport_icao) === normalizedAirport);
   if (!existing) {
     return {
       canSubmit: true,
@@ -293,41 +345,103 @@ export default function HangarWorldGlobe3D({
 }) {
   const mountRef = useRef(null);
   const focusRef = useRef(null);
+  const isManualControlRef = useRef(false);
+  const clickStartRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const normalizedHangars = useMemo(
+    () =>
+      hangars.map((hangar) => ({
+        ...hangar,
+        airport_icao: normIcao(hangar.airport_icao),
+      })),
+    [hangars]
+  );
+
+  const normalizedContracts = useMemo(
+    () =>
+      contracts.map((contract) => ({
+        ...contract,
+        departure_airport: normIcao(contract.departure_airport),
+        arrival_airport: normIcao(contract.arrival_airport),
+      })),
+    [contracts]
+  );
+
+  const normalizedContractsByHangar = useMemo(() => {
+    const map = {};
+    Object.entries(contractsByHangar || {}).forEach(([key, value]) => {
+      map[normIcao(key)] = Array.isArray(value) ? value : [];
+    });
+    return map;
+  }, [contractsByHangar]);
+
+  const displayAirports = useMemo(() => {
+    const merged = new Map();
+
+    marketAirports.forEach((airport) => {
+      const icao = normIcao(airport.airport_icao);
+      if (!icao) return;
+      merged.set(icao, {
+        ...airport,
+        airport_icao: icao,
+        label: airport.label || icao,
+      });
+    });
+
+    normalizedHangars.forEach((hangar) => {
+      const icao = normIcao(hangar.airport_icao);
+      if (!icao) return;
+      if (!Number.isFinite(hangar.lat) || !Number.isFinite(hangar.lon)) return;
+      if (!merged.has(icao)) {
+        merged.set(icao, {
+          airport_icao: icao,
+          label: hangar.label || `${icao} (Owned)`,
+          lat: hangar.lat,
+          lon: hangar.lon,
+        });
+      }
+    });
+
+    return Array.from(merged.values());
+  }, [marketAirports, normalizedHangars]);
 
   const marketByIcao = useMemo(() => {
     const map = new Map();
-    marketAirports.forEach((airport) => map.set(airport.airport_icao, airport));
+    displayAirports.forEach((airport) => map.set(normIcao(airport.airport_icao), airport));
     return map;
-  }, [marketAirports]);
+  }, [displayAirports]);
 
   const selectedAirportData = useMemo(() => {
     if (!selectedAirportIcao) return null;
-    return marketByIcao.get(selectedAirportIcao) || null;
+    return marketByIcao.get(normIcao(selectedAirportIcao)) || null;
   }, [marketByIcao, selectedAirportIcao]);
 
   const actionContext = useMemo(
     () =>
       getActionContext(
-        hangars,
+        normalizedHangars,
         hangarSizes,
         selectedAirportIcao,
         selectedMarketSize,
         lang
       ),
-    [hangars, hangarSizes, selectedAirportIcao, selectedMarketSize, lang]
+    [normalizedHangars, hangarSizes, selectedAirportIcao, selectedMarketSize, lang]
   );
 
   const selectedAirportContracts = useMemo(() => {
-    if (!selectedAirportIcao) return [];
-    const ownedHangar = hangars.find((h) => h.airport_icao === selectedAirportIcao);
-    if (ownedHangar && contractsByHangar[ownedHangar.id]) {
-      return contractsByHangar[ownedHangar.id];
-    }
-    return contracts.filter((contract) => contract.departure_airport === selectedAirportIcao);
-  }, [contracts, contractsByHangar, hangars, selectedAirportIcao]);
+    const selectedIcao = normIcao(selectedAirportIcao);
+    if (!selectedIcao) return [];
 
-  const visibleContracts = useMemo(() => contracts.slice(0, 80), [contracts]);
+    const airportContracts = normalizedContractsByHangar[selectedIcao];
+    if (Array.isArray(airportContracts) && airportContracts.length > 0) {
+      return airportContracts;
+    }
+
+    return normalizedContracts.filter((contract) => normIcao(contract.departure_airport) === selectedIcao);
+  }, [normalizedContracts, normalizedContractsByHangar, selectedAirportIcao]);
+
+  const visibleContracts = useMemo(() => normalizedContracts.slice(0, 80), [normalizedContracts]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -337,7 +451,6 @@ export default function HangarWorldGlobe3D({
     const height = mount.clientHeight || 600;
 
     const scene = new THREE.Scene();
-
     const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 2800);
     camera.position.set(0, 44, 112);
 
@@ -350,13 +463,36 @@ export default function HangarWorldGlobe3D({
     mount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enablePan = false;
+    controls.target.set(0, 0, 0);
+    controls.enablePan = true;
+    controls.screenSpacePanning = false;
     controls.enableDamping = true;
-    controls.dampingFactor = 0.09;
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.72;
+    controls.zoomSpeed = 0.95;
+    controls.panSpeed = 0.42;
     controls.minDistance = 40;
     controls.maxDistance = 190;
+    controls.minPolarAngle = 0.22;
+    controls.maxPolarAngle = Math.PI - 0.22;
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+    controls.touches.ONE = THREE.TOUCH.ROTATE;
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
     controls.autoRotate = !selectedContractId;
     controls.autoRotateSpeed = 0.45;
+
+    const onControlStart = () => {
+      isManualControlRef.current = true;
+      focusRef.current = null;
+      controls.autoRotate = false;
+    };
+    const onControlEnd = () => {
+      isManualControlRef.current = false;
+    };
+    controls.addEventListener("start", onControlStart);
+    controls.addEventListener("end", onControlEnd);
 
     const globeRadius = 29;
 
@@ -380,22 +516,13 @@ export default function HangarWorldGlobe3D({
 
     const clouds = new THREE.Mesh(
       new THREE.SphereGeometry(globeRadius + 0.46, 96, 96),
-      new THREE.MeshStandardMaterial({
-        color: 0xa5f3fc,
-        transparent: true,
-        opacity: 0.075,
-      })
+      new THREE.MeshStandardMaterial({ color: 0xa5f3fc, transparent: true, opacity: 0.072 })
     );
     scene.add(clouds);
 
     const atmosphere = new THREE.Mesh(
-      new THREE.SphereGeometry(globeRadius + 1.22, 64, 64),
-      new THREE.MeshBasicMaterial({
-        color: 0x38bdf8,
-        transparent: true,
-        opacity: 0.14,
-        side: THREE.BackSide,
-      })
+      new THREE.SphereGeometry(globeRadius + 1.24, 64, 64),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.14, side: THREE.BackSide })
     );
     scene.add(atmosphere);
 
@@ -408,18 +535,21 @@ export default function HangarWorldGlobe3D({
     rim.position.set(-120, -40, -120);
     scene.add(rim);
 
-    const ownedByAirport = new Map(hangars.map((h) => [h.airport_icao, h]));
-
+    const ownedByAirport = new Map(normalizedHangars.map((hangar) => [normIcao(hangar.airport_icao), hangar]));
     const clickableObjects = [];
     const airportFocusMap = new Map();
 
-    marketAirports.forEach((airport) => {
+    displayAirports.forEach((airport) => {
       if (!Number.isFinite(airport.lat) || !Number.isFinite(airport.lon)) return;
-      const owned = ownedByAirport.get(airport.airport_icao);
+
+      const airportIcao = normIcao(airport.airport_icao);
+      const owned = ownedByAirport.get(airportIcao);
       const sizeKey = owned?.size || selectedMarketSize;
-      const { group, visualHeight } = buildHangarMesh(sizeKey, Boolean(owned));
-      const markerPos = latLonToVector3(airport.lat, airport.lon, globeRadius + visualHeight * 0.55);
+      const { group, visualHeight, ringRadius } = buildHangarMesh(sizeKey, Boolean(owned));
+
+      const markerPos = latLonToVector3(airport.lat, airport.lon, globeRadius + 1.42 + visualHeight * 0.2);
       const normal = markerPos.clone().normalize();
+
       group.position.copy(markerPos);
       group.lookAt(markerPos.clone().add(normal));
       group.rotateX(Math.PI / 2);
@@ -428,7 +558,7 @@ export default function HangarWorldGlobe3D({
         if (child.isMesh) {
           child.userData = {
             markerType: "airport",
-            airportIcao: airport.airport_icao,
+            airportIcao,
             pointPos: markerPos,
             isOwned: Boolean(owned),
           };
@@ -436,8 +566,31 @@ export default function HangarWorldGlobe3D({
         }
       });
 
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(ringRadius * 0.7, ringRadius, 26),
+        new THREE.MeshBasicMaterial({
+          color: owned ? 0x22d3ee : 0xfb923c,
+          transparent: true,
+          opacity: owned ? 0.6 : 0.42,
+          side: THREE.DoubleSide,
+        })
+      );
+      ring.position.copy(markerPos.clone().add(normal.clone().multiplyScalar(0.02)));
+      ring.lookAt(markerPos.clone().add(normal));
+      scene.add(ring);
+
+      if (owned) {
+        const beam = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.16, 1.45, 12),
+          new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.35 })
+        );
+        beam.position.copy(markerPos.clone().add(normal.clone().multiplyScalar(0.85)));
+        beam.lookAt(markerPos.clone().add(normal.clone().multiplyScalar(2)));
+        scene.add(beam);
+      }
+
       scene.add(group);
-      airportFocusMap.set(airport.airport_icao, markerPos.clone());
+      airportFocusMap.set(airportIcao, markerPos.clone());
     });
 
     const routePulse = new THREE.Mesh(
@@ -477,9 +630,8 @@ export default function HangarWorldGlobe3D({
       clickableObjects.push(hitbox);
 
       const mid = curve.getPoint(0.5);
-      const focusPos = mid.clone().normalize().multiplyScalar(globeRadius + 52);
       routeFocusMap.set(contract.id, {
-        cameraPos: focusPos,
+        cameraPos: mid.clone().normalize().multiplyScalar(globeRadius + 52),
         target: mid.clone().normalize().multiplyScalar(globeRadius * 0.96),
       });
 
@@ -495,18 +647,31 @@ export default function HangarWorldGlobe3D({
       }
     });
 
-    if (!focusRef.current && selectedAirportIcao && airportFocusMap.has(selectedAirportIcao)) {
-      const base = airportFocusMap.get(selectedAirportIcao);
-      focusRef.current = {
-        position: base.clone().normalize().multiplyScalar(globeRadius + 40),
-        target: base.clone().normalize().multiplyScalar(globeRadius * 0.95),
-      };
+    if (!focusRef.current) {
+      const selectedAirport = normIcao(selectedAirportIcao);
+      if (selectedAirport && airportFocusMap.has(selectedAirport)) {
+        const base = airportFocusMap.get(selectedAirport);
+        focusRef.current = {
+          position: base.clone().normalize().multiplyScalar(globeRadius + 40),
+          target: base.clone().normalize().multiplyScalar(globeRadius * 0.95),
+        };
+      }
     }
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
     const onPointerDown = (event) => {
+      clickStartRef.current = { x: event.clientX, y: event.clientY };
+    };
+
+    const onPointerUp = (event) => {
+      const start = clickStartRef.current;
+      if (!start) return;
+      const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+      clickStartRef.current = null;
+      if (moved > 4) return;
+
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -520,6 +685,7 @@ export default function HangarWorldGlobe3D({
         onSelectContract?.(data.contractId);
         const focus = routeFocusMap.get(data.contractId);
         if (focus) {
+          isManualControlRef.current = false;
           focusRef.current = {
             position: focus.cameraPos.clone(),
             target: focus.target.clone(),
@@ -532,6 +698,7 @@ export default function HangarWorldGlobe3D({
         onSelectAirport?.(data.airportIcao);
         const base = airportFocusMap.get(data.airportIcao);
         if (base) {
+          isManualControlRef.current = false;
           focusRef.current = {
             position: base.clone().normalize().multiplyScalar(globeRadius + 40),
             target: base.clone().normalize().multiplyScalar(globeRadius * 0.95),
@@ -541,6 +708,7 @@ export default function HangarWorldGlobe3D({
     };
 
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    renderer.domElement.addEventListener("pointerup", onPointerUp);
 
     const onResize = () => {
       const w = mount.clientWidth || width;
@@ -570,10 +738,14 @@ export default function HangarWorldGlobe3D({
         routePulse.visible = false;
       }
 
-      if (focusRef.current) {
+      if (focusRef.current && !isManualControlRef.current) {
         controls.autoRotate = false;
         camera.position.lerp(focusRef.current.position, 0.06);
         controls.target.lerp(focusRef.current.target, 0.08);
+
+        if (camera.position.distanceTo(focusRef.current.position) < 0.4) {
+          focusRef.current = null;
+        }
       }
 
       controls.update();
@@ -586,11 +758,17 @@ export default function HangarWorldGlobe3D({
       disposed = true;
       window.removeEventListener("resize", onResize);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      renderer.domElement.removeEventListener("pointerup", onPointerUp);
+      controls.removeEventListener("start", onControlStart);
+      controls.removeEventListener("end", onControlEnd);
       controls.dispose();
+
       if (mount.contains(renderer.domElement)) {
         mount.removeChild(renderer.domElement);
       }
+
       renderer.dispose();
+
       scene.traverse((obj) => {
         if (obj.geometry) obj.geometry.dispose?.();
         if (obj.material) {
@@ -603,9 +781,9 @@ export default function HangarWorldGlobe3D({
       });
     };
   }, [
-    hangars,
+    normalizedHangars,
     visibleContracts,
-    marketAirports,
+    displayAirports,
     selectedContractId,
     selectedAirportIcao,
     selectedMarketSize,
@@ -614,12 +792,23 @@ export default function HangarWorldGlobe3D({
     isFullscreen,
   ]);
 
+  const ownedAirportCount = useMemo(() => {
+    const ownedSet = new Set(normalizedHangars.map((hangar) => normIcao(hangar.airport_icao)));
+    return displayAirports.reduce((count, airport) => {
+      if (ownedSet.has(normIcao(airport.airport_icao))) return count + 1;
+      return count;
+    }, 0);
+  }, [displayAirports, normalizedHangars]);
+
   return (
     <div className={`relative overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-950/95 ${isFullscreen ? "fixed inset-2 z-[120]" : ""}`}>
       <div className="absolute left-3 top-3 z-20 flex items-center gap-2">
         <Badge className="border-cyan-700/50 bg-slate-950/80 text-[10px] font-mono uppercase text-cyan-100">
           <RouteIcon className="mr-1 h-3 w-3" />
           {visibleContracts.length} {lang === "de" ? "Routen" : "Routes"}
+        </Badge>
+        <Badge className="border-emerald-700/50 bg-slate-950/80 text-[10px] font-mono uppercase text-emerald-200">
+          {ownedAirportCount}/{displayAirports.length} {lang === "de" ? "Owned" : "Owned"}
         </Badge>
         <Badge className="border-cyan-700/50 bg-slate-950/80 text-[10px] font-mono uppercase text-cyan-100">
           {lang === "de" ? "Globe Deck" : "Globe Deck"}
@@ -667,7 +856,7 @@ export default function HangarWorldGlobe3D({
                   <span className="text-[10px] text-emerald-300">${Math.round(contract.payout || 0).toLocaleString()}</span>
                 </div>
                 <p className="mt-0.5 text-[10px] font-mono text-slate-300">
-                  {contract.departure_airport} -> {contract.arrival_airport}
+                  {contract.departure_airport} -&gt; {contract.arrival_airport}
                 </p>
               </button>
             );
@@ -728,7 +917,7 @@ export default function HangarWorldGlobe3D({
             <Button
               type="button"
               disabled={!actionContext.canSubmit || isBuyingOrUpgrading}
-              onClick={() => onBuyOrUpgrade?.({ airportIcao: selectedAirportIcao, size: selectedMarketSize })}
+              onClick={() => onBuyOrUpgrade?.({ airportIcao: normIcao(selectedAirportIcao), size: selectedMarketSize })}
               className="h-8 w-full bg-cyan-600 text-xs font-mono uppercase text-slate-950 hover:bg-cyan-500"
             >
               {isBuyingOrUpgrading ? (
@@ -755,8 +944,8 @@ export default function HangarWorldGlobe3D({
 
       <div className="absolute left-3 top-14 z-20 rounded-md border border-cyan-900/50 bg-slate-950/80 px-2 py-1 text-[10px] text-cyan-200">
         {lang === "de"
-          ? "Ziehen = drehen | Scroll = Zoom | Klick auf Route/Airport = Fokus"
-          : "Drag = rotate | Scroll = zoom | Click route/airport = focus"}
+          ? "Linksklick ziehen = Globus drehen | Rechtsklick ziehen = Pan | Scroll = Zoom | Klick auf Route/Airport = Fokus"
+          : "Left drag = rotate globe | Right drag = pan | Scroll = zoom | Click route/airport = focus"}
       </div>
     </div>
   );
