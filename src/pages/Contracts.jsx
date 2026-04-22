@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ export default function Contracts() {
   const [hangarPurchase, setHangarPurchase] = useState({ airport_icao: HANGAR_MARKET[0].airport_icao, size: 'small' });
   const [minNm, setMinNm] = useState('');
   const [maxNm, setMaxNm] = useState('');
+  const autoGenerationGuardRef = useRef('');
 
   // Single backend call that fetches everything with service role
   const { data: pageData, isLoading } = useQuery({
@@ -128,7 +129,9 @@ export default function Contracts() {
   React.useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     const isNewDay = company?.last_contract_generation_date !== today;
-    if (!isLoading && pageData && isNewDay && !generateMutation.isPending) {
+    const alreadyTriggeredForToday = autoGenerationGuardRef.current === today;
+    if (!isLoading && pageData && isNewDay && !generateMutation.isPending && !alreadyTriggeredForToday) {
+      autoGenerationGuardRef.current = today;
       generateMutation.mutate();
     }
   }, [isLoading, pageData, company?.last_contract_generation_date]);
@@ -258,6 +261,19 @@ export default function Contracts() {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
+        <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[10px] font-mono text-cyan-300">
+              {lang === 'de'
+                ? '3D Hangar-Markt und 3D Welt findest du in der Flotte.'
+                : 'You can find the 3D hangar market and 3D world in Fleet.'}
+            </div>
+            <Button size="sm" onClick={() => navigate(createPageUrl('Fleet'))}>
+              {lang === 'de' ? 'Zur Flotte (3D)' : 'Go to Fleet (3D)'}
+            </Button>
+          </div>
+        </Card>
+
         <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
           <div className="flex flex-wrap gap-2 items-end">
             <div>
