@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X } from "lucide-react";
@@ -85,8 +86,6 @@ function getActionContext(hangars, airportIcao, selectedVariant, lang) {
 export default function HangarWorldGlobe3D({
   hangars = [],
   ownedAircraft = [],
-  aircraftMoveTargets = {},
-  onChangeAircraftMoveTarget,
   onMoveAircraft,
   isMovingAircraft = false,
   getMoveValidation,
@@ -202,6 +201,12 @@ export default function HangarWorldGlobe3D({
     );
   }, [ownedAircraft, selectedAirportIcao]);
 
+  const assignableAircraft = useMemo(() => {
+    return ownedAircraft.filter(
+      (aircraft) => String(aircraft?.status || "").toLowerCase() !== "sold"
+    );
+  }, [ownedAircraft]);
+
   const visibleContracts = useMemo(() => normalizedContracts.slice(0, 120), [normalizedContracts]);
 
   const ownedAirportCount = useMemo(() => {
@@ -213,8 +218,17 @@ export default function HangarWorldGlobe3D({
   }, [marketAirports, normalizedHangars]);
   const contractsPanelMaxHeight = isFullscreen ? "calc(100vh - 5.2rem)" : "calc(100% - 5.2rem)";
   const marketPanelMaxHeight = isFullscreen ? "calc(100vh - 5.2rem)" : "calc(100% - 5.2rem)";
+  const selectedIcao = normIcao(selectedAirportIcao);
 
-  return (
+  useEffect(() => {
+    if (!isFullscreen || typeof document === "undefined") return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
+  const content = (
     <div className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "fixed inset-0 z-[220] rounded-none" : "rounded-xl"}`}>
       <div className="absolute left-3 top-3 z-[1400] flex items-center gap-2">
         <Badge className="border-cyan-700/50 bg-slate-950/90 text-[10px] font-mono uppercase text-cyan-100">
@@ -370,10 +384,10 @@ export default function HangarWorldGlobe3D({
                 </span>
               </div>
               <div className="space-y-1.5">
-                {airportAircraft.length > 0 ? (
-                  airportAircraft.map((aircraft) => {
+                {assignableAircraft.length > 0 ? (
+                  assignableAircraft.map((aircraft) => {
                     const currentAirport = normIcao(aircraft?.hangar_airport);
-                    const selectedTarget = normIcao(aircraftMoveTargets?.[aircraft.id]) || currentAirport;
+                    const selectedTarget = selectedIcao;
                     const moveInfo = getMoveValidation?.(aircraft, selectedTarget) || { valid: false, reason: "" };
                     const sameHangar = Boolean(currentAirport && selectedTarget && currentAirport === selectedTarget);
                     const transferCost = Number(getTransferCost?.(aircraft, selectedTarget) || 0);
@@ -386,20 +400,9 @@ export default function HangarWorldGlobe3D({
                           {(aircraft?.registration || aircraft?.id)} | {currentAirport || "-"}
                         </p>
                         <div className="mt-1 flex items-center gap-1.5">
-                          <select
-                            value={selectedTarget}
-                            onChange={(event) => onChangeAircraftMoveTarget?.(aircraft.id, normIcao(event.target.value))}
-                            className="h-7 flex-1 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] text-cyan-100"
-                          >
-                            {normalizedHangars.map((hangar) => {
-                              const icao = normIcao(hangar.airport_icao);
-                              return (
-                                <option key={`${aircraft.id}_${icao}`} value={icao}>
-                                  {icao}
-                                </option>
-                              );
-                            })}
-                          </select>
+                          <div className="h-7 flex-1 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] leading-7 text-cyan-100">
+                            {lang === "de" ? "Ziel" : "Target"}: {selectedTarget || "-"}
+                          </div>
                           <Button
                             type="button"
                             disabled={sameHangar || !moveInfo.valid || isMovingAircraft}
@@ -410,7 +413,7 @@ export default function HangarWorldGlobe3D({
                               ? (lang === "de" ? "..." : "...")
                               : sameHangar
                                 ? (lang === "de" ? "Zugewiesen" : "Assigned")
-                                : (lang === "de" ? "Verschieben" : "Move")}
+                                : (lang === "de" ? "Hier zuweisen" : "Assign here")}
                           </Button>
                         </div>
                         <p className="mt-1 text-[10px] text-slate-400">
@@ -501,4 +504,10 @@ export default function HangarWorldGlobe3D({
       </div>
     </div>
   );
+
+  if (isFullscreen && typeof document !== "undefined") {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }
