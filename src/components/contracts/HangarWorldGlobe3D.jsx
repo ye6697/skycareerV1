@@ -211,6 +211,8 @@ export default function HangarWorldGlobe3D({
       return count;
     }, 0);
   }, [marketAirports, normalizedHangars]);
+  const contractsPanelMaxHeight = isFullscreen ? "calc(100vh - 5.2rem)" : "calc(100% - 5.2rem)";
+  const marketPanelMaxHeight = isFullscreen ? "calc(100vh - 5.2rem)" : "calc(100% - 5.2rem)";
 
   return (
     <div className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "fixed inset-0 z-[220] rounded-none" : "rounded-xl"}`}>
@@ -281,14 +283,17 @@ export default function HangarWorldGlobe3D({
       </div>
 
       {showContractsPanel && (
-        <div className={`absolute right-3 top-14 z-[1450] w-[300px] rounded-xl border border-cyan-900/50 bg-slate-950/90 p-2.5 backdrop-blur ${isFullscreen ? "max-h-[62vh]" : "max-h-[52vh]"}`}>
+        <div
+          className="absolute left-1/2 top-14 z-[1450] w-[min(94vw,300px)] -translate-x-1/2 rounded-xl border border-cyan-900/50 bg-slate-950/90 p-2.5 backdrop-blur sm:left-auto sm:right-3 sm:translate-x-0"
+          style={{ maxHeight: contractsPanelMaxHeight }}
+        >
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
               {lang === "de" ? "Auftragsliste" : "Contract list"}
             </div>
             <div className="text-[10px] text-slate-400">{visibleContracts.length}</div>
           </div>
-          <div className="space-y-1 overflow-y-auto pr-1" style={{ maxHeight: isFullscreen ? "54vh" : "44vh" }}>
+          <div className="space-y-1 overflow-y-auto pr-1" style={{ maxHeight: isFullscreen ? "calc(100vh - 8.6rem)" : "calc(100% - 8.6rem)" }}>
             {visibleContracts.map((contract) => {
               const selected = contract.id === selectedContractId;
               return (
@@ -320,7 +325,11 @@ export default function HangarWorldGlobe3D({
       )}
 
       {showMarketPanel && selectedAirportData && (
-        <div className={`absolute left-3 bottom-3 z-[1450] w-[380px] rounded-xl border border-cyan-900/50 bg-slate-950/92 p-3 backdrop-blur ${isFullscreen ? "max-h-[68vh]" : "max-h-[56vh]"} overflow-y-auto`}>
+        <div
+          className="absolute bottom-3 left-1/2 z-[1450] w-[min(94vw,380px)] -translate-x-1/2 rounded-xl border border-cyan-900/50 bg-slate-950/92 p-3 backdrop-blur sm:left-3 sm:translate-x-0"
+          style={{ maxHeight: marketPanelMaxHeight }}
+        >
+          <div className="max-h-full overflow-y-auto pr-1">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
               {lang === "de" ? "Hangar Popup" : "Hangar popup"}
@@ -481,6 +490,7 @@ export default function HangarWorldGlobe3D({
               </>
             )}
           </Button>
+          </div>
         </div>
       )}
 

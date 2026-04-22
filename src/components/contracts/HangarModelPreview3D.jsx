@@ -279,7 +279,7 @@ export default function HangarModelPreview3D({
         {lang === "de" ? "3D Hangar Vorschau" : "3D hangar preview"}
       </div>
       <div className="relative overflow-hidden rounded border border-cyan-900/40 bg-slate-950/90">
-        <div ref={viewportRef} className="h-[190px] w-full" />
+        <div ref={viewportRef} className="h-[clamp(130px,22vh,190px)] w-full" />
         {isModelLoading && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/45">
             <div className="rounded-md border border-cyan-800/50 bg-slate-950/85 px-2.5 py-1 text-[10px] font-mono text-cyan-100">
