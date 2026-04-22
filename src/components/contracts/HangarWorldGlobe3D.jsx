@@ -320,14 +320,14 @@ function buildRouteMeshes(contract, curve, isSelected) {
   return { outer, inner, hitbox };
 }
 
-function getActionContext(hangars, hangarSizes, airportIcao, sizeKey, lang) {
-  const sizeSpec = hangarSizes.find((s) => s.key === sizeKey);
-  if (!sizeSpec) {
+function getActionContext(hangars, airportIcao, selectedVariant, lang) {
+  const selectedSpec = getVariantSizeSpec(selectedVariant?.id);
+  if (!selectedVariant || !selectedSpec) {
     return {
       canSubmit: false,
       cost: 0,
-      label: lang === "de" ? "Groesse auswaehlen" : "Select size",
-      helper: lang === "de" ? "Bitte eine gueltige Hangargroesse waehlen." : "Please choose a valid hangar size.",
+      label: lang === "de" ? "Modell waehlen" : "Select model",
+      helper: lang === "de" ? "Bitte ein gueltiges Hangar-Modell waehlen." : "Please choose a valid hangar model.",
     };
   }
 
@@ -345,16 +345,28 @@ function getActionContext(hangars, hangarSizes, airportIcao, sizeKey, lang) {
   if (!existing) {
     return {
       canSubmit: true,
-      cost: sizeSpec.price,
+      cost: selectedSpec.price,
       label: lang === "de" ? "Hangar kaufen" : "Buy hangar",
-      helper: lang === "de" ? "Neuen Standort erwerben." : "Acquire a new base.",
+      helper:
+        lang === "de"
+          ? `${selectedVariant.label} | ${selectedSpec.key.toUpperCase()} | ${selectedSpec.slots} Slots`
+          : `${selectedVariant.label} | ${selectedSpec.key.toUpperCase()} | ${selectedSpec.slots} slots`,
     };
   }
 
-  const currentIndex = hangarSizes.findIndex((s) => s.key === existing.size);
-  const nextIndex = hangarSizes.findIndex((s) => s.key === sizeKey);
+  if (String(existing.model_variant || "") === String(selectedVariant.id || "")) {
+    return {
+      canSubmit: false,
+      cost: 0,
+      label: lang === "de" ? "Bereits gekauft" : "Already owned",
+      helper: lang === "de" ? `Aktuell: ${selectedVariant.label}` : `Current: ${selectedVariant.label}`,
+    };
+  }
 
-  if (currentIndex < 0 || nextIndex <= currentIndex) {
+  const currentSpec = getVariantSizeSpec(existing.model_variant);
+  const currentTier = Number(existing.upgrade_tier ?? currentSpec?.tier ?? 0);
+  const targetTier = Number(selectedSpec.tier || 0);
+  if (targetTier <= currentTier) {
     return {
       canSubmit: false,
       cost: 0,
@@ -363,15 +375,20 @@ function getActionContext(hangars, hangarSizes, airportIcao, sizeKey, lang) {
     };
   }
 
-  const currentSize = hangarSizes[currentIndex];
-  const baseCurrentPrice = currentSize?.price || existing.purchase_price || 0;
-  const diff = Math.max(0, sizeSpec.price - baseCurrentPrice);
+  const baseCurrentPrice = Number(existing.purchase_price || 0) || Number(currentSpec?.price || 0);
+  const diff = Math.max(0, Number(selectedSpec.price || 0) - baseCurrentPrice);
 
   return {
     canSubmit: true,
     cost: diff,
-    label: lang === "de" ? `Upgrade auf ${sizeSpec.key.toUpperCase()}` : `Upgrade to ${sizeSpec.key.toUpperCase()}`,
-    helper: lang === "de" ? `Aktuell: ${existing.size.toUpperCase()}` : `Current: ${existing.size.toUpperCase()}`,
+    label:
+      lang === "de"
+        ? `Upgrade auf ${selectedVariant.label}`
+        : `Upgrade to ${selectedVariant.label}`,
+    helper:
+      lang === "de"
+        ? `Aktuell: ${String(existing.model_variant || "-")} -> ${selectedVariant.label}`
+        : `Current: ${String(existing.model_variant || "-")} -> ${selectedVariant.label}`,
   };
 }
 
@@ -388,7 +405,6 @@ export default function HangarWorldGlobe3D({
   selectedMarketVariantId = "",
   onSelectMarketVariantId,
   hangarVariants = [],
-  hangarSizes = [],
   onBuyOrUpgrade,
   isBuyingOrUpgrading = false,
   lang = "de",
@@ -450,17 +466,26 @@ export default function HangarWorldGlobe3D({
     () => marketByIcao.get(normIcao(selectedAirportIcao)) || null,
     [marketByIcao, selectedAirportIcao]
   );
+  const selectedVariant = useMemo(() => {
+    if (!Array.isArray(hangarVariants) || hangarVariants.length === 0) return null;
+    return (
+      hangarVariants.find((variant) => variant.id === selectedMarketVariantId) || hangarVariants[0] || null
+    );
+  }, [hangarVariants, selectedMarketVariantId]);
+  const selectedVariantSpec = useMemo(
+    () => getVariantSizeSpec(selectedVariant?.id) || null,
+    [selectedVariant?.id]
+  );
 
   const actionContext = useMemo(
     () =>
       getActionContext(
         normalizedHangars,
-        hangarSizes,
         selectedAirportIcao,
-        selectedMarketSize,
+        selectedVariant,
         lang
       ),
-    [normalizedHangars, hangarSizes, selectedAirportIcao, selectedMarketSize, lang]
+    [normalizedHangars, selectedAirportIcao, selectedVariant, lang]
   );
 
   const selectedAirportContracts = useMemo(() => {
@@ -606,7 +631,8 @@ export default function HangarWorldGlobe3D({
       const normal = markerPos.clone().normalize();
 
       if (renderHangarModel) {
-        const sizeKey = owned?.size || selectedMarketSize || "small";
+        const ownedSpec = getVariantSizeSpec(owned?.model_variant);
+        const sizeKey = ownedSpec?.key || owned?.size || selectedVariantSpec?.key || selectedMarketSize || "small";
         const { group, visualHeight, ringRadius } = buildHangarMesh(sizeKey, Boolean(owned));
         const elevated = latLonToVector3(airport.lat, airport.lon, globeRadius + 1.25 + visualHeight * 0.22);
         const n = elevated.clone().normalize();
@@ -845,6 +871,8 @@ export default function HangarWorldGlobe3D({
     selectedContractId,
     selectedAirportIcao,
     selectedMarketSize,
+    selectedMarketVariantId,
+    selectedVariantSpec?.key,
     onSelectContract,
     onSelectAirport,
     isFullscreen,

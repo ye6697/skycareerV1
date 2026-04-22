@@ -1,88 +1,92 @@
-const HANGAR_SIZE_SPECS = {
-  small: {
-    key: "small",
-    slots: 2,
-    allowedTypes: ["small_prop", "turboprop"],
-    price: 3500000,
-  },
-  medium: {
-    key: "medium",
-    slots: 4,
-    allowedTypes: ["small_prop", "turboprop", "regional_jet"],
-    price: 12000000,
-  },
-  large: {
-    key: "large",
-    slots: 6,
-    allowedTypes: ["small_prop", "turboprop", "regional_jet", "narrow_body", "cargo"],
-    price: 48000000,
-  },
-  mega: {
-    key: "mega",
-    slots: 10,
-    allowedTypes: ["small_prop", "turboprop", "regional_jet", "narrow_body", "wide_body", "cargo"],
-    price: 125000000,
-  },
-};
-
 export const HANGAR_MODEL_VARIANTS = [
   {
     id: "airport_single",
     label: "Airport Single",
-    path: "/models/hangars/airport_hangar_1.glb",
+    path: "/models/hangars/cloth_hangar.glb",
     sizeKey: "small",
+    slots: 1,
+    price: 1800000,
+    allowedTypes: ["small_prop"],
+    tier: 1,
   },
   {
     id: "compact_modular",
     label: "Compact Modular",
     path: "/models/hangars/hangar_4.glb",
     sizeKey: "small",
+    slots: 2,
+    price: 3500000,
+    allowedTypes: ["small_prop", "turboprop"],
+    tier: 2,
   },
   {
     id: "delta_shed",
     label: "Delta Shed",
     path: "/models/hangars/hangar_6.glb",
-    sizeKey: "small",
+    sizeKey: "medium",
+    slots: 3,
+    price: 7500000,
+    allowedTypes: ["small_prop", "turboprop", "regional_jet"],
+    tier: 3,
   },
   {
-    id: "aircraft_modern",
-    label: "Aircraft Modern",
+    id: "middle",
+    label: "Middle Stat Modern",
     path: "/models/hangars/aircraft_hangar_1.glb",
     sizeKey: "medium",
+    slots: 4,
+    price: 12000000,
+    allowedTypes: ["small_prop", "turboprop", "regional_jet"],
+    tier: 4,
   },
   {
     id: "terminal_modular",
     label: "Terminal Modular",
     path: "/models/hangars/hangar_1.glb",
-    sizeKey: "medium",
-  },
-  {
-    id: "industrial_wide",
-    label: "Industrial Wide",
-    path: "/models/hangars/hangar_3.glb",
     sizeKey: "large",
+    slots: 5,
+    price: 20000000,
+    allowedTypes: ["small_prop", "turboprop", "regional_jet", "narrow_body", "cargo"],
+    tier: 5,
   },
   {
-    id: "cloth_advanced",
-    label: "Cloth Advanced",
-    path: "/models/hangars/cloth_hangar.glb",
-    sizeKey: "large",
-  },
-  {
-    id: "global_main_hub",
-    label: "Global Main Hub",
-    path: "/models/hangars/hangar_main.glb",
+    id: "mega_platform",
+    label: "Mega Plattform",
+    path: "/models/hangars/airport_hangar_3.glb",
     sizeKey: "mega",
-  },
-  {
-    id: "mega_platform_5",
-    label: "Mega Platform 5",
-    path: "/models/hangars/hangar_5.glb",
-    sizeKey: "mega",
+    slots: 15,
+    price: 185000000,
+    allowedTypes: ["small_prop", "turboprop", "regional_jet", "narrow_body", "wide_body", "cargo"],
+    tier: 15,
   },
 ];
 
-export const HANGAR_SIZES = Object.values(HANGAR_SIZE_SPECS);
+export const HANGAR_SIZES = [
+  {
+    key: "small",
+    slots: 2,
+    allowedTypes: ["small_prop", "turboprop"],
+    price: 3500000,
+  },
+  {
+    key: "medium",
+    slots: 4,
+    allowedTypes: ["small_prop", "turboprop", "regional_jet"],
+    price: 12000000,
+  },
+  {
+    key: "large",
+    slots: 6,
+    allowedTypes: ["small_prop", "turboprop", "regional_jet", "narrow_body", "cargo"],
+    price: 48000000,
+  },
+  {
+    key: "mega",
+    slots: 10,
+    allowedTypes: ["small_prop", "turboprop", "regional_jet", "narrow_body", "wide_body", "cargo"],
+    price: 125000000,
+  },
+];
 
 export function getVariantMeta(variantId) {
   if (!variantId) return null;
@@ -91,7 +95,7 @@ export function getVariantMeta(variantId) {
 
 export function getSizeSpec(sizeKey) {
   if (!sizeKey) return null;
-  return HANGAR_SIZE_SPECS[sizeKey] || null;
+  return HANGAR_SIZES.find((size) => size.key === sizeKey) || null;
 }
 
 export function getDefaultVariantId() {
@@ -106,5 +110,11 @@ export function getDefaultVariantBySize(sizeKey = "small") {
 export function getVariantSizeSpec(variantId) {
   const variant = getVariantMeta(variantId);
   if (!variant) return null;
-  return getSizeSpec(variant.sizeKey);
+  return {
+    key: variant.sizeKey,
+    slots: variant.slots,
+    price: variant.price,
+    allowedTypes: Array.isArray(variant.allowedTypes) ? variant.allowedTypes : [],
+    tier: Number(variant.tier || 0),
+  };
 }

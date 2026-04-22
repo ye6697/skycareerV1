@@ -347,12 +347,11 @@ export default function HangarMarket3D({
     };
 
     const applyModelTransform = (object) => {
-      const sizePreset = SIZE_STYLE[selectedVariantSizeSpec?.key || selectedMarketSize] || SIZE_STYLE.small;
       const box = new THREE.Box3().setFromObject(object);
       const size = new THREE.Vector3();
       box.getSize(size);
       const maxDim = Math.max(size.x || 1, size.y || 1, size.z || 1);
-      const targetDim = Math.max(3.6, sizePreset.width * 1.35);
+      const targetDim = 4.4;
       const scale = targetDim / maxDim;
       object.scale.setScalar(scale);
 

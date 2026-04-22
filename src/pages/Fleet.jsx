@@ -105,10 +105,22 @@ const HANGAR_SIZE_RULES = {
   mega: { slots: 10, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'] }
 };
 
+const resolveHangarRule = (hangar) => {
+  const fallback = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+  const customSlots = Number(hangar?.slots);
+  const allowedTypes = Array.isArray(hangar?.allowed_types) && hangar.allowed_types.length > 0
+    ? hangar.allowed_types
+    : fallback.allowed_types;
+  return {
+    slots: Number.isFinite(customSlots) && customSlots > 0 ? customSlots : fallback.slots,
+    allowed_types: allowedTypes,
+  };
+};
+
 const findHangarForAircraftType = (hangars = [], aircraft = [], aircraftType) => {
   const candidates = hangars
     .map((hangar) => {
-      const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+      const rule = resolveHangarRule(hangar);
       const used = aircraft.filter((entry) => entry.status !== 'sold' && entry.hangar_id === hangar.id).length;
       return {
         hangar,
@@ -623,7 +635,7 @@ export default function Fleet() {
 
   const getHangarCapacityByType = React.useCallback((aircraftType) => {
     return ownedHangars.reduce((acc, hangar) => {
-      const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+      const rule = resolveHangarRule(hangar);
       if (rule.allowed_types.includes(aircraftType)) {
         return acc + rule.slots;
       }
