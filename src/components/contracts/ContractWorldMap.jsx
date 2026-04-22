@@ -18,28 +18,28 @@ import "leaflet/dist/leaflet.css";
 import { getAirportCoords } from "@/utils/airportCoordinates";
 
 const departureIcon = new L.DivIcon({
-  html: `<div style="width:14px;height:14px;border-radius:999px;background:#00d4ff;border:2px solid #05323f;box-shadow:0 0 10px rgba(0,212,255,.75)"></div>`,
+  html: `<div style="width:14px;height:14px;border-radius:999px;background:#22d3ee;border:2px solid #082f49;box-shadow:0 0 10px rgba(34,211,238,.8)"></div>`,
   className: "",
   iconSize: [14, 14],
   iconAnchor: [7, 7],
 });
 
 const arrivalIcon = new L.DivIcon({
-  html: `<div style="width:14px;height:14px;border-radius:999px;background:#ffb703;border:2px solid #4f2a00;box-shadow:0 0 10px rgba(255,183,3,.75)"></div>`,
+  html: `<div style="width:14px;height:14px;border-radius:999px;background:#f59e0b;border:2px solid #451a03;box-shadow:0 0 10px rgba(245,158,11,.75)"></div>`,
   className: "",
   iconSize: [14, 14],
   iconAnchor: [7, 7],
 });
 
 const TYPE_COLORS = {
-  passenger: "#00d4ff",
-  cargo: "#fb8500",
-  charter: "#d946ef",
-  emergency: "#ef4444",
+  passenger: "#22d3ee",
+  cargo: "#f59e0b",
+  charter: "#c084fc",
+  emergency: "#f87171",
 };
 
 function getRouteColor(type) {
-  return TYPE_COLORS[type] || "#5eead4";
+  return TYPE_COLORS[type] || "#67e8f9";
 }
 
 function toRadians(value) {
@@ -131,10 +131,10 @@ function FitToRoutes({ bounds, fitKey }) {
     if (lastFitKey.current === fitKey) return;
 
     map.fitBounds(bounds, {
-      padding: [50, 50],
-      maxZoom: 6,
+      padding: [56, 56],
+      maxZoom: 8,
       animate: true,
-      duration: 0.8,
+      duration: 0.75,
     });
     lastFitKey.current = fitKey;
   }, [bounds, fitKey, map]);
@@ -176,7 +176,7 @@ export default function ContractWorldMap({
   }, [marketAirports]);
 
   const routes = useMemo(
-    () => contracts.map((contract) => mapContractRoute(contract, airportByIcao)).filter(Boolean).slice(0, 120),
+    () => contracts.map((contract) => mapContractRoute(contract, airportByIcao)).filter(Boolean).slice(0, 140),
     [airportByIcao, contracts]
   );
 
@@ -192,19 +192,36 @@ export default function ContractWorldMap({
   }, [routes]);
 
   const bounds = useMemo(() => {
-    if (!routes.length) return null;
-    const sample = selectedRoute ? [selectedRoute] : routes.slice(0, 30);
-    const points = [];
-    sample.forEach((route) => {
-      points.push([route.departure.lat, route.departure.lon]);
-      points.push([route.arrival.lat, route.arrival.lon]);
-    });
-    return L.latLngBounds(points);
-  }, [routes, selectedRoute]);
+    if (selectedRoute) {
+      const points = selectedRoute.points.map(([lat, lon]) => [lat, lon]);
+      return L.latLngBounds(points);
+    }
+
+    if (routes.length) {
+      const sample = routes.slice(0, 36);
+      const points = [];
+      sample.forEach((route) => {
+        points.push([route.departure.lat, route.departure.lon]);
+        points.push([route.arrival.lat, route.arrival.lon]);
+      });
+      return L.latLngBounds(points);
+    }
+
+    if (marketAirports.length) {
+      const points = marketAirports
+        .filter((airport) => Number.isFinite(airport?.lat) && Number.isFinite(airport?.lon))
+        .map((airport) => [airport.lat, airport.lon]);
+      if (points.length >= 2) return L.latLngBounds(points);
+    }
+
+    return null;
+  }, [marketAirports, routes, selectedRoute]);
 
   const fitKey = selectedRoute
     ? `selected:${selectedRoute.id}:${routes.length}`
-    : `all:${routes.length}`;
+    : routes.length
+      ? `all:${routes.length}`
+      : `airports:${marketAirports.length}`;
 
   const ownedSet = useMemo(
     () => new Set(hangars.map((hangar) => String(hangar?.airport_icao || "").toUpperCase())),
@@ -213,59 +230,42 @@ export default function ContractWorldMap({
 
   const normalizedSelectedAirport = String(selectedAirportIcao || "").toUpperCase();
 
-  if (!routes.length) {
-    if (embedded) {
-      return (
-        <div className="flex h-full w-full items-center justify-center bg-slate-900/95">
-          <p className="text-sm text-slate-400">
-            {lang === "de"
-              ? "Keine Routen fuer die aktuelle Auswahl. Bitte Filter oder Airport wechseln."
-              : "No routes for the current selection. Try changing filter or airport."}
-          </p>
-        </div>
-      );
-    }
-    return (
-      <Card className="h-full min-h-[420px] border border-cyan-900/40 bg-slate-950/90 p-4">
-        <div className="mb-4 flex items-center gap-2">
-          <Globe2 className="h-5 w-5 text-cyan-300" />
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
-            {lang === "de" ? "Globale Vertragskarte" : "Global Contract Map"}
-          </h3>
-        </div>
-        <div className="flex h-[340px] items-center justify-center rounded-xl border border-cyan-900/40 bg-slate-900/70">
-          <p className="text-sm text-slate-400">
-            {lang === "de"
-              ? "Keine Routen fuer die aktuelle Auswahl. Bitte Filter oder Airport wechseln."
-              : "No routes for the current selection. Try changing filter or airport."}
-          </p>
-        </div>
-      </Card>
-    );
-  }
-
   const mapContent = (
     <>
       <style>{`
         .contract-globe-leaflet {
           background: #020617;
         }
+        .contract-globe-leaflet .leaflet-container {
+          background: radial-gradient(circle at 20% 15%, rgba(14,116,144,.2), transparent 35%), #020617;
+        }
         .contract-globe-leaflet .leaflet-tile {
-          filter: saturate(1.08) contrast(1.06) brightness(0.86);
+          filter: saturate(1.05) contrast(1.1) brightness(0.7) hue-rotate(-6deg);
+        }
+        .contract-globe-leaflet .leaflet-control-zoom {
+          border: 1px solid rgba(14, 116, 144, .55);
+          border-radius: 10px;
+          overflow: hidden;
+          box-shadow: 0 0 0 1px rgba(2,6,23,.55), 0 10px 24px rgba(2,6,23,.45);
         }
         .contract-globe-leaflet .leaflet-control-zoom a {
-          background: rgba(2, 6, 23, 0.86);
+          background: rgba(2, 6, 23, 0.92);
           color: #cbd5e1;
-          border-color: rgba(8, 145, 178, 0.55);
+          border-color: rgba(14, 116, 144, .55);
         }
         .contract-globe-leaflet .leaflet-control-attribution {
-          background: rgba(2, 6, 23, 0.72);
+          background: rgba(2, 6, 23, 0.78);
           color: #94a3b8;
+          border: 1px solid rgba(14,116,144,.32);
+          border-radius: 8px;
+          margin: 0 8px 8px 0;
+          padding: 2px 6px;
         }
       `}</style>
       <MapContainer
-        center={selectedRoute ? selectedRoute.points[0] : [47.3, 10.6]}
-        zoom={4}
+        center={[25, 8]}
+        zoom={3}
+        minZoom={2}
         style={{ width: "100%", height: "100%" }}
         className="contract-globe-leaflet"
         zoomControl
@@ -281,16 +281,52 @@ export default function ContractWorldMap({
         />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
-          opacity={0.42}
+          opacity={0.58}
           attribution="&copy; OpenStreetMap contributors &copy; CARTO"
         />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
-          opacity={0.32}
+          opacity={0.26}
           attribution="&copy; OpenStreetMap contributors &copy; CARTO"
         />
 
-        <Pane name="airportDots" style={{ zIndex: 560 }}>
+        <Pane name="routeGlow" style={{ zIndex: 510 }} />
+        <Pane name="airportDots" style={{ zIndex: 560 }} />
+
+        {routes.map((route) => {
+          const selected = route.id === selectedContractId;
+          const color = getRouteColor(route.type);
+          return (
+            <React.Fragment key={route.id}>
+              <Polyline
+                pane="routeGlow"
+                positions={route.points}
+                pathOptions={{
+                  color,
+                  weight: selected ? 10 : 6,
+                  opacity: selected ? 0.22 : 0.1,
+                }}
+              />
+              <Polyline
+                positions={route.points}
+                pathOptions={{
+                  color,
+                  weight: selected ? 4.8 : 2.1,
+                  opacity: selected ? 0.98 : 0.42,
+                  dashArray: selected ? undefined : "7 10",
+                }}
+                eventHandlers={{
+                  click: (event) => {
+                    event.originalEvent?.stopPropagation?.();
+                    onSelectContract?.(route.id);
+                  },
+                }}
+              />
+            </React.Fragment>
+          );
+        })}
+
+        <Pane name="airports" style={{ zIndex: 580 }}>
           {marketAirports.map((airport) => {
             if (!Number.isFinite(airport?.lat) || !Number.isFinite(airport?.lon)) return null;
             const icao = String(airport.airport_icao || "").toUpperCase();
@@ -300,13 +336,13 @@ export default function ContractWorldMap({
               <CircleMarker
                 key={`airport_${icao}`}
                 center={[airport.lat, airport.lon]}
-                radius={selected ? 6.6 : owned ? 5.1 : 3.1}
+                radius={selected ? 7.6 : owned ? 5.8 : 4.1}
                 pathOptions={{
-                  color: selected ? "#e2e8f0" : owned ? "#22d3ee" : "#eab308",
-                  weight: selected ? 2.2 : 1.3,
+                  color: selected ? "#e2e8f0" : owned ? "#22d3ee" : "#f59e0b",
+                  weight: selected ? 2.3 : 1.4,
                   fillColor: selected ? "#38bdf8" : owned ? "#22d3ee" : "#f59e0b",
-                  fillOpacity: selected ? 0.95 : owned ? 0.82 : 0.55,
-                  opacity: selected ? 1 : 0.84,
+                  fillOpacity: selected ? 0.96 : owned ? 0.84 : 0.58,
+                  opacity: 0.96,
                 }}
                 eventHandlers={{
                   click: (event) => {
@@ -325,38 +361,14 @@ export default function ContractWorldMap({
           })}
         </Pane>
 
-        {routes.map((route) => {
-          const selected = route.id === selectedContractId;
-          const color = getRouteColor(route.type);
-
-          return (
-            <Polyline
-              key={route.id}
-              positions={route.points}
-              pathOptions={{
-                color,
-                weight: selected ? 5 : 2,
-                opacity: selected ? 0.95 : 0.34,
-                dashArray: selected ? undefined : "8 11",
-              }}
-              eventHandlers={{
-                click: (event) => {
-                  event.originalEvent?.stopPropagation?.();
-                  onSelectContract?.(route.id);
-                },
-              }}
-            />
-          );
-        })}
-
         {selectedRoute && (
           <>
             <Polyline
               positions={selectedRoute.points}
               pathOptions={{
                 color: "#ffffff",
-                weight: 8,
-                opacity: 0.18,
+                weight: 7,
+                opacity: 0.14,
               }}
             />
             <Marker position={selectedRoute.points[0]} icon={departureIcon}>
@@ -366,7 +378,7 @@ export default function ContractWorldMap({
                 </span>
               </Tooltip>
             </Marker>
-            <Marker position={selectedRoute.points[1]} icon={arrivalIcon}>
+            <Marker position={selectedRoute.points[selectedRoute.points.length - 1]} icon={arrivalIcon}>
               <Tooltip direction="right" offset={[12, 0]} opacity={1}>
                 <span className="font-mono text-xs font-semibold">
                   {selectedRoute.arrival_airport}
@@ -386,12 +398,12 @@ export default function ContractWorldMap({
   return (
     <Card className="h-full min-h-[420px] overflow-hidden border border-cyan-900/40 bg-slate-950/90">
       <div className="relative border-b border-cyan-900/40 p-3">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(6,182,212,.25),transparent_35%),radial-gradient(circle_at_95%_100%,rgba(14,116,144,.18),transparent_45%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(6,182,212,.20),transparent_35%),radial-gradient(circle_at_95%_100%,rgba(14,116,144,.18),transparent_45%)]" />
         <div className="relative flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Globe2 className="h-5 w-5 text-cyan-300" />
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-100">
-              {lang === "de" ? "Earth Mission Deck" : "Earth Mission Deck"}
+              {lang === "de" ? "Leaflet Mission Deck" : "Leaflet Mission Deck"}
             </h3>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -404,7 +416,7 @@ export default function ContractWorldMap({
             </Badge>
             <Badge className="border-cyan-700/40 bg-cyan-950/60 text-[10px] font-mono text-cyan-100">
               <Satellite className="mr-1 h-3 w-3" />
-              {lang === "de" ? "Satellit" : "Satellite"}
+              {lang === "de" ? "Dunkles Satellite Theme" : "Dark satellite theme"}
             </Badge>
           </div>
         </div>
@@ -423,8 +435,8 @@ export default function ContractWorldMap({
           <span className="inline-flex items-center gap-1 text-slate-400">
             <MountainSnow className="h-3.5 w-3.5" />
             {lang === "de"
-              ? "Klicke eine Route fuer Fokus"
-              : "Click any route to focus"}
+              ? "Klicke Airport oder Route"
+              : "Click airport or route"}
           </span>
         </div>
       </div>

@@ -976,7 +976,7 @@ export default function Contracts() {
             <div>
               <p className="text-xs font-mono uppercase tracking-[0.24em] text-cyan-300/80">Contract Seite 4</p>
               <h1 className="text-lg font-bold text-cyan-100 sm:text-xl">
-                {lang === "de" ? "Globe Mission & Hangar Marketplace" : "Globe Mission & Hangar Marketplace"}
+                {lang === "de" ? "Leaflet Mission & Hangar Marketplace" : "Leaflet Mission & Hangar Marketplace"}
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -1096,7 +1096,7 @@ export default function Contracts() {
       <div className="flex-1 overflow-y-auto min-h-0 pr-0.5">
         <div className="mb-3 flex items-start gap-2 rounded-lg border border-cyan-900/40 bg-cyan-950/25 p-2.5 text-xs text-cyan-100">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-300" />
-          <p>{lang === "de" ? "Alles laeuft jetzt im Globe-Popup: Klick auf Airport oeffnet Hangar Market + Hangar Management direkt in der Karte." : "Everything now runs in the globe popup: click an airport to open hangar market + hangar management directly on the map."}</p>
+          <p>{lang === "de" ? "Alles laeuft jetzt direkt in der Leaflet-Karte: Klick auf Airport oeffnet Hangar Market + Hangar Management in der Map." : "Everything now runs directly inside the Leaflet map: click an airport to open hangar market + hangar management in-map."}</p>
         </div>
 
         {filteredCompatibleContracts.length > 0 ? (
