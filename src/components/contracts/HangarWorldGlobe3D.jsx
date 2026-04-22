@@ -209,7 +209,7 @@ export default function HangarWorldGlobe3D({
 
   return (
     <div className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "fixed inset-0 z-[220] rounded-none" : "rounded-xl"}`}>
-      <div className="absolute left-3 top-3 z-30 flex items-center gap-2">
+      <div className="absolute left-3 top-3 z-[1400] flex items-center gap-2">
         <Badge className="border-cyan-700/50 bg-slate-950/90 text-[10px] font-mono uppercase text-cyan-100">
           <RouteIcon className="mr-1 h-3 w-3" />
           {visibleContracts.length} {lang === "de" ? "Routen" : "Routes"}
@@ -219,7 +219,7 @@ export default function HangarWorldGlobe3D({
         </Badge>
       </div>
 
-      <div className="absolute right-3 top-3 z-30 flex gap-2">
+      <div className="absolute right-3 top-3 z-[1400] flex gap-2">
         <Button
           type="button"
           size="icon"
@@ -249,7 +249,7 @@ export default function HangarWorldGlobe3D({
         </Button>
       </div>
 
-      <div className={`w-full ${isFullscreen ? "h-screen" : "h-[650px]"}`}>
+      <div className={`relative z-0 w-full ${isFullscreen ? "h-screen" : "h-[650px]"}`}>
         <ContractWorldMap
           embedded
           contracts={visibleContracts}
@@ -276,7 +276,7 @@ export default function HangarWorldGlobe3D({
       </div>
 
       {showContractsPanel && (
-        <div className={`absolute right-3 top-14 z-30 w-[300px] rounded-xl border border-cyan-900/50 bg-slate-950/90 p-2.5 backdrop-blur ${isFullscreen ? "max-h-[62vh]" : "max-h-[52vh]"}`}>
+        <div className={`absolute right-3 top-14 z-[1450] w-[300px] rounded-xl border border-cyan-900/50 bg-slate-950/90 p-2.5 backdrop-blur ${isFullscreen ? "max-h-[62vh]" : "max-h-[52vh]"}`}>
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
               {lang === "de" ? "Auftragsliste" : "Contract list"}
@@ -315,7 +315,7 @@ export default function HangarWorldGlobe3D({
       )}
 
       {showMarketPanel && selectedAirportData && (
-        <div className={`absolute left-3 bottom-3 z-30 w-[380px] rounded-xl border border-cyan-900/50 bg-slate-950/92 p-3 backdrop-blur ${isFullscreen ? "max-h-[68vh]" : "max-h-[56vh]"} overflow-y-auto`}>
+        <div className={`absolute left-3 bottom-3 z-[1450] w-[380px] rounded-xl border border-cyan-900/50 bg-slate-950/92 p-3 backdrop-blur ${isFullscreen ? "max-h-[68vh]" : "max-h-[56vh]"} overflow-y-auto`}>
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
               {lang === "de" ? "Hangar Popup" : "Hangar popup"}
@@ -472,7 +472,7 @@ export default function HangarWorldGlobe3D({
         </div>
       )}
 
-      <div className="pointer-events-none absolute left-3 top-14 z-30 rounded-md border border-cyan-900/50 bg-slate-950/85 px-2 py-1 text-[10px] text-cyan-200">
+      <div className="pointer-events-none absolute left-3 top-14 z-[1400] rounded-md border border-cyan-900/50 bg-slate-950/85 px-2 py-1 text-[10px] text-cyan-200">
         {lang === "de"
           ? "Alles in Leaflet: Klick auf Airport fuer Hangar Popup, Klick auf Route fuer Fokus"
           : "All in Leaflet: click airport for hangar popup, click route to focus"}
