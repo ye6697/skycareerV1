@@ -142,9 +142,13 @@ function FitToRoutes({ bounds, fitKey }) {
   return null;
 }
 
-function MapClickCatcher({ onBackgroundClick }) {
+function MapClickCatcher({ onBackgroundClick, suppressNextBackgroundClickRef }) {
   useMapEvents({
     click: () => {
+      if (suppressNextBackgroundClickRef?.current) {
+        suppressNextBackgroundClickRef.current = false;
+        return;
+      }
       onBackgroundClick?.();
     },
   });
@@ -229,6 +233,7 @@ export default function ContractWorldMap({
   );
 
   const normalizedSelectedAirport = String(selectedAirportIcao || "").toUpperCase();
+  const suppressNextBackgroundClickRef = useRef(false);
 
   const mapContent = (
     <>
@@ -266,6 +271,13 @@ export default function ContractWorldMap({
         center={[25, 8]}
         zoom={3}
         minZoom={2}
+        dragging
+        scrollWheelZoom
+        doubleClickZoom
+        touchZoom
+        boxZoom
+        keyboard
+        inertia
         style={{ width: "100%", height: "100%" }}
         className="contract-globe-leaflet"
         zoomControl
@@ -273,7 +285,10 @@ export default function ContractWorldMap({
         worldCopyJump
       >
         <FitToRoutes bounds={bounds} fitKey={fitKey} />
-        <MapClickCatcher onBackgroundClick={onBackgroundClick} />
+        <MapClickCatcher
+          onBackgroundClick={onBackgroundClick}
+          suppressNextBackgroundClickRef={suppressNextBackgroundClickRef}
+        />
 
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -301,6 +316,7 @@ export default function ContractWorldMap({
               <Polyline
                 pane="routeGlow"
                 positions={route.points}
+                bubblingMouseEvents={false}
                 pathOptions={{
                   color,
                   weight: selected ? 10 : 6,
@@ -309,6 +325,7 @@ export default function ContractWorldMap({
               />
               <Polyline
                 positions={route.points}
+                bubblingMouseEvents={false}
                 pathOptions={{
                   color,
                   weight: selected ? 4.8 : 2.1,
@@ -318,6 +335,7 @@ export default function ContractWorldMap({
                 eventHandlers={{
                   click: (event) => {
                     event.originalEvent?.stopPropagation?.();
+                    suppressNextBackgroundClickRef.current = true;
                     onSelectContract?.(route.id);
                   },
                 }}
@@ -336,6 +354,7 @@ export default function ContractWorldMap({
               <CircleMarker
                 key={`airport_${icao}`}
                 center={[airport.lat, airport.lon]}
+                bubblingMouseEvents={false}
                 radius={selected ? 7.6 : owned ? 5.8 : 4.1}
                 pathOptions={{
                   color: selected ? "#e2e8f0" : owned ? "#22d3ee" : "#f59e0b",
@@ -347,6 +366,7 @@ export default function ContractWorldMap({
                 eventHandlers={{
                   click: (event) => {
                     event.originalEvent?.stopPropagation?.();
+                    suppressNextBackgroundClickRef.current = true;
                     onSelectAirport?.(icao);
                   },
                 }}
