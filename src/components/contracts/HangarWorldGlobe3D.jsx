@@ -10,9 +10,18 @@ const latLonToVector3 = (lat, lon, radius) => {
   return new THREE.Vector3(x, y, z);
 };
 
-export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contractsByHangar = {}, onSelectHangar }) {
+export default function HangarWorldGlobe3D({
+  hangars = [],
+  contracts = [],
+  contractsByHangar = {},
+  marketAirports = [],
+  onSelectHangar,
+  onSelectMarketAirport,
+  lang = 'en'
+}) {
   const mountRef = React.useRef(null);
   const [selectedHangar, setSelectedHangar] = React.useState(null);
+  const [selectedMarketAirport, setSelectedMarketAirport] = React.useState(null);
   const zoomTargetRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -20,7 +29,7 @@ export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contr
     if (!mount) return;
 
     const width = mount.clientWidth || 900;
-    const height = mount.clientHeight || 420;
+    const height = mount.clientHeight || 460;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
@@ -52,18 +61,33 @@ export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contr
 
     const airportMap = new Map(hangars.map((h) => [h.airport_icao, h]));
 
-    const markerMeshes = [];
+    const hangarMarkerMeshes = [];
     hangars.forEach((hangar) => {
       if (!Number.isFinite(hangar.lat) || !Number.isFinite(hangar.lon)) return;
       const pointPos = latLonToVector3(hangar.lat, hangar.lon, globeRadius + 0.8);
       const marker = new THREE.Mesh(
-        new THREE.SphereGeometry(0.55, 10, 10),
+        new THREE.SphereGeometry(0.62, 12, 12),
         new THREE.MeshBasicMaterial({ color: 0x22c55e })
       );
       marker.position.copy(pointPos);
-      marker.userData = { hangar, pointPos };
+      marker.userData = { hangar, pointPos, markerType: 'hangar' };
       scene.add(marker);
-      markerMeshes.push(marker);
+      hangarMarkerMeshes.push(marker);
+    });
+
+    const marketMarkerMeshes = [];
+    marketAirports.forEach((airport) => {
+      if (!Number.isFinite(airport.lat) || !Number.isFinite(airport.lon)) return;
+      const pointPos = latLonToVector3(airport.lat, airport.lon, globeRadius + 0.5);
+      const hasOwnedHangar = hangars.some((hangar) => hangar.airport_icao === airport.airport_icao);
+      const marker = new THREE.Mesh(
+        new THREE.SphereGeometry(hasOwnedHangar ? 0.28 : 0.35, 10, 10),
+        new THREE.MeshBasicMaterial({ color: hasOwnedHangar ? 0x22c55e : 0xf59e0b })
+      );
+      marker.position.copy(pointPos);
+      marker.userData = { airport, pointPos, markerType: 'market' };
+      scene.add(marker);
+      marketMarkerMeshes.push(marker);
     });
 
     contracts.forEach((contract) => {
@@ -79,7 +103,7 @@ export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contr
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(
         geometry,
-        new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 })
+        new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8 })
       );
       scene.add(line);
     });
@@ -92,12 +116,25 @@ export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contr
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(markerMeshes, false)[0];
-      if (!hit?.object?.userData?.hangar) return;
-      const hangar = hit.object.userData.hangar;
-      setSelectedHangar(hangar);
-      if (onSelectHangar) onSelectHangar(hangar);
-      zoomTargetRef.current = hit.object.userData.pointPos.clone().normalize().multiplyScalar(globeRadius + 20);
+
+      const hangarHit = raycaster.intersectObjects(hangarMarkerMeshes, false)[0];
+      if (hangarHit?.object?.userData?.hangar) {
+        const hangar = hangarHit.object.userData.hangar;
+        setSelectedHangar(hangar);
+        setSelectedMarketAirport(null);
+        if (onSelectHangar) onSelectHangar(hangar);
+        zoomTargetRef.current = hangarHit.object.userData.pointPos.clone().normalize().multiplyScalar(globeRadius + 20);
+        return;
+      }
+
+      const marketHit = raycaster.intersectObjects(marketMarkerMeshes, false)[0];
+      if (marketHit?.object?.userData?.airport) {
+        const airport = marketHit.object.userData.airport;
+        setSelectedMarketAirport(airport);
+        setSelectedHangar(null);
+        if (onSelectMarketAirport) onSelectMarketAirport(airport);
+        zoomTargetRef.current = marketHit.object.userData.pointPos.clone().normalize().multiplyScalar(globeRadius + 24);
+      }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
@@ -133,13 +170,13 @@ export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contr
         }
       });
     };
-  }, [hangars, contracts, onSelectHangar]);
+  }, [hangars, contracts, marketAirports, onSelectHangar, onSelectMarketAirport]);
 
   return (
     <div className="relative">
-      <div ref={mountRef} className="w-full h-[420px] rounded-xl border border-cyan-900/40 overflow-hidden" />
+      <div ref={mountRef} className="w-full h-[460px] rounded-xl border border-cyan-900/40 overflow-hidden" />
       {selectedHangar && (
-        <div className="absolute left-3 top-3 w-[320px] rounded-lg border border-cyan-700/50 bg-slate-950/95 p-3 text-xs text-cyan-100 shadow-xl">
+        <div className="absolute left-3 top-3 w-[340px] rounded-lg border border-cyan-700/50 bg-slate-950/95 p-3 text-xs text-cyan-100 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="font-mono text-cyan-300 uppercase">{selectedHangar.airport_icao} · {selectedHangar.size}</div>
             <button
@@ -153,7 +190,7 @@ export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contr
             </button>
           </div>
           <div className="mt-2 text-[11px] text-cyan-400">
-            Verfügbare Aufträge: {(contractsByHangar[selectedHangar.id] || []).length}
+            {lang === 'de' ? 'Verfügbare Aufträge' : 'Available contracts'}: {(contractsByHangar[selectedHangar.id] || []).length}
           </div>
           <div className="mt-1 max-h-40 overflow-y-auto space-y-1">
             {(contractsByHangar[selectedHangar.id] || []).slice(0, 8).map((contract) => (
@@ -162,8 +199,25 @@ export default function HangarWorldGlobe3D({ hangars = [], contracts = [], contr
               </div>
             ))}
             {(contractsByHangar[selectedHangar.id] || []).length === 0 && (
-              <div className="text-cyan-700">Keine kompatiblen Aufträge für die stationierten Flugzeuge.</div>
+              <div className="text-cyan-700">
+                {lang === 'de'
+                  ? 'Keine kompatiblen Aufträge für die stationierten Flugzeuge.'
+                  : 'No compatible contracts for aircraft stationed at this hangar.'}
+              </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {selectedMarketAirport && (
+        <div className="absolute right-3 top-3 w-[320px] rounded-lg border border-amber-700/50 bg-slate-950/95 p-3 text-xs text-amber-100 shadow-xl">
+          <div className="font-mono text-amber-300 uppercase">
+            {selectedMarketAirport.airport_icao} · {selectedMarketAirport.label}
+          </div>
+          <div className="mt-1 text-[11px] text-amber-200">
+            {lang === 'de'
+              ? 'Klicke im Hangar-Markt unten auf "Hangar kaufen", um hier einen Standort freizuschalten.'
+              : 'Use the hangar market controls below to buy a hangar at this location.'}
           </div>
         </div>
       )}
