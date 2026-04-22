@@ -391,6 +391,7 @@ export default function Contracts() {
             contracts={globeContracts}
             contractsByHangar={hangarContractsMap}
             marketAirports={marketAirportsWithCoords}
+            selectedMarketSize={hangarPurchase.size}
             lang={lang}
             onSelectHangar={(hangar) => {
               setSelectedHangarAirport(hangar.airport_icao);
