@@ -1,282 +1,275 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
-  Search,
-  Users,
+  AlertCircle,
+  Clock3,
+  Filter,
+  Loader2,
   Package,
-  Star,
-  Clock,
   Plane,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Sparkles,
+  Star,
+  Users,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 
 import ContractCard from "@/components/contracts/ContractCard";
-import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
-import { AlertCircle, Loader2, Wrench } from "lucide-react";
+import ContractWorldMap from "@/components/contracts/ContractWorldMap";
+import HangarMarket3D from "@/components/contracts/HangarMarket3D";
+import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
-import { t } from "@/components/i18n/translations";
-import { getAirportCoords } from "@/utils/airportCoordinates";
 
-const HANGAR_MARKET = [
-  { airport_icao: 'EDDF', label: 'Frankfurt' },
-  { airport_icao: 'EGLL', label: 'London Heathrow' },
-  { airport_icao: 'LFPG', label: 'Paris CDG' },
-  { airport_icao: 'LEMD', label: 'Madrid' },
-  { airport_icao: 'LIRF', label: 'Rome Fiumicino' },
-  { airport_icao: 'KJFK', label: 'New York JFK' },
-  { airport_icao: 'KLAX', label: 'Los Angeles' },
-  { airport_icao: 'KORD', label: 'Chicago O’Hare' },
-  { airport_icao: 'KATL', label: 'Atlanta' },
-  { airport_icao: 'CYYZ', label: 'Toronto' },
-  { airport_icao: 'MMMX', label: 'Mexico City' },
-  { airport_icao: 'SBGR', label: 'São Paulo' },
-  { airport_icao: 'OMDB', label: 'Dubai' },
-  { airport_icao: 'OTHH', label: 'Doha' },
-  { airport_icao: 'FAOR', label: 'Johannesburg' },
-  { airport_icao: 'HECA', label: 'Cairo' },
-  { airport_icao: 'VTBS', label: 'Bangkok' },
-  { airport_icao: 'WSSS', label: 'Singapore' },
-  { airport_icao: 'RJTT', label: 'Tokyo Haneda' },
-  { airport_icao: 'RKSI', label: 'Seoul Incheon' },
-  { airport_icao: 'ZSPD', label: 'Shanghai Pudong' },
-  { airport_icao: 'YSSY', label: 'Sydney' },
-  { airport_icao: 'YMML', label: 'Melbourne' },
-  { airport_icao: 'NZAA', label: 'Auckland' }
-];
+function isContractCompatibleWithAircraft(contract, aircraft) {
+  if (!contract || !aircraft) return false;
 
-const HANGAR_SIZES = [
-  { key: 'small', slots: 2, allowedTypes: ['small_prop', 'turboprop'], price: 3500000 },
-  { key: 'medium', slots: 4, allowedTypes: ['small_prop', 'turboprop', 'regional_jet'], price: 12000000 },
-  { key: 'large', slots: 6, allowedTypes: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'cargo'], price: 48000000 },
-  { key: 'mega', slots: 10, allowedTypes: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'], price: 125000000 }
-];
+  const requiredTypes = contract.required_aircraft_type || [];
+  const typeMatch = !requiredTypes.length || requiredTypes.includes(aircraft.type);
+  const cargoMatch =
+    !contract.cargo_weight_kg ||
+    Number(aircraft.cargo_capacity_kg || 0) >= Number(contract.cargo_weight_kg);
+  const rangeMatch =
+    !contract.distance_nm ||
+    Number(aircraft.range_nm || 0) >= Number(contract.distance_nm);
+
+  return typeMatch && cargoMatch && rangeMatch;
+}
+
+function tabMatches(contract, activeTab) {
+  if (activeTab === "all") return contract.status === "available";
+  if (activeTab === "accepted") return contract.status === "accepted";
+  if (activeTab === "passenger") {
+    return contract.type === "passenger" && contract.status === "available";
+  }
+  if (activeTab === "cargo") {
+    return contract.type === "cargo" && contract.status === "available";
+  }
+  if (activeTab === "charter") {
+    return contract.type === "charter" && contract.status === "available";
+  }
+  return true;
+}
+
+function searchMatches(contract, term) {
+  if (!term) return true;
+  const query = term.toLowerCase();
+  const haystack = [
+    contract.title,
+    contract.departure_airport,
+    contract.arrival_airport,
+    contract.departure_city,
+    contract.arrival_city,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function getCompatibilityReason(contract, selectedAircraft, lang) {
+  if (!selectedAircraft) {
+    return lang === "de"
+      ? "Kein verfuegbares Flugzeug fuer diesen Auftrag."
+      : "No available aircraft for this contract.";
+  }
+
+  const requiredTypes = contract.required_aircraft_type || [];
+  if (requiredTypes.length && !requiredTypes.includes(selectedAircraft.type)) {
+    return lang === "de"
+      ? `Typ nicht passend: benoetigt ${requiredTypes.join(", ")}`
+      : `Type mismatch: requires ${requiredTypes.join(", ")}`;
+  }
+
+  if (
+    contract.cargo_weight_kg &&
+    Number(selectedAircraft.cargo_capacity_kg || 0) < Number(contract.cargo_weight_kg)
+  ) {
+    return lang === "de"
+      ? `Zu wenig Zuladung (${selectedAircraft.cargo_capacity_kg || 0} kg / ${
+          contract.cargo_weight_kg
+        } kg)`
+      : `Insufficient cargo (${selectedAircraft.cargo_capacity_kg || 0} kg / ${
+          contract.cargo_weight_kg
+        } kg)`;
+  }
+
+  if (contract.distance_nm && Number(selectedAircraft.range_nm || 0) < Number(contract.distance_nm)) {
+    return lang === "de"
+      ? `Reichweite zu kurz (${selectedAircraft.range_nm || 0} NM / ${
+          contract.distance_nm
+        } NM)`
+      : `Range too short (${selectedAircraft.range_nm || 0} NM / ${
+          contract.distance_nm
+        } NM)`;
+  }
+
+  return lang === "de"
+    ? "Flugzeug ist aktuell nicht verfuegbar."
+    : "Aircraft is currently unavailable.";
+}
 
 export default function Contracts() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
-  const [selectedAircraftId, setSelectedAircraftId] = useState('all');
-  const [selectedHangarAirport, setSelectedHangarAirport] = useState('all');
-  const [selectedHangarId, setSelectedHangarId] = useState(null);
-  const [hangarPurchase, setHangarPurchase] = useState({ airport_icao: HANGAR_MARKET[0].airport_icao, size: 'small' });
-  const [minNm, setMinNm] = useState('');
-  const [maxNm, setMaxNm] = useState('');
-  const autoGenerationGuardRef = useRef('');
 
-  // Single backend call that fetches everything with service role
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [selectedAircraftId, setSelectedAircraftId] = useState("all");
+  const [selectedContractId, setSelectedContractId] = useState(null);
+  const [minNm, setMinNm] = useState("");
+  const [maxNm, setMaxNm] = useState("");
+
   const { data: pageData, isLoading } = useQuery({
-    queryKey: ['contractsPageData'],
+    queryKey: ["contractsPageData"],
     queryFn: async () => {
-      const res = await base44.functions.invoke('getContractsPageData', {});
-      return res.data;
+      const response = await base44.functions.invoke("getContractsPageData", {});
+      return response.data;
     },
     staleTime: 60000,
     refetchOnWindowFocus: false,
   });
 
   const company = pageData?.company || null;
-  const ownedHangars = Array.isArray(company?.hangars) ? company.hangars : [];
   const ownedAircraft = pageData?.aircraft || [];
-  const allContracts = (pageData?.contracts || [])
-    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+  const allContracts = useMemo(
+    () =>
+      (pageData?.contracts || []).slice().sort((a, b) => {
+        return new Date(b.created_date) - new Date(a.created_date);
+      }),
+    [pageData]
+  );
+
+  const availableAircraft = useMemo(
+    () => ownedAircraft.filter((aircraft) => aircraft.status === "available"),
+    [ownedAircraft]
+  );
+
+  useEffect(() => {
+    if (selectedAircraftId === "all") return;
+    if (!availableAircraft.some((aircraft) => aircraft.id === selectedAircraftId)) {
+      setSelectedAircraftId("all");
+    }
+  }, [availableAircraft, selectedAircraftId]);
+
+  const selectedAircraft =
+    selectedAircraftId !== "all"
+      ? availableAircraft.find((aircraft) => aircraft.id === selectedAircraftId) || null
+      : null;
+
+  const aircraftPool = useMemo(() => {
+    if (selectedAircraft) return [selectedAircraft];
+    return availableAircraft;
+  }, [availableAircraft, selectedAircraft]);
+
+  const compatibleContracts = useMemo(() => {
+    return allContracts.filter((contract) => {
+      return aircraftPool.some((aircraft) =>
+        isContractCompatibleWithAircraft(contract, aircraft)
+      );
+    });
+  }, [aircraftPool, allContracts]);
+
+  const incompatibleContracts = useMemo(() => {
+    return allContracts.filter((contract) => {
+      return !aircraftPool.some((aircraft) =>
+        isContractCompatibleWithAircraft(contract, aircraft)
+      );
+    });
+  }, [aircraftPool, allContracts]);
+
+  const filteredCompatibleContracts = useMemo(() => {
+    return compatibleContracts.filter((contract) => {
+      return tabMatches(contract, activeTab) && searchMatches(contract, searchTerm);
+    });
+  }, [activeTab, compatibleContracts, searchTerm]);
+
+  const visibleIncompatibleContracts = useMemo(() => {
+    if (activeTab === "accepted") return [];
+    return incompatibleContracts.filter((contract) => {
+      return tabMatches(contract, activeTab) && searchMatches(contract, searchTerm);
+    });
+  }, [activeTab, incompatibleContracts, searchTerm]);
+
+  const mapContracts = useMemo(() => {
+    const merged = new Map();
+    [...filteredCompatibleContracts, ...visibleIncompatibleContracts].forEach((contract) => {
+      merged.set(contract.id, contract);
+    });
+    return Array.from(merged.values());
+  }, [filteredCompatibleContracts, visibleIncompatibleContracts]);
+
+  useEffect(() => {
+    if (!filteredCompatibleContracts.length) {
+      setSelectedContractId(null);
+      return;
+    }
+
+    const stillVisible = filteredCompatibleContracts.some(
+      (contract) => contract.id === selectedContractId
+    );
+
+    if (!stillVisible) {
+      setSelectedContractId(filteredCompatibleContracts[0].id);
+    }
+  }, [filteredCompatibleContracts, selectedContractId]);
+
+  const selectedContract =
+    mapContracts.find((contract) => contract.id === selectedContractId) || null;
 
   const generateMutation = useMutation({
     mutationFn: async () => {
       const params = {};
-      if (minNm) params.minNm = parseInt(minNm);
-      if (maxNm) params.maxNm = parseInt(maxNm);
-      // Pass active type filter (passenger, cargo, charter) to backend
-      if (activeTab && activeTab !== 'all' && activeTab !== 'accepted') {
+
+      if (minNm) params.minNm = parseInt(minNm, 10);
+      if (maxNm) params.maxNm = parseInt(maxNm, 10);
+
+      if (activeTab && activeTab !== "all" && activeTab !== "accepted") {
         params.contractType = activeTab;
       }
-      // Pass selected aircraft ID so backend generates contracts for that aircraft type
-      if (selectedAircraftId && selectedAircraftId !== 'all') {
+
+      if (selectedAircraftId && selectedAircraftId !== "all") {
         params.aircraftId = selectedAircraftId;
       }
-      const res = await base44.functions.invoke('generateContracts', params);
-      return res.data;
+
+      const response = await base44.functions.invoke("generateContracts", params);
+      return response.data;
     },
     onSuccess: () => {
-      // Refetch page data immediately
-      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
-    }
-  });
-
-  const buyHangarMutation = useMutation({
-    mutationFn: async () => {
-      const sizeSpec = HANGAR_SIZES.find((entry) => entry.key === hangarPurchase.size);
-      if (!sizeSpec) return;
-      if ((company?.balance || 0) < sizeSpec.price) {
-        throw new Error(lang === 'de' ? 'Nicht genug Guthaben für diesen Hangar.' : 'Insufficient balance for this hangar.');
-      }
-      const nextHangars = [
-        ...ownedHangars,
-        {
-          id: crypto.randomUUID(),
-          airport_icao: hangarPurchase.airport_icao,
-          size: sizeSpec.key,
-          purchase_price: sizeSpec.price,
-          slots: sizeSpec.slots,
-          allowed_types: sizeSpec.allowedTypes,
-          purchased_at: new Date().toISOString()
-        }
-      ];
-      await base44.entities.Company.update(company.id, {
-        hangars: nextHangars,
-        balance: (company.balance || 0) - sizeSpec.price
-      });
+      queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
-      queryClient.invalidateQueries({ queryKey: ['company'] });
-    }
   });
 
-  // Auto-generate on first load if no contracts exist
-  React.useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const isNewDay = company?.last_contract_generation_date !== today;
-    const alreadyTriggeredForToday = autoGenerationGuardRef.current === today;
-    if (!isLoading && pageData && isNewDay && !generateMutation.isPending && !alreadyTriggeredForToday) {
-      autoGenerationGuardRef.current = today;
-      generateMutation.mutate();
-    }
-  }, [isLoading, pageData, company?.last_contract_generation_date]);
+  useEffect(() => {
+    if (isLoading) return;
+    if (!pageData) return;
+    if (allContracts.length > 0) return;
+    if (generateMutation.isPending) return;
 
-  // Filter available aircraft (not in flight, not sold, not damaged)
-  const availableAircraft = ownedAircraft.filter(ac => ac.status === 'available');
-
-  // Get selected aircraft for filtering
-  const selectedAircraft = selectedAircraftId !== 'all' 
-    ? availableAircraft.find(a => a.id === selectedAircraftId) 
-    : null;
-
-  // Separate contracts into compatible and incompatible based on selected aircraft or all available
-  const aircraftToCheck = selectedAircraft ? [selectedAircraft] : availableAircraft;
-
-  const selectedHangarAircraft = selectedHangarId
-    ? availableAircraft.filter((plane) => plane.hangar_id === selectedHangarId)
-    : aircraftToCheck;
-
-  const compatibleContracts = allContracts.filter(contract => {
-    return aircraftToCheck.some(plane => {
-      const typeMatch = !contract.required_aircraft_type || 
-                       contract.required_aircraft_type.length === 0 || 
-                       contract.required_aircraft_type.includes(plane.type);
-      const cargoMatch = !contract.cargo_weight_kg || 
-                        (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
-      const rangeMatch = !contract.distance_nm || 
-                        (plane.range_nm && plane.range_nm >= contract.distance_nm);
-      return typeMatch && cargoMatch && rangeMatch;
-    });
-  });
-  
-  const incompatibleContracts = allContracts.filter(contract => {
-    return !aircraftToCheck.some(plane => {
-      const typeMatch = !contract.required_aircraft_type || 
-                       contract.required_aircraft_type.length === 0 || 
-                       contract.required_aircraft_type.includes(plane.type);
-      const cargoMatch = !contract.cargo_weight_kg || 
-                        (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
-      const rangeMatch = !contract.distance_nm || 
-                        (plane.range_nm && plane.range_nm >= contract.distance_nm);
-      return typeMatch && cargoMatch && rangeMatch;
-    });
-  });
-
-  const contracts = compatibleContracts;
-  const incompatibleShow = incompatibleContracts;
+    generateMutation.mutate();
+  }, [allContracts.length, generateMutation, isLoading, pageData]);
 
   const acceptContractMutation = useMutation({
     mutationFn: async (contract) => {
-      await base44.functions.invoke('acceptContract', { 
-        contractId: contract.id 
-      });
+      await base44.functions.invoke("acceptContract", { contractId: contract.id });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
       navigate(createPageUrl("ActiveFlights"));
-    }
+    },
   });
-
-  const filteredContracts = contracts.filter(contract => {
-    const matchesSearch = 
-      contract.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.departure_airport?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.arrival_airport?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesHangar = selectedHangarAirport === 'all' || contract.departure_airport === selectedHangarAirport;
-    const matchesSelectedHangarAircraft = !selectedHangarId || selectedHangarAircraft.some((plane) => {
-      const typeMatch = !contract.required_aircraft_type ||
-        contract.required_aircraft_type.length === 0 ||
-        contract.required_aircraft_type.includes(plane.type);
-      const cargoMatch = !contract.cargo_weight_kg ||
-        (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
-      const rangeMatch = !contract.distance_nm ||
-        (plane.range_nm && plane.range_nm >= contract.distance_nm);
-      return typeMatch && cargoMatch && rangeMatch;
-    });
-
-    if (activeTab === 'all') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.status === 'available';
-    if (activeTab === 'accepted') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.status === 'accepted';
-    if (activeTab === 'passenger') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.type === 'passenger' && contract.status === 'available';
-    if (activeTab === 'cargo') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.type === 'cargo' && contract.status === 'available';
-    if (activeTab === 'charter') return matchesSearch && matchesHangar && matchesSelectedHangarAircraft && contract.type === 'charter' && contract.status === 'available';
-    return matchesSearch;
-  });
-
-  const hangarContractsMap = useMemo(() => {
-    const result = {};
-    ownedHangars.forEach((hangar) => {
-      const stationed = availableAircraft.filter((plane) => plane.hangar_id === hangar.id);
-      const list = filteredContracts.filter((contract) => {
-        if (contract.departure_airport !== hangar.airport_icao) return false;
-        return stationed.some((plane) => {
-          const typeMatch = !contract.required_aircraft_type || contract.required_aircraft_type.includes(plane.type);
-          const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
-          const rangeMatch = !contract.distance_nm || (plane.range_nm && plane.range_nm >= contract.distance_nm);
-          return typeMatch && cargoMatch && rangeMatch;
-        });
-      });
-      result[hangar.id] = list;
-    });
-    return result;
-  }, [ownedHangars, availableAircraft, filteredContracts]);
-
-  const globeHangars = ownedHangars
-    .map((hangar) => {
-      const coords = getAirportCoords(hangar.airport_icao);
-      if (!coords) return null;
-      return {
-        ...hangar,
-        ...coords,
-        stationedAircraft: availableAircraft.filter((plane) => plane.hangar_id === hangar.id)
-      };
-    })
-    .filter(Boolean);
-
-  const globeContracts = filteredContracts.slice(0, 25).map((contract) => ({
-    ...contract,
-    arrival: getAirportCoords(contract.arrival_airport)
-  }));
-
-  const selectedHangarSpec = HANGAR_SIZES.find((size) => size.key === hangarPurchase.size) || HANGAR_SIZES[0];
-  const marketAirportsWithCoords = HANGAR_MARKET.map((airport) => ({
-    ...airport,
-    ...getAirportCoords(airport.airport_icao)
-  })).filter((airport) => Number.isFinite(airport.lat) && Number.isFinite(airport.lon));
 
   const handleAccept = (contract) => {
     acceptContractMutation.mutate(contract);
@@ -286,315 +279,319 @@ export default function Contracts() {
     navigate(createPageUrl(`ContractDetails?id=${contract.id}`));
   };
 
+  const availableCount = compatibleContracts.filter(
+    (contract) => contract.status === "available"
+  ).length;
+  const acceptedCount = compatibleContracts.filter(
+    (contract) => contract.status === "accepted"
+  ).length;
+
   return (
-    <div className="h-full flex flex-col gap-2">
-      {/* Zibo Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 border border-cyan-900/30 p-2 rounded-lg shadow-md">
-        <div className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest px-2">{t('contracts', lang)}</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-cyan-900/50">
-            <span className="text-[9px] font-mono text-cyan-600 uppercase">DIST:</span>
-            <Input type="number" placeholder="0" value={minNm} onChange={(e) => setMinNm(e.target.value)} className="w-10 h-5 text-[10px] font-mono bg-transparent border-none p-0 text-cyan-100 text-center focus-visible:ring-0" />
-            <span className="text-[9px] font-mono text-cyan-600">-</span>
-            <Input type="number" placeholder="∞" value={maxNm} onChange={(e) => setMaxNm(e.target.value)} className="w-10 h-5 text-[10px] font-mono bg-transparent border-none p-0 text-cyan-100 text-center focus-visible:ring-0" />
-            <span className="text-[9px] font-mono text-cyan-600">NM</span>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-cyan-600" />
-            <Input
-              placeholder={t('search_route_airport', lang).toUpperCase()}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900"
-            />
-          </div>
-          <Button 
-            onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending}
-            size="sm"
-            className="h-7 text-[10px] font-mono uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60"
-          >
-            {generateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-            <span className="hidden sm:inline">{t('generate_contracts', lang)}</span>
-          </Button>
-        </div>
-      </div>
+    <div className="h-full flex flex-col gap-3">
+      <InsolvencyBanner />
 
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
-          <div className="text-[10px] font-mono text-cyan-500 uppercase mb-2">
-            {lang === 'de' ? '3D Hangar-Markt & Weltkarte' : '3D Hangar market & world map'}
+      <section className="relative overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-950/95 p-3 sm:p-4">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(34,211,238,.22),transparent_42%),radial-gradient(circle_at_90%_100%,rgba(251,146,60,.2),transparent_44%)]" />
+
+        <div className="relative flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-mono uppercase tracking-[0.24em] text-cyan-300/80">
+                {lang === "de" ? "Contract Command" : "Contract Command"}
+              </p>
+              <h1 className="text-lg font-bold text-cyan-100 sm:text-xl">
+                {lang === "de" ? "Seite 4 - Mission Hub" : "Page 4 - Mission Hub"}
+              </h1>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge className="border-cyan-700/40 bg-cyan-950/50 text-[10px] font-mono text-cyan-100">
+                <Sparkles className="mr-1 h-3 w-3" />
+                {availableCount} {lang === "de" ? "Verfuegbar" : "Available"}
+              </Badge>
+              <Badge className="border-amber-700/40 bg-amber-900/30 text-[10px] font-mono text-amber-100">
+                {acceptedCount} {lang === "de" ? "Angenommen" : "Accepted"}
+              </Badge>
+              <Badge className="border-emerald-700/40 bg-emerald-900/30 text-[10px] font-mono text-emerald-100">
+                ${Math.round(company?.balance || 0).toLocaleString()}
+              </Badge>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 items-end mb-3">
-            <div>
-              <div className="text-[10px] font-mono text-cyan-500 uppercase">{lang === 'de' ? 'Flughafen' : 'Airport'}</div>
-              <select
-                value={hangarPurchase.airport_icao}
-                onChange={(e) => setHangarPurchase((prev) => ({ ...prev, airport_icao: e.target.value }))}
-                className="h-8 rounded bg-slate-950 border border-cyan-900/50 text-cyan-100 px-2 text-xs"
-              >
-                {HANGAR_MARKET.map((airport) => (
-                  <option key={airport.airport_icao} value={airport.airport_icao}>{airport.airport_icao} · {airport.label}</option>
-                ))}
-              </select>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cyan-700" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={lang === "de" ? "Route, Airport oder Contract suchen" : "Search route, airport or contract"}
+                className="h-8 border-cyan-900/60 bg-slate-950/90 pl-8 text-xs text-cyan-100 placeholder:text-cyan-900"
+              />
             </div>
-            <div>
-              <div className="text-[10px] font-mono text-cyan-500 uppercase">{lang === 'de' ? 'Hangargröße' : 'Hangar size'}</div>
-              <select
-                value={hangarPurchase.size}
-                onChange={(e) => setHangarPurchase((prev) => ({ ...prev, size: e.target.value }))}
-                className="h-8 rounded bg-slate-950 border border-cyan-900/50 text-cyan-100 px-2 text-xs"
-              >
-                {HANGAR_SIZES.map((size) => (
-                  <option key={size.key} value={size.key}>{size.key.toUpperCase()} · {size.slots} slots</option>
-                ))}
-              </select>
+
+            <div className="flex items-center gap-1 rounded-md border border-cyan-900/50 bg-slate-950/90 px-2 py-1">
+              <Filter className="h-3.5 w-3.5 text-cyan-500" />
+              <Input
+                type="number"
+                value={minNm}
+                onChange={(event) => setMinNm(event.target.value)}
+                placeholder="0"
+                className="h-6 w-16 border-none bg-transparent p-0 text-center text-xs text-cyan-100 focus-visible:ring-0"
+              />
+              <span className="text-xs text-cyan-700">-</span>
+              <Input
+                type="number"
+                value={maxNm}
+                onChange={(event) => setMaxNm(event.target.value)}
+                placeholder="MAX"
+                className="h-6 w-16 border-none bg-transparent p-0 text-center text-xs text-cyan-100 focus-visible:ring-0"
+              />
+              <span className="text-xs font-mono text-cyan-700">NM</span>
             </div>
-            <Button size="sm" onClick={() => buyHangarMutation.mutate()} disabled={buyHangarMutation.isPending}>
-              {lang === 'de' ? 'Hangar kaufen' : 'Buy hangar'}
+
+            <Button
+              type="button"
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+              className="h-8 bg-cyan-600 px-3 text-xs font-mono uppercase text-slate-950 hover:bg-cyan-500"
+            >
+              {generateMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {lang === "de" ? "Neu generieren" : "Regenerate"}
             </Button>
-            <div className="text-[10px] font-mono text-cyan-400">
-              {lang === 'de' ? 'Eigene Hangars' : 'Owned hangars'}: {ownedHangars.length}
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 mb-2">
-            <div className="rounded bg-slate-950/80 border border-cyan-900/40 p-2 text-[10px] font-mono">
-              <div className="text-cyan-500 uppercase mb-1">{lang === 'de' ? 'Ausgewählte Größe' : 'Selected size'}</div>
-              <div className="text-cyan-200">{selectedHangarSpec.key.toUpperCase()} · {selectedHangarSpec.slots} slots</div>
-              <div className="text-emerald-400">${Math.round(selectedHangarSpec.price).toLocaleString()}</div>
-            </div>
-            <div className="rounded bg-slate-950/80 border border-cyan-900/40 p-2 text-[10px] font-mono lg:col-span-2">
-              <div className="text-cyan-500 uppercase mb-1">{lang === 'de' ? 'Erlaubte Flugzeugtypen' : 'Allowed aircraft types'}</div>
-              <div className="text-cyan-200">{selectedHangarSpec.allowedTypes.join(', ')}</div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-1 mb-2">
-            <button onClick={() => { setSelectedHangarAirport('all'); setSelectedHangarId(null); }} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === 'all' ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>All</button>
-            {ownedHangars.map((hangar) => (
+          {availableAircraft.length > 0 && (
+            <div className="flex items-center gap-1 overflow-x-auto pb-1">
               <button
-                key={hangar.id}
-                onClick={() => {
-                  setSelectedHangarAirport(hangar.airport_icao);
-                  setSelectedHangarId(hangar.id);
-                }}
-                className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === hangar.airport_icao ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}
-              >
-                {hangar.airport_icao} · {hangar.size}
-              </button>
-            ))}
-          </div>
-
-          <HangarWorldGlobe3D
-            hangars={globeHangars}
-            contracts={globeContracts}
-            contractsByHangar={hangarContractsMap}
-            marketAirports={marketAirportsWithCoords}
-            selectedMarketSize={hangarPurchase.size}
-            lang={lang}
-            onSelectHangar={(hangar) => {
-              setSelectedHangarAirport(hangar.airport_icao);
-              setSelectedHangarId(hangar.id);
-            }}
-            onSelectMarketAirport={(airport) => {
-              setHangarPurchase((prev) => ({ ...prev, airport_icao: airport.airport_icao }));
-            }}
-          />
-        </Card>
-
-        {/* Aircraft Selector */}
-        {availableAircraft.length > 0 && (
-          <div className="mb-2">
-            <div className="flex flex-wrap gap-1">
-              <button
-                onClick={() => setSelectedAircraftId('all')}
-                className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
-                  selectedAircraftId === 'all'
-                    ? 'bg-cyan-900/60 text-cyan-400 border border-cyan-700'
-                    : 'bg-slate-900 text-slate-500 hover:text-cyan-400 border border-slate-800'
+                type="button"
+                onClick={() => setSelectedAircraftId("all")}
+                className={`rounded-md border px-2.5 py-1 text-[10px] font-mono uppercase transition ${
+                  selectedAircraftId === "all"
+                    ? "border-cyan-600 bg-cyan-900/40 text-cyan-100"
+                    : "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-cyan-700"
                 }`}
               >
-                {t('all_aircraft', lang)}
+                {lang === "de" ? "Alle Flugzeuge" : "All Aircraft"}
               </button>
-              {availableAircraft.map(ac => (
+
+              {availableAircraft.map((aircraft) => (
                 <button
-                  key={ac.id}
-                  onClick={() => setSelectedAircraftId(ac.id)}
-                  className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors flex items-center gap-1 ${
-                    selectedAircraftId === ac.id
-                      ? 'bg-cyan-900/60 text-cyan-400 border border-cyan-700'
-                      : 'bg-slate-900 text-slate-500 hover:text-cyan-400 border border-slate-800'
+                  key={aircraft.id}
+                  type="button"
+                  onClick={() => setSelectedAircraftId(aircraft.id)}
+                  className={`rounded-md border px-2.5 py-1 text-[10px] font-mono uppercase transition ${
+                    selectedAircraftId === aircraft.id
+                      ? "border-cyan-600 bg-cyan-900/40 text-cyan-100"
+                      : "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-cyan-700"
                   }`}
                 >
-                  <span>{ac.name}</span>
-                  <span className="text-[9px] opacity-60">{ac.registration}</span>
+                  {aircraft.name || aircraft.registration}
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Info Alert */}
-         <div className="mb-2 p-2 bg-cyan-950/30 border border-cyan-900/50 rounded flex items-center gap-2">
-          <AlertCircle className="w-3 h-3 text-cyan-500 flex-shrink-0" />
-          <p className="text-[10px] font-mono text-cyan-200"><span className="font-bold text-cyan-400">{t('important', lang)}:</span> {t('important_msg', lang)}</p>
+          )}
         </div>
+      </section>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-2">
-          <TabsList className="bg-slate-900/80 border border-cyan-900/30 flex-wrap h-auto p-0.5 rounded-lg w-full justify-start overflow-x-auto">
-            <TabsTrigger value="all" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1 flex items-center gap-1">
-              <Plane className="w-3 h-3" /> {t('all', lang)} ({compatibleContracts.filter(c => c.status === 'available').length})
-            </TabsTrigger>
-            <TabsTrigger value="accepted" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1 flex items-center gap-1">
-              <Clock className="w-3 h-3" /> {t('accepted', lang)} ({contracts.filter(c => c.status === 'accepted').length})
-            </TabsTrigger>
-            <TabsTrigger value="passenger" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1 flex items-center gap-1">
-              <Users className="w-3 h-3" /> {t('passenger', lang)}
-            </TabsTrigger>
-            <TabsTrigger value="cargo" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1 flex items-center gap-1">
-              <Package className="w-3 h-3" /> {t('cargo', lang)}
-            </TabsTrigger>
-            <TabsTrigger value="charter" className="text-[10px] font-mono uppercase data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-400 data-[state=active]:shadow-none rounded px-3 py-1 flex items-center gap-1">
-              <Star className="w-3 h-3" /> {t('charter', lang)}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Contract Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card key={i} className="h-64 animate-pulse bg-slate-100" />
-            ))}
+      {isLoading ? (
+        <div className="grid flex-1 grid-cols-1 gap-3 xl:grid-cols-3">
+          <Card className="h-[420px] animate-pulse border border-slate-800 bg-slate-900/70 xl:col-span-2" />
+          <Card className="h-[420px] animate-pulse border border-slate-800 bg-slate-900/70" />
+          <Card className="h-[220px] animate-pulse border border-slate-800 bg-slate-900/70 xl:col-span-3" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <ContractWorldMap
+                contracts={mapContracts}
+                selectedContractId={selectedContractId}
+                onSelectContract={setSelectedContractId}
+                lang={lang}
+              />
+            </div>
+            <HangarMarket3D
+              aircraft={availableAircraft}
+              contracts={compatibleContracts}
+              selectedAircraftId={selectedAircraftId}
+              onSelectAircraft={setSelectedAircraftId}
+              lang={lang}
+            />
           </div>
-        ) : availableAircraft.length === 0 && ownedAircraft.length > 0 ? (
-          <Card className="p-8 sm:p-12 bg-slate-800 border border-slate-700">
-            <div className="text-center mb-6">
-              <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">{t('no_aircraft_available', lang)}</h3>
-              <p className="text-slate-400">{t('all_aircraft_unavailable', lang)}</p>
-            </div>
-            <div className="space-y-3 max-w-md mx-auto mb-6">
-              {ownedAircraft.some(ac => ac.status === 'in_flight') && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
-                  <Plane className="w-5 h-5 text-amber-400" />
-                  <p className="text-sm text-slate-300">{t('aircraft_in_flight', lang)}</p>
-                </div>
-              )}
-              {ownedAircraft.some(ac => ac.status === 'maintenance' || ac.status === 'damaged') && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
-                  <Wrench className="w-5 h-5 text-amber-400" />
-                  <p className="text-sm text-slate-300">{t('aircraft_in_maintenance', lang)}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        ) : filteredContracts.length > 0 ? (
-           <>
-             <h2 className="text-xl font-bold text-white mb-4">{t('compatible_contracts', lang)} ({compatibleContracts.length})</h2>
-             <motion.div 
-               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
-               layout
-             >
-               <AnimatePresence>
-                 {filteredContracts.map((contract) => (
-                   <ContractCard
-                     key={contract.id}
-                     contract={contract}
-                     onAccept={handleAccept}
-                     onView={handleView}
-                     isAccepting={acceptContractMutation.isPending}
-                     ownedAircraft={ownedAircraft}
-                   />
-                 ))}
-               </AnimatePresence>
-             </motion.div>
 
-             {incompatibleShow.length > 0 && (
-               <>
-                 <h2 className="text-xl font-bold text-white mb-4">{t('incompatible_contracts', lang)} ({incompatibleContracts.length})</h2>
-                 <motion.div 
-                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-50"
-                   layout
-                 >
-                   <AnimatePresence>
-                     {incompatibleShow.map((contract) => (
-                       <div key={contract.id} className="relative">
-                         <ContractCard
-                           contract={contract}
-                           onAccept={handleAccept}
-                           onView={handleView}
-                           isAccepting={false}
-                           ownedAircraft={ownedAircraft}
-                         />
-                         <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center">
-                           <div className="text-center px-4">
-                             <p className="text-white font-semibold">{t('no_matching_aircraft', lang)}</p>
-                             <p className="text-slate-400 text-sm mt-1">
-                               {t('required_type', lang)}: {contract.required_aircraft_type?.join(', ') || t('all', lang)}<br />
-                               {contract.distance_nm && `${t('range_label', lang)}: ${contract.distance_nm} NM`}
-                               {contract.cargo_weight_kg && ` • ${t('cargo', lang)}: ${contract.cargo_weight_kg} kg`}
-                             </p>
-                           </div>
-                         </div>
-                       </div>
-                     ))}
-                   </AnimatePresence>
-                 </motion.div>
-               </>
-             )}
-           </>
-         ) : (
-          <Card className="p-8 sm:p-12 bg-slate-800 border border-slate-700">
-            <div className="text-center mb-6">
-              <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                {ownedAircraft.length === 0 ? t('no_aircraft_owned', lang) : t('no_contracts_available', lang)}
-              </h3>
+          <div className="rounded-xl border border-cyan-900/40 bg-slate-950/90 p-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                <TabsTrigger
+                  value="all"
+                  className="h-7 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-[10px] font-mono uppercase data-[state=active]:border-cyan-600 data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-100"
+                >
+                  <Plane className="mr-1.5 h-3.5 w-3.5" />
+                  {lang === "de" ? "Alle" : "All"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="accepted"
+                  className="h-7 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-[10px] font-mono uppercase data-[state=active]:border-cyan-600 data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-100"
+                >
+                  <Clock3 className="mr-1.5 h-3.5 w-3.5" />
+                  {lang === "de" ? "Angenommen" : "Accepted"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="passenger"
+                  className="h-7 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-[10px] font-mono uppercase data-[state=active]:border-cyan-600 data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-100"
+                >
+                  <Users className="mr-1.5 h-3.5 w-3.5" />
+                  {lang === "de" ? "Passagier" : "Passenger"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="cargo"
+                  className="h-7 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-[10px] font-mono uppercase data-[state=active]:border-cyan-600 data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-100"
+                >
+                  <Package className="mr-1.5 h-3.5 w-3.5" />
+                  {lang === "de" ? "Fracht" : "Cargo"}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="charter"
+                  className="h-7 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-[10px] font-mono uppercase data-[state=active]:border-cyan-600 data-[state=active]:bg-cyan-900/40 data-[state=active]:text-cyan-100"
+                >
+                  <Star className="mr-1.5 h-3.5 w-3.5" />
+                  {lang === "de" ? "Charter" : "Charter"}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <div className="flex-1 overflow-y-auto min-h-0 pr-0.5">
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-cyan-900/40 bg-cyan-950/25 p-2.5 text-xs text-cyan-100">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-300" />
+              <p>
+                {lang === "de"
+                  ? "Neue Architektur: echte Earth-Map fuer Route-Fokus, 3D Hangar Market fuer Flugzeug-Wahl und ein schneller Contract-Flow ohne Kontextverlust."
+                  : "New architecture: real earth map for route focus, 3D hangar market for aircraft selection, and a faster contract flow without context loss."}
+              </p>
             </div>
-            <div className="space-y-3 max-w-md mx-auto mb-6">
-              {ownedAircraft.length === 0 && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
-                  <Plane className="w-5 h-5 text-red-400" />
-                  <p className="text-sm text-slate-300">{t('no_aircraft_buy_first', lang)}</p>
-                </div>
-              )}
-              {searchTerm && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
-                  <Search className="w-5 h-5 text-blue-400" />
-                  <p className="text-sm text-slate-300">{t('no_search_results', lang)}</p>
-                </div>
-              )}
-              {ownedAircraft.length > 0 && !searchTerm && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-600/30">
-                  <RefreshCw className="w-5 h-5 text-slate-400" />
-                  <p className="text-sm text-slate-300">{t('click_generate', lang)}</p>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-3 justify-center">
-              {searchTerm && (
-                <Button onClick={() => { setSearchTerm(''); setActiveTab('all'); }}>
-                   {t('reset_filters', lang)}
-                </Button>
-              )}
-              <Button 
-                onClick={() => generateMutation.mutate()}
-                disabled={generateMutation.isPending}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                {generateMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {t('generating', lang)}</>
-                ) : (
-                  <><RefreshCw className="w-4 h-4 mr-2" /> {t('generate_contracts', lang)}</>
+
+            {availableAircraft.length === 0 && ownedAircraft.length > 0 ? (
+              <Card className="border border-slate-700 bg-slate-900/80 p-8 text-center">
+                <Plane className="mx-auto mb-3 h-10 w-10 text-slate-500" />
+                <h3 className="mb-2 text-lg font-semibold text-slate-100">
+                  {lang === "de" ? "Kein Flugzeug verfuegbar" : "No aircraft available"}
+                </h3>
+                <p className="text-sm text-slate-400">
+                  {lang === "de"
+                    ? "Alle Flugzeuge sind aktuell in Wartung, beschaedigt oder in einem aktiven Flug."
+                    : "All aircraft are currently in maintenance, damaged, or in an active flight."}
+                </p>
+              </Card>
+            ) : filteredCompatibleContracts.length > 0 ? (
+              <>
+                <h2 className="mb-2 text-sm font-mono uppercase tracking-[0.18em] text-cyan-200">
+                  {lang === "de" ? "Kompatible Vertraege" : "Compatible Contracts"} ({filteredCompatibleContracts.length})
+                </h2>
+
+                <motion.div layout className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                  <AnimatePresence>
+                    {filteredCompatibleContracts.map((contract) => (
+                      <ContractCard
+                        key={contract.id}
+                        contract={contract}
+                        onAccept={handleAccept}
+                        onView={handleView}
+                        onSelect={(selected) => setSelectedContractId(selected.id)}
+                        selected={contract.id === selectedContractId}
+                        isAccepting={acceptContractMutation.isPending}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+
+                {visibleIncompatibleContracts.length > 0 && (
+                  <>
+                    <h2 className="mb-2 text-sm font-mono uppercase tracking-[0.18em] text-amber-200">
+                      {lang === "de" ? "Inkompatibel" : "Incompatible"} ({visibleIncompatibleContracts.length})
+                    </h2>
+
+                    <motion.div layout className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                      <AnimatePresence>
+                        {visibleIncompatibleContracts.map((contract) => (
+                          <div key={contract.id} className="relative">
+                            <ContractCard
+                              contract={contract}
+                              onView={handleView}
+                              onSelect={(selected) => setSelectedContractId(selected.id)}
+                              selected={contract.id === selectedContractId}
+                              isAccepting={false}
+                              disabled
+                            />
+
+                            <div className="pointer-events-none absolute inset-0 flex items-end rounded-xl border border-amber-700/40 bg-slate-950/65 p-2.5">
+                              <p className="text-[11px] font-mono text-amber-200">
+                                {getCompatibilityReason(contract, selectedAircraft, lang)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </AnimatePresence>
+                    </motion.div>
+                  </>
                 )}
-              </Button>
+              </>
+            ) : (
+              <Card className="border border-slate-700 bg-slate-900/80 p-8 text-center">
+                <Plane className="mx-auto mb-3 h-10 w-10 text-slate-500" />
+                <h3 className="mb-2 text-lg font-semibold text-slate-100">
+                  {lang === "de" ? "Keine passenden Contracts" : "No matching contracts"}
+                </h3>
+                <p className="mx-auto mb-5 max-w-xl text-sm text-slate-400">
+                  {lang === "de"
+                    ? "Passe Suchtext, Distanzfilter oder Flugzeugauswahl an und generiere anschliessend neue Auftraege."
+                    : "Adjust search, distance filter, or aircraft selection and then generate new contracts."}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setMinNm("");
+                      setMaxNm("");
+                      setActiveTab("all");
+                    }}
+                    className="border-slate-700 bg-slate-900 text-xs font-mono uppercase text-slate-200"
+                  >
+                    {lang === "de" ? "Filter reset" : "Reset Filters"}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={() => generateMutation.mutate()}
+                    disabled={generateMutation.isPending}
+                    className="bg-cyan-600 text-xs font-mono uppercase text-slate-950 hover:bg-cyan-500"
+                  >
+                    {generateMutation.isPending ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    {lang === "de" ? "Contracts erzeugen" : "Generate Contracts"}
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          {selectedContract && (
+            <div className="rounded-xl border border-cyan-900/40 bg-slate-950/80 p-2.5 text-xs font-mono text-cyan-100">
+              <span className="text-cyan-300">{lang === "de" ? "Aktiver Kartenfokus:" : "Active map focus:"}</span>{" "}
+              {selectedContract.departure_airport} - {selectedContract.arrival_airport} ({Math.round(selectedContract.distance_nm || 0)} NM)
             </div>
-          </Card>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
