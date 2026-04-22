@@ -93,9 +93,25 @@ function interpolateGreatCircle(departure, arrival, segments = 56) {
   return points;
 }
 
-function mapContractRoute(contract) {
-  const departure = getAirportCoords(contract.departure_airport);
-  const arrival = getAirportCoords(contract.arrival_airport);
+function resolvePoint(contract, prefix, airportByIcao) {
+  const latKey = `${prefix}_lat`;
+  const lonKey = `${prefix}_lon`;
+  const directLat = Number(contract?.[latKey]);
+  const directLon = Number(contract?.[lonKey]);
+  if (Number.isFinite(directLat) && Number.isFinite(directLon)) {
+    return { lat: directLat, lon: directLon };
+  }
+
+  const icaoKey = prefix === "dep" ? "departure_airport" : "arrival_airport";
+  const icao = String(contract?.[icaoKey] || "").toUpperCase();
+  const known = getAirportCoords(icao);
+  if (known) return known;
+  return airportByIcao.get(icao) || null;
+}
+
+function mapContractRoute(contract, airportByIcao) {
+  const departure = resolvePoint(contract, "dep", airportByIcao);
+  const arrival = resolvePoint(contract, "arr", airportByIcao);
   if (!departure || !arrival) return null;
 
   return {
@@ -147,9 +163,21 @@ export default function ContractWorldMap({
   embedded = false,
   lang = "de",
 }) {
+  const airportByIcao = useMemo(() => {
+    const map = new Map();
+    marketAirports.forEach((airport) => {
+      const icao = String(airport?.airport_icao || "").toUpperCase();
+      const lat = Number(airport?.lat);
+      const lon = Number(airport?.lon);
+      if (!icao || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      map.set(icao, { lat, lon });
+    });
+    return map;
+  }, [marketAirports]);
+
   const routes = useMemo(
-    () => contracts.map(mapContractRoute).filter(Boolean).slice(0, 120),
-    [contracts]
+    () => contracts.map((contract) => mapContractRoute(contract, airportByIcao)).filter(Boolean).slice(0, 120),
+    [airportByIcao, contracts]
   );
 
   const selectedRoute = useMemo(
@@ -191,8 +219,8 @@ export default function ContractWorldMap({
         <div className="flex h-full w-full items-center justify-center bg-slate-900/95">
           <p className="text-sm text-slate-400">
             {lang === "de"
-              ? "Keine Route mit bekannten Flughafenkoordinaten gefunden."
-              : "No route with known airport coordinates found."}
+              ? "Keine Routen fuer die aktuelle Auswahl. Bitte Filter oder Airport wechseln."
+              : "No routes for the current selection. Try changing filter or airport."}
           </p>
         </div>
       );
@@ -208,8 +236,8 @@ export default function ContractWorldMap({
         <div className="flex h-[340px] items-center justify-center rounded-xl border border-cyan-900/40 bg-slate-900/70">
           <p className="text-sm text-slate-400">
             {lang === "de"
-              ? "Keine Route mit bekannten Flughafenkoordinaten gefunden."
-              : "No route with known airport coordinates found."}
+              ? "Keine Routen fuer die aktuelle Auswahl. Bitte Filter oder Airport wechseln."
+              : "No routes for the current selection. Try changing filter or airport."}
           </p>
         </div>
       </Card>
