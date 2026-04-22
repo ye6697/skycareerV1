@@ -28,7 +28,7 @@ import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
 import HangarMarket3D from "@/components/contracts/HangarMarket3D";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
-import { getAirportCoords, getAllAirportCoords } from "@/utils/airportCoordinates";
+import { getAirportCoords, getAllAirportCoords, isRealAirportIcao } from "@/utils/airportCoordinates";
 import { useToast } from "@/components/ui/use-toast";
 
 const HANGAR_MARKET = [
@@ -97,9 +97,72 @@ const MARKET_LABELS = Object.fromEntries(
 );
 
 const INITIAL_AIRPORT = "EDDF";
+const HANGAR_STORAGE_KEY_PREFIX = "contracts_hangars";
 
 function normIcao(value) {
   return String(value || "").toUpperCase();
+}
+
+function parseDateValue(value) {
+  if (!value) return 0;
+  const millis = Date.parse(String(value));
+  return Number.isFinite(millis) ? millis : 0;
+}
+
+function getHangarTimestamp(hangar) {
+  return Math.max(
+    parseDateValue(hangar?.upgraded_at),
+    parseDateValue(hangar?.purchased_at),
+    parseDateValue(hangar?.updated_date),
+    parseDateValue(hangar?.created_date)
+  );
+}
+
+function normalizeHangarEntry(hangar, sizeMap) {
+  if (!hangar) return null;
+  const airport_icao = normIcao(hangar.airport_icao);
+  if (!isRealAirportIcao(airport_icao)) return null;
+
+  const rawSize = String(hangar.size || "small").toLowerCase();
+  const size = Object.prototype.hasOwnProperty.call(sizeMap, rawSize) ? rawSize : "small";
+  const sizeSpec = HANGAR_SIZES.find((entry) => entry.key === size) || HANGAR_SIZES[0];
+
+  return {
+    ...hangar,
+    airport_icao,
+    size,
+    slots: hangar.slots ?? sizeSpec.slots,
+    allowed_types: Array.isArray(hangar.allowed_types) ? hangar.allowed_types : sizeSpec.allowedTypes,
+  };
+}
+
+function mergeHangarLists(preferred = [], fallback = [], sizeMap = {}) {
+  const byAirport = new Map();
+  [...fallback, ...preferred].forEach((raw) => {
+    const hangar = normalizeHangarEntry(raw, sizeMap);
+    if (!hangar) return;
+
+    const prev = byAirport.get(hangar.airport_icao);
+    if (!prev) {
+      byAirport.set(hangar.airport_icao, hangar);
+      return;
+    }
+
+    const prevSizeRank = sizeMap[String(prev.size || "small").toLowerCase()] ?? 0;
+    const nextSizeRank = sizeMap[String(hangar.size || "small").toLowerCase()] ?? 0;
+    const prevTimestamp = getHangarTimestamp(prev);
+    const nextTimestamp = getHangarTimestamp(hangar);
+    if (nextTimestamp > prevTimestamp || (nextTimestamp === prevTimestamp && nextSizeRank >= prevSizeRank)) {
+      byAirport.set(hangar.airport_icao, hangar);
+    }
+  });
+
+  return Array.from(byAirport.values()).sort((a, b) => a.airport_icao.localeCompare(b.airport_icao));
+}
+
+function getHangarStorageKey(companyId) {
+  if (!companyId) return "";
+  return `${HANGAR_STORAGE_KEY_PREFIX}_${companyId}`;
 }
 
 function isContractCompatibleWithAircraft(contract, aircraft) {
@@ -211,12 +274,45 @@ export default function Contracts() {
 
   const company = pageData?.company || null;
   const ownedAircraft = pageData?.aircraft || [];
+  const hangarSizeRankMap = useMemo(
+    () => Object.fromEntries(HANGAR_SIZES.map((size, index) => [size.key, index])),
+    []
+  );
   const [localHangars, setLocalHangars] = useState([]);
+  const hangarStorageKey = useMemo(() => getHangarStorageKey(company?.id), [company?.id]);
 
   useEffect(() => {
-    const companyHangars = Array.isArray(company?.hangars) ? company.hangars : [];
-    setLocalHangars(companyHangars);
-  }, [company?.hangars]);
+    if (!hangarStorageKey) {
+      setLocalHangars([]);
+      return;
+    }
+
+    const serverHangars = Array.isArray(company?.hangars) ? company.hangars : [];
+    let persistedHangars = [];
+    try {
+      const raw = localStorage.getItem(hangarStorageKey);
+      persistedHangars = raw ? JSON.parse(raw) : [];
+    } catch {
+      persistedHangars = [];
+    }
+
+    setLocalHangars((previous) =>
+      mergeHangarLists(
+        serverHangars,
+        mergeHangarLists(previous, persistedHangars, hangarSizeRankMap),
+        hangarSizeRankMap
+      )
+    );
+  }, [company?.hangars, hangarSizeRankMap, hangarStorageKey]);
+
+  useEffect(() => {
+    if (!hangarStorageKey) return;
+    try {
+      localStorage.setItem(hangarStorageKey, JSON.stringify(localHangars));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [hangarStorageKey, localHangars]);
 
   const ownedHangars = localHangars;
 
@@ -231,23 +327,32 @@ export default function Contracts() {
   }, [ownedAircraft]);
 
   const marketAirports = useMemo(() => {
-    const airports = getAllAirportCoords()
-      .map((airport) => ({
-        airport_icao: normIcao(airport.airport_icao),
-        label: MARKET_LABELS[normIcao(airport.airport_icao)] || normIcao(airport.airport_icao),
-        lat: airport.lat,
-        lon: airport.lon,
-      }))
-      .filter(
-        (airport) =>
-          Number.isFinite(airport.lat) &&
-          Number.isFinite(airport.lon) &&
-          airport.airport_icao.length >= 3
-      );
+    const airportsByIcao = new Map();
+    const addAirport = (airportIcao) => {
+      const normalized = normIcao(airportIcao);
+      if (!isRealAirportIcao(normalized)) return;
+      const coords = getAirportCoords(normalized);
+      if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) return;
+      airportsByIcao.set(normalized, {
+        airport_icao: normalized,
+        label: MARKET_LABELS[normalized] || normalized,
+        lat: coords.lat,
+        lon: coords.lon,
+      });
+    };
+
+    getAllAirportCoords({ realOnly: true }).forEach((airport) => addAirport(airport.airport_icao));
+    (pageData?.contracts || []).forEach((contract) => {
+      addAirport(contract.departure_airport);
+      addAirport(contract.arrival_airport);
+    });
+    localHangars.forEach((hangar) => addAirport(hangar.airport_icao));
+
+    const airports = Array.from(airportsByIcao.values());
 
     airports.sort((a, b) => a.airport_icao.localeCompare(b.airport_icao));
     return airports;
-  }, []);
+  }, [localHangars, pageData?.contracts]);
 
   useEffect(() => {
     if (selectedAircraftId === "all") return;
@@ -257,7 +362,10 @@ export default function Contracts() {
   }, [availableAircraft, selectedAircraftId]);
 
   useEffect(() => {
-    if (!marketAirports.length) return;
+    if (!marketAirports.length) {
+      setSelectedMarketAirportIcao("");
+      return;
+    }
     if (!selectedMarketAirportIcao) return;
     if (!marketAirports.some((airport) => airport.airport_icao === normIcao(selectedMarketAirportIcao))) {
       setSelectedMarketAirportIcao(marketAirports[0].airport_icao);
@@ -367,12 +475,19 @@ export default function Contracts() {
 
   const upsertHangarMutation = useMutation({
     mutationFn: async ({ airportIcao, sizeKey }) => {
-      if (!company) throw new Error("Company not found.");
+      if (!company?.id) throw new Error("Company not found.");
       const targetAirport = normIcao(airportIcao);
+      if (!targetAirport) throw new Error("Select an airport first.");
       const targetSize = HANGAR_SIZES.find((size) => size.key === sizeKey);
       if (!targetSize) throw new Error("Invalid hangar size.");
 
-      const currentHangars = Array.isArray(localHangars) ? [...localHangars] : [];
+      const companyRows = await base44.entities.Company.filter({ id: company.id });
+      const latestCompany = companyRows?.[0] || company;
+      const currentHangars = mergeHangarLists(
+        Array.isArray(localHangars) ? localHangars : [],
+        Array.isArray(latestCompany?.hangars) ? latestCompany.hangars : [],
+        hangarSizeRankMap
+      );
       const existing = currentHangars.find((hangar) => normIcao(hangar.airport_icao) === targetAirport);
 
       let balanceChange = 0;
@@ -417,28 +532,55 @@ export default function Contracts() {
         });
       }
 
-      const currentBalance = Number(company.balance || 0);
+      const currentBalance = Number(latestCompany?.balance || 0);
       if (currentBalance < balanceChange) {
         throw new Error("Insufficient balance.");
       }
 
-      await base44.entities.Company.update(company.id, {
+      await base44.entities.Company.update(latestCompany.id, {
         hangars: nextHangars,
         balance: currentBalance - balanceChange,
       });
+
+      const verifyRows = await base44.entities.Company.filter({ id: latestCompany.id });
+      const verifiedCompany = verifyRows?.[0] || null;
+      const persistedHangars = mergeHangarLists(
+        Array.isArray(verifiedCompany?.hangars) ? verifiedCompany.hangars : [],
+        nextHangars,
+        hangarSizeRankMap
+      );
+      const persistedTarget = persistedHangars.find(
+        (hangar) => normIcao(hangar.airport_icao) === targetAirport
+      );
+      if (!persistedTarget || persistedTarget.size !== targetSize.key) {
+        throw new Error("Hangar save verification failed.");
+      }
 
       return {
         airport: targetAirport,
         size: targetSize.key,
         cost: balanceChange,
         upgraded: Boolean(existing),
-        nextHangars,
+        nextHangars: persistedHangars,
+        nextBalance: Number(verifiedCompany?.balance ?? currentBalance - balanceChange),
       };
     },
     onSuccess: (result) => {
       if (Array.isArray(result?.nextHangars)) {
         setLocalHangars(result.nextHangars);
       }
+      queryClient.setQueryData(["contractsPageData"], (previous) => {
+        if (!previous?.company) return previous;
+        return {
+          ...previous,
+          company: {
+            ...previous.company,
+            hangars: Array.isArray(result?.nextHangars) ? result.nextHangars : previous.company.hangars,
+            balance:
+              typeof result?.nextBalance === "number" ? result.nextBalance : previous.company.balance,
+          },
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
       queryClient.invalidateQueries({ queryKey: ["company"] });
       toast({

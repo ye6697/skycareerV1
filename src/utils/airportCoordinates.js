@@ -613,13 +613,25 @@ export function getAirportCoords(icao) {
   return AIRPORT_COORDS[key] || ADDITIONAL_AIRPORT_COORDS[key] || null;
 }
 
-export function getAllAirportCoords() {
+export function isRealAirportIcao(icao) {
+  if (!icao || typeof icao !== 'string') return false;
+  return /^[A-Z]{4}$/.test(icao.trim().toUpperCase());
+}
+
+export function getAllAirportCoords(options = {}) {
+  const realOnly = Boolean(options.realOnly);
   return Object.entries({
     ...AIRPORT_COORDS,
     ...ADDITIONAL_AIRPORT_COORDS,
-  }).map(([airport_icao, value]) => ({
-    airport_icao,
-    lat: value.lat,
-    lon: value.lon,
-  }));
+  })
+    .map(([airport_icao, value]) => ({
+      airport_icao,
+      lat: value.lat,
+      lon: value.lon,
+    }))
+    .filter((entry) => {
+      if (!Number.isFinite(entry.lat) || !Number.isFinite(entry.lon)) return false;
+      if (!realOnly) return true;
+      return isRealAirportIcao(entry.airport_icao);
+    });
 }

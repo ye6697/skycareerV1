@@ -136,103 +136,128 @@ function createMaterial(owned, baseColor) {
 
 function buildSmallHangar(owned) {
   const group = new THREE.Group();
-  const shellMaterial = createMaterial(owned, 0x60a5fa);
-  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.5, roughness: 0.34 });
+  const shellMaterial = createMaterial(owned, 0x4b5563);
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.52, roughness: 0.33 });
 
-  const shell = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.62, 0.84), shellMaterial);
-  shell.position.y = 0.34;
-  group.add(shell);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.62, 0.9), shellMaterial);
+  body.position.y = 0.33;
+  group.add(body);
 
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.58, 0.46, 4), roofMaterial);
-  roof.position.y = 0.9;
-  roof.rotation.y = Math.PI / 4;
-  group.add(roof);
+  const roofLeft = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.14, 0.92), roofMaterial);
+  roofLeft.position.set(-0.17, 0.76, 0);
+  roofLeft.rotation.z = 0.32;
+  group.add(roofLeft);
 
-  return { group, visualHeight: 1.18, ringRadius: 0.75 };
+  const roofRight = roofLeft.clone();
+  roofRight.position.x = 0.17;
+  roofRight.rotation.z = -0.32;
+  group.add(roofRight);
+
+  const frontFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.32, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.58, roughness: 0.24 })
+  );
+  frontFrame.position.set(0, 0.33, 0.48);
+  group.add(frontFrame);
+
+  return { group, visualHeight: 1.24, ringRadius: 0.78 };
 }
 
 function buildMediumHangar(owned) {
   const group = new THREE.Group();
-  const shellMaterial = createMaterial(owned, 0x38bdf8);
+  const shellMaterial = createMaterial(owned, 0x0f766e);
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xa8b6c8, metalness: 0.56, roughness: 0.3 });
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.06), shellMaterial);
-  body.position.y = 0.42;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.32, 0.78, 1.08), shellMaterial);
+  body.position.y = 0.41;
   group.add(body);
 
-  const arch = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.56, 0.56, 1.06, 18, 1, false, 0, Math.PI),
-    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.54, roughness: 0.28 })
-  );
-  arch.rotation.z = Math.PI / 2;
-  arch.position.y = 0.9;
-  group.add(arch);
+  for (let i = 0; i < 3; i += 1) {
+    const segment = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.16, 1.12), roofMaterial);
+    segment.position.set(-0.42 + i * 0.42, 0.86 + (i % 2 === 0 ? 0.04 : -0.01), 0);
+    segment.rotation.z = i % 2 === 0 ? 0.22 : -0.12;
+    group.add(segment);
+  }
 
-  return { group, visualHeight: 1.35, ringRadius: 0.9 };
+  const annex = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.42, 0.64),
+    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.35, roughness: 0.45 })
+  );
+  annex.position.set(0.6, 0.24, -0.12);
+  group.add(annex);
+
+  return { group, visualHeight: 1.44, ringRadius: 0.96 };
 }
 
 function buildLargeHangar(owned) {
   const group = new THREE.Group();
-  const shellMaterial = createMaterial(owned, 0x22c55e);
+  const shellMaterial = createMaterial(owned, 0x334155);
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.6, roughness: 0.26 });
 
-  const left = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.72, 0.96), shellMaterial);
-  left.position.set(-0.58, 0.38, 0);
-  group.add(left);
+  for (let i = 0; i < 3; i += 1) {
+    const bay = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.74, 1.02), shellMaterial);
+    bay.position.set(-0.78 + i * 0.78, 0.38, 0);
+    group.add(bay);
+  }
 
-  const right = left.clone();
-  right.position.x = 0.58;
-  group.add(right);
+  const roofLeft = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.16, 1.1), roofMaterial);
+  roofLeft.position.set(-0.56, 0.88, 0);
+  roofLeft.rotation.z = -0.21;
+  group.add(roofLeft);
 
-  const connector = new THREE.Mesh(
-    new THREE.BoxGeometry(0.42, 0.5, 0.9),
-    new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.4, roughness: 0.45 })
+  const roofRight = roofLeft.clone();
+  roofRight.position.x = 0.56;
+  roofRight.rotation.z = 0.21;
+  group.add(roofRight);
+
+  const centerSpine = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 0.28, 1.05),
+    new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.62, roughness: 0.22 })
   );
-  connector.position.y = 0.26;
-  group.add(connector);
+  centerSpine.position.set(0, 0.86, 0);
+  group.add(centerSpine);
 
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(2.35, 0.16, 1.03),
-    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.56, roughness: 0.28 })
-  );
-  roof.position.y = 0.84;
-  group.add(roof);
-
-  return { group, visualHeight: 1.42, ringRadius: 1.15 };
+  return { group, visualHeight: 1.55, ringRadius: 1.18 };
 }
 
 function buildMegaHangar(owned) {
   const group = new THREE.Group();
-  const shellMaterial = createMaterial(owned, 0x0ea5e9);
+  const shellMaterial = createMaterial(owned, 0x1f2937);
+  const panelMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c4d4, metalness: 0.64, roughness: 0.24 });
 
-  const terminal = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.86, 1.35), shellMaterial);
-  terminal.position.y = 0.44;
-  group.add(terminal);
+  const core = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.92, 1.42), shellMaterial);
+  core.position.y = 0.47;
+  group.add(core);
 
-  const sideWingL = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 0.56, 0.9),
-    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.36, roughness: 0.44 })
+  const logisticsLeft = new THREE.Mesh(
+    new THREE.BoxGeometry(0.78, 0.58, 0.96),
+    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.38, roughness: 0.42 })
   );
-  sideWingL.position.set(-1.45, 0.29, -0.08);
-  group.add(sideWingL);
+  logisticsLeft.position.set(-1.68, 0.31, -0.12);
+  group.add(logisticsLeft);
 
-  const sideWingR = sideWingL.clone();
-  sideWingR.position.x = 1.45;
-  group.add(sideWingR);
+  const logisticsRight = logisticsLeft.clone();
+  logisticsRight.position.x = 1.68;
+  group.add(logisticsRight);
 
-  const tower = new THREE.Mesh(
-    new THREE.BoxGeometry(0.34, 1.15, 0.34),
-    new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.6, roughness: 0.2 })
+  const roofFront = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.18, 1.5), panelMaterial);
+  roofFront.position.set(-0.66, 1.02, 0);
+  roofFront.rotation.z = 0.2;
+  group.add(roofFront);
+
+  const roofRear = roofFront.clone();
+  roofRear.position.x = 0.66;
+  roofRear.rotation.z = -0.2;
+  group.add(roofRear);
+
+  const gantry = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, 1.05, 0.28),
+    new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.62, roughness: 0.2 })
   );
-  tower.position.set(0, 1.1, 0.3);
-  group.add(tower);
+  gantry.position.set(0, 1.36, 0.38);
+  group.add(gantry);
 
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(2.55, 0.2, 1.42),
-    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.62, roughness: 0.24 })
-  );
-  roof.position.y = 0.94;
-  group.add(roof);
-
-  return { group, visualHeight: 1.8, ringRadius: 1.36 };
+  return { group, visualHeight: 2.05, ringRadius: 1.45 };
 }
 
 function buildHangarMesh(sizeKey, owned) {
@@ -482,21 +507,22 @@ export default function HangarWorldGlobe3D({
     controls.enablePan = true;
     controls.screenSpacePanning = false;
     controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.rotateSpeed = 0.72;
-    controls.zoomSpeed = 0.95;
-    controls.panSpeed = 0.42;
+    controls.dampingFactor = 0.1;
+    controls.rotateSpeed = 0.9;
+    controls.zoomSpeed = 1.05;
+    controls.panSpeed = 0.54;
+    controls.zoomToCursor = true;
     controls.minDistance = 38;
     controls.maxDistance = 190;
-    controls.minPolarAngle = 0.18;
-    controls.maxPolarAngle = Math.PI - 0.18;
+    controls.minPolarAngle = 0.05;
+    controls.maxPolarAngle = Math.PI - 0.05;
     controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
     controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
     controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
     controls.touches.ONE = THREE.TOUCH.ROTATE;
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
-    controls.autoRotate = !selectedContractId;
-    controls.autoRotateSpeed = 0.4;
+    controls.autoRotate = false;
+    controls.autoRotateSpeed = 0.35;
 
     const onControlStart = () => {
       manualControlRef.current = true;

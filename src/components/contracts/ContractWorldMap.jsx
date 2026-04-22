@@ -4,9 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Globe2, MountainSnow, Route, Satellite } from "lucide-react";
 import {
   CircleMarker,
-  LayersControl,
   MapContainer,
   Marker,
+  Pane,
   Polyline,
   TileLayer,
   Tooltip,
@@ -42,6 +42,57 @@ function getRouteColor(type) {
   return TYPE_COLORS[type] || "#5eead4";
 }
 
+function toRadians(value) {
+  return (value * Math.PI) / 180;
+}
+
+function toDegrees(value) {
+  return (value * 180) / Math.PI;
+}
+
+function interpolateGreatCircle(departure, arrival, segments = 56) {
+  const lat1 = toRadians(departure.lat);
+  const lon1 = toRadians(departure.lon);
+  const lat2 = toRadians(arrival.lat);
+  const lon2 = toRadians(arrival.lon);
+
+  const start = [
+    Math.cos(lat1) * Math.cos(lon1),
+    Math.cos(lat1) * Math.sin(lon1),
+    Math.sin(lat1),
+  ];
+  const end = [
+    Math.cos(lat2) * Math.cos(lon2),
+    Math.cos(lat2) * Math.sin(lon2),
+    Math.sin(lat2),
+  ];
+
+  const dot = Math.min(1, Math.max(-1, start[0] * end[0] + start[1] * end[1] + start[2] * end[2]));
+  const omega = Math.acos(dot);
+  if (omega < 1e-6) {
+    return [
+      [departure.lat, departure.lon],
+      [arrival.lat, arrival.lon],
+    ];
+  }
+
+  const sinOmega = Math.sin(omega);
+  const points = [];
+  for (let i = 0; i <= segments; i += 1) {
+    const t = i / segments;
+    const a = Math.sin((1 - t) * omega) / sinOmega;
+    const b = Math.sin(t * omega) / sinOmega;
+    const x = a * start[0] + b * end[0];
+    const y = a * start[1] + b * end[1];
+    const z = a * start[2] + b * end[2];
+    const lat = toDegrees(Math.atan2(z, Math.sqrt(x * x + y * y)));
+    const lon = toDegrees(Math.atan2(y, x));
+    points.push([lat, lon]);
+  }
+
+  return points;
+}
+
 function mapContractRoute(contract) {
   const departure = getAirportCoords(contract.departure_airport);
   const arrival = getAirportCoords(contract.arrival_airport);
@@ -51,10 +102,7 @@ function mapContractRoute(contract) {
     ...contract,
     departure,
     arrival,
-    points: [
-      [departure.lat, departure.lon],
-      [arrival.lat, arrival.lon],
-    ],
+    points: interpolateGreatCircle(departure, arrival),
   };
 }
 
@@ -170,73 +218,84 @@ export default function ContractWorldMap({
 
   const mapContent = (
     <>
+      <style>{`
+        .contract-globe-leaflet {
+          background: #020617;
+        }
+        .contract-globe-leaflet .leaflet-tile {
+          filter: saturate(1.08) contrast(1.06) brightness(0.86);
+        }
+        .contract-globe-leaflet .leaflet-control-zoom a {
+          background: rgba(2, 6, 23, 0.86);
+          color: #cbd5e1;
+          border-color: rgba(8, 145, 178, 0.55);
+        }
+        .contract-globe-leaflet .leaflet-control-attribution {
+          background: rgba(2, 6, 23, 0.72);
+          color: #94a3b8;
+        }
+      `}</style>
       <MapContainer
         center={selectedRoute ? selectedRoute.points[0] : [47.3, 10.6]}
         zoom={4}
         style={{ width: "100%", height: "100%" }}
+        className="contract-globe-leaflet"
         zoomControl
         attributionControl
+        worldCopyJump
       >
         <FitToRoutes bounds={bounds} fitKey={fitKey} />
         <MapClickCatcher onBackgroundClick={onBackgroundClick} />
 
-        <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Satellite">
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution="Tiles &copy; Esri"
-            />
-          </LayersControl.BaseLayer>
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          attribution="Tiles &copy; Esri"
+        />
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+          opacity={0.42}
+          attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+        />
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
+          opacity={0.32}
+          attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+        />
 
-          <LayersControl.BaseLayer name="Topographic">
-            <TileLayer
-              url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-              attribution="Map data &copy; OpenStreetMap contributors, SRTM"
-            />
-          </LayersControl.BaseLayer>
-
-          <LayersControl.BaseLayer name="Dark">
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-            />
-          </LayersControl.BaseLayer>
-
-          <LayersControl.Overlay checked name="Labels">
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
-              opacity={0.75}
-              attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-            />
-          </LayersControl.Overlay>
-        </LayersControl>
-
-        {marketAirports.map((airport) => {
-          if (!Number.isFinite(airport?.lat) || !Number.isFinite(airport?.lon)) return null;
-          const icao = String(airport.airport_icao || "").toUpperCase();
-          const owned = ownedSet.has(icao);
-          const selected = normalizedSelectedAirport === icao;
-          return (
-            <CircleMarker
-              key={`airport_${icao}`}
-              center={[airport.lat, airport.lon]}
-              radius={selected ? 5.5 : owned ? 4 : 2.3}
-              pathOptions={{
-                color: selected ? "#e2e8f0" : owned ? "#22d3ee" : "#f59e0b",
-                weight: selected ? 2 : 1,
-                fillColor: selected ? "#0ea5e9" : owned ? "#22d3ee" : "#f59e0b",
-                fillOpacity: selected ? 0.9 : owned ? 0.8 : 0.4,
-                opacity: selected ? 1 : 0.8,
-              }}
-              eventHandlers={{
-                click: (event) => {
-                  event.originalEvent?.stopPropagation?.();
-                  onSelectAirport?.(icao);
-                },
-              }}
-            />
-          );
-        })}
+        <Pane name="airportDots" style={{ zIndex: 560 }}>
+          {marketAirports.map((airport) => {
+            if (!Number.isFinite(airport?.lat) || !Number.isFinite(airport?.lon)) return null;
+            const icao = String(airport.airport_icao || "").toUpperCase();
+            const owned = ownedSet.has(icao);
+            const selected = normalizedSelectedAirport === icao;
+            return (
+              <CircleMarker
+                key={`airport_${icao}`}
+                center={[airport.lat, airport.lon]}
+                radius={selected ? 6.6 : owned ? 5.1 : 3.1}
+                pathOptions={{
+                  color: selected ? "#e2e8f0" : owned ? "#22d3ee" : "#eab308",
+                  weight: selected ? 2.2 : 1.3,
+                  fillColor: selected ? "#38bdf8" : owned ? "#22d3ee" : "#f59e0b",
+                  fillOpacity: selected ? 0.95 : owned ? 0.82 : 0.55,
+                  opacity: selected ? 1 : 0.84,
+                }}
+                eventHandlers={{
+                  click: (event) => {
+                    event.originalEvent?.stopPropagation?.();
+                    onSelectAirport?.(icao);
+                  },
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -6]} opacity={1}>
+                  <span className="font-mono text-[11px] font-semibold">
+                    {icao} {owned ? "Owned" : "Market"}
+                  </span>
+                </Tooltip>
+              </CircleMarker>
+            );
+          })}
+        </Pane>
 
         {routes.map((route) => {
           const selected = route.id === selectedContractId;
