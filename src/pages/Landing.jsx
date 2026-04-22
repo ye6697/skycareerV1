@@ -17,12 +17,41 @@ import AppScreenshot from '@/components/landing/AppScreenshot';
 import ComparisonSection from '@/components/landing/ComparisonSection';
 import PricingSection from '@/components/landing/PricingSection';
 import { t } from '@/components/landing/translations';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
   visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.6, delay: i * 0.08 } })
 };
 const stagger = { visible: { transition: { staggerChildren: 0.07 } } };
+
+function LegalDialog({ title, subtitle, triggerLabel, children }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button className="text-slate-400 hover:text-white text-sm underline underline-offset-4 transition-colors">
+          {triggerLabel}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto bg-slate-900 border-slate-700 text-slate-100">
+        <DialogHeader>
+          <DialogTitle className="text-white">{title}</DialogTitle>
+          <DialogDescription className="text-slate-400">{subtitle}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm leading-relaxed text-slate-300">
+          {children}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function FeatureCard({ icon: Icon, title, description, color }) {
   return (
@@ -81,6 +110,17 @@ export default function Landing() {
     { icon: Target, title: L.step4_title, desc: L.step4_desc },
     { icon: Sparkles, title: L.step5_title, desc: L.step5_desc },
   ];
+
+  const legalMeta = {
+    company: 'MYSUPPLIEX ITHALAT VE IHRACAT LIMITED ŞIRKETI',
+    address: 'Ortabayır Mah. Şair Çelebi Sk. Gürtaş İş Merkezi No: 1 İç Kapı No: 3, Kağıthane / İstanbul, Türkiye',
+    tradeRegister: 'İstanbul Ticaret Sicil Müdürlüğü, Sicil No: 1113176',
+    mersis: '0627163452300001',
+    taxOffice: 'Zincirlikuyu Vergi Dairesi',
+    taxNumber: '6271634523',
+    phone: '+90 212 541 77 55',
+    email: 'yusuf79_@live.de',
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
@@ -765,9 +805,69 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2"><img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-6 h-6 rounded-lg object-cover" /><span className="text-sm text-slate-500">© 2026 SkyCareer – X-Plane 12 & MSFS Career Mode</span></div>
-          <div className="text-xs text-slate-600">{L.footer_tag}</div>
+        <div className="max-w-7xl mx-auto flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6983dde00291b5dfd85079e6/af6bde179_IMG_8197.jpg" alt="SkyCareer" className="w-6 h-6 rounded-lg object-cover" />
+              <span className="text-sm text-slate-500">© 2026 SkyCareer – X-Plane 12 & MSFS Career Mode</span>
+            </div>
+            <div className="text-xs text-slate-600">{L.footer_tag}</div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-800/70 flex flex-wrap gap-x-6 gap-y-3">
+            <LegalDialog
+              triggerLabel={lang === 'en' ? 'Imprint' : 'Impressum'}
+              title={lang === 'en' ? 'Legal Notice (Imprint)' : 'Impressum'}
+              subtitle={lang === 'en' ? 'Provider information according to common e-commerce disclosure obligations.' : 'Anbieterkennzeichnung nach üblichen Informationspflichten im elektronischen Geschäftsverkehr.'}
+            >
+              <p><strong>Firma:</strong> {legalMeta.company}</p>
+              <p><strong>Adresse:</strong> {legalMeta.address}</p>
+              <p><strong>Handelsregister:</strong> {legalMeta.tradeRegister}</p>
+              <p><strong>MERSIS:</strong> {legalMeta.mersis}</p>
+              <p><strong>Steuerstelle:</strong> {legalMeta.taxOffice}</p>
+              <p><strong>Steuernummer:</strong> {legalMeta.taxNumber}</p>
+              <p><strong>Kontakt:</strong> {legalMeta.phone} · {legalMeta.email}</p>
+            </LegalDialog>
+
+            <LegalDialog
+              triggerLabel={lang === 'en' ? 'Privacy Policy' : 'Datenschutz'}
+              title={lang === 'en' ? 'Privacy Policy' : 'Datenschutzerklärung'}
+              subtitle={lang === 'en' ? 'Information about processing personal data.' : 'Informationen zur Verarbeitung personenbezogener Daten.'}
+            >
+              <p>Diese Website verarbeitet personenbezogene Daten nur soweit dies zur Bereitstellung der Plattform, Vertragserfüllung, Support, Sicherheit und Abrechnung erforderlich ist.</p>
+              <p><strong>Verarbeitungszwecke:</strong> Kontoführung, Vertragsabwicklung, Kommunikation, Betrugsprävention, technische Stabilität, gesetzliche Aufbewahrungspflichten.</p>
+              <p><strong>Rechtsgrundlagen:</strong> Vertragserfüllung, berechtigtes Interesse, Einwilligung (z. B. bei optionalem Marketing) sowie gesetzliche Verpflichtungen.</p>
+              <p><strong>Kategorien von Daten:</strong> Stammdaten, Kontaktdaten, Zahlungs- und Transaktionsdaten, technische Protokolldaten, Produktnutzungsdaten.</p>
+              <p><strong>Empfänger:</strong> Zahlungsdienstleister, Hosting-/IT-Dienstleister, Kommunikationsanbieter sowie Behörden bei rechtlicher Verpflichtung.</p>
+              <p><strong>Speicherdauer:</strong> Daten werden nur solange gespeichert, wie es für die genannten Zwecke oder gesetzliche Fristen erforderlich ist.</p>
+              <p><strong>Betroffenenrechte:</strong> Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch und Beschwerde bei zuständiger Aufsichtsbehörde.</p>
+              <p><strong>Kontakt Datenschutz:</strong> {legalMeta.email}</p>
+            </LegalDialog>
+
+            <LegalDialog
+              triggerLabel={lang === 'en' ? 'Terms & Conditions' : 'AGB'}
+              title={lang === 'en' ? 'Terms and Conditions (T&C)' : 'Allgemeine Geschäftsbedingungen (AGB)'}
+              subtitle={lang === 'en' ? 'Core contractual terms for use of the service.' : 'Wesentliche Vertragsbedingungen zur Nutzung des Dienstes.'}
+            >
+              <p>Diese Bedingungen regeln die Nutzung der angebotenen digitalen Leistungen. Mit der Nutzung akzeptieren Kundinnen und Kunden die jeweils gültige Fassung.</p>
+              <p><strong>Leistungsumfang:</strong> Zugang zu den bereitgestellten Online-Funktionen gemäß Produktbeschreibung; kein Anspruch auf bestimmte Verfügbarkeiten außerhalb angekündigter Service-Levels.</p>
+              <p><strong>Vertragsschluss und Laufzeit:</strong> Ein Vertrag kommt durch Bestätigung der Bestellung zustande. Laufzeit und Kündigungsfristen richten sich nach dem gewählten Tarif.</p>
+              <p><strong>Preise und Zahlung:</strong> Es gelten die im Buchungsprozess ausgewiesenen Preise. Zahlungen erfolgen über die angebotenen Zahlungsarten.</p>
+              <p><strong>Pflichten der Nutzenden:</strong> Wahrheitsgemäße Angaben, sichere Aufbewahrung von Zugangsdaten, keine missbräuchliche Nutzung oder rechtswidrige Inhalte.</p>
+              <p><strong>Haftung:</strong> Bei Vorsatz und grober Fahrlässigkeit unbeschränkt; im Übrigen im gesetzlich zulässigen Umfang begrenzt.</p>
+              <p><strong>Anwendbares Recht / Gerichtsstand:</strong> Es gilt das jeweils zwingend anwendbare Verbraucherrecht; im Übrigen das am Unternehmenssitz anwendbare Recht.</p>
+            </LegalDialog>
+
+            <LegalDialog
+              triggerLabel={lang === 'en' ? 'Withdrawal Policy' : 'Widerruf'}
+              title={lang === 'en' ? 'Withdrawal Information for Consumers' : 'Widerrufsbelehrung für Verbraucher'}
+              subtitle={lang === 'en' ? 'Information about statutory cancellation rights where applicable.' : 'Hinweise zum gesetzlichen Widerrufsrecht, soweit anwendbar.'}
+            >
+              <p>Verbraucher können Verträge über digitale Leistungen grundsätzlich binnen 14 Tagen widerrufen, sofern kein gesetzlicher Ausschluss greift.</p>
+              <p>Bei digitalen Inhalten kann das Widerrufsrecht vorzeitig erlöschen, wenn die Ausführung begonnen hat und zuvor ausdrücklich zugestimmt sowie die Kenntnis vom Erlöschen bestätigt wurde.</p>
+              <p>Zur Ausübung des Widerrufs genügt eine eindeutige Erklärung per E-Mail an <strong>{legalMeta.email}</strong> mit Vertragsbezug.</p>
+            </LegalDialog>
+          </div>
         </div>
       </footer>
     </div>
