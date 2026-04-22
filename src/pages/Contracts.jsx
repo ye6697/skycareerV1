@@ -4,9 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
@@ -20,10 +18,28 @@ import {
 } from "lucide-react";
 
 import ContractCard from "@/components/contracts/ContractCard";
-import InsolvencyBanner from "@/components/InsolvencyBanner";
-import { AlertCircle, Loader2, Wrench, UserX } from "lucide-react";
+import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
+import { AlertCircle, Loader2, Wrench } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { getAirportCoords } from "@/utils/airportCoordinates";
+
+const HANGAR_MARKET = [
+  { airport_icao: 'EDDF', label: 'Frankfurt' },
+  { airport_icao: 'EGLL', label: 'London Heathrow' },
+  { airport_icao: 'KJFK', label: 'New York JFK' },
+  { airport_icao: 'KLAX', label: 'Los Angeles' },
+  { airport_icao: 'OMDB', label: 'Dubai' },
+  { airport_icao: 'RJTT', label: 'Tokyo Haneda' },
+  { airport_icao: 'YSSY', label: 'Sydney' }
+];
+
+const HANGAR_SIZES = [
+  { key: 'small', slots: 2, allowedTypes: ['small_prop', 'turboprop'], price: 3500000 },
+  { key: 'medium', slots: 4, allowedTypes: ['small_prop', 'turboprop', 'regional_jet'], price: 12000000 },
+  { key: 'large', slots: 6, allowedTypes: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'cargo'], price: 48000000 },
+  { key: 'mega', slots: 10, allowedTypes: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'], price: 125000000 }
+];
 
 export default function Contracts() {
   const navigate = useNavigate();
@@ -32,6 +48,8 @@ export default function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [selectedAircraftId, setSelectedAircraftId] = useState('all');
+  const [selectedHangarAirport, setSelectedHangarAirport] = useState('all');
+  const [hangarPurchase, setHangarPurchase] = useState({ airport_icao: HANGAR_MARKET[0].airport_icao, size: 'small' });
   const [minNm, setMinNm] = useState('');
   const [maxNm, setMaxNm] = useState('');
 
@@ -47,6 +65,7 @@ export default function Contracts() {
   });
 
   const company = pageData?.company || null;
+  const ownedHangars = Array.isArray(company?.hangars) ? company.hangars : [];
   const ownedAircraft = pageData?.aircraft || [];
   const allContracts = (pageData?.contracts || [])
     .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
@@ -74,12 +93,44 @@ export default function Contracts() {
     }
   });
 
+  const buyHangarMutation = useMutation({
+    mutationFn: async () => {
+      const sizeSpec = HANGAR_SIZES.find((entry) => entry.key === hangarPurchase.size);
+      if (!sizeSpec) return;
+      if ((company?.balance || 0) < sizeSpec.price) {
+        throw new Error(lang === 'de' ? 'Nicht genug Guthaben für diesen Hangar.' : 'Insufficient balance for this hangar.');
+      }
+      const nextHangars = [
+        ...ownedHangars,
+        {
+          id: crypto.randomUUID(),
+          airport_icao: hangarPurchase.airport_icao,
+          size: sizeSpec.key,
+          purchase_price: sizeSpec.price,
+          slots: sizeSpec.slots,
+          allowed_types: sizeSpec.allowedTypes,
+          purchased_at: new Date().toISOString()
+        }
+      ];
+      await base44.entities.Company.update(company.id, {
+        hangars: nextHangars,
+        balance: (company.balance || 0) - sizeSpec.price
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+    }
+  });
+
   // Auto-generate on first load if no contracts exist
   React.useEffect(() => {
-    if (!isLoading && pageData && allContracts.length === 0 && !generateMutation.isPending) {
+    const today = new Date().toISOString().slice(0, 10);
+    const isNewDay = company?.last_contract_generation_date !== today;
+    if (!isLoading && pageData && isNewDay && !generateMutation.isPending) {
       generateMutation.mutate();
     }
-  }, [isLoading, pageData]);
+  }, [isLoading, pageData, company?.last_contract_generation_date]);
 
   // Filter available aircraft (not in flight, not sold, not damaged)
   const availableAircraft = ownedAircraft.filter(ac => ac.status === 'available');
@@ -140,13 +191,28 @@ export default function Contracts() {
       contract.departure_airport?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contract.arrival_airport?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    if (activeTab === 'all') return matchesSearch && contract.status === 'available';
-    if (activeTab === 'accepted') return matchesSearch && contract.status === 'accepted';
-    if (activeTab === 'passenger') return matchesSearch && contract.type === 'passenger' && contract.status === 'available';
-    if (activeTab === 'cargo') return matchesSearch && contract.type === 'cargo' && contract.status === 'available';
-    if (activeTab === 'charter') return matchesSearch && contract.type === 'charter' && contract.status === 'available';
+    const matchesHangar = selectedHangarAirport === 'all' || contract.departure_airport === selectedHangarAirport;
+
+    if (activeTab === 'all') return matchesSearch && matchesHangar && contract.status === 'available';
+    if (activeTab === 'accepted') return matchesSearch && matchesHangar && contract.status === 'accepted';
+    if (activeTab === 'passenger') return matchesSearch && matchesHangar && contract.type === 'passenger' && contract.status === 'available';
+    if (activeTab === 'cargo') return matchesSearch && matchesHangar && contract.type === 'cargo' && contract.status === 'available';
+    if (activeTab === 'charter') return matchesSearch && matchesHangar && contract.type === 'charter' && contract.status === 'available';
     return matchesSearch;
   });
+
+  const globeHangars = ownedHangars
+    .map((hangar) => {
+      const coords = getAirportCoords(hangar.airport_icao);
+      if (!coords) return null;
+      return { ...hangar, ...coords };
+    })
+    .filter(Boolean);
+
+  const globeContracts = filteredContracts.slice(0, 25).map((contract) => ({
+    ...contract,
+    arrival: getAirportCoords(contract.arrival_airport)
+  }));
 
   const handleAccept = (contract) => {
     acceptContractMutation.mutate(contract);
@@ -191,6 +257,56 @@ export default function Contracts() {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
+        <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
+          <div className="flex flex-wrap gap-2 items-end">
+            <div>
+              <div className="text-[10px] font-mono text-cyan-500 uppercase">{lang === 'de' ? 'Flughafen' : 'Airport'}</div>
+              <select
+                value={hangarPurchase.airport_icao}
+                onChange={(e) => setHangarPurchase((prev) => ({ ...prev, airport_icao: e.target.value }))}
+                className="h-8 rounded bg-slate-950 border border-cyan-900/50 text-cyan-100 px-2 text-xs"
+              >
+                {HANGAR_MARKET.map((airport) => (
+                  <option key={airport.airport_icao} value={airport.airport_icao}>{airport.airport_icao} · {airport.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="text-[10px] font-mono text-cyan-500 uppercase">{lang === 'de' ? 'Hangargröße' : 'Hangar size'}</div>
+              <select
+                value={hangarPurchase.size}
+                onChange={(e) => setHangarPurchase((prev) => ({ ...prev, size: e.target.value }))}
+                className="h-8 rounded bg-slate-950 border border-cyan-900/50 text-cyan-100 px-2 text-xs"
+              >
+                {HANGAR_SIZES.map((size) => (
+                  <option key={size.key} value={size.key}>{size.key.toUpperCase()} · {size.slots} slots</option>
+                ))}
+              </select>
+            </div>
+            <Button size="sm" onClick={() => buyHangarMutation.mutate()} disabled={buyHangarMutation.isPending}>
+              {lang === 'de' ? 'Hangar kaufen' : 'Buy hangar'}
+            </Button>
+            <div className="text-[10px] font-mono text-cyan-400">
+              {lang === 'de' ? 'Eigene Hangars' : 'Owned hangars'}: {ownedHangars.length}
+            </div>
+          </div>
+        </Card>
+
+        {ownedHangars.length > 0 && (
+          <Card className="mb-2 p-3 bg-slate-900/70 border-cyan-900/40">
+            <div className="text-[10px] font-mono text-cyan-500 uppercase mb-2">{lang === 'de' ? 'Aufträge pro Hangar' : 'Contracts by hangar'}</div>
+            <div className="flex flex-wrap gap-1 mb-2">
+              <button onClick={() => setSelectedHangarAirport('all')} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === 'all' ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>All</button>
+              {ownedHangars.map((hangar) => (
+                <button key={hangar.id} onClick={() => setSelectedHangarAirport(hangar.airport_icao)} className={`px-2 py-1 text-[10px] rounded ${selectedHangarAirport === hangar.airport_icao ? 'bg-cyan-800 text-white' : 'bg-slate-800 text-slate-300'}`}>
+                  {hangar.airport_icao} · {hangar.size}
+                </button>
+              ))}
+            </div>
+            <HangarWorldGlobe3D hangars={globeHangars} contracts={globeContracts} />
+          </Card>
+        )}
+
         {/* Aircraft Selector */}
         {availableAircraft.length > 0 && (
           <div className="mb-2">

@@ -121,6 +121,12 @@ const allAircraftTypes = [
 ];
 
 const contractTypes = ["passenger", "cargo", "charter", "emergency"];
+const HANGAR_SIZE_RULES: Record<string, { slots: number; allowed_types: string[] }> = {
+  small: { slots: 2, allowed_types: ['small_prop', 'turboprop'] },
+  medium: { slots: 4, allowed_types: ['small_prop', 'turboprop', 'regional_jet'] },
+  large: { slots: 6, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'cargo'] },
+  mega: { slots: 10, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'] }
+};
 
 const briefingTemplates = {
   passenger: [
@@ -173,9 +179,10 @@ function routeKeyFromIcao(depIcao, arrIcao) {
   return `${String(depIcao).toUpperCase()}->${String(arrIcao).toUpperCase()}`;
 }
 
-function pickDepartureAirport(departureUsage) {
-  if (!departureUsage || departureUsage.size === 0) return randomItem(airports);
-  const shuffled = [...airports].sort(() => Math.random() - 0.5);
+function pickDepartureAirport(departureUsage, departurePool = airports) {
+  if (!departurePool || departurePool.length === 0) return randomItem(airports);
+  if (!departureUsage || departureUsage.size === 0) return randomItem(departurePool);
+  const shuffled = [...departurePool].sort(() => Math.random() - 0.5);
   shuffled.sort((a, b) => (departureUsage.get(a.icao) || 0) - (departureUsage.get(b.icao) || 0));
   const candidatePool = shuffled.slice(0, Math.max(12, Math.floor(shuffled.length * 0.2)));
   return randomItem(candidatePool);
@@ -194,7 +201,7 @@ function pickRouteForContract(aircraftRange, options = {}) {
 
   for (const phase of phases) {
     for (let i = 0; i < phase.attempts; i++) {
-      const depAirport = pickDepartureAirport(departureUsage);
+      const depAirport = pickDepartureAirport(departureUsage, options.departurePool || airports);
       const depCount = departureUsage.get(depAirport.icao) || 0;
       if (phase.respectDepartureLimit && depCount >= maxDepartureReuse) continue;
 
@@ -276,6 +283,7 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
     briefing,
     type: contractType,
     departure_airport: depAirport.icao,
+    hangar_airport: depAirport.icao,
     departure_city: depAirport.city,
     arrival_airport: arrAirport.icao,
     arrival_city: arrAirport.city,
@@ -337,6 +345,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Firma gefunden' }, { status: 400 });
     }
 
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const normalizedHangars = Array.isArray(company.hangars) ? company.hangars : [];
+    const hangarAirports = normalizedHangars
+      .map((hangar) => String(hangar?.airport_icao || '').toUpperCase())
+      .filter(Boolean);
+
     // Get user's aircraft
     const aircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
     const availableAircraft = aircraft.filter(a => a.status !== 'sold');
@@ -346,6 +360,15 @@ Deno.serve(async (req) => {
     }
 
     const existingContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });
+    const todaysAlreadyGenerated = company.last_contract_generation_date === todayIso;
+    if (todaysAlreadyGenerated && existingContracts.some((c) => c.status === 'available')) {
+      return Response.json({
+        success: true,
+        skipped: true,
+        created: 0,
+        message: 'Aufträge wurden heute bereits generiert.'
+      });
+    }
     const oldContracts = existingContracts.filter(c => c.status === 'available');
     await Promise.all(oldContracts.map(old => base44.asServiceRole.entities.Contract.delete(old.id)));
 
@@ -387,13 +410,24 @@ Deno.serve(async (req) => {
       departureUsage,
       maxDepartureReuse: 2,
       forceContractType: filterContractType || null,
+      departurePool: hangarAirports.length > 0
+        ? airports.filter((airport) => hangarAirports.includes(airport.icao))
+        : airports,
     };
 
     // Generate 4 compatible contracts (with optional distance/type filter)
     let attempts = 0;
     while (compatibleContracts.length < 4 && attempts < 80) {
       attempts++;
-      const acType = randomItem(ownedTypeSpecs);
+      const hangarAllowedTypes = new Set(
+        normalizedHangars.flatMap((hangar) => {
+          const rule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
+          return rule.allowed_types;
+        })
+      );
+      const candidateOwnedTypes = ownedTypeSpecs.filter((entry) => hangarAllowedTypes.has(entry.type));
+      const pool = candidateOwnedTypes.length > 0 ? candidateOwnedTypes : ownedTypeSpecs;
+      const acType = randomItem(pool);
       const contract = generateContract(company.id, acType, company.level || 1, genOptions);
       if (contract) {
         // Apply distance filter
@@ -445,6 +479,9 @@ Deno.serve(async (req) => {
     const allContracts = [...compatibleContracts, ...incompatibleContracts];
     if (allContracts.length > 0) {
       await base44.asServiceRole.entities.Contract.bulkCreate(allContracts);
+      await base44.asServiceRole.entities.Company.update(company.id, {
+        last_contract_generation_date: todayIso
+      });
     }
 
     return Response.json({
