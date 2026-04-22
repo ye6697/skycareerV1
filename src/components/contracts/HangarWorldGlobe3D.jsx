@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X } from "lucide-react";
 import ContractWorldMap from "@/components/contracts/ContractWorldMap";
+import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
 
 const ROUTE_COLORS = {
   passenger: 0x38bdf8,
@@ -384,7 +385,6 @@ export default function HangarWorldGlobe3D({
   selectedAirportIcao = "",
   onSelectAirport,
   selectedMarketSize = "small",
-  onSelectMarketSize,
   selectedMarketVariantId = "",
   onSelectMarketVariantId,
   hangarVariants = [],
@@ -1008,24 +1008,6 @@ export default function HangarWorldGlobe3D({
             </p>
           </div>
 
-          <div className="mb-2 grid grid-cols-2 gap-1.5">
-            {hangarSizes.map((size) => (
-              <button
-                key={size.key}
-                type="button"
-                onClick={() => onSelectMarketSize?.(size.key)}
-                className={`rounded-md border px-2 py-1 text-left text-[10px] font-mono uppercase transition ${
-                  selectedMarketSize === size.key
-                    ? "border-cyan-500/70 bg-cyan-900/35 text-cyan-100"
-                    : "border-slate-700/80 bg-slate-900/70 text-slate-300 hover:border-cyan-800/70"
-                }`}
-              >
-                <div>{size.key}</div>
-                <div className="text-[9px] text-slate-400">{size.slots} slots</div>
-              </button>
-            ))}
-          </div>
-
           {hangarVariants.length > 0 && (
             <div className="mb-2">
               <div className="mb-1 text-[10px] font-mono uppercase tracking-wide text-cyan-300">
@@ -1043,7 +1025,14 @@ export default function HangarWorldGlobe3D({
                         : "border-slate-700/80 bg-slate-900/70 text-slate-300 hover:border-cyan-800/70"
                     }`}
                   >
-                    {variant.label}
+                    <div>{variant.label}</div>
+                    <div className="text-[9px] text-slate-400">
+                      {(() => {
+                        const spec = getVariantSizeSpec(variant.id);
+                        if (!spec) return "-";
+                        return `${spec.key.toUpperCase()} | ${spec.slots} slots | $${Math.round(spec.price).toLocaleString()}`;
+                      })()}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1061,7 +1050,6 @@ export default function HangarWorldGlobe3D({
             onClick={() =>
               onBuyOrUpgrade?.({
                 airportIcao: normIcao(selectedAirportIcao),
-                size: selectedMarketSize,
                 modelVariant: selectedMarketVariantId,
               })
             }

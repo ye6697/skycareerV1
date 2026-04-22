@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Building2, Loader2, MapPin } from "lucide-react";
+import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
 
 const SIZE_STYLE = {
   small: { width: 2.8, height: 2.3, depth: 2.2, color: 0x4b5563 },
@@ -176,9 +177,7 @@ export default function HangarMarket3D({
   marketAirports = [],
   selectedAirportIcao = "",
   onSelectAirport,
-  hangarSizes = [],
   selectedMarketSize = "small",
-  onSelectMarketSize,
   hangarVariants = [],
   selectedMarketVariantId = "",
   onSelectMarketVariantId,
@@ -208,6 +207,10 @@ export default function HangarMarket3D({
       hangarVariants.find((variant) => variant.id === selectedMarketVariantId) || hangarVariants[0] || null
     );
   }, [hangarVariants, selectedMarketVariantId]);
+  const selectedVariantSizeSpec = useMemo(
+    () => getVariantSizeSpec(selectedVariant?.id) || null,
+    [selectedVariant?.id]
+  );
 
   useEffect(() => {
     const container = viewportRef.current;
@@ -344,7 +347,7 @@ export default function HangarMarket3D({
     };
 
     const applyModelTransform = (object) => {
-      const sizePreset = SIZE_STYLE[selectedMarketSize] || SIZE_STYLE.small;
+      const sizePreset = SIZE_STYLE[selectedVariantSizeSpec?.key || selectedMarketSize] || SIZE_STYLE.small;
       const box = new THREE.Box3().setFromObject(object);
       const size = new THREE.Vector3();
       box.getSize(size);
@@ -380,7 +383,7 @@ export default function HangarMarket3D({
       activeModel = object3d;
     };
 
-    const fallbackModel = buildHangarModel(selectedMarketSize, Boolean(selectedHangar));
+    const fallbackModel = buildHangarModel(selectedVariantSizeSpec?.key || selectedMarketSize, Boolean(selectedHangar));
     addPreviewModel(fallbackModel);
 
     let cancelled = false;
@@ -458,7 +461,7 @@ export default function HangarMarket3D({
         }
       }
     };
-  }, [lang, selectedHangar, selectedMarketSize, selectedVariant?.path]);
+  }, [lang, selectedHangar, selectedMarketSize, selectedVariant?.path, selectedVariantSizeSpec?.key]);
 
   return (
     <Card className="h-full min-h-[460px] overflow-hidden border border-cyan-900/40 bg-slate-950/90">
@@ -527,29 +530,6 @@ export default function HangarMarket3D({
             </p>
           </div>
 
-          <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-2.5">
-            <p className="mb-1 text-[10px] font-mono uppercase text-slate-400">
-              {lang === "de" ? "Hangar Groesse" : "Hangar size"}
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {hangarSizes.map((size) => (
-                <button
-                  key={size.key}
-                  type="button"
-                  onClick={() => onSelectMarketSize?.(size.key)}
-                  className={`rounded-md border px-2 py-1.5 text-left text-[10px] font-mono uppercase transition ${
-                    selectedMarketSize === size.key
-                      ? "border-cyan-500/70 bg-cyan-900/35 text-cyan-100"
-                      : "border-slate-700/80 bg-slate-900/70 text-slate-300 hover:border-cyan-800/70"
-                  }`}
-                >
-                  <div>{size.key}</div>
-                  <div className="text-[9px] text-slate-400">{size.slots} slots</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {hangarVariants.length > 0 && (
             <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-2.5">
               <p className="mb-1 text-[10px] font-mono uppercase text-slate-400">
@@ -569,7 +549,11 @@ export default function HangarMarket3D({
                   >
                     <div>{variant.label}</div>
                     <div className="text-[9px] text-slate-400">
-                      {(variant.recommendedSizes || []).map((entry) => String(entry).toUpperCase()).join(", ")}
+                      {(() => {
+                        const spec = getVariantSizeSpec(variant.id);
+                        if (!spec) return "-";
+                        return `${spec.key.toUpperCase()} | ${spec.slots} slots | $${Math.round(spec.price).toLocaleString()}`;
+                      })()}
                     </div>
                   </button>
                 ))}
@@ -588,7 +572,6 @@ export default function HangarMarket3D({
             onClick={() =>
               onBuyOrUpgrade?.({
                 airportIcao: normIcao(selectedAirportIcao),
-                size: selectedMarketSize,
                 modelVariant: selectedMarketVariantId,
               })
             }
