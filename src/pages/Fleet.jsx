@@ -685,6 +685,13 @@ export default function Fleet() {
     if (!selectedAircraft) return [];
     return getAssignableHangarsForType(ownedHangars, aircraft, selectedAircraft.type);
   }, [aircraft, ownedHangars, selectedAircraft]);
+  const getPurchaseHangarOptionsForListing = React.useCallback(
+    (listing) => {
+      if (!listing?.type) return [];
+      return getAssignableHangarsForType(ownedHangars, aircraft, listing.type);
+    },
+    [aircraft, ownedHangars]
+  );
   const selectedPurchaseHangar = React.useMemo(
     () => purchaseHangarOptions.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedPurchaseHangarIcao)) || null,
     [purchaseHangarOptions, selectedPurchaseHangarIcao]
@@ -944,11 +951,17 @@ export default function Fleet() {
                 + {t('buy_aircraft', lang)}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-800 shadow-2xl">
-               <DialogHeader>
+            <DialogContent
+              className={
+                marketViewMode === '3d'
+                  ? 'w-screen h-screen max-w-none max-h-screen overflow-hidden bg-slate-950 border-0 rounded-none p-0 m-0'
+                  : 'max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-800 shadow-2xl'
+              }
+            >
+               {marketViewMode !== '3d' && <DialogHeader>
                  <DialogTitle className="text-xl font-mono text-cyan-400 uppercase">{t('aircraft_market', lang)}</DialogTitle>
                  <p className="text-[10px] font-mono text-cyan-600/70 uppercase">{t('choose_next_aircraft', lang)}</p>
-               </DialogHeader>
+               </DialogHeader>}
                <div className="flex items-center gap-2 mb-2">
                  <Button
                   size="sm"
@@ -984,7 +997,7 @@ export default function Fleet() {
                    </Button>
                  </div>
                 </div>
-               {marketSection === 'used' &&
+               {marketViewMode !== '3d' && marketSection === 'used' &&
               <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                      <p className="text-[10px] text-amber-300 font-mono uppercase">
@@ -1017,7 +1030,7 @@ export default function Fleet() {
                    </div>
                  </div>
               }
-              {selectedAircraft &&
+              {selectedAircraft && marketViewMode !== '3d' &&
               <div className="mb-3 rounded border border-emerald-800/50 bg-emerald-950/20 p-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[10px] font-mono uppercase text-emerald-300">
@@ -1064,7 +1077,15 @@ export default function Fleet() {
                 company={company}
                 canAfford={canAfford}
                 canPurchase={canPurchase}
-                onBuy={(ac) => {beginPurchaseFlow(ac);}}
+                onBuy={(ac) => setSelectedAircraft(ac)}
+                onConfirmBuy={(ac, selectedHangarIcao) => {
+                  const normalizedHangarIcao = normIcao(selectedHangarIcao);
+                  if (!normalizedHangarIcao) return;
+                  setSelectedAircraft(ac);
+                  setSelectedPurchaseHangarIcao(normalizedHangarIcao);
+                  purchaseMutation.mutate({ ...ac, selected_hangar_airport: normalizedHangarIcao });
+                }}
+                getPurchaseHangarOptions={getPurchaseHangarOptionsForListing}
                 isBuying={purchaseMutation.isPending}
                 selectedListingId={selectedAircraft?.market_listing_id || selectedAircraft?.name} /> :
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1294,11 +1315,11 @@ export default function Fleet() {
                 </div>
               }
 
-              <DialogFooter>
+              {marketViewMode !== '3d' && <DialogFooter>
                 <Button onClick={() => setIsPurchaseDialogOpen(false)} className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8">
                   {t('close', lang).toUpperCase()}
                 </Button>
-              </DialogFooter>
+              </DialogFooter>}
             </DialogContent>
           </Dialog>
         </div>

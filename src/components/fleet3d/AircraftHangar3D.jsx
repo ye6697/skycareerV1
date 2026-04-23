@@ -85,6 +85,22 @@ function buildFrontAirportScenery() {
   return group;
 }
 
+function disposeObject3D(root) {
+  if (!root) return;
+  root.traverse((node) => {
+    if (node.geometry) {
+      node.geometry.dispose?.();
+    }
+    if (node.material) {
+      if (Array.isArray(node.material)) {
+        node.material.forEach((material) => material.dispose?.());
+      } else {
+        node.material.dispose?.();
+      }
+    }
+  });
+}
+
 // Fully interactive 3D hangar:
 // - Click hotspot sphere on the model → opens info popup (with repair action)
 // - Drag to rotate camera, scroll to zoom
@@ -152,60 +168,9 @@ export default function AircraftHangar3D({ aircraft }) {
     fill.position.set(-40, 30, -40);
     scene.add(fill);
 
-    // Aircraft on parking marks
+    // Keep renderer/scene persistent and only swap aircraft model/hotspots.
     const aircraftGroup = new THREE.Group();
-    const aircraftHint = aircraft?.name || aircraft?.model || aircraft?.type || '';
-    const built = buildCustomAircraftModel(aircraftHint);
-    aircraftGroup.add(built.group);
     scene.add(aircraftGroup);
-
-    // Hotspot meshes (clickable spheres anchored to aircraft)
-    const hotspotMeshes = {};
-    const initialLayout = getHotspotLayoutForAircraft({
-      aircraftHint,
-      profile: built.profile,
-      modelId: built.modelId,
-    });
-    Object.entries(initialLayout).forEach(([key, pos]) => {
-      const sphere = new THREE.Mesh(
-        new THREE.SphereGeometry(0.6, 16, 12),
-        new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0) }),
-      );
-      sphere.position.set(pos.x, pos.y, pos.z);
-      sphere.userData.key = key;
-      aircraftGroup.add(sphere);
-      const halo = new THREE.Mesh(
-        new THREE.SphereGeometry(1.1, 16, 12),
-        new THREE.MeshBasicMaterial({
-          color: getHotspotColor(wear.total[key] || 0),
-          transparent: true, opacity: 0.3, depthWrite: false,
-        }),
-      );
-      halo.position.copy(sphere.position);
-      aircraftGroup.add(halo);
-      hotspotMeshes[key] = { sphere, halo };
-    });
-
-    let disposed = false;
-    built.ready
-      .then((meta) => {
-        if (disposed) return;
-        const dynamicLayout = getHotspotLayoutForAircraft({
-          aircraftHint,
-          profile: meta?.profile || built.profile,
-          modelId: meta?.modelId || built.modelId,
-          bounds: meta?.bounds,
-        });
-        Object.entries(dynamicLayout).forEach(([key, pos]) => {
-          const target = hotspotMeshes[key];
-          if (!target) return;
-          target.sphere.position.set(pos.x, pos.y, pos.z);
-          target.halo.position.copy(target.sphere.position);
-        });
-      })
-      .catch(() => {
-        // Already handled in model loader by fallback.
-      });
 
     // Raycaster for clicking hotspots
     const raycaster = new THREE.Raycaster();
@@ -217,7 +182,7 @@ export default function AircraftHangar3D({ aircraft }) {
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
-      const targets = Object.values(hotspotMeshes).map((h) => h.sphere);
+      const targets = Object.values(sceneRef.current?.hotspotMeshes || {}).map((h) => h.sphere);
       const hits = raycaster.intersectObjects(targets, false);
       if (hits.length > 0) {
         const key = hits[0].object.userData.key;
@@ -229,7 +194,7 @@ export default function AircraftHangar3D({ aircraft }) {
     };
     renderer.domElement.addEventListener('click', onClick);
 
-    sceneRef.current = { scene, camera, renderer, aircraftGroup, hotspotMeshes, onClick };
+    sceneRef.current = { scene, camera, renderer, aircraftGroup, hotspotMeshes: {}, onClick };
     setIsReady(true);
 
     const onResize = () => {
@@ -242,15 +207,96 @@ export default function AircraftHangar3D({ aircraft }) {
     window.addEventListener('resize', onResize);
 
     return () => {
-      disposed = true;
       sceneRef.current = null;
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('click', onClick);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       try {
+        disposeObject3D(scene);
+        renderer.renderLists?.dispose?.();
+        renderer.forceContextLoss?.();
         if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
         renderer.dispose();
       } catch (_) { /* noop */ }
+    };
+  }, []);
+
+  // Swap aircraft model and hotspot positions without rebuilding the renderer.
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const runtime = sceneRef.current;
+    const { aircraftGroup } = runtime;
+
+    // Reset selection while switching aircraft to avoid stale popup anchors.
+    setSelectedCategory(null);
+    setPopupAnchor(null);
+
+    while (aircraftGroup.children.length > 0) {
+      const child = aircraftGroup.children.pop();
+      if (child) {
+        aircraftGroup.remove(child);
+        disposeObject3D(child);
+      }
+    }
+    runtime.hotspotMeshes = {};
+
+    const aircraftHint = aircraft?.name || aircraft?.model || aircraft?.type || '';
+    const built = buildCustomAircraftModel(aircraftHint);
+    aircraftGroup.add(built.group);
+
+    const hotspotMeshes = {};
+    const initialLayout = getHotspotLayoutForAircraft({
+      aircraftHint,
+      profile: built.profile,
+      modelId: built.modelId,
+    });
+    Object.entries(initialLayout).forEach(([key, pos]) => {
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.6, 16, 12),
+        new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0) })
+      );
+      sphere.position.set(pos.x, pos.y, pos.z);
+      sphere.userData.key = key;
+      aircraftGroup.add(sphere);
+
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(1.1, 16, 12),
+        new THREE.MeshBasicMaterial({
+          color: getHotspotColor(wear.total[key] || 0),
+          transparent: true,
+          opacity: 0.3,
+          depthWrite: false,
+        })
+      );
+      halo.position.copy(sphere.position);
+      aircraftGroup.add(halo);
+      hotspotMeshes[key] = { sphere, halo };
+    });
+    runtime.hotspotMeshes = hotspotMeshes;
+
+    let cancelled = false;
+    built.ready
+      .then((meta) => {
+        if (cancelled || !sceneRef.current || sceneRef.current !== runtime) return;
+        const dynamicLayout = getHotspotLayoutForAircraft({
+          aircraftHint,
+          profile: meta?.profile || built.profile,
+          modelId: meta?.modelId || built.modelId,
+          bounds: meta?.bounds,
+        });
+        Object.entries(dynamicLayout).forEach(([key, pos]) => {
+          const target = runtime.hotspotMeshes?.[key];
+          if (!target) return;
+          target.sphere.position.set(pos.x, pos.y, pos.z);
+          target.halo.position.copy(target.sphere.position);
+        });
+      })
+      .catch(() => {
+        // Model loader already falls back internally.
+      });
+
+    return () => {
+      cancelled = true;
     };
   }, [aircraft?.id, aircraft?.name, aircraft?.model, aircraft?.type]);
 
