@@ -826,10 +826,6 @@ export default function Contracts() {
       return { transferCost, targetAirport, aircraft };
     },
     onSuccess: (result) => {
-      setAircraftMoveTargets((previous) => ({
-        ...previous,
-        [result.aircraft.id]: result.targetAirport,
-      }));
       queryClient.setQueryData(["contractsPageData"], (previous) => {
         if (!previous) return previous;
         const currentBalance = Number(previous?.company?.balance || 0);
@@ -1120,7 +1116,7 @@ export default function Contracts() {
       {selectedContract && (
         <div className="rounded-xl border border-cyan-900/40 bg-slate-950/80 p-2.5 text-xs font-mono text-cyan-100">
           <span className="text-cyan-300">{lang === "de" ? "Aktiver Globe-Fokus:" : "Active globe focus:"}</span>{" "}
-          {selectedContract.departure_airport} -> {selectedContract.arrival_airport} ({Math.round(selectedContract.distance_nm || 0)} NM)
+          {selectedContract.departure_airport} -&gt; {selectedContract.arrival_airport} ({Math.round(selectedContract.distance_nm || 0)} NM)
         </div>
       )}
     </div>
