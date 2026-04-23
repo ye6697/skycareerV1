@@ -181,6 +181,10 @@ export default function HangarModelPreview3D({
     floor.receiveShadow = true;
     scene.add(floor);
 
+    const greenGrid = new THREE.GridHelper(28, 36, 0x14532d, 0x0f3d24);
+    greenGrid.position.y = 0.015;
+    scene.add(greenGrid);
+
     const previewRoot = new THREE.Group();
     previewRoot.position.set(0, 0, 0.15);
     scene.add(previewRoot);
@@ -191,7 +195,13 @@ export default function HangarModelPreview3D({
         previewRoot.remove(activeModel);
         disposeObject(activeModel);
       }
-      normalizeAndGround(object3d);
+      const targetMaxBySize = {
+        small: 4.4,
+        medium: 5.3,
+        large: 6.2,
+        mega: 7.2,
+      };
+      normalizeAndGround(object3d, targetMaxBySize[sizeKey] || 4.4);
       object3d.traverse((node) => {
         if (node.isMesh) {
           node.castShadow = true;

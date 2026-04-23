@@ -118,20 +118,20 @@ const resolveHangarRule = (hangar) => {
   };
 };
 
-const findHangarForAircraftType = (hangars = [], aircraft = [], aircraftType) => {
-  const candidates = hangars
+const getAssignableHangarsForType = (hangars = [], aircraft = [], aircraftType) => {
+  return hangars
     .map((hangar) => {
       const rule = resolveHangarRule(hangar);
-      const used = aircraft.filter((entry) => entry.status !== 'sold' && entry.hangar_id === hangar.id).length;
+      const used = aircraft.filter((entry) => entry.status !== 'sold' && normIcao(entry.hangar_airport) === normIcao(hangar.airport_icao)).length;
       return {
-        hangar,
+        ...hangar,
         rule,
-        freeSlots: Math.max(0, rule.slots - used)
+        usedSlots: used,
+        freeSlots: Math.max(0, rule.slots - used),
       };
     })
     .filter((entry) => entry.rule.allowed_types.includes(aircraftType) && entry.freeSlots > 0)
     .sort((a, b) => b.freeSlots - a.freeSlots);
-  return candidates[0]?.hangar || null;
 };
 
 
@@ -342,6 +342,7 @@ export default function Fleet() {
   const [viewMode, setViewMode] = useState('3d'); // '3d' | 'grid'
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
+  const [selectedPurchaseHangarIcao, setSelectedPurchaseHangarIcao] = useState('');
   const [marketSection, setMarketSection] = useState('new');
   const [marketViewMode, setMarketViewMode] = useState('3d');
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
@@ -516,12 +517,14 @@ export default function Fleet() {
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
       const companyHangars = Array.isArray(company?.hangars) ? company.hangars : [];
-      const assignedHangar = findHangarForAircraftType(companyHangars, aircraft, specs.type);
+      const selectedHangarIcao = normIcao(aircraftData?.selected_hangar_airport);
+      const assignableHangars = getAssignableHangarsForType(companyHangars, aircraft, specs.type);
+      const assignedHangar = assignableHangars.find((hangar) => normIcao(hangar.airport_icao) === selectedHangarIcao) || null;
       if (!assignedHangar) {
         throw new Error(
           lang === 'de'
-            ? `Kein Hangarplatz für ${specs.type}. Kaufe zuerst einen passenden Hangar.`
-            : `No hangar capacity for ${specs.type}. Buy a compatible hangar first.`
+            ? `Bitte waehle einen kompatiblen Hangar mit freiem Slot fuer ${specs.type}.`
+            : `Please select a compatible hangar with free slot for ${specs.type}.`
         );
       }
       const maintenanceCategories = makeCategoryMap(aircraftData.maintenance_categories, 0);
@@ -613,6 +616,7 @@ export default function Fleet() {
       queryClient.invalidateQueries({ queryKey: ['company'] });
       setIsPurchaseDialogOpen(false);
       setSelectedAircraft(null);
+      setSelectedPurchaseHangarIcao('');
     }
   });
 
@@ -638,6 +642,19 @@ export default function Fleet() {
   };
 
   const ownedHangars = React.useMemo(() => Array.isArray(company?.hangars) ? company.hangars : [], [company?.hangars]);
+  const purchaseHangarOptions = React.useMemo(() => {
+    if (!selectedAircraft) return [];
+    return getAssignableHangarsForType(ownedHangars, aircraft, selectedAircraft.type);
+  }, [aircraft, ownedHangars, selectedAircraft]);
+  const selectedPurchaseHangar = React.useMemo(
+    () => purchaseHangarOptions.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedPurchaseHangarIcao)) || null,
+    [purchaseHangarOptions, selectedPurchaseHangarIcao]
+  );
+
+  const beginPurchaseFlow = React.useCallback((aircraftListing) => {
+    setSelectedAircraft(aircraftListing);
+    setSelectedPurchaseHangarIcao('');
+  }, []);
   const movableAircraft = React.useMemo(
     () => aircraft.filter((entry) => String(entry?.status || '').toLowerCase() !== 'sold'),
     [aircraft]
@@ -854,7 +871,11 @@ export default function Fleet() {
             open={isPurchaseDialogOpen}
             onOpenChange={(open) => {
               setIsPurchaseDialogOpen(open);
-              if (!open) setMaintenancePreviewListing(null);
+              if (!open) {
+                setMaintenancePreviewListing(null);
+                setSelectedAircraft(null);
+                setSelectedPurchaseHangarIcao('');
+              }
             }}>
             
             <DialogTrigger asChild>
@@ -935,7 +956,46 @@ export default function Fleet() {
                    </div>
                  </div>
               }
-              
+              {selectedAircraft &&
+              <div className="mb-3 rounded border border-emerald-800/50 bg-emerald-950/20 p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[10px] font-mono uppercase text-emerald-300">
+                      {lang === 'de' ? 'Kauf bestaetigen' : 'Confirm purchase'}: {selectedAircraft.name}
+                    </p>
+                    <p className="text-[10px] font-mono text-emerald-200">
+                      ${Math.round(selectedAircraft.purchase_price || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                    <select
+                    value={selectedPurchaseHangarIcao}
+                    onChange={(event) => setSelectedPurchaseHangarIcao(event.target.value)}
+                    className="h-8 w-full rounded border border-emerald-900/60 bg-slate-950/90 px-2 text-xs text-emerald-100">
+                    
+                      <option value="">{lang === 'de' ? 'Hangar zuweisen (Pflicht)' : 'Assign hangar (required)'}</option>
+                      {purchaseHangarOptions.map((hangar) =>
+                    <option key={hangar.id || hangar.airport_icao} value={hangar.airport_icao}>
+                          {normIcao(hangar.airport_icao)} ({hangar.usedSlots}/{hangar.rule?.slots || hangar.slots})
+                        </option>
+                    )}
+                    </select>
+                    <Button
+                    onClick={() => purchaseMutation.mutate({ ...selectedAircraft, selected_hangar_airport: selectedPurchaseHangar?.airport_icao || '' })}
+                    disabled={!selectedPurchaseHangar || purchaseMutation.isPending}
+                    size="sm"
+                    className="h-8 bg-emerald-700 text-white hover:bg-emerald-600 disabled:bg-slate-700">
+                    
+                      {purchaseMutation.isPending ? t('buying', lang) : t('buy', lang)}
+                    </Button>
+                  </div>
+                  {purchaseHangarOptions.length === 0 &&
+                <p className="mt-1 text-[10px] text-amber-300">
+                      {lang === 'de' ? 'Kein kompatibler Hangar mit freiem Slot vorhanden.' : 'No compatible hangar with a free slot is available.'}
+                    </p>
+                }
+                </div>
+              }
+
               {marketViewMode === '3d' ?
               <MarketHangar3DView
                 listings={marketAircraft}
@@ -943,7 +1003,7 @@ export default function Fleet() {
                 company={company}
                 canAfford={canAfford}
                 canPurchase={canPurchase}
-                onBuy={(ac) => {setSelectedAircraft(ac);purchaseMutation.mutate(ac);}}
+                onBuy={(ac) => {beginPurchaseFlow(ac);}}
                 isBuying={purchaseMutation.isPending}
                 selectedListingId={selectedAircraft?.market_listing_id || selectedAircraft?.name} /> :
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1054,8 +1114,8 @@ export default function Fleet() {
                             }
                             {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
                             <Button
-                              onClick={() => {setSelectedAircraft(ac);purchaseMutation.mutate(ac);}}
-                              disabled={!isPurchasable || purchaseMutation.isPending}
+                              onClick={() => {beginPurchaseFlow(ac);}}
+                              disabled={!isPurchasable}
                               size="sm"
                               className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}>
                               

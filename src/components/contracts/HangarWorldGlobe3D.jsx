@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X } from "lucide-react";
+import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X, Building2 } from "lucide-react";
 import ContractWorldMap from "@/components/contracts/ContractWorldMap";
 import HangarModelPreview3D from "@/components/contracts/HangarModelPreview3D";
 import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
@@ -107,6 +107,7 @@ export default function HangarWorldGlobe3D({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showContractsPanel, setShowContractsPanel] = useState(true);
   const [showMarketPanel, setShowMarketPanel] = useState(true);
+  const [showOwnedHangarsList, setShowOwnedHangarsList] = useState(false);
   const fullscreenRootRef = useRef(null);
 
   const normalizedHangars = useMemo(
@@ -348,12 +349,58 @@ export default function HangarWorldGlobe3D({
           onBackgroundClick={() => {
             setShowContractsPanel(false);
             setShowMarketPanel(false);
+            setShowOwnedHangarsList(false);
             onSelectContract?.(null);
             onSelectAirport?.("");
+          }}
+          onOwnedHangarHubClick={() => {
+            setShowOwnedHangarsList((value) => !value);
           }}
           lang={lang}
         />
       </div>
+
+      {showOwnedHangarsList && normalizedHangars.length > 0 && (
+        <div
+          {...preventMapScrollCapture}
+          className="absolute right-3 bottom-3 z-[1450] w-[min(94vw,300px)] rounded-xl border border-cyan-900/50 bg-slate-950/92 p-2 backdrop-blur"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
+              <Building2 className="mr-1 inline h-3.5 w-3.5" />
+              {lang === "de" ? "Eigene Hangars" : "Owned hangars"}
+            </div>
+            <span className="text-[10px] text-slate-400">{normalizedHangars.length}</span>
+          </div>
+          <div className="max-h-[230px] space-y-1 overflow-y-auto pr-1">
+            {normalizedHangars.map((hangar) => {
+              const icao = normIcao(hangar.airport_icao);
+              const stationed = ownedAircraft.filter((aircraft) => normIcao(aircraft?.hangar_airport) === icao && String(aircraft?.status || "").toLowerCase() !== "sold").length;
+              const airportLabel = marketByIcao.get(icao)?.label || icao;
+              const airportContractsCount = Array.isArray(normalizedContractsByAirport[icao])
+                ? normalizedContractsByAirport[icao].length
+                : normalizedContracts.filter((contract) => normIcao(contract.departure_airport) === icao).length;
+              return (
+                <button
+                  key={hangar.id || icao}
+                  type="button"
+                  onClick={() => {
+                    onSelectAirport?.(icao);
+                    setShowMarketPanel(true);
+                    setShowOwnedHangarsList(false);
+                  }}
+                  className="w-full rounded-md border border-slate-700/80 bg-slate-900/75 px-2 py-1.5 text-left hover:border-cyan-700/70"
+                >
+                  <p className="text-[11px] font-semibold text-cyan-100">{icao} - {airportLabel}</p>
+                  <p className="text-[10px] text-slate-300">
+                    {String(hangar.size || "-").toUpperCase()} | {stationed}/{Number(hangar.slots || 0)} | {airportContractsCount} {lang === "de" ? "Auftr." : "jobs"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {showContractsPanel && (
         <div

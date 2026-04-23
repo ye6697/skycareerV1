@@ -298,7 +298,7 @@ export default function HangarMarket3D({
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const grid = new THREE.GridHelper(34, 34, 0x334155, 0x111827);
+    const grid = new THREE.GridHelper(34, 34, 0x14532d, 0x0f3d24);
     grid.position.y = 0.01;
     scene.add(grid);
 
@@ -351,7 +351,13 @@ export default function HangarMarket3D({
       const size = new THREE.Vector3();
       box.getSize(size);
       const maxDim = Math.max(size.x || 1, size.y || 1, size.z || 1);
-      const targetDim = 4.4;
+      const targetDimMap = {
+        small: 4.4,
+        medium: 5.3,
+        large: 6.2,
+        mega: 7.2,
+      };
+      const targetDim = targetDimMap[selectedVariantSizeSpec?.key || selectedMarketSize] || 4.4;
       const scale = targetDim / maxDim;
       object.scale.setScalar(scale);
 
