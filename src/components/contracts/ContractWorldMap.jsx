@@ -183,6 +183,7 @@ export default function ContractWorldMap({
   onSelectAirport,
   onBackgroundClick,
   onOwnedHangarHubClick,
+  airportViewFilter = "all",
   embedded = false,
   lang = "de",
 }) {
@@ -252,6 +253,12 @@ export default function ContractWorldMap({
   );
 
   const normalizedSelectedAirport = String(selectedAirportIcao || "").toUpperCase();
+  const filteredAirports = useMemo(() => {
+    if (airportViewFilter === "owned") {
+      return marketAirports.filter((airport) => ownedSet.has(String(airport?.airport_icao || "").toUpperCase()));
+    }
+    return marketAirports;
+  }, [airportViewFilter, marketAirports, ownedSet]);
   const suppressBackgroundClickUntilRef = useRef(0);
   const markForegroundInteraction = () => {
     suppressBackgroundClickUntilRef.current = Date.now() + 320;
@@ -374,7 +381,7 @@ export default function ContractWorldMap({
         })}
 
         <Pane name="airports" style={{ zIndex: 580 }}>
-          {marketAirports.map((airport) => {
+          {filteredAirports.map((airport) => {
             if (!Number.isFinite(airport?.lat) || !Number.isFinite(airport?.lon)) return null;
             const icao = String(airport.airport_icao || "").toUpperCase();
             const owned = ownedSet.has(icao);
@@ -386,10 +393,10 @@ export default function ContractWorldMap({
                 bubblingMouseEvents={false}
                 radius={selected ? 7.6 : owned ? 5.8 : 4.1}
                 pathOptions={{
-                  color: selected ? "#e2e8f0" : owned ? "#22d3ee" : "#f59e0b",
+                  color: selected ? "#e2e8f0" : owned ? "#22c55e" : "#d9b654",
                   weight: selected ? 2.3 : 1.4,
-                  fillColor: selected ? "#38bdf8" : owned ? "#22d3ee" : "#f59e0b",
-                  fillOpacity: selected ? 0.96 : owned ? 0.84 : 0.58,
+                  fillColor: selected ? "#38bdf8" : owned ? "#22c55e" : "#d9b654",
+                  fillOpacity: selected ? 0.96 : owned ? 0.8 : 0.34,
                   opacity: 0.96,
                 }}
                 eventHandlers={{

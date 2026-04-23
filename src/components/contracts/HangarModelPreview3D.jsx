@@ -181,7 +181,7 @@ export default function HangarModelPreview3D({
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const greenGrid = new THREE.GridHelper(28, 36, 0x14532d, 0x0f3d24);
+    const greenGrid = new THREE.GridHelper(28, 36, 0x0b3a20, 0x072715);
     greenGrid.position.y = 0.015;
     scene.add(greenGrid);
 

@@ -108,6 +108,7 @@ export default function HangarWorldGlobe3D({
   const [showContractsPanel, setShowContractsPanel] = useState(true);
   const [showMarketPanel, setShowMarketPanel] = useState(true);
   const [showOwnedHangarsList, setShowOwnedHangarsList] = useState(false);
+  const [airportViewFilter, setAirportViewFilter] = useState("all");
   const fullscreenRootRef = useRef(null);
 
   const normalizedHangars = useMemo(
@@ -305,6 +306,15 @@ export default function HangarWorldGlobe3D({
           type="button"
           size="icon"
           variant="outline"
+          onClick={() => setShowOwnedHangarsList((value) => !value)}
+          className="h-8 w-8 border-emerald-700/50 bg-slate-950/90 text-emerald-200 hover:bg-emerald-950/40"
+        >
+          <Building2 className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
           onClick={() => setShowContractsPanel((value) => !value)}
           className="h-8 w-8 border-cyan-700/50 bg-slate-950/90 text-cyan-200 hover:bg-cyan-950/40"
         >
@@ -331,11 +341,36 @@ export default function HangarWorldGlobe3D({
       </div>
 
       <div className={`relative z-0 w-full ${isFullscreen ? "h-screen" : "h-[650px]"}`}>
+        <div className="absolute left-3 top-12 z-[1450] flex items-center gap-1 rounded-md border border-cyan-900/50 bg-slate-950/85 p-1">
+          <button
+            type="button"
+            onClick={() => setAirportViewFilter("all")}
+            className={`rounded px-2 py-1 text-[10px] font-mono uppercase transition ${
+              airportViewFilter === "all"
+                ? "bg-cyan-700/45 text-cyan-100"
+                : "text-slate-300 hover:bg-slate-800/80"
+            }`}
+          >
+            {lang === "de" ? "Alle" : "All"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setAirportViewFilter("owned")}
+            className={`rounded px-2 py-1 text-[10px] font-mono uppercase transition ${
+              airportViewFilter === "owned"
+                ? "bg-emerald-700/45 text-emerald-100"
+                : "text-slate-300 hover:bg-slate-800/80"
+            }`}
+          >
+            {lang === "de" ? "Owned" : "Owned"}
+          </button>
+        </div>
         <ContractWorldMap
           embedded
           contracts={visibleContracts}
           hangars={normalizedHangars}
           marketAirports={marketAirports}
+          airportViewFilter={airportViewFilter}
           selectedAirportIcao={selectedAirportIcao}
           onSelectAirport={(icao) => {
             onSelectAirport?.(icao);
