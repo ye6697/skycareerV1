@@ -18,11 +18,25 @@ async function resolveCompany(base44: any, user: any) {
   const email = String(user?.email || '').trim();
   if (!email) return null;
   const candidateEmails = Array.from(new Set([email, email.toLowerCase()]));
+  const candidatesById = new Map<string, any>();
   for (const candidate of candidateEmails) {
     const companies = await base44.asServiceRole.entities.Company.filter({ created_by: candidate });
-    if (companies?.[0]) return companies[0];
+    for (const company of (Array.isArray(companies) ? companies : [])) {
+      if (company?.id) candidatesById.set(String(company.id), company);
+    }
   }
-  return null;
+  const allCandidates = Array.from(candidatesById.values());
+  if (allCandidates.length === 0) return null;
+  allCandidates.sort((a, b) => {
+    const updatedA = Date.parse(String(a?.updated_date || a?.created_date || '')) || 0;
+    const updatedB = Date.parse(String(b?.updated_date || b?.created_date || '')) || 0;
+    if (updatedB !== updatedA) return updatedB - updatedA;
+    const hangarsA = Array.isArray(a?.hangars) ? a.hangars.length : 0;
+    const hangarsB = Array.isArray(b?.hangars) ? b.hangars.length : 0;
+    if (hangarsB !== hangarsA) return hangarsB - hangarsA;
+    return String(a?.id || '').localeCompare(String(b?.id || ''));
+  });
+  return allCandidates[0];
 }
 
 const airports = [
@@ -442,6 +456,10 @@ Deno.serve(async (req) => {
     if (!company) {
       return Response.json({ error: 'Keine Firma gefunden' }, { status: 400 });
     }
+    const userCompanyId = String(resolveUserCompanyId(user) || '').trim();
+    if ((!userCompanyId || userCompanyId !== String(company.id)) && String(company?.id || '').trim()) {
+      await base44.auth.updateMe({ company_id: company.id }).catch(() => null);
+    }
 
     const todayIso = new Date().toISOString().slice(0, 10);
     const airportByIcao = new Map(airports.map((airport) => [airport.icao, airport]));
@@ -605,7 +623,12 @@ Deno.serve(async (req) => {
         return stationedHere && hangarRule.allowed_types.includes(plane.type);
       });
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];
-      const typePool = allAircraftTypes.filter((entry) => ownedTypesAtHangar.includes(entry.type));
+      const fallbackOwnedTypesAtHangar = allAircraftTypes.filter((entry) =>
+        ownedTypes.includes(entry.type) && hangarRule.allowed_types.includes(entry.type)
+      );
+      const typePool = ownedTypesAtHangar.length > 0
+        ? allAircraftTypes.filter((entry) => ownedTypesAtHangar.includes(entry.type))
+        : fallbackOwnedTypesAtHangar;
       if (typePool.length === 0 || departurePool.length === 0) continue;
 
       const genOptions = {
@@ -630,12 +653,18 @@ Deno.serve(async (req) => {
           const passengerMatch = !contract.passenger_count || (plane.passenger_capacity && plane.passenger_capacity >= contract.passenger_count);
           return typeMatch && cargoMatch && rangeMatch && passengerMatch;
         });
-        if (!canFulfill) continue;
         contract.hangar_airport = hangarAirport;
         contract.hangar_id = hangar.id;
-        compatibleContracts.push(contract);
+        if (canFulfill) {
+          compatibleContracts.push(contract);
+        } else {
+          incompatibleContracts.push(contract);
+        }
         rememberRoute(contract, usedRoutePairs, departureUsage);
-        if (compatibleContracts.filter((entry) => entry.hangar_id === hangar.id).length >= 4) break;
+        const perHangarGenerated =
+          compatibleContracts.filter((entry) => entry.hangar_id === hangar.id).length
+          + incompatibleContracts.filter((entry) => entry.hangar_id === hangar.id).length;
+        if (perHangarGenerated >= 4) break;
       }
     }
 

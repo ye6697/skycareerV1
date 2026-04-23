@@ -18,11 +18,25 @@ async function resolveCompany(base44: any, user: any) {
   const email = String(user?.email || '').trim();
   if (!email) return null;
   const candidateEmails = Array.from(new Set([email, email.toLowerCase()]));
+  const candidatesById = new Map<string, any>();
   for (const candidate of candidateEmails) {
     const companies = await base44.asServiceRole.entities.Company.filter({ created_by: candidate });
-    if (companies?.[0]) return companies[0];
+    for (const company of (Array.isArray(companies) ? companies : [])) {
+      if (company?.id) candidatesById.set(String(company.id), company);
+    }
   }
-  return null;
+  const allCandidates = Array.from(candidatesById.values());
+  if (allCandidates.length === 0) return null;
+  allCandidates.sort((a, b) => {
+    const updatedA = Date.parse(String(a?.updated_date || a?.created_date || '')) || 0;
+    const updatedB = Date.parse(String(b?.updated_date || b?.created_date || '')) || 0;
+    if (updatedB !== updatedA) return updatedB - updatedA;
+    const hangarsA = Array.isArray(a?.hangars) ? a.hangars.length : 0;
+    const hangarsB = Array.isArray(b?.hangars) ? b.hangars.length : 0;
+    if (hangarsB !== hangarsA) return hangarsB - hangarsA;
+    return String(a?.id || '').localeCompare(String(b?.id || ''));
+  });
+  return allCandidates[0];
 }
 
 function getLegacyHangarId(airportIcao, ordinal = 1) {
@@ -140,6 +154,10 @@ Deno.serve(async (req) => {
     let company = await resolveCompany(base44, user);
     if (!company) {
       return Response.json({ company: null, aircraft: [], contracts: [] });
+    }
+    const userCompanyId = String(resolveUserCompanyId(user) || '').trim();
+    if ((!userCompanyId || userCompanyId !== String(company.id)) && String(company?.id || '').trim()) {
+      await base44.auth.updateMe({ company_id: company.id }).catch(() => null);
     }
 
     const rawCompanyHangars = Array.isArray(company.hangars) ? company.hangars : [];

@@ -18,11 +18,25 @@ async function resolveCompany(base44: any, user: any) {
   const email = String(user?.email || '').trim();
   if (!email) return null;
   const candidateEmails = Array.from(new Set([email, email.toLowerCase()]));
+  const candidatesById = new Map<string, any>();
   for (const candidate of candidateEmails) {
     const companies = await base44.asServiceRole.entities.Company.filter({ created_by: candidate });
-    if (companies?.[0]) return companies[0];
+    for (const company of (Array.isArray(companies) ? companies : [])) {
+      if (company?.id) candidatesById.set(String(company.id), company);
+    }
   }
-  return null;
+  const allCandidates = Array.from(candidatesById.values());
+  if (allCandidates.length === 0) return null;
+  allCandidates.sort((a, b) => {
+    const updatedA = Date.parse(String(a?.updated_date || a?.created_date || '')) || 0;
+    const updatedB = Date.parse(String(b?.updated_date || b?.created_date || '')) || 0;
+    if (updatedB !== updatedA) return updatedB - updatedA;
+    const hangarsA = Array.isArray(a?.hangars) ? a.hangars.length : 0;
+    const hangarsB = Array.isArray(b?.hangars) ? b.hangars.length : 0;
+    if (hangarsB !== hangarsA) return hangarsB - hangarsA;
+    return String(a?.id || '').localeCompare(String(b?.id || ''));
+  });
+  return allCandidates[0];
 }
 
 function normalizeIdentifier(value: unknown): string {
@@ -107,14 +121,36 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'aircraftId and targetHangarId or targetAirport are required' }, { status: 400 });
     }
 
-    let company = await resolveCompany(base44, user);
-    if (!company?.id) return Response.json({ error: 'Company not found' }, { status: 400 });
-
     const aircraftRows = await base44.asServiceRole.entities.Aircraft.filter({ id: aircraftId });
     const aircraft = aircraftRows?.[0] || null;
     if (!aircraft?.id) return Response.json({ error: 'Aircraft not found' }, { status: 404 });
-    if (String(aircraft.company_id || '') !== String(company.id)) {
-      return Response.json({ error: 'Aircraft does not belong to your company' }, { status: 403 });
+
+    const userCompanyId = String(resolveUserCompanyId(user) || '').trim();
+    const userEmail = String(user?.email || '').trim().toLowerCase();
+    const aircraftCompanyId = String(aircraft.company_id || '').trim();
+
+    let company = await resolveCompany(base44, user);
+    if (!company?.id || String(company.id) !== aircraftCompanyId) {
+      const aircraftCompanyRows = aircraftCompanyId
+        ? await base44.asServiceRole.entities.Company.filter({ id: aircraftCompanyId })
+        : [];
+      const aircraftCompany = aircraftCompanyRows?.[0] || null;
+      const ownerEmail = String(aircraftCompany?.created_by || '').trim().toLowerCase();
+      const userOwnsAircraftCompany =
+        (userCompanyId && aircraftCompanyId && userCompanyId === aircraftCompanyId)
+        || (userEmail && ownerEmail && userEmail === ownerEmail);
+      if (!userOwnsAircraftCompany) {
+        return Response.json({ error: 'Aircraft does not belong to your company' }, { status: 403 });
+      }
+      company = aircraftCompany || company;
+    }
+
+    if (!company?.id || String(company.id) !== aircraftCompanyId) {
+      return Response.json({ error: 'Company not found' }, { status: 400 });
+    }
+
+    if ((!userCompanyId || userCompanyId !== String(company.id)) && String(company.id || '').trim()) {
+      await base44.auth.updateMe({ company_id: company.id }).catch(() => null);
     }
 
     const rawCompanyHangars = Array.isArray(company.hangars) ? company.hangars : [];
