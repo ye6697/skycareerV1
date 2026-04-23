@@ -52,7 +52,7 @@ export const HANGAR_MODEL_VARIANTS = [
   {
     id: "mega_platform",
     label: "Mega Plattform",
-    path: "/models/hangars/airport_hangar_3.glb",
+    path: "/models/hangars/mega_platform/scene.gltf",
     sizeKey: "mega",
     slots: 15,
     price: 185000000,

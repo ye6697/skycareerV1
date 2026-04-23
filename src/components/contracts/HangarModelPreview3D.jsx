@@ -95,6 +95,29 @@ function disposeObject(object3d) {
   });
 }
 
+function sanitizeLoadedModel(object3d, modelVariantId) {
+  if (modelVariantId !== "mega_platform") return;
+
+  object3d.traverse((node) => {
+    const nodeName = String(node?.name || "").toLowerCase();
+    if (nodeName.includes("collider") || nodeName.includes("collision")) {
+      node.visible = false;
+      return;
+    }
+
+    if (!node.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    const hasColliderMaterial = materials.some((material) => {
+      const materialName = String(material?.name || "").toLowerCase();
+      return materialName.includes("collider") || materialName.includes("collision");
+    });
+
+    if (hasColliderMaterial) {
+      node.visible = false;
+    }
+  });
+}
+
 export default function HangarModelPreview3D({
   modelPath = "",
   sizeKey = "small",
@@ -242,13 +265,16 @@ export default function HangarModelPreview3D({
               setIsModelLoading(false);
               return;
             }
+            sanitizeLoadedModel(gltf.scene, modelVariantId);
             mountModel(gltf.scene);
             setIsModelLoading(false);
           },
           undefined,
           () => {
             if (cancelled) return;
-            setModelLoadError(lang === "de" ? "GLB konnte nicht geladen werden. Fallback aktiv." : "Could not load GLB. Fallback active.");
+            setModelLoadError(
+              lang === "de" ? "3D-Modell konnte nicht geladen werden. Fallback aktiv." : "Could not load 3D model. Fallback active."
+            );
             setIsModelLoading(false);
           }
         );
@@ -327,7 +353,7 @@ export default function HangarModelPreview3D({
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/45">
               <div className="rounded-md border border-cyan-800/50 bg-slate-950/85 px-2.5 py-1 text-[10px] font-mono text-cyan-100">
                 <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
-                {lang === "de" ? "GLB wird geladen" : "Loading GLB"}
+                {lang === "de" ? "3D-Modell wird geladen" : "Loading 3D model"}
               </div>
             </div>
           )}
