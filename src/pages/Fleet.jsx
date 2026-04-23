@@ -954,7 +954,7 @@ export default function Fleet() {
             <DialogContent
               className={
                 marketViewMode === '3d'
-                  ? 'w-screen h-screen max-w-none max-h-screen overflow-hidden bg-slate-950 border-0 rounded-none p-0 m-0'
+                  ? 'w-screen h-screen max-w-none max-h-screen overflow-hidden bg-slate-950 border-0 rounded-none p-0 m-0 left-0 top-0 !translate-x-0 !translate-y-0'
                   : 'max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-800 shadow-2xl'
               }
             >
@@ -962,7 +962,7 @@ export default function Fleet() {
                  <DialogTitle className="text-xl font-mono text-cyan-400 uppercase">{t('aircraft_market', lang)}</DialogTitle>
                  <p className="text-[10px] font-mono text-cyan-600/70 uppercase">{t('choose_next_aircraft', lang)}</p>
                </DialogHeader>}
-               <div className="flex items-center gap-2 mb-2">
+               {marketViewMode !== '3d' && <div className="flex items-center gap-2 mb-2">
                  <Button
                   size="sm"
                   className={`h-7 text-[10px] ${marketSection === 'new' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
@@ -996,7 +996,7 @@ export default function Fleet() {
                     ▦ GRID
                    </Button>
                  </div>
-                </div>
+                </div>}
                {marketViewMode !== '3d' && marketSection === 'used' &&
               <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -1075,6 +1075,16 @@ export default function Fleet() {
                 listings={marketAircraft}
                 lang={lang}
                 company={company}
+                marketSection={marketSection}
+                usedConditionFilter={usedConditionFilter}
+                usedConditionProfiles={USED_CONDITION_PROFILES}
+                onSetMarketSection={(nextSection) => {
+                  setMarketSection(nextSection);
+                  if (nextSection === 'new') setUsedConditionFilter('all');
+                }}
+                onSetMarketViewMode={setMarketViewMode}
+                onSetUsedConditionFilter={setUsedConditionFilter}
+                onClose={() => setIsPurchaseDialogOpen(false)}
                 canAfford={canAfford}
                 canPurchase={canPurchase}
                 onBuy={(ac) => setSelectedAircraft(ac)}

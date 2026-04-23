@@ -101,6 +101,23 @@ function disposeObject3D(root) {
   });
 }
 
+function hasHotspotScreenChanged(previous, next) {
+  const previousKeys = Object.keys(previous || {});
+  const nextKeys = Object.keys(next || {});
+  if (previousKeys.length !== nextKeys.length) return true;
+
+  for (let i = 0; i < nextKeys.length; i += 1) {
+    const key = nextKeys[i];
+    const prev = previous?.[key];
+    const curr = next?.[key];
+    if (!prev || !curr) return true;
+    if (prev.visible !== curr.visible) return true;
+    if (Math.abs((prev.x || 0) - (curr.x || 0)) > 0.8) return true;
+    if (Math.abs((prev.y || 0) - (curr.y || 0)) > 0.8) return true;
+  }
+  return false;
+}
+
 // Fully interactive 3D hangar:
 // - Click hotspot sphere on the model → opens info popup (with repair action)
 // - Drag to rotate camera, scroll to zoom
@@ -110,6 +127,8 @@ export default function AircraftHangar3D({ aircraft }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rafRef = useRef(null);
+  const hotspotScreenRef = useRef({});
+  const lastOverlaySyncRef = useRef(0);
   const [hotspotScreen, setHotspotScreen] = useState({});
   const [isReady, setIsReady] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
@@ -146,8 +165,8 @@ export default function AircraftHangar3D({ aircraft }) {
     scene.fog = new THREE.Fog(0x0a0e14, 120, 420);
 
     const camera = new THREE.PerspectiveCamera(50, w / h, 0.5, 600);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(w, h);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
@@ -200,6 +219,7 @@ export default function AircraftHangar3D({ aircraft }) {
     const onResize = () => {
       if (!mount) return;
       const ww = mount.clientWidth, hh = mount.clientHeight;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       camera.aspect = ww / hh;
       camera.updateProjectionMatrix();
       renderer.setSize(ww, hh);
@@ -230,6 +250,8 @@ export default function AircraftHangar3D({ aircraft }) {
     // Reset selection while switching aircraft to avoid stale popup anchors.
     setSelectedCategory(null);
     setPopupAnchor(null);
+    hotspotScreenRef.current = {};
+    setHotspotScreen({});
 
     while (aircraftGroup.children.length > 0) {
       const child = aircraftGroup.children.pop();
@@ -396,24 +418,30 @@ export default function AircraftHangar3D({ aircraft }) {
       camera.position.set(cx, cy, cz);
       camera.lookAt(0, 4, 0);
 
-      // Project hotspots for HTML overlays
-      const newScreen = {};
-      const mount = mountRef.current;
-      if (mount) {
-        const rect = { w: mount.clientWidth, h: mount.clientHeight };
-        const tmp = new THREE.Vector3();
-        Object.entries(hotspotMeshes).forEach(([key, { sphere }]) => {
-          tmp.setFromMatrixPosition(sphere.matrixWorld);
-          tmp.project(camera);
-          const visible = tmp.z < 1 && tmp.z > -1;
-          newScreen[key] = {
-            x: (tmp.x * 0.5 + 0.5) * rect.w,
-            y: (-tmp.y * 0.5 + 0.5) * rect.h,
-            visible,
-          };
-        });
+      // Project hotspots for HTML overlays at lower frequency to reduce React churn.
+      if (now - lastOverlaySyncRef.current > 66) {
+        const newScreen = {};
+        const mount = mountRef.current;
+        if (mount) {
+          const rect = { w: mount.clientWidth, h: mount.clientHeight };
+          const tmp = new THREE.Vector3();
+          Object.entries(hotspotMeshes).forEach(([key, { sphere }]) => {
+            tmp.setFromMatrixPosition(sphere.matrixWorld);
+            tmp.project(camera);
+            const visible = tmp.z < 1 && tmp.z > -1;
+            newScreen[key] = {
+              x: (tmp.x * 0.5 + 0.5) * rect.w,
+              y: (-tmp.y * 0.5 + 0.5) * rect.h,
+              visible,
+            };
+          });
+        }
+        if (hasHotspotScreenChanged(hotspotScreenRef.current, newScreen)) {
+          hotspotScreenRef.current = newScreen;
+          setHotspotScreen(newScreen);
+        }
+        lastOverlaySyncRef.current = now;
       }
-      setHotspotScreen(newScreen);
 
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(loop);
