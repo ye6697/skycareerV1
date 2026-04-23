@@ -427,7 +427,8 @@ Deno.serve(async (req) => {
       const hangarAirport = String(hangar?.airport_icao || '').toUpperCase();
       const departurePool = airports.filter((airport) => airport.icao === hangarAirport);
       const hangarAircraft = filteredAircraft.filter((plane) => {
-        const stationedHere = !plane.hangar_id || plane.hangar_id === hangar.id;
+        const planeHangarAirport = String(plane?.hangar_airport || '').toUpperCase();
+        const stationedHere = planeHangarAirport === hangarAirport || !plane.hangar_id || plane.hangar_id === hangar.id;
         return stationedHere && hangarRule.allowed_types.includes(plane.type);
       });
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];

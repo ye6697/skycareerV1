@@ -142,6 +142,25 @@ function FitToRoutes({ bounds, fitKey }) {
   return null;
 }
 
+function FocusAirport({ selectedAirportIcao, airportByIcao }) {
+  const map = useMap();
+  const lastIcaoRef = useRef("");
+
+  useEffect(() => {
+    const icao = String(selectedAirportIcao || "").toUpperCase();
+    if (!icao || lastIcaoRef.current === icao) return;
+    const point = airportByIcao.get(icao);
+    if (!point) return;
+    map.flyTo([point.lat, point.lon], Math.max(map.getZoom(), 6), {
+      animate: true,
+      duration: 0.7,
+    });
+    lastIcaoRef.current = icao;
+  }, [airportByIcao, map, selectedAirportIcao]);
+
+  return null;
+}
+
 function MapClickCatcher({ onBackgroundClick, suppressBackgroundClickUntilRef }) {
   useMapEvents({
     click: () => {
@@ -163,6 +182,7 @@ export default function ContractWorldMap({
   selectedAirportIcao = "",
   onSelectAirport,
   onBackgroundClick,
+  onOwnedHangarHubClick,
   embedded = false,
   lang = "de",
 }) {
@@ -287,6 +307,7 @@ export default function ContractWorldMap({
         worldCopyJump
       >
         <FitToRoutes bounds={bounds} fitKey={fitKey} />
+        <FocusAirport selectedAirportIcao={selectedAirportIcao} airportByIcao={airportByIcao} />
         <MapClickCatcher
           onBackgroundClick={onBackgroundClick}
           suppressBackgroundClickUntilRef={suppressBackgroundClickUntilRef}
@@ -389,6 +410,28 @@ export default function ContractWorldMap({
               </CircleMarker>
             );
           })}
+        </Pane>
+
+        <Pane name="hangarHub" style={{ zIndex: 900 }}>
+          <Marker
+            position={[80, -170]}
+            interactive
+            icon={new L.DivIcon({
+              html: `<button type="button" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:rgba(2,6,23,.9);border:1px solid rgba(34,211,238,.7);color:#67e8f9;font-size:16px;cursor:pointer;box-shadow:0 8px 18px rgba(2,6,23,.45)">⌂</button>`,
+              className: "",
+              iconSize: [34, 34],
+              iconAnchor: [17, 17],
+            })}
+            eventHandlers={{
+              mousedown: markForegroundInteraction,
+              touchstart: markForegroundInteraction,
+              click: (event) => {
+                event.originalEvent?.stopPropagation?.();
+                markForegroundInteraction();
+                onOwnedHangarHubClick?.();
+              },
+            }}
+          />
         </Pane>
 
         {selectedRoute && (
