@@ -624,6 +624,12 @@ export default function Contracts() {
       if (selectedAircraftId && selectedAircraftId !== "all") {
         params.aircraftId = selectedAircraftId;
       }
+      if (company?.id) {
+        params.companyId = company.id;
+      }
+      if (Array.isArray(ownedHangars) && ownedHangars.length > 0) {
+        params.knownHangars = ownedHangars;
+      }
       const response = await base44.functions.invoke("generateContracts", params);
       return response.data;
     },
@@ -923,6 +929,7 @@ export default function Contracts() {
           targetHangarId: validation.targetHangarId,
           targetAirport,
           companyId: company.id,
+          knownHangars: ownedHangars,
           transferCost,
           lang,
         });

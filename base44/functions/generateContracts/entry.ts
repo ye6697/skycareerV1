@@ -256,6 +256,59 @@ function normalizeCompanyHangars(rawHangars = []) {
   });
 }
 
+function mergeCompanyHangarSources(primaryHangars = [], secondaryHangars = []) {
+  const normalizedPrimary = normalizeCompanyHangars(primaryHangars);
+  const normalizedSecondary = normalizeCompanyHangars(secondaryHangars);
+  const merged = normalizedPrimary.map((hangar) => ({ ...(hangar || {}) }));
+
+  for (const incomingHangar of normalizedSecondary) {
+    const incomingId = String(incomingHangar?.id || '').trim();
+    const incomingAirport = normalizeIcao(incomingHangar?.airport_icao);
+    const incomingSize = String(incomingHangar?.size || '').toLowerCase();
+    const incomingVariant = String(incomingHangar?.model_variant || '').toLowerCase();
+
+    let matchIndex = -1;
+    if (incomingId) {
+      matchIndex = merged.findIndex((hangar) => String(hangar?.id || '').trim() === incomingId);
+    }
+    if (matchIndex < 0) {
+      matchIndex = merged.findIndex((hangar) => {
+        const hangarAirport = normalizeIcao(hangar?.airport_icao);
+        const hangarSize = String(hangar?.size || '').toLowerCase();
+        const hangarVariant = String(hangar?.model_variant || '').toLowerCase();
+        return hangarAirport === incomingAirport
+          && (hangarSize === incomingSize || !incomingSize || !hangarSize)
+          && (hangarVariant === incomingVariant || !incomingVariant || !hangarVariant);
+      });
+    }
+
+    if (matchIndex >= 0) {
+      const existing = merged[matchIndex] || {};
+      merged[matchIndex] = {
+        ...existing,
+        ...incomingHangar,
+        id: String(existing?.id || incomingHangar?.id || '').trim(),
+        airport_icao: normalizeIcao(existing?.airport_icao || incomingHangar?.airport_icao),
+      };
+    } else {
+      merged.push(incomingHangar);
+    }
+  }
+
+  return normalizeCompanyHangars(merged);
+}
+
+function haveSameHangarSignature(left = [], right = []) {
+  const toSignature = (hangars: any[]) =>
+    normalizeCompanyHangars(hangars)
+      .map((hangar) =>
+        `${String(hangar?.id || '').trim()}|${normalizeIcao(hangar?.airport_icao)}|${String(hangar?.size || '').toLowerCase()}|${String(hangar?.model_variant || '').toLowerCase()}`
+      )
+      .sort()
+      .join('||');
+  return toSignature(left) === toSignature(right);
+}
+
 function hangarsNeedMigration(rawHangars = [], normalizedHangars = []) {
   if (rawHangars.length !== normalizedHangars.length) return true;
   for (let i = 0; i < normalizedHangars.length; i += 1) {
@@ -443,6 +496,8 @@ Deno.serve(async (req) => {
     let maxNm = Infinity;
     let filterContractType = null; // e.g. "passenger", "cargo", "charter"
     let filterAircraftId = null;   // specific aircraft ID to generate for
+    let requestedCompanyId = null;
+    let knownHangars: any[] = [];
     try {
       const body = await req.json();
       if (body.minNm && !isNaN(body.minNm)) minNm = Number(body.minNm);
@@ -452,9 +507,24 @@ Deno.serve(async (req) => {
         if (validTypes.includes(body.contractType)) filterContractType = body.contractType;
       }
       if (body.aircraftId && typeof body.aircraftId === 'string') filterAircraftId = body.aircraftId;
+      if (body.companyId && typeof body.companyId === 'string') requestedCompanyId = String(body.companyId).trim();
+      if (Array.isArray(body.knownHangars)) knownHangars = body.knownHangars;
     } catch (_) {}
 
     let company = await resolveCompany(base44, user);
+    if (requestedCompanyId) {
+      const requestedRows = await base44.asServiceRole.entities.Company.filter({ id: requestedCompanyId }).catch(() => []);
+      const requestedCompany = requestedRows?.[0] || null;
+      const ownerEmail = String(requestedCompany?.created_by || '').trim().toLowerCase();
+      const userEmail = String(user?.email || '').trim().toLowerCase();
+      const resolvedUserCompanyId = String(resolveUserCompanyId(user) || '').trim();
+      const mayUseRequested =
+        (requestedCompany?.id && resolvedUserCompanyId && String(requestedCompany.id) === resolvedUserCompanyId)
+        || (requestedCompany?.id && ownerEmail && userEmail && ownerEmail === userEmail);
+      if (mayUseRequested) {
+        company = requestedCompany;
+      }
+    }
     if (!company) {
       return Response.json({ error: 'Keine Firma gefunden' }, { status: 400 });
     }
@@ -466,8 +536,12 @@ Deno.serve(async (req) => {
     const todayIso = new Date().toISOString().slice(0, 10);
     const airportByIcao = new Map(airports.map((airport) => [airport.icao, airport]));
     const rawCompanyHangars = Array.isArray(company.hangars) ? company.hangars : [];
-    const normalizedHangars = normalizeCompanyHangars(rawCompanyHangars);
-    if (hangarsNeedMigration(rawCompanyHangars, normalizedHangars)) {
+    const mergedHangars = mergeCompanyHangarSources(rawCompanyHangars, knownHangars);
+    const normalizedHangars = normalizeCompanyHangars(mergedHangars);
+    const shouldPersistHangars =
+      hangarsNeedMigration(rawCompanyHangars, normalizedHangars)
+      || !haveSameHangarSignature(rawCompanyHangars, normalizedHangars);
+    if (shouldPersistHangars) {
       await base44.asServiceRole.entities.Company.update(company.id, { hangars: normalizedHangars });
       company = { ...company, hangars: normalizedHangars };
     }

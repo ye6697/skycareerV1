@@ -801,6 +801,7 @@ export default function Fleet() {
           targetHangarId: validation.targetHangarId,
           targetAirport,
           companyId: company.id,
+          knownHangars: ownedHangars,
           transferCost,
           lang,
         });

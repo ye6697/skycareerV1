@@ -79,6 +79,64 @@ function normalizeCompanyHangars(rawHangars: any[] = []): any[] {
   });
 }
 
+function mergeCompanyHangarSources(primaryHangars: any[] = [], secondaryHangars: any[] = []): any[] {
+  const normalizedPrimary = normalizeCompanyHangars(primaryHangars);
+  const normalizedSecondary = normalizeCompanyHangars(secondaryHangars);
+  const merged = normalizedPrimary.map((hangar) => ({ ...(hangar || {}) }));
+
+  for (const incomingHangar of normalizedSecondary) {
+    const incomingId = normalizeIdentifier(incomingHangar?.id);
+    const incomingAirport = getHangarAirportIcao(incomingHangar);
+    const incomingSize = String(incomingHangar?.size || '').toLowerCase();
+    const incomingVariant = String(incomingHangar?.model_variant || '').toLowerCase();
+
+    let matchIndex = -1;
+    if (incomingId) {
+      matchIndex = merged.findIndex((hangar) => normalizeIdentifier(hangar?.id) === incomingId);
+    }
+    if (matchIndex < 0) {
+      matchIndex = merged.findIndex((hangar) => {
+        const hangarAirport = getHangarAirportIcao(hangar);
+        const hangarSize = String(hangar?.size || '').toLowerCase();
+        const hangarVariant = String(hangar?.model_variant || '').toLowerCase();
+        return hangarAirport === incomingAirport
+          && (hangarSize === incomingSize || !incomingSize || !hangarSize)
+          && (hangarVariant === incomingVariant || !incomingVariant || !hangarVariant);
+      });
+    }
+
+    if (matchIndex >= 0) {
+      const existing = merged[matchIndex] || {};
+      merged[matchIndex] = {
+        ...existing,
+        ...incomingHangar,
+        id: normalizeIdentifier(existing?.id || incomingHangar?.id),
+        airport_icao: normalizeIcao(
+          existing?.airport_icao
+          || existing?.hangar_airport
+          || incomingHangar?.airport_icao
+          || incomingHangar?.hangar_airport
+        ),
+      };
+    } else {
+      merged.push(incomingHangar);
+    }
+  }
+
+  return normalizeCompanyHangars(merged);
+}
+
+function haveSameHangarSignature(left: any[] = [], right: any[] = []): boolean {
+  const toSignature = (hangars: any[]) =>
+    normalizeCompanyHangars(hangars)
+      .map((hangar) =>
+        `${normalizeIdentifier(hangar?.id)}|${getHangarAirportIcao(hangar)}|${String(hangar?.size || '').toLowerCase()}|${String(hangar?.model_variant || '').toLowerCase()}`
+      )
+      .sort()
+      .join('||');
+  return toSignature(left) === toSignature(right);
+}
+
 function hangarsNeedMigration(rawHangars: any[] = [], normalizedHangars: any[] = []): boolean {
   if (rawHangars.length !== normalizedHangars.length) return true;
   for (let i = 0; i < normalizedHangars.length; i += 1) {
@@ -115,6 +173,7 @@ Deno.serve(async (req) => {
     const targetHangarId = normalizeIdentifier(body?.targetHangarId);
     const targetAirport = normalizeIcao(body?.targetAirport);
     const requestedCompanyId = normalizeIdentifier(body?.companyId);
+    const knownHangars = Array.isArray(body?.knownHangars) ? body.knownHangars : [];
     const transferCost = Math.max(0, Number(body?.transferCost || 0));
     const lang = String(body?.lang || 'en').trim().toLowerCase() === 'de' ? 'de' : 'en';
 
@@ -162,8 +221,12 @@ Deno.serve(async (req) => {
     }
 
     const rawCompanyHangars = Array.isArray(company.hangars) ? company.hangars : [];
-    const normalizedHangars = normalizeCompanyHangars(rawCompanyHangars);
-    if (hangarsNeedMigration(rawCompanyHangars, normalizedHangars)) {
+    const mergedHangars = mergeCompanyHangarSources(rawCompanyHangars, knownHangars);
+    const normalizedHangars = normalizeCompanyHangars(mergedHangars);
+    const shouldPersistHangars =
+      hangarsNeedMigration(rawCompanyHangars, normalizedHangars)
+      || !haveSameHangarSignature(rawCompanyHangars, normalizedHangars);
+    if (shouldPersistHangars) {
       await base44.asServiceRole.entities.Company.update(company.id, { hangars: normalizedHangars });
       company = { ...company, hangars: normalizedHangars };
     } else {
