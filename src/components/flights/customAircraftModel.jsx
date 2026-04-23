@@ -1,248 +1,255 @@
 import * as THREE from 'three';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { loadGLB, normalizeModel } from '@/components/flights/glbLoader';
+import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
+import {
+  getDefaultTargetSizeForProfile,
+  resolveAircraftModelConfig,
+  resolveAircraftProfile,
+} from '@/components/flights/aircraftModelCatalog';
 
-// User-provided airplane model hosted on catbox.moe.
-const OBJ_URL = 'https://files.catbox.moe/szsofq.obj';
-const TEX_URL = 'https://files.catbox.moe/ylgpjo.jpg';
-
-// Propeller-aircraft GLB models. Picked randomly for prop/turboprop flights.
-const PROP_GLB_URLS = [
-  'https://files.catbox.moe/oyc0jm.glb',
-  'https://files.catbox.moe/y4rer7.glb',
-];
-
-function isPropAircraft(hint) {
-  const s = String(hint || '').toLowerCase();
-  if (!s) return false;
-  if (s.includes('small_prop') || s.includes('turboprop')) return true;
-  if (/\b(c172|c152|c182|p28|sr22|da40|pa28|pc12|dh8|dhc|atr|saab|sf34|e120|e110|c208|king\s?air|baron|caravan)\b/.test(s)) return true;
-  return false;
-}
-
-// Target length (meters) for the aircraft's longest axis in world space.
-const TARGET_LENGTH = 30;
-// Extra clearance above ground so the aircraft visibly rests on its gear
-// rather than the belly touching the asphalt.
 const GROUND_CLEARANCE = 1.2;
+const VERTEX_SAMPLE_CAP = 5500;
 
-let cachedObject = null;
-let inflightPromise = null;
-
-async function fetchText(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Fetch failed: ${url} (${res.status})`);
-  return await res.text();
-}
-
-function loadTexture(url) {
-  return new Promise((resolve) => {
-    new THREE.TextureLoader().load(
-      url,
-      (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex); },
-      undefined,
-      () => resolve(null),
-    );
+function sanitizeLoadedModel(root) {
+  root.traverse((node) => {
+    const name = String(node?.name || '').toLowerCase();
+    if (name.includes('collider') || name.includes('collision') || name.includes('helper')) {
+      node.visible = false;
+      return;
+    }
+    if (!node.isMesh) return;
+    node.castShadow = true;
+    node.receiveShadow = true;
+    node.frustumCulled = false;
   });
 }
 
-// Attach navigation, strobe, and beacon lights as CHILDREN of the model so
-// they move/rotate exactly with it. Positions are derived from the model's
-// actual bounding box so wingtips line up with the real geometry.
-// Light sizes scale with the model so small props don't get giant beach-ball
-// wingtip lights.
+function collectSampledVertices(root, maxSamples = VERTEX_SAMPLE_CAP) {
+  const vertices = [];
+  const worldPoint = new THREE.Vector3();
+  root.updateMatrixWorld(true);
+
+  root.traverse((node) => {
+    if (!node.isMesh || !node.geometry?.attributes?.position || vertices.length >= maxSamples) return;
+    const posAttr = node.geometry.attributes.position;
+    const step = Math.max(1, Math.floor(posAttr.count / 1200));
+
+    for (let i = 0; i < posAttr.count && vertices.length < maxSamples; i += step) {
+      worldPoint.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).applyMatrix4(node.matrixWorld);
+      vertices.push(worldPoint.clone());
+    }
+  });
+
+  return vertices;
+}
+
+function estimateNoseDirection(root) {
+  const points = collectSampledVertices(root);
+  if (points.length < 50) return 1;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let meanY = 0;
+  let meanZ = 0;
+  points.forEach((point) => {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    meanY += point.y;
+    meanZ += point.z;
+  });
+  meanY /= points.length;
+  meanZ /= points.length;
+
+  const length = Math.max(0.001, maxX - minX);
+  const slice = Math.max(0.2, length * 0.09);
+  const front = points.filter((point) => point.x > maxX - slice);
+  const back = points.filter((point) => point.x < minX + slice);
+  if (front.length < 12 || back.length < 12) return 1;
+
+  const radialSpread = (set) => {
+    let sum = 0;
+    set.forEach((point) => {
+      const dy = point.y - meanY;
+      const dz = point.z - meanZ;
+      sum += Math.sqrt(dy * dy + dz * dz);
+    });
+    return sum / Math.max(1, set.length);
+  };
+
+  const frontSpread = radialSpread(front);
+  const backSpread = radialSpread(back);
+  return frontSpread <= backSpread ? 1 : -1;
+}
+
+function orientModelToForwardX(root) {
+  root.updateMatrixWorld(true);
+  const baseBox = new THREE.Box3().setFromObject(root);
+  const baseSize = new THREE.Vector3();
+  baseBox.getSize(baseSize);
+
+  if (baseSize.z > baseSize.x * 1.05) {
+    root.rotation.y += Math.PI / 2;
+    root.updateMatrixWorld(true);
+  }
+
+  if (estimateNoseDirection(root) < 0) {
+    root.rotation.y += Math.PI;
+    root.updateMatrixWorld(true);
+  }
+}
+
+function measureBounds(root) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+  return {
+    min: { x: box.min.x, y: box.min.y, z: box.min.z },
+    max: { x: box.max.x, y: box.max.y, z: box.max.z },
+    size: { x: size.x, y: size.y, z: size.z },
+    center: { x: center.x, y: center.y, z: center.z },
+  };
+}
+
 function attachLightsToModel(model, strobe) {
-  // Measure in world space to respect any scale that was applied to the model
-  // before this function is called (e.g. GLB normalizeModel scaling).
   model.updateMatrixWorld(true);
   const worldBox = new THREE.Box3().setFromObject(model);
   const worldSize = new THREE.Vector3();
   worldBox.getSize(worldSize);
-  const worldLongest = Math.max(worldSize.x, worldSize.y, worldSize.z) || 1;
 
-  // Invert the model's world scale so positions we set below (in model-local
-  // space) land at world positions derived from the world bounding box.
-  const modelWorldScale = new THREE.Vector3();
-  model.getWorldScale(modelWorldScale);
-  const invScale = 1 / (modelWorldScale.x || 1);
+  const localHalfSpan = Math.max(0.5, worldSize.z / 2);
+  const localMidY = worldBox.min.y + worldSize.y * 0.5;
+  const localTopY = worldBox.max.y;
+  const localBottomY = worldBox.min.y;
+  const localTailX = worldBox.min.x;
+  const modelLen = Math.max(1, worldSize.x);
+  const radius = Math.max(0.1, modelLen * 0.0075);
 
-  // Local-frame bounding box (divide world bbox by world scale).
-  const halfSpan = (worldSize.z / 2) * invScale;
-  const tailX = worldBox.min.x * invScale - model.position.x;
-  const topY = worldBox.max.y * invScale - model.position.y;
-  const bottomY = worldBox.min.y * invScale - model.position.y;
-  const midY = ((worldBox.min.y + worldBox.max.y) / 2) * invScale - model.position.y;
-
-  // Light radius scales with aircraft size so both small props and airliners
-  // get proportional lights. Base radius ~0.7% of the longest axis (world),
-  // then converted back to local space.
-  const navRadiusWorld = Math.max(0.12, worldLongest * 0.007);
-  const navRadiusLocal = navRadiusWorld * invScale;
-  const strobeRadiusLocal = navRadiusLocal * 0.8;
-  const beaconRadiusLocal = navRadiusLocal * 0.9;
-
-  const navGeo = new THREE.SphereGeometry(navRadiusLocal, 10, 10);
-  const red = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0xff2020 }));
-  red.position.set(0, midY, -halfSpan);
+  const red = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0xff2020 })
+  );
+  red.position.set(0, localMidY, -localHalfSpan);
   model.add(red);
-  const green = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0x22ff22 }));
-  green.position.set(0, midY, halfSpan);
+
+  const green = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0x22ff22 })
+  );
+  green.position.set(0, localMidY, localHalfSpan);
   model.add(green);
 
-  // Tail strobe: resize and reposition the caller-provided mesh.
   strobe.geometry.dispose();
-  strobe.geometry = new THREE.SphereGeometry(strobeRadiusLocal, 10, 10);
-  strobe.position.set(tailX + navRadiusLocal * 3, topY, 0);
+  strobe.geometry = new THREE.SphereGeometry(radius * 0.85, 10, 10);
+  strobe.position.set(localTailX + radius * 2.2, localTopY, 0);
   model.add(strobe);
 
-  // Wing strobes at each wingtip.
-  const wingStrobeGeo = new THREE.SphereGeometry(strobeRadiusLocal * 0.9, 8, 8);
+  const wingStrobeGeo = new THREE.SphereGeometry(radius * 0.75, 8, 8);
   const leftStrobe = new THREE.Mesh(
     wingStrobeGeo,
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
   );
-  leftStrobe.position.set(0, midY, -halfSpan);
+  leftStrobe.position.set(0, localMidY, -localHalfSpan);
   leftStrobe.name = 'wingStrobe';
   model.add(leftStrobe);
+
   const rightStrobe = new THREE.Mesh(
     wingStrobeGeo,
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
   );
-  rightStrobe.position.set(0, midY, halfSpan);
+  rightStrobe.position.set(0, localMidY, localHalfSpan);
   rightStrobe.name = 'wingStrobe';
   model.add(rightStrobe);
 
-  // Red belly beacon.
   const beacon = new THREE.Mesh(
-    new THREE.SphereGeometry(beaconRadiusLocal, 10, 10),
-    new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9 }),
+    new THREE.SphereGeometry(radius * 0.9, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9 })
   );
-  beacon.position.set(0, bottomY + beaconRadiusLocal * 0.5, 0);
+  beacon.position.set(0, localBottomY + radius * 0.7, 0);
   beacon.name = 'beacon';
   model.add(beacon);
 
-  // Hijack the strobe material's opacity setter so that wing strobes blink
-  // in sync and the beacon blinks in anti-phase.
-  const origMat = strobe.material;
-  let current = origMat.opacity ?? 0;
-  Object.defineProperty(origMat, 'opacity', {
+  const strobeMat = strobe.material;
+  let currentOpacity = Number(strobeMat.opacity || 0);
+  Object.defineProperty(strobeMat, 'opacity', {
     configurable: true,
-    get() { return current; },
-    set(v) {
-      current = v;
-      leftStrobe.material.opacity = v;
-      rightStrobe.material.opacity = v;
-      beacon.material.opacity = v > 0.1 ? 0.2 : 0.85;
+    get() {
+      return currentOpacity;
+    },
+    set(nextOpacity) {
+      currentOpacity = nextOpacity;
+      leftStrobe.material.opacity = nextOpacity;
+      rightStrobe.material.opacity = nextOpacity;
+      beacon.material.opacity = nextOpacity > 0.1 ? 0.2 : 0.85;
     },
   });
 }
 
-async function loadCustomObject() {
-  if (cachedObject) return cachedObject.clone(true);
-  if (inflightPromise) return (await inflightPromise).clone(true);
+function makeStrobePlaceholder() {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
+  );
+}
 
-  inflightPromise = (async () => {
-    const [objText, texture] = await Promise.all([fetchText(OBJ_URL), loadTexture(TEX_URL)]);
-    const loader = new OBJLoader();
-    const raw = loader.parse(objText);
+async function loadConfiguredAircraftModel(config) {
+  const model = await loadGLB(config.path);
+  sanitizeLoadedModel(model);
+  orientModelToForwardX(model);
+  normalizeModel(model, { targetSize: config.targetSize, yOffset: GROUND_CLEARANCE });
+  return model;
+}
 
-    const material = new THREE.MeshStandardMaterial({
-      map: texture || null,
-      color: texture ? 0xffffff : 0xd8dde4,
-      roughness: 0.45,
-      metalness: 0.65,
-    });
-    raw.traverse((c) => {
-      if (c.isMesh) c.material = material;
-    });
-
-    // Step 1: measure raw bounding box to find the longest axis.
-    let box = new THREE.Box3().setFromObject(raw);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const longest = Math.max(size.x, size.y, size.z);
-    const scale = longest > 0.001 ? TARGET_LENGTH / longest : 1;
-    raw.scale.setScalar(scale);
-
-    // Orient so the nose points along +X. The OBJ's long axis is Z, so rotate
-    // the mesh itself (not a wrapper) — this way the mesh's local origin
-    // travels with it and we can then recenter it precisely.
-    raw.rotation.y = Math.PI / 2;
-    raw.updateMatrixWorld(true);
-
-    // Measure after scale + rotation, then shift the mesh so its geometric
-    // center lies exactly at (0, GROUND_CLEARANCE - minY, 0) — meaning the
-    // outer Group's origin sits at the aircraft's true geometric center in X/Z
-    // and the belly rests on the ground in Y.
-    box = new THREE.Box3().setFromObject(raw);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    raw.position.x -= center.x;
-    raw.position.z -= center.z;
-    raw.position.y -= (box.min.y - GROUND_CLEARANCE);
-    raw.updateMatrixWorld(true);
-
-    // Wrap in a Group so callers get a consistent handle. The wrapper has
-    // identity transform — all centering is baked into `raw.position`.
-    const wrapper = new THREE.Group();
-    wrapper.add(raw);
-
-    cachedObject = wrapper;
-    return wrapper;
-  })();
-
-  try {
-    const obj = await inflightPromise;
-    return obj.clone(true);
-  } finally {
-    inflightPromise = null;
-  }
+function buildProceduralFallback(aircraftHint, profile) {
+  const built = buildAircraftModel(aircraftHint || profile || 'narrow_body');
+  normalizeModel(built.group, {
+    targetSize: getDefaultTargetSizeForProfile(profile || 'narrow_body'),
+    yOffset: GROUND_CLEARANCE,
+  });
+  sanitizeLoadedModel(built.group);
+  return built.group;
 }
 
 export function buildCustomAircraftModel(aircraftHint) {
   const group = new THREE.Group();
+  const strobe = makeStrobePlaceholder();
+  const config = resolveAircraftModelConfig(aircraftHint);
+  const profile = config?.profile || resolveAircraftProfile(aircraftHint);
 
-  // Strobe placeholder - gets parented to the model and repositioned once loaded.
-  const strobe = new THREE.Mesh(
-    new THREE.SphereGeometry(0.3, 10, 10),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
-  );
-
-  // For propeller aircraft, load one of the user-provided GLB models instead
-  // of the default OBJ jet. Pick one randomly from the pool.
-  if (isPropAircraft(aircraftHint)) {
-    const url = PROP_GLB_URLS[Math.floor(Math.random() * PROP_GLB_URLS.length)];
-    loadGLB(url)
-      .then((obj) => {
-        // Orient nose along +X FIRST, then normalize/center so the X/Z
-        // centering happens after rotation — this keeps the aircraft
-        // perfectly centered on the chase path.
-        obj.rotation.y = Math.PI / 2;
-        obj.updateMatrixWorld(true);
-        normalizeModel(obj, { targetSize: 15, yOffset: 1.2 });
-        group.add(obj);
-        attachLightsToModel(obj, strobe);
-      })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.warn('[propAircraftGLB] load failed, falling back to OBJ:', err?.message || err);
-        loadCustomObject().then((obj) => {
-          group.add(obj);
-          attachLightsToModel(obj, strobe);
-        }).catch(() => {});
-      });
-    return { group, strobe };
-  }
-
-  loadCustomObject()
-    .then((obj) => {
-      group.add(obj);
-      attachLightsToModel(obj, strobe);
+  const ready = (config ? loadConfiguredAircraftModel(config) : Promise.reject(new Error('No config')))
+    .then((model) => {
+      group.add(model);
+      attachLightsToModel(model, strobe);
+      return {
+        model,
+        bounds: measureBounds(model),
+        modelId: config.id,
+        profile,
+        source: 'glb',
+      };
     })
-    .catch((err) => {
+    .catch((error) => {
       // eslint-disable-next-line no-console
-      console.warn('[customAircraftModel] load failed:', err?.message || err);
+      console.warn('[customAircraftModel] GLB load failed, falling back to procedural model:', error?.message || error);
+      const fallback = buildProceduralFallback(aircraftHint, profile);
+      group.add(fallback);
+      attachLightsToModel(fallback, strobe);
+      return {
+        model: fallback,
+        bounds: measureBounds(fallback),
+        modelId: 'procedural',
+        profile,
+        source: 'procedural',
+      };
     });
 
-  return { group, strobe };
+  return {
+    group,
+    strobe,
+    ready,
+    profile,
+    modelId: config?.id || 'procedural',
+  };
 }
+

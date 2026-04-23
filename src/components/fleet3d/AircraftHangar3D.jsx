@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { AnimatePresence } from 'framer-motion';
 import { buildCustomAircraftModel } from '@/components/flights/customAircraftModel';
 import { buildHangar } from '@/components/fleet3d/hangarScene';
-import { HOTSPOT_LAYOUT, getHotspotColor } from '@/components/fleet3d/maintenanceHotspots';
+import { getHotspotColor, getHotspotLayoutForAircraft } from '@/components/fleet3d/maintenanceHotspots';
 import { normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, MAINTENANCE_CATEGORY_KEYS } from '@/lib/maintenance';
 import { useLanguage } from '@/components/LanguageContext';
 import { AlertTriangle, Loader2 } from 'lucide-react';
@@ -154,13 +154,19 @@ export default function AircraftHangar3D({ aircraft }) {
 
     // Aircraft on parking marks
     const aircraftGroup = new THREE.Group();
-    const built = buildCustomAircraftModel(aircraft?.type || aircraft?.name || '');
+    const aircraftHint = aircraft?.name || aircraft?.model || aircraft?.type || '';
+    const built = buildCustomAircraftModel(aircraftHint);
     aircraftGroup.add(built.group);
     scene.add(aircraftGroup);
 
     // Hotspot meshes (clickable spheres anchored to aircraft)
     const hotspotMeshes = {};
-    Object.entries(HOTSPOT_LAYOUT).forEach(([key, pos]) => {
+    const initialLayout = getHotspotLayoutForAircraft({
+      aircraftHint,
+      profile: built.profile,
+      modelId: built.modelId,
+    });
+    Object.entries(initialLayout).forEach(([key, pos]) => {
       const sphere = new THREE.Mesh(
         new THREE.SphereGeometry(0.6, 16, 12),
         new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0) }),
@@ -179,6 +185,27 @@ export default function AircraftHangar3D({ aircraft }) {
       aircraftGroup.add(halo);
       hotspotMeshes[key] = { sphere, halo };
     });
+
+    let disposed = false;
+    built.ready
+      .then((meta) => {
+        if (disposed) return;
+        const dynamicLayout = getHotspotLayoutForAircraft({
+          aircraftHint,
+          profile: meta?.profile || built.profile,
+          modelId: meta?.modelId || built.modelId,
+          bounds: meta?.bounds,
+        });
+        Object.entries(dynamicLayout).forEach(([key, pos]) => {
+          const target = hotspotMeshes[key];
+          if (!target) return;
+          target.sphere.position.set(pos.x, pos.y, pos.z);
+          target.halo.position.copy(target.sphere.position);
+        });
+      })
+      .catch(() => {
+        // Already handled in model loader by fallback.
+      });
 
     // Raycaster for clicking hotspots
     const raycaster = new THREE.Raycaster();
@@ -215,6 +242,7 @@ export default function AircraftHangar3D({ aircraft }) {
     window.addEventListener('resize', onResize);
 
     return () => {
+      disposed = true;
       sceneRef.current = null;
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('click', onClick);
@@ -224,7 +252,7 @@ export default function AircraftHangar3D({ aircraft }) {
         renderer.dispose();
       } catch (_) { /* noop */ }
     };
-  }, [aircraft?.id, aircraft?.type]);
+  }, [aircraft?.id, aircraft?.name, aircraft?.model, aircraft?.type]);
 
   // Update hotspot colors when wear changes
   useEffect(() => {
