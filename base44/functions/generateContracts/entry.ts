@@ -174,6 +174,10 @@ function randomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function normalizeIcao(value: unknown) {
+  return String(value || '').toUpperCase().trim();
+}
+
 function routeKeyFromIcao(depIcao, arrIcao) {
   if (!depIcao || !arrIcao) return null;
   return `${String(depIcao).toUpperCase()}->${String(arrIcao).toUpperCase()}`;
@@ -346,9 +350,11 @@ Deno.serve(async (req) => {
     }
 
     const todayIso = new Date().toISOString().slice(0, 10);
+    const airportByIcao = new Map(airports.map((airport) => [airport.icao, airport]));
     const normalizedHangars = Array.isArray(company.hangars) ? company.hangars : [];
-    const hangarAirports = normalizedHangars
-      .map((hangar) => String(hangar?.airport_icao || '').toUpperCase())
+    const validHangars = normalizedHangars.filter((hangar) => airportByIcao.has(normalizeIcao(hangar?.airport_icao)));
+    const hangarAirports = validHangars
+      .map((hangar) => normalizeIcao(hangar?.airport_icao))
       .filter(Boolean);
 
     // Get user's aircraft
@@ -404,21 +410,31 @@ Deno.serve(async (req) => {
 
     const compatibleContracts = [];
     const incompatibleContracts = [];
+    const aircraftStationAirports = availableAircraft
+      .map((plane) => normalizeIcao(plane?.hangar_airport))
+      .filter((icao) => airportByIcao.has(icao));
+    const fallbackHubAirport = normalizeIcao(company?.hub_airport);
+    const generationAirportPool = hangarAirports.length > 0
+      ? hangarAirports
+      : aircraftStationAirports.length > 0
+        ? [...new Set(aircraftStationAirports)]
+        : airportByIcao.has(fallbackHubAirport)
+          ? [fallbackHubAirport]
+          : [airports[0].icao];
+
     const globalGenerationOptions = {
       blockedPairs: usedRoutePairs,
       departureUsage,
       maxDepartureReuse: 3,
       forceContractType: filterContractType || null,
-      departurePool: hangarAirports.length > 0
-        ? airports.filter((airport) => hangarAirports.includes(airport.icao))
-        : airports,
+      departurePool: airports.filter((airport) => generationAirportPool.includes(airport.icao)),
     };
 
-    const hangarsForGeneration = normalizedHangars.length > 0
-      ? normalizedHangars
+    const hangarsForGeneration = validHangars.length > 0
+      ? validHangars
       : [{
           id: 'legacy-world-hangar',
-          airport_icao: hangarAirports[0] || airports[0].icao,
+          airport_icao: generationAirportPool[0] || airports[0].icao,
           size: 'mega'
         }];
 

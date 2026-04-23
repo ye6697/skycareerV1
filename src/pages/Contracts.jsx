@@ -68,7 +68,6 @@ const MARKET_LABELS = Object.fromEntries(
   HANGAR_MARKET.map((airport) => [airport.airport_icao, airport.label])
 );
 
-const INITIAL_AIRPORT = "EDDF";
 const HANGAR_STORAGE_KEY_PREFIX = "contracts_hangars";
 
 function normIcao(value) {
@@ -258,7 +257,7 @@ export default function Contracts() {
   const [selectedAircraftId, setSelectedAircraftId] = useState("all");
   const [selectedContractId, setSelectedContractId] = useState(null);
   const [selectedDepartureAirport, setSelectedDepartureAirport] = useState("all");
-  const [selectedMarketAirportIcao, setSelectedMarketAirportIcao] = useState(INITIAL_AIRPORT);
+  const [selectedMarketAirportIcao, setSelectedMarketAirportIcao] = useState("");
   const [selectedMarketSize, setSelectedMarketSize] = useState("small");
   const [selectedMarketVariantId, setSelectedMarketVariantId] = useState(getDefaultVariantId());
   const [minNm, setMinNm] = useState("");
@@ -380,11 +379,19 @@ export default function Contracts() {
       setSelectedMarketAirportIcao("");
       return;
     }
-    if (!selectedMarketAirportIcao) return;
-    if (!marketAirports.some((airport) => airport.airport_icao === normIcao(selectedMarketAirportIcao))) {
-      setSelectedMarketAirportIcao(marketAirports[0].airport_icao);
+
+    const firstOwnedAirport = ownedHangars
+      .map((hangar) => normIcao(hangar.airport_icao))
+      .find((icao) => marketAirports.some((airport) => airport.airport_icao === icao));
+    const fallbackAirport = firstOwnedAirport || marketAirports[0].airport_icao;
+    const selectedExists = marketAirports.some(
+      (airport) => airport.airport_icao === normIcao(selectedMarketAirportIcao)
+    );
+
+    if (!selectedMarketAirportIcao || !selectedExists) {
+      setSelectedMarketAirportIcao(fallbackAirport);
     }
-  }, [marketAirports, selectedMarketAirportIcao]);
+  }, [marketAirports, ownedHangars, selectedMarketAirportIcao]);
 
   const selectedAircraft =
     selectedAircraftId !== "all"
@@ -1010,47 +1017,6 @@ export default function Contracts() {
         </div>
       </section>
 
-      {isLoading ? (
-        <Card className="h-[620px] animate-pulse border border-slate-800 bg-slate-900/70" />
-      ) : (
-        <HangarWorldGlobe3D
-          hangars={ownedHangarsWithCoords}
-          contracts={mapContracts}
-          contractsByHangar={contractsByHangar}
-          marketAirports={marketAirports}
-          selectedContractId={selectedContractId}
-          onSelectContract={setSelectedContractId}
-          selectedAirportIcao={selectedMarketAirportIcao}
-          onSelectAirport={(airportIcao) => {
-            const nextAirport = normIcao(airportIcao);
-            setSelectedMarketAirportIcao(nextAirport);
-          }}
-          selectedMarketSize={selectedMarketSize}
-          selectedMarketVariantId={selectedMarketVariantId}
-          onSelectMarketVariantId={setSelectedMarketVariantId}
-          hangarVariants={HANGAR_MODEL_VARIANTS}
-          ownedAircraft={activeOwnedAircraft}
-          onMoveAircraft={({ aircraft, targetAirportIcao }) =>
-            moveAircraftMutation.mutate({
-              aircraft,
-              targetAirportIcao,
-            })
-          }
-          isMovingAircraft={moveAircraftMutation.isPending}
-          getMoveValidation={getMoveValidation}
-          getTransferCost={getTransferCost}
-          getAircraftModelName={getAircraftModelName}
-          onBuyOrUpgrade={({ airportIcao, modelVariant }) =>
-            upsertHangarMutation.mutate({
-              airportIcao,
-              modelVariantId: modelVariant || selectedMarketVariantId,
-            })
-          }
-          isBuyingOrUpgrading={upsertHangarMutation.isPending}
-          lang={lang}
-        />
-      )}
-
       {availableAircraft.length > 0 && (
         <div className="rounded-xl border border-cyan-900/40 bg-slate-950/90 p-2">
           <div className="mb-1 text-[10px] font-mono uppercase text-cyan-300/80">{lang === "de" ? "Aircraft Filter" : "Aircraft filter"}</div>
@@ -1127,6 +1093,47 @@ export default function Contracts() {
           </Card>
         )}
       </div>
+
+      {isLoading ? (
+        <Card className="h-[620px] animate-pulse border border-slate-800 bg-slate-900/70" />
+      ) : (
+        <HangarWorldGlobe3D
+          hangars={ownedHangarsWithCoords}
+          contracts={mapContracts}
+          contractsByHangar={contractsByHangar}
+          marketAirports={marketAirports}
+          selectedContractId={selectedContractId}
+          onSelectContract={setSelectedContractId}
+          selectedAirportIcao={selectedMarketAirportIcao}
+          onSelectAirport={(airportIcao) => {
+            const nextAirport = normIcao(airportIcao);
+            setSelectedMarketAirportIcao(nextAirport);
+          }}
+          selectedMarketSize={selectedMarketSize}
+          selectedMarketVariantId={selectedMarketVariantId}
+          onSelectMarketVariantId={setSelectedMarketVariantId}
+          hangarVariants={HANGAR_MODEL_VARIANTS}
+          ownedAircraft={activeOwnedAircraft}
+          onMoveAircraft={({ aircraft, targetAirportIcao }) =>
+            moveAircraftMutation.mutate({
+              aircraft,
+              targetAirportIcao,
+            })
+          }
+          isMovingAircraft={moveAircraftMutation.isPending}
+          getMoveValidation={getMoveValidation}
+          getTransferCost={getTransferCost}
+          getAircraftModelName={getAircraftModelName}
+          onBuyOrUpgrade={({ airportIcao, modelVariant }) =>
+            upsertHangarMutation.mutate({
+              airportIcao,
+              modelVariantId: modelVariant || selectedMarketVariantId,
+            })
+          }
+          isBuyingOrUpgrading={upsertHangarMutation.isPending}
+          lang={lang}
+        />
+      )}
 
       {selectedContract && (
         <div className="rounded-xl border border-cyan-900/40 bg-slate-950/80 p-2.5 text-xs font-mono text-cyan-100">
