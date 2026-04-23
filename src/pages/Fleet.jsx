@@ -108,10 +108,18 @@ const HANGAR_SIZE_RULES = {
 
 const normIcaoValue = (value) => String(value || '').toUpperCase();
 
+const getHangarAirportIcao = (hangar) => normIcaoValue(
+  hangar?.airport_icao
+  || hangar?.hangar_airport
+  || hangar?.airport
+  || hangar?.icao
+  || hangar?.airportIcao
+);
+
 const getHangarIdOrFallback = (hangar) => {
   const rawId = String(hangar?.id || '').trim();
   if (rawId) return rawId;
-  const airport = normIcaoValue(hangar?.airport_icao);
+  const airport = getHangarAirportIcao(hangar);
   return airport ? `legacy_hangar_${airport}` : '';
 };
 
@@ -122,7 +130,7 @@ const hangarOccupiesSlot = (aircraftEntry, hangar) => {
   const hangarId = getHangarIdOrFallback(hangar);
   const aircraftHangarId = String(aircraftEntry?.hangar_id || '').trim();
   if (hangarId && aircraftHangarId) return hangarId === aircraftHangarId;
-  return normIcaoValue(aircraftEntry?.hangar_airport) === normIcaoValue(hangar?.airport_icao);
+  return normIcaoValue(aircraftEntry?.hangar_airport) === getHangarAirportIcao(hangar);
 };
 
 const resolveHangarRule = (hangar) => {
@@ -669,7 +677,7 @@ export default function Fleet() {
       (Array.isArray(company?.hangars) ? company.hangars : []).map((hangar) => ({
         ...hangar,
         id: getHangarIdOrFallback(hangar),
-        airport_icao: normIcao(hangar?.airport_icao),
+        airport_icao: getHangarAirportIcao(hangar),
       })),
     [company?.hangars]
   );

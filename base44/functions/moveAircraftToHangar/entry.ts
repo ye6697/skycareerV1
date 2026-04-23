@@ -33,11 +33,59 @@ function normalizeIcao(value: unknown): string {
   return normalizeIdentifier(value).toUpperCase();
 }
 
+function getHangarAirportIcao(hangar: any): string {
+  return normalizeIcao(
+    hangar?.airport_icao
+    || hangar?.hangar_airport
+    || hangar?.airport
+    || hangar?.icao
+    || hangar?.airportIcao
+  );
+}
+
+function getLegacyHangarId(airportIcao: unknown, ordinal = 1): string {
+  const airport = normalizeIcao(airportIcao) || 'UNKNOWN';
+  if (ordinal > 1) return `legacy_hangar_${airport}_${ordinal}`;
+  return `legacy_hangar_${airport}`;
+}
+
+function normalizeCompanyHangars(rawHangars: any[] = []): any[] {
+  const perAirportCounts = new Map<string, number>();
+  return rawHangars.map((rawHangar, index) => {
+    const airport = getHangarAirportIcao(rawHangar);
+    const rawId = normalizeIdentifier(rawHangar?.id || rawHangar?.hangar_id || rawHangar?._id);
+    const airportKey = airport || `UNKNOWN_${index + 1}`;
+    const nextCount = (perAirportCounts.get(airportKey) || 0) + 1;
+    perAirportCounts.set(airportKey, nextCount);
+    return {
+      ...(rawHangar || {}),
+      id: rawId || getLegacyHangarId(airport || `UNKNOWN_${index + 1}`, nextCount),
+      airport_icao: airport,
+    };
+  });
+}
+
+function hangarsNeedMigration(rawHangars: any[] = [], normalizedHangars: any[] = []): boolean {
+  if (rawHangars.length !== normalizedHangars.length) return true;
+  for (let i = 0; i < normalizedHangars.length; i += 1) {
+    const raw = rawHangars[i] || {};
+    const normalized = normalizedHangars[i] || {};
+    const rawId = normalizeIdentifier(raw?.id || raw?.hangar_id || raw?._id);
+    const normalizedId = normalizeIdentifier(normalized?.id);
+    const rawAirport = getHangarAirportIcao(raw);
+    const normalizedAirport = getHangarAirportIcao(normalized);
+    if (rawId !== normalizedId || rawAirport !== normalizedAirport) return true;
+  }
+  return false;
+}
+
 function getHangarIdentifierCandidates(hangar: any): string[] {
+  const airport = getHangarAirportIcao(hangar);
   const candidates = [
     normalizeIdentifier(hangar?.id),
     normalizeIdentifier(hangar?.hangar_id),
     normalizeIdentifier(hangar?._id),
+    airport ? getLegacyHangarId(airport) : '',
   ].filter(Boolean);
   return Array.from(new Set(candidates));
 }
@@ -55,8 +103,8 @@ Deno.serve(async (req) => {
     const transferCost = Math.max(0, Number(body?.transferCost || 0));
     const lang = String(body?.lang || 'en').trim().toLowerCase() === 'de' ? 'de' : 'en';
 
-    if (!aircraftId || !targetAirport) {
-      return Response.json({ error: 'aircraftId and targetAirport are required' }, { status: 400 });
+    if (!aircraftId || (!targetAirport && !targetHangarId)) {
+      return Response.json({ error: 'aircraftId and targetHangarId or targetAirport are required' }, { status: 400 });
     }
 
     const company = await resolveCompany(base44, user);
@@ -69,12 +117,28 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Aircraft does not belong to your company' }, { status: 403 });
     }
 
-    const hangars = Array.isArray(company.hangars) ? company.hangars : [];
+    const rawCompanyHangars = Array.isArray(company.hangars) ? company.hangars : [];
+    const normalizedHangars = normalizeCompanyHangars(rawCompanyHangars);
+    if (hangarsNeedMigration(rawCompanyHangars, normalizedHangars)) {
+      await base44.asServiceRole.entities.Company.update(company.id, { hangars: normalizedHangars });
+      company = { ...company, hangars: normalizedHangars };
+    } else {
+      company = { ...company, hangars: normalizedHangars };
+    }
+
+    const hangars = normalizedHangars;
     const targetHangar =
-      hangars.find((h: any) => getHangarIdentifierCandidates(h).includes(targetHangarId))
-      || hangars.find((h: any) => normalizeIcao(h?.airport_icao) === targetAirport);
+      (targetHangarId
+        ? hangars.find((h: any) => getHangarIdentifierCandidates(h).includes(targetHangarId))
+        : null)
+      || hangars.find((h: any) => getHangarAirportIcao(h) === targetAirport);
     if (!targetHangar) {
       return Response.json({ error: 'Target hangar not found' }, { status: 400 });
+    }
+
+    const resolvedTargetAirport = getHangarAirportIcao(targetHangar) || targetAirport;
+    if (!resolvedTargetAirport) {
+      return Response.json({ error: 'Target hangar airport is missing' }, { status: 400 });
     }
     const resolvedTargetHangarId = getHangarIdentifierCandidates(targetHangar)[0] || targetHangarId;
 
@@ -97,22 +161,22 @@ Deno.serve(async (req) => {
         amount: transferCost,
         description:
           lang === 'de'
-            ? `Hangar-Transfer ${aircraft.registration || aircraft.name || aircraft.id} -> ${targetAirport}`
-            : `Hangar transfer ${aircraft.registration || aircraft.name || aircraft.id} -> ${targetAirport}`,
+            ? `Hangar-Transfer ${aircraft.registration || aircraft.name || aircraft.id} -> ${resolvedTargetAirport}`
+            : `Hangar transfer ${aircraft.registration || aircraft.name || aircraft.id} -> ${resolvedTargetAirport}`,
         date: new Date().toISOString(),
       });
     }
 
     await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
       hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
-      hangar_airport: targetAirport,
+      hangar_airport: resolvedTargetAirport,
     });
 
     return Response.json({
       success: true,
       aircraftId: aircraft.id,
       targetHangarId: resolvedTargetHangarId || null,
-      targetAirport,
+      targetAirport: resolvedTargetAirport,
       transferCost,
       companyId: company.id,
     });

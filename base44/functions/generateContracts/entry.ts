@@ -203,6 +203,16 @@ function normalizeIcao(value: unknown) {
   return String(value || '').toUpperCase().trim();
 }
 
+function getHangarAirportIcao(rawHangar: any): string {
+  return normalizeIcao(
+    rawHangar?.airport_icao
+    || rawHangar?.hangar_airport
+    || rawHangar?.airport
+    || rawHangar?.icao
+    || rawHangar?.airportIcao
+  );
+}
+
 function routeKeyFromIcao(depIcao, arrIcao) {
   if (!depIcao || !arrIcao) return null;
   return `${String(depIcao).toUpperCase()}->${String(arrIcao).toUpperCase()}`;
@@ -217,7 +227,7 @@ function getLegacyHangarId(airportIcao, ordinal = 1) {
 function normalizeCompanyHangars(rawHangars = []) {
   const perAirportCounts = new Map();
   return rawHangars.map((rawHangar, index) => {
-    const airport = String(rawHangar?.airport_icao || '').toUpperCase();
+    const airport = getHangarAirportIcao(rawHangar);
     const rawId = String(rawHangar?.id || '').trim();
     const airportKey = airport || `UNKNOWN_${index + 1}`;
     const nextCount = (perAirportCounts.get(airportKey) || 0) + 1;
@@ -235,9 +245,9 @@ function hangarsNeedMigration(rawHangars = [], normalizedHangars = []) {
   for (let i = 0; i < normalizedHangars.length; i += 1) {
     const raw = rawHangars[i] || {};
     const normalized = normalizedHangars[i] || {};
-    const rawId = String(raw?.id || '').trim();
+    const rawId = String(raw?.id || raw?.hangar_id || raw?._id || '').trim();
     const normalizedId = String(normalized?.id || '').trim();
-    const rawAirport = String(raw?.airport_icao || '').toUpperCase();
+    const rawAirport = getHangarAirportIcao(raw);
     const normalizedAirport = String(normalized?.airport_icao || '').toUpperCase();
     if (rawId !== normalizedId || rawAirport !== normalizedAirport) return true;
   }
