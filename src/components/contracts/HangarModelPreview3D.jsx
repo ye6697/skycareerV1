@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { Loader2 } from "lucide-react";
+import { Loader2, Maximize2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function buildFallbackModel(sizeKey, owned) {
   const scaleMap = {
@@ -97,216 +98,273 @@ function disposeObject(object3d) {
 export default function HangarModelPreview3D({
   modelPath = "",
   sizeKey = "small",
+  modelVariantId = "",
   owned = false,
   lang = "de",
 }) {
   const viewportRef = useRef(null);
+  const fullscreenViewportRef = useRef(null);
+  const [showFullscreenModal, setShowFullscreenModal] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [modelLoadError, setModelLoadError] = useState("");
 
   useEffect(() => {
-    const container = viewportRef.current;
-    if (!container) return undefined;
-
-    let frameId = null;
-    let renderer = null;
-    let resizeObserver = null;
-    let cancelled = false;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x030712);
-
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    camera.position.set(6.4, 3.35, 6.4);
-    camera.lookAt(0, 1.2, 0);
-
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    } catch {
-      setRenderFailed(true);
-      return undefined;
-    }
-
-    setRenderFailed(false);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18;
-    renderer.domElement.style.width = "100%";
-    renderer.domElement.style.height = "100%";
-    renderer.domElement.style.display = "block";
-    container.innerHTML = "";
-    container.appendChild(renderer.domElement);
-
-    const setRendererSize = () => {
-      const width = Math.max(300, container.clientWidth);
-      const height = Math.max(175, container.clientHeight);
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+    if (!showFullscreenModal || typeof document === "undefined") return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
     };
+  }, [showFullscreenModal]);
 
-    setRendererSize();
-    resizeObserver = new ResizeObserver(setRendererSize);
-    resizeObserver.observe(container);
+  useEffect(() => {
+    const bootRenderer = (container, largeMode = false) => {
+      if (!container) return null;
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enablePan = false;
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minDistance = 3.8;
-    controls.maxDistance = 11.5;
-    controls.minPolarAngle = 0.34;
-    controls.maxPolarAngle = Math.PI / 2.06;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.78;
+      let frameId = null;
+      let renderer = null;
+      let resizeObserver = null;
+      let cancelled = false;
 
-    scene.add(new THREE.AmbientLight(0x9aa9b8, 0.42));
-    const key = new THREE.DirectionalLight(0xffffff, 1.1);
-    key.position.set(8, 10, 6);
-    key.castShadow = true;
-    scene.add(key);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x030712);
 
-    const rim = new THREE.PointLight(0x38bdf8, 0.8, 24);
-    rim.position.set(-5, 3.2, -6.5);
-    scene.add(rim);
+      const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+      camera.position.set(6.4, 3.35, 6.4);
+      camera.lookAt(0, 1.2, 0);
 
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(36, 26),
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.1, roughness: 0.88 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    const greenGrid = new THREE.GridHelper(28, 36, 0x0b3a20, 0x072715);
-    greenGrid.position.y = 0.015;
-    scene.add(greenGrid);
-
-    const previewRoot = new THREE.Group();
-    previewRoot.position.set(0, 0, 0.15);
-    scene.add(previewRoot);
-
-    let activeModel = null;
-    const mountModel = (object3d) => {
-      if (activeModel) {
-        previewRoot.remove(activeModel);
-        disposeObject(activeModel);
+      try {
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      } catch {
+        setRenderFailed(true);
+        return null;
       }
-      const targetMaxBySize = {
-        small: 4.4,
-        medium: 5.3,
-        large: 6.2,
-        mega: 7.2,
+
+      setRenderFailed(false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.18;
+      renderer.domElement.style.width = "100%";
+      renderer.domElement.style.height = "100%";
+      renderer.domElement.style.display = "block";
+      container.innerHTML = "";
+      container.appendChild(renderer.domElement);
+
+      const setRendererSize = () => {
+        const width = Math.max(300, container.clientWidth);
+        const height = Math.max(largeMode ? 320 : 175, container.clientHeight);
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
       };
-      normalizeAndGround(object3d, targetMaxBySize[sizeKey] || 4.4);
-      object3d.traverse((node) => {
-        if (node.isMesh) {
-          node.castShadow = true;
-          node.receiveShadow = true;
-          node.frustumCulled = false;
-        }
-      });
-      previewRoot.add(object3d);
-      activeModel = object3d;
-    };
 
-    mountModel(buildFallbackModel(sizeKey, owned));
+      setRendererSize();
+      resizeObserver = new ResizeObserver(setRendererSize);
+      resizeObserver.observe(container);
 
-    if (modelPath) {
-      setIsModelLoading(true);
-      setModelLoadError("");
-      const loader = new GLTFLoader();
-      loader.load(
-        modelPath,
-        (gltf) => {
-          if (cancelled) return;
-          if (!gltf?.scene) {
-            setModelLoadError(lang === "de" ? "Modell konnte nicht geladen werden." : "Model could not be loaded.");
-            setIsModelLoading(false);
-            return;
-          }
-          mountModel(gltf.scene);
-          setIsModelLoading(false);
-        },
-        undefined,
-        () => {
-          if (cancelled) return;
-          setModelLoadError(lang === "de" ? "GLB konnte nicht geladen werden. Fallback aktiv." : "Could not load GLB. Fallback active.");
-          setIsModelLoading(false);
-        }
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enablePan = false;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = 3.8;
+      controls.maxDistance = 11.5;
+      controls.minPolarAngle = 0.34;
+      controls.maxPolarAngle = Math.PI / 2.06;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.78;
+
+      scene.add(new THREE.AmbientLight(0x9aa9b8, 0.42));
+      const key = new THREE.DirectionalLight(0xffffff, 1.1);
+      key.position.set(8, 10, 6);
+      key.castShadow = true;
+      scene.add(key);
+
+      const rim = new THREE.PointLight(0x38bdf8, 0.8, 24);
+      rim.position.set(-5, 3.2, -6.5);
+      scene.add(rim);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(36, 26),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.1, roughness: 0.88 })
       );
-    } else {
-      setIsModelLoading(false);
-      setModelLoadError("");
-    }
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      scene.add(floor);
 
-    const clock = new THREE.Clock();
-    const animate = () => {
-      frameId = window.requestAnimationFrame(animate);
-      const elapsed = clock.getElapsedTime();
-      if (activeModel) {
-        activeModel.rotation.y = Math.sin(elapsed * 0.34) * 0.08;
+      const greenGrid = new THREE.GridHelper(28, 36, 0x072913, 0x04190c);
+      greenGrid.position.y = 0.015;
+      scene.add(greenGrid);
+
+      const previewRoot = new THREE.Group();
+      previewRoot.position.set(0, 0, 0.15);
+      scene.add(previewRoot);
+
+      let activeModel = null;
+      const mountModel = (object3d) => {
+        if (activeModel) {
+          previewRoot.remove(activeModel);
+          disposeObject(activeModel);
+        }
+        const targetMaxBySize = {
+          small: 4.4,
+          medium: 5.3,
+          large: 6.2,
+          mega: 7.2,
+        };
+        const compactBoost = modelVariantId === "compact_modular" ? 1.42 : 1;
+        normalizeAndGround(object3d, (targetMaxBySize[sizeKey] || 4.4) * compactBoost);
+        object3d.traverse((node) => {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+            node.frustumCulled = false;
+          }
+        });
+        previewRoot.add(object3d);
+        activeModel = object3d;
+      };
+
+      mountModel(buildFallbackModel(sizeKey, owned));
+
+      if (modelPath) {
+        setIsModelLoading(true);
+        setModelLoadError("");
+        const loader = new GLTFLoader();
+        loader.load(
+          modelPath,
+          (gltf) => {
+            if (cancelled) return;
+            if (!gltf?.scene) {
+              setModelLoadError(lang === "de" ? "Modell konnte nicht geladen werden." : "Model could not be loaded.");
+              setIsModelLoading(false);
+              return;
+            }
+            mountModel(gltf.scene);
+            setIsModelLoading(false);
+          },
+          undefined,
+          () => {
+            if (cancelled) return;
+            setModelLoadError(lang === "de" ? "GLB konnte nicht geladen werden. Fallback aktiv." : "Could not load GLB. Fallback active.");
+            setIsModelLoading(false);
+          }
+        );
+      } else {
+        setIsModelLoading(false);
+        setModelLoadError("");
       }
-      controls.update();
-      renderer.render(scene, camera);
+
+      const clock = new THREE.Clock();
+      const animate = () => {
+        frameId = window.requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+        if (activeModel) {
+          activeModel.rotation.y = Math.sin(elapsed * 0.34) * 0.08;
+        }
+        controls.update();
+        renderer.render(scene, camera);
+      };
+      animate();
+
+      return () => {
+        cancelled = true;
+        if (activeModel) {
+          previewRoot.remove(activeModel);
+          disposeObject(activeModel);
+        }
+        if (frameId) window.cancelAnimationFrame(frameId);
+        if (resizeObserver) resizeObserver.disconnect();
+        controls.dispose();
+
+        scene.traverse((node) => {
+          if (node.geometry) node.geometry.dispose?.();
+          if (node.material) {
+            if (Array.isArray(node.material)) node.material.forEach((material) => material.dispose?.());
+            else node.material.dispose?.();
+          }
+        });
+
+        if (renderer) {
+          renderer.dispose();
+          renderer.forceContextLoss();
+          if (container.contains(renderer.domElement)) {
+            container.removeChild(renderer.domElement);
+          }
+        }
+      };
     };
-    animate();
+
+    const cleanupInline = bootRenderer(viewportRef.current, false);
+    const cleanupFullscreen = showFullscreenModal ? bootRenderer(fullscreenViewportRef.current, true) : null;
 
     return () => {
-      cancelled = true;
-      if (activeModel) {
-        previewRoot.remove(activeModel);
-        disposeObject(activeModel);
-      }
-      if (frameId) window.cancelAnimationFrame(frameId);
-      if (resizeObserver) resizeObserver.disconnect();
-      controls.dispose();
-
-      scene.traverse((node) => {
-        if (node.geometry) node.geometry.dispose?.();
-        if (node.material) {
-          if (Array.isArray(node.material)) node.material.forEach((material) => material.dispose?.());
-          else node.material.dispose?.();
-        }
-      });
-
-      if (renderer) {
-        renderer.dispose();
-        renderer.forceContextLoss();
-        if (container.contains(renderer.domElement)) {
-          container.removeChild(renderer.domElement);
-        }
-      }
+      cleanupInline?.();
+      cleanupFullscreen?.();
     };
-  }, [lang, modelPath, owned, sizeKey]);
+  }, [lang, modelPath, modelVariantId, owned, showFullscreenModal, sizeKey]);
 
   return (
-    <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/75 p-2">
-      <div className="mb-1 text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-        {lang === "de" ? "3D Hangar Vorschau" : "3D hangar preview"}
+    <>
+      <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/75 p-2">
+        <div className="mb-1 flex items-center justify-between text-[10px] font-mono uppercase tracking-wide text-cyan-300">
+          <span>{lang === "de" ? "3D Hangar Vorschau" : "3D hangar preview"}</span>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={() => setShowFullscreenModal(true)}
+            className="h-6 w-6 border-cyan-800/50 bg-slate-950/90 text-cyan-200 hover:bg-cyan-950/40"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="relative overflow-hidden rounded border border-cyan-900/40 bg-slate-950/90">
+          <div ref={viewportRef} className="h-[clamp(130px,22vh,190px)] w-full" />
+          {isModelLoading && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/45">
+              <div className="rounded-md border border-cyan-800/50 bg-slate-950/85 px-2.5 py-1 text-[10px] font-mono text-cyan-100">
+                <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
+                {lang === "de" ? "GLB wird geladen" : "Loading GLB"}
+              </div>
+            </div>
+          )}
+          {renderFailed && (
+            <div className="absolute inset-0 flex items-center justify-center px-3 text-center text-[11px] text-slate-400">
+              {lang === "de" ? "3D Vorschau konnte nicht gestartet werden." : "3D preview could not be initialized."}
+            </div>
+          )}
+        </div>
+        {modelLoadError && !renderFailed && (
+          <p className="mt-1 text-[10px] text-amber-300">{modelLoadError}</p>
+        )}
       </div>
-      <div className="relative overflow-hidden rounded border border-cyan-900/40 bg-slate-950/90">
-        <div ref={viewportRef} className="h-[clamp(130px,22vh,190px)] w-full" />
-        {isModelLoading && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/45">
-            <div className="rounded-md border border-cyan-800/50 bg-slate-950/85 px-2.5 py-1 text-[10px] font-mono text-cyan-100">
-              <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
-              {lang === "de" ? "GLB wird geladen" : "Loading GLB"}
+
+      {showFullscreenModal && (
+        <div className="fixed inset-0 z-[1700] bg-slate-950/92 backdrop-blur-sm">
+          <div className="flex h-full w-full flex-col p-3 sm:p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-xs font-mono uppercase tracking-wide text-cyan-200">
+                {lang === "de" ? "3D Hangar Vorschau Vollbild" : "3D hangar preview fullscreen"}
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => setShowFullscreenModal(false)}
+                className="h-8 w-8 border-cyan-800/50 bg-slate-950/90 text-cyan-200 hover:bg-cyan-950/40"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-cyan-900/40 bg-slate-950/90">
+              <div ref={fullscreenViewportRef} className="h-full w-full" />
             </div>
           </div>
-        )}
-        {renderFailed && (
-          <div className="absolute inset-0 flex items-center justify-center px-3 text-center text-[11px] text-slate-400">
-            {lang === "de" ? "3D Vorschau konnte nicht gestartet werden." : "3D preview could not be initialized."}
-          </div>
-        )}
-      </div>
-      {modelLoadError && !renderFailed && (
-        <p className="mt-1 text-[10px] text-amber-300">{modelLoadError}</p>
+        </div>
       )}
-    </div>
+    </>
   );
 }

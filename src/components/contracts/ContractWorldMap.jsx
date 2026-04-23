@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Globe2, MountainSnow, Route, Satellite } from "lucide-react";
@@ -173,6 +173,21 @@ function MapClickCatcher({ onBackgroundClick, suppressBackgroundClickUntilRef })
   return null;
 }
 
+function MapZoomTracker({ onZoomChange }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const syncZoom = () => onZoomChange?.(map.getZoom());
+    syncZoom();
+    map.on("zoom zoomend", syncZoom);
+    return () => {
+      map.off("zoom zoomend", syncZoom);
+    };
+  }, [map, onZoomChange]);
+
+  return null;
+}
+
 export default function ContractWorldMap({
   contracts = [],
   hangars = [],
@@ -260,6 +275,7 @@ export default function ContractWorldMap({
     return marketAirports;
   }, [airportViewFilter, marketAirports, ownedSet]);
   const suppressBackgroundClickUntilRef = useRef(0);
+  const [mapZoom, setMapZoom] = useState(3);
   const markForegroundInteraction = () => {
     suppressBackgroundClickUntilRef.current = Date.now() + 320;
   };
@@ -314,6 +330,7 @@ export default function ContractWorldMap({
         worldCopyJump
       >
         <FitToRoutes bounds={bounds} fitKey={fitKey} />
+        <MapZoomTracker onZoomChange={(zoom) => setMapZoom(Number(zoom) || 3)} />
         <FocusAirport selectedAirportIcao={selectedAirportIcao} airportByIcao={airportByIcao} />
         <MapClickCatcher
           onBackgroundClick={onBackgroundClick}
@@ -386,12 +403,15 @@ export default function ContractWorldMap({
             const icao = String(airport.airport_icao || "").toUpperCase();
             const owned = ownedSet.has(icao);
             const selected = normalizedSelectedAirport === icao;
+            const zoomFactor = Math.max(0.58, Math.min(1, (mapZoom - 1.8) / 3.8));
+            const baseRadius = selected ? 7.6 : owned ? 5.8 : 4.1;
+            const cappedRadius = Math.min(baseRadius * zoomFactor, owned ? 6.1 : 4.2);
             return (
               <CircleMarker
                 key={`airport_${icao}`}
                 center={[airport.lat, airport.lon]}
                 bubblingMouseEvents={false}
-                radius={selected ? 7.6 : owned ? 5.8 : 4.1}
+                radius={cappedRadius}
                 pathOptions={{
                   color: selected ? "#e2e8f0" : owned ? "#22c55e" : "#d9b654",
                   weight: selected ? 2.3 : 1.4,
