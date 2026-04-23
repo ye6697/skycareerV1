@@ -864,8 +864,6 @@ export default function Contracts() {
             )
           : previous
       );
-      queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
-      queryClient.invalidateQueries({ queryKey: ["aircraft"] });
       queryClient.invalidateQueries({ queryKey: ["company"] });
       toast({
         title: lang === "de" ? "Flugzeug verschoben" : "Aircraft moved",
@@ -901,12 +899,12 @@ export default function Contracts() {
     const map = {};
     ownedHangars.forEach((hangar) => {
       const airportIcao = normIcao(hangar.airport_icao);
-      map[airportIcao] = mapContracts.filter(
+      map[airportIcao] = allContracts.filter(
         (contract) => normIcao(contract.departure_airport) === airportIcao
       );
     });
     return map;
-  }, [ownedHangars, mapContracts]);
+  }, [allContracts, ownedHangars]);
 
   const selectedMarketHangar =
     ownedHangars.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedMarketAirportIcao)) || null;
@@ -1015,7 +1013,6 @@ export default function Contracts() {
           onSelectAirport={(airportIcao) => {
             const nextAirport = normIcao(airportIcao);
             setSelectedMarketAirportIcao(nextAirport);
-            setSelectedDepartureAirport(nextAirport || "all");
           }}
           selectedMarketSize={selectedMarketSize}
           selectedMarketVariantId={selectedMarketVariantId}
