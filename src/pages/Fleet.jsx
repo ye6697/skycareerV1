@@ -732,32 +732,18 @@ export default function Fleet() {
       }
       const targetAirport = normIcao(targetAirportIcao);
       const transferCost = Number(validation.transferCost || 0);
-      const currentBalance = Number(company?.balance || 0);
-      if (currentBalance < transferCost) throw new Error('Insufficient balance.');
-
-      await base44.entities.Aircraft.update(aircraftEntry.id, {
-        hangar_id: validation.targetHangar.id,
-        hangar_airport: targetAirport,
+      const response = await base44.functions.invoke('moveAircraftToHangar', {
+        aircraftId: aircraftEntry.id,
+        targetHangarId: validation.targetHangar.id,
+        targetAirport,
+        transferCost,
+        lang,
       });
-
-      if (transferCost > 0) {
-        await base44.entities.Company.update(company.id, {
-          balance: currentBalance - transferCost,
-        });
-        await base44.entities.Transaction.create({
-          company_id: company.id,
-          type: 'expense',
-          category: 'hangar_transfer',
-          amount: transferCost,
-          description:
-            lang === 'de'
-              ? `Hangar-Transfer ${aircraftEntry.registration || aircraftEntry.name || aircraftEntry.id} -> ${targetAirport}`
-              : `Hangar transfer ${aircraftEntry.registration || aircraftEntry.name || aircraftEntry.id} -> ${targetAirport}`,
-          date: new Date().toISOString(),
-        });
+      const result = response?.data || {};
+      if (!response || response.error || !result.success) {
+        throw new Error(result.error || response?.error || 'Transfer failed.');
       }
-
-      return { aircraftEntry, targetAirport, transferCost };
+      return { aircraftEntry, targetAirport, transferCost, ...result };
     },
     onSuccess: (result) => {
       setFleetMoveTargets((previous) => ({
@@ -770,6 +756,7 @@ export default function Fleet() {
               entry.id === result.aircraftEntry.id
                 ? {
                     ...entry,
+                    hangar_id: result.targetHangarId ?? entry.hangar_id,
                     hangar_airport: result.targetAirport,
                   }
                 : entry

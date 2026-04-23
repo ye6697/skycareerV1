@@ -810,34 +810,18 @@ export default function Contracts() {
 
       const targetAirport = normIcao(targetAirportIcao);
       const transferCost = Number(validation.transferCost || 0);
-      const latestCompanyRows = await base44.entities.Company.filter({ id: company.id });
-      const latestCompany = latestCompanyRows?.[0] || company;
-      const currentBalance = Number(latestCompany.balance || 0);
-      if (currentBalance < transferCost) throw new Error("Insufficient balance.");
-
-      await base44.entities.Aircraft.update(aircraft.id, {
-        hangar_id: validation.targetHangar.id,
-        hangar_airport: targetAirport,
+      const response = await base44.functions.invoke("moveAircraftToHangar", {
+        aircraftId: aircraft.id,
+        targetHangarId: validation.targetHangar.id,
+        targetAirport,
+        transferCost,
+        lang,
       });
-
-      if (transferCost > 0) {
-        await base44.entities.Company.update(latestCompany.id, {
-          balance: currentBalance - transferCost,
-        });
-        await base44.entities.Transaction.create({
-          company_id: latestCompany.id,
-          type: "expense",
-          category: "hangar_transfer",
-          amount: transferCost,
-          description:
-            lang === "de"
-              ? `Hangar-Transfer ${aircraft.registration || aircraft.name || aircraft.id} -> ${targetAirport}`
-              : `Hangar transfer ${aircraft.registration || aircraft.name || aircraft.id} -> ${targetAirport}`,
-          date: new Date().toISOString(),
-        });
+      const result = response?.data || {};
+      if (!response || response.error || !result.success) {
+        throw new Error(result.error || response?.error || "Transfer failed.");
       }
-
-      return { transferCost, targetAirport, aircraft, targetHangarId: validation.targetHangar.id };
+      return { transferCost, targetAirport, aircraft, targetHangarId: validation.targetHangar.id, ...result };
     },
     onSuccess: (result) => {
       queryClient.setQueryData(["contractsPageData"], (previous) => {
