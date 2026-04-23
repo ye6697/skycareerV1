@@ -81,6 +81,42 @@ function formatAirportDisplay(icao, label) {
   return `${normCode} - ${cleanLabel}`;
 }
 
+function legacyHangarId(airportIcao) {
+  const airport = normIcao(airportIcao);
+  return airport ? `legacy_hangar_${airport}` : "";
+}
+
+function getHangarId(hangar) {
+  const rawId = String(hangar?.id || "").trim();
+  if (rawId) return rawId;
+  return legacyHangarId(hangar?.airport_icao);
+}
+
+function isAircraftActive(aircraft) {
+  return String(aircraft?.status || "").toLowerCase() !== "sold";
+}
+
+function getAircraftAssignedAirport(aircraft, hangars = []) {
+  const directAirport = normIcao(aircraft?.hangar_airport);
+  if (directAirport) return directAirport;
+
+  const aircraftHangarId = String(aircraft?.hangar_id || "").trim();
+  if (!aircraftHangarId) return "";
+
+  const matchedHangar = hangars.find(
+    (hangar) => getHangarId(hangar) === aircraftHangarId
+  );
+  return normIcao(matchedHangar?.airport_icao);
+}
+
+function hangarOccupiesSlot(aircraft, hangar) {
+  if (!isAircraftActive(aircraft) || !hangar) return false;
+  const hangarId = getHangarId(hangar);
+  const aircraftHangarId = String(aircraft?.hangar_id || "").trim();
+  if (hangarId && aircraftHangarId) return hangarId === aircraftHangarId;
+  return normIcao(aircraft?.hangar_airport) === normIcao(hangar?.airport_icao);
+}
+
 function parseDateValue(value) {
   if (!value) return 0;
   const millis = Date.parse(String(value));
@@ -100,6 +136,7 @@ function normalizeHangarEntry(hangar, sizeMap) {
   if (!hangar) return null;
   const airport_icao = normIcao(hangar.airport_icao);
   if (!isRealAirportIcao(airport_icao)) return null;
+  const id = getHangarId({ ...hangar, airport_icao });
 
   const variantIdRaw = String(hangar.model_variant || "").trim();
   const variantMeta = getVariantMeta(variantIdRaw);
@@ -117,6 +154,7 @@ function normalizeHangarEntry(hangar, sizeMap) {
 
   return {
     ...hangar,
+    id,
     airport_icao,
     size,
     model_variant: modelVariant,
@@ -425,24 +463,24 @@ export default function Contracts() {
       const departureIcao = normIcao(contract.departure_airport);
       return aircraftPool.some((aircraft) => {
         if (!isContractCompatibleWithAircraft(contract, aircraft)) return false;
-        const assignedIcao = normIcao(aircraft.hangar_airport);
+        const assignedIcao = getAircraftAssignedAirport(aircraft, ownedHangars);
         if (!assignedIcao) return false;
         return assignedIcao === departureIcao;
       });
     });
-  }, [aircraftPool, allContracts]);
+  }, [aircraftPool, allContracts, ownedHangars]);
 
   const incompatibleContracts = useMemo(() => {
     return allContracts.filter((contract) => {
       const departureIcao = normIcao(contract.departure_airport);
       return !aircraftPool.some((aircraft) => {
         if (!isContractCompatibleWithAircraft(contract, aircraft)) return false;
-        const assignedIcao = normIcao(aircraft.hangar_airport);
+        const assignedIcao = getAircraftAssignedAirport(aircraft, ownedHangars);
         if (!assignedIcao) return false;
         return assignedIcao === departureIcao;
       });
     });
-  }, [aircraftPool, allContracts]);
+  }, [aircraftPool, allContracts, ownedHangars]);
 
   const filteredCompatibleContracts = useMemo(() => {
     return compatibleContracts.filter((contract) => {
@@ -735,7 +773,7 @@ export default function Contracts() {
   });
 
   const activeOwnedAircraft = useMemo(
-    () => ownedAircraft.filter((aircraft) => aircraft.status !== "sold"),
+    () => ownedAircraft.filter((aircraft) => isAircraftActive(aircraft)),
     [ownedAircraft]
   );
 
@@ -771,40 +809,51 @@ export default function Contracts() {
   function getMoveValidation(aircraft, targetAirportIcao) {
     const targetAirport = normIcao(targetAirportIcao);
     const currentAirport = normIcao(aircraft?.hangar_airport);
-    const targetHangar = ownedHangars.find(
+    const targetHangars = ownedHangars.filter(
       (hangar) => normIcao(hangar.airport_icao) === targetAirport
     );
 
-    if (!targetAirport || !targetHangar) {
+    if (!targetAirport || targetHangars.length === 0) {
       return { valid: false, reason: lang === "de" ? "Hangar waehlen." : "Select hangar." };
     }
     if (currentAirport === targetAirport) {
       return { valid: false, reason: lang === "de" ? "Bereits in diesem Hangar." : "Already in this hangar." };
     }
 
-    const allowedTypes = Array.isArray(targetHangar.allowed_types) ? targetHangar.allowed_types : [];
-    if (allowedTypes.length > 0 && !allowedTypes.includes(aircraft.type)) {
-      return {
-        valid: false,
-        reason:
-          lang === "de"
-            ? `Typ ${aircraft.type} nicht erlaubt.`
-            : `Type ${aircraft.type} not allowed.`,
-      };
-    }
+    const candidateStates = targetHangars.map((targetHangar) => {
+      const allowedTypes = Array.isArray(targetHangar.allowed_types) ? targetHangar.allowed_types : [];
+      const typeAllowed = allowedTypes.length === 0 || allowedTypes.includes(aircraft.type);
+      const usedSlotsExcludingAircraft = activeOwnedAircraft.filter((entry) => {
+        if (entry.id === aircraft.id) return false;
+        return hangarOccupiesSlot(entry, targetHangar);
+      }).length;
+      const totalSlots = Number(targetHangar.slots || 0);
+      const hasSlot = totalSlots <= 0 || usedSlotsExcludingAircraft < totalSlots;
+      const freeSlots = totalSlots > 0 ? totalSlots - usedSlotsExcludingAircraft : Number.POSITIVE_INFINITY;
+      return { targetHangar, typeAllowed, hasSlot, freeSlots };
+    });
 
-    const usedSlotsExcludingAircraft = activeOwnedAircraft.filter(
-      (entry) =>
-        entry.id !== aircraft.id &&
-        normIcao(entry.hangar_airport) === targetAirport
-    ).length;
-    const totalSlots = Number(targetHangar.slots || 0);
-    if (totalSlots > 0 && usedSlotsExcludingAircraft >= totalSlots) {
+    const viableTargets = candidateStates
+      .filter((candidate) => candidate.typeAllowed && candidate.hasSlot)
+      .sort((a, b) => b.freeSlots - a.freeSlots);
+
+    if (viableTargets.length === 0) {
+      if (!candidateStates.some((candidate) => candidate.typeAllowed)) {
+        return {
+          valid: false,
+          reason:
+            lang === "de"
+              ? `Typ ${aircraft.type} nicht erlaubt.`
+              : `Type ${aircraft.type} not allowed.`,
+        };
+      }
       return {
         valid: false,
         reason: lang === "de" ? "Keine freien Slots." : "No free slots.",
       };
     }
+
+    const targetHangar = viableTargets[0].targetHangar;
 
     const transferCost = getTransferCost(aircraft, targetAirport);
     if (Number(company?.balance || 0) < transferCost) {

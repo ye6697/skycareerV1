@@ -208,6 +208,75 @@ function routeKeyFromIcao(depIcao, arrIcao) {
   return `${String(depIcao).toUpperCase()}->${String(arrIcao).toUpperCase()}`;
 }
 
+function getLegacyHangarId(airportIcao, ordinal = 1) {
+  const airport = String(airportIcao || '').toUpperCase() || 'UNKNOWN';
+  if (ordinal > 1) return `legacy_hangar_${airport}_${ordinal}`;
+  return `legacy_hangar_${airport}`;
+}
+
+function normalizeCompanyHangars(rawHangars = []) {
+  const perAirportCounts = new Map();
+  return rawHangars.map((rawHangar, index) => {
+    const airport = String(rawHangar?.airport_icao || '').toUpperCase();
+    const rawId = String(rawHangar?.id || '').trim();
+    const airportKey = airport || `UNKNOWN_${index + 1}`;
+    const nextCount = (perAirportCounts.get(airportKey) || 0) + 1;
+    perAirportCounts.set(airportKey, nextCount);
+    return {
+      ...(rawHangar || {}),
+      id: rawId || getLegacyHangarId(airport || `UNKNOWN_${index + 1}`, nextCount),
+      airport_icao: airport,
+    };
+  });
+}
+
+function hangarsNeedMigration(rawHangars = [], normalizedHangars = []) {
+  if (rawHangars.length !== normalizedHangars.length) return true;
+  for (let i = 0; i < normalizedHangars.length; i += 1) {
+    const raw = rawHangars[i] || {};
+    const normalized = normalizedHangars[i] || {};
+    const rawId = String(raw?.id || '').trim();
+    const normalizedId = String(normalized?.id || '').trim();
+    const rawAirport = String(raw?.airport_icao || '').toUpperCase();
+    const normalizedAirport = String(normalized?.airport_icao || '').toUpperCase();
+    if (rawId !== normalizedId || rawAirport !== normalizedAirport) return true;
+  }
+  return false;
+}
+
+function buildHangarLookup(hangars = []) {
+  const byId = new Map();
+  const byAirport = new Map();
+  for (const hangar of hangars) {
+    const id = String(hangar?.id || '').trim();
+    const airport = String(hangar?.airport_icao || '').toUpperCase();
+    if (id) byId.set(id, hangar);
+    if (airport) {
+      const list = byAirport.get(airport) || [];
+      list.push(hangar);
+      byAirport.set(airport, list);
+    }
+  }
+  return { byId, byAirport };
+}
+
+function resolveAircraftHangarId(plane, hangarLookup, normalizedHangars = []) {
+  const directId = String(plane?.hangar_id || '').trim();
+  if (directId && hangarLookup.byId.has(directId)) return directId;
+
+  const airport = String(plane?.hangar_airport || '').toUpperCase();
+  const airportHangars = hangarLookup.byAirport.get(airport) || [];
+  if (airportHangars.length > 0) {
+    return String(airportHangars[0]?.id || '').trim();
+  }
+
+  if (!directId && normalizedHangars.length > 0) {
+    return String(normalizedHangars[0]?.id || '').trim();
+  }
+
+  return '';
+}
+
 function pickDepartureAirport(departureUsage, departurePool = airports) {
   if (!departurePool || departurePool.length === 0) return randomItem(airports);
   if (!departureUsage || departureUsage.size === 0) return randomItem(departurePool);
@@ -359,15 +428,21 @@ Deno.serve(async (req) => {
       if (body.aircraftId && typeof body.aircraftId === 'string') filterAircraftId = body.aircraftId;
     } catch (_) {}
 
-    const company = await resolveCompany(base44, user);
+    let company = await resolveCompany(base44, user);
     if (!company) {
       return Response.json({ error: 'Keine Firma gefunden' }, { status: 400 });
     }
 
     const todayIso = new Date().toISOString().slice(0, 10);
     const airportByIcao = new Map(airports.map((airport) => [airport.icao, airport]));
-    const normalizedHangars = Array.isArray(company.hangars) ? company.hangars : [];
+    const rawCompanyHangars = Array.isArray(company.hangars) ? company.hangars : [];
+    const normalizedHangars = normalizeCompanyHangars(rawCompanyHangars);
+    if (hangarsNeedMigration(rawCompanyHangars, normalizedHangars)) {
+      await base44.asServiceRole.entities.Company.update(company.id, { hangars: normalizedHangars });
+      company = { ...company, hangars: normalizedHangars };
+    }
     const validHangars = normalizedHangars.filter((hangar) => airportByIcao.has(normalizeIcao(hangar?.airport_icao)));
+    const hangarLookup = buildHangarLookup(normalizedHangars);
     const hangarAirports = validHangars
       .map((hangar) => normalizeIcao(hangar?.airport_icao))
       .filter(Boolean);
@@ -375,14 +450,74 @@ Deno.serve(async (req) => {
     // Get user's aircraft
     const aircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
     const availableAircraft = aircraft.filter(a => a.status !== 'sold');
+    const availableAircraftById = new Map(availableAircraft.map((plane) => [plane.id, plane]));
+    const normalizedAvailableAircraft = availableAircraft.map((plane) => {
+      const resolvedHangarId = resolveAircraftHangarId(plane, hangarLookup, normalizedHangars);
+      if (!resolvedHangarId) return plane;
+      const resolvedHangar = hangarLookup.byId.get(resolvedHangarId);
+      const resolvedAirport = String(resolvedHangar?.airport_icao || plane?.hangar_airport || '').toUpperCase();
+      return {
+        ...plane,
+        hangar_id: resolvedHangarId,
+        hangar_airport: resolvedAirport,
+      };
+    });
 
-    if (availableAircraft.length === 0) {
+    const aircraftHangarFixes = [];
+    for (const plane of normalizedAvailableAircraft) {
+      const original = availableAircraftById.get(plane.id);
+      if (!original) continue;
+      const nextHangarId = String(plane?.hangar_id || '').trim();
+      if (!nextHangarId) continue;
+      const prevHangarId = String(original?.hangar_id || '').trim();
+      const nextAirport = String(plane?.hangar_airport || '').toUpperCase();
+      const prevAirport = String(original?.hangar_airport || '').toUpperCase();
+      if (nextHangarId === prevHangarId && nextAirport === prevAirport) continue;
+      aircraftHangarFixes.push({
+        id: plane.id,
+        hangar_id: nextHangarId,
+        hangar_airport: nextAirport,
+      });
+    }
+
+    if (aircraftHangarFixes.length > 0) {
+      await Promise.all(
+        aircraftHangarFixes.map((fix) => {
+          const updatePayload = { hangar_id: fix.hangar_id };
+          if (fix.hangar_airport) updatePayload.hangar_airport = fix.hangar_airport;
+          return base44.asServiceRole.entities.Aircraft.update(fix.id, updatePayload);
+        })
+      );
+    }
+
+    if (normalizedAvailableAircraft.length === 0) {
       return Response.json({ error: 'Keine Flugzeuge vorhanden' }, { status: 400 });
+    }
+
+    let filteredAircraft = normalizedAvailableAircraft;
+    if (filterAircraftId) {
+      const selectedAc = normalizedAvailableAircraft.find(a => a.id === filterAircraftId);
+      if (selectedAc) filteredAircraft = [selectedAc];
     }
 
     const existingContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });
     const todaysAlreadyGenerated = company.last_contract_generation_date === todayIso;
-    if (todaysAlreadyGenerated && existingContracts.some((c) => c.status === 'available')) {
+    const hasFulfillableAvailableContract = existingContracts.some((contract) => {
+      if (contract?.status !== 'available') return false;
+      const departureAirport = String(contract?.departure_airport || '').toUpperCase();
+      if (!departureAirport) return false;
+      return filteredAircraft.some((plane) => {
+        const aircraftAirport = String(plane?.hangar_airport || '').toUpperCase();
+        if (!aircraftAirport || aircraftAirport !== departureAirport) return false;
+        const requiredTypes = Array.isArray(contract?.required_aircraft_type) ? contract.required_aircraft_type : [];
+        const typeMatch = requiredTypes.length === 0 || requiredTypes.includes(plane.type);
+        const cargoMatch = !contract?.cargo_weight_kg || Number(plane?.cargo_capacity_kg || 0) >= Number(contract?.cargo_weight_kg || 0);
+        const rangeMatch = !contract?.distance_nm || Number(plane?.range_nm || 0) >= Number(contract?.distance_nm || 0);
+        const passengerMatch = !contract?.passenger_count || Number(plane?.passenger_capacity || 0) >= Number(contract?.passenger_count || 0);
+        return typeMatch && cargoMatch && rangeMatch && passengerMatch;
+      });
+    });
+    if (todaysAlreadyGenerated && hasFulfillableAvailableContract) {
       return Response.json({
         success: true,
         skipped: true,
@@ -409,13 +544,6 @@ Deno.serve(async (req) => {
     for (const c of recentSlice.slice(0, 60)) {
       if (!c?.departure_airport) continue;
       departureUsage.set(c.departure_airport, (departureUsage.get(c.departure_airport) || 0) + 1);
-    }
-
-    // If a specific aircraft was selected, narrow down to that aircraft's type
-    let filteredAircraft = availableAircraft;
-    if (filterAircraftId) {
-      const selectedAc = availableAircraft.find(a => a.id === filterAircraftId);
-      if (selectedAc) filteredAircraft = [selectedAc];
     }
 
     // Get the types the user owns (based on filtered aircraft)
@@ -458,8 +586,11 @@ Deno.serve(async (req) => {
       const hangarAirport = String(hangar?.airport_icao || '').toUpperCase();
       const departurePool = airports.filter((airport) => airport.icao === hangarAirport);
       const hangarAircraft = filteredAircraft.filter((plane) => {
+        const aircraftHangarId = String(plane?.hangar_id || '').trim();
         const planeHangarAirport = String(plane?.hangar_airport || '').toUpperCase();
-        const stationedHere = planeHangarAirport === hangarAirport || !plane.hangar_id || plane.hangar_id === hangar.id;
+        const stationedHere =
+          (aircraftHangarId && aircraftHangarId === String(hangar?.id || '').trim()) ||
+          (!aircraftHangarId && planeHangarAirport === hangarAirport);
         return stationedHere && hangarRule.allowed_types.includes(plane.type);
       });
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];
