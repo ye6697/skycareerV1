@@ -1062,16 +1062,20 @@ export default function Contracts() {
           <p>{lang === "de" ? "Alles laeuft jetzt direkt in der Leaflet-Karte: Klick auf Airport oeffnet Hangar Market + Hangar Management in der Map." : "Everything now runs directly inside the Leaflet map: click an airport to open hangar market + hangar management in-map."}</p>
         </div>
 
-        {filteredCompatibleContracts.length > 0 ? (
+        {filteredCompatibleContracts.length > 0 || visibleIncompatibleContracts.length > 0 ? (
           <>
-            <h2 className="mb-2 text-sm font-mono uppercase tracking-[0.18em] text-cyan-200">{lang === "de" ? "Kompatible Vertraege" : "Compatible Contracts"} ({filteredCompatibleContracts.length})</h2>
-            <motion.div layout className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-              <AnimatePresence>
-                {filteredCompatibleContracts.map((contract) => (
-                  <ContractCard key={contract.id} contract={contract} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} />
-                ))}
-              </AnimatePresence>
-            </motion.div>
+            {filteredCompatibleContracts.length > 0 && (
+              <>
+                <h2 className="mb-2 text-sm font-mono uppercase tracking-[0.18em] text-cyan-200">{lang === "de" ? "Kompatible Vertraege" : "Compatible Contracts"} ({filteredCompatibleContracts.length})</h2>
+                <motion.div layout className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                  <AnimatePresence>
+                    {filteredCompatibleContracts.map((contract) => (
+                      <ContractCard key={contract.id} contract={contract} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} />
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              </>
+            )}
 
             {visibleIncompatibleContracts.length > 0 && (
               <>
