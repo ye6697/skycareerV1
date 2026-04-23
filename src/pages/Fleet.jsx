@@ -948,6 +948,10 @@ export default function Fleet() {
       if (!response || response.error || !result.success) {
         throw new Error(result.error || response?.error || 'Transfer failed.');
       }
+      await base44.entities.Aircraft.update(aircraftEntry.id, {
+        hangar_id: validation.targetHangarId,
+        hangar_airport: targetAirport,
+      });
       return { aircraftEntry, targetAirport, transferCost, ...result };
     },
     onSuccess: (result) => {

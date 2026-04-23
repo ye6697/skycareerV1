@@ -945,6 +945,10 @@ export default function Contracts() {
       if (!response || response.error || !result.success) {
         throw new Error(result.error || response?.error || "Transfer failed.");
       }
+      await base44.entities.Aircraft.update(aircraft.id, {
+        hangar_id: validation.targetHangarId,
+        hangar_airport: targetAirport,
+      });
       return { transferCost, targetAirport, aircraft, targetHangarId: validation.targetHangarId, ...result };
     },
     onSuccess: (result) => {
@@ -986,6 +990,8 @@ export default function Contracts() {
             )
           : previous
       );
+      queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
+      queryClient.invalidateQueries({ queryKey: ["aircraft"] });
       queryClient.invalidateQueries({ queryKey: ["company"] });
       toast({
         title: lang === "de" ? "Flugzeug verschoben" : "Aircraft moved",
