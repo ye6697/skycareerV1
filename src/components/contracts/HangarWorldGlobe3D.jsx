@@ -10,6 +10,13 @@ function normIcao(value) {
   return String(value || "").toUpperCase();
 }
 
+function formatAirportDisplay(icao, label) {
+  const normCode = normIcao(icao);
+  const cleanLabel = String(label || "").trim();
+  if (!cleanLabel || normIcao(cleanLabel) === normCode) return normCode;
+  return `${normCode} - ${cleanLabel}`;
+}
+
 function getActionContext(hangars, airportIcao, selectedVariant, lang) {
   const selectedSpec = getVariantSizeSpec(selectedVariant?.id);
   if (!selectedVariant || !selectedSpec) {
@@ -426,7 +433,7 @@ export default function HangarWorldGlobe3D({
                   }}
                   className="w-full rounded-md border border-slate-700/80 bg-slate-900/75 px-2 py-1.5 text-left hover:border-cyan-700/70"
                 >
-                  <p className="text-[11px] font-semibold text-cyan-100">{icao} - {airportLabel}</p>
+                  <p className="text-[11px] font-semibold text-cyan-100">{formatAirportDisplay(icao, airportLabel)}</p>
                   <p className="text-[10px] text-slate-300">
                     {String(hangar.size || "-").toUpperCase()} | {stationed}/{Number(hangar.slots || 0)} | {airportContractsCount} {lang === "de" ? "Auftr." : "jobs"}
                   </p>
@@ -497,7 +504,7 @@ export default function HangarWorldGlobe3D({
           <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/75 p-2">
             <p className="text-[11px] font-semibold text-cyan-100">
               <MapPin className="mr-1 inline h-3.5 w-3.5" />
-              {selectedAirportData.airport_icao} - {selectedAirportData.label}
+              {formatAirportDisplay(selectedAirportData.airport_icao, selectedAirportData.label)}
             </p>
             <p className="mt-1 text-[10px] text-slate-400">
               {lang === "de" ? "Verfuegbare Auftraege ab hier" : "Available departures here"}: {selectedAirportContracts.length}
@@ -512,6 +519,7 @@ export default function HangarWorldGlobe3D({
           <HangarModelPreview3D
             modelPath={selectedVariant?.path || ""}
             sizeKey={selectedVariantSpec?.key || selectedAirportHangar?.size || "small"}
+            modelVariantId={selectedVariant?.id || selectedAirportHangar?.model_variant || ""}
             owned={Boolean(selectedAirportHangar)}
             lang={lang}
           />

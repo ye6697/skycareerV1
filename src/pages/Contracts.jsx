@@ -75,6 +75,13 @@ function normIcao(value) {
   return String(value || "").toUpperCase();
 }
 
+function formatAirportDisplay(icao, label) {
+  const normCode = normIcao(icao);
+  const cleanLabel = String(label || "").trim();
+  if (!cleanLabel || normIcao(cleanLabel) === normCode) return normCode;
+  return `${normCode} - ${cleanLabel}`;
+}
+
 function parseDateValue(value) {
   if (!value) return 0;
   const millis = Date.parse(String(value));
@@ -942,8 +949,12 @@ export default function Contracts() {
   const selectedContract =
     mapContracts.find((contract) => contract.id === selectedContractId) || null;
 
-  const availableCount = compatibleContracts.filter((contract) => contract.status === "available").length;
-  const acceptedCount = compatibleContracts.filter((contract) => contract.status === "accepted").length;
+  const ownedDepartureContracts = useMemo(
+    () => allContracts.filter((contract) => ownedHangarAirportSet.has(normIcao(contract.departure_airport))),
+    [allContracts, ownedHangarAirportSet]
+  );
+  const availableCount = ownedDepartureContracts.filter((contract) => contract.status === "available").length;
+  const acceptedCount = ownedDepartureContracts.filter((contract) => contract.status === "accepted").length;
 
   return (
     <div className="h-full flex flex-col gap-3">
@@ -985,7 +996,7 @@ export default function Contracts() {
               <option value="all">{lang === "de" ? "Alle Departure-Airports" : "All departure airports"}</option>
               {marketAirports.map((airport) => (
                 <option key={airport.airport_icao} value={airport.airport_icao}>
-                  {airport.airport_icao} - {airport.label}
+                  {formatAirportDisplay(airport.airport_icao, airport.label)}
                 </option>
               ))}
             </select>
