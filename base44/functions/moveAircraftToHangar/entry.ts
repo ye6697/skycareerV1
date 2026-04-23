@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
     const transferCost = Math.max(0, Number(body?.transferCost || 0));
     const lang = String(body?.lang || 'en').trim().toLowerCase() === 'de' ? 'de' : 'en';
 
-    if (!aircraftId || !targetHangarId || !targetAirport) {
-      return Response.json({ error: 'aircraftId, targetHangarId and targetAirport are required' }, { status: 400 });
+    if (!aircraftId || !targetAirport) {
+      return Response.json({ error: 'aircraftId and targetAirport are required' }, { status: 400 });
     }
 
     const company = await resolveCompany(base44, user);
@@ -53,13 +53,16 @@ Deno.serve(async (req) => {
     }
 
     const hangars = Array.isArray(company.hangars) ? company.hangars : [];
-    const targetHangar = hangars.find((h: any) => String(h?.id || '') === targetHangarId);
+    const targetHangar =
+      hangars.find((h: any) => String(h?.id || '') === targetHangarId)
+      || hangars.find((h: any) => String(h?.airport_icao || '').trim().toUpperCase() === targetAirport);
     if (!targetHangar) {
       return Response.json({ error: 'Target hangar not found' }, { status: 400 });
     }
+    const resolvedTargetHangarId = String(targetHangar?.id || '').trim();
 
     await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
-      hangar_id: targetHangarId,
+      hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
       hangar_airport: targetAirport,
     });
 
@@ -91,7 +94,7 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       aircraftId: aircraft.id,
-      targetHangarId,
+      targetHangarId: resolvedTargetHangarId || null,
       targetAirport,
       transferCost,
       companyId: company.id,
