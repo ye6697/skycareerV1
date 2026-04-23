@@ -71,7 +71,7 @@ const MARKET_LABELS = Object.fromEntries(
 const HANGAR_STORAGE_KEY_PREFIX = "contracts_hangars";
 
 function normIcao(value) {
-  return String(value || "").toUpperCase();
+  return String(value || "").trim().toUpperCase();
 }
 
 function formatAirportDisplay(icao, label) {

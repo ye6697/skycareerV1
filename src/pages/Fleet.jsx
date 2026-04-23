@@ -329,7 +329,7 @@ const buildUsedMarketInventory = ({ companyLevel = 1, marketSeed = '' } = {}) =>
 };
 
 function normIcao(value) {
-  return String(value || '').toUpperCase();
+  return String(value || '').trim().toUpperCase();
 }
 
 export default function Fleet() {

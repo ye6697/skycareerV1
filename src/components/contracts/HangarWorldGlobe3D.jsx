@@ -7,7 +7,7 @@ import HangarModelPreview3D from "@/components/contracts/HangarModelPreview3D";
 import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
 
 function normIcao(value) {
-  return String(value || "").toUpperCase();
+  return String(value || "").trim().toUpperCase();
 }
 
 function formatAirportDisplay(icao, label) {
