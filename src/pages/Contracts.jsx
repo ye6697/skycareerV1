@@ -797,14 +797,22 @@ export default function Contracts() {
       };
     }
 
-    return { valid: true, reason: "", transferCost, targetHangar };
+    const targetHangarId = String(targetHangar?.id || "").trim();
+    if (!targetHangarId) {
+      return {
+        valid: false,
+        reason: lang === "de" ? "Hangar-ID fehlt. Bitte Seite neu laden." : "Hangar id is missing. Please reload.",
+      };
+    }
+
+    return { valid: true, reason: "", transferCost, targetHangar, targetHangarId };
   }
 
   const moveAircraftMutation = useMutation({
     mutationFn: async ({ aircraft, targetAirportIcao }) => {
       if (!company?.id) throw new Error("Company not found.");
       const validation = getMoveValidation(aircraft, targetAirportIcao);
-      if (!validation.valid || !validation.targetHangar) {
+      if (!validation.valid || !validation.targetHangar || !validation.targetHangarId) {
         throw new Error(validation.reason || "Invalid transfer.");
       }
 
@@ -812,7 +820,7 @@ export default function Contracts() {
       const transferCost = Number(validation.transferCost || 0);
       const response = await base44.functions.invoke("moveAircraftToHangar", {
         aircraftId: aircraft.id,
-        targetHangarId: validation.targetHangar.id,
+        targetHangarId: validation.targetHangarId,
         targetAirport,
         transferCost,
         lang,
@@ -821,7 +829,7 @@ export default function Contracts() {
       if (!response || response.error || !result.success) {
         throw new Error(result.error || response?.error || "Transfer failed.");
       }
-      return { transferCost, targetAirport, aircraft, targetHangarId: validation.targetHangar.id, ...result };
+      return { transferCost, targetAirport, aircraft, targetHangarId: validation.targetHangarId, ...result };
     },
     onSuccess: (result) => {
       queryClient.setQueryData(["contractsPageData"], (previous) => {
