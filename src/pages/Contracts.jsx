@@ -403,10 +403,22 @@ export default function Contracts() {
     return availableAircraft;
   }, [availableAircraft, selectedAircraft]);
 
-  const ownedHangarAirportSet = useMemo(
-    () => new Set(ownedHangars.map((hangar) => normIcao(hangar.airport_icao)).filter(Boolean)),
-    [ownedHangars]
-  );
+  const ownedHangarAirportSet = useMemo(() => {
+    const airports = new Set(
+      ownedHangars
+        .map((hangar) => normIcao(hangar.airport_icao))
+        .filter(Boolean)
+    );
+
+    ownedAircraft.forEach((aircraft) => {
+      const aircraftAirport = normIcao(aircraft?.hangar_airport);
+      if (aircraftAirport) {
+        airports.add(aircraftAirport);
+      }
+    });
+
+    return airports;
+  }, [ownedAircraft, ownedHangars]);
 
   const compatibleContracts = useMemo(() => {
     return allContracts.filter((contract) => {
@@ -436,7 +448,9 @@ export default function Contracts() {
     return compatibleContracts.filter((contract) => {
       const departureMatch =
         selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
-      const ownedDepartureMatch = ownedHangarAirportSet.has(normIcao(contract.departure_airport));
+      const ownedDepartureMatch =
+        ownedHangarAirportSet.size === 0 ||
+        ownedHangarAirportSet.has(normIcao(contract.departure_airport));
       return (
         tabMatches(contract, activeTab) &&
         searchMatches(contract, searchTerm) &&
@@ -451,7 +465,9 @@ export default function Contracts() {
     return incompatibleContracts.filter((contract) => {
       const departureMatch =
         selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
-      const ownedDepartureMatch = ownedHangarAirportSet.has(normIcao(contract.departure_airport));
+      const ownedDepartureMatch =
+        ownedHangarAirportSet.size === 0 ||
+        ownedHangarAirportSet.has(normIcao(contract.departure_airport));
       return (
         tabMatches(contract, activeTab) &&
         searchMatches(contract, searchTerm) &&
@@ -478,7 +494,8 @@ export default function Contracts() {
               tabMatches(contract, activeTab) &&
               searchMatches(contract, searchTerm) &&
               departureMatch &&
-              ownedHangarAirportSet.has(normIcao(contract.departure_airport))
+              (ownedHangarAirportSet.size === 0 ||
+                ownedHangarAirportSet.has(normIcao(contract.departure_airport)))
             );
           });
 
@@ -949,7 +966,11 @@ export default function Contracts() {
     mapContracts.find((contract) => contract.id === selectedContractId) || null;
 
   const ownedDepartureContracts = useMemo(
-    () => allContracts.filter((contract) => ownedHangarAirportSet.has(normIcao(contract.departure_airport))),
+    () =>
+      allContracts.filter((contract) =>
+        ownedHangarAirportSet.size === 0 ||
+        ownedHangarAirportSet.has(normIcao(contract.departure_airport))
+      ),
     [allContracts, ownedHangarAirportSet]
   );
   const availableCount = ownedDepartureContracts.filter((contract) => contract.status === "available").length;
