@@ -720,21 +720,25 @@ export default function Fleet() {
     if (Number(company?.balance || 0) < transferCost) {
       return { valid: false, reason: lang === 'de' ? 'Nicht genug Guthaben.' : 'Insufficient balance.' };
     }
-    return { valid: true, reason: '', transferCost, targetHangar };
+    const targetHangarId = String(targetHangar?.id || '').trim();
+    if (!targetHangarId) {
+      return { valid: false, reason: lang === 'de' ? 'Hangar-ID fehlt. Bitte Seite neu laden.' : 'Hangar id is missing. Please reload.' };
+    }
+    return { valid: true, reason: '', transferCost, targetHangar, targetHangarId };
   }, [ownedHangars, lang, movableAircraft, getAircraftTransferCost, company?.balance]);
 
   const moveAircraftMutation = useMutation({
     mutationFn: async ({ aircraftEntry, targetAirportIcao }) => {
       if (!company?.id) throw new Error('Company not found.');
       const validation = getFleetMoveValidation(aircraftEntry, targetAirportIcao);
-      if (!validation.valid || !validation.targetHangar) {
+      if (!validation.valid || !validation.targetHangar || !validation.targetHangarId) {
         throw new Error(validation.reason || 'Invalid transfer.');
       }
       const targetAirport = normIcao(targetAirportIcao);
       const transferCost = Number(validation.transferCost || 0);
       const response = await base44.functions.invoke('moveAircraftToHangar', {
         aircraftId: aircraftEntry.id,
-        targetHangarId: validation.targetHangar.id,
+        targetHangarId: validation.targetHangarId,
         targetAirport,
         transferCost,
         lang,
