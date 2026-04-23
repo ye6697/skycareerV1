@@ -25,6 +25,23 @@ async function resolveCompany(base44: any, user: any) {
   return null;
 }
 
+function normalizeIdentifier(value: unknown): string {
+  return String(value || '').trim();
+}
+
+function normalizeIcao(value: unknown): string {
+  return normalizeIdentifier(value).toUpperCase();
+}
+
+function getHangarIdentifierCandidates(hangar: any): string[] {
+  const candidates = [
+    normalizeIdentifier(hangar?.id),
+    normalizeIdentifier(hangar?.hangar_id),
+    normalizeIdentifier(hangar?._id),
+  ].filter(Boolean);
+  return Array.from(new Set(candidates));
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -32,9 +49,9 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
-    const aircraftId = String(body?.aircraftId || '').trim();
-    const targetHangarId = String(body?.targetHangarId || '').trim();
-    const targetAirport = String(body?.targetAirport || '').trim().toUpperCase();
+    const aircraftId = normalizeIdentifier(body?.aircraftId);
+    const targetHangarId = normalizeIdentifier(body?.targetHangarId);
+    const targetAirport = normalizeIcao(body?.targetAirport);
     const transferCost = Math.max(0, Number(body?.transferCost || 0));
     const lang = String(body?.lang || 'en').trim().toLowerCase() === 'de' ? 'de' : 'en';
 
@@ -54,17 +71,12 @@ Deno.serve(async (req) => {
 
     const hangars = Array.isArray(company.hangars) ? company.hangars : [];
     const targetHangar =
-      hangars.find((h: any) => String(h?.id || '') === targetHangarId)
-      || hangars.find((h: any) => String(h?.airport_icao || '').trim().toUpperCase() === targetAirport);
+      hangars.find((h: any) => getHangarIdentifierCandidates(h).includes(targetHangarId))
+      || hangars.find((h: any) => normalizeIcao(h?.airport_icao) === targetAirport);
     if (!targetHangar) {
       return Response.json({ error: 'Target hangar not found' }, { status: 400 });
     }
-    const resolvedTargetHangarId = String(targetHangar?.id || '').trim();
-
-    await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
-      hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
-      hangar_airport: targetAirport,
-    });
+    const resolvedTargetHangarId = getHangarIdentifierCandidates(targetHangar)[0] || targetHangarId;
 
     if (transferCost > 0) {
       const latestCompanyRows = await base44.asServiceRole.entities.Company.filter({ id: company.id });
@@ -90,6 +102,11 @@ Deno.serve(async (req) => {
         date: new Date().toISOString(),
       });
     }
+
+    await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
+      hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
+      hangar_airport: targetAirport,
+    });
 
     return Response.json({
       success: true,
