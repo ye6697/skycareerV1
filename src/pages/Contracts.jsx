@@ -949,7 +949,14 @@ export default function Contracts() {
         hangar_id: validation.targetHangarId,
         hangar_airport: targetAirport,
       });
-      return { transferCost, targetAirport, aircraft, targetHangarId: validation.targetHangarId, ...result };
+      const resolvedTargetAirport = normIcao(result?.targetAirport || targetAirport);
+      return {
+        ...result,
+        transferCost,
+        aircraft,
+        targetAirport: resolvedTargetAirport,
+        targetHangarId: String(result?.targetHangarId || validation.targetHangarId || "").trim(),
+      };
     },
     onSuccess: (result) => {
       queryClient.setQueryData(["contractsPageData"], (previous) => {

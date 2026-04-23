@@ -952,7 +952,14 @@ export default function Fleet() {
         hangar_id: validation.targetHangarId,
         hangar_airport: targetAirport,
       });
-      return { aircraftEntry, targetAirport, transferCost, ...result };
+      const resolvedTargetAirport = normIcao(result?.targetAirport || targetAirport);
+      return {
+        ...result,
+        aircraftEntry,
+        transferCost,
+        targetAirport: resolvedTargetAirport,
+        targetHangarId: String(result?.targetHangarId || validation.targetHangarId || '').trim(),
+      };
     },
     onSuccess: (result) => {
       setFleetMoveTargets((previous) => ({
