@@ -118,11 +118,20 @@ const resolveHangarRule = (hangar) => {
   };
 };
 
+const isAircraftActiveInFleet = (entry) => String(entry?.status || '').toLowerCase() !== 'sold';
+
+const hangarOccupiesSlot = (entry, hangar) => {
+  const entryHangarId = String(entry?.hangar_id || '').trim();
+  const hangarId = String(hangar?.id || '').trim();
+  if (entryHangarId && hangarId) return entryHangarId === hangarId;
+  return normIcao(entry?.hangar_airport) === normIcao(hangar?.airport_icao);
+};
+
 const getAssignableHangarsForType = (hangars = [], aircraft = [], aircraftType) => {
   return hangars
     .map((hangar) => {
       const rule = resolveHangarRule(hangar);
-      const used = aircraft.filter((entry) => entry.status !== 'sold' && normIcao(entry.hangar_airport) === normIcao(hangar.airport_icao)).length;
+      const used = aircraft.filter((entry) => isAircraftActiveInFleet(entry) && hangarOccupiesSlot(entry, hangar)).length;
       return {
         ...hangar,
         rule,
@@ -509,7 +518,7 @@ export default function Fleet() {
   const purchaseMutation = useMutation({
     mutationFn: async (aircraftData) => {
       const callsignPrefix = company?.callsign || 'N';
-      const aircraftCount = aircraft.filter((a) => a.status !== 'sold').length;
+      const aircraftCount = aircraft.filter((a) => isAircraftActiveInFleet(a)).length;
       const registration = `${callsignPrefix}-${String(aircraftCount + 1).padStart(3, '0')}`;
 
       const specs = AIRCRAFT_MARKET_SPECS.find((a) => a.name === aircraftData.name) || aircraftData;
@@ -655,10 +664,7 @@ export default function Fleet() {
     setSelectedAircraft(aircraftListing);
     setSelectedPurchaseHangarIcao('');
   }, []);
-  const movableAircraft = React.useMemo(
-    () => aircraft.filter((entry) => String(entry?.status || '').toLowerCase() !== 'sold'),
-    [aircraft]
-  );
+  const movableAircraft = React.useMemo(() => aircraft.filter((entry) => isAircraftActiveInFleet(entry)), [aircraft]);
   const [fleetMoveTargets, setFleetMoveTargets] = useState({});
 
   React.useEffect(() => {
@@ -712,7 +718,9 @@ export default function Fleet() {
         reason: lang === 'de' ? `Typ ${aircraftEntry.type} nicht erlaubt.` : `Type ${aircraftEntry.type} not allowed.`
       };
     }
-    const usedSlots = movableAircraft.filter((entry) => entry.id !== aircraftEntry.id && normIcao(entry.hangar_airport) === targetAirport).length;
+    const usedSlots = movableAircraft.filter(
+      (entry) => entry.id !== aircraftEntry.id && hangarOccupiesSlot(entry, targetHangar)
+    ).length;
     if (Number(rule.slots || 0) > 0 && usedSlots >= Number(rule.slots || 0)) {
       return { valid: false, reason: lang === 'de' ? 'Keine freien Slots.' : 'No free slots.' };
     }
