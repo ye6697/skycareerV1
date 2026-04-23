@@ -223,7 +223,13 @@ export default function HangarWorldGlobe3D({
     onWheelCapture: (event) => {
       event.stopPropagation();
     },
+    onWheel: (event) => {
+      event.stopPropagation();
+    },
     onTouchMoveCapture: (event) => {
+      event.stopPropagation();
+    },
+    onTouchMove: (event) => {
       event.stopPropagation();
     },
   };
@@ -352,8 +358,8 @@ export default function HangarWorldGlobe3D({
       {showContractsPanel && (
         <div
           {...preventMapScrollCapture}
-          className="absolute left-1/2 top-14 z-[1450] w-[min(94vw,300px)] -translate-x-1/2 rounded-xl border border-cyan-900/50 bg-slate-950/90 p-2.5 backdrop-blur sm:left-auto sm:right-3 sm:translate-x-0"
-          style={{ maxHeight: contractsPanelMaxHeight }}
+          className="absolute left-1/2 top-14 z-[1450] flex w-[min(94vw,300px)] -translate-x-1/2 flex-col rounded-xl border border-cyan-900/50 bg-slate-950/90 p-2.5 backdrop-blur sm:left-auto sm:right-3 sm:translate-x-0"
+          style={{ height: contractsPanelMaxHeight, maxHeight: contractsPanelMaxHeight }}
         >
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
@@ -361,7 +367,7 @@ export default function HangarWorldGlobe3D({
             </div>
             <div className="text-[10px] text-slate-400">{visibleContracts.length}</div>
           </div>
-          <div className="space-y-1 overflow-y-auto pr-1" style={{ maxHeight: isFullscreen ? "calc(100vh - 8.6rem)" : "calc(100% - 8.6rem)" }}>
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 touch-pan-y">
             {visibleContracts.map((contract) => {
               const selected = contract.id === selectedContractId;
               return (
@@ -395,10 +401,10 @@ export default function HangarWorldGlobe3D({
       {showMarketPanel && selectedAirportData && (
         <div
           {...preventMapScrollCapture}
-          className="absolute bottom-3 left-1/2 z-[1450] w-[min(94vw,380px)] -translate-x-1/2 rounded-xl border border-cyan-900/50 bg-slate-950/92 p-3 backdrop-blur sm:left-3 sm:translate-x-0"
+          className="absolute bottom-3 left-1/2 z-[1450] flex w-[min(94vw,380px)] -translate-x-1/2 flex-col rounded-xl border border-cyan-900/50 bg-slate-950/92 p-3 backdrop-blur sm:left-3 sm:translate-x-0"
           style={{ maxHeight: marketPanelMaxHeight }}
         >
-          <div className="max-h-full overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 touch-pan-y">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
               {lang === "de" ? "Hangar Popup" : "Hangar popup"}

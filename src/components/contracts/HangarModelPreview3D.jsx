@@ -118,7 +118,7 @@ export default function HangarModelPreview3D({
     scene.background = new THREE.Color(0x030712);
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    camera.position.set(7.8, 3.9, 7.8);
+    camera.position.set(6.4, 3.35, 6.4);
     camera.lookAt(0, 1.2, 0);
 
     try {
@@ -156,8 +156,8 @@ export default function HangarModelPreview3D({
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.minDistance = 4.8;
-    controls.maxDistance = 14;
+    controls.minDistance = 3.8;
+    controls.maxDistance = 11.5;
     controls.minPolarAngle = 0.34;
     controls.maxPolarAngle = Math.PI / 2.06;
     controls.autoRotate = true;
