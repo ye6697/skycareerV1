@@ -113,7 +113,7 @@ export default function HangarWorldGlobe3D({
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showContractsPanel, setShowContractsPanel] = useState(true);
-  const [showMarketPanel, setShowMarketPanel] = useState(true);
+  const [showMarketPanel, setShowMarketPanel] = useState(false);
   const [showOwnedHangarsList, setShowOwnedHangarsList] = useState(false);
   const [airportViewFilter, setAirportViewFilter] = useState("all");
   const fullscreenRootRef = useRef(null);
