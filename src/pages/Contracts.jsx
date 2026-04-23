@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -823,7 +823,7 @@ export default function Contracts() {
         });
       }
 
-      return { transferCost, targetAirport, aircraft };
+      return { transferCost, targetAirport, aircraft, targetHangarId: validation.targetHangar.id };
     },
     onSuccess: (result) => {
       queryClient.setQueryData(["contractsPageData"], (previous) => {
@@ -843,6 +843,7 @@ export default function Contracts() {
                 entry.id === result.aircraft.id
                   ? {
                       ...entry,
+                      hangar_id: result.targetHangarId ?? entry.hangar_id,
                       hangar_airport: result.targetAirport,
                     }
                   : entry
@@ -856,6 +857,7 @@ export default function Contracts() {
               entry.id === result.aircraft.id
                 ? {
                     ...entry,
+                    hangar_id: result.targetHangarId ?? entry.hangar_id,
                     hangar_airport: result.targetAirport,
                   }
                 : entry
@@ -908,31 +910,36 @@ export default function Contracts() {
 
   const selectedMarketHangar =
     ownedHangars.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedMarketAirportIcao)) || null;
+  const lastSyncedMarketAirportRef = useRef("");
 
   useEffect(() => {
+    const selectedAirport = normIcao(selectedMarketAirportIcao);
+    if (!selectedAirport || lastSyncedMarketAirportRef.current === selectedAirport) return;
+    lastSyncedMarketAirportRef.current = selectedAirport;
+
     if (selectedMarketHangar?.model_variant) {
-      if (selectedMarketHangar.model_variant !== selectedMarketVariantId) {
-        setSelectedMarketVariantId(selectedMarketHangar.model_variant);
-      }
+      setSelectedMarketVariantId(selectedMarketHangar.model_variant);
       const ownedSize = String(selectedMarketHangar.size || "").toLowerCase();
-      if (ownedSize && ownedSize !== selectedMarketSize) {
+      if (ownedSize) {
         setSelectedMarketSize(ownedSize);
       }
       return;
     }
 
-    if (!getVariantMeta(selectedMarketVariantId)) {
-      const fallback = getDefaultVariantId();
-      setSelectedMarketVariantId(fallback);
-      return;
-    }
+    const fallback = getDefaultVariantId();
+    setSelectedMarketVariantId(fallback);
+    const fallbackSpec = getVariantSizeSpec(fallback) || HANGAR_SIZES[0];
+    setSelectedMarketSize(String(fallbackSpec?.key || "small").toLowerCase());
+  }, [selectedMarketAirportIcao, selectedMarketHangar?.model_variant, selectedMarketHangar?.size]);
 
-    const variantSpec = getVariantSizeSpec(selectedMarketVariantId) || HANGAR_SIZES[0];
-    const variantSize = String(variantSpec?.key || "small").toLowerCase();
+  useEffect(() => {
+    const variantSpec = getVariantSizeSpec(selectedMarketVariantId);
+    if (!variantSpec) return;
+    const variantSize = String(variantSpec.key || "small").toLowerCase();
     if (variantSize !== selectedMarketSize) {
       setSelectedMarketSize(variantSize);
     }
-  }, [selectedMarketHangar?.model_variant, selectedMarketHangar?.size, selectedMarketSize, selectedMarketVariantId]);
+  }, [selectedMarketSize, selectedMarketVariantId]);
 
   const selectedContract =
     mapContracts.find((contract) => contract.id === selectedContractId) || null;
