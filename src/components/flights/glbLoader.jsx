@@ -1,14 +1,31 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 // Simple cached GLB loader. Returns a clone of the loaded scene each call so
 // the same model can be placed many times without sharing transforms.
 const cache = new Map();
 const inflight = new Map();
 
+function cloneSceneDeep(root) {
+  const cloned = skeletonClone(root);
+  cloned.traverse((node) => {
+    if (!node?.isMesh) return;
+    if (node.geometry?.clone) {
+      node.geometry = node.geometry.clone();
+    }
+    if (Array.isArray(node.material)) {
+      node.material = node.material.map((material) => (material?.clone ? material.clone() : material));
+    } else if (node.material?.clone) {
+      node.material = node.material.clone();
+    }
+  });
+  return cloned;
+}
+
 export function loadGLB(url) {
-  if (cache.has(url)) return Promise.resolve(cache.get(url).clone(true));
-  if (inflight.has(url)) return inflight.get(url).then((o) => o.clone(true));
+  if (cache.has(url)) return Promise.resolve(cloneSceneDeep(cache.get(url)));
+  if (inflight.has(url)) return inflight.get(url).then((o) => cloneSceneDeep(o));
   const p = new Promise((resolve, reject) => {
     new GLTFLoader().load(
       url,
@@ -16,7 +33,7 @@ export function loadGLB(url) {
         const root = gltf.scene || gltf.scenes?.[0];
         if (!root) { reject(new Error('GLB has no scene')); return; }
         cache.set(url, root);
-        resolve(root.clone(true));
+        resolve(cloneSceneDeep(root));
       },
       undefined,
       (err) => reject(err),

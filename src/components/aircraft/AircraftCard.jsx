@@ -17,6 +17,7 @@ import {
   Shield
 } from "lucide-react";
 import MaintenanceCategories from "./MaintenanceCategories";
+import AircraftHangar3D from "@/components/fleet3d/AircraftHangar3D";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
   const [isSellDialogOpen, setIsSellDialogOpen] = React.useState(false);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = React.useState(false);
+  const [showMaintenanceHangar3D, setShowMaintenanceHangar3D] = React.useState(false);
   const [isInsuranceDialogOpen, setIsInsuranceDialogOpen] = React.useState(false);
   const queryClient = useQueryClient();
   const { lang } = useLanguage();
@@ -491,9 +493,16 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                </>
            ) : (aircraft.status === "available" || aircraft.status === "maintenance") ? (
                <>
-                 <Button size="sm" className="h-6 flex-1 text-[9px] bg-amber-900/40 text-amber-400 hover:bg-amber-800 border border-amber-900/50" onClick={() => setIsMaintenanceDialogOpen(true)}>
-                   {t('maintenance', lang).toUpperCase()}
-                 </Button>
+                  <Button
+                    size="sm"
+                    className="h-6 flex-1 text-[9px] bg-amber-900/40 text-amber-400 hover:bg-amber-800 border border-amber-900/50"
+                    onClick={() => {
+                      setShowMaintenanceHangar3D(true);
+                      setIsMaintenanceDialogOpen(true);
+                    }}
+                  >
+                    {t('maintenance', lang).toUpperCase()}
+                  </Button>
               <Button size="sm" className="h-6 flex-1 text-[9px] bg-cyan-900/40 text-cyan-300 hover:bg-cyan-800 border border-cyan-900/50" onClick={() => setIsInsuranceDialogOpen(true)}>
                 {lang === 'de' ? 'VERSICHERUNG' : 'INSURANCE'}
               </Button>
@@ -540,11 +549,36 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
-          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 w-[calc(100%-1rem)] sm:w-full max-w-md max-h-[92dvh] sm:max-h-[85dvh] p-0 overflow-hidden flex flex-col">
+        <Dialog
+          open={isMaintenanceDialogOpen}
+          onOpenChange={(open) => {
+            setIsMaintenanceDialogOpen(open);
+            if (!open) setShowMaintenanceHangar3D(false);
+          }}
+        >
+          <DialogContent className="bg-slate-900 border-cyan-900/50 text-slate-300 w-[calc(100%-1rem)] sm:w-full max-w-4xl max-h-[92dvh] sm:max-h-[90dvh] p-0 overflow-hidden flex flex-col">
             <DialogHeader className="px-4 pt-4 pb-2">
-              <DialogTitle className="text-amber-400 uppercase">{t('maintenance', lang)} - {aircraft.registration}</DialogTitle>
+              <DialogTitle className="text-amber-400 uppercase flex items-center justify-between gap-2">
+                <span>{t('maintenance', lang)} - {aircraft.registration}</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] font-mono uppercase bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700"
+                  onClick={() => setShowMaintenanceHangar3D((prev) => !prev)}
+                >
+                  {showMaintenanceHangar3D
+                    ? (lang === 'de' ? '3D ausblenden' : 'Hide 3D')
+                    : (lang === 'de' ? '3D Hangar' : '3D hangar')}
+                </Button>
+              </DialogTitle>
             </DialogHeader>
+            {showMaintenanceHangar3D && (
+              <div className="px-4 pb-2">
+                <div className="h-[320px] rounded border border-cyan-900/50 overflow-hidden bg-slate-950">
+                  <AircraftHangar3D aircraft={aircraft} />
+                </div>
+              </div>
+            )}
             <div
               className="px-4 pb-4 min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y"
               style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
