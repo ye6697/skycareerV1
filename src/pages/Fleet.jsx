@@ -137,15 +137,6 @@ const resolveHangarRule = (hangar) => {
   };
 };
 
-const isAircraftActiveInFleet = (entry) => String(entry?.status || '').toLowerCase() !== 'sold';
-
-const hangarOccupiesSlot = (entry, hangar) => {
-  const entryHangarId = String(entry?.hangar_id || '').trim();
-  const hangarId = String(hangar?.id || '').trim();
-  if (entryHangarId && hangarId) return entryHangarId === hangarId;
-  return normIcao(entry?.hangar_airport) === normIcao(hangar?.airport_icao);
-};
-
 const getAssignableHangarsForType = (hangars = [], aircraft = [], aircraftType) => {
   return hangars
     .map((hangar) => {
