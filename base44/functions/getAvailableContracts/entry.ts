@@ -1,5 +1,30 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+const resolveUserCompanyId = (user: any): string | null => (
+  user?.company_id
+  || user?.data?.company_id
+  || user?.company?.id
+  || user?.data?.company?.id
+  || null
+);
+
+async function resolveCompany(base44: any, user: any) {
+  const companyId = resolveUserCompanyId(user);
+  if (companyId) {
+    const companies = await base44.asServiceRole.entities.Company.filter({ id: companyId });
+    if (companies?.[0]) return companies[0];
+  }
+
+  const email = String(user?.email || '').trim();
+  if (!email) return null;
+  const candidateEmails = Array.from(new Set([email, email.toLowerCase()]));
+  for (const candidate of candidateEmails) {
+    const companies = await base44.asServiceRole.entities.Company.filter({ created_by: candidate });
+    if (companies?.[0]) return companies[0];
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -8,17 +33,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's company - prefer company_id from user, fallback to created_by
-    let company = null;
-    const companyId = user.company_id || user.data?.company_id;
-    if (companyId) {
-      const companies = await base44.asServiceRole.entities.Company.filter({ id: companyId });
-      company = companies[0] || null;
-    }
-    if (!company) {
-      const companies = await base44.asServiceRole.entities.Company.filter({ created_by: user.email });
-      company = companies[0] || null;
-    }
+    const company = await resolveCompany(base44, user);
     if (!company) {
       return Response.json({ contracts: [] });
     }
