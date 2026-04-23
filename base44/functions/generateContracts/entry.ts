@@ -228,7 +228,7 @@ function normalizeCompanyHangars(rawHangars = []) {
   const perAirportCounts = new Map();
   return rawHangars.map((rawHangar, index) => {
     const airport = getHangarAirportIcao(rawHangar);
-    const rawId = String(rawHangar?.id || '').trim();
+    const rawId = String(rawHangar?.id || rawHangar?.hangar_id || rawHangar?._id || '').trim();
     const airportKey = airport || `UNKNOWN_${index + 1}`;
     const nextCount = (perAirportCounts.get(airportKey) || 0) + 1;
     perAirportCounts.set(airportKey, nextCount);
@@ -594,13 +594,14 @@ Deno.serve(async (req) => {
     for (const hangar of hangarsForGeneration) {
       const hangarRule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
       const hangarAirport = String(hangar?.airport_icao || '').toUpperCase();
+      const hangarId = String(hangar?.id || '').trim();
       const departurePool = airports.filter((airport) => airport.icao === hangarAirport);
       const hangarAircraft = filteredAircraft.filter((plane) => {
         const aircraftHangarId = String(plane?.hangar_id || '').trim();
         const planeHangarAirport = String(plane?.hangar_airport || '').toUpperCase();
         const stationedHere =
-          (aircraftHangarId && aircraftHangarId === String(hangar?.id || '').trim()) ||
-          (!aircraftHangarId && planeHangarAirport === hangarAirport);
+          (aircraftHangarId && hangarId && aircraftHangarId === hangarId) ||
+          planeHangarAirport === hangarAirport;
         return stationedHere && hangarRule.allowed_types.includes(plane.type);
       });
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];

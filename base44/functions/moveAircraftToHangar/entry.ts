@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'aircraftId and targetHangarId or targetAirport are required' }, { status: 400 });
     }
 
-    const company = await resolveCompany(base44, user);
+    let company = await resolveCompany(base44, user);
     if (!company?.id) return Response.json({ error: 'Company not found' }, { status: 400 });
 
     const aircraftRows = await base44.asServiceRole.entities.Aircraft.filter({ id: aircraftId });

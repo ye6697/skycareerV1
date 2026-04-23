@@ -492,11 +492,25 @@ export default function Contracts() {
     });
   }, [aircraftPool, allContracts, ownedHangars]);
 
+  const availableContracts = useMemo(
+    () => allContracts.filter((contract) => contract.status === "available"),
+    [allContracts]
+  );
+
+  const hasOwnedDepartureContracts = useMemo(
+    () =>
+      allContracts.some((contract) =>
+        ownedHangarAirportSet.has(normIcao(contract.departure_airport))
+      ),
+    [allContracts, ownedHangarAirportSet]
+  );
+
   const filteredCompatibleContracts = useMemo(() => {
     return compatibleContracts.filter((contract) => {
       const departureMatch =
         selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
       const ownedDepartureMatch =
+        !hasOwnedDepartureContracts ||
         ownedHangarAirportSet.size === 0 ||
         ownedHangarAirportSet.has(normIcao(contract.departure_airport));
       return (
@@ -506,7 +520,7 @@ export default function Contracts() {
         ownedDepartureMatch
       );
     });
-  }, [activeTab, compatibleContracts, ownedHangarAirportSet, searchTerm, selectedDepartureAirport]);
+  }, [activeTab, compatibleContracts, hasOwnedDepartureContracts, ownedHangarAirportSet, searchTerm, selectedDepartureAirport]);
 
   const visibleIncompatibleContracts = useMemo(() => {
     if (activeTab === "accepted") return [];
@@ -514,6 +528,7 @@ export default function Contracts() {
       const departureMatch =
         selectedDepartureAirport === "all" || normIcao(contract.departure_airport) === normIcao(selectedDepartureAirport);
       const ownedDepartureMatch =
+        !hasOwnedDepartureContracts ||
         ownedHangarAirportSet.size === 0 ||
         ownedHangarAirportSet.has(normIcao(contract.departure_airport));
       return (
@@ -523,7 +538,7 @@ export default function Contracts() {
         ownedDepartureMatch
       );
     });
-  }, [activeTab, incompatibleContracts, ownedHangarAirportSet, searchTerm, selectedDepartureAirport]);
+  }, [activeTab, hasOwnedDepartureContracts, incompatibleContracts, ownedHangarAirportSet, searchTerm, selectedDepartureAirport]);
 
   const mapContracts = useMemo(() => {
     const merged = new Map();
@@ -615,6 +630,13 @@ export default function Contracts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: lang === "de" ? "Auftragsgenerierung fehlgeschlagen" : "Contract generation failed",
+        description: error?.message || (lang === "de" ? "Unbekannter Fehler." : "Unknown error."),
+      });
     },
   });
 
@@ -766,10 +788,10 @@ export default function Contracts() {
   useEffect(() => {
     if (isLoading) return;
     if (!pageData) return;
-    if (allContracts.length > 0) return;
+    if (availableContracts.length > 0) return;
     if (generateMutation.isPending) return;
     generateMutation.mutate();
-  }, [allContracts.length, generateMutation, isLoading, pageData]);
+  }, [availableContracts.length, generateMutation, isLoading, pageData]);
 
   const acceptContractMutation = useMutation({
     mutationFn: async (contract) => {
