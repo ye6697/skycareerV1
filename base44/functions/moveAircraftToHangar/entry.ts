@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
     const aircraftId = normalizeIdentifier(body?.aircraftId);
     const targetHangarId = normalizeIdentifier(body?.targetHangarId);
     const targetAirport = normalizeIcao(body?.targetAirport);
+    const requestedCompanyId = normalizeIdentifier(body?.companyId);
     const transferCost = Math.max(0, Number(body?.transferCost || 0));
     const lang = String(body?.lang || 'en').trim().toLowerCase() === 'de' ? 'de' : 'en';
 
@@ -129,7 +130,14 @@ Deno.serve(async (req) => {
     const userEmail = String(user?.email || '').trim().toLowerCase();
     const aircraftCompanyId = String(aircraft.company_id || '').trim();
 
-    let company = await resolveCompany(base44, user);
+    let company = null;
+    if (requestedCompanyId && requestedCompanyId === aircraftCompanyId) {
+      const requestedCompanyRows = await base44.asServiceRole.entities.Company.filter({ id: requestedCompanyId });
+      company = requestedCompanyRows?.[0] || null;
+    }
+    if (!company) {
+      company = await resolveCompany(base44, user);
+    }
     if (!company?.id || String(company.id) !== aircraftCompanyId) {
       const aircraftCompanyRows = aircraftCompanyId
         ? await base44.asServiceRole.entities.Company.filter({ id: aircraftCompanyId })

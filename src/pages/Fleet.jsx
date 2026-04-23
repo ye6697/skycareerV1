@@ -794,13 +794,24 @@ export default function Fleet() {
       }
       const targetAirport = normIcao(targetAirportIcao);
       const transferCost = Number(validation.transferCost || 0);
-      const response = await base44.functions.invoke('moveAircraftToHangar', {
-        aircraftId: aircraftEntry.id,
-        targetHangarId: validation.targetHangarId,
-        targetAirport,
-        transferCost,
-        lang,
-      });
+      let response = null;
+      try {
+        response = await base44.functions.invoke('moveAircraftToHangar', {
+          aircraftId: aircraftEntry.id,
+          targetHangarId: validation.targetHangarId,
+          targetAirport,
+          companyId: company.id,
+          transferCost,
+          lang,
+        });
+      } catch (invokeError) {
+        const message =
+          invokeError?.response?.data?.error
+          || invokeError?.data?.error
+          || invokeError?.message
+          || 'Transfer failed.';
+        throw new Error(message);
+      }
       const result = response?.data || {};
       if (!response || response.error || !result.success) {
         throw new Error(result.error || response?.error || 'Transfer failed.');
