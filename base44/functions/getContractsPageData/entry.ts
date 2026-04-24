@@ -39,10 +39,23 @@ async function resolveCompany(base44: any, user: any) {
   return allCandidates[0];
 }
 
+const HANGAR_SIZE_RULES: Record<string, { slots: number; allowed_types: string[] }> = {
+  small: { slots: 2, allowed_types: ['small_prop', 'turboprop'] },
+  medium: { slots: 4, allowed_types: ['small_prop', 'turboprop', 'regional_jet'] },
+  large: { slots: 6, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'cargo'] },
+  mega: { slots: 10, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'] }
+};
+
 function getLegacyHangarId(airportIcao, ordinal = 1) {
   const airport = String(airportIcao || '').toUpperCase() || 'UNKNOWN';
   if (ordinal > 1) return `legacy_hangar_${airport}_${ordinal}`;
   return `legacy_hangar_${airport}`;
+}
+
+function getLegacyAirportFromHangarId(hangarId: unknown): string {
+  const raw = String(hangarId || '').trim();
+  if (!raw.toLowerCase().startsWith('legacy_hangar_')) return '';
+  return String(raw.slice('legacy_hangar_'.length).replace(/_\d+$/, '')).toUpperCase();
 }
 
 function getHangarAirportIcao(rawHangar: any): string {
@@ -86,53 +99,88 @@ function hangarsNeedMigration(rawHangars = [], normalizedHangars = []) {
   return false;
 }
 
-function buildHangarLookup(hangars = []) {
-  const byId = new Map();
-  const byAirport = new Map();
-  for (const hangar of hangars) {
-    const id = String(hangar?.id || '').trim();
-    const airport = String(hangar?.airport_icao || '').toUpperCase();
-    if (id) byId.set(id, hangar);
-    if (airport) {
-      const list = byAirport.get(airport) || [];
-      list.push(hangar);
-      byAirport.set(airport, list);
-    }
-  }
-  return { byId, byAirport };
+function getHangarRule(hangar: any) {
+  const fallback = HANGAR_SIZE_RULES[String(hangar?.size || '').toLowerCase()] || HANGAR_SIZE_RULES.small;
+  const slotsRaw = Number(hangar?.slots);
+  const allowedTypes = Array.isArray(hangar?.allowed_types) && hangar.allowed_types.length > 0
+    ? hangar.allowed_types
+    : fallback.allowed_types;
+  return {
+    slots: Number.isFinite(slotsRaw) && slotsRaw > 0 ? slotsRaw : fallback.slots,
+    allowed_types: allowedTypes.map((type: unknown) => String(type || '').trim().toLowerCase()).filter(Boolean),
+  };
 }
 
-function resolveAircraftHangar(aircraft, hangarLookup, fallbackHangars = []) {
-  const directId = String(aircraft?.hangar_id || '').trim();
-  if (directId && hangarLookup.byId.has(directId)) {
-    const matched = hangarLookup.byId.get(directId);
-    return {
-      hangar_id: directId,
-      hangar_airport: String(matched?.airport_icao || aircraft?.hangar_airport || '').toUpperCase(),
-    };
-  }
+function resolveAircraftHangars(aircraft = [], hangars = []) {
+  const states = hangars.map((hangar: any) => ({
+    hangar,
+    key: String(hangar?.id || '').trim(),
+    airport: String(hangar?.airport_icao || '').toUpperCase(),
+    rule: getHangarRule(hangar),
+    usedSlots: 0,
+  }));
+  const byId = new Map(states.filter((state) => state.key).map((state) => [state.key, state]));
+  const byAirport = new Map<string, any[]>();
+  states.forEach((state) => {
+    if (!state.airport) return;
+    const list = byAirport.get(state.airport) || [];
+    list.push(state);
+    byAirport.set(state.airport, list);
+  });
 
-  const airport = String(aircraft?.hangar_airport || '').toUpperCase();
-  const airportHangars = hangarLookup.byAirport.get(airport) || [];
-  if (airportHangars.length > 0) {
-    return {
-      hangar_id: String(airportHangars[0]?.id || '').trim(),
-      hangar_airport: airport,
-    };
-  }
+  const resolvedById = new Map<string, { hangar_id: string; hangar_airport: string }>();
+  const deferred: any[] = [];
+  aircraft.forEach((entry: any) => {
+    const aircraftHangarId = String(entry?.hangar_id || '').trim();
+    const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
+    if (directMatch) {
+      const directSlots = Number(directMatch.rule.slots || 0);
+      if (directSlots <= 0 || directMatch.usedSlots < directSlots) {
+        directMatch.usedSlots += 1;
+        resolvedById.set(String(entry.id), { hangar_id: directMatch.key, hangar_airport: directMatch.airport });
+        return;
+      }
+      deferred.push({ entry, airport: directMatch.airport });
+      return;
+    }
 
-  if (!directId && fallbackHangars.length > 0) {
-    const first = fallbackHangars[0];
-    return {
-      hangar_id: String(first?.id || '').trim(),
-      hangar_airport: String(first?.airport_icao || '').toUpperCase(),
-    };
-  }
+    const airport = String(entry?.hangar_airport || '').toUpperCase() || getLegacyAirportFromHangarId(aircraftHangarId);
+    if (airport) {
+      deferred.push({ entry, airport });
+    } else if (hangars.length > 0) {
+      deferred.push({ entry, airport: String(hangars[0]?.airport_icao || '').toUpperCase() });
+    }
+  });
 
-  return {
-    hangar_id: directId,
-    hangar_airport: airport,
-  };
+  deferred.forEach(({ entry, airport }) => {
+    const airportHangars = byAirport.get(airport) || [];
+    if (airportHangars.length === 0) return;
+    const aircraftType = String(entry?.type || '').trim().toLowerCase();
+    const candidates = airportHangars
+      .filter((state) => state.rule.allowed_types.length === 0 || state.rule.allowed_types.includes(aircraftType))
+      .sort((a, b) => {
+        const aFree = Number(a.rule.slots || 0) > 0 ? Number(a.rule.slots || 0) - a.usedSlots : Number.POSITIVE_INFINITY;
+        const bFree = Number(b.rule.slots || 0) > 0 ? Number(b.rule.slots || 0) - b.usedSlots : Number.POSITIVE_INFINITY;
+        if (bFree !== aFree) return bFree - aFree;
+        return a.usedSlots - b.usedSlots;
+      });
+    const target = candidates.find((state) => Number(state.rule.slots || 0) <= 0 || state.usedSlots < Number(state.rule.slots || 0))
+      || candidates[0]
+      || airportHangars[0];
+    if (!target) return;
+    target.usedSlots += 1;
+    resolvedById.set(String(entry.id), { hangar_id: target.key, hangar_airport: target.airport });
+  });
+
+  return aircraft.map((entry: any) => {
+    const resolved = resolvedById.get(String(entry.id));
+    if (!resolved) return entry;
+    return {
+      ...entry,
+      hangar_id: resolved.hangar_id,
+      hangar_airport: resolved.hangar_airport,
+    };
+  });
 }
 
 Deno.serve(async (req) => {
@@ -169,20 +217,12 @@ Deno.serve(async (req) => {
       company = { ...company, hangars: normalizedHangars };
     }
 
-    const hangarLookup = buildHangarLookup(normalizedHangars);
-
     // Get aircraft for this company
     const allAircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
-    const aircraft = allAircraft
-      .filter((a) => a.status !== 'sold')
-      .map((a) => {
-        const resolved = resolveAircraftHangar(a, hangarLookup, normalizedHangars);
-        return {
-          ...a,
-          hangar_id: resolved.hangar_id,
-          hangar_airport: resolved.hangar_airport,
-        };
-      });
+    const aircraft = resolveAircraftHangars(
+      allAircraft.filter((a) => a.status !== 'sold'),
+      normalizedHangars
+    );
 
     // Get contracts for this company (available + accepted)
     const allContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });

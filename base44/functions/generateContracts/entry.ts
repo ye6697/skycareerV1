@@ -240,6 +240,12 @@ function getLegacyHangarId(airportIcao, ordinal = 1) {
   return `legacy_hangar_${airport}`;
 }
 
+function getLegacyAirportFromHangarId(hangarId: unknown): string {
+  const raw = String(hangarId || '').trim();
+  if (!raw.toLowerCase().startsWith('legacy_hangar_')) return '';
+  return normalizeIcao(raw.slice('legacy_hangar_'.length).replace(/_\d+$/, ''));
+}
+
 function normalizeCompanyHangars(rawHangars = []) {
   const perAirportCounts = new Map();
   return rawHangars.map((rawHangar, index) => {
@@ -323,37 +329,88 @@ function hangarsNeedMigration(rawHangars = [], normalizedHangars = []) {
   return false;
 }
 
-function buildHangarLookup(hangars = []) {
-  const byId = new Map();
-  const byAirport = new Map();
-  for (const hangar of hangars) {
-    const id = String(hangar?.id || '').trim();
-    const airport = String(hangar?.airport_icao || '').toUpperCase();
-    if (id) byId.set(id, hangar);
-    if (airport) {
-      const list = byAirport.get(airport) || [];
-      list.push(hangar);
-      byAirport.set(airport, list);
-    }
-  }
-  return { byId, byAirport };
+function getHangarRule(hangar: any) {
+  const fallback = HANGAR_SIZE_RULES[String(hangar?.size || '').toLowerCase()] || HANGAR_SIZE_RULES.small;
+  const slotsRaw = Number(hangar?.slots);
+  const allowedTypes = Array.isArray(hangar?.allowed_types) && hangar.allowed_types.length > 0
+    ? hangar.allowed_types
+    : fallback.allowed_types;
+  return {
+    slots: Number.isFinite(slotsRaw) && slotsRaw > 0 ? slotsRaw : fallback.slots,
+    allowed_types: allowedTypes.map((type: unknown) => String(type || '').trim().toLowerCase()).filter(Boolean),
+  };
 }
 
-function resolveAircraftHangarId(plane, hangarLookup, normalizedHangars = []) {
-  const directId = String(plane?.hangar_id || '').trim();
-  if (directId && hangarLookup.byId.has(directId)) return directId;
+function resolveAircraftHangars(aircraft = [], hangars = []) {
+  const states = hangars.map((hangar: any) => ({
+    hangar,
+    key: String(hangar?.id || '').trim(),
+    airport: String(hangar?.airport_icao || '').toUpperCase(),
+    rule: getHangarRule(hangar),
+    usedSlots: 0,
+  }));
+  const byId = new Map(states.filter((state) => state.key).map((state) => [state.key, state]));
+  const byAirport = new Map<string, any[]>();
+  states.forEach((state) => {
+    if (!state.airport) return;
+    const list = byAirport.get(state.airport) || [];
+    list.push(state);
+    byAirport.set(state.airport, list);
+  });
 
-  const airport = String(plane?.hangar_airport || '').toUpperCase();
-  const airportHangars = hangarLookup.byAirport.get(airport) || [];
-  if (airportHangars.length > 0) {
-    return String(airportHangars[0]?.id || '').trim();
-  }
+  const resolvedById = new Map<string, { hangar_id: string; hangar_airport: string }>();
+  const deferred: any[] = [];
+  aircraft.forEach((entry: any) => {
+    const aircraftHangarId = String(entry?.hangar_id || '').trim();
+    const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
+    if (directMatch) {
+      const directSlots = Number(directMatch.rule.slots || 0);
+      if (directSlots <= 0 || directMatch.usedSlots < directSlots) {
+        directMatch.usedSlots += 1;
+        resolvedById.set(String(entry.id), { hangar_id: directMatch.key, hangar_airport: directMatch.airport });
+        return;
+      }
+      deferred.push({ entry, airport: directMatch.airport });
+      return;
+    }
 
-  if (!directId && normalizedHangars.length > 0) {
-    return String(normalizedHangars[0]?.id || '').trim();
-  }
+    const airport = String(entry?.hangar_airport || '').toUpperCase() || getLegacyAirportFromHangarId(aircraftHangarId);
+    if (airport) {
+      deferred.push({ entry, airport });
+    } else if (hangars.length > 0) {
+      deferred.push({ entry, airport: String(hangars[0]?.airport_icao || '').toUpperCase() });
+    }
+  });
 
-  return '';
+  deferred.forEach(({ entry, airport }) => {
+    const airportHangars = byAirport.get(airport) || [];
+    if (airportHangars.length === 0) return;
+    const aircraftType = String(entry?.type || '').trim().toLowerCase();
+    const candidates = airportHangars
+      .filter((state) => state.rule.allowed_types.length === 0 || state.rule.allowed_types.includes(aircraftType))
+      .sort((a, b) => {
+        const aFree = Number(a.rule.slots || 0) > 0 ? Number(a.rule.slots || 0) - a.usedSlots : Number.POSITIVE_INFINITY;
+        const bFree = Number(b.rule.slots || 0) > 0 ? Number(b.rule.slots || 0) - b.usedSlots : Number.POSITIVE_INFINITY;
+        if (bFree !== aFree) return bFree - aFree;
+        return a.usedSlots - b.usedSlots;
+      });
+    const target = candidates.find((state) => Number(state.rule.slots || 0) <= 0 || state.usedSlots < Number(state.rule.slots || 0))
+      || candidates[0]
+      || airportHangars[0];
+    if (!target) return;
+    target.usedSlots += 1;
+    resolvedById.set(String(entry.id), { hangar_id: target.key, hangar_airport: target.airport });
+  });
+
+  return aircraft.map((entry: any) => {
+    const resolved = resolvedById.get(String(entry.id));
+    if (!resolved) return entry;
+    return {
+      ...entry,
+      hangar_id: resolved.hangar_id,
+      hangar_airport: resolved.hangar_airport,
+    };
+  });
 }
 
 function pickDepartureAirport(departureUsage, departurePool = airports) {
@@ -550,23 +607,11 @@ Deno.serve(async (req) => {
         .map((hangar) => normalizeIcao(hangar?.airport_icao))
         .filter(Boolean)
     );
-    const hangarLookup = buildHangarLookup(normalizedHangars);
-
     // Get user's aircraft
     const aircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
     const availableAircraft = aircraft.filter(a => a.status !== 'sold');
     const availableAircraftById = new Map(availableAircraft.map((plane) => [plane.id, plane]));
-    const normalizedAvailableAircraft = availableAircraft.map((plane) => {
-      const resolvedHangarId = resolveAircraftHangarId(plane, hangarLookup, normalizedHangars);
-      if (!resolvedHangarId) return plane;
-      const resolvedHangar = hangarLookup.byId.get(resolvedHangarId);
-      const resolvedAirport = String(resolvedHangar?.airport_icao || plane?.hangar_airport || '').toUpperCase();
-      return {
-        ...plane,
-        hangar_id: resolvedHangarId,
-        hangar_airport: resolvedAirport,
-      };
-    });
+    const normalizedAvailableAircraft = resolveAircraftHangars(availableAircraft, normalizedHangars);
 
     const aircraftHangarFixes = [];
     for (const plane of normalizedAvailableAircraft) {
@@ -734,9 +779,9 @@ Deno.serve(async (req) => {
       const hangarAircraft = filteredAircraft.filter((plane) => {
         const aircraftHangarId = String(plane?.hangar_id || '').trim();
         const planeHangarAirport = String(plane?.hangar_airport || '').toUpperCase();
-        const stationedHere =
-          (aircraftHangarId && hangarId && aircraftHangarId === hangarId) ||
-          planeHangarAirport === hangarAirport;
+        const stationedHere = aircraftHangarId && hangarId
+          ? aircraftHangarId === hangarId
+          : planeHangarAirport === hangarAirport;
         return stationedHere && hangarRule.allowed_types.includes(plane.type);
       });
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];
