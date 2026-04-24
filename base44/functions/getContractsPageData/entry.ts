@@ -219,10 +219,34 @@ Deno.serve(async (req) => {
 
     // Get aircraft for this company
     const allAircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
-    const aircraft = resolveAircraftHangars(
-      allAircraft.filter((a) => a.status !== 'sold'),
-      normalizedHangars
-    );
+    const activeAircraft = allAircraft.filter((a) => a.status !== 'sold');
+    const aircraft = resolveAircraftHangars(activeAircraft, normalizedHangars);
+    const aircraftById = new Map(activeAircraft.map((entry: any) => [String(entry.id), entry]));
+    const aircraftHangarFixes = aircraft
+      .map((entry: any) => {
+        const original = aircraftById.get(String(entry.id));
+        if (!original) return null;
+        const nextHangarId = String(entry?.hangar_id || '').trim();
+        const prevHangarId = String(original?.hangar_id || '').trim();
+        const nextAirport = String(entry?.hangar_airport || '').toUpperCase();
+        const prevAirport = String(original?.hangar_airport || '').toUpperCase();
+        if (!nextHangarId || (nextHangarId === prevHangarId && nextAirport === prevAirport)) return null;
+        return {
+          id: entry.id,
+          hangar_id: nextHangarId,
+          hangar_airport: nextAirport,
+        };
+      })
+      .filter(Boolean);
+
+    if (aircraftHangarFixes.length > 0) {
+      await Promise.all(
+        aircraftHangarFixes.map((fix: any) => base44.asServiceRole.entities.Aircraft.update(fix.id, {
+          hangar_id: fix.hangar_id,
+          hangar_airport: fix.hangar_airport,
+        }))
+      );
+    }
 
     // Get contracts for this company (available + accepted)
     const allContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });
