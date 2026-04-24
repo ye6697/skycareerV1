@@ -74,6 +74,10 @@ function normIcao(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function normHangarId(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function getHangarAirportIcao(hangar) {
   return normIcao(
     hangar?.airport_icao ||
@@ -126,13 +130,13 @@ function getAircraftAssignedAirport(aircraft, hangars = []) {
   const directAirport = normIcao(aircraft?.hangar_airport);
   if (directAirport) return directAirport;
 
-  const aircraftHangarId = String(aircraft?.hangar_id || "").trim();
+  const aircraftHangarId = normHangarId(aircraft?.hangar_id);
   if (!aircraftHangarId) return "";
 
   const matchedHangar = hangars.find(
-    (hangar) => getHangarId(hangar) === aircraftHangarId
+    (hangar) => normHangarId(getHangarId(hangar)) === aircraftHangarId
   );
-  return getHangarAirportIcao(matchedHangar) || getLegacyAirportFromHangarId(aircraftHangarId);
+  return getHangarAirportIcao(matchedHangar) || getLegacyAirportFromHangarId(aircraft?.hangar_id);
 }
 
 function parseDateValue(value) {
