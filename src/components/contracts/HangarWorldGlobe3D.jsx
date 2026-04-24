@@ -259,10 +259,16 @@ export default function HangarWorldGlobe3D({
   const marketPanelMaxHeight = isFullscreen ? "calc(100vh - 5.2rem)" : "calc(100% - 5.2rem)";
   const selectedIcao = normIcao(selectedAirportIcao);
   const preventMapScrollCapture = {
-    onPointerDownCapture: (event) => {
+    onPointerDown: (event) => {
       event.stopPropagation();
     },
-    onClickCapture: (event) => {
+    onMouseDown: (event) => {
+      event.stopPropagation();
+    },
+    onTouchStart: (event) => {
+      event.stopPropagation();
+    },
+    onClick: (event) => {
       event.stopPropagation();
     },
     onWheelCapture: (event) => {
