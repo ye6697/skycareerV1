@@ -238,15 +238,29 @@ const getLegacyAirportFromHangarId = (hangarId) => {
 
 const isAircraftActiveInFleet = (entry) => String(entry?.status || '').toLowerCase() !== 'sold';
 
-const getAircraftAssignedAirport = (aircraftEntry, hangars = []) => {
-  const directAirport = normIcaoValue(aircraftEntry?.hangar_airport);
-  if (directAirport) return directAirport;
+const getAircraftAssignedHangarId = (aircraftEntry, hangars = []) => {
   const aircraftHangarId = String(aircraftEntry?.hangar_id || '').trim();
-  if (!aircraftHangarId) return '';
-  const legacyAirport = getLegacyAirportFromHangarId(aircraftHangarId);
-  if (legacyAirport) return legacyAirport;
-  const matchedHangar = hangars.find((hangar) => getHangarIdOrFallback(hangar) === aircraftHangarId);
-  return getHangarAirportIcao(matchedHangar);
+  if (aircraftHangarId && hangars.some((hangar) => getHangarIdOrFallback(hangar) === aircraftHangarId)) {
+    return aircraftHangarId;
+  }
+
+  const airport = normIcaoValue(aircraftEntry?.hangar_airport) || getLegacyAirportFromHangarId(aircraftHangarId);
+  if (!airport) return '';
+  const airportHangars = hangars.filter((hangar) => getHangarAirportIcao(hangar) === airport);
+  if (airportHangars.length === 1) return getHangarIdOrFallback(airportHangars[0]);
+  return '';
+};
+
+const getAircraftAssignedAirport = (aircraftEntry, hangars = []) => {
+  const aircraftHangarId = String(aircraftEntry?.hangar_id || '').trim();
+  if (aircraftHangarId) {
+    const matchedHangar = hangars.find((hangar) => getHangarIdOrFallback(hangar) === aircraftHangarId);
+    const matchedAirport = getHangarAirportIcao(matchedHangar);
+    if (matchedAirport) return matchedAirport;
+    const legacyAirport = getLegacyAirportFromHangarId(aircraftHangarId);
+    if (legacyAirport) return legacyAirport;
+  }
+  return normIcaoValue(aircraftEntry?.hangar_airport);
 };
 
 const resolveHangarRule = (hangar) => {
@@ -942,20 +956,31 @@ export default function Fleet() {
       });
       movableAircraft.forEach((entry) => {
         const currentAirport = getAircraftAssignedAirport(entry, ownedHangars);
+        const currentHangarId = getAircraftAssignedHangarId(entry, ownedHangars);
         const alternativeAirport = normIcao(
           ownedHangars.find((hangar) => normIcao(hangar.airport_icao) !== currentAirport)?.airport_icao
         );
+        const alternativeHangarId = getHangarIdOrFallback(
+          ownedHangars.find((hangar) => normIcao(hangar.airport_icao) !== currentAirport)
+        );
         if (!next[entry.id]) {
-          next[entry.id] = alternativeAirport || currentAirport || normIcao(ownedHangars[0]?.airport_icao);
+          next[entry.id] = alternativeHangarId || currentHangarId || getHangarIdOrFallback(ownedHangars[0]) || alternativeAirport || currentAirport;
         }
       });
       return next;
     });
   }, [movableAircraft, ownedHangars]);
 
-  const getAircraftTransferCost = React.useCallback((aircraftEntry, targetAirportIcao) => {
+  const getTargetHangarFromRef = React.useCallback((targetHangarRef) => {
+    const targetRef = String(targetHangarRef || '').trim();
+    if (!targetRef) return null;
+    return ownedHangars.find((hangar) => getHangarIdOrFallback(hangar) === targetRef) || null;
+  }, [ownedHangars]);
+
+  const getAircraftTransferCost = React.useCallback((aircraftEntry, targetHangarRef) => {
     const currentAirport = getAircraftAssignedAirport(aircraftEntry, ownedHangars);
-    const targetAirport = normIcao(targetAirportIcao);
+    const targetHangar = getTargetHangarFromRef(targetHangarRef);
+    const targetAirport = targetHangar ? getHangarAirportIcao(targetHangar) : normIcao(targetHangarRef);
     if (!targetAirport || !currentAirport || targetAirport === currentAirport) return 0;
     const newValue = Number(
       aircraftEntry?.original_purchase_price ||
@@ -965,16 +990,24 @@ export default function Fleet() {
     );
     if (newValue <= 0) return 0;
     return Math.round(newValue * 0.1);
-  }, [ownedHangars]);
+  }, [getTargetHangarFromRef, ownedHangars]);
 
-  const getFleetMoveValidation = React.useCallback((aircraftEntry, targetAirportIcao) => {
-    const targetAirport = normIcao(targetAirportIcao);
+  const getFleetMoveValidation = React.useCallback((aircraftEntry, targetHangarRef) => {
+    const exactTargetHangar = getTargetHangarFromRef(targetHangarRef);
+    const targetAirport = exactTargetHangar ? getHangarAirportIcao(exactTargetHangar) : normIcao(targetHangarRef);
     const currentAirport = getAircraftAssignedAirport(aircraftEntry, ownedHangars);
-    const targetHangars = ownedHangars.filter((hangar) => normIcao(hangar.airport_icao) === targetAirport);
+    const currentHangarId = getAircraftAssignedHangarId(aircraftEntry, ownedHangars);
+    const targetHangars = exactTargetHangar
+      ? [exactTargetHangar]
+      : ownedHangars.filter((hangar) => normIcao(hangar.airport_icao) === targetAirport);
     if (!targetAirport || targetHangars.length === 0) {
       return { valid: false, reason: lang === 'de' ? 'Hangar waehlen.' : 'Select hangar.' };
     }
-    if (targetAirport === currentAirport) {
+    const exactTargetHangarId = exactTargetHangar ? getHangarIdOrFallback(exactTargetHangar) : '';
+    if (exactTargetHangarId && currentHangarId && exactTargetHangarId === currentHangarId) {
+      return { valid: false, reason: lang === 'de' ? 'Bereits in diesem Hangar.' : 'Already in this hangar.' };
+    }
+    if (!exactTargetHangarId && targetAirport === currentAirport) {
       return { valid: false, reason: lang === 'de' ? 'Bereits in diesem Hangar.' : 'Already in this hangar.' };
     }
     const usageByHangarId = buildHangarSlotUsage(ownedHangars, movableAircraft, aircraftEntry.id);
@@ -1008,7 +1041,7 @@ export default function Fleet() {
     }
 
     const targetHangar = viableTargets[0].hangar;
-    const transferCost = getAircraftTransferCost(aircraftEntry, targetAirport);
+    const transferCost = getAircraftTransferCost(aircraftEntry, getHangarIdOrFallback(targetHangar));
     if (Number(company?.balance || 0) < transferCost) {
       return { valid: false, reason: lang === 'de' ? 'Nicht genug Guthaben.' : 'Insufficient balance.' };
     }
@@ -1017,16 +1050,16 @@ export default function Fleet() {
       return { valid: false, reason: lang === 'de' ? 'Hangar-ID fehlt. Bitte Seite neu laden.' : 'Hangar id is missing. Please reload.' };
     }
     return { valid: true, reason: '', transferCost, targetHangar, targetHangarId };
-  }, [ownedHangars, lang, movableAircraft, getAircraftTransferCost, company?.balance]);
+  }, [company?.balance, getAircraftTransferCost, getTargetHangarFromRef, lang, movableAircraft, ownedHangars]);
 
   const moveAircraftMutation = useMutation({
-    mutationFn: async ({ aircraftEntry, targetAirportIcao }) => {
+    mutationFn: async ({ aircraftEntry, targetHangarRef, targetAirportIcao }) => {
       if (!company?.id) throw new Error('Company not found.');
-      const validation = getFleetMoveValidation(aircraftEntry, targetAirportIcao);
+      const validation = getFleetMoveValidation(aircraftEntry, targetHangarRef || targetAirportIcao);
       if (!validation.valid || !validation.targetHangar || !validation.targetHangarId) {
         throw new Error(validation.reason || 'Invalid transfer.');
       }
-      const targetAirport = normIcao(targetAirportIcao);
+      const targetAirport = getHangarAirportIcao(validation.targetHangar) || normIcao(targetAirportIcao);
       const transferCost = Number(validation.transferCost || 0);
       let response = null;
       try {
@@ -1067,7 +1100,7 @@ export default function Fleet() {
     onSuccess: (result) => {
       setFleetMoveTargets((previous) => ({
         ...previous,
-        [result.aircraftEntry.id]: result.targetAirport,
+        [result.aircraftEntry.id]: result.targetHangarId,
       }));
       queryClient.setQueryData(['aircraft', company?.id], (previous) =>
         Array.isArray(previous)
@@ -1595,10 +1628,13 @@ export default function Fleet() {
               <div className="space-y-1.5">
                 {movableAircraft.map((aircraftEntry) => {
                   const currentAirport = getAircraftAssignedAirport(aircraftEntry, ownedHangars);
-                  const selectedTarget = normIcao(fleetMoveTargets[aircraftEntry.id]) || currentAirport;
-                  const moveInfo = getFleetMoveValidation(aircraftEntry, selectedTarget);
-                  const sameHangar = Boolean(currentAirport && selectedTarget && currentAirport === selectedTarget);
-                  const transferCost = getAircraftTransferCost(aircraftEntry, selectedTarget);
+                  const currentHangarId = getAircraftAssignedHangarId(aircraftEntry, ownedHangars);
+                  const selectedTargetHangarId = String(fleetMoveTargets[aircraftEntry.id] || '').trim() || currentHangarId;
+                  const selectedTargetHangar = getTargetHangarFromRef(selectedTargetHangarId);
+                  const selectedTargetAirport = selectedTargetHangar ? getHangarAirportIcao(selectedTargetHangar) : normIcao(selectedTargetHangarId) || currentAirport;
+                  const moveInfo = getFleetMoveValidation(aircraftEntry, selectedTargetHangarId || selectedTargetAirport);
+                  const sameHangar = Boolean(currentHangarId && selectedTargetHangarId && currentHangarId === selectedTargetHangarId);
+                  const transferCost = getAircraftTransferCost(aircraftEntry, selectedTargetHangarId || selectedTargetAirport);
                   return (
                     <div key={aircraftEntry.id} className="rounded border border-slate-700/70 bg-slate-900/70 p-2">
                       <p className="truncate text-[11px] font-semibold text-cyan-100">
@@ -1609,20 +1645,21 @@ export default function Fleet() {
                       </p>
                       <div className="mt-1 flex items-center gap-1.5">
                         <select
-                          value={selectedTarget}
+                          value={selectedTargetHangarId}
                           onChange={(event) =>
                             setFleetMoveTargets((previous) => ({
                               ...previous,
-                              [aircraftEntry.id]: normIcao(event.target.value),
+                              [aircraftEntry.id]: String(event.target.value || '').trim(),
                             }))
                           }
                           className="h-7 flex-1 rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] text-cyan-100"
                         >
                           {ownedHangars.map((hangar) => {
                             const icao = normIcao(hangar.airport_icao);
+                            const hangarId = getHangarIdOrFallback(hangar);
                             return (
-                              <option key={`${aircraftEntry.id}_${icao}`} value={icao}>
-                                {icao}
+                              <option key={`${aircraftEntry.id}_${hangarId || icao}`} value={hangarId}>
+                                {icao} | {String(hangar.model_variant || hangar.size || 'hangar').toUpperCase()}
                               </option>
                             );
                           })}
@@ -1630,7 +1667,11 @@ export default function Fleet() {
                         <Button
                           type="button"
                           disabled={sameHangar || !moveInfo.valid || moveAircraftMutation.isPending}
-                          onClick={() => moveAircraftMutation.mutate({ aircraftEntry, targetAirportIcao: selectedTarget })}
+                          onClick={() => moveAircraftMutation.mutate({
+                            aircraftEntry,
+                            targetHangarRef: selectedTargetHangarId,
+                            targetAirportIcao: selectedTargetAirport,
+                          })}
                           className="h-7 bg-emerald-600 px-2 text-[10px] font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
                         >
                           {moveAircraftMutation.isPending

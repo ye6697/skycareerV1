@@ -122,17 +122,32 @@ function isAircraftActive(aircraft) {
   return String(aircraft?.status || "").toLowerCase() !== "sold";
 }
 
-function getAircraftAssignedAirport(aircraft, hangars = []) {
-  const directAirport = normIcao(aircraft?.hangar_airport);
-  if (directAirport) return directAirport;
-
+function getAircraftAssignedHangarId(aircraft, hangars = []) {
   const aircraftHangarId = String(aircraft?.hangar_id || "").trim();
-  if (!aircraftHangarId) return "";
+  if (aircraftHangarId && hangars.some((hangar) => getHangarId(hangar) === aircraftHangarId)) {
+    return aircraftHangarId;
+  }
 
-  const matchedHangar = hangars.find(
-    (hangar) => getHangarId(hangar) === aircraftHangarId
-  );
-  return getHangarAirportIcao(matchedHangar) || getLegacyAirportFromHangarId(aircraftHangarId);
+  const airport = normIcao(aircraft?.hangar_airport) || getLegacyAirportFromHangarId(aircraftHangarId);
+  if (!airport) return "";
+  const airportHangars = hangars.filter((hangar) => getHangarAirportIcao(hangar) === airport);
+  if (airportHangars.length === 1) return getHangarId(airportHangars[0]);
+  return "";
+}
+
+function getAircraftAssignedAirport(aircraft, hangars = []) {
+  const aircraftHangarId = String(aircraft?.hangar_id || "").trim();
+  if (aircraftHangarId) {
+    const matchedHangar = hangars.find(
+      (hangar) => getHangarId(hangar) === aircraftHangarId
+    );
+    const matchedAirport = getHangarAirportIcao(matchedHangar);
+    if (matchedAirport) return matchedAirport;
+    const legacyAirport = getLegacyAirportFromHangarId(aircraftHangarId);
+    if (legacyAirport) return legacyAirport;
+  }
+
+  return normIcao(aircraft?.hangar_airport);
 }
 
 function parseDateValue(value) {
@@ -940,17 +955,27 @@ export default function Contracts() {
     return Math.round(baseValue * 0.1);
   }
 
-  function getMoveValidation(aircraft, targetAirportIcao) {
+  function getMoveValidation(aircraft, targetAirportIcao, targetHangarId = "") {
     const targetAirport = normIcao(targetAirportIcao);
+    const exactTargetHangarId = String(targetHangarId || "").trim();
+    const exactTargetHangar = exactTargetHangarId
+      ? ownedHangars.find((hangar) => getHangarId(hangar) === exactTargetHangarId) || null
+      : null;
     const currentAirport = getAircraftAssignedAirport(aircraft, ownedHangars);
-    const targetHangars = ownedHangars.filter(
-      (hangar) => normIcao(hangar.airport_icao) === targetAirport
-    );
+    const currentHangarId = getAircraftAssignedHangarId(aircraft, ownedHangars);
+    const targetHangars = exactTargetHangar
+      ? [exactTargetHangar]
+      : ownedHangars.filter(
+        (hangar) => normIcao(hangar.airport_icao) === targetAirport
+      );
 
     if (!targetAirport || targetHangars.length === 0) {
       return { valid: false, reason: lang === "de" ? "Hangar waehlen." : "Select hangar." };
     }
-    if (currentAirport === targetAirport) {
+    if (exactTargetHangarId && currentHangarId && exactTargetHangarId === currentHangarId) {
+      return { valid: false, reason: lang === "de" ? "Bereits in diesem Hangar." : "Already in this hangar." };
+    }
+    if (!exactTargetHangarId && currentAirport === targetAirport) {
       return { valid: false, reason: lang === "de" ? "Bereits in diesem Hangar." : "Already in this hangar." };
     }
 
@@ -1008,14 +1033,14 @@ export default function Contracts() {
   }
 
   const moveAircraftMutation = useMutation({
-    mutationFn: async ({ aircraft, targetAirportIcao }) => {
+    mutationFn: async ({ aircraft, targetAirportIcao, targetHangarId = "" }) => {
       if (!company?.id) throw new Error("Company not found.");
-      const validation = getMoveValidation(aircraft, targetAirportIcao);
+      const validation = getMoveValidation(aircraft, targetAirportIcao, targetHangarId);
       if (!validation.valid || !validation.targetHangar || !validation.targetHangarId) {
         throw new Error(validation.reason || "Invalid transfer.");
       }
 
-      const targetAirport = normIcao(targetAirportIcao);
+      const targetAirport = getHangarAirportIcao(validation.targetHangar) || normIcao(targetAirportIcao);
       const transferCost = Number(validation.transferCost || 0);
       let response = null;
       try {

@@ -17,6 +17,10 @@ function formatAirportDisplay(icao, label) {
   return `${normCode} - ${cleanLabel}`;
 }
 
+function getHangarId(hangar) {
+  return String(hangar?.id || hangar?.hangar_id || hangar?._id || "").trim();
+}
+
 function getActionContext(hangars, airportIcao, selectedVariant, lang) {
   const selectedSpec = getVariantSizeSpec(selectedVariant?.id);
   if (!selectedVariant || !selectedSpec) {
@@ -200,15 +204,56 @@ export default function HangarWorldGlobe3D({
     return normalizedHangars.find((hangar) => normIcao(hangar.airport_icao) === selectedIcao) || null;
   }, [normalizedHangars, selectedAirportIcao]);
 
+  const getAircraftHangarId = useMemo(() => {
+    const hangarsById = new Map(
+      normalizedHangars
+        .map((hangar) => [getHangarId(hangar), hangar])
+        .filter(([id]) => Boolean(id))
+    );
+    const hangarsByAirport = new Map();
+    normalizedHangars.forEach((hangar) => {
+      const airport = normIcao(hangar.airport_icao);
+      if (!airport) return;
+      const list = hangarsByAirport.get(airport) || [];
+      list.push(hangar);
+      hangarsByAirport.set(airport, list);
+    });
+
+    return (aircraft) => {
+      const directId = String(aircraft?.hangar_id || "").trim();
+      if (directId && hangarsById.has(directId)) return directId;
+      const airport = normIcao(aircraft?.hangar_airport);
+      const airportHangars = hangarsByAirport.get(airport) || [];
+      if (airportHangars.length === 1) return getHangarId(airportHangars[0]);
+      return "";
+    };
+  }, [normalizedHangars]);
+
+  const getAircraftHangarAirport = useMemo(() => {
+    const hangarsById = new Map(
+      normalizedHangars
+        .map((hangar) => [getHangarId(hangar), hangar])
+        .filter(([id]) => Boolean(id))
+    );
+
+    return (aircraft) => {
+      const directId = String(aircraft?.hangar_id || "").trim();
+      if (directId && hangarsById.has(directId)) {
+        return normIcao(hangarsById.get(directId)?.airport_icao);
+      }
+      return normIcao(aircraft?.hangar_airport);
+    };
+  }, [normalizedHangars]);
+
   const airportAircraft = useMemo(() => {
     const selectedIcao = normIcao(selectedAirportIcao);
     if (!selectedIcao) return [];
     return ownedAircraft.filter(
       (aircraft) =>
         String(aircraft?.status || "").toLowerCase() !== "sold" &&
-        normIcao(aircraft?.hangar_airport) === selectedIcao
+        getAircraftHangarAirport(aircraft) === selectedIcao
     );
-  }, [ownedAircraft, selectedAirportIcao]);
+  }, [getAircraftHangarAirport, ownedAircraft, selectedAirportIcao]);
 
   const assignableAircraft = useMemo(() => {
     return ownedAircraft.filter(
@@ -417,7 +462,7 @@ export default function HangarWorldGlobe3D({
           <div className="max-h-[230px] space-y-1 overflow-y-auto pr-1">
             {normalizedHangars.map((hangar) => {
               const icao = normIcao(hangar.airport_icao);
-              const stationed = ownedAircraft.filter((aircraft) => normIcao(aircraft?.hangar_airport) === icao && String(aircraft?.status || "").toLowerCase() !== "sold").length;
+              const stationed = ownedAircraft.filter((aircraft) => getAircraftHangarAirport(aircraft) === icao && String(aircraft?.status || "").toLowerCase() !== "sold").length;
               const airportLabel = marketByIcao.get(icao)?.label || icao;
               const airportContractsCount = Array.isArray(normalizedContractsByAirport[icao])
                 ? normalizedContractsByAirport[icao].length
@@ -537,10 +582,12 @@ export default function HangarWorldGlobe3D({
               <div className="space-y-1.5">
                 {assignableAircraft.length > 0 ? (
                   assignableAircraft.map((aircraft) => {
-                    const currentAirport = normIcao(aircraft?.hangar_airport);
+                    const currentAirport = getAircraftHangarAirport(aircraft);
+                    const currentHangarId = getAircraftHangarId(aircraft);
                     const selectedTarget = selectedIcao;
-                    const moveInfo = getMoveValidation?.(aircraft, selectedTarget) || { valid: false, reason: "" };
-                    const sameHangar = Boolean(currentAirport && selectedTarget && currentAirport === selectedTarget);
+                    const selectedTargetHangarId = getHangarId(selectedAirportHangar);
+                    const moveInfo = getMoveValidation?.(aircraft, selectedTarget, selectedTargetHangarId) || { valid: false, reason: "" };
+                    const sameHangar = Boolean(currentHangarId && selectedTargetHangarId && currentHangarId === selectedTargetHangarId);
                     const transferCost = Number(getTransferCost?.(aircraft, selectedTarget) || 0);
                     return (
                       <div key={aircraft.id} className="rounded border border-slate-700/70 bg-slate-950/70 p-2">
@@ -557,7 +604,11 @@ export default function HangarWorldGlobe3D({
                           <Button
                             type="button"
                             disabled={sameHangar || !moveInfo.valid || isMovingAircraft}
-                            onClick={() => onMoveAircraft?.({ aircraft, targetAirportIcao: selectedTarget })}
+                            onClick={() => onMoveAircraft?.({
+                              aircraft,
+                              targetAirportIcao: selectedTarget,
+                              targetHangarId: selectedTargetHangarId,
+                            })}
                             className="h-7 bg-emerald-600 px-2 text-[10px] font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
                           >
                             {isMovingAircraft
