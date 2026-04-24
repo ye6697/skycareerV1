@@ -31,6 +31,16 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 	if (storedValue) {
 		return storedValue;
 	}
+
+	// Backward-compatibility: some SDK flows persisted the token under `token`.
+	// Reuse it when `access_token` is requested so users stay logged in.
+	if (paramName === 'access_token') {
+		const legacyToken = storage.getItem('token');
+		if (legacyToken) {
+			storage.setItem(storageKey, legacyToken);
+			return legacyToken;
+		}
+	}
 	return null;
 }
 
