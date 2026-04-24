@@ -258,31 +258,23 @@ export default function HangarWorldGlobe3D({
   const contractsPanelMaxHeight = isFullscreen ? "calc(100vh - 5.2rem)" : "calc(100% - 5.2rem)";
   const marketPanelMaxHeight = isFullscreen ? "calc(100vh - 5.2rem)" : "calc(100% - 5.2rem)";
   const selectedIcao = normIcao(selectedAirportIcao);
+  const stopEventPropagation = (event) => {
+    event.stopPropagation();
+  };
+
   const preventMapScrollCapture = {
-    onPointerDown: (event) => {
-      event.stopPropagation();
-    },
-    onMouseDown: (event) => {
-      event.stopPropagation();
-    },
-    onTouchStart: (event) => {
-      event.stopPropagation();
-    },
-    onClick: (event) => {
-      event.stopPropagation();
-    },
-    onWheelCapture: (event) => {
-      event.stopPropagation();
-    },
-    onWheel: (event) => {
-      event.stopPropagation();
-    },
-    onTouchMoveCapture: (event) => {
-      event.stopPropagation();
-    },
-    onTouchMove: (event) => {
-      event.stopPropagation();
-    },
+    onPointerDownCapture: stopEventPropagation,
+    onPointerDown: stopEventPropagation,
+    onMouseDownCapture: stopEventPropagation,
+    onMouseDown: stopEventPropagation,
+    onTouchStartCapture: stopEventPropagation,
+    onTouchStart: stopEventPropagation,
+    onClickCapture: stopEventPropagation,
+    onClick: stopEventPropagation,
+    onWheelCapture: stopEventPropagation,
+    onWheel: stopEventPropagation,
+    onTouchMoveCapture: stopEventPropagation,
+    onTouchMove: stopEventPropagation,
   };
 
   useEffect(() => {
