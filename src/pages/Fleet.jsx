@@ -1012,7 +1012,7 @@ export default function Fleet() {
     if (Number(company?.balance || 0) < transferCost) {
       return { valid: false, reason: lang === 'de' ? 'Nicht genug Guthaben.' : 'Insufficient balance.' };
     }
-    const targetHangarId = String(targetHangar?.id || '').trim();
+    const targetHangarId = getHangarIdOrFallback(targetHangar);
     if (!targetHangarId) {
       return { valid: false, reason: lang === 'de' ? 'Hangar-ID fehlt. Bitte Seite neu laden.' : 'Hangar id is missing. Please reload.' };
     }
@@ -1686,4 +1686,3 @@ export default function Fleet() {
     </div>);
 
 }
-

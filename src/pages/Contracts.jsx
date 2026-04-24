@@ -996,7 +996,7 @@ export default function Contracts() {
       };
     }
 
-    const targetHangarId = String(targetHangar?.id || "").trim();
+    const targetHangarId = getHangarId(targetHangar);
     if (!targetHangarId) {
       return {
         valid: false,
