@@ -1042,15 +1042,15 @@ export default function Contracts() {
       };
     }
 
-    const targetHangarId = getHangarId(targetHangar);
-    if (!targetHangarId) {
+    const resolvedTargetHangarId = getHangarId(targetHangar);
+    if (!resolvedTargetHangarId) {
       return {
         valid: false,
         reason: lang === "de" ? "Hangar-ID fehlt. Bitte Seite neu laden." : "Hangar id is missing. Please reload.",
       };
     }
 
-    return { valid: true, reason: "", transferCost, targetHangar, targetHangarId };
+    return { valid: true, reason: "", transferCost, targetHangar, targetHangarId: resolvedTargetHangarId };
   }
 
   const moveAircraftMutation = useMutation({
