@@ -657,11 +657,17 @@ export default function HangarWorldGlobe3D({
                     const currentAirport = pendingOverride?.airport
                       ? normIcao(pendingOverride.airport)
                       : fallbackAirport;
-                    const currentHangarId = getAircraftHangarId(aircraft);
+                    const currentHangarId = pendingOverride?.hangarId
+                      ? String(pendingOverride.hangarId).trim()
+                      : getAircraftHangarId(aircraft);
                     const selectedTarget = selectedIcao;
                     const selectedTargetHangarId = getHangarId(selectedAirportHangar);
                     const moveInfo = getMoveValidation?.(aircraft, selectedTarget, selectedTargetHangarId) || { valid: false, reason: "" };
-                    const sameHangar = Boolean(currentHangarId && selectedTargetHangarId && currentHangarId === selectedTargetHangarId);
+                    const sameHangar = Boolean(
+                      normHangarId(currentHangarId)
+                      && normHangarId(selectedTargetHangarId)
+                      && normHangarId(currentHangarId) === normHangarId(selectedTargetHangarId)
+                    );
                     const transferCost = Number(getTransferCost?.(aircraft, selectedTarget) || 0);
                     return (
                       <div key={aircraft.id} className="rounded border border-slate-700/70 bg-slate-950/70 p-2">
@@ -683,6 +689,7 @@ export default function HangarWorldGlobe3D({
                                 ...previous,
                                 [String(aircraft?.id || "")]: {
                                   airport: selectedTarget,
+                                  hangarId: selectedTargetHangarId,
                                   createdAt: Date.now(),
                                 },
                               }));
