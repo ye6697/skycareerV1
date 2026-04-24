@@ -308,12 +308,7 @@ const buildHangarSlotUsage = (hangars = [], aircraft = [], excludedAircraftId = 
     const aircraftHangarId = String(entry?.hangar_id || '').trim();
     const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
     if (directMatch) {
-      const directSlots = Number(directMatch.rule.slots || 0);
-      if (directSlots <= 0 || directMatch.usedSlots < directSlots) {
-        directMatch.usedSlots += 1;
-        return;
-      }
-      if (directMatch.airport) legacyAircraft.push({ entry, airport: directMatch.airport });
+      directMatch.usedSlots += 1;
       return;
     }
 
@@ -939,7 +934,7 @@ export default function Fleet() {
   );
   const beginPurchaseFlow = React.useCallback((aircraftListing) => {
     setSelectedAircraft(aircraftListing);
-    setSelectedPurchaseHangarIcao('');
+    setSelectedPurchaseHangarId('');
   }, []);
   const movableAircraft = React.useMemo(
     () => aircraft.filter((entry) => isAircraftActiveInFleet(entry)),
@@ -1350,7 +1345,7 @@ export default function Fleet() {
                 onClose={() => setIsPurchaseDialogOpen(false)}
                 canAfford={canAfford}
                 canPurchase={canPurchase}
-                onBuy={(ac) => setSelectedAircraft(ac)}
+                onBuy={beginPurchaseFlow}
                 onConfirmBuy={(ac, selectedHangarIdFromView) => {
                   const selectedHangarIdFrom3d = String(selectedHangarIdFromView || '').trim();
                   const selectedHangar = getPurchaseHangarOptionsForListing(ac).find(

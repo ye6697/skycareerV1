@@ -364,13 +364,8 @@ function resolveAircraftHangars(aircraft = [], hangars = []) {
     const aircraftHangarId = String(entry?.hangar_id || '').trim();
     const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
     if (directMatch) {
-      const directSlots = Number(directMatch.rule.slots || 0);
-      if (directSlots <= 0 || directMatch.usedSlots < directSlots) {
-        directMatch.usedSlots += 1;
-        resolvedById.set(String(entry.id), { hangar_id: directMatch.key, hangar_airport: directMatch.airport });
-        return;
-      }
-      deferred.push({ entry, airport: directMatch.airport });
+      directMatch.usedSlots += 1;
+      resolvedById.set(String(entry.id), { hangar_id: directMatch.key, hangar_airport: directMatch.airport });
       return;
     }
 

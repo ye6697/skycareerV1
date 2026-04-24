@@ -293,12 +293,7 @@ function buildHangarSlotUsage(hangars = [], aircraft = [], excludedAircraftId = 
     const aircraftHangarId = String(entry?.hangar_id || "").trim();
     const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
     if (directMatch) {
-      const directSlots = Number(directMatch.hangar.slots || 0);
-      if (directSlots <= 0 || directMatch.usedSlots < directSlots) {
-        directMatch.usedSlots += 1;
-        return;
-      }
-      if (directMatch.airport) legacyAircraft.push({ entry, airport: directMatch.airport });
+      directMatch.usedSlots += 1;
       return;
     }
 
