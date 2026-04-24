@@ -96,10 +96,26 @@ function legacyHangarId(airportIcao) {
   return airport ? `legacy_hangar_${airport}` : "";
 }
 
-function getHangarId(hangar) {
-  const rawId = String(hangar?.id || "").trim();
+function legacyHangarIdWithOrdinal(airportIcao, ordinal = 1) {
+  const airport = normIcao(airportIcao);
+  if (!airport) return "";
+  return ordinal > 1 ? `legacy_hangar_${airport}_${ordinal}` : legacyHangarId(airport);
+}
+
+function getRawHangarId(hangar) {
+  return String(hangar?.id || hangar?.hangar_id || hangar?._id || "").trim();
+}
+
+function getHangarId(hangar, ordinal = 1) {
+  const rawId = getRawHangarId(hangar);
   if (rawId) return rawId;
-  return legacyHangarId(getHangarAirportIcao(hangar));
+  return legacyHangarIdWithOrdinal(getHangarAirportIcao(hangar), ordinal);
+}
+
+function getLegacyAirportFromHangarId(hangarId) {
+  const raw = String(hangarId || "").trim();
+  if (!raw.toLowerCase().startsWith("legacy_hangar_")) return "";
+  return normIcao(raw.slice("legacy_hangar_".length).replace(/_\d+$/, ""));
 }
 
 function isAircraftActive(aircraft) {
@@ -116,15 +132,7 @@ function getAircraftAssignedAirport(aircraft, hangars = []) {
   const matchedHangar = hangars.find(
     (hangar) => getHangarId(hangar) === aircraftHangarId
   );
-  return getHangarAirportIcao(matchedHangar);
-}
-
-function hangarOccupiesSlot(aircraft, hangar) {
-  if (!isAircraftActive(aircraft) || !hangar) return false;
-  const hangarId = getHangarId(hangar);
-  const aircraftHangarId = String(aircraft?.hangar_id || "").trim();
-  if (hangarId && aircraftHangarId) return hangarId === aircraftHangarId;
-  return normIcao(aircraft?.hangar_airport) === getHangarAirportIcao(hangar);
+  return getHangarAirportIcao(matchedHangar) || getLegacyAirportFromHangarId(aircraftHangarId);
 }
 
 function parseDateValue(value) {
@@ -176,15 +184,38 @@ function normalizeHangarEntry(hangar, sizeMap) {
   };
 }
 
-function mergeHangarLists(preferred = [], fallback = [], sizeMap = {}) {
-  const byAirport = new Map();
-  [...fallback, ...preferred].forEach((raw) => {
-    const hangar = normalizeHangarEntry(raw, sizeMap);
-    if (!hangar) return;
+function normalizeHangarList(hangars = [], sizeMap = {}) {
+  const perAirportCounts = new Map();
+  return hangars
+    .map((rawHangar, index) => {
+      const airport = getHangarAirportIcao(rawHangar);
+      if (!isRealAirportIcao(airport)) return null;
+      const airportKey = airport || `UNKNOWN_${index + 1}`;
+      const nextCount = (perAirportCounts.get(airportKey) || 0) + 1;
+      perAirportCounts.set(airportKey, nextCount);
+      const rawId = getRawHangarId(rawHangar);
+      return normalizeHangarEntry(
+        {
+          ...(rawHangar || {}),
+          id: rawId || legacyHangarIdWithOrdinal(airport, nextCount),
+          airport_icao: airport,
+        },
+        sizeMap
+      );
+    })
+    .filter(Boolean);
+}
 
-    const prev = byAirport.get(hangar.airport_icao);
+function mergeHangarLists(preferred = [], fallback = [], sizeMap = {}) {
+  const byKey = new Map();
+  [
+    ...normalizeHangarList(fallback, sizeMap),
+    ...normalizeHangarList(preferred, sizeMap),
+  ].forEach((hangar) => {
+    const key = `id:${getHangarId(hangar)}`;
+    const prev = byKey.get(key);
     if (!prev) {
-      byAirport.set(hangar.airport_icao, hangar);
+      byKey.set(key, hangar);
       return;
     }
 
@@ -193,11 +224,76 @@ function mergeHangarLists(preferred = [], fallback = [], sizeMap = {}) {
     const prevTimestamp = getHangarTimestamp(prev);
     const nextTimestamp = getHangarTimestamp(hangar);
     if (nextTimestamp > prevTimestamp || (nextTimestamp === prevTimestamp && nextSizeRank >= prevSizeRank)) {
-      byAirport.set(hangar.airport_icao, hangar);
+      byKey.set(key, hangar);
     }
   });
 
-  return Array.from(byAirport.values()).sort((a, b) => a.airport_icao.localeCompare(b.airport_icao));
+  return Array.from(byKey.values()).sort((a, b) => {
+    const airportDiff = a.airport_icao.localeCompare(b.airport_icao);
+    if (airportDiff !== 0) return airportDiff;
+    return getHangarId(a).localeCompare(getHangarId(b));
+  });
+}
+
+function buildHangarSlotUsage(hangars = [], aircraft = [], excludedAircraftId = null) {
+  const states = hangars.map((hangar) => ({
+    hangar,
+    key: getHangarId(hangar),
+    airport: getHangarAirportIcao(hangar),
+    usedSlots: 0,
+  }));
+  const byId = new Map(states.filter((state) => state.key).map((state) => [state.key, state]));
+  const byAirport = new Map();
+  states.forEach((state) => {
+    if (!state.airport) return;
+    const list = byAirport.get(state.airport) || [];
+    list.push(state);
+    byAirport.set(state.airport, list);
+  });
+
+  const legacyAircraft = [];
+  aircraft.forEach((entry) => {
+    if (!isAircraftActive(entry) || (excludedAircraftId && entry.id === excludedAircraftId)) return;
+    const aircraftHangarId = String(entry?.hangar_id || "").trim();
+    const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
+    if (directMatch) {
+      const directSlots = Number(directMatch.hangar.slots || 0);
+      if (directSlots <= 0 || directMatch.usedSlots < directSlots) {
+        directMatch.usedSlots += 1;
+        return;
+      }
+      if (directMatch.airport) legacyAircraft.push({ entry, airport: directMatch.airport });
+      return;
+    }
+
+    const airport = normIcao(entry?.hangar_airport) || getLegacyAirportFromHangarId(aircraftHangarId);
+    if (airport) legacyAircraft.push({ entry, airport });
+  });
+
+  legacyAircraft.forEach(({ entry, airport }) => {
+    const airportHangars = byAirport.get(airport) || [];
+    if (airportHangars.length === 0) return;
+    const aircraftType = String(entry?.type || "").trim().toLowerCase();
+    const candidates = airportHangars
+      .filter((state) => {
+        const allowed = Array.isArray(state.hangar.allowed_types) ? state.hangar.allowed_types : [];
+        return allowed.length === 0 || allowed.includes(aircraftType);
+      })
+      .sort((a, b) => {
+        const aSlots = Number(a.hangar.slots || 0);
+        const bSlots = Number(b.hangar.slots || 0);
+        const aFree = aSlots > 0 ? aSlots - a.usedSlots : Number.POSITIVE_INFINITY;
+        const bFree = bSlots > 0 ? bSlots - b.usedSlots : Number.POSITIVE_INFINITY;
+        if (bFree !== aFree) return bFree - aFree;
+        return a.usedSlots - b.usedSlots;
+      });
+    const target = candidates.find((state) => Number(state.hangar.slots || 0) <= 0 || state.usedSlots < Number(state.hangar.slots || 0))
+      || candidates[0]
+      || airportHangars[0];
+    if (target) target.usedSlots += 1;
+  });
+
+  return new Map(states.map((state) => [state.key, state]));
 }
 
 function getHangarStorageKey(companyId) {
@@ -836,7 +932,7 @@ export default function Contracts() {
   }
 
   function getTransferCost(aircraft, targetAirportIcao) {
-    const currentAirport = normIcao(aircraft?.hangar_airport);
+    const currentAirport = getAircraftAssignedAirport(aircraft, ownedHangars);
     const targetAirport = normIcao(targetAirportIcao);
     if (!targetAirport || !currentAirport || currentAirport === targetAirport) return 0;
     const baseValue = getAircraftNewValue(aircraft);
@@ -846,7 +942,7 @@ export default function Contracts() {
 
   function getMoveValidation(aircraft, targetAirportIcao) {
     const targetAirport = normIcao(targetAirportIcao);
-    const currentAirport = normIcao(aircraft?.hangar_airport);
+    const currentAirport = getAircraftAssignedAirport(aircraft, ownedHangars);
     const targetHangars = ownedHangars.filter(
       (hangar) => normIcao(hangar.airport_icao) === targetAirport
     );
@@ -858,13 +954,12 @@ export default function Contracts() {
       return { valid: false, reason: lang === "de" ? "Bereits in diesem Hangar." : "Already in this hangar." };
     }
 
+    const usageByHangarId = buildHangarSlotUsage(ownedHangars, activeOwnedAircraft, aircraft.id);
     const candidateStates = targetHangars.map((targetHangar) => {
+      const usageState = usageByHangarId.get(getHangarId(targetHangar));
       const allowedTypes = Array.isArray(targetHangar.allowed_types) ? targetHangar.allowed_types : [];
       const typeAllowed = allowedTypes.length === 0 || allowedTypes.includes(aircraft.type);
-      const usedSlotsExcludingAircraft = activeOwnedAircraft.filter((entry) => {
-        if (entry.id === aircraft.id) return false;
-        return hangarOccupiesSlot(entry, targetHangar);
-      }).length;
+      const usedSlotsExcludingAircraft = Number(usageState?.usedSlots || 0);
       const totalSlots = Number(targetHangar.slots || 0);
       const hasSlot = totalSlots <= 0 || usedSlotsExcludingAircraft < totalSlots;
       const freeSlots = totalSlots > 0 ? totalSlots - usedSlotsExcludingAircraft : Number.POSITIVE_INFINITY;

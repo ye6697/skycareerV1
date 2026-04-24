@@ -13,6 +13,10 @@ function toIcao(value) {
   return String(value || '').toUpperCase();
 }
 
+function toHangarId(hangar) {
+  return String(hangar?.id || hangar?.hangar_id || hangar?._id || '').trim();
+}
+
 export default function MarketHangar3DView({
   listings = [],
   lang = 'en',
@@ -59,10 +63,10 @@ export default function MarketHangar3DView({
   const hangarOptions = Array.isArray(getPurchaseHangarOptions?.(current))
     ? getPurchaseHangarOptions(current)
     : [];
-  const selectedHangarIcao = toIcao(hangarSelectionByListing[currentKey]);
-  const fallbackHangarIcao = toIcao(hangarOptions[0]?.airport_icao);
-  const effectiveHangarIcao = selectedHangarIcao || fallbackHangarIcao;
-  const canDirectBuy = Boolean(purchasable && effectiveHangarIcao && hangarOptions.length > 0);
+  const selectedHangarId = String(hangarSelectionByListing[currentKey] || '').trim();
+  const fallbackHangarId = toHangarId(hangarOptions[0]);
+  const effectiveHangarId = selectedHangarId || fallbackHangarId;
+  const canDirectBuy = Boolean(purchasable && effectiveHangarId && hangarOptions.length > 0);
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-950">
@@ -207,9 +211,9 @@ export default function MarketHangar3DView({
                 {lang === 'de' ? 'Ziel-Hangar' : 'Target hangar'}
               </div>
               <select
-                value={effectiveHangarIcao}
+                value={effectiveHangarId}
                 onChange={(event) => {
-                  const next = toIcao(event.target.value);
+                  const next = String(event.target.value || '').trim();
                   setHangarSelectionByListing((prev) => ({ ...prev, [currentKey]: next }));
                 }}
                 className="h-7 w-full rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] text-cyan-100"
@@ -219,8 +223,9 @@ export default function MarketHangar3DView({
                 )}
                 {hangarOptions.map((hangar) => {
                   const icao = toIcao(hangar.airport_icao);
+                  const hangarId = toHangarId(hangar);
                   return (
-                    <option key={`${currentKey}-${icao}`} value={icao}>
+                    <option key={`${currentKey}-${hangarId || icao}`} value={hangarId}>
                       {icao} ({hangar.usedSlots}/{hangar.rule?.slots || hangar.slots})
                     </option>
                   );
@@ -255,7 +260,7 @@ export default function MarketHangar3DView({
             </Button>
             <Button
               type="button"
-              onClick={() => onConfirmBuy?.(current, effectiveHangarIcao)}
+              onClick={() => onConfirmBuy?.(current, effectiveHangarId)}
               disabled={!canDirectBuy || isBuying}
               size="sm"
               className={`h-7 text-[10px] font-mono uppercase ${

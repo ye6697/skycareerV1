@@ -117,11 +117,20 @@ const getHangarAirportIcao = (hangar) => normIcaoValue(
   || hangar?.airportIcao
 );
 
-const getHangarIdOrFallback = (hangar) => {
-  const rawId = String(hangar?.id || '').trim();
+const getRawHangarId = (hangar) =>
+  String(hangar?.id || hangar?.hangar_id || hangar?._id || '').trim();
+
+const getLegacyHangarId = (airportIcao, ordinal = 1) => {
+  const airport = normIcaoValue(airportIcao);
+  if (!airport) return '';
+  return ordinal > 1 ? `legacy_hangar_${airport}_${ordinal}` : `legacy_hangar_${airport}`;
+};
+
+const getHangarIdOrFallback = (hangar, ordinal = 1) => {
+  const rawId = getRawHangarId(hangar);
   if (rawId) return rawId;
   const airport = getHangarAirportIcao(hangar);
-  return airport ? `legacy_hangar_${airport}` : '';
+  return getLegacyHangarId(airport, ordinal);
 };
 
 const parseDateValue = (value) => {
@@ -169,13 +178,32 @@ const normalizeHangarForFleet = (hangar) => {
   };
 };
 
+const normalizeFleetHangarList = (hangars = []) => {
+  const perAirportCounts = new Map();
+  return hangars
+    .map((rawHangar, index) => {
+      const airport = getHangarAirportIcao(rawHangar);
+      if (!airport) return null;
+      const airportKey = airport || `UNKNOWN_${index + 1}`;
+      const nextCount = (perAirportCounts.get(airportKey) || 0) + 1;
+      perAirportCounts.set(airportKey, nextCount);
+      const rawId = getRawHangarId(rawHangar);
+      return normalizeHangarForFleet({
+        ...(rawHangar || {}),
+        id: rawId || getLegacyHangarId(airport, nextCount),
+        airport_icao: airport,
+      });
+    })
+    .filter(Boolean);
+};
+
 const mergeFleetHangarLists = (preferred = [], fallback = []) => {
   const byKey = new Map();
-  [...fallback, ...preferred].forEach((raw) => {
-    const normalized = normalizeHangarForFleet(raw);
-    if (!normalized) return;
-    const rawId = String(normalized?.id || '').trim();
-    const key = rawId && !rawId.startsWith('legacy_hangar_') ? `id:${rawId}` : `airport:${normalized.airport_icao}`;
+  [
+    ...normalizeFleetHangarList(fallback),
+    ...normalizeFleetHangarList(preferred),
+  ].forEach((normalized) => {
+    const key = `id:${getHangarIdOrFallback(normalized)}`;
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, normalized);
@@ -205,7 +233,7 @@ const getHangarStorageKey = (companyId) => {
 const getLegacyAirportFromHangarId = (hangarId) => {
   const raw = String(hangarId || '').trim();
   if (!raw.toLowerCase().startsWith('legacy_hangar_')) return '';
-  return normIcaoValue(raw.slice('legacy_hangar_'.length));
+  return normIcaoValue(raw.slice('legacy_hangar_'.length).replace(/_\d+$/, ''));
 };
 
 const isAircraftActiveInFleet = (entry) => String(entry?.status || '').toLowerCase() !== 'sold';
@@ -219,14 +247,6 @@ const getAircraftAssignedAirport = (aircraftEntry, hangars = []) => {
   if (legacyAirport) return legacyAirport;
   const matchedHangar = hangars.find((hangar) => getHangarIdOrFallback(hangar) === aircraftHangarId);
   return getHangarAirportIcao(matchedHangar);
-};
-
-const hangarOccupiesSlot = (aircraftEntry, hangar) => {
-  if (!isAircraftActiveInFleet(aircraftEntry) || !hangar) return false;
-  const hangarId = getHangarIdOrFallback(hangar);
-  const aircraftHangarId = String(aircraftEntry?.hangar_id || '').trim();
-  if (hangarId && aircraftHangarId) return hangarId === aircraftHangarId;
-  return normIcaoValue(aircraftEntry?.hangar_airport) === getHangarAirportIcao(hangar);
 };
 
 const resolveHangarRule = (hangar) => {
@@ -248,13 +268,78 @@ const resolveHangarRule = (hangar) => {
   };
 };
 
+const buildHangarSlotUsage = (hangars = [], aircraft = [], excludedAircraftId = null) => {
+  const states = hangars.map((hangar) => {
+    const rule = resolveHangarRule(hangar);
+    return {
+      hangar,
+      key: getHangarIdOrFallback(hangar),
+      airport: getHangarAirportIcao(hangar),
+      rule,
+      usedSlots: 0,
+    };
+  });
+  const byId = new Map(states.filter((state) => state.key).map((state) => [state.key, state]));
+  const byAirport = new Map();
+  states.forEach((state) => {
+    if (!state.airport) return;
+    const list = byAirport.get(state.airport) || [];
+    list.push(state);
+    byAirport.set(state.airport, list);
+  });
+
+  const legacyAircraft = [];
+  aircraft.forEach((entry) => {
+    if (!isAircraftActiveInFleet(entry) || (excludedAircraftId && entry.id === excludedAircraftId)) return;
+    const aircraftHangarId = String(entry?.hangar_id || '').trim();
+    const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
+    if (directMatch) {
+      const directSlots = Number(directMatch.rule.slots || 0);
+      if (directSlots <= 0 || directMatch.usedSlots < directSlots) {
+        directMatch.usedSlots += 1;
+        return;
+      }
+      if (directMatch.airport) legacyAircraft.push({ entry, airport: directMatch.airport });
+      return;
+    }
+
+    const airport = normIcaoValue(entry?.hangar_airport) || getLegacyAirportFromHangarId(aircraftHangarId);
+    if (airport) legacyAircraft.push({ entry, airport });
+  });
+
+  legacyAircraft.forEach(({ entry, airport }) => {
+    const airportHangars = byAirport.get(airport) || [];
+    if (airportHangars.length === 0) return;
+    const aircraftType = String(entry?.type || '').trim().toLowerCase();
+    const candidates = airportHangars
+      .filter((state) => {
+        const allowed = Array.isArray(state.rule.allowed_types) ? state.rule.allowed_types : [];
+        return allowed.length === 0 || allowed.includes(aircraftType);
+      })
+      .sort((a, b) => {
+        const aFree = Number(a.rule.slots || 0) > 0 ? Number(a.rule.slots || 0) - a.usedSlots : Number.POSITIVE_INFINITY;
+        const bFree = Number(b.rule.slots || 0) > 0 ? Number(b.rule.slots || 0) - b.usedSlots : Number.POSITIVE_INFINITY;
+        if (bFree !== aFree) return bFree - aFree;
+        return a.usedSlots - b.usedSlots;
+      });
+    const target = candidates.find((state) => Number(state.rule.slots || 0) <= 0 || state.usedSlots < Number(state.rule.slots || 0))
+      || candidates[0]
+      || airportHangars[0];
+    if (target) target.usedSlots += 1;
+  });
+
+  return new Map(states.map((state) => [state.key, state]));
+};
+
 const getAssignableHangarsForType = (hangars = [], aircraft = [], aircraftType) => {
   const normalizedType = String(aircraftType || '').trim().toLowerCase();
   if (!normalizedType) return [];
+  const usageByHangarId = buildHangarSlotUsage(hangars, aircraft);
   return hangars
     .map((hangar) => {
-      const rule = resolveHangarRule(hangar);
-      const used = aircraft.filter((entry) => isAircraftActiveInFleet(entry) && hangarOccupiesSlot(entry, hangar)).length;
+      const state = usageByHangarId.get(getHangarIdOrFallback(hangar));
+      const rule = state?.rule || resolveHangarRule(hangar);
+      const used = Number(state?.usedSlots || 0);
       return {
         ...hangar,
         rule,
@@ -473,7 +558,7 @@ export default function Fleet() {
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
-  const [selectedPurchaseHangarIcao, setSelectedPurchaseHangarIcao] = useState('');
+  const [selectedPurchaseHangarId, setSelectedPurchaseHangarId] = useState('');
   const [marketSection, setMarketSection] = useState('new');
   const [marketViewMode, setMarketViewMode] = useState('3d');
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
@@ -505,17 +590,41 @@ export default function Fleet() {
     refetchOnWindowFocus: false
   });
 
+  const loadCompanyForUser = React.useCallback(async (user) => {
+    if (!user) return null;
+    const companyId = resolveUserCompanyId(user);
+    if (companyId) {
+      const companies = await base44.entities.Company.filter({ id: companyId });
+      if (companies[0]) return companies[0];
+    }
+
+    const email = String(user?.email || '').trim();
+    if (!email) return null;
+    const candidateEmails = Array.from(new Set([email, email.toLowerCase()]));
+    const candidatesById = new Map();
+    for (const candidateEmail of candidateEmails) {
+      const companies = await base44.entities.Company.filter({ created_by: candidateEmail });
+      (Array.isArray(companies) ? companies : []).forEach((candidate) => {
+        if (candidate?.id) candidatesById.set(String(candidate.id), candidate);
+      });
+    }
+
+    const candidates = Array.from(candidatesById.values());
+    candidates.sort((a, b) => {
+      const updatedA = Date.parse(String(a?.updated_date || a?.created_date || '')) || 0;
+      const updatedB = Date.parse(String(b?.updated_date || b?.created_date || '')) || 0;
+      if (updatedB !== updatedA) return updatedB - updatedA;
+      const hangarsA = Array.isArray(a?.hangars) ? a.hangars.length : 0;
+      const hangarsB = Array.isArray(b?.hangars) ? b.hangars.length : 0;
+      if (hangarsB !== hangarsA) return hangarsB - hangarsA;
+      return String(a?.id || '').localeCompare(String(b?.id || ''));
+    });
+    return candidates[0] || null;
+  }, [resolveUserCompanyId]);
+
   const { data: company } = useQuery({
-    queryKey: ['company', resolveUserCompanyId(currentUser)],
-    queryFn: async () => {
-      const companyId = resolveUserCompanyId(currentUser);
-      if (companyId) {
-        const companies = await base44.entities.Company.filter({ id: companyId });
-        if (companies[0]) return companies[0];
-      }
-      const companies = await base44.entities.Company.filter({ created_by: currentUser.email });
-      return companies[0];
-    },
+    queryKey: ['company', resolveUserCompanyId(currentUser), currentUser?.email],
+    queryFn: () => loadCompanyForUser(currentUser),
     enabled: !!currentUser,
     staleTime: 120000,
     refetchOnWindowFocus: false
@@ -552,17 +661,8 @@ export default function Fleet() {
   const loadCurrentCompany = React.useCallback(async () => {
     if (company?.id) return company;
     const user = currentUser || (await base44.auth.me());
-    const companyId = resolveUserCompanyId(user);
-    if (companyId) {
-      const companies = await base44.entities.Company.filter({ id: companyId });
-      if (companies[0]) return companies[0];
-    }
-    if (user?.email) {
-      const byOwner = await base44.entities.Company.filter({ created_by: user.email });
-      if (byOwner[0]) return byOwner[0];
-    }
-    return null;
-  }, [company, currentUser, resolveUserCompanyId]);
+    return loadCompanyForUser(user);
+  }, [company, currentUser, loadCompanyForUser]);
 
   const failureTriggerStateKey = React.useMemo(
     () => ['failure-trigger-state', company?.id || 'unknown'],
@@ -675,9 +775,13 @@ export default function Fleet() {
       const template = templates.find((t) => t.name === aircraftData.name);
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
+      const selectedHangarId = String(aircraftData?.selected_hangar_id || '').trim();
       const selectedHangarIcao = normIcao(aircraftData?.selected_hangar_airport);
       const assignableHangars = getAssignableHangarsForType(ownedHangars, aircraft, specs.type);
-      const assignedHangar = assignableHangars.find((hangar) => getHangarAirportIcao(hangar) === selectedHangarIcao) || null;
+      const assignedHangar =
+        assignableHangars.find((hangar) => getHangarIdOrFallback(hangar) === selectedHangarId)
+        || assignableHangars.find((hangar) => getHangarAirportIcao(hangar) === selectedHangarIcao)
+        || null;
       if (!assignedHangar) {
         throw new Error(
           lang === 'de'
@@ -778,7 +882,7 @@ export default function Fleet() {
       queryClient.invalidateQueries({ queryKey: ['company'] });
       setIsPurchaseDialogOpen(false);
       setSelectedAircraft(null);
-      setSelectedPurchaseHangarIcao('');
+      setSelectedPurchaseHangarId('');
     }
   });
 
@@ -816,8 +920,8 @@ export default function Fleet() {
     [aircraft, ownedHangars]
   );
   const selectedPurchaseHangar = React.useMemo(
-    () => purchaseHangarOptions.find((hangar) => normIcao(hangar.airport_icao) === normIcao(selectedPurchaseHangarIcao)) || null,
-    [purchaseHangarOptions, selectedPurchaseHangarIcao]
+    () => purchaseHangarOptions.find((hangar) => getHangarIdOrFallback(hangar) === selectedPurchaseHangarId) || null,
+    [purchaseHangarOptions, selectedPurchaseHangarId]
   );
   const beginPurchaseFlow = React.useCallback((aircraftListing) => {
     setSelectedAircraft(aircraftListing);
@@ -873,17 +977,16 @@ export default function Fleet() {
     if (targetAirport === currentAirport) {
       return { valid: false, reason: lang === 'de' ? 'Bereits in diesem Hangar.' : 'Already in this hangar.' };
     }
+    const usageByHangarId = buildHangarSlotUsage(ownedHangars, movableAircraft, aircraftEntry.id);
     const candidateStates = targetHangars.map((hangar) => {
-      const rule = resolveHangarRule(hangar);
+      const state = usageByHangarId.get(getHangarIdOrFallback(hangar));
+      const rule = state?.rule || resolveHangarRule(hangar);
       const aircraftType = String(aircraftEntry?.type || '').trim().toLowerCase();
       const typeAllowed =
         !Array.isArray(rule.allowed_types) ||
         rule.allowed_types.length === 0 ||
         rule.allowed_types.includes(aircraftType);
-      const usedSlots = movableAircraft.filter((entry) => {
-        if (entry.id === aircraftEntry.id) return false;
-        return hangarOccupiesSlot(entry, hangar);
-      }).length;
+      const usedSlots = Number(state?.usedSlots || 0);
       const totalSlots = Number(rule.slots || 0);
       const hasSlot = totalSlots <= 0 || usedSlots < totalSlots;
       const freeSlots = totalSlots > 0 ? totalSlots - usedSlots : Number.POSITIVE_INFINITY;
@@ -1061,7 +1164,7 @@ export default function Fleet() {
               if (!open) {
                 setMaintenancePreviewListing(null);
                 setSelectedAircraft(null);
-                setSelectedPurchaseHangarIcao('');
+                setSelectedPurchaseHangarId('');
               }
             }}>
             
@@ -1161,19 +1264,26 @@ export default function Fleet() {
                   </div>
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
                     <select
-                    value={selectedPurchaseHangarIcao}
-                    onChange={(event) => setSelectedPurchaseHangarIcao(event.target.value)}
+                    value={selectedPurchaseHangarId}
+                    onChange={(event) => setSelectedPurchaseHangarId(event.target.value)}
                     className="h-8 w-full rounded border border-emerald-900/60 bg-slate-950/90 px-2 text-xs text-emerald-100">
                     
                       <option value="">{lang === 'de' ? 'Hangar zuweisen (Pflicht)' : 'Assign hangar (required)'}</option>
-                      {purchaseHangarOptions.map((hangar) =>
-                    <option key={hangar.id || hangar.airport_icao} value={hangar.airport_icao}>
+                      {purchaseHangarOptions.map((hangar) => {
+                        const hangarId = getHangarIdOrFallback(hangar);
+                        return (
+                    <option key={hangarId || hangar.airport_icao} value={hangarId}>
                           {normIcao(hangar.airport_icao)} ({hangar.usedSlots}/{hangar.rule?.slots || hangar.slots})
                         </option>
-                    )}
+                        );
+                      })}
                     </select>
                     <Button
-                    onClick={() => purchaseMutation.mutate({ ...selectedAircraft, selected_hangar_airport: selectedPurchaseHangar?.airport_icao || '' })}
+                    onClick={() => purchaseMutation.mutate({
+                      ...selectedAircraft,
+                      selected_hangar_id: selectedPurchaseHangar ? getHangarIdOrFallback(selectedPurchaseHangar) : '',
+                      selected_hangar_airport: selectedPurchaseHangar?.airport_icao || ''
+                    })}
                     disabled={!selectedPurchaseHangar || purchaseMutation.isPending}
                     size="sm"
                     className="h-8 bg-emerald-700 text-white hover:bg-emerald-600 disabled:bg-slate-700">
@@ -1207,12 +1317,19 @@ export default function Fleet() {
                 canAfford={canAfford}
                 canPurchase={canPurchase}
                 onBuy={(ac) => setSelectedAircraft(ac)}
-                onConfirmBuy={(ac, selectedHangarIcao) => {
-                  const normalizedHangarIcao = normIcao(selectedHangarIcao);
-                  if (!normalizedHangarIcao) return;
+                onConfirmBuy={(ac, selectedHangarIdFromView) => {
+                  const selectedHangarIdFrom3d = String(selectedHangarIdFromView || '').trim();
+                  const selectedHangar = getPurchaseHangarOptionsForListing(ac).find(
+                    (hangar) => getHangarIdOrFallback(hangar) === selectedHangarIdFrom3d
+                  ) || null;
+                  if (!selectedHangar) return;
                   setSelectedAircraft(ac);
-                  setSelectedPurchaseHangarIcao(normalizedHangarIcao);
-                  purchaseMutation.mutate({ ...ac, selected_hangar_airport: normalizedHangarIcao });
+                  setSelectedPurchaseHangarId(selectedHangarIdFrom3d);
+                  purchaseMutation.mutate({
+                    ...ac,
+                    selected_hangar_id: selectedHangarIdFrom3d,
+                    selected_hangar_airport: selectedHangar.airport_icao
+                  });
                 }}
                 getPurchaseHangarOptions={getPurchaseHangarOptionsForListing}
                 isBuying={purchaseMutation.isPending}
@@ -1232,7 +1349,8 @@ export default function Fleet() {
                 {marketAircraft.map((ac, index) => {
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                   const hasBalance = canAfford(ac.purchase_price);
-                  const isPurchasable = hasLevel && hasBalance;
+                  const hasHangarCapacity = getAssignableHangarsForType(ownedHangars, aircraft, ac.type).length > 0;
+                  const isPurchasable = hasLevel && hasBalance && hasHangarCapacity;
                   const isBuyingThis = purchaseMutation.isPending && (
                   ac.market_listing_id && selectedAircraft?.market_listing_id === ac.market_listing_id ||
                   !ac.market_listing_id && selectedAircraft?.name === ac.name);
@@ -1324,6 +1442,11 @@ export default function Fleet() {
                               </div>
                             }
                             {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
+                            {hasLevel && hasBalance && !hasHangarCapacity &&
+                            <p className="text-[9px] text-amber-500 text-center">
+                              {lang === 'de' ? 'Kein passender Hangar frei.' : 'No compatible hangar free.'}
+                            </p>
+                            }
                             <Button
                               onClick={() => {beginPurchaseFlow(ac);}}
                               disabled={!isPurchasable}
