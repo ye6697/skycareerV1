@@ -1040,17 +1040,18 @@ export default function Contracts() {
       if (!response || response.error || !result.success) {
         throw new Error(result.error || response?.error || "Transfer failed.");
       }
-      await base44.entities.Aircraft.update(aircraft.id, {
-        hangar_id: validation.targetHangarId,
-        hangar_airport: targetAirport,
-      });
       const resolvedTargetAirport = normIcao(result?.targetAirport || targetAirport);
+      const resolvedTargetHangarId = String(result?.targetHangarId || validation.targetHangarId || "").trim();
+      await base44.entities.Aircraft.update(aircraft.id, {
+        hangar_id: resolvedTargetHangarId || null,
+        hangar_airport: resolvedTargetAirport || targetAirport,
+      });
       return {
         ...result,
         transferCost,
         aircraft,
         targetAirport: resolvedTargetAirport,
-        targetHangarId: String(result?.targetHangarId || validation.targetHangarId || "").trim(),
+        targetHangarId: resolvedTargetHangarId,
       };
     },
     onSuccess: (result) => {
