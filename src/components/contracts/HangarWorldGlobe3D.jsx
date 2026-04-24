@@ -10,6 +10,35 @@ function normIcao(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function normHangarId(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getLegacyAirportFromHangarId(hangarId) {
+  const raw = String(hangarId || "").trim();
+  if (!raw.toLowerCase().startsWith("legacy_hangar_")) return "";
+  return normIcao(raw.slice("legacy_hangar_".length).replace(/_\d+$/, ""));
+}
+
+function resolveAircraftAirport(aircraft, hangars = []) {
+  const directAirport = normIcao(aircraft?.hangar_airport);
+  if (directAirport) return directAirport;
+
+  const aircraftHangarId = normHangarId(aircraft?.hangar_id);
+  if (!aircraftHangarId) return "";
+
+  const matchedHangar = hangars.find((hangar) => {
+    const hangarCandidates = [
+      hangar?.id,
+      hangar?.hangar_id,
+      hangar?._id,
+    ].map(normHangarId);
+    return hangarCandidates.includes(aircraftHangarId);
+  });
+
+  return normIcao(matchedHangar?.airport_icao) || getLegacyAirportFromHangarId(aircraftHangarId);
+}
+
 function formatAirportDisplay(icao, label) {
   const normCode = normIcao(icao);
   const cleanLabel = String(label || "").trim();
@@ -116,6 +145,7 @@ export default function HangarWorldGlobe3D({
   const [showMarketPanel, setShowMarketPanel] = useState(false);
   const [showOwnedHangarsList, setShowOwnedHangarsList] = useState(false);
   const [airportViewFilter, setAirportViewFilter] = useState("all");
+  const [pendingAirportOverrides, setPendingAirportOverrides] = useState({});
   const fullscreenRootRef = useRef(null);
 
   const normalizedHangars = useMemo(
@@ -263,6 +293,30 @@ export default function HangarWorldGlobe3D({
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
+
+  useEffect(() => {
+    const now = Date.now();
+    setPendingAirportOverrides((previous) => {
+      let changed = false;
+      const next = { ...previous };
+      Object.entries(previous).forEach(([aircraftId, override]) => {
+        const entry = ownedAircraft.find((aircraft) => String(aircraft?.id) === aircraftId);
+        if (!entry) {
+          delete next[aircraftId];
+          changed = true;
+          return;
+        }
+        const resolvedAirport = resolveAircraftAirport(entry, normalizedHangars);
+        const overrideAirport = normIcao(override?.airport);
+        const overrideAge = now - Number(override?.createdAt || 0);
+        if (resolvedAirport === overrideAirport || overrideAge > 20000) {
+          delete next[aircraftId];
+          changed = true;
+        }
+      });
+      return changed ? next : previous;
+    });
+  }, [ownedAircraft, normalizedHangars]);
 
   const toggleFullscreen = async () => {
     if (typeof document === "undefined") return;
@@ -537,7 +591,11 @@ export default function HangarWorldGlobe3D({
               <div className="space-y-1.5">
                 {assignableAircraft.length > 0 ? (
                   assignableAircraft.map((aircraft) => {
-                    const currentAirport = normIcao(aircraft?.hangar_airport);
+                    const pendingOverride = pendingAirportOverrides[String(aircraft?.id)];
+                    const fallbackAirport = resolveAircraftAirport(aircraft, normalizedHangars);
+                    const currentAirport = pendingOverride?.airport
+                      ? normIcao(pendingOverride.airport)
+                      : fallbackAirport;
                     const selectedTarget = selectedIcao;
                     const moveInfo = getMoveValidation?.(aircraft, selectedTarget) || { valid: false, reason: "" };
                     const sameHangar = Boolean(currentAirport && selectedTarget && currentAirport === selectedTarget);
@@ -557,7 +615,16 @@ export default function HangarWorldGlobe3D({
                           <Button
                             type="button"
                             disabled={sameHangar || !moveInfo.valid || isMovingAircraft}
-                            onClick={() => onMoveAircraft?.({ aircraft, targetAirportIcao: selectedTarget })}
+                            onClick={() => {
+                              setPendingAirportOverrides((previous) => ({
+                                ...previous,
+                                [String(aircraft?.id || "")]: {
+                                  airport: selectedTarget,
+                                  createdAt: Date.now(),
+                                },
+                              }));
+                              onMoveAircraft?.({ aircraft, targetAirportIcao: selectedTarget });
+                            }}
                             className="h-7 bg-emerald-600 px-2 text-[10px] font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
                           >
                             {isMovingAircraft
