@@ -1,0 +1,35 @@
+{
+  "name": "Hangar",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Owner company id"
+    },
+    "hangar_id": {
+      "type": "string",
+      "description": "Stable hangar identifier"
+    },
+    "airport_icao": {
+      "type": "string",
+      "description": "ICAO airport code"
+    },
+    "size": {
+      "type": "string",
+      "enum": [
+        "small",
+        "medium",
+        "large",
+        "xlarge"
+      ]
+    },
+    "model_variant": {
+      "type": "string",
+      "description": "Hangar model variant key"
+    },
+    "slots": {
+      "type": "number",
+      "description": "Total supported aircraft slots"
+    }
+  }
+}

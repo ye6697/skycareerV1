@@ -1,0 +1,34 @@
+{
+  "name": "Aircraft",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Owner company id"
+    },
+    "registration": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "hangar_id": {
+      "type": "string",
+      "description": "Assigned hangar id for this aircraft"
+    },
+    "hangar_airport": {
+      "type": "string",
+      "description": "ICAO of the airport where the assigned hangar is located"
+    },
+    "hangar_model_variant": {
+      "type": "string",
+      "description": "Selected hangar model variant id for the assigned hangar"
+    }
+  }
+}
