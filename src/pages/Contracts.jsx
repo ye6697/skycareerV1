@@ -332,6 +332,30 @@ function getHangarStorageKey(companyId) {
   return `${HANGAR_STORAGE_KEY_PREFIX}_${companyId}`;
 }
 
+function getAllPersistedHangars(sizeMap = {}) {
+  if (typeof window === "undefined") return [];
+  const snapshots = [];
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key || !key.startsWith(`${HANGAR_STORAGE_KEY_PREFIX}_`)) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) continue;
+      snapshots.push(parsed);
+    }
+  } catch {
+    return [];
+  }
+
+  if (snapshots.length === 0) return [];
+  snapshots.sort(
+    (a, b) => normalizeHangarList(b, sizeMap).length - normalizeHangarList(a, sizeMap).length
+  );
+  return snapshots[0];
+}
+
 function isContractCompatibleWithAircraft(contract, aircraft) {
   if (!contract || !aircraft) return false;
 
@@ -471,11 +495,19 @@ export default function Contracts() {
     } catch {
       persistedHangars = [];
     }
+    const fallbackHangars =
+      Array.isArray(serverHangars) && serverHangars.length > 0
+        ? []
+        : getAllPersistedHangars(hangarSizeRankMap);
 
     setLocalHangars((previous) =>
       mergeHangarLists(
         serverHangars,
-        mergeHangarLists(previous, persistedHangars, hangarSizeRankMap),
+        mergeHangarLists(
+          previous,
+          mergeHangarLists(persistedHangars, fallbackHangars, hangarSizeRankMap),
+          hangarSizeRankMap
+        ),
         hangarSizeRankMap
       )
     );
