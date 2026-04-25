@@ -52,6 +52,14 @@
         "mega_platform"
       ],
       "description": "Selected hangar model variant id for the assigned hangar"
+    },
+    "options": {
+      "type": "object",
+      "description": "Per-aircraft options map (created by admin backfill and used for persistent option flags)"
+    },
+    "options_initialized": {
+      "type": "boolean",
+      "description": "Migration flag to indicate that default option fields were initialized"
     }
   }
 }
