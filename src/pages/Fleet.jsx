@@ -230,6 +230,27 @@ const getHangarStorageKey = (companyId) => {
   return `${HANGAR_STORAGE_KEY_PREFIX}_${id}`;
 };
 
+const getAllPersistedFleetHangars = () => {
+  if (typeof window === 'undefined') return [];
+  const snapshots = [];
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key || !key.startsWith(`${HANGAR_STORAGE_KEY_PREFIX}_`)) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) continue;
+      snapshots.push(parsed);
+    }
+  } catch (_) {
+    return [];
+  }
+  if (snapshots.length === 0) return [];
+  snapshots.sort((a, b) => normalizeFleetHangarList(b).length - normalizeFleetHangarList(a).length);
+  return snapshots[0];
+};
+
 const getLegacyAirportFromHangarId = (hangarId) => {
   const raw = String(hangarId || '').trim();
   if (!raw.toLowerCase().startsWith('legacy_hangar_')) return '';
@@ -655,7 +676,16 @@ export default function Fleet() {
     } catch (_) {
       persistedHangars = [];
     }
-    setLocalHangars((previous) => mergeFleetHangarLists(serverHangars, mergeFleetHangarLists(previous, persistedHangars)));
+    const fallbackHangars =
+      Array.isArray(serverHangars) && serverHangars.length > 0
+        ? []
+        : getAllPersistedFleetHangars();
+    setLocalHangars((previous) =>
+      mergeFleetHangarLists(
+        serverHangars,
+        mergeFleetHangarLists(previous, mergeFleetHangarLists(persistedHangars, fallbackHangars))
+      )
+    );
   }, [company?.hangars, hangarStorageKey]);
 
   React.useEffect(() => {
