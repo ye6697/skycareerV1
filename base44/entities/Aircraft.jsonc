@@ -13,10 +13,25 @@
       "type": "string"
     },
     "type": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "small_prop",
+        "turboprop",
+        "regional_jet",
+        "narrow_body",
+        "wide_body",
+        "cargo"
+      ],
+      "description": "Aircraft category used by contracts and hangar compatibility"
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "available",
+        "in_flight",
+        "sold"
+      ],
+      "description": "Current operational status"
     },
     "hangar_id": {
       "type": "string",
@@ -28,6 +43,14 @@
     },
     "hangar_model_variant": {
       "type": "string",
+      "enum": [
+        "airport_single",
+        "compact_modular",
+        "delta_shed",
+        "middle",
+        "terminal_modular",
+        "mega_platform"
+      ],
       "description": "Selected hangar model variant id for the assigned hangar"
     }
   }

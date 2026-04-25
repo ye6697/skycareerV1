@@ -20,11 +20,19 @@
         "small",
         "medium",
         "large",
-        "xlarge"
+        "mega"
       ]
     },
     "model_variant": {
       "type": "string",
+      "enum": [
+        "airport_single",
+        "compact_modular",
+        "delta_shed",
+        "middle",
+        "terminal_modular",
+        "mega_platform"
+      ],
       "description": "Hangar model variant key"
     },
     "slots": {
