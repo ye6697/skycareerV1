@@ -119,6 +119,8 @@ export default function RunwayAccuracyCard({ flight }) {
   };
 
   const hasAny = !!(result?.takeoff || result?.landing);
+  const depMismatch = !!result?.departure_runway_mismatch;
+  const arrMismatch = !!result?.arrival_runway_mismatch;
 
   return (
     <Card className="p-6 bg-slate-800/50 border-slate-700">
@@ -151,6 +153,20 @@ export default function RunwayAccuracyCard({ flight }) {
 
       {error && (
         <p className="text-xs text-red-400 mb-3">{error}</p>
+      )}
+
+      {(depMismatch || arrMismatch) && (
+        <div className="mb-3 p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
+          <p className="text-xs text-amber-200">
+            {lang === "de"
+              ? "Abweichende Runway erkannt: Landung/Start erfolgte auf einer anderen Bahn als im Flugplan."
+              : "Different runway detected: takeoff/landing happened on a runway different from the flight plan."}
+          </p>
+          <p className="text-[11px] text-amber-300/80 mt-1 font-mono">
+            {depMismatch && `DEP ${result?.planned_dep_runway || '--'} → ${result?.detected_dep_runway || '--'} `}
+            {arrMismatch && ` ARR ${result?.planned_arr_runway || '--'} → ${result?.detected_arr_runway || '--'}`}
+          </p>
+        </div>
       )}
 
       {!applied && !busy && !hasAny && (

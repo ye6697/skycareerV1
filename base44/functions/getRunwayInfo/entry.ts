@@ -113,6 +113,20 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+function normalizeHeading(deg) {
+  const n = Number(deg);
+  if (!Number.isFinite(n)) return null;
+  return ((n % 360) + 360) % 360;
+}
+
+function headingDeltaDeg(a, b) {
+  const ha = normalizeHeading(a);
+  const hb = normalizeHeading(b);
+  if (ha === null || hb === null) return 180;
+  const d = Math.abs(ha - hb);
+  return Math.min(d, 360 - d);
+}
+
 // Perpendicular distance from a point to the runway centerline segment (meters).
 // Uses equirectangular projection around the runway midpoint – good enough for
 // runway-scale distances (< 5 km).
@@ -143,21 +157,24 @@ function perpendicularToCenterline(rw, lat, lon) {
 // Pick the runway the aircraft was on, based on a reference position (touchdown
 // for landing, liftoff for takeoff). We pick the runway whose centerline the
 // reference point lies closest to – this is robust against parallel runways.
-function pickLandingRunway(runways, refLat, refLon) {
+function pickLandingRunway(runways, refLat, refLon, refHeading = null) {
   if (!runways.length) return null;
   if (!Number.isFinite(refLat) || !Number.isFinite(refLon)) {
     return runways[0];
   }
   let best = null;
-  let bestCenterDist = Infinity;
+  let bestScore = Infinity;
   for (const rw of runways) {
-    const dCenter = perpendicularToCenterline(rw, refLat, refLon);
-    if (dCenter < bestCenterDist) {
-      bestCenterDist = dCenter;
-      // Mark which end is the landing/rolling-out threshold: the one closer to the ref point.
-      const dLe = haversineMeters(refLat, refLon, rw.le_lat, rw.le_lon);
-      const dHe = haversineMeters(refLat, refLon, rw.he_lat, rw.he_lon);
-      best = { ...rw, landing_end: dLe <= dHe ? 'le' : 'he' };
+    const dCenter = perpendicularToCenterline(rw, refLat, refLon); // meters
+    const dLe = haversineMeters(refLat, refLon, rw.le_lat, rw.le_lon);
+    const dHe = haversineMeters(refLat, refLon, rw.he_lat, rw.he_lon);
+    const landingEnd = dLe <= dHe ? 'le' : 'he';
+    const rwHeading = landingEnd === 'le' ? rw.le_heading : rw.he_heading;
+    const hdgPenalty = headingDeltaDeg(refHeading, rwHeading) * 2.5; // meters-equivalent
+    const score = dCenter + hdgPenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { ...rw, landing_end: landingEnd };
     }
   }
   return best;
@@ -173,11 +190,12 @@ Deno.serve(async (req) => {
     const icao = String(body?.icao || '').toUpperCase().trim();
     const touchdownLat = Number(body?.touchdown_lat);
     const touchdownLon = Number(body?.touchdown_lon);
+    const touchdownHeading = Number(body?.touchdown_heading);
 
     if (!icao) return Response.json({ error: 'icao required' }, { status: 400 });
 
     const runways = await fetchRunwaysForAirport(icao);
-    const best = pickLandingRunway(runways, touchdownLat, touchdownLon);
+    const best = pickLandingRunway(runways, touchdownLat, touchdownLon, touchdownHeading);
 
     return Response.json({
       icao,

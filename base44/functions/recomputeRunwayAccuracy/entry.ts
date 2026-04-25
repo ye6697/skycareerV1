@@ -154,6 +154,24 @@ function pickRunwayForPoints(runways, points) {
   return best;
 }
 
+function normalizeRunwayIdent(raw) {
+  const txt = String(raw || '').trim().toUpperCase();
+  if (!txt) return null;
+  const cleaned = txt.replace(/^RWY\s*/i, '').replace(/\s+/g, '');
+  const m = cleaned.match(/^0?(\d{1,2})([LRC])?$/);
+  if (!m) return cleaned;
+  const num = String(Number(m[1])).padStart(2, '0');
+  return `${num}${m[2] || ''}`;
+}
+
+function resolveLikelyRunwayEnd(runway, points) {
+  if (!runway || !Array.isArray(points) || points.length === 0) return null;
+  const ref = points[0];
+  const dLe = haversine(ref.lat, ref.lon, runway.le_lat, runway.le_lon);
+  const dHe = haversine(ref.lat, ref.lon, runway.he_lat, runway.he_lon);
+  return dLe <= dHe ? 'le' : 'he';
+}
+
 // Read on_ground flag from a telemetry point. Accepts multiple field names.
 function readOnGround(point) {
   const raw = point?.on_ground ?? point?.onGround ?? point?.grounded ?? point?.og ?? point?.isOnGround;
@@ -402,9 +420,19 @@ Deno.serve(async (req) => {
 
     const depRunway = validTakeoff ? pickRunwayForPoints(depRunways, takeoffPoints) : null;
     const arrRunway = validLanding ? pickRunwayForPoints(arrRunways, landingPoints) : null;
+    const depEnd = resolveLikelyRunwayEnd(depRunway, takeoffPoints);
+    const arrEnd = resolveLikelyRunwayEnd(arrRunway, landingPoints);
+    const detectedDepRunway = depRunway ? (depEnd === 'le' ? depRunway.le_ident : depRunway.he_ident) : null;
+    const detectedArrRunway = arrRunway ? (arrEnd === 'le' ? arrRunway.le_ident : arrRunway.he_ident) : null;
+    const plannedDepRunwayRaw = xpd.simbrief_departure_runway || xpd.departure_runway || contract.departure_runway || null;
+    const plannedArrRunwayRaw = xpd.simbrief_arrival_runway || xpd.arrival_runway || contract.arrival_runway || null;
+    const plannedDepRunway = normalizeRunwayIdent(plannedDepRunwayRaw);
+    const plannedArrRunway = normalizeRunwayIdent(plannedArrRunwayRaw);
+    const depRunwayMismatch = !!(plannedDepRunway && detectedDepRunway && normalizeRunwayIdent(detectedDepRunway) !== plannedDepRunway);
+    const arrRunwayMismatch = !!(plannedArrRunway && detectedArrRunway && normalizeRunwayIdent(detectedArrRunway) !== plannedArrRunway);
 
-    const takeoffAcc = depRunway ? measureDeviation(takeoffPoints, depRunway) : null;
-    const landingAcc = arrRunway ? measureDeviation(landingPoints, arrRunway) : null;
+    const takeoffAcc = depRunway && !depRunwayMismatch ? measureDeviation(takeoffPoints, depRunway) : null;
+    const landingAcc = arrRunway && !arrRunwayMismatch ? measureDeviation(landingPoints, arrRunway) : null;
 
     const takeoffEval = takeoffAcc ? evaluate(takeoffAcc.rmsMeters, basePayout) : null;
     const landingEval = landingAcc ? evaluate(landingAcc.rmsMeters, basePayout) : null;
@@ -431,9 +459,17 @@ Deno.serve(async (req) => {
           totalCashDelta,
           dep_icao: depIcao,
           arr_icao: arrIcao,
+          planned_dep_runway: plannedDepRunway,
+          planned_arr_runway: plannedArrRunway,
+          detected_dep_runway: detectedDepRunway,
+          detected_arr_runway: detectedArrRunway,
+          departure_runway_mismatch: depRunwayMismatch,
+          arrival_runway_mismatch: arrRunwayMismatch,
           takeoff_points_used: takeoffPoints.length,
           landing_points_used: landingPoints.length,
-          unavailable_reason: (!takeoffAcc && !landingAcc) ? 'no_runway_match' : null,
+          unavailable_reason: (!takeoffAcc && !landingAcc)
+            ? (depRunwayMismatch || arrRunwayMismatch ? 'runway_mismatch' : 'no_runway_match')
+            : null,
         },
       },
     });

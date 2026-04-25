@@ -16,7 +16,6 @@ import {
   buildSyntheticPath,
   projectToRunwayFrame,
 } from '@/components/flights/approachGeometry';
-import { buildCustomAirport } from '@/components/flights/customAirportModel';
 
 // Visualizes a slice of telemetry (final approach OR initial takeoff) as a 3D replay.
 // phase: 'landing' (last N seconds, default) | 'takeoff' (first N seconds after motion)
@@ -155,6 +154,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       lat: Number(p?.lat ?? p?.latitude ?? 0),
       lon: Number(p?.lon ?? p?.lng ?? p?.longitude ?? 0),
       pitch: Number.isFinite(Number(p?.pitch)) ? Number(p.pitch) : null,
+      roll: Number.isFinite(Number(p?.roll ?? p?.bank ?? p?.phi))
+        ? Number(p?.roll ?? p?.bank ?? p?.phi)
+        : null,
       on_ground: p?.on_ground ?? p?.onGround ?? p?.og ?? null,
     });
 
@@ -290,6 +292,20 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       }
     }
     const hintPoint = segment.points[hintIdx] || {};
+    const prevPoint = segment.points[Math.max(0, hintIdx - 1)] || hintPoint;
+    const nextPoint = segment.points[Math.min(segment.points.length - 1, hintIdx + 1)] || hintPoint;
+    const touchdownHeading = (() => {
+      const lat1 = Number(prevPoint?.lat);
+      const lon1 = Number(prevPoint?.lon);
+      const lat2 = Number(nextPoint?.lat);
+      const lon2 = Number(nextPoint?.lon);
+      if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
+      const dLat = lat2 - lat1;
+      const dLon = lon2 - lon1;
+      if (Math.abs(dLat) + Math.abs(dLon) < 1e-7) return null;
+      const rad = Math.atan2(dLon, dLat);
+      return (rad * 180) / Math.PI >= 0 ? (rad * 180) / Math.PI : (rad * 180) / Math.PI + 360;
+    })();
     const hintLat = Number.isFinite(hintPoint.lat) && Math.abs(hintPoint.lat) > 0.001
       ? hintPoint.lat
       : Number((phase === 'takeoff' ? xpd.departure_lat : xpd.arrival_lat) || 0);
@@ -301,7 +317,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     (async () => {
       try {
         const res = await base44.functions.invoke('getRunwayInfo', {
-          icao, touchdown_lat: hintLat, touchdown_lon: hintLon,
+          icao, touchdown_lat: hintLat, touchdown_lon: hintLon, touchdown_heading: touchdownHeading,
         });
         if (cancelled) return;
         const picked = res?.data?.landing_runway;
@@ -389,14 +405,27 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     ground.position.y = -1.5;
     scene.add(ground);
 
-    // =================================================================
-    // Scenery is now provided by the custom airport 3D model loaded below;
-    // all the previous procedural trees/houses/mountains have been removed.
-    // =================================================================
-
     // Runway - built from real OurAirports data when available, else generic.
     const { group: runwayGroup, runwayLenM, runwayWidthM } = buildRunwayScene(runway, makeRunwayLabelTexture);
     scene.add(runwayGroup);
+
+    // Hangar-style floor guide lines: subtle cyan lane strips on the ground to
+    // improve depth perception without adding heavy scenery geometry.
+    const floorGuideGroup = new THREE.Group();
+    const floorGuideMat = new THREE.MeshBasicMaterial({ color: 0x5cc9ff, transparent: true, opacity: 0.17 });
+    for (let x = -2400; x <= 2400; x += 120) {
+      const lane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 5200), floorGuideMat);
+      lane.rotation.x = -Math.PI / 2;
+      lane.position.set(x, -1.43, -runwayLenM / 2);
+      floorGuideGroup.add(lane);
+    }
+    for (let z = -3200; z <= 600; z += 120) {
+      const lane = new THREE.Mesh(new THREE.PlaneGeometry(5200, 1.2), floorGuideMat);
+      lane.rotation.x = -Math.PI / 2;
+      lane.position.set(0, -1.43, z);
+      floorGuideGroup.add(lane);
+    }
+    scene.add(floorGuideGroup);
     // Local runway spotlight: keeps runway/touchdown zone readable without
     // brightening the full world background.
     if (performanceProfile === 'high') {
@@ -406,10 +435,6 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       scene.add(runwaySpot);
       scene.add(runwaySpot.target);
     }
-
-    // Custom user-provided airport 3D model (replaces procedural scenery).
-    const airportGroup = buildCustomAirport({ runwayLenM });
-    scene.add(airportGroup);
 
     // Build 3D path referenced to the runway frame (georeferenced when possible).
     const geoPath = runway ? buildGeoPath(segment.points, runway) : null;
@@ -738,6 +763,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         const segPoints = sceneRef.current?.segment?.points || [];
         const pathProgressIdx = Math.min(segPoints.length - 1, Math.floor(currentProgress * (segPoints.length - 1)));
         const realPitchDeg = segPoints[pathProgressIdx]?.pitch;
+        const realRollDeg = segPoints[pathProgressIdx]?.roll;
         let targetPitch;
         if (Number.isFinite(realPitchDeg)) targetPitch = (realPitchDeg * Math.PI) / 180;
         else targetPitch = Math.asin(Math.max(-1, Math.min(1, dirSmooth.y)));
@@ -745,7 +771,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         const dxFwd = path3D[lookFwdIdx].x - path3D[lookBackIdx].x;
         const dzFwd = path3D[lookFwdIdx].z - path3D[lookBackIdx].z;
         const turnRate = Math.atan2(dxFwd, Math.max(0.1, Math.abs(dzFwd))) * 0.8;
-        const targetBank = Math.max(-0.4, Math.min(0.4, turnRate));
+        const derivedBank = Math.max(-0.4, Math.min(0.4, turnRate));
+        const targetBank = Number.isFinite(realRollDeg)
+          ? Math.max(-1.2, Math.min(1.2, (realRollDeg * Math.PI) / 180))
+          : derivedBank;
 
         // Low-pass filter (exponential smoothing) for all three axes. dt-based
         // so it behaves the same regardless of framerate.
