@@ -253,6 +253,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Target hangar airport is missing' }, { status: 400 });
     }
     const resolvedTargetHangarId = getHangarIdentifierCandidates(targetHangar)[0] || targetHangarId;
+    const resolvedTargetHangarModelVariant = normalizeIdentifier(targetHangar?.model_variant) || null;
 
     if (transferCost > 0) {
       const latestCompanyRows = await base44.asServiceRole.entities.Company.filter({ id: company.id });
@@ -282,6 +283,7 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
       hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
       hangar_airport: resolvedTargetAirport,
+      hangar_model_variant: resolvedTargetHangarModelVariant,
     });
     const currentAssignments = getAircraftHangarAssignmentsMap(company);
     const nextAssignments = {
@@ -289,6 +291,7 @@ Deno.serve(async (req) => {
       [String(aircraft.id)]: {
         hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
         hangar_airport: resolvedTargetAirport,
+        hangar_model_variant: resolvedTargetHangarModelVariant,
         updated_at: new Date().toISOString(),
       },
     };
@@ -301,6 +304,7 @@ Deno.serve(async (req) => {
       aircraftId: aircraft.id,
       targetHangarId: resolvedTargetHangarId || null,
       targetAirport: resolvedTargetAirport,
+      targetHangarModelVariant: resolvedTargetHangarModelVariant,
       transferCost,
       companyId: company.id,
     });

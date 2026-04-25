@@ -1083,9 +1083,15 @@ export default function Contracts() {
       }
       const resolvedTargetAirport = normIcao(result?.targetAirport || targetAirport);
       const resolvedTargetHangarId = String(result?.targetHangarId || validation.targetHangarId || "").trim();
+      const resolvedTargetHangarVariant = String(
+        result?.targetHangarModelVariant ||
+          validation?.targetHangar?.model_variant ||
+          ""
+      ).trim();
       await base44.entities.Aircraft.update(aircraft.id, {
         hangar_id: resolvedTargetHangarId || null,
         hangar_airport: resolvedTargetAirport || targetAirport,
+        hangar_model_variant: resolvedTargetHangarVariant || null,
       });
       return {
         ...result,
@@ -1093,6 +1099,7 @@ export default function Contracts() {
         aircraft,
         targetAirport: resolvedTargetAirport,
         targetHangarId: resolvedTargetHangarId,
+        targetHangarModelVariant: resolvedTargetHangarVariant || null,
       };
     },
     onSuccess: (result) => {
@@ -1115,6 +1122,7 @@ export default function Contracts() {
                       ...entry,
                       hangar_id: result.targetHangarId ?? entry.hangar_id,
                       hangar_airport: result.targetAirport,
+                      hangar_model_variant: result.targetHangarModelVariant ?? entry.hangar_model_variant,
                     }
                   : entry
               )
@@ -1129,6 +1137,7 @@ export default function Contracts() {
                     ...entry,
                     hangar_id: result.targetHangarId ?? entry.hangar_id,
                     hangar_airport: result.targetAirport,
+                    hangar_model_variant: result.targetHangarModelVariant ?? entry.hangar_model_variant,
                   }
                 : entry
             )

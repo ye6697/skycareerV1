@@ -133,7 +133,7 @@ function resolveAircraftHangars(aircraft = [], hangars = [], assignmentMap: Reco
     byAirport.set(state.airport, list);
   });
 
-  const resolvedById = new Map<string, { hangar_id: string; hangar_airport: string }>();
+  const resolvedById = new Map<string, { hangar_id: string; hangar_airport: string; hangar_model_variant: string | null }>();
   const deferred: any[] = [];
   aircraft.forEach((entry: any) => {
     const mapped = assignmentMap?.[String(entry?.id || '')] || null;
@@ -141,7 +141,11 @@ function resolveAircraftHangars(aircraft = [], hangars = [], assignmentMap: Reco
     const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
     if (directMatch) {
       directMatch.usedSlots += 1;
-      resolvedById.set(String(entry.id), { hangar_id: directMatch.key, hangar_airport: directMatch.airport });
+      resolvedById.set(String(entry.id), {
+        hangar_id: directMatch.key,
+        hangar_airport: directMatch.airport,
+        hangar_model_variant: String(directMatch?.hangar?.model_variant || '').trim() || null,
+      });
       return;
     }
 
@@ -170,7 +174,11 @@ function resolveAircraftHangars(aircraft = [], hangars = [], assignmentMap: Reco
       || airportHangars[0];
     if (!target) return;
     target.usedSlots += 1;
-    resolvedById.set(String(entry.id), { hangar_id: target.key, hangar_airport: target.airport });
+    resolvedById.set(String(entry.id), {
+      hangar_id: target.key,
+      hangar_airport: target.airport,
+      hangar_model_variant: String(target?.hangar?.model_variant || '').trim() || null,
+    });
   });
 
   return aircraft.map((entry: any) => {
@@ -180,6 +188,7 @@ function resolveAircraftHangars(aircraft = [], hangars = [], assignmentMap: Reco
       ...entry,
       hangar_id: resolved.hangar_id,
       hangar_airport: resolved.hangar_airport,
+      hangar_model_variant: resolved.hangar_model_variant,
     };
   });
 }
@@ -237,6 +246,7 @@ Deno.serve(async (req) => {
           id: entry.id,
           hangar_id: nextHangarId,
           hangar_airport: nextAirport,
+          hangar_model_variant: String(entry?.hangar_model_variant || '').trim() || null,
         };
       })
       .filter(Boolean);
@@ -246,6 +256,7 @@ Deno.serve(async (req) => {
         aircraftHangarFixes.map((fix: any) => base44.asServiceRole.entities.Aircraft.update(fix.id, {
           hangar_id: fix.hangar_id,
           hangar_airport: fix.hangar_airport,
+          hangar_model_variant: fix.hangar_model_variant,
         }))
       );
 
@@ -254,6 +265,7 @@ Deno.serve(async (req) => {
         nextAssignments[String(fix.id)] = {
           hangar_id: fix.hangar_id,
           hangar_airport: fix.hangar_airport,
+          hangar_model_variant: fix.hangar_model_variant,
           updated_at: new Date().toISOString(),
         };
       });

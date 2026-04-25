@@ -778,6 +778,7 @@ export default function Fleet() {
           ...entry,
           hangar_id: entry?.hangar_id || mapped?.hangar_id || null,
           hangar_airport: entry?.hangar_airport || mapped?.hangar_airport || null,
+          hangar_model_variant: entry?.hangar_model_variant || mapped?.hangar_model_variant || null,
         };
       });
     },
@@ -814,6 +815,7 @@ export default function Fleet() {
       if (!assignedHangarId) {
         throw new Error(lang === 'de' ? 'Hangar-ID fehlt.' : 'Missing hangar ID.');
       }
+      const assignedHangarVariant = String(assignedHangar?.model_variant || '').trim() || null;
       const maintenanceCategories = makeCategoryMap(aircraftData.maintenance_categories, 0);
       const dynamicWearValues = Object.values(maintenanceCategories).map((value) => Math.max(0, Number(value || 0)));
       const avgDynamicWearPct = dynamicWearValues.length > 0
@@ -881,7 +883,8 @@ export default function Fleet() {
         used_wear_peak: Number(aircraftData.used_wear_peak || 0),
         used_permanent_avg: Number(aircraftData.used_permanent_avg || persistedPermanentAvg || 0),
         hangar_id: assignedHangarId,
-        hangar_airport: getHangarAirportIcao(assignedHangar)
+        hangar_airport: getHangarAirportIcao(assignedHangar),
+        hangar_model_variant: assignedHangarVariant,
       });
 
       if (company) {
@@ -895,6 +898,7 @@ export default function Fleet() {
             [createdAircraftId]: {
               hangar_id: assignedHangarId,
               hangar_airport: getHangarAirportIcao(assignedHangar),
+              hangar_model_variant: assignedHangarVariant,
               updated_at: new Date().toISOString(),
             },
           }
@@ -1108,9 +1112,15 @@ export default function Fleet() {
       }
       const resolvedTargetAirport = normIcao(result?.targetAirport || targetAirport);
       const resolvedTargetHangarId = String(result?.targetHangarId || validation.targetHangarId || '').trim();
+      const resolvedTargetHangarVariant = String(
+        result?.targetHangarModelVariant
+        || validation?.targetHangar?.model_variant
+        || ''
+      ).trim();
       await base44.entities.Aircraft.update(aircraftEntry.id, {
         hangar_id: resolvedTargetHangarId || null,
         hangar_airport: resolvedTargetAirport || targetAirport,
+        hangar_model_variant: resolvedTargetHangarVariant || null,
       });
       return {
         ...result,
@@ -1118,6 +1128,7 @@ export default function Fleet() {
         transferCost,
         targetAirport: resolvedTargetAirport,
         targetHangarId: resolvedTargetHangarId,
+        targetHangarModelVariant: resolvedTargetHangarVariant || null,
       };
     },
     onSuccess: (result) => {
@@ -1133,6 +1144,7 @@ export default function Fleet() {
                     ...entry,
                     hangar_id: result.targetHangarId ?? entry.hangar_id,
                     hangar_airport: result.targetAirport,
+                    hangar_model_variant: result.targetHangarModelVariant ?? entry.hangar_model_variant,
                   }
                 : entry
             )
