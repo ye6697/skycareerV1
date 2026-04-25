@@ -332,28 +332,15 @@ function getHangarStorageKey(companyId) {
   return `${HANGAR_STORAGE_KEY_PREFIX}_${companyId}`;
 }
 
-function getAllPersistedHangars(sizeMap = {}) {
-  if (typeof window === "undefined") return [];
-  const snapshots = [];
+function readPersistedHangars(storageKey) {
+  if (!storageKey || typeof window === "undefined") return [];
   try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key || !key.startsWith(`${HANGAR_STORAGE_KEY_PREFIX}_`)) continue;
-      const raw = window.localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed) || parsed.length === 0) continue;
-      snapshots.push(parsed);
-    }
+    const raw = window.localStorage.getItem(storageKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
-
-  if (snapshots.length === 0) return [];
-  snapshots.sort(
-    (a, b) => normalizeHangarList(b, sizeMap).length - normalizeHangarList(a, sizeMap).length
-  );
-  return snapshots[0];
 }
 
 function isContractCompatibleWithAircraft(contract, aircraft) {
@@ -488,24 +475,14 @@ export default function Contracts() {
     }
 
     const serverHangars = Array.isArray(company?.hangars) ? company.hangars : [];
-    let persistedHangars = [];
-    try {
-      const raw = localStorage.getItem(hangarStorageKey);
-      persistedHangars = raw ? JSON.parse(raw) : [];
-    } catch {
-      persistedHangars = [];
-    }
-    const fallbackHangars =
-      Array.isArray(serverHangars) && serverHangars.length > 0
-        ? []
-        : getAllPersistedHangars(hangarSizeRankMap);
+    const persistedHangars = readPersistedHangars(hangarStorageKey);
 
     setLocalHangars((previous) =>
       mergeHangarLists(
         serverHangars,
         mergeHangarLists(
           previous,
-          mergeHangarLists(persistedHangars, fallbackHangars, hangarSizeRankMap),
+          persistedHangars,
           hangarSizeRankMap
         ),
         hangarSizeRankMap
@@ -521,6 +498,45 @@ export default function Contracts() {
       // ignore storage write errors
     }
   }, [hangarStorageKey, localHangars]);
+
+  useEffect(() => {
+    if (!hangarStorageKey || typeof window === "undefined") return undefined;
+
+    const syncFromStorage = (rawValue = null) => {
+      const persistedHangars = (() => {
+        if (rawValue === null) return readPersistedHangars(hangarStorageKey);
+        try {
+          const parsed = JSON.parse(rawValue);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      })();
+      const serverHangars = Array.isArray(company?.hangars) ? company.hangars : [];
+      setLocalHangars(mergeHangarLists(serverHangars, persistedHangars, hangarSizeRankMap));
+    };
+
+    const handleStorage = (event) => {
+      if (event.storageArea !== window.localStorage) return;
+      if (event.key !== hangarStorageKey) return;
+      syncFromStorage(event.newValue);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      syncFromStorage();
+    };
+
+    window.addEventListener("storage", handleStorage);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleVisibility);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
+    };
+  }, [company?.hangars, hangarSizeRankMap, hangarStorageKey]);
 
   const ownedHangars = localHangars;
 
