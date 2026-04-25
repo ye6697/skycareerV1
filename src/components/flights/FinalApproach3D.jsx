@@ -47,6 +47,16 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   const [runway, setRunway] = useState(null); // normalized runway or null
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
   const exporter = useMp4Exporter();
+  const performanceProfile = useMemo(() => {
+    if (typeof window === 'undefined') return 'high';
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const cpuCores = Number(navigator?.hardwareConcurrency || 0);
+    const memoryGb = Number(navigator?.deviceMemory || 0);
+    if (prefersReducedMotion || (cpuCores > 0 && cpuCores <= 4) || (memoryGb > 0 && memoryGb <= 4)) {
+      return 'low';
+    }
+    return 'high';
+  }, []);
 
   const PLAYBACK_DURATION_MS = 22000;
   const filenameBase = `skycareer-${phase}-${flight?.id || 'replay'}`;
@@ -314,18 +324,20 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const scene = new THREE.Scene();
     // Darker late-evening atmosphere – moodier, more cinematic.
     scene.background = new THREE.Color(0x324663);
-    scene.fog = new THREE.Fog(0x43597a, 2200, 9200);
+    if (performanceProfile === 'high') {
+      scene.fog = new THREE.Fog(0x43597a, 2200, 9200);
+    }
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
     // which fixes the runway/shadow z-fighting flicker on large scenes.
     const camera = new THREE.PerspectiveCamera(55, width / height, 2, 12000);
 
     const renderer = new THREE.WebGLRenderer({
-      antialias: window.devicePixelRatio <= 1.5,
+      antialias: performanceProfile === 'high' && window.devicePixelRatio <= 1.5,
       alpha: true,
-      powerPreference: 'high-performance',
+      powerPreference: performanceProfile === 'low' ? 'default' : 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, performanceProfile === 'low' ? 1.2 : 2));
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.04;
@@ -333,7 +345,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     // Sky dome with gradient (horizon glow). Radius > camera.far / 2 so the
     // camera never flies through the dome even during long takeoff replays.
-    const skyGeo = new THREE.SphereGeometry(8000, 32, 16);
+    const skyGeo = new THREE.SphereGeometry(8000, performanceProfile === 'low' ? 16 : 32, performanceProfile === 'low' ? 8 : 16);
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
@@ -360,8 +372,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     // Dusk lighting with a stronger sun key so the replay feels brighter and
     // the aircraft/runway highlights read more clearly in the 3D video.
-    scene.add(new THREE.HemisphereLight(0x5f82ad, 0x33402a, 0.52));
-    scene.add(new THREE.AmbientLight(0x4e5f7c, 0.3));
+    scene.add(new THREE.HemisphereLight(0x5f82ad, 0x33402a, performanceProfile === 'low' ? 0.44 : 0.52));
+    scene.add(new THREE.AmbientLight(0x4e5f7c, performanceProfile === 'low' ? 0.26 : 0.3));
     const sunLight = new THREE.DirectionalLight(0xffbd8a, 0.92);
     sunLight.position.set(-300, 180, -150);
     scene.add(sunLight);
@@ -387,11 +399,13 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     scene.add(runwayGroup);
     // Local runway spotlight: keeps runway/touchdown zone readable without
     // brightening the full world background.
-    const runwaySpot = new THREE.SpotLight(0xf8f4df, 2.2, 1800, Math.PI / 5.5, 0.5, 1.1);
-    runwaySpot.position.set(0, 220, -runwayLenM * 0.35);
-    runwaySpot.target.position.set(0, 0, -runwayLenM * 0.35);
-    scene.add(runwaySpot);
-    scene.add(runwaySpot.target);
+    if (performanceProfile === 'high') {
+      const runwaySpot = new THREE.SpotLight(0xf8f4df, 2.2, 1800, Math.PI / 5.5, 0.5, 1.1);
+      runwaySpot.position.set(0, 220, -runwayLenM * 0.35);
+      runwaySpot.target.position.set(0, 0, -runwayLenM * 0.35);
+      scene.add(runwaySpot);
+      scene.add(runwaySpot.target);
+    }
 
     // Custom user-provided airport 3D model (replaces procedural scenery).
     const airportGroup = buildCustomAirport({ runwayLenM });
@@ -403,12 +417,15 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       ? geoPath
       : buildSyntheticPath(segment.points, runway, phase);
 
-    // Smooth the path with a Catmull-Rom spline and use getSpacedPoints to
-    // distribute samples by arc-length (constant speed), not by parameter t
-    // (which produces speed-up/slow-down artifacts between control points).
-    const curve = new THREE.CatmullRomCurve3(rawPath, false, 'catmullrom', 0.25);
-    const smoothCount = Math.max(rawPath.length * 6, 160);
-    const path3D = curve.getSpacedPoints(smoothCount);
+    // High-quality mode: smooth the path with a centripetal spline.
+    // Low mode: use raw points directly to reduce CPU/GPU work and avoid spline overshoot.
+    const path3D = performanceProfile === 'low'
+      ? rawPath
+      : (() => {
+          const curve = new THREE.CatmullRomCurve3(rawPath, false, 'centripetal');
+          const smoothCount = Math.max(rawPath.length * 4, 120);
+          return curve.getSpacedPoints(smoothCount);
+        })();
 
     // Identify the REAL touchdown / liftoff telemetry sample (not spline).
     // Landing: first on_ground=true after airborne. Takeoff: first on_ground=false after ground.
@@ -541,36 +558,52 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Glow halo: a second, thicker line underneath the main path with the
     // same vertex colors but lower opacity – makes the colored path pop
     // against the dark ground from any camera angle.
-    const pathHaloGeo = new THREE.BufferGeometry().setFromPoints(path3D);
-    pathHaloGeo.setAttribute('color', new THREE.BufferAttribute(pathColors, 3));
-    const pathHaloMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false });
-    const pathHalo = new THREE.Line(pathHaloGeo, pathHaloMat);
-    pathHalo.renderOrder = 1;
-    scene.add(pathHalo);
+    if (performanceProfile === 'high') {
+      const pathHaloGeo = new THREE.BufferGeometry().setFromPoints(path3D);
+      pathHaloGeo.setAttribute('color', new THREE.BufferAttribute(pathColors, 3));
+      const pathHaloMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false });
+      const pathHalo = new THREE.Line(pathHaloGeo, pathHaloMat);
+      pathHalo.renderOrder = 1;
+      scene.add(pathHalo);
+    }
 
     // Vertical drop lines from path to ground (every 5th point)
-    path3D.forEach((pt, i) => {
-      if (i % 10 !== 0) return;
-      const dropGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(pt.x, pt.y, pt.z),
-        new THREE.Vector3(pt.x, 0, pt.z),
-      ]);
-      const dropMat = new THREE.LineBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.3 });
-      scene.add(new THREE.Line(dropGeo, dropMat));
-    });
+    if (performanceProfile === 'high') {
+      path3D.forEach((pt, i) => {
+        if (i % 10 !== 0) return;
+        const dropGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(pt.x, pt.y, pt.z),
+          new THREE.Vector3(pt.x, 0, pt.z),
+        ]);
+        const dropMat = new THREE.LineBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.3 });
+        scene.add(new THREE.Line(dropGeo, dropMat));
+      });
+    }
 
     // Aircraft - model picked based on the flight's actual aircraft type.
     const xpdForModel = flight?.xplane_data || {};
     const aircraftHint =
       xpdForModel.fleet_aircraft_type ||
       xpdForModel.aircraft_icao ||
+      xpdForModel.atc_model ||
+      xpdForModel.model ||
+      xpdForModel.model_name ||
       xpdForModel.aircraft_type ||
       xpdForModel.aircraft_name ||
       xpdForModel.aircraft ||
+      flight?.aircraft_name ||
+      flight?.aircraft_model ||
       flight?.aircraft_type ||
       '';
-    // Use the user-provided custom 3D model for all flights.
-    const { group: planeMesh, strobe } = buildCustomAircraftModel(aircraftHint);
+    const hasSpecificHint = /[0-9]/.test(String(aircraftHint || '')) || /\b(boeing|airbus|embraer|cessna|atr|dash|cirrus|beech|diamond|pilatus|honda|piper)\b/i.test(String(aircraftHint || ''));
+    const effectiveAircraftHint = hasSpecificHint ? aircraftHint : 'a320';
+    const proceduralFallback = () => {
+      const built = buildAircraftModel(effectiveAircraftHint || flight?.aircraft_type || 'regional_jet');
+      return { group: built.group, strobe: built.strobe };
+    };
+    const { group: planeMesh, strobe } = !hasSpecificHint
+      ? buildCustomAircraftModel('a320')
+      : (performanceProfile === 'low' ? proceduralFallback() : buildCustomAircraftModel(effectiveAircraftHint));
     planeMesh.position.copy(path3D[0]);
     scene.add(planeMesh);
 
@@ -590,7 +623,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Ring/reticle removed - use shadow for ground position instead
     const ring = shadow;
 
-    const planeKeyLight = new THREE.PointLight(0xfff2de, 2.1, 260, 2);
+    const planeKeyLight = new THREE.PointLight(0xfff2de, performanceProfile === 'low' ? 1.3 : 2.1, 260, 2);
     planeKeyLight.position.copy(planeMesh.position).add(new THREE.Vector3(0, 12, 14));
     scene.add(planeKeyLight);
 
@@ -627,7 +660,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         skyGeo.dispose(); skyMat.dispose();
       } catch (_) { /* ignore cleanup errors */ }
     };
-  }, [segment, runway]);
+  }, [segment, runway, performanceProfile, flight, phase]);
 
   // Keep progress ref in sync for the animation loop.
   useEffect(() => { progressRef.current = progress; }, [progress]);
