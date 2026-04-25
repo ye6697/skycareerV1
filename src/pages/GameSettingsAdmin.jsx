@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
-import { Save, AlertTriangle, Settings, RotateCcw } from "lucide-react";
+import { Save, AlertTriangle, Settings, RotateCcw, DatabaseZap } from "lucide-react";
 
 export default function GameSettingsAdmin() {
   const queryClient = useQueryClient();
@@ -102,6 +102,20 @@ export default function GameSettingsAdmin() {
     }
   });
 
+  const backfillAircraftOptionsMutation = useMutation({
+    mutationFn: async () => {
+      return base44.functions.invoke('backfillAircraftOptions');
+    },
+    onSuccess: (result) => {
+      const updated = Number(result?.data?.updated || 0);
+      const scanned = Number(result?.data?.scanned || 0);
+      alert(`Aircraft-Optionen initialisiert: ${updated}/${scanned} aktualisiert.`);
+    },
+    onError: (error) => {
+      alert(error?.message || 'Fehler beim Initialisieren der Aircraft-Optionen.');
+    }
+  });
+
   const handleChange = (field, value) => {
     // Check if it's a string field (level titles)
     if (field.includes('level_') && field.includes('_title')) {
@@ -151,6 +165,30 @@ export default function GameSettingsAdmin() {
 
       <div className="flex-1 overflow-y-auto min-h-0">
         <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="p-6 bg-slate-800 border-slate-700">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <DatabaseZap className="w-5 h-5 text-cyan-300" />
+                  Aircraft-Options Backfill (einmalig)
+                </h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  Erstellt dauerhaft das Feld <code className="text-cyan-200">options</code> in allen bestehenden Aircraft-Datensätzen.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => backfillAircraftOptionsMutation.mutate()}
+                disabled={backfillAircraftOptionsMutation.isPending}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white"
+              >
+                {backfillAircraftOptionsMutation.isPending
+                  ? 'Initialisiere...'
+                  : 'Optionsfelder jetzt erstellen'}
+              </Button>
+            </div>
+          </Card>
+
           <Card className="p-6 bg-slate-800 border-slate-700">
             <div className="flex items-center justify-between gap-4">
               <div>
