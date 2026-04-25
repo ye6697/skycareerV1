@@ -800,6 +800,7 @@ Deno.serve(async (req) => {
       A19N: "A319",
       B38M: "B738",
       B39M: "B739",
+      B37M: "B738",
       B78X: "B789",
       E75L: "E75S",
     };
@@ -810,7 +811,10 @@ Deno.serve(async (req) => {
       const patternAliases = [
         [/B38M|B738|7378|B737800/, "B738"],
         [/B39M|B739|7379|B737900/, "B739"],
+        [/B37M|737MAX8|737M8|B737MAX8/, "B738"],
         [/B737|7377|B737700/, "B737"],
+        [/B736|7376|B737600/, "B736"],
+        [/B735|7375|B737500/, "B735"],
         [/B78X|B789|7879|B787900/, "B789"],
         [/B788|7878|B787800/, "B788"],
         [/A20N|A320NEO|A320/, "A320"],
@@ -906,7 +910,9 @@ Deno.serve(async (req) => {
         const model = `7${b[1]}${b[2]}`;
         const variant = `${b[3]}00`;
         add(model);
+        add(`${model}-${b[3]}00`);
         add(`${model}${variant}`);
+        add(`B${model}`);
         add(`BOEING${model}${variant}`);
         add(`B${model}${variant}`);
       }
@@ -924,6 +930,26 @@ Deno.serve(async (req) => {
         add(`EMBRAER${model}`);
       }
       return Array.from(tokens);
+    };
+    const parseAircraftFamilyVariant = (raw) => {
+      const n = normalizeIcaoCode(raw);
+      if (!n) return null;
+      const canon = canonicalIcao(n);
+      const source = canon || n;
+
+      const boeing = source.match(/(?:^|[^0-9])(?:B)?(7[0-9]{2})([0-9])(?:00)?(?:[^0-9]|$)/);
+      if (boeing) {
+        return { family: `B${boeing[1]}`, variant: boeing[2], canonical: canonicalIcao(`B${boeing[1]}${boeing[2]}`) };
+      }
+      const airbus = source.match(/(?:^|[^0-9])(?:A)?(3[0-9]{2})(?:NEO)?(?:[^0-9]|$)/);
+      if (airbus) {
+        return { family: `A${airbus[1]}`, variant: null, canonical: canonicalIcao(`A${airbus[1]}`) };
+      }
+      const embraer = source.match(/(?:^|[^0-9])(?:E|ERJ|EJET)([0-9]{3})(?:[^0-9]|$)/);
+      if (embraer) {
+        return { family: `E${embraer[1].slice(0, 2)}`, variant: embraer[1].slice(2), canonical: canonicalIcao(`E${embraer[1]}`) };
+      }
+      return null;
     };
     const extractAircraftIcao = (ac) => {
       if (!ac || typeof ac !== "object") return "";
@@ -944,6 +970,14 @@ Deno.serve(async (req) => {
 
       const rowIcao = extractAircraftIcao(row);
       best = Math.max(best, icaoMatchScore(t, rowIcao));
+      const targetFamily = parseAircraftFamilyVariant(t);
+      const rowFamily = parseAircraftFamilyVariant(rowIcao);
+      if (targetFamily && rowFamily && targetFamily.family === rowFamily.family) {
+        best = Math.max(best, 83);
+        if (targetFamily.variant && rowFamily.variant && targetFamily.variant === rowFamily.variant) {
+          best = Math.max(best, 92);
+        }
+      }
 
       const hay = extractAircraftText(row);
       if (hay) {
@@ -956,6 +990,11 @@ Deno.serve(async (req) => {
         }
         if (tokenHits >= 2) best = Math.max(best, 86);
         else if (tokenHits >= 1) best = Math.max(best, 80);
+        if (targetFamily?.family && hay.includes(targetFamily.family)) best = Math.max(best, 84);
+        if (targetFamily?.canonical && hay.includes(targetFamily.canonical)) best = Math.max(best, 90);
+        if (targetFamily?.variant && hay.includes(`${targetFamily.family.slice(1)}-${targetFamily.variant}00`)) {
+          best = Math.max(best, 92);
+        }
 
         if (t.startsWith("B") && hay.includes("BOEING")) best = Math.max(best, Math.min(100, best + 4));
         if (t.startsWith("A") && hay.includes("AIRBUS")) best = Math.max(best, Math.min(100, best + 4));
@@ -998,8 +1037,62 @@ Deno.serve(async (req) => {
     };
     const resolveAircraftGateMeta = async (opts = {}) => {
       const assignedAircraft = opts.assignedAircraft || null;
+      const contract = opts.contract || null;
       const flightXplaneData = opts.flightXplaneData || null;
-      const icaoCode = normalizeIcaoCode(aircraft_icao || flightXplaneData?.aircraft_icao || "");
+      const currentPacketIcao = normalizeIcaoCode(aircraft_icao || "");
+      const incomingSimbriefIcao =
+        pickAircraftString(data, [
+          "simbrief_aircraft_icao",
+          "simbrief_icao",
+          "simbrief_aircraft",
+        ]) ||
+        pickAircraftString(data?.simbrief_general || {}, [
+          "icao_aircraft",
+          "aircraft_icao",
+          "aircraft_type",
+          "aircraft_code",
+        ]);
+      const historicalSimbriefIcao =
+        pickAircraftString(flightXplaneData, [
+          "simbrief_aircraft_icao",
+          "simbrief_icao",
+          "simbrief_aircraft",
+        ]) ||
+        pickAircraftString(flightXplaneData?.simbrief_general || {}, [
+          "icao_aircraft",
+          "aircraft_icao",
+          "aircraft_type",
+          "aircraft_code",
+        ]);
+      const contractSimbriefIcao =
+        pickAircraftString(contract, [
+          "simbrief_aircraft_icao",
+          "aircraft_icao",
+          "required_aircraft_icao",
+        ]) ||
+        pickAircraftString(contract?.simbrief || {}, [
+          "aircraft_icao",
+          "icao_aircraft",
+          "aircraft_type",
+          "aircraft_code",
+        ]) ||
+        pickAircraftString(contract?.raw_general || {}, [
+          "aircraft_icao",
+          "icao_aircraft",
+          "aircraft_type",
+          "aircraft_code",
+        ]);
+
+      const targetCandidates = [
+        currentPacketIcao,
+        normalizeIcaoCode(flightXplaneData?.aircraft_icao || ""),
+        normalizeIcaoCode(incomingSimbriefIcao || ""),
+        normalizeIcaoCode(historicalSimbriefIcao || ""),
+        normalizeIcaoCode(contractSimbriefIcao || ""),
+      ].filter(Boolean);
+      const primaryTargetIcao = targetCandidates[0] || "";
+      const fallbackTargetIcao = targetCandidates.find((code) => code !== primaryTargetIcao) || "";
+      const effectiveTargetIcao = primaryTargetIcao || fallbackTargetIcao;
       const displayName = pickAircraftString(assignedAircraft, [
         "display_name",
         "aircraft_name",
@@ -1008,12 +1101,79 @@ Deno.serve(async (req) => {
         "title",
         "model",
       ]);
+      const assignedIcao = extractAircraftIcao(assignedAircraft);
+      const assignedMatchScore = effectiveTargetIcao ? aircraftRowMatchScore(effectiveTargetIcao, assignedAircraft) : 0;
+      const assignedLooksCompatible = !!assignedAircraft && (
+        !effectiveTargetIcao ||
+        assignedMatchScore >= 84 ||
+        (assignedIcao && icaoMatchScore(effectiveTargetIcao, assignedIcao) >= 84)
+      );
+
+      if (assignedLooksCompatible) {
+        return {
+          owned: true,
+          blocked: false,
+          reason: null,
+          icao: effectiveTargetIcao || assignedIcao || aircraft_icao || null,
+          displayName,
+          price: null,
+          requiredLevel: null,
+          companyLevel,
+        };
+      }
+
+      let companyAircraftRows = [];
+      try {
+        companyAircraftRows = await base44.asServiceRole.entities.Aircraft.filter(
+          { company_id: company.id },
+          "-created_date",
+          250
+        );
+      } catch (_) {
+        companyAircraftRows = [];
+      }
+
+      const availableRows = (Array.isArray(companyAircraftRows) ? companyAircraftRows : []).filter((row) => {
+        const s = String(row?.status || "").toLowerCase().trim();
+        return s !== "sold";
+      });
+      const bestByPrimary = pickBestAircraftMatch(availableRows, primaryTargetIcao, 84);
+      const bestByFallback = !bestByPrimary && fallbackTargetIcao
+        ? pickBestAircraftMatch(availableRows, fallbackTargetIcao, 82)
+        : null;
+      const bestMatch = bestByPrimary || bestByFallback || null;
+
+      if (bestMatch?.row) {
+        const matchedDisplayName = pickAircraftString(bestMatch.row, [
+          "display_name",
+          "aircraft_name",
+          "name",
+          "model_name",
+          "title",
+          "model",
+        ]);
+        const matchedIcao = extractAircraftIcao(bestMatch.row);
+        return {
+          owned: true,
+          blocked: false,
+          reason: null,
+          icao: matchedIcao || effectiveTargetIcao || aircraft_icao || null,
+          displayName: matchedDisplayName || displayName || null,
+          price: null,
+          requiredLevel: null,
+          companyLevel,
+        };
+      }
+
+      const reason = effectiveTargetIcao
+        ? `required aircraft not found in company fleet (${canonicalIcao(effectiveTargetIcao) || effectiveTargetIcao})`
+        : "required aircraft could not be identified";
       return {
-        owned: true,
-        blocked: false,
-        reason: null,
-        icao: icaoCode || aircraft_icao || null,
-        displayName,
+        owned: false,
+        blocked: true,
+        reason,
+        icao: effectiveTargetIcao || aircraft_icao || null,
+        displayName: displayName || null,
         price: null,
         requiredLevel: null,
         companyLevel,

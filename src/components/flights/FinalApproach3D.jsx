@@ -116,7 +116,8 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       s.lastX = e.clientX;
       s.lastY = e.clientY;
       camOrbitRef.current.yaw -= dx * 0.008;
-      camOrbitRef.current.pitch += dy * 0.006;
+      // Vertical drag direction: dragging up should move nose up, dragging down nose down.
+      camOrbitRef.current.pitch -= dy * 0.006;
     };
     const endDrag = (e) => {
       const s = dragStateRef.current;
