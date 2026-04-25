@@ -341,7 +341,12 @@ function getHangarRule(hangar: any) {
   };
 }
 
-function resolveAircraftHangars(aircraft = [], hangars = []) {
+function getAircraftHangarAssignmentsMap(company: any): Record<string, any> {
+  const raw = company?.aircraft_hangar_assignments;
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+}
+
+function resolveAircraftHangars(aircraft = [], hangars = [], assignmentMap: Record<string, any> = {}) {
   const states = hangars.map((hangar: any) => ({
     hangar,
     key: String(hangar?.id || '').trim(),
@@ -361,7 +366,8 @@ function resolveAircraftHangars(aircraft = [], hangars = []) {
   const resolvedById = new Map<string, { hangar_id: string; hangar_airport: string }>();
   const deferred: any[] = [];
   aircraft.forEach((entry: any) => {
-    const aircraftHangarId = String(entry?.hangar_id || '').trim();
+    const mapped = assignmentMap?.[String(entry?.id || '')] || null;
+    const aircraftHangarId = String(entry?.hangar_id || mapped?.hangar_id || '').trim();
     const directMatch = aircraftHangarId ? byId.get(aircraftHangarId) : null;
     if (directMatch) {
       directMatch.usedSlots += 1;
@@ -369,7 +375,7 @@ function resolveAircraftHangars(aircraft = [], hangars = []) {
       return;
     }
 
-    const airport = String(entry?.hangar_airport || '').toUpperCase() || getLegacyAirportFromHangarId(aircraftHangarId);
+    const airport = String(entry?.hangar_airport || mapped?.hangar_airport || '').toUpperCase() || getLegacyAirportFromHangarId(aircraftHangarId);
     if (airport) {
       deferred.push({ entry, airport });
     } else if (hangars.length > 0) {
@@ -606,7 +612,8 @@ Deno.serve(async (req) => {
     const aircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
     const availableAircraft = aircraft.filter(a => a.status !== 'sold');
     const availableAircraftById = new Map(availableAircraft.map((plane) => [plane.id, plane]));
-    const normalizedAvailableAircraft = resolveAircraftHangars(availableAircraft, normalizedHangars);
+    const assignmentMap = getAircraftHangarAssignmentsMap(company);
+    const normalizedAvailableAircraft = resolveAircraftHangars(availableAircraft, normalizedHangars, assignmentMap);
 
     const aircraftHangarFixes = [];
     for (const plane of normalizedAvailableAircraft) {
@@ -633,6 +640,18 @@ Deno.serve(async (req) => {
           return base44.asServiceRole.entities.Aircraft.update(fix.id, updatePayload);
         })
       );
+      const nextAssignments = { ...assignmentMap };
+      aircraftHangarFixes.forEach((fix) => {
+        nextAssignments[String(fix.id)] = {
+          hangar_id: fix.hangar_id,
+          hangar_airport: fix.hangar_airport,
+          updated_at: new Date().toISOString(),
+        };
+      });
+      await base44.asServiceRole.entities.Company.update(company.id, {
+        aircraft_hangar_assignments: nextAssignments,
+      });
+      company = { ...company, aircraft_hangar_assignments: nextAssignments };
     }
 
     if (normalizedAvailableAircraft.length === 0) {

@@ -162,6 +162,11 @@ function getHangarIdentifierCandidates(hangar: any): string[] {
   return Array.from(new Set(candidates));
 }
 
+function getAircraftHangarAssignmentsMap(company: any): Record<string, any> {
+  const raw = company?.aircraft_hangar_assignments;
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -277,6 +282,18 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
       hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
       hangar_airport: resolvedTargetAirport,
+    });
+    const currentAssignments = getAircraftHangarAssignmentsMap(company);
+    const nextAssignments = {
+      ...currentAssignments,
+      [String(aircraft.id)]: {
+        hangar_id: resolvedTargetHangarId || aircraft.hangar_id || null,
+        hangar_airport: resolvedTargetAirport,
+        updated_at: new Date().toISOString(),
+      },
+    };
+    await base44.asServiceRole.entities.Company.update(company.id, {
+      aircraft_hangar_assignments: nextAssignments,
     });
 
     return Response.json({

@@ -767,7 +767,19 @@ export default function Fleet() {
   const { data: aircraft = [], isLoading } = useQuery({
     queryKey: ['aircraft', company?.id],
     queryFn: async () => {
-      return await base44.entities.Aircraft.filter({ company_id: company.id }, '-created_date');
+      const rows = await base44.entities.Aircraft.filter({ company_id: company.id }, '-created_date');
+      const assignments = company?.aircraft_hangar_assignments && typeof company.aircraft_hangar_assignments === 'object'
+        ? company.aircraft_hangar_assignments
+        : {};
+      return rows.map((entry) => {
+        const mapped = assignments[String(entry?.id || '')];
+        if (!mapped) return entry;
+        return {
+          ...entry,
+          hangar_id: entry?.hangar_id || mapped?.hangar_id || null,
+          hangar_airport: entry?.hangar_airport || mapped?.hangar_airport || null,
+        };
+      });
     },
     enabled: !!company?.id,
     staleTime: 30000,
@@ -842,7 +854,7 @@ export default function Fleet() {
         initialAccumulatedMaintenanceCost,
         Math.max(0, Number(aircraftData.lifetime_maintenance_cost || 0))
       );
-      await base44.entities.Aircraft.create({
+      const createdAircraft = await base44.entities.Aircraft.create({
         ...specs,
         purchase_price: finalPurchasePrice,
         original_purchase_price: Number(aircraftData.original_price || specs.purchase_price || finalPurchasePrice),
@@ -873,8 +885,23 @@ export default function Fleet() {
       });
 
       if (company) {
+        const currentAssignments = company?.aircraft_hangar_assignments && typeof company.aircraft_hangar_assignments === 'object'
+          ? company.aircraft_hangar_assignments
+          : {};
+        const createdAircraftId = String(createdAircraft?.id || '').trim();
+        const nextAssignments = createdAircraftId
+          ? {
+            ...currentAssignments,
+            [createdAircraftId]: {
+              hangar_id: assignedHangarId,
+              hangar_airport: getHangarAirportIcao(assignedHangar),
+              updated_at: new Date().toISOString(),
+            },
+          }
+          : currentAssignments;
         await base44.entities.Company.update(company.id, {
-          balance: (company.balance || 0) - aircraftData.purchase_price
+          balance: (company.balance || 0) - aircraftData.purchase_price,
+          aircraft_hangar_assignments: nextAssignments,
         });
         await base44.entities.Transaction.create({
           company_id: company.id,
