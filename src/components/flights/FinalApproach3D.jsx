@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { X, Play, Pause, RotateCcw, Eye, Compass, Download, Share2, Loader2 } from "lucide-react";
+import { X, Play, Pause, RotateCcw, Download, Share2, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import * as THREE from 'three';
-import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
 import { buildCustomAircraftModel } from '@/components/flights/customAircraftModel';
 import { base44 } from '@/api/base44Client';
 import useMp4Exporter from '@/components/flights/useMp4Exporter';
@@ -57,7 +56,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     return 'high';
   }, []);
 
-  const PLAYBACK_DURATION_MS = 22000;
+  const PLAYBACK_DURATION_MS = phase === 'takeoff' ? 34000 : 22000;
   const filenameBase = `skycareer-${phase}-${flight?.id || 'replay'}`;
   const filename = `${filenameBase}.mp4`;
 
@@ -349,11 +348,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const camera = new THREE.PerspectiveCamera(55, width / height, 2, 12000);
 
     const renderer = new THREE.WebGLRenderer({
-      antialias: performanceProfile === 'high' && window.devicePixelRatio <= 1.5,
+      antialias: true,
       alpha: true,
       powerPreference: performanceProfile === 'low' ? 'default' : 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, performanceProfile === 'low' ? 1.2 : 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, performanceProfile === 'low' ? 1.5 : 2));
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.04;
@@ -622,13 +621,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       '';
     const hasSpecificHint = /[0-9]/.test(String(aircraftHint || '')) || /\b(boeing|airbus|embraer|cessna|atr|dash|cirrus|beech|diamond|pilatus|honda|piper)\b/i.test(String(aircraftHint || ''));
     const effectiveAircraftHint = hasSpecificHint ? aircraftHint : 'a320';
-    const proceduralFallback = () => {
-      const built = buildAircraftModel(effectiveAircraftHint || flight?.aircraft_type || 'regional_jet');
-      return { group: built.group, strobe: built.strobe };
-    };
     const { group: planeMesh, strobe } = !hasSpecificHint
       ? buildCustomAircraftModel('a320')
-      : (performanceProfile === 'low' ? proceduralFallback() : buildCustomAircraftModel(effectiveAircraftHint));
+      : buildCustomAircraftModel(effectiveAircraftHint);
     planeMesh.position.copy(path3D[0]);
     scene.add(planeMesh);
 
@@ -697,7 +692,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     if (!sceneRef.current) return;
     const sceneData = sceneRef.current;
     const { path3D } = sceneData;
-    const PLAYBACK_DURATION_MS = 22000;
+    const playbackDurationMs = PLAYBACK_DURATION_MS;
     // Smooth rotation state (low-pass filter) so Yaw/Pitch/Bank transitions
     // across sparse telemetry samples don't look jittery.
     const rotState = { yaw: null, pitch: null, bank: null, lastTime: performance.now() };
@@ -712,10 +707,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       let currentProgress = progressRef.current;
       if (isPlayingRef.current) {
         if (playbackStartRef.current === null) {
-          playbackStartRef.current = now - currentProgress * PLAYBACK_DURATION_MS;
+          playbackStartRef.current = now - currentProgress * playbackDurationMs;
         }
         const elapsed = now - playbackStartRef.current;
-        currentProgress = Math.min(1, elapsed / PLAYBACK_DURATION_MS);
+        currentProgress = Math.min(1, elapsed / playbackDurationMs);
         progressRef.current = currentProgress;
         // Only sync to React state ~10x/sec (HUD + slider) – every-frame
         // setState caused re-renders that made the whole loop hitch.
@@ -914,7 +909,6 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
   }, [segment, runway]);
 
   const handlePlayPause = () => {
-    const PLAYBACK_DURATION_MS = 22000;
     if (progress >= 1) {
       setProgress(0);
       playbackStartRef.current = null;
