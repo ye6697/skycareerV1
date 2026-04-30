@@ -626,29 +626,19 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     }
 
     // Aircraft - model picked based on the flight's actual aircraft type.
-    // Priority: simulator telemetry → fleet aircraft from DB (the one the
-    // user assigned to this contract) → final fallback 'a320'.
+    // Priority: simulator telemetry → fleet aircraft (if already loaded) → 'a320'.
+    // If fleetAircraft loads later, the dedicated swap-effect below replaces it in place.
     const xpdForModel = flight?.xplane_data || {};
     const isSpecific = (s) => /[0-9]/.test(String(s || ''))
       || /\b(boeing|airbus|embraer|cessna|atr|dash|cirrus|beech|diamond|pilatus|honda|piper)\b/i.test(String(s || ''));
-    const simHintCandidates = [
-      xpdForModel.fleet_aircraft_type,
-      xpdForModel.aircraft_icao,
-      xpdForModel.atc_model,
-      xpdForModel.model,
-      xpdForModel.model_name,
-      xpdForModel.aircraft_type,
-      xpdForModel.aircraft_name,
-      xpdForModel.aircraft,
-      flight?.aircraft_name,
-      flight?.aircraft_model,
-    ];
-    const simHint = simHintCandidates.find((c) => isSpecific(c)) || '';
-    const fleetHint = isSpecific(fleetAircraft?.name) ? fleetAircraft.name
-      : (isSpecific(fleetAircraft?.registration) ? fleetAircraft.registration : '');
-    const aircraftHint = simHint || fleetHint || flight?.aircraft_type || '';
-    const hasSpecificHint = isSpecific(aircraftHint);
-    const effectiveAircraftHint = hasSpecificHint ? aircraftHint : 'a320';
+    const simHint = [
+      xpdForModel.fleet_aircraft_type, xpdForModel.aircraft_icao, xpdForModel.atc_model,
+      xpdForModel.model, xpdForModel.model_name, xpdForModel.aircraft_type,
+      xpdForModel.aircraft_name, xpdForModel.aircraft,
+      flight?.aircraft_name, flight?.aircraft_model,
+    ].find(isSpecific) || '';
+    const fleetHint = isSpecific(fleetAircraft?.name) ? fleetAircraft.name : '';
+    const effectiveAircraftHint = simHint || fleetHint || 'a320';
     const { group: planeMesh, strobe } = buildCustomAircraftModel(effectiveAircraftHint);
     planeMesh.position.copy(path3D[0]);
     scene.add(planeMesh);
@@ -706,7 +696,37 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         skyGeo.dispose(); skyMat.dispose();
       } catch (_) { /* ignore cleanup errors */ }
     };
-  }, [segment, runway, performanceProfile, flight, phase, fleetAircraft]);
+  }, [segment, runway, performanceProfile, flight, phase]);
+
+  // When the fleet aircraft loads AFTER the scene was already built (initial
+  // build used the simulator hint or 'a320' fallback), swap the model in-place
+  // without rebuilding the entire scene. This avoids a race condition where
+  // the scene useEffect cleanup runs while a Promise is still resolving.
+  const lastSwappedAircraftIdRef = useRef(null);
+  useEffect(() => {
+    if (!fleetAircraft?.id) return;
+    if (lastSwappedAircraftIdRef.current === fleetAircraft.id) return;
+    const sceneData = sceneRef.current;
+    if (!sceneData) return;
+    const xpd = flight?.xplane_data || {};
+    const isSpecific = (s) => /[0-9]/.test(String(s || ''))
+      || /\b(boeing|airbus|embraer|cessna|atr|dash|cirrus|beech|diamond|pilatus|honda|piper)\b/i.test(String(s || ''));
+    const simHint = [xpd.fleet_aircraft_type, xpd.aircraft_icao, xpd.atc_model, xpd.model, xpd.model_name, xpd.aircraft_type, xpd.aircraft_name, xpd.aircraft, flight?.aircraft_name, flight?.aircraft_model].find(isSpecific) || '';
+    if (simHint) return; // sim already gave a good hint, no swap needed
+    if (!isSpecific(fleetAircraft.name)) return;
+
+    lastSwappedAircraftIdRef.current = fleetAircraft.id;
+    const oldMesh = sceneData.planeMesh;
+    const oldPos = oldMesh?.position?.clone();
+    const oldRot = oldMesh?.rotation?.clone();
+    const { group: newMesh, strobe: newStrobe } = buildCustomAircraftModel(fleetAircraft.name);
+    if (oldPos) newMesh.position.copy(oldPos);
+    if (oldRot) newMesh.rotation.copy(oldRot);
+    sceneData.scene.add(newMesh);
+    if (oldMesh) sceneData.scene.remove(oldMesh);
+    sceneData.planeMesh = newMesh;
+    sceneData.strobe = newStrobe;
+  }, [fleetAircraft, flight]);
 
   // Keep progress ref in sync for the animation loop.
   useEffect(() => { progressRef.current = progress; }, [progress]);

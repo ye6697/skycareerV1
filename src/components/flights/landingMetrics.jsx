@@ -142,70 +142,27 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  const start = Math.max(0, touchdownIdx - 3);
-  const end = Math.min(sessionHistory.length - 1, touchdownIdx + 3);
-  const window = sessionHistory.slice(start, end + 1);
-  const center = touchdownIdx - start;
+  // Use the EXACT telemetry sample at the touchdown moment — same data the
+  // FlightProfileChart displays. No window-max, no approximation — so the
+  // result card matches the chart 1:1.
+  const tdPoint = sessionHistory[touchdownIdx] || {};
+  const tdVsRaw = readTouchdownVerticalSpeedFpm(tdPoint);
+  const vsRaw = Number.isFinite(tdVsRaw) && Math.abs(tdVsRaw) > 0
+    ? tdVsRaw
+    : readVerticalSpeedFpm(tdPoint);
+  const gRaw = readGForce(tdPoint);
 
-  let gPeakIdx = -1;
-  let gPeak = 0;
-  for (let i = 0; i < window.length; i += 1) {
-    const g = readGForce(window[i]);
-    if (Number.isFinite(g) && g > gPeak) {
-      gPeak = g;
-      gPeakIdx = i;
-    }
-  }
+  let resolvedVs = Number.isFinite(vsRaw) ? Math.abs(vsRaw) : 0;
+  const resolvedG = Number.isFinite(gRaw) && gRaw > 0 ? gRaw : 0;
 
-  const vsValues = window
-    .map((point) => readVerticalSpeedFpm(point))
-    .filter((value) => Number.isFinite(value));
-  const touchdownVsValues = window
-    .map((point) => readTouchdownVerticalSpeedFpm(point))
-    .filter((value) => Number.isFinite(value) && Math.abs(value) > 0);
-  const descendingVs = vsValues.filter((value) => value < 0);
-  let resolvedVs = 0;
-  if (gPeakIdx >= 0) {
-    const gPeakPoint = window[gPeakIdx] || {};
-    const fromTouchdownField = readTouchdownVerticalSpeedFpm(gPeakPoint);
-    if (Number.isFinite(fromTouchdownField) && Math.abs(fromTouchdownField) > 0) {
-      resolvedVs = Math.abs(fromTouchdownField);
-    } else {
-      const fromVerticalField = readVerticalSpeedFpm(gPeakPoint);
-      if (Number.isFinite(fromVerticalField) && Math.abs(fromVerticalField) > 0) {
-        resolvedVs = Math.abs(fromVerticalField);
-      }
-    }
-  }
-  if (resolvedVs <= 0 && touchdownVsValues.length > 0) {
-    resolvedVs = Math.max(...touchdownVsValues.map((value) => Math.abs(value)));
-  }
-  if (resolvedVs <= 0 && descendingVs.length > 0) {
-    resolvedVs = Math.abs(Math.min(...descendingVs));
-  } else if (resolvedVs <= 0 && vsValues.length > 0) {
-    const nearTouchdownVs = readVerticalSpeedFpm(window[center] || {});
-    if (Number.isFinite(nearTouchdownVs) && Math.abs(nearTouchdownVs) > 0) {
-      resolvedVs = Math.abs(nearTouchdownVs);
-    } else {
-    resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
-    }
-  }
-
-  const gValues = window
-    .map((point) => readGForce(point))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
-
-  // Sanitize: a real airliner touchdown V/S is 0..1500 fpm. Anything above is a
-  // sensor spike (common when the sampler hits the exact ground-contact frame).
-  // In that case approximate from peak G instead.
-  let safeVs = clamp(resolvedVs, 0, 10000);
-  if (safeVs > 1500 && resolvedG > 0) {
-    safeVs = approximateVsFromG(resolvedG);
+  // Sanitize: real touchdown V/S is 0..1500 fpm. Higher values are sensor
+  // spikes — approximate from G instead.
+  if (resolvedVs > 1500 && resolvedG > 0) {
+    resolvedVs = approximateVsFromG(resolvedG);
   }
 
   return {
-    landingVs: Math.round(safeVs),
+    landingVs: Math.round(clamp(resolvedVs, 0, 10000)),
     landingG: Number(clamp(resolvedG, 0, 6).toFixed(2)),
     source: "telemetry",
   };
