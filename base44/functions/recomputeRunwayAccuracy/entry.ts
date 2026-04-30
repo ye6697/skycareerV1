@@ -2,12 +2,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 // Recomputes runway centerline accuracy for a single flight.
 //
-// IMPORTANT: Accuracy is ONLY computed when we have high-frequency telemetry
-// samples with an explicit on_ground=true flag. flight_path (10-second-spaced
-// lat/lon pairs from the full flight) is NOT sufficient — with ground-roll
-// speeds of 70-150 kt, samples are 360-770 m apart, far too sparse to measure
-// centerline deviation. For flights without telemetry_history, we return
-// "unavailable" and apply zero score/cash delta.
+// CRITICAL: This function uses the SAME runway resolution path as the 3D
+// takeoff/landing replays (FinalApproach3D component) — it calls the
+// getRunwayInfo backend function with identical hint coordinates so the
+// numbers shown in the result card match the lateral deviation displayed
+// in the 3D replay HUDs.
 
 const EARTH_RADIUS_M = 6371000;
 const toRad = (d) => (Number(d) * Math.PI) / 180;
@@ -18,6 +17,55 @@ function haversine(lat1, lon1, lat2, lon2) {
   const a = Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a));
+}
+
+// Initial bearing (degrees 0..360) from point 1 to point 2.
+function initialBearing(lat1, lon1, lat2, lon2) {
+  const toDeg = (r) => (r * 180) / Math.PI;
+  const f1 = toRad(lat1);
+  const f2 = toRad(lat2);
+  const dl = toRad(lon2 - lon1);
+  const y = Math.sin(dl) * Math.cos(f2);
+  const x = Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+// Project a lat/lon into the runway frame (alongM, lateralM) — IDENTICAL
+// algorithm to projectToRunwayFrame in components/flights/approachGeometry.js
+// so the values shown in the card match the 3D replay HUDs exactly.
+// runway requires { tdLat, tdLon, runwayHeadingDeg }.
+function projectToRunwayFrame(lat, lon, runway) {
+  const tdLat = Number(runway.tdLat);
+  const tdLon = Number(runway.tdLon);
+  const runwayHeadingDeg = Number(runway.runwayHeadingDeg || 0);
+  const distM = haversine(tdLat, tdLon, lat, lon);
+  const brg = initialBearing(tdLat, tdLon, lat, lon);
+  const deltaDeg = ((brg - runwayHeadingDeg + 540) % 360) - 180;
+  const deltaRad = (deltaDeg * Math.PI) / 180;
+  const alongM = distM * Math.cos(deltaRad);
+  const lateralM = distM * Math.sin(deltaRad);
+  return { alongM, lateralM };
+}
+
+// Mirror of normalizeRunway() in approachGeometry.js. Picks the threshold of
+// the landing/takeoff end and returns the data needed to project lat/lon.
+function normalizeRunwayForFrame(landingRunway) {
+  if (!landingRunway) return null;
+  const le = landingRunway.landing_end === 'le';
+  const tdLat = le ? landingRunway.le_lat : landingRunway.he_lat;
+  const tdLon = le ? landingRunway.le_lon : landingRunway.he_lon;
+  const hdg = le ? landingRunway.le_heading : landingRunway.he_heading;
+  const ident = le ? landingRunway.le_ident : landingRunway.he_ident;
+  return {
+    tdLat: Number(tdLat),
+    tdLon: Number(tdLon),
+    runwayHeadingDeg: Number.isFinite(Number(hdg)) ? Number(hdg) : 0,
+    landingIdent: ident || '',
+    le_lat: landingRunway.le_lat,
+    le_lon: landingRunway.le_lon,
+    he_lat: landingRunway.he_lat,
+    he_lon: landingRunway.he_lon,
+  };
 }
 
 // Cache runway CSV in a warm Deno instance.
@@ -275,17 +323,20 @@ function extractLandingRoll(telemetry) {
   return roll;
 }
 
-// Measure RMS perpendicular distance from points to runway centerline.
+// Measure RMS lateral deviation from runway centerline using the SAME
+// projection (projectToRunwayFrame) as the 3D replay HUDs. This guarantees
+// the card-displayed values match the in-replay readouts.
 function measureDeviation(points, runway) {
   if (!runway || !Array.isArray(points) || points.length < 3) return null;
   let sumSq = 0;
   let maxAbs = 0;
   let count = 0;
   for (const p of points) {
-    const d = perpToCenterline(runway, p.lat, p.lon);
-    if (!Number.isFinite(d)) continue;
-    sumSq += d * d;
-    if (d > maxAbs) maxAbs = d;
+    const { lateralM } = projectToRunwayFrame(p.lat, p.lon, runway);
+    if (!Number.isFinite(lateralM)) continue;
+    const abs = Math.abs(lateralM);
+    sumSq += lateralM * lateralM;
+    if (abs > maxAbs) maxAbs = abs;
     count += 1;
   }
   if (count < 3) return null;
@@ -298,6 +349,35 @@ function measureDeviation(points, runway) {
     maxMeters: maxAbs,
     sampleCount: count,
     valid: true,
+  };
+}
+
+// Helper: extract the hint coordinate + heading from telemetry samples,
+// mirroring the logic in FinalApproach3D.jsx so getRunwayInfo picks the same
+// runway as the 3D replay.
+function getHintFromPoints(points, phase) {
+  if (!Array.isArray(points) || points.length === 0) return { lat: null, lon: null, heading: null };
+  const hintIdx = phase === 'takeoff' ? 0 : points.length - 1;
+  const hint = points[hintIdx] || {};
+  const prev = points[Math.max(0, hintIdx - 1)] || hint;
+  const next = points[Math.min(points.length - 1, hintIdx + 1)] || hint;
+  const lat1 = Number(prev?.lat);
+  const lon1 = Number(prev?.lon);
+  const lat2 = Number(next?.lat);
+  const lon2 = Number(next?.lon);
+  let heading = null;
+  if ([lat1, lon1, lat2, lon2].every(Number.isFinite)) {
+    const dLat = lat2 - lat1;
+    const dLon = lon2 - lon1;
+    if (Math.abs(dLat) + Math.abs(dLon) > 1e-7) {
+      const rad = Math.atan2(dLon, dLat);
+      heading = ((rad * 180) / Math.PI + 360) % 360;
+    }
+  }
+  return {
+    lat: Number(hint?.lat) || null,
+    lon: Number(hint?.lon) || null,
+    heading,
   };
 }
 
@@ -403,27 +483,34 @@ Deno.serve(async (req) => {
     const takeoffPoints = extractTakeoffRoll(telemetry);
     const landingPoints = extractLandingRoll(telemetry);
 
-    // Resolve runways via OurAirports.
-    const [depRunways, arrRunways] = await Promise.all([
-      depIcao ? fetchRunwaysForAirport(depIcao).catch(() => []) : Promise.resolve([]),
-      arrIcao ? fetchRunwaysForAirport(arrIcao).catch(() => []) : Promise.resolve([]),
+    // Resolve runways using the SAME path as the 3D replay (FinalApproach3D):
+    // call getRunwayInfo with hint coords + heading derived from telemetry,
+    // then normalize via normalizeRunwayForFrame so the projection matches.
+    const callRunwayInfo = async (icao, hint) => {
+      if (!icao || !Number.isFinite(hint.lat) || !Number.isFinite(hint.lon)) return null;
+      try {
+        const res = await base44.functions.invoke('getRunwayInfo', {
+          icao,
+          touchdown_lat: hint.lat,
+          touchdown_lon: hint.lon,
+          touchdown_heading: hint.heading,
+        });
+        return res?.data?.landing_runway || null;
+      } catch (_) {
+        return null;
+      }
+    };
+
+    const depHint = getHintFromPoints(takeoffPoints, 'takeoff');
+    const arrHint = getHintFromPoints(landingPoints, 'landing');
+    const [depRawRunway, arrRawRunway] = await Promise.all([
+      callRunwayInfo(depIcao, depHint),
+      callRunwayInfo(arrIcao, arrHint),
     ]);
-
-    // Sanity: at least one takeoff point must be within 5 km of departure airport.
-    const depCenter = airportCenter(depRunways);
-    const validTakeoff = depCenter && takeoffPoints.length >= 3
-      && takeoffPoints.some((p) => haversine(p.lat, p.lon, depCenter.lat, depCenter.lon) < 5000);
-
-    const arrCenter = airportCenter(arrRunways);
-    const validLanding = arrCenter && landingPoints.length >= 3
-      && landingPoints.some((p) => haversine(p.lat, p.lon, arrCenter.lat, arrCenter.lon) < 5000);
-
-    const depRunway = validTakeoff ? pickRunwayForPoints(depRunways, takeoffPoints) : null;
-    const arrRunway = validLanding ? pickRunwayForPoints(arrRunways, landingPoints) : null;
-    const depEnd = resolveLikelyRunwayEnd(depRunway, takeoffPoints);
-    const arrEnd = resolveLikelyRunwayEnd(arrRunway, landingPoints);
-    const detectedDepRunway = depRunway ? (depEnd === 'le' ? depRunway.le_ident : depRunway.he_ident) : null;
-    const detectedArrRunway = arrRunway ? (arrEnd === 'le' ? arrRunway.le_ident : arrRunway.he_ident) : null;
+    const depRunway = normalizeRunwayForFrame(depRawRunway);
+    const arrRunway = normalizeRunwayForFrame(arrRawRunway);
+    const detectedDepRunway = depRunway?.landingIdent || null;
+    const detectedArrRunway = arrRunway?.landingIdent || null;
     const plannedDepRunwayRaw = xpd.simbrief_departure_runway || xpd.departure_runway || contract.departure_runway || null;
     const plannedArrRunwayRaw = xpd.simbrief_arrival_runway || xpd.arrival_runway || contract.arrival_runway || null;
     const plannedDepRunway = normalizeRunwayIdent(plannedDepRunwayRaw);

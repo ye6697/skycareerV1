@@ -146,6 +146,8 @@ export default function HangarWorldGlobe3D({
   hangarVariants = [],
   onBuyOrUpgrade,
   isBuyingOrUpgrading = false,
+  onSellHangar,
+  isSellingHangar = false,
   lang = "de",
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -785,6 +787,47 @@ export default function HangarWorldGlobe3D({
               </>
             )}
           </Button>
+
+          {selectedAirportHangar && onSellHangar && (() => {
+            const sellSpec = getVariantSizeSpec(selectedAirportHangar.model_variant);
+            const sellBase = Number(selectedAirportHangar.purchase_price || 0) || Number(sellSpec?.price || 0);
+            const refund = Math.round(sellBase * 0.6);
+            const blocked = airportAircraft.length > 0;
+            return (
+              <div className="mt-2">
+                <Button
+                  type="button"
+                  disabled={blocked || isSellingHangar}
+                  onClick={() => {
+                    if (blocked || isSellingHangar) return;
+                    const confirmMsg = lang === "de"
+                      ? `Hangar an ${selectedAirportData.airport_icao} verkaufen? Du erhaeltst $${refund.toLocaleString()} (60% Rueckerstattung).`
+                      : `Sell hangar at ${selectedAirportData.airport_icao}? You receive $${refund.toLocaleString()} (60% refund).`;
+                    if (typeof window !== "undefined" && !window.confirm(confirmMsg)) return;
+                    onSellHangar?.({ airportIcao: normIcao(selectedAirportIcao) });
+                  }}
+                  className="h-8 w-full bg-red-700 text-xs font-mono uppercase text-slate-100 hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-400"
+                >
+                  {isSellingHangar
+                    ? (lang === "de" ? "Verkaufe..." : "Selling...")
+                    : blocked
+                      ? (lang === "de"
+                          ? `Verkauf blockiert (${airportAircraft.length} Flugzeug${airportAircraft.length === 1 ? "" : "e"})`
+                          : `Sale blocked (${airportAircraft.length} aircraft)`)
+                      : (lang === "de"
+                          ? `Hangar verkaufen (+$${refund.toLocaleString()})`
+                          : `Sell hangar (+$${refund.toLocaleString()})`)}
+                </Button>
+                {blocked && (
+                  <p className="mt-1 text-[10px] text-amber-300">
+                    {lang === "de"
+                      ? "Bitte zuerst alle Flugzeuge verlegen."
+                      : "Please move all aircraft out first."}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
           </div>
         </div>
       )}

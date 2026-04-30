@@ -821,6 +821,94 @@ export default function Contracts() {
     },
   });
 
+  const sellHangarMutation = useMutation({
+    mutationFn: async ({ airportIcao }) => {
+      if (!company?.id) throw new Error("Company not found.");
+      const targetAirport = normIcao(airportIcao);
+      if (!targetAirport) throw new Error(lang === "de" ? "Airport waehlen." : "Select an airport.");
+
+      const companyRows = await base44.entities.Company.filter({ id: company.id });
+      const latestCompany = companyRows?.[0] || company;
+      const currentHangars = mergeHangarLists(
+        Array.isArray(localHangars) ? localHangars : [],
+        Array.isArray(latestCompany?.hangars) ? latestCompany.hangars : [],
+        hangarSizeRankMap
+      );
+      const existing = currentHangars.find((hangar) => normIcao(hangar.airport_icao) === targetAirport);
+      if (!existing) {
+        throw new Error(lang === "de" ? "Kein Hangar an diesem Airport." : "No hangar at this airport.");
+      }
+
+      // Block sale if any active aircraft is parked in this hangar's airport.
+      const stationed = ownedAircraft.filter(
+        (aircraft) => isAircraftActive(aircraft) && getAircraftAssignedAirport(aircraft, currentHangars) === targetAirport
+      );
+      if (stationed.length > 0) {
+        throw new Error(
+          lang === "de"
+            ? `Hangar enthaelt noch ${stationed.length} Flugzeug(e). Bitte zuerst verlegen.`
+            : `Hangar still holds ${stationed.length} aircraft. Move them first.`
+        );
+      }
+
+      const variantSpec = getVariantSizeSpec(existing.model_variant);
+      const basePrice = Number(existing.purchase_price || 0) || Number(variantSpec?.price || 0);
+      const refund = Math.round(basePrice * 0.6);
+
+      const nextHangars = currentHangars.filter((hangar) => normIcao(hangar.airport_icao) !== targetAirport);
+      const currentBalance = Number(latestCompany?.balance || 0);
+      const nextBalance = currentBalance + refund;
+
+      await base44.entities.Company.update(latestCompany.id, {
+        hangars: nextHangars,
+        balance: nextBalance,
+      });
+      await base44.entities.Transaction.create({
+        company_id: latestCompany.id,
+        type: "income",
+        category: "other",
+        amount: refund,
+        description: lang === "de"
+          ? `Hangar-Verkauf ${targetAirport} (${String(existing.model_variant || existing.size || "").toUpperCase()})`
+          : `Hangar sale ${targetAirport} (${String(existing.model_variant || existing.size || "").toUpperCase()})`,
+        date: new Date().toISOString(),
+      });
+
+      return { airport: targetAirport, refund, nextHangars, nextBalance };
+    },
+    onSuccess: (result) => {
+      if (Array.isArray(result?.nextHangars)) {
+        setLocalHangars(result.nextHangars);
+      }
+      queryClient.setQueryData(["contractsPageData"], (previous) => {
+        if (!previous?.company) return previous;
+        return {
+          ...previous,
+          company: {
+            ...previous.company,
+            hangars: Array.isArray(result?.nextHangars) ? result.nextHangars : previous.company.hangars,
+            balance: typeof result?.nextBalance === "number" ? result.nextBalance : previous.company.balance,
+          },
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
+      queryClient.invalidateQueries({ queryKey: ["company"] });
+      toast({
+        title: lang === "de" ? "Hangar verkauft" : "Hangar sold",
+        description: lang === "de"
+          ? `${result.airport}: +$${Math.round(result.refund).toLocaleString()} (60% Rueckerstattung)`
+          : `${result.airport}: +$${Math.round(result.refund).toLocaleString()} (60% refund)`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: lang === "de" ? "Hangar-Verkauf fehlgeschlagen" : "Hangar sale failed",
+        description: error?.message || (lang === "de" ? "Unbekannter Fehler." : "Unknown error."),
+      });
+    },
+  });
+
   const upsertHangarMutation = useMutation({
     mutationFn: async ({ airportIcao, modelVariantId }) => {
       if (!company?.id) throw new Error("Company not found.");
@@ -1455,6 +1543,8 @@ export default function Contracts() {
             })
           }
           isBuyingOrUpgrading={upsertHangarMutation.isPending}
+          onSellHangar={({ airportIcao }) => sellHangarMutation.mutate({ airportIcao })}
+          isSellingHangar={sellHangarMutation.isPending}
           lang={lang}
         />
       )}
