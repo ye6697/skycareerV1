@@ -1,0 +1,147 @@
+{
+  "name": "Company",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Airline company name"
+    },
+    "callsign": {
+      "type": "string",
+      "description": "Radio callsign"
+    },
+    "balance": {
+      "type": "number",
+      "default": 500000
+    },
+    "reputation": {
+      "type": "number",
+      "default": 50
+    },
+    "level": {
+      "type": "number",
+      "default": 1
+    },
+    "experience_points": {
+      "type": "number",
+      "default": 0
+    },
+    "total_flights": {
+      "type": "number",
+      "default": 0
+    },
+    "total_passengers": {
+      "type": "number",
+      "default": 0
+    },
+    "total_cargo_kg": {
+      "type": "number",
+      "default": 0
+    },
+    "hub_airport": {
+      "type": "string"
+    },
+    "logo_url": {
+      "type": "string"
+    },
+    "xplane_connection_status": {
+      "type": "string",
+      "enum": [
+        "disconnected",
+        "connecting",
+        "connected"
+      ],
+      "default": "disconnected"
+    },
+    "xplane_ip": {
+      "type": "string",
+      "default": "127.0.0.1"
+    },
+    "xplane_port": {
+      "type": "number",
+      "default": 49000
+    },
+    "xplane_api_key": {
+      "type": "string"
+    },
+    "overdraft_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "active_loan": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number"
+        },
+        "remaining": {
+          "type": "number"
+        },
+        "monthly_payment": {
+          "type": "number"
+        },
+        "interest_rate": {
+          "type": "number"
+        },
+        "taken_date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "current_maintenance_ratio": {
+      "type": "number",
+      "default": 0.0
+    },
+    "hangars": {
+      "type": "array",
+      "description": "List of owned hangars with airport assignment, size, and variant",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "airport_icao": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "number"
+          },
+          "model_variant": {
+            "type": "string"
+          },
+          "allowed_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "purchased_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "upgraded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "aircraft_hangar_assignments": {
+      "type": "object",
+      "description": "Map of aircraft id -> assigned hangar info { hangar_id, hangar_airport, hangar_model_variant, updated_at }"
+    },
+    "failure_triggers_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the X-Plane bridge is allowed to trigger new failures"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

@@ -4,13 +4,15 @@
   "properties": {
     "company_id": {
       "type": "string",
-      "description": "Owner company id"
-    },
-    "registration": {
-      "type": "string"
+      "description": "Reference to company that owns this aircraft"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": "Aircraft name/model"
+    },
+    "registration": {
+      "type": "string",
+      "description": "Aircraft registration number"
     },
     "type": {
       "type": "string",
@@ -22,44 +24,219 @@
         "wide_body",
         "cargo"
       ],
-      "description": "Aircraft category used by contracts and hangar compatibility"
+      "description": "Aircraft category"
+    },
+    "passenger_capacity": {
+      "type": "number"
+    },
+    "cargo_capacity_kg": {
+      "type": "number"
+    },
+    "fuel_consumption_per_hour": {
+      "type": "number"
+    },
+    "range_nm": {
+      "type": "number"
+    },
+    "purchase_price": {
+      "type": "number"
+    },
+    "original_purchase_price": {
+      "type": "number",
+      "description": "Original new-aircraft price (used for used market and insurance calculations)"
+    },
+    "maintenance_cost_per_hour": {
+      "type": "number"
     },
     "status": {
       "type": "string",
       "enum": [
         "available",
         "in_flight",
+        "maintenance",
+        "damaged",
+        "total_loss",
         "sold"
       ],
-      "description": "Current operational status"
+      "default": "available"
+    },
+    "total_flight_hours": {
+      "type": "number",
+      "default": 0
+    },
+    "current_value": {
+      "type": "number"
+    },
+    "depreciation_rate": {
+      "type": "number",
+      "default": 0.001
+    },
+    "accumulated_maintenance_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Legacy total maintenance costs"
+    },
+    "lifetime_maintenance_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Cumulative lifetime maintenance spend"
+    },
+    "maintenance_categories": {
+      "type": "object",
+      "description": "Detailed maintenance status per category (0-100%, 0=perfect)",
+      "properties": {
+        "engine": {
+          "type": "number",
+          "default": 0
+        },
+        "hydraulics": {
+          "type": "number",
+          "default": 0
+        },
+        "avionics": {
+          "type": "number",
+          "default": 0
+        },
+        "airframe": {
+          "type": "number",
+          "default": 0
+        },
+        "landing_gear": {
+          "type": "number",
+          "default": 0
+        },
+        "electrical": {
+          "type": "number",
+          "default": 0
+        },
+        "flight_controls": {
+          "type": "number",
+          "default": 0
+        },
+        "pressurization": {
+          "type": "number",
+          "default": 0
+        }
+      }
+    },
+    "permanent_wear_categories": {
+      "type": "object",
+      "description": "Permanent (non-repairable) wear per category (0-100%)",
+      "properties": {
+        "engine": {
+          "type": "number",
+          "default": 0
+        },
+        "hydraulics": {
+          "type": "number",
+          "default": 0
+        },
+        "avionics": {
+          "type": "number",
+          "default": 0
+        },
+        "airframe": {
+          "type": "number",
+          "default": 0
+        },
+        "landing_gear": {
+          "type": "number",
+          "default": 0
+        },
+        "electrical": {
+          "type": "number",
+          "default": 0
+        },
+        "flight_controls": {
+          "type": "number",
+          "default": 0
+        },
+        "pressurization": {
+          "type": "number",
+          "default": 0
+        }
+      }
+    },
+    "used_listing_permanent_wear_categories": {
+      "type": "object",
+      "description": "Permanent wear snapshot from used market listing at purchase time"
+    },
+    "level_requirement": {
+      "type": "number",
+      "default": 1
+    },
+    "image_url": {
+      "type": "string"
     },
     "hangar_id": {
       "type": "string",
-      "description": "Assigned hangar id for this aircraft"
+      "description": "ID of the hangar this aircraft is assigned to"
     },
     "hangar_airport": {
       "type": "string",
-      "description": "ICAO of the airport where the assigned hangar is located"
+      "description": "ICAO code of the airport where the aircraft is currently parked"
     },
     "hangar_model_variant": {
       "type": "string",
+      "description": "Hangar model variant key the aircraft is parked in"
+    },
+    "insurance_plan": {
+      "type": "string",
+      "description": "Active insurance plan key"
+    },
+    "insurance_hourly_rate_pct": {
+      "type": "number",
+      "description": "Insurance hourly fee as % of new value"
+    },
+    "insurance_maintenance_coverage_pct": {
+      "type": "number",
+      "description": "Fraction of maintenance damage covered (0-1)"
+    },
+    "insurance_score_bonus_pct": {
+      "type": "number",
+      "description": "Score bonus per flight from insurance (0-1)"
+    },
+    "market_origin": {
+      "type": "string",
       "enum": [
-        "airport_single",
-        "compact_modular",
-        "delta_shed",
-        "middle",
-        "terminal_modular",
-        "mega_platform"
+        "new",
+        "used"
       ],
-      "description": "Selected hangar model variant id for the assigned hangar"
+      "description": "Whether the aircraft was bought new or used"
     },
-    "options": {
+    "used_condition_key": {
+      "type": "string",
+      "description": "Used market condition profile key"
+    },
+    "used_condition_label": {
       "type": "object",
-      "description": "Per-aircraft options map (created by admin backfill and used for persistent option flags)"
+      "description": "Localized condition label snapshot"
     },
-    "options_initialized": {
-      "type": "boolean",
-      "description": "Migration flag to indicate that default option fields were initialized"
+    "used_age_years": {
+      "type": "number",
+      "default": 0
+    },
+    "used_wear_avg": {
+      "type": "number",
+      "default": 0
+    },
+    "used_wear_peak": {
+      "type": "number",
+      "default": 0
+    },
+    "used_permanent_avg": {
+      "type": "number",
+      "default": 0
+    },
+    "source_market_listing_id": {
+      "type": "string",
+      "description": "ID of the used-market listing this aircraft was purchased from"
     }
-  }
+  },
+  "required": [
+    "company_id",
+    "name",
+    "registration",
+    "type"
+  ]
 }
