@@ -44,6 +44,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
   const [runway, setRunway] = useState(null); // normalized runway or null
   const [touchdownInfo, setTouchdownInfo] = useState(null); // { alongM, lateralM, ... }
+  // Fleet aircraft loaded from DB via flight.aircraft_id. Used as a fallback
+  // model hint when X-Plane/MSFS telemetry doesn't expose an aircraft type.
+  const [fleetAircraft, setFleetAircraft] = useState(null);
   const exporter = useMp4Exporter();
   const performanceProfile = useMemo(() => {
     if (typeof window === 'undefined') return 'high';
@@ -137,6 +140,23 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
       el.removeEventListener('pointercancel', endDrag);
     };
   }, []);
+
+  // Load the actual fleet aircraft assigned to this flight so we can use it
+  // as a fallback model when the simulator doesn't report a specific type.
+  useEffect(() => {
+    const aircraftId = flight?.aircraft_id;
+    if (!aircraftId) { setFleetAircraft(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await base44.entities.Aircraft.filter({ id: aircraftId });
+        if (!cancelled) setFleetAircraft(result?.[0] || null);
+      } catch (_) {
+        if (!cancelled) setFleetAircraft(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [flight?.aircraft_id]);
 
   // Extract the relevant window from telemetry history (first N sec for takeoff, last N sec for landing).
   const segment = useMemo(() => {
@@ -606,25 +626,30 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     }
 
     // Aircraft - model picked based on the flight's actual aircraft type.
+    // Priority: simulator telemetry → fleet aircraft from DB (the one the
+    // user assigned to this contract) → final fallback 'a320'.
     const xpdForModel = flight?.xplane_data || {};
-    const aircraftHint =
-      xpdForModel.fleet_aircraft_type ||
-      xpdForModel.aircraft_icao ||
-      xpdForModel.atc_model ||
-      xpdForModel.model ||
-      xpdForModel.model_name ||
-      xpdForModel.aircraft_type ||
-      xpdForModel.aircraft_name ||
-      xpdForModel.aircraft ||
-      flight?.aircraft_name ||
-      flight?.aircraft_model ||
-      flight?.aircraft_type ||
-      '';
-    const hasSpecificHint = /[0-9]/.test(String(aircraftHint || '')) || /\b(boeing|airbus|embraer|cessna|atr|dash|cirrus|beech|diamond|pilatus|honda|piper)\b/i.test(String(aircraftHint || ''));
+    const isSpecific = (s) => /[0-9]/.test(String(s || ''))
+      || /\b(boeing|airbus|embraer|cessna|atr|dash|cirrus|beech|diamond|pilatus|honda|piper)\b/i.test(String(s || ''));
+    const simHintCandidates = [
+      xpdForModel.fleet_aircraft_type,
+      xpdForModel.aircraft_icao,
+      xpdForModel.atc_model,
+      xpdForModel.model,
+      xpdForModel.model_name,
+      xpdForModel.aircraft_type,
+      xpdForModel.aircraft_name,
+      xpdForModel.aircraft,
+      flight?.aircraft_name,
+      flight?.aircraft_model,
+    ];
+    const simHint = simHintCandidates.find((c) => isSpecific(c)) || '';
+    const fleetHint = isSpecific(fleetAircraft?.name) ? fleetAircraft.name
+      : (isSpecific(fleetAircraft?.registration) ? fleetAircraft.registration : '');
+    const aircraftHint = simHint || fleetHint || flight?.aircraft_type || '';
+    const hasSpecificHint = isSpecific(aircraftHint);
     const effectiveAircraftHint = hasSpecificHint ? aircraftHint : 'a320';
-    const { group: planeMesh, strobe } = !hasSpecificHint
-      ? buildCustomAircraftModel('a320')
-      : buildCustomAircraftModel(effectiveAircraftHint);
+    const { group: planeMesh, strobe } = buildCustomAircraftModel(effectiveAircraftHint);
     planeMesh.position.copy(path3D[0]);
     scene.add(planeMesh);
 
@@ -681,7 +706,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
         skyGeo.dispose(); skyMat.dispose();
       } catch (_) { /* ignore cleanup errors */ }
     };
-  }, [segment, runway, performanceProfile, flight, phase]);
+  }, [segment, runway, performanceProfile, flight, phase, fleetAircraft]);
 
   // Keep progress ref in sync for the animation loop.
   useEffect(() => { progressRef.current = progress; }, [progress]);
