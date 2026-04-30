@@ -90,45 +90,63 @@ const filterTelemetryHistoryForSession = (telemetryHistory, sessionStartIso) => 
   return history;
 };
 
+const readSpeed = (point) => firstFiniteNumber(
+  point?.spd, point?.speed, point?.gs, point?.ground_speed, point?.ias,
+);
+
+// Find true touchdown: an airborne→ground transition (with sustained airborne
+// before, sustained ground after) AND the aircraft moving with realistic
+// landing speed (>30 kts). This prevents picking initial taxi spikes or
+// momentary glitches mid-flight where on_ground briefly toggles.
 const findTouchdownIndex = (history) => {
-  let airborneSeen = false;
+  // 1) Find the LAST stable airborne→ground transition with these guards:
+  //    - At least 5 consecutive airborne samples before
+  //    - At least 3 consecutive ground samples after (or end of history)
+  //    - Speed > 30 kts at touchdown sample
   let touchdownIdx = -1;
+  for (let i = 1; i < history.length; i += 1) {
+    if (readOnGroundFlag(history[i]) !== true) continue;
+    if (readOnGroundFlag(history[i - 1]) !== false) continue;
+    const spd = readSpeed(history[i]);
+    if (Number.isFinite(spd) && spd < 30) continue;
 
-  for (let i = 0; i < history.length; i += 1) {
-    const currentOnGround = readOnGroundFlag(history[i]);
-    if (currentOnGround === false) {
-      airborneSeen = true;
+    // Verify sustained airborne BEFORE (looking back up to 8 samples)
+    let airborneBeforeCount = 0;
+    for (let j = i - 1; j >= Math.max(0, i - 8); j -= 1) {
+      if (readOnGroundFlag(history[j]) === false) airborneBeforeCount += 1;
+      else break;
     }
-    if (i <= 0 || !airborneSeen) continue;
-    const prevOnGround = readOnGroundFlag(history[i - 1]);
-    if (prevOnGround === false && currentOnGround === true) {
-      touchdownIdx = i;
+    if (airborneBeforeCount < 3) continue;
+
+    // Verify sustained ground AFTER (looking forward up to 5 samples)
+    let groundAfterCount = 1;
+    for (let j = i + 1; j < Math.min(history.length, i + 6); j += 1) {
+      const og = readOnGroundFlag(history[j]);
+      if (og === true || og === null) groundAfterCount += 1;
+      else break;
     }
+    // If we're at the very end of telemetry, accept fewer trailing samples
+    const remaining = history.length - 1 - i;
+    if (remaining >= 3 && groundAfterCount < 3) continue;
+
+    touchdownIdx = i; // keep updating to find LAST valid transition
   }
-
   if (touchdownIdx >= 0) return touchdownIdx;
 
-  // Fallback: find last on_ground point only if we actually saw airborne state
-  if (airborneSeen) {
-    for (let i = history.length - 1; i >= 0; i -= 1) {
-      if (readOnGroundFlag(history[i]) === true) return i;
-    }
-  }
-
-  // Last resort: find most negative V/S, but ONLY in the last 15% of the flight
-  // to avoid picking a cruise-descent point 10+ minutes before landing.
+  // 2) Fallback: only look in the last 15% of history for a touchdown.
+  //    Find the FIRST on_ground=true sample with speed >30 kts in that range,
+  //    after seeing airborne in the same window.
   const searchStart = Math.max(0, Math.floor(history.length * 0.85));
-  let bestIdx = -1;
-  let mostNegativeVs = Infinity;
+  let airborneSeenLate = false;
   for (let i = searchStart; i < history.length; i += 1) {
-    const vs = readVerticalSpeedFpm(history[i]);
-    if (!Number.isFinite(vs)) continue;
-    if (vs < mostNegativeVs) {
-      mostNegativeVs = vs;
-      bestIdx = i;
+    const og = readOnGroundFlag(history[i]);
+    if (og === false) airborneSeenLate = true;
+    if (airborneSeenLate && og === true) {
+      const spd = readSpeed(history[i]);
+      if (!Number.isFinite(spd) || spd >= 30) return i;
     }
   }
-  return bestIdx;
+  return -1;
 };
 
 export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStartIso) {

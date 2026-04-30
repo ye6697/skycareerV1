@@ -358,10 +358,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Darker late-evening atmosphere – moodier, more cinematic.
-    scene.background = new THREE.Color(0x324663);
+    // Brighter daytime atmosphere – cleaner, more readable replay.
+    scene.background = new THREE.Color(0x6f93c2);
     if (performanceProfile === 'high') {
-      scene.fog = new THREE.Fog(0x43597a, 2200, 9200);
+      scene.fog = new THREE.Fog(0x95b4d6, 2800, 11000);
     }
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
@@ -376,7 +376,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, performanceProfile === 'low' ? 1.5 : 2));
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.04;
+    renderer.toneMappingExposure = 1.35;
     mount.appendChild(renderer.domElement);
 
     // Sky dome with gradient (horizon glow). Radius > camera.far / 2 so the
@@ -385,9 +385,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x223552) },
-        horizonColor: { value: new THREE.Color(0x6b7f9d) },
-        glowColor: { value: new THREE.Color(0xffb079) },
+        topColor: { value: new THREE.Color(0x4a78b3) },
+        horizonColor: { value: new THREE.Color(0xb6cde2) },
+        glowColor: { value: new THREE.Color(0xfff0d8) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -406,20 +406,19 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const sky = new THREE.Mesh(skyGeo, skyMat);
     scene.add(sky);
 
-    // Dusk lighting with a stronger sun key so the replay feels brighter and
-    // the aircraft/runway highlights read more clearly in the 3D video.
-    scene.add(new THREE.HemisphereLight(0x5f82ad, 0x33402a, performanceProfile === 'low' ? 0.44 : 0.52));
-    scene.add(new THREE.AmbientLight(0x4e5f7c, performanceProfile === 'low' ? 0.26 : 0.3));
-    const sunLight = new THREE.DirectionalLight(0xffbd8a, 0.92);
-    sunLight.position.set(-300, 180, -150);
+    // Bright daylight setup so the replay is clearly readable in the video.
+    scene.add(new THREE.HemisphereLight(0xa9c8e8, 0x5e6a4b, performanceProfile === 'low' ? 0.85 : 1.0));
+    scene.add(new THREE.AmbientLight(0xe2ecf6, performanceProfile === 'low' ? 0.5 : 0.6));
+    const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.6);
+    sunLight.position.set(-300, 280, -150);
     scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0x6a9ccc, 0.34);
-    fillLight.position.set(250, 200, 180);
+    const fillLight = new THREE.DirectionalLight(0xc6dbf2, 0.7);
+    fillLight.position.set(250, 220, 180);
     scene.add(fillLight);
 
-    // Darker ground plane in an evening-grass tone.
+    // Brighter daytime grass tone.
     const groundGeo = new THREE.PlaneGeometry(12000, 12000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a3828, roughness: 1, metalness: 0 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x4d6a3d, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1.5;

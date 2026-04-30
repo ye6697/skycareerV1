@@ -9,31 +9,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { getAirportCoords } from "@/utils/airportCoordinates";
-import {
-  Plane,
-  PlaneTakeoff,
-  PlaneLanding,
-  MapPin,
-  Clock,
-  Fuel,
-  Gauge,
-  ArrowUp,
-  Star,
-  DollarSign,
-  CheckCircle2,
-  AlertTriangle,
-  Timer,
-  Activity,
-  Wrench,
-  Cog,
-  CircuitBoard,
-  Shield,
-  Zap,
-  Wind,
-  Info,
-} from "lucide-react";
+import { Plane, PlaneTakeoff, PlaneLanding, MapPin, Clock, Fuel, Gauge, ArrowUp, Star, DollarSign, CheckCircle2, AlertTriangle, Timer, Activity, Wrench, Cog, CircuitBoard, Shield, Zap, Wind, Info } from "lucide-react";
 
 import FlightRating from "@/components/flights/FlightRating";
+import FlightCompletionAnimation from "@/components/flights/FlightCompletionAnimation";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FuelPrediction from "@/components/flights/FuelPrediction";
 import TakeoffLandingCalculator from "@/components/flights/TakeoffLandingCalculator";
@@ -319,22 +298,16 @@ export default function FlightTracker() {
   const [processedGLevels, setProcessedGLevels] = useState(new Set());
   const [isCompletingFlight, setIsCompletingFlight] = useState(false);
   const [showAutoCompleteOverlay, setShowAutoCompleteOverlay] = useState(false);
+  const [completedFlightForAnim, setCompletedFlightForAnim] = useState(null);
   const [flightStartedAt, setFlightStartedAt] = useState(null);
   const [emergencyLanding, setEmergencyLanding] = useState(false);
-  const [engineHighLoadSecondsLive, setEngineHighLoadSecondsLive] = useState(0);
-  const [highAltitudeSecondsLive, setHighAltitudeSecondsLive] = useState(0);
+  const [engineHighLoadSecondsLive, setEngineHighLoadSecondsLive] = useState(0); const [highAltitudeSecondsLive, setHighAltitudeSecondsLive] = useState(0);
   const flightDataRef = React.useRef(null);
   const autoCompleteTimeoutRef = useRef(null);
   const lastAutoFailureTsRef = useRef(null);
   const lastAutoFailureAcceptedAtRef = useRef(0);
   const lastAutoFailureAcceptedByCategoryRef = useRef({});
-  const defaultFlightEvents = {
-    tailstrike: false, stall: false, overstress: false, overspeed: false,
-    flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false,
-    crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false,
-    failure_engine: false, failure_electrical: false, failure_avionics: false,
-    failure_landing_gear: false, failure_airframe: false
-  };
+  const defaultFlightEvents = { tailstrike: false, stall: false, overstress: false, overspeed: false, flaps_overspeed: false, fuel_emergency: false, gear_up_landing: false, crash: false, harsh_controls: false, high_g_force: false, hard_landing: false, wrong_airport: false, failure_engine: false, failure_electrical: false, failure_avionics: false, failure_landing_gear: false, failure_airframe: false };
   const buildRestoredFlightData = React.useCallback((sourceFlight) => {
     const xpd = sourceFlight?.xplane_data || {};
     const events = {
@@ -2333,36 +2306,15 @@ export default function FlightTracker() {
             return updatedFlightFromDB[0];
     },
     onSuccess: async (updatedFlight) => {
-      // Wenn null zurückgegeben wurde, war die Mutation bereits in Bearbeitung
-      if (!updatedFlight) {
-        console.log('⚠️ Keine Daten - Flug wurde bereits abgeschlossen');
-        setShowAutoCompleteOverlay(false);
-        return;
-      }
-
-      console.log('✅ Flug erfolgreich abgeschlossen:', updatedFlight);
-
-      // FORCE refetch der Aircraft Query damit Fleet aktualisiert wird
+      if (!updatedFlight) { setShowAutoCompleteOverlay(false); return; }
       await queryClient.refetchQueries({ queryKey: ['aircraft'] });
       await queryClient.invalidateQueries({ queryKey: ['company'] });
       await queryClient.invalidateQueries({ queryKey: ['contracts'] });
-
-      // Direkt navigieren mit dem neuesten Flight von der DB
-      // KRITISCH: Nutze die Daten vom gespeicherten Flight (aus DB), nicht den lokalen State
-      // Der lokale State kann veraltet sein (z.B. crash-Event fehlt)
-      navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
-        state: { 
-          flight: updatedFlight,
-          contract
-        },
-        replace: true
-      });
-    },
-    onError: (error) => {
-      console.error('❌ FEHLER BEIM FLUGABSCHLUSS:', error);
-      setIsCompletingFlight(false);
+      // Show animation overlay; user clicks "Continue" to navigate to result page.
+      setCompletedFlightForAnim(updatedFlight);
       setShowAutoCompleteOverlay(false);
-    }
+    },
+    onError: (error) => { console.error('Flight completion error:', error); setIsCompletingFlight(false); setShowAutoCompleteOverlay(false); }
   });
 
   useEffect(() => {
@@ -3689,29 +3641,28 @@ export default function FlightTracker() {
         )}
       </div>
       <AnimatePresence>
-        {showAutoCompleteOverlay && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-6"
-          >
+        {showAutoCompleteOverlay && !completedFlightForAnim && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-6">
             <div className="w-full max-w-xl text-center bg-slate-900/90 border border-cyan-800/50 rounded-2xl p-8 shadow-2xl">
-              <motion.div
-                className="w-16 h-16 mx-auto mb-6 rounded-full border-4 border-cyan-700/40 border-t-cyan-300"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              />
-              <h2 className="text-2xl font-bold text-cyan-300 mb-3">
-                {lang === 'de' ? 'Flug wird automatisch abgeschlossen' : 'Auto-completing flight'}
-              </h2>
-              <p className="text-slate-300 text-base">
-                {lang === 'de'
-                  ? 'Bitte warten. Du wirst automatisch zur Ergebnisseite weitergeleitet.'
-                  : 'Please wait. You will be redirected to the results page automatically.'}
-              </p>
+              <motion.div className="w-16 h-16 mx-auto mb-6 rounded-full border-4 border-cyan-700/40 border-t-cyan-300" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} />
+              <h2 className="text-2xl font-bold text-cyan-300 mb-3">{lang === 'de' ? 'Flug wird abgeschlossen...' : 'Completing flight...'}</h2>
+              <p className="text-slate-300 text-base">{lang === 'de' ? 'Bitte warten.' : 'Please wait.'}</p>
             </div>
           </motion.div>
+        )}
+        {completedFlightForAnim && (
+          <FlightCompletionAnimation
+            key="flight-completion-anim"
+            flight={completedFlightForAnim}
+            contract={contract}
+            lang={lang}
+            onContinue={() => {
+              navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
+                state: { flight: completedFlightForAnim, contract },
+                replace: true,
+              });
+            }}
+          />
         )}
       </AnimatePresence>
     </div>

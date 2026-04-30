@@ -466,6 +466,9 @@ export default function Contracts() {
     []
   );
   const [localHangars, setLocalHangars] = useState([]);
+  // Track airports whose hangars were just sold so server-stale data can't
+  // re-add them via the merge effect below. Cleared after 30s.
+  const recentlySoldAirportsRef = useRef(new Map());
   const hangarStorageKey = useMemo(() => getHangarStorageKey(company?.id), [company?.id]);
 
   useEffect(() => {
@@ -477,8 +480,20 @@ export default function Contracts() {
     const serverHangars = Array.isArray(company?.hangars) ? company.hangars : [];
     const persistedHangars = readPersistedHangars(hangarStorageKey);
 
+    // Filter out airports that were just sold so stale server data doesn't resurrect them.
+    const now = Date.now();
+    const filterRecentlySold = (list) => list.filter((hangar) => {
+      const ts = recentlySoldAirportsRef.current.get(normIcao(hangar.airport_icao));
+      if (!ts) return true;
+      if (now - ts > 30000) {
+        recentlySoldAirportsRef.current.delete(normIcao(hangar.airport_icao));
+        return true;
+      }
+      return false;
+    });
+
     setLocalHangars((previous) =>
-      mergeHangarLists(
+      filterRecentlySold(mergeHangarLists(
         serverHangars,
         mergeHangarLists(
           previous,
@@ -486,7 +501,7 @@ export default function Contracts() {
           hangarSizeRankMap
         ),
         hangarSizeRankMap
-      )
+      ))
     );
   }, [company?.hangars, hangarSizeRankMap, hangarStorageKey]);
 
@@ -877,6 +892,11 @@ export default function Contracts() {
       return { airport: targetAirport, refund, nextHangars, nextBalance };
     },
     onSuccess: (result) => {
+      // Mark this airport as recently sold so any server-stale refetch
+      // can't re-add the deleted hangar back into local state.
+      if (result?.airport) {
+        recentlySoldAirportsRef.current.set(normIcao(result.airport), Date.now());
+      }
       if (Array.isArray(result?.nextHangars)) {
         setLocalHangars(result.nextHangars);
       }
