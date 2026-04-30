@@ -359,9 +359,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
 
     const scene = new THREE.Scene();
     // Brighter daytime atmosphere – cleaner, more readable replay.
-    scene.background = new THREE.Color(0x6f93c2);
+    scene.background = new THREE.Color(0x1a2a3f);
     if (performanceProfile === 'high') {
-      scene.fog = new THREE.Fog(0x95b4d6, 2800, 11000);
+      scene.fog = new THREE.Fog(0x1a2a3f, 2800, 11000);
     }
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
@@ -385,9 +385,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x4a78b3) },
-        horizonColor: { value: new THREE.Color(0xb6cde2) },
-        glowColor: { value: new THREE.Color(0xfff0d8) },
+        topColor: { value: new THREE.Color(0x0a1628) },
+        horizonColor: { value: new THREE.Color(0x223952) },
+        glowColor: { value: new THREE.Color(0x5cc9ff) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -416,9 +416,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     fillLight.position.set(250, 220, 180);
     scene.add(fillLight);
 
-    // Brighter daytime grass tone.
+    // Dark technical floor (matches HUD aesthetic) - no grass coloring.
     const groundGeo = new THREE.PlaneGeometry(12000, 12000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x4d6a3d, roughness: 1, metalness: 0 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x0a1220, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1.5;
@@ -431,7 +431,7 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     // Hangar-style floor guide lines: subtle cyan lane strips on the ground to
     // improve depth perception without adding heavy scenery geometry.
     const floorGuideGroup = new THREE.Group();
-    const floorGuideMat = new THREE.MeshBasicMaterial({ color: 0x5cc9ff, transparent: true, opacity: 0.17 });
+    const floorGuideMat = new THREE.MeshBasicMaterial({ color: 0x5cc9ff, transparent: true, opacity: 0.35 });
     for (let x = -2400; x <= 2400; x += 120) {
       const lane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 5200), floorGuideMat);
       lane.rotation.x = -Math.PI / 2;

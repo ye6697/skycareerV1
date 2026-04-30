@@ -26,6 +26,7 @@ import ActiveFailuresDisplay from "@/components/flights/ActiveFailuresDisplay";
 import FlightMapIframe from "@/components/flights/FlightMapIframe";
 import FlightProfileChart from "@/components/flights/FlightProfileChart";
 import FinalApproach3D from "@/components/flights/FinalApproach3D";
+import FlightCompletionAnimation from "@/components/flights/FlightCompletionAnimation";
 import RunwayAccuracyCard from "@/components/flights/RunwayAccuracyCard";
 import { computeRunwayAccuracy, evaluateRunwayAccuracy } from "@/components/flights/runwayAccuracy";
 import { computeGeoCenterlineAccuracy, normalizeRunway } from "@/components/flights/approachGeometry";
@@ -45,10 +46,13 @@ export default function CompletedFlightDetails() {
   const contractId = urlParams.get('contractId');
   const [showApproach3D, setShowApproach3D] = React.useState(false);
   const [showTakeoff3D, setShowTakeoff3D] = React.useState(false);
+  const [showCompletionAnim, setShowCompletionAnim] = React.useState(false);
+  const animTriggeredRef = React.useRef(false);
   
   // Hole Daten aus State von FlightTracker
   const passedFlight = location.state?.flight;
   const passedContract = location.state?.contract;
+  const skipAnimation = location.state?.skipAnimation === true;
 
   const { data: gameSettings } = useQuery({
     queryKey: ['gameSettings'],
@@ -364,6 +368,19 @@ export default function CompletedFlightDetails() {
     const scoreForFallback = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0) || 0;
     return generatePassengerComments(scoreForFallback, flight?.xplane_data || {}, 'en');
   }, [flight?.passenger_comments, flight?.xplane_data, flight?.flight_score, lang]);
+
+  React.useEffect(() => {
+    if (animTriggeredRef.current) return;
+    if (!flight?.id || !finalContract?.id) return;
+    if (skipAnimation) { animTriggeredRef.current = true; return; }
+    try {
+      const key = `flight_anim_seen_${flight.id}`;
+      if (sessionStorage.getItem(key)) { animTriggeredRef.current = true; return; }
+      sessionStorage.setItem(key, '1');
+    } catch (_) { /* ignore */ }
+    animTriggeredRef.current = true;
+    setShowCompletionAnim(true);
+  }, [flight?.id, finalContract?.id, skipAnimation]);
 
   if (!finalContract) {
     return (
@@ -1392,6 +1409,14 @@ export default function CompletedFlightDetails() {
       )}
       {showTakeoff3D && flight && (
         <FinalApproach3D flight={flight} phase="takeoff" onClose={() => setShowTakeoff3D(false)} />
+      )}
+      {showCompletionAnim && flight && finalContract && (
+        <FlightCompletionAnimation
+          flight={flight}
+          contract={finalContract}
+          lang={lang}
+          onContinue={() => setShowCompletionAnim(false)}
+        />
       )}
     </div>
   );

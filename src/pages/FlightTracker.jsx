@@ -3658,7 +3658,7 @@ export default function FlightTracker() {
             lang={lang}
             onContinue={() => {
               navigate(createPageUrl(`CompletedFlightDetails?contractId=${contractIdFromUrl}`), {
-                state: { flight: completedFlightForAnim, contract },
+                state: { flight: completedFlightForAnim, contract, skipAnimation: true },
                 replace: true,
               });
             }}
