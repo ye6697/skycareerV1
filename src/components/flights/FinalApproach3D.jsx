@@ -358,10 +358,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Brighter daytime atmosphere – cleaner, more readable replay.
-    scene.background = new THREE.Color(0x1a2a3f);
+    // Bright daytime atmosphere matching the hangar look.
+    scene.background = new THREE.Color(0x9cc3ef);
     if (performanceProfile === 'high') {
-      scene.fog = new THREE.Fog(0x1a2a3f, 2800, 11000);
+      scene.fog = new THREE.Fog(0xb8d4f0, 3200, 12000);
     }
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
@@ -385,9 +385,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x0a1628) },
-        horizonColor: { value: new THREE.Color(0x223952) },
-        glowColor: { value: new THREE.Color(0x5cc9ff) },
+        topColor: { value: new THREE.Color(0x4a7eb8) },
+        horizonColor: { value: new THREE.Color(0xc4dcf2) },
+        glowColor: { value: new THREE.Color(0xffd9a8) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -416,9 +416,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     fillLight.position.set(250, 220, 180);
     scene.add(fillLight);
 
-    // Dark technical floor (matches HUD aesthetic) - no grass coloring.
+    // Hangar-style sealed concrete floor (matches the 3D fleet hangar look).
     const groundGeo = new THREE.PlaneGeometry(12000, 12000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x0a1220, roughness: 1, metalness: 0 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0xc4cad3, roughness: 0.65, metalness: 0.05 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1.5;
@@ -428,10 +428,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const { group: runwayGroup, runwayLenM, runwayWidthM } = buildRunwayScene(runway, makeRunwayLabelTexture);
     scene.add(runwayGroup);
 
-    // Hangar-style floor guide lines: subtle cyan lane strips on the ground to
+    // Hangar-style floor guide lines: subtle lane strips on the ground to
     // improve depth perception without adding heavy scenery geometry.
     const floorGuideGroup = new THREE.Group();
-    const floorGuideMat = new THREE.MeshBasicMaterial({ color: 0x5cc9ff, transparent: true, opacity: 0.35 });
+    const floorGuideMat = new THREE.MeshBasicMaterial({ color: 0x6b7785, transparent: true, opacity: 0.18 });
     for (let x = -2400; x <= 2400; x += 120) {
       const lane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 5200), floorGuideMat);
       lane.rotation.x = -Math.PI / 2;
@@ -599,16 +599,35 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const activePathLine = new THREE.Line(activePathGeo, activePathMat);
     scene.add(activePathLine);
 
-    // Glow halo: a second, thicker line underneath the main path with the
-    // same vertex colors but lower opacity – makes the colored path pop
-    // against the dark ground from any camera angle.
-    if (performanceProfile === 'high') {
-      const pathHaloGeo = new THREE.BufferGeometry().setFromPoints(path3D);
-      pathHaloGeo.setAttribute('color', new THREE.BufferAttribute(pathColors, 3));
-      const pathHaloMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false });
-      const pathHalo = new THREE.Line(pathHaloGeo, pathHaloMat);
-      pathHalo.renderOrder = 1;
-      scene.add(pathHalo);
+    // Thick centerline path: rendered as a tube along the spline for real
+    // 3D thickness (LineBasicMaterial.linewidth is ignored on most drivers).
+    if (performanceProfile === 'high' && path3D.length >= 2) {
+      const pathCurve = new THREE.CatmullRomCurve3(path3D, false, 'centripetal');
+      const tubeSegments = Math.max(64, path3D.length * 2);
+      const tubeGeo = new THREE.TubeGeometry(pathCurve, tubeSegments, 1.6, 8, false);
+      // Map per-vertex colors from path3D onto the tube's vertices by the
+      // spline parameter index. Each tube ring shares the color of the
+      // corresponding spline sample.
+      const tubeColors = new Float32Array(tubeGeo.attributes.position.count * 3);
+      const radialSegs = 8 + 1; // closed ring stored as +1 vertices in three.js
+      for (let i = 0; i <= tubeSegments; i += 1) {
+        const t = i / tubeSegments;
+        const srcIdx = Math.min(path3D.length - 1, Math.round(t * (path3D.length - 1)));
+        const r = pathColors[srcIdx * 3];
+        const g = pathColors[srcIdx * 3 + 1];
+        const b = pathColors[srcIdx * 3 + 2];
+        for (let k = 0; k < radialSegs; k += 1) {
+          const vIdx = (i * radialSegs + k) * 3;
+          tubeColors[vIdx] = r;
+          tubeColors[vIdx + 1] = g;
+          tubeColors[vIdx + 2] = b;
+        }
+      }
+      tubeGeo.setAttribute('color', new THREE.BufferAttribute(tubeColors, 3));
+      const tubeMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false });
+      const pathTube = new THREE.Mesh(tubeGeo, tubeMat);
+      pathTube.renderOrder = 2;
+      scene.add(pathTube);
     }
 
     // Vertical drop lines from path to ground (every 5th point)
