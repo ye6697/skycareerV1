@@ -358,10 +358,10 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const height = mount.clientHeight;
 
     const scene = new THREE.Scene();
-    // Bright daytime atmosphere matching the hangar look.
-    scene.background = new THREE.Color(0x9cc3ef);
+    // Dark tech-grid atmosphere.
+    scene.background = new THREE.Color(0x05080c);
     if (performanceProfile === 'high') {
-      scene.fog = new THREE.Fog(0xb8d4f0, 3200, 12000);
+      scene.fog = new THREE.Fog(0x05080c, 2400, 10000);
     }
 
     // Near=2 (instead of 0.1) dramatically increases depth-buffer precision,
@@ -385,9 +385,9 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor: { value: new THREE.Color(0x4a7eb8) },
-        horizonColor: { value: new THREE.Color(0xc4dcf2) },
-        glowColor: { value: new THREE.Color(0xffd9a8) },
+        topColor: { value: new THREE.Color(0x02050a) },
+        horizonColor: { value: new THREE.Color(0x0a1420) },
+        glowColor: { value: new THREE.Color(0x10b981) },
       },
       vertexShader: `varying vec3 vWorldPos; void main(){ vWorldPos = (modelMatrix * vec4(position,1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
@@ -406,19 +406,19 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const sky = new THREE.Mesh(skyGeo, skyMat);
     scene.add(sky);
 
-    // Bright daylight setup so the replay is clearly readable in the video.
-    scene.add(new THREE.HemisphereLight(0xa9c8e8, 0x5e6a4b, performanceProfile === 'low' ? 0.85 : 1.0));
-    scene.add(new THREE.AmbientLight(0xe2ecf6, performanceProfile === 'low' ? 0.5 : 0.6));
-    const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.6);
+    // Focused lighting: keep aircraft + runway readable while the floor stays dark.
+    scene.add(new THREE.HemisphereLight(0x6b8aa8, 0x080a0e, performanceProfile === 'low' ? 0.55 : 0.7));
+    scene.add(new THREE.AmbientLight(0x4a5468, performanceProfile === 'low' ? 0.35 : 0.45));
+    const sunLight = new THREE.DirectionalLight(0xffeec8, 1.4);
     sunLight.position.set(-300, 280, -150);
     scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0xc6dbf2, 0.7);
+    const fillLight = new THREE.DirectionalLight(0x8aa8c8, 0.55);
     fillLight.position.set(250, 220, 180);
     scene.add(fillLight);
 
-    // Hangar-style sealed concrete floor (matches the 3D fleet hangar look).
+    // Dark tech-grid floor (near-black with subtle green grid lines drawn separately).
     const groundGeo = new THREE.PlaneGeometry(12000, 12000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0xc4cad3, roughness: 0.65, metalness: 0.05 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x040608, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1.5;
@@ -428,18 +428,19 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
     const { group: runwayGroup, runwayLenM, runwayWidthM } = buildRunwayScene(runway, makeRunwayLabelTexture);
     scene.add(runwayGroup);
 
-    // Hangar-style floor guide lines: subtle lane strips on the ground to
-    // improve depth perception without adding heavy scenery geometry.
+    // Tech-grid floor lines: subtle glowing green grid for depth perception.
     const floorGuideGroup = new THREE.Group();
-    const floorGuideMat = new THREE.MeshBasicMaterial({ color: 0x6b7785, transparent: true, opacity: 0.18 });
-    for (let x = -2400; x <= 2400; x += 120) {
-      const lane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 5200), floorGuideMat);
+    const floorGuideMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.22, depthWrite: false });
+    const gridSpacing = 200;
+    const gridExtent = 4800;
+    for (let x = -gridExtent; x <= gridExtent; x += gridSpacing) {
+      const lane = new THREE.Mesh(new THREE.PlaneGeometry(0.5, gridExtent * 2), floorGuideMat);
       lane.rotation.x = -Math.PI / 2;
       lane.position.set(x, -1.43, -runwayLenM / 2);
       floorGuideGroup.add(lane);
     }
-    for (let z = -3200; z <= 600; z += 120) {
-      const lane = new THREE.Mesh(new THREE.PlaneGeometry(5200, 1.2), floorGuideMat);
+    for (let z = -gridExtent; z <= gridExtent; z += gridSpacing) {
+      const lane = new THREE.Mesh(new THREE.PlaneGeometry(gridExtent * 2, 0.5), floorGuideMat);
       lane.rotation.x = -Math.PI / 2;
       lane.position.set(0, -1.43, z);
       floorGuideGroup.add(lane);

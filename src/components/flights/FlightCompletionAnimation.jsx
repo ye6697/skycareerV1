@@ -22,7 +22,8 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
     timers.push(setTimeout(() => setStage(2), 1100));
     timers.push(setTimeout(() => setStage(3), 1900));
     timers.push(setTimeout(() => setStage(4), 2700));
-    timers.push(setTimeout(() => setStage(5), 3500));
+    timers.push(setTimeout(() => setStage(5), 3400));
+    timers.push(setTimeout(() => setStage(6), 4100));
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
@@ -35,6 +36,20 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
   const landingVs = Math.abs(Number(xpd.touchdown_vspeed ?? flight?.landing_vs ?? 0));
   const flightHours = Number(flight?.flight_duration_hours ?? xpd.flightHours ?? 0);
   const events = xpd.events || {};
+
+  // Centerline accuracy (takeoff + landing) for both deltas and labels.
+  const rwAcc = xpd.runway_accuracy || null;
+  const takeoffAcc = rwAcc?.takeoff || null;
+  const landingAcc = rwAcc?.landing || null;
+  const formatRms = (m) => (Number.isFinite(Number(m)) ? `${Number(m).toFixed(1)}m` : '-');
+  const accColor = (m) => {
+    const n = Number(m);
+    if (!Number.isFinite(n)) return 'text-slate-400';
+    if (n < 1.5) return 'text-emerald-400';
+    if (n < 3) return 'text-green-400';
+    if (n < 5) return 'text-amber-400';
+    return 'text-red-400';
+  };
 
   const incidentList = [];
   if (events.crash) incidentList.push({ key: 'crash', label: lang === 'de' ? 'CRASH' : 'CRASH', critical: true });
@@ -77,22 +92,41 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-3 sm:p-6">
-      {/* Background scanlines */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-20">
+      {/* Animated background: scanline + radial pulse + grid */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(rgba(34,211,238,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.4) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        <motion.div
+          initial={{ scale: 0.4, opacity: 0 }}
+          animate={{ scale: 2.4, opacity: 0 }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeOut' }}
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border border-cyan-400/30"
+        />
         <motion.div
           initial={{ y: '-100%' }}
           animate={{ y: '100%' }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-          className="absolute inset-x-0 h-1/3 bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent"
+          transition={{ duration: 3.2, repeat: Infinity, ease: 'linear' }}
+          className="absolute inset-x-0 h-1/3 bg-gradient-to-b from-transparent via-cyan-500/20 to-transparent opacity-50"
         />
       </div>
 
       <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 22 }}
-        className="relative w-full max-w-2xl rounded-xl border border-cyan-500/40 bg-gradient-to-br from-slate-900/95 to-slate-950 shadow-[0_0_40px_rgba(34,211,238,0.25)] overflow-hidden"
+        initial={{ scale: 0.85, opacity: 0, y: 30, rotateX: -8 }}
+        animate={{ scale: 1, opacity: 1, y: 0, rotateX: 0 }}
+        transition={{ type: 'spring', stiffness: 180, damping: 20 }}
+        className="relative w-full max-w-2xl rounded-xl border border-cyan-500/40 bg-gradient-to-br from-slate-900/95 to-slate-950 shadow-[0_0_60px_rgba(34,211,238,0.35)] overflow-hidden"
       >
+        {/* Animated corner brackets */}
+        <span className="pointer-events-none absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400" />
+        <span className="pointer-events-none absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400" />
+        <span className="pointer-events-none absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400" />
+        <span className="pointer-events-none absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400" />
+        {/* Sweep highlight */}
+        <motion.span
+          initial={{ x: '-120%' }}
+          animate={{ x: '120%' }}
+          transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.2 }}
+          className="pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-400/15 to-transparent skew-x-12"
+        />
         {/* Close button */}
         <button
           type="button"
@@ -130,10 +164,13 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
                   {lang === 'de' ? 'Finaler Score' : 'Final Score'}
                 </p>
                 <motion.div
-                  initial={{ filter: 'blur(8px)' }}
-                  animate={{ filter: 'blur(0px)' }}
-                  transition={{ duration: 0.6 }}
-                  className={`text-6xl sm:text-7xl font-mono font-bold ${scoreColor}`}
+                  initial={{ filter: 'blur(12px)', textShadow: '0 0 0px currentColor' }}
+                  animate={{
+                    filter: 'blur(0px)',
+                    textShadow: ['0 0 0px currentColor', '0 0 30px currentColor', '0 0 12px currentColor'],
+                  }}
+                  transition={{ duration: 0.8, textShadow: { duration: 1.2, times: [0, 0.5, 1] } }}
+                  className={`text-6xl sm:text-7xl font-mono font-bold tracking-tight ${scoreColor}`}
                 >
                   {isCrash ? '0' : score}
                 </motion.div>
@@ -219,9 +256,64 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
             )}
           </AnimatePresence>
 
-          {/* Stage 5: Incidents */}
+          {/* Stage 5: Centerline accuracy (takeoff + landing) */}
           <AnimatePresence>
-            {stage >= 5 && incidentList.length > 0 && (
+            {stage >= 5 && (takeoffAcc || landingAcc) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded border border-cyan-700/40 bg-gradient-to-r from-cyan-950/40 to-slate-900/40 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Plane className="w-3 h-3 text-cyan-400" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">
+                    {lang === 'de' ? 'Centerline-Präzision' : 'Centerline Precision'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { acc: takeoffAcc, label: lang === 'de' ? 'Start' : 'Takeoff', delay: 0 },
+                    { acc: landingAcc, label: lang === 'de' ? 'Landung' : 'Landing', delay: 0.15 },
+                  ].map((row) => (
+                    <motion.div
+                      key={row.label}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: row.delay }}
+                      className="rounded bg-slate-900/60 border border-slate-700/50 px-2 py-1.5"
+                    >
+                      <p className="text-[9px] font-mono uppercase tracking-wider text-slate-500">{row.label}</p>
+                      {row.acc ? (
+                        <>
+                          <p className={`text-sm font-mono font-bold ${accColor(row.acc.rmsMeters)}`}>
+                            Ø {formatRms(row.acc.rmsMeters)}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {Number(row.acc.scoreDelta || 0) !== 0 && (
+                              <span className={`text-[10px] font-mono ${Number(row.acc.scoreDelta) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {Number(row.acc.scoreDelta) > 0 ? '+' : ''}{Math.round(Number(row.acc.scoreDelta))}pt
+                              </span>
+                            )}
+                            {Number(row.acc.cashDelta || 0) !== 0 && (
+                              <span className={`text-[10px] font-mono ${Number(row.acc.cashDelta) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {Number(row.acc.cashDelta) > 0 ? '+' : '-'}${Math.abs(Math.round(Number(row.acc.cashDelta))).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm font-mono text-slate-500">-</p>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Stage 6: Incidents */}
+          <AnimatePresence>
+            {stage >= 6 && incidentList.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -252,7 +344,7 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
                 </div>
               </motion.div>
             )}
-            {stage >= 5 && incidentList.length === 0 && !isCrash && (
+            {stage >= 6 && incidentList.length === 0 && !isCrash && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -269,7 +361,7 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
 
         {/* Continue button */}
         <AnimatePresence>
-          {stage >= 5 && (
+          {stage >= 6 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
