@@ -125,7 +125,7 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
           <motion.div
             initial={{ x: '-200%', y: '-200%' }}
             animate={{ x: '200%', y: '200%' }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', repeatDelay: 3 }}
             className="absolute -inset-[100%]"
             style={{
               background: 'linear-gradient(135deg, transparent 45%, rgba(255,255,255,0.22) 50%, transparent 55%)',
