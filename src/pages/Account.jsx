@@ -11,7 +11,7 @@ import {
 "@/components/ui/dialog";
 import {
   Plane, CreditCard, Calendar, ArrowUpRight, XCircle, User, Star, Shield,
-  CheckCircle, AlertTriangle, Globe, RotateCcw } from
+  CheckCircle, AlertTriangle, Globe, RotateCcw, LogOut } from
 "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -218,6 +218,30 @@ export default function Account() {
             <PricingCards currentSubscription={currentSub} />
           </motion.div>
         }
+
+        {/* Logout */}
+        <div className="mt-8">
+          <Card className="p-4 bg-slate-800/60 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-white">
+                  {lang === 'de' ? 'Abmelden' : 'Sign out'}
+                </h4>
+                <p className="text-xs text-slate-500">
+                  {lang === 'de' ? 'Aus deinem Account ausloggen.' : 'Log out of your account.'}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-cyan-700/50 text-cyan-400 hover:bg-cyan-900/20"
+                onClick={() => base44.auth.logout()}>
+                <LogOut className="w-4 h-4 mr-1" />
+                {lang === 'de' ? 'Logout' : 'Logout'}
+              </Button>
+            </div>
+          </Card>
+        </div>
 
         {/* Danger Zone */}
         <div className="mt-12 pt-6 border-t border-red-900/20">
