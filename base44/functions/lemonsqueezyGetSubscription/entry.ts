@@ -8,17 +8,23 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find active subscription for this user
-    const subs = await base44.asServiceRole.entities.Subscription.filter({ user_email: user.email });
-    
+    const userEmail = String(user.email || '').toLowerCase();
+
+    // Fetch all subscriptions and match case-insensitively, since admins
+    // may have created records with different casing than the user's login.
+    const allSubs = await base44.asServiceRole.entities.Subscription.list();
+    const subs = allSubs.filter(
+      (s) => String(s.user_email || '').toLowerCase() === userEmail,
+    );
+
     // Find best active subscription
-    const activeSub = subs.find(s => s.status === 'active') || 
-                      subs.find(s => s.status === 'cancelled' && s.ends_at && new Date(s.ends_at) > new Date()) ||
+    const activeSub = subs.find((s) => s.status === 'active') ||
+                      subs.find((s) => s.status === 'cancelled' && s.ends_at && new Date(s.ends_at) > new Date()) ||
                       null;
 
     const isPro = !!activeSub;
 
-    return Response.json({ 
+    return Response.json({
       is_pro: isPro,
       subscription: activeSub,
       all_subscriptions: subs,
