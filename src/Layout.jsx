@@ -87,17 +87,46 @@ function LayoutInner({ children, currentPageName }) {
         }
         settings = await base44.entities.GameSettings.list();
       } catch (_) {}
+      // Admins always have full access without paying.
+      const userRole = String(u?.role || u?.data?.role || '').toLowerCase();
+      const isAdmin = userRole === 'admin';
       // Check subscription status separately – always runs
       try {
         const subRes = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
         isPro = subRes.data?.is_pro || false;
       } catch (_) {}
+      if (isAdmin) isPro = true;
       if (!cancelled) {
         setLayoutData({ company: comp, gameSettings: settings[0] || null, user: u, isPro, loaded: true });
       }
     })();
     return () => { cancelled = true; };
   }, [layoutData.loaded]);
+
+  // Re-check subscription when user navigates between pages or returns to the tab.
+  // This ensures that when an admin changes a user's subscription, the user
+  // sees the new state without manually reloading the browser.
+  React.useEffect(() => {
+    if (!layoutData.loaded) return;
+    const refresh = async () => {
+      try {
+        const subRes = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
+        const userRole = String(layoutData.user?.role || layoutData.user?.data?.role || '').toLowerCase();
+        const isAdmin = userRole === 'admin';
+        const isPro = isAdmin || !!subRes.data?.is_pro;
+        setLayoutData((prev) => (prev.isPro === isPro ? prev : { ...prev, isPro }));
+      } catch (_) {}
+    };
+    const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refresh);
+    refresh();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutData.loaded, currentPageName]);
 
   const company = layoutData.company;
   const gameSettings = layoutData.gameSettings;
