@@ -120,13 +120,15 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
         <span className="pointer-events-none absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400" />
         <span className="pointer-events-none absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400" />
         <span className="pointer-events-none absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400" />
-        {/* Sweep highlight */}
-        <motion.span
-          initial={{ x: '-120%' }}
-          animate={{ x: '120%' }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.2 }}
-          className="pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-400/15 to-transparent skew-x-12"
-        />
+        {/* Diagonal sweep highlight (top-left → bottom-right) */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <motion.span
+            initial={{ x: '-150%', y: '-150%' }}
+            animate={{ x: '150%', y: '150%' }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.8 }}
+            className="absolute -inset-1/2 w-1/4 bg-gradient-to-br from-transparent via-cyan-400/[0.06] to-transparent rotate-45"
+          />
+        </div>
         {/* Close button */}
         <button
           type="button"
