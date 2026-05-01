@@ -113,7 +113,7 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
         initial={{ scale: 0.85, opacity: 0, y: 30, rotateX: -8 }}
         animate={{ scale: 1, opacity: 1, y: 0, rotateX: 0 }}
         transition={{ type: 'spring', stiffness: 180, damping: 20 }}
-        className="relative w-full max-w-2xl rounded-xl border border-cyan-500/40 bg-gradient-to-br from-slate-900/95 to-slate-950 shadow-[0_0_60px_rgba(34,211,238,0.35)] overflow-hidden"
+        className="relative w-full max-w-2xl max-h-[95vh] overflow-y-auto rounded-xl border border-cyan-500/40 bg-gradient-to-br from-slate-900/95 to-slate-950 shadow-[0_0_60px_rgba(34,211,238,0.35)]"
       >
         {/* Animated corner brackets */}
         <span className="pointer-events-none absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400" />
