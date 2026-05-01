@@ -123,11 +123,14 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
         {/* Diagonal sweep highlight (top-left → bottom-right corner) */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
           <motion.div
-            initial={{ left: '-60%', top: '-60%' }}
-            animate={{ left: '110%', top: '110%' }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
-            className="absolute h-[60%] w-[35%] bg-gradient-to-br from-transparent via-white/25 to-transparent rotate-45"
-            style={{ filter: 'blur(8px)' }}
+            initial={{ x: '-100%', y: '-100%' }}
+            animate={{ x: '100%', y: '100%' }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
+              filter: 'blur(6px)',
+            }}
           />
         </div>
         {/* Close button */}
