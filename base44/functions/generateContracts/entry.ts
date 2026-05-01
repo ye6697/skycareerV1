@@ -427,11 +427,15 @@ function pickRouteForContract(aircraftRange, options = {}) {
   const blockedPairs = options.blockedPairs || new Set();
   const departureUsage = options.departureUsage || new Map();
   const maxDepartureReuse = options.maxDepartureReuse || 2;
+  const minNm = Number(options.minNm) || 0;
+  const maxNm = Number(options.maxNm) || Infinity;
+  const arrivalPool = options.arrivalPool || airports;
 
   const phases = [
-    { respectDepartureLimit: true, respectPairBlacklist: true, attempts: 240 },
-    { respectDepartureLimit: false, respectPairBlacklist: true, attempts: 160 },
-    { respectDepartureLimit: false, respectPairBlacklist: false, attempts: 120 }
+    { respectDepartureLimit: true, respectPairBlacklist: true, respectDistance: true, attempts: 240 },
+    { respectDepartureLimit: false, respectPairBlacklist: true, respectDistance: true, attempts: 160 },
+    { respectDepartureLimit: false, respectPairBlacklist: false, respectDistance: true, attempts: 120 },
+    { respectDepartureLimit: false, respectPairBlacklist: false, respectDistance: false, attempts: 80 }
   ];
 
   for (const phase of phases) {
@@ -440,11 +444,12 @@ function pickRouteForContract(aircraftRange, options = {}) {
       const depCount = departureUsage.get(depAirport.icao) || 0;
       if (phase.respectDepartureLimit && depCount >= maxDepartureReuse) continue;
 
-      const arrAirport = randomItem(airports);
+      const arrAirport = randomItem(arrivalPool);
       if (arrAirport.icao === depAirport.icao) continue;
 
       const distance = calculateDistance(depAirport.lat, depAirport.lon, arrAirport.lat, arrAirport.lon);
       if (distance > aircraftRange) continue;
+      if (phase.respectDistance && (distance < minNm || distance > maxNm)) continue;
 
       const pairKey = routeKeyFromIcao(depAirport.icao, arrAirport.icao);
       if (phase.respectPairBlacklist && pairKey && blockedPairs.has(pairKey)) continue;
@@ -466,7 +471,11 @@ function rememberRoute(contract, blockedPairs, departureUsage) {
 }
 
 function generateContract(companyId, aircraftType, companyLevel, options = {}) {
-  const route = pickRouteForContract(aircraftType.range, options);
+  const route = pickRouteForContract(aircraftType.range, {
+    ...options,
+    minNm: options.minNm,
+    maxNm: options.maxNm,
+  });
   if (!route) return null;
   const { depAirport, arrAirport, distance } = route;
 
@@ -593,6 +602,23 @@ Deno.serve(async (req) => {
 
     const todayIso = new Date().toISOString().slice(0, 10);
     const airportByIcao = new Map(airports.map((airport) => [airport.icao, airport]));
+
+    // Enrich the hardcoded airport list with hangar airports that the client
+    // sent along (with lat/lon). This lets us correctly compute distances and
+    // generate contracts for ICAOs that aren't in the static airports list.
+    if (Array.isArray(knownHangars)) {
+      for (const kh of knownHangars) {
+        const icao = normalizeIcao(kh?.airport_icao);
+        const lat = Number(kh?.lat);
+        const lon = Number(kh?.lon);
+        if (!icao || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+        if (airportByIcao.has(icao)) continue;
+        const entry = { icao, city: String(kh?.label || icao), lat, lon };
+        airportByIcao.set(icao, entry);
+        airports.push(entry);
+      }
+    }
+
     const rawCompanyHangars = Array.isArray(company.hangars) ? company.hangars : [];
     const mergedHangars = mergeCompanyHangarSources(rawCompanyHangars, knownHangars);
     const normalizedHangars = normalizeCompanyHangars(mergedHangars);
@@ -775,6 +801,8 @@ Deno.serve(async (req) => {
       maxDepartureReuse: 3,
       forceContractType: filterContractType || null,
       departurePool: globalDeparturePool,
+      minNm,
+      maxNm: Number.isFinite(maxNm) ? maxNm : Infinity,
     };
 
     const hangarsForGeneration = normalizedHangars.length > 0
@@ -813,6 +841,8 @@ Deno.serve(async (req) => {
         maxDepartureReuse: 3,
         forceContractType: filterContractType || null,
         departurePool: departurePool.length > 0 ? departurePool : globalDeparturePool,
+        minNm,
+        maxNm: Number.isFinite(maxNm) ? maxNm : Infinity,
       };
 
       let attempts = 0;

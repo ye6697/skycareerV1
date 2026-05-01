@@ -818,7 +818,20 @@ export default function Contracts() {
         params.companyId = company.id;
       }
       if (Array.isArray(ownedHangars) && ownedHangars.length > 0) {
-        params.knownHangars = ownedHangars;
+        // Enrich hangars with lat/lon so the backend can correctly compute
+        // distances and use these airports as valid departure points even
+        // if they aren't in the backend's hardcoded airports list.
+        params.knownHangars = ownedHangars.map((hangar) => {
+          const icao = normIcao(hangar?.airport_icao);
+          const coords = getAirportCoords(icao);
+          return {
+            ...hangar,
+            airport_icao: icao,
+            lat: coords?.lat ?? null,
+            lon: coords?.lon ?? null,
+            label: MARKET_LABELS?.[icao] || hangar?.label || icao,
+          };
+        });
       }
       const response = await base44.functions.invoke("generateContracts", params);
       return response.data;
@@ -1428,11 +1441,13 @@ export default function Contracts() {
 
             <select value={selectedDepartureAirport} onChange={(event) => setSelectedDepartureAirport(event.target.value)} className="h-8 rounded-md border border-cyan-900/60 bg-slate-950/90 px-2 text-xs text-cyan-100 lg:col-span-3">
               <option value="all">{lang === "de" ? "Alle Departure-Airports" : "All departure airports"}</option>
-              {marketAirports.map((airport) => (
-                <option key={airport.airport_icao} value={airport.airport_icao}>
-                  {formatAirportDisplay(airport.airport_icao, airport.label)}
-                </option>
-              ))}
+              {marketAirports
+                .filter((airport) => ownedHangarAirportSet.has(normIcao(airport.airport_icao)))
+                .map((airport) => (
+                  <option key={airport.airport_icao} value={airport.airport_icao}>
+                    {formatAirportDisplay(airport.airport_icao, airport.label)}
+                  </option>
+                ))}
             </select>
 
             <Button type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="h-8 bg-cyan-600 px-3 text-xs font-mono uppercase text-slate-950 hover:bg-cyan-500 lg:col-span-2">
