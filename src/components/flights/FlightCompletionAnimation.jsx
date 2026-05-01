@@ -121,12 +121,12 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
         <span className="pointer-events-none absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400" />
         <span className="pointer-events-none absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400" />
         {/* Diagonal sweep highlight (top-left → bottom-right) */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
           <motion.span
-            initial={{ x: '-150%', y: '-150%' }}
-            animate={{ x: '150%', y: '150%' }}
-            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.8 }}
-            className="absolute -inset-1/2 w-1/4 bg-gradient-to-br from-transparent via-cyan-400/[0.06] to-transparent rotate-45"
+            initial={{ x: '-120%', y: '-120%' }}
+            animate={{ x: '120%', y: '120%' }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }}
+            className="absolute top-0 left-0 h-[200%] w-[40%] bg-gradient-to-br from-transparent via-cyan-300/20 to-transparent rotate-45 origin-top-left blur-sm"
           />
         </div>
         {/* Close button */}
@@ -166,12 +166,13 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
                   {lang === 'de' ? 'Finaler Score' : 'Final Score'}
                 </p>
                 <motion.div
-                  initial={{ filter: 'blur(12px)', textShadow: '0 0 0px currentColor' }}
+                  initial={{ scale: 0.7, opacity: 0 }}
                   animate={{
-                    filter: 'blur(0px)',
+                    scale: 1,
+                    opacity: 1,
                     textShadow: ['0 0 0px currentColor', '0 0 30px currentColor', '0 0 12px currentColor'],
                   }}
-                  transition={{ duration: 0.8, textShadow: { duration: 1.2, times: [0, 0.5, 1] } }}
+                  transition={{ duration: 0.6, type: 'spring', stiffness: 220, damping: 16, textShadow: { duration: 1.2, times: [0, 0.5, 1] } }}
                   className={`text-6xl sm:text-7xl font-mono font-bold tracking-tight ${scoreColor}`}
                 >
                   {isCrash ? '0' : score}
