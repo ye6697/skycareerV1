@@ -538,7 +538,7 @@ export default function AircraftHangar3D({ aircraft }) {
               setAutoRotate(false);
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className={`absolute flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[9px] uppercase font-bold transition-all -translate-x-1/2 -translate-y-[200%] ${isSelected ? 'z-30 scale-110' : 'z-20 hover:scale-110'}`}
+            className={`absolute flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[9px] uppercase font-bold transition-all -translate-x-1/2 -translate-y-1/2 ${isSelected ? 'z-30 scale-110' : 'z-20 hover:scale-110'}`}
             style={{
               left: scr.x, top: scr.y,
               color, borderColor: color, borderWidth: 1,
