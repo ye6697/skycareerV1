@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Plane } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plane, GraduationCap, CheckCircle2 } from 'lucide-react';
 import AircraftHangar3D from '@/components/fleet3d/AircraftHangar3D';
+import { userHasTypeRating } from '@/lib/typeRatings';
 
 function toListingKey(listing) {
   if (!listing) return '';
@@ -35,6 +36,8 @@ export default function MarketHangar3DView({
   getPurchaseHangarOptions,
   isBuying,
   selectedListingId,
+  currentUser = null,
+  onRequestTypeRating,
 }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [hangarSelectionByListing, setHangarSelectionByListing] = useState({});
@@ -57,6 +60,7 @@ export default function MarketHangar3DView({
 
   const hasLevel = (company?.level || 1) >= (current.level_requirement || 1);
   const hasBalance = canAfford(current.purchase_price);
+  const hasRating = userHasTypeRating(currentUser, current.name);
   const purchasable = canPurchase(current);
   const isBuyingThis = isBuying && String(selectedListingId || '') === currentKey;
 
@@ -66,7 +70,7 @@ export default function MarketHangar3DView({
   const selectedHangarId = String(hangarSelectionByListing[currentKey] || '').trim();
   const fallbackHangarId = toHangarId(hangarOptions[0]);
   const effectiveHangarId = selectedHangarId || fallbackHangarId;
-  const canDirectBuy = Boolean(purchasable && effectiveHangarId && hangarOptions.length > 0);
+  const canDirectBuy = Boolean(purchasable && effectiveHangarId && hangarOptions.length > 0 && hasRating);
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-950">
@@ -84,7 +88,20 @@ export default function MarketHangar3DView({
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <div className="min-w-0">
-              <div className="text-cyan-300 font-mono font-bold text-sm truncate">{current.name}</div>
+              <div className="text-cyan-300 font-mono font-bold text-sm truncate flex items-center gap-1.5">
+                <span className="truncate">{current.name}</span>
+                {hasRating ? (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/50 shrink-0">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    {lang === 'de' ? 'Rating ✓' : 'Rating ✓'}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50 shrink-0">
+                    <GraduationCap className="w-2.5 h-2.5" />
+                    {lang === 'de' ? 'Rating fehlt' : 'No rating'}
+                  </span>
+                )}
+              </div>
               <div className="text-[10px] font-mono text-cyan-600 uppercase">
                 {clampedIdx + 1} / {visibleListings.length}
               </div>
@@ -241,6 +258,11 @@ export default function MarketHangar3DView({
                   {lang === 'de' ? 'Nicht genug Budget' : 'Insufficient budget'}
                 </div>
               )}
+              {!hasRating && (
+                <div className="mt-1 text-[9px] text-amber-300">
+                  {lang === 'de' ? 'Type-Rating für dieses Modell erforderlich.' : 'Type-rating required for this model.'}
+                </div>
+              )}
               {hangarOptions.length === 0 && (
                 <div className="mt-1 text-[9px] text-amber-300">
                   {lang === 'de' ? 'Kein kompatibler Hangar mit freiem Slot.' : 'No compatible hangar with a free slot.'}
@@ -250,6 +272,17 @@ export default function MarketHangar3DView({
           </div>
 
           <div className="max-w-6xl mx-auto mt-2 flex items-center justify-end gap-2">
+            {!hasRating && onRequestTypeRating && (
+              <Button
+                type="button"
+                onClick={() => onRequestTypeRating(current)}
+                size="sm"
+                className="h-7 bg-cyan-900/60 text-cyan-200 hover:bg-cyan-800 border border-cyan-700 text-[10px] font-mono uppercase"
+              >
+                <GraduationCap className="w-3 h-3 mr-1" />
+                {lang === 'de' ? 'Type-Rating' : 'Type-rating'}
+              </Button>
+            )}
             <Button
               type="button"
               onClick={() => onBuy?.(current)}

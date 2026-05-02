@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
     }
     if (!user) {
       return Response.json(
-        { company: null, aircraft: [], contracts: [], employees: [], requires_auth: true },
+        { company: null, aircraft: [], contracts: [], requires_auth: true },
         { status: 200 }
       );
     }
@@ -279,11 +279,7 @@ Deno.serve(async (req) => {
     const allContracts = await base44.asServiceRole.entities.Contract.filter({ company_id: company.id });
     const contracts = allContracts.filter(c => c.status === 'available' || c.status === 'accepted');
 
-    // Get employees for this company
-    const allEmployees = await base44.asServiceRole.entities.Employee.filter({ company_id: company.id });
-    const employees = allEmployees.filter(e => e.status !== 'terminated');
-
-    return Response.json({ company, aircraft, contracts, employees });
+    return Response.json({ company, aircraft, contracts });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
