@@ -280,38 +280,59 @@ export default function AircraftHangar3D({ aircraft }) {
         if (cancelled || !sceneRef.current || sceneRef.current !== runtime) return;
         const model = meta?.model || null;
 
-        // CRITICAL: Measure bounds RIGHT NOW from the model that's currently
-        // in the scene, ignoring meta.bounds. This is the only way to be
-        // certain the hotspots wrap the actually rendered geometry – the
-        // procedural fallback and GLB models can otherwise differ wildly
-        // from preset assumptions.
-        const measureWorldBounds = (root) => {
+        // CRITICAL: Measure bounds from BIG MESH GEOMETRY ONLY (the actual
+        // fuselage/wings), explicitly excluding navigation lights, strobes,
+        // beacons, and other tiny accessory meshes that artificially inflate
+        // the bounding box and push the hotspots above the visible aircraft.
+        //
+        // Strategy: collect all mesh bounds, sort by volume, keep only the
+        // top contributors (>= 5% of largest mesh volume). Lights are tiny
+        // spheres (~0.2 radius) so they get filtered out automatically.
+        const measureRealBounds = (root) => {
           if (!root) return null;
           root.updateMatrixWorld(true);
-          const box = new THREE.Box3().setFromObject(root);
-          if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return null;
+          const meshBoxes = [];
+          root.traverse((node) => {
+            if (!node.isMesh || !node.geometry) return;
+            // Skip nodes flagged as navigation lights / strobes by name.
+            const name = String(node.name || '').toLowerCase();
+            if (name.includes('strobe') || name.includes('beacon') || name.includes('navlight')) return;
+            const box = new THREE.Box3().setFromObject(node);
+            if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return;
+            const sz = new THREE.Vector3();
+            box.getSize(sz);
+            const volume = sz.x * sz.y * sz.z;
+            if (volume <= 0) return;
+            meshBoxes.push({ box, volume });
+          });
+          if (meshBoxes.length === 0) return null;
+          const maxVolume = Math.max(...meshBoxes.map((b) => b.volume));
+          // Keep only meshes that are at least 5% of the largest mesh volume.
+          // This drops navigation-light spheres reliably without complex
+          // name-matching, and works for both procedural and GLB models.
+          const significant = meshBoxes.filter((b) => b.volume >= maxVolume * 0.05);
+          const merged = new THREE.Box3();
+          significant.forEach((b) => merged.union(b.box));
+          if (!Number.isFinite(merged.min.x) || !Number.isFinite(merged.max.x)) return null;
           const size = new THREE.Vector3();
-          const center = new THREE.Vector3();
-          box.getSize(size);
-          box.getCenter(center);
-          return { box, size, center };
+          merged.getSize(size);
+          return { box: merged, size };
         };
-        const measured = measureWorldBounds(model || aircraftGroup);
+        const measured = measureRealBounds(model || aircraftGroup);
         if (!measured) return;
 
         // Bounds-relative hotspot anchors (0..1 inside the bounding box).
-        // These are intentionally CONSERVATIVE: y stays in the lower-mid
-        // section so spheres sit ON the fuselage, not floating above it.
-        // x is along the length axis (nose +1 -> tail 0), z is along the wing.
+        // VERY conservative Y values – stay between 0.25 and 0.65 so spheres
+        // sit ON the fuselage skin, not above the canopy.
         const HOTSPOTS = {
-          engine:        { x: 0.78, y: 0.42, z: 0.55 },  // engines: side, low-mid
-          avionics:      { x: 0.92, y: 0.62, z: 0.00 },  // cockpit / nose top
-          airframe:      { x: 0.50, y: 0.62, z: 0.00 },  // upper fuselage center
-          hydraulics:    { x: 0.45, y: 0.35, z: -0.35 }, // belly, opposite wing
-          landing_gear:  { x: 0.55, y: 0.05, z: 0.00 },  // bottom center
-          electrical:    { x: 0.40, y: 0.45, z: 0.30 },  // wing root
-          flight_controls: { x: 0.10, y: 0.70, z: 0.00 },// tail top
-          pressurization:  { x: 0.25, y: 0.55, z: 0.00 },// fuselage upper
+          engine:        { x: 0.70, y: 0.35, z: 0.55 },  // wing-mounted engine
+          avionics:      { x: 0.88, y: 0.55, z: 0.00 },  // cockpit / nose
+          airframe:      { x: 0.50, y: 0.55, z: 0.00 },  // upper fuselage center
+          hydraulics:    { x: 0.45, y: 0.30, z: -0.35 }, // belly
+          landing_gear:  { x: 0.55, y: 0.10, z: 0.00 },  // gear, bottom
+          electrical:    { x: 0.40, y: 0.40, z: 0.30 },  // wing root
+          flight_controls: { x: 0.12, y: 0.60, z: 0.00 },// tail
+          pressurization:  { x: 0.28, y: 0.50, z: 0.00 },// fuselage upper
         };
 
         const { box, size } = measured;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X, Building2 } from "lucide-react";
@@ -437,7 +438,8 @@ export default function HangarWorldGlobe3D({
   const content = (
     <div
       ref={fullscreenRootRef}
-      className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "fixed inset-0 z-[9999] h-[100dvh] w-[100vw] rounded-none" : "rounded-xl"}`}
+      className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "h-[100dvh] w-[100vw] rounded-none" : "rounded-xl"}`}
+      style={isFullscreen ? { position: "fixed", inset: 0, zIndex: 9999 } : undefined}
     >
       <div className="absolute left-3 top-3 z-[1400] flex items-center gap-2">
         <Badge className="border-cyan-700/50 bg-slate-950/90 text-[10px] font-mono uppercase text-cyan-100">
@@ -909,5 +911,11 @@ export default function HangarWorldGlobe3D({
     </div>
   );
 
+  // CRITICAL: when fullscreen, render through a portal directly to <body>.
+  // This bypasses any ancestor with transform/filter/will-change CSS that
+  // would otherwise break `position: fixed` on iOS Safari and Android.
+  if (isFullscreen && typeof document !== "undefined") {
+    return createPortal(content, document.body);
+  }
   return content;
 }
