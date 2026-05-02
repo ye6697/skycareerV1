@@ -278,31 +278,60 @@ export default function AircraftHangar3D({ aircraft }) {
     built.ready
       .then((meta) => {
         if (cancelled || !sceneRef.current || sceneRef.current !== runtime) return;
-        // Compute hotspot positions from the REAL model bounds and attach the
-        // markers directly to the loaded model. This guarantees they always
-        // hug the aircraft, regardless of which profile preset was matched
-        // or how the GLB was scaled internally.
         const model = meta?.model || null;
-        const dynamicLayout = getHotspotLayoutForAircraft({
-          aircraftHint,
-          profile: meta?.profile || built.profile,
-          modelId: meta?.modelId || built.modelId,
-          bounds: meta?.bounds,
+
+        // CRITICAL: Measure bounds RIGHT NOW from the model that's currently
+        // in the scene, ignoring meta.bounds. This is the only way to be
+        // certain the hotspots wrap the actually rendered geometry – the
+        // procedural fallback and GLB models can otherwise differ wildly
+        // from preset assumptions.
+        const measureWorldBounds = (root) => {
+          if (!root) return null;
+          root.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(root);
+          if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return null;
+          const size = new THREE.Vector3();
+          const center = new THREE.Vector3();
+          box.getSize(size);
+          box.getCenter(center);
+          return { box, size, center };
+        };
+        const measured = measureWorldBounds(model || aircraftGroup);
+        if (!measured) return;
+
+        // Bounds-relative hotspot anchors (0..1 inside the bounding box).
+        // These are intentionally CONSERVATIVE: y stays in the lower-mid
+        // section so spheres sit ON the fuselage, not floating above it.
+        // x is along the length axis (nose +1 -> tail 0), z is along the wing.
+        const HOTSPOTS = {
+          engine:        { x: 0.78, y: 0.42, z: 0.55 },  // engines: side, low-mid
+          avionics:      { x: 0.92, y: 0.62, z: 0.00 },  // cockpit / nose top
+          airframe:      { x: 0.50, y: 0.62, z: 0.00 },  // upper fuselage center
+          hydraulics:    { x: 0.45, y: 0.35, z: -0.35 }, // belly, opposite wing
+          landing_gear:  { x: 0.55, y: 0.05, z: 0.00 },  // bottom center
+          electrical:    { x: 0.40, y: 0.45, z: 0.30 },  // wing root
+          flight_controls: { x: 0.10, y: 0.70, z: 0.00 },// tail top
+          pressurization:  { x: 0.25, y: 0.55, z: 0.00 },// fuselage upper
+        };
+
+        const { box, size } = measured;
+        const worldPositions = {};
+        Object.entries(HOTSPOTS).forEach(([key, anchor]) => {
+          worldPositions[key] = new THREE.Vector3(
+            box.min.x + size.x * anchor.x,
+            box.min.y + size.y * anchor.y,
+            box.min.z + size.z * 0.5 + (size.z * 0.5) * Math.max(-1, Math.min(1, anchor.z)),
+          );
         });
 
-        // Translate world-space layout positions into model-LOCAL space so
-        // the spheres can be parented to the model itself.
-        let toLocal = (pos) => new THREE.Vector3(pos.x, pos.y, pos.z);
-        if (model) {
-          model.updateMatrixWorld(true);
-          const inverseMatrix = new THREE.Matrix4().copy(model.matrixWorld).invert();
-          toLocal = (pos) => new THREE.Vector3(pos.x, pos.y, pos.z).applyMatrix4(inverseMatrix);
-        }
-
+        // Attach to the model (or aircraftGroup) in LOCAL coordinates.
         const parent = model || aircraftGroup;
+        parent.updateMatrixWorld(true);
+        const inverseMatrix = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+
         const hotspotMeshes = {};
-        Object.entries(dynamicLayout).forEach(([key, pos]) => {
-          const localPos = toLocal(pos);
+        Object.entries(worldPositions).forEach(([key, worldPos]) => {
+          const localPos = worldPos.clone().applyMatrix4(inverseMatrix);
           const sphere = new THREE.Mesh(
             new THREE.SphereGeometry(0.6, 16, 12),
             new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0), depthTest: true })
