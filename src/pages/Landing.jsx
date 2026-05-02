@@ -421,21 +421,35 @@ export default function Landing() {
                 </div>
               </AppScreenshot>
 
-              <AppScreenshot title={L.screen_employees} description={lang === 'en' ? 'Hire pilots, first officers, flight attendants and loadmasters. Skill levels affect flight quality and scoring.' : 'Stelle Piloten, Co-Piloten, Flugbegleiter und Lademeister ein. Skill-Level beeinflussen Flugqualität und Scoring.'}>
-                <div className="grid grid-cols-2 gap-3">
+              <AppScreenshot title={L.screen_employees} description={lang === 'en' ? 'Earn a type rating per aircraft model. Pay for training, fly a short qualification flight, score ≥80% to unlock the model. No rating – no buying, no flying.' : 'Erwirb pro Flugzeugmodell eine Type-Rating-Berechtigung. Schulung bezahlen, kurzen Qualifikationsflug ≥80% absolvieren, Modell freigeschaltet. Ohne Rating kein Kauf, kein Flug.'}>
+                <div className="space-y-2.5">
                   {[
-                    { name: "Hans Weber", role: lang === 'en' ? "Captain" : "Kapitän", exp: "Senior", skill: 80, salary: "$6,500", color: "bg-amber-500/10" },
-                    { name: "Julia Klein", role: lang === 'en' ? "First Officer" : "Erste Offizierin", exp: lang === 'en' ? "Intermediate" : "Fortgeschritten", skill: 62, salary: "$3,500", color: "bg-blue-500/10" },
-                    { name: "Lisa Müller", role: lang === 'en' ? "Flight Attendant" : "Flugbegleiterin", exp: "Senior", skill: 85, salary: "$2,800", color: "bg-pink-500/10" },
-                    { name: "Peter Keller", role: "Loadmaster", exp: lang === 'en' ? "Expert" : "Experte", skill: 90, salary: "$3,200", color: "bg-orange-500/10" },
-                  ].map((e, i) => (
-                    <div key={i} className={`${e.color} rounded-lg p-3`}>
-                      <div className="text-sm font-semibold text-white">{e.name}</div>
-                      <div className="text-xs text-slate-400">{e.role}</div>
-                      <div className="text-xs text-slate-500 mt-1">{e.exp} • Skill: {e.skill}</div>
-                      <div className="text-xs text-emerald-400 mt-1">{e.salary}/mo</div>
-                    </div>
-                  ))}
+                    { name: "Cessna 172 Skyhawk", type: lang === 'en' ? 'Small Prop' : 'Propeller', cost: '$5,000', status: 'earned' },
+                    { name: "Embraer E190", type: lang === 'en' ? 'Regional Jet' : 'Regionaljet', cost: '$25,000', status: 'training' },
+                    { name: "Airbus A320neo", type: 'Narrow-Body', cost: '$60,000', status: 'locked' },
+                    { name: "Boeing 777-300ER", type: 'Wide-Body', cost: '$120,000', status: 'locked' },
+                  ].map((r, i) => {
+                    const cfg = r.status === 'earned'
+                      ? { color: 'bg-emerald-500/10 border-emerald-500/30', label: lang === 'en' ? 'Earned' : 'Erhalten', labelColor: 'text-emerald-300' }
+                      : r.status === 'training'
+                        ? { color: 'bg-amber-500/10 border-amber-500/30', label: lang === 'en' ? 'In Training' : 'Im Training', labelColor: 'text-amber-300' }
+                        : { color: 'bg-slate-800/40 border-slate-700/40', label: lang === 'en' ? 'Locked' : 'Gesperrt', labelColor: 'text-slate-400' };
+                    return (
+                      <div key={i} className={`rounded-lg border p-3 ${cfg.color}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-white truncate">{r.name}</div>
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">{r.type}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-[10px] font-bold uppercase ${cfg.labelColor}`}>{cfg.label}</div>
+                            <div className="text-xs text-amber-300 font-mono">{r.cost}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-[10px] text-slate-600 text-center pt-1">{lang === 'en' ? 'Pay → Train → Fly ≥80% score → Rating earned.' : 'Bezahlen → Trainieren → ≥80% Score fliegen → Rating erhalten.'}</p>
                 </div>
               </AppScreenshot>
             </div>

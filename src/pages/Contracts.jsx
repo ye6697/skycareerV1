@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Clock3,
   Filter,
+  Globe2,
   Loader2,
   Package,
   Plane,
@@ -24,6 +25,7 @@ import {
 
 import ContractCard from "@/components/contracts/ContractCard";
 import HangarWorldGlobe3D from "@/components/contracts/HangarWorldGlobe3D";
+import FullscreenWorldMap from "@/components/contracts/FullscreenWorldMap";
 import {
   HANGAR_SIZES,
   getDefaultVariantId,
@@ -448,6 +450,7 @@ export default function Contracts() {
   const [selectedMarketVariantId, setSelectedMarketVariantId] = useState(getDefaultVariantId());
   const [minNm, setMinNm] = useState("");
   const [maxNm, setMaxNm] = useState("");
+  const [isFullscreenMapOpen, setIsFullscreenMapOpen] = useState(false);
 
   const { data: pageData, isLoading } = useQuery({
     queryKey: ["contractsPageData"],
@@ -1406,6 +1409,29 @@ export default function Contracts() {
   return (
     <div className="h-full flex flex-col gap-3">
       <InsolvencyBanner />
+
+      {/* World Map fullscreen launch button */}
+      <Button
+        type="button"
+        onClick={() => setIsFullscreenMapOpen(true)}
+        className="h-10 w-full justify-center bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 font-bold text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/20"
+      >
+        <Globe2 className="w-4 h-4 mr-2" />
+        {lang === "de" ? "Welt-Karte (Vollbild)" : "World Map (Fullscreen)"}
+      </Button>
+
+      <FullscreenWorldMap
+        open={isFullscreenMapOpen}
+        onClose={() => setIsFullscreenMapOpen(false)}
+        contracts={mapContracts}
+        hangars={ownedHangarsWithCoords}
+        marketAirports={marketAirports}
+        selectedContractId={selectedContractId}
+        onSelectContract={setSelectedContractId}
+        selectedAirportIcao={selectedMarketAirportIcao}
+        onSelectAirport={(icao) => setSelectedMarketAirportIcao(normIcao(icao))}
+        lang={lang}
+      />
 
       <section className="relative overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-950/95 p-3 sm:p-4">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(14,165,233,.2),transparent_42%),radial-gradient(circle_at_90%_100%,rgba(249,115,22,.18),transparent_44%)]" />

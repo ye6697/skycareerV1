@@ -71,6 +71,7 @@ import XPlaneSetup from './pages/XPlaneSetup';
 import Leaderboard from './pages/Leaderboard';
 import AdminDiscounts from './pages/AdminDiscounts';
 import Achievements from './pages/Achievements';
+import TypeRatings from './pages/TypeRatings.jsx';
 import __Layout from './Layout.jsx';
 
 
@@ -95,6 +96,7 @@ export const PAGES = {
     "Leaderboard": Leaderboard,
     "AdminDiscounts": AdminDiscounts,
     "Achievements": Achievements,
+    "TypeRatings": TypeRatings,
     "PerformanceCalculator": PerformanceCalculator,
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
