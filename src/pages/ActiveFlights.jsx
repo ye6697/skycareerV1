@@ -115,21 +115,30 @@ export default function ActiveFlights() {
     return Array.isArray(list) ? list : [];
   }, [currentUser]);
 
+  const isTrContract = (c) => /__TR__:/.test(String(c?.briefing || ''));
+
   const startFlightMutation = useMutation({
     mutationFn: async () => {
-      // Check if aircraft can handle contract requirements
-      const ac = aircraft.find((a) => a.id === selectedAircraft);
-      if (!ac) throw new Error(lang === 'de' ? 'Flugzeug nicht gefunden' : 'Aircraft not found');
-
-      // Validate aircraft is suitable for contract
-      if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
-        throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Sitze' : 'Aircraft does not have enough seats');
-      }
-      if (ac.cargo_capacity_kg < (selectedContract?.cargo_weight_kg || 0)) {
-        throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Frachtraum' : 'Aircraft does not have enough cargo capacity');
-      }
-      if (ac.range_nm < (selectedContract?.distance_nm || 0)) {
-        throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Reichweite' : 'Aircraft does not have enough range');
+      // For type-rating training contracts, the user flies a model they may
+      // not own — pick any available owned aircraft just to satisfy the
+      // flight record (the sim handles the actual training evaluation).
+      const isTr = isTrContract(selectedContract);
+      const aircraftIdToUse = isTr
+        ? (selectedAircraft || aircraft[0]?.id)
+        : selectedAircraft;
+      const ac = aircraft.find((a) => a.id === aircraftIdToUse);
+      if (!ac) throw new Error(lang === 'de' ? 'Kein Flugzeug verfügbar' : 'No aircraft available');
+      if (!isTr) {
+        // Validate aircraft is suitable for contract
+        if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
+          throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Sitze' : 'Aircraft does not have enough seats');
+        }
+        if (ac.cargo_capacity_kg < (selectedContract?.cargo_weight_kg || 0)) {
+          throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Frachtraum' : 'Aircraft does not have enough cargo capacity');
+        }
+        if (ac.range_nm < (selectedContract?.distance_nm || 0)) {
+          throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Reichweite' : 'Aircraft does not have enough range');
+        }
       }
 
       const nowIso = new Date().toISOString();
@@ -180,7 +189,7 @@ export default function ActiveFlights() {
       const flight = await base44.entities.Flight.create({
         company_id: company.id,
         contract_id: selectedContract.id,
-        aircraft_id: selectedAircraft,
+        aircraft_id: aircraftIdToUse,
         crew: [],
         departure_time: new Date().toISOString(),
         status: 'in_flight',
@@ -219,7 +228,7 @@ export default function ActiveFlights() {
       await base44.entities.Contract.update(selectedContract.id, { status: 'in_progress' });
 
       // Update aircraft status
-      await base44.entities.Aircraft.update(selectedAircraft, { status: 'in_flight' });
+      await base44.entities.Aircraft.update(aircraftIdToUse, { status: 'in_flight' });
 
       return flight;
     },
@@ -286,6 +295,10 @@ export default function ActiveFlights() {
   });
 
   const canStartFlight = () => {
+    if (isTrContract(selectedContract)) {
+      // TR mission: any owned aircraft works as a placeholder for the flight record.
+      return aircraft.length > 0;
+    }
     return Boolean(selectedAircraft);
   };
 
@@ -651,142 +664,81 @@ export default function ActiveFlights() {
             </div>
 
             <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2 text-sm font-mono uppercase tracking-wider text-cyan-300">
-                  <Plane className="w-4 h-4" />
-                  {t('select_aircraft_label', lang)}
-                </Label>
-                <span className="text-[10px] font-mono uppercase text-slate-500">
-                  {lang === 'de' ? 'Type-Ratings' : 'Type ratings'}: {userTypeRatings.length}
-                </span>
-              </div>
-
               {(() => {
-                const isCompatibleSpec = (a) => {
-                  const passengerOk = (a.passenger_capacity || 0) >= (selectedContract?.passenger_count || 0);
-                  const cargoOk = (a.cargo_capacity_kg || 0) >= (selectedContract?.cargo_weight_kg || 0);
-                  const rangeOk = (a.range_nm || 0) >= (selectedContract?.distance_nm || 0);
-                  return passengerOk && cargoOk && rangeOk;
-                };
+                // Detect type-rating training contract via briefing tag __TR__:ModelName
+                const trMatch = String(selectedContract?.briefing || '').match(/__TR__:(.+)/);
+                const trModelName = trMatch ? trMatch[1].trim() : null;
 
-                // Owned aircraft with this user's type-rating + spec match
-                const ownedRated = aircraft.filter((ac) =>
-                  userTypeRatings.includes(ac.name) && isCompatibleSpec(ac)
-                );
-
-                // Templates user has rating for but doesn't own (info only)
-                const ownedNames = new Set(aircraft.map((a) => a.name));
-                const ratedTemplatesNotOwned = aircraftTemplates.filter((tpl) =>
-                  userTypeRatings.includes(tpl.name) &&
-                  !ownedNames.has(tpl.name) &&
-                  isCompatibleSpec(tpl)
-                );
-
-                if (ownedRated.length === 0 && ratedTemplatesNotOwned.length === 0) {
+                if (trModelName) {
+                  const trTemplate = aircraftTemplates.find((t) => t.name === trModelName);
                   return (
-                    <div className="rounded-lg border border-amber-700/40 bg-amber-950/30 p-4 text-sm text-amber-200">
-                      <div className="flex items-start gap-2">
-                        <GraduationCap className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="font-semibold">
-                            {lang === 'de' ? 'Kein passendes Type-Rating' : 'No matching type rating'}
-                          </p>
-                          <p className="text-xs text-amber-300/80 mt-1">
-                            {lang === 'de'
-                              ? 'Du hast für keines deiner Flugzeuge ein passendes Type-Rating für diesen Auftrag.'
-                              : 'You don\'t have a matching type rating for any aircraft for this contract.'}
-                          </p>
+                    <>
+                      <Label className="flex items-center gap-2 text-sm font-mono uppercase tracking-wider text-cyan-300">
+                        <GraduationCap className="w-4 h-4" />
+                        {lang === 'de' ? 'Type-Rating Training' : 'Type-Rating Training'}
+                      </Label>
+
+                      <div className="rounded-lg border border-cyan-500/40 bg-gradient-to-br from-cyan-950/40 to-slate-900/60 p-4">
+                        <div className="flex items-center gap-3">
+                          {trTemplate?.image_url ? (
+                            <img src={trTemplate.image_url} alt={trModelName} className="w-24 h-16 object-cover rounded border border-cyan-500/30" />
+                          ) : (
+                            <div className="w-24 h-16 rounded border border-cyan-500/30 bg-slate-900 flex items-center justify-center">
+                              <Plane className="w-6 h-6 text-cyan-400" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-mono uppercase tracking-wider text-cyan-400">
+                              {lang === 'de' ? 'Trainings-Flugzeug' : 'Training aircraft'}
+                            </p>
+                            <p className="text-lg font-bold text-white truncate">{trModelName}</p>
+                            {trTemplate && (
+                              <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 mt-1">
+                                {trTemplate.passenger_capacity > 0 && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{trTemplate.passenger_capacity}</span>}
+                                {trTemplate.range_nm > 0 && <span className="flex items-center gap-1"><Gauge className="w-3 h-3" />{trTemplate.range_nm} NM</span>}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
+
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200">
+                        {lang === 'de'
+                          ? 'Lade dieses Flugzeug in deinem Simulator und starte den Trainingsflug.'
+                          : 'Load this aircraft in your simulator and start the training flight.'}
+                      </div>
+                    </>
                   );
                 }
 
+                // Regular contract — original behavior: pick from owned available aircraft
                 return (
-                  <div className="space-y-2">
-                    {ownedRated.map((ac) => {
-                      const isSelected = selectedAircraft === ac.id;
-                      return (
-                        <button
-                          type="button"
-                          key={ac.id}
-                          onClick={() => setSelectedAircraft(ac.id)}
-                          className={`w-full text-left rounded-lg border p-3 transition-all ${
-                            isSelected
-                              ? 'border-cyan-400 bg-cyan-950/40 shadow-[0_0_0_1px_rgba(34,211,238,0.4)]'
-                              : 'border-slate-700/60 bg-slate-900/60 hover:border-cyan-700/60 hover:bg-slate-800/60'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            {ac.image_url ? (
-                              <img src={ac.image_url} alt={ac.name} className="w-16 h-12 object-cover rounded border border-slate-700" />
-                            ) : (
-                              <div className="w-16 h-12 rounded border border-slate-700 bg-slate-800 flex items-center justify-center">
-                                <Plane className="w-5 h-5 text-slate-500" />
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold text-white truncate">{ac.name}</p>
-                                <Badge className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono uppercase">
-                                  <CheckCircle className="w-3 h-3 mr-1" />{lang === 'de' ? 'Im Besitz' : 'Owned'}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 mt-0.5">
-                                <span>{ac.registration}</span>
-                                <span className="flex items-center gap-1"><Users className="w-3 h-3" />{ac.passenger_capacity}</span>
-                                <span className="flex items-center gap-1"><Gauge className="w-3 h-3" />{ac.range_nm} NM</span>
-                              </div>
-                            </div>
-                            <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-cyan-400 bg-cyan-400' : 'border-slate-600'}`} />
-                          </div>
-                        </button>
-                      );
-                    })}
-
-                    {ratedTemplatesNotOwned.length > 0 && (
-                      <>
-                        <div className="pt-2 pb-1">
-                          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
-                            {lang === 'de' ? 'Type-Rating vorhanden — Flugzeug nicht im Besitz' : 'Type rating earned — aircraft not owned'}
-                          </p>
-                        </div>
-                        {ratedTemplatesNotOwned.map((tpl) => (
-                          <div
-                            key={tpl.id}
-                            className="w-full rounded-lg border border-slate-800 bg-slate-950/60 p-3 opacity-70"
-                          >
-                            <div className="flex items-center gap-3">
-                              {tpl.image_url ? (
-                                <img src={tpl.image_url} alt={tpl.name} className="w-16 h-12 object-cover rounded border border-slate-800 grayscale" />
-                              ) : (
-                                <div className="w-16 h-12 rounded border border-slate-800 bg-slate-900 flex items-center justify-center">
-                                  <Plane className="w-5 h-5 text-slate-600" />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-slate-300 truncate">{tpl.name}</p>
-                                  <Badge className="bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono uppercase">
-                                    <Lock className="w-3 h-3 mr-1" />{lang === 'de' ? 'Nicht im Besitz' : 'Not owned'}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-3 text-[11px] font-mono text-slate-500 mt-0.5">
-                                  {tpl.passenger_capacity > 0 && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{tpl.passenger_capacity}</span>}
-                                  {tpl.range_nm > 0 && <span className="flex items-center gap-1"><Gauge className="w-3 h-3" />{tpl.range_nm} NM</span>}
-                                </div>
-                              </div>
-                              <Link to={createPageUrl('Fleet')} className="flex-shrink-0">
-                                <Button size="sm" variant="outline" className="h-7 text-[10px] font-mono uppercase border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white">
-                                  <ShoppingCart className="w-3 h-3 mr-1" />{lang === 'de' ? 'Kaufen' : 'Buy'}
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
+                  <>
+                    <Label className="flex items-center gap-2 text-sm font-mono uppercase tracking-wider text-cyan-300">
+                      <Plane className="w-4 h-4" />
+                      {t('select_aircraft_label', lang)}
+                    </Label>
+                    <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
+                      <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+                        <SelectValue placeholder={t('choose_aircraft', lang)} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                        {aircraft.filter((ac) => {
+                          const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
+                          const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
+                          const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
+                          return passengerOk && cargoOk && rangeOk;
+                        }).map((ac) =>
+                          <SelectItem key={ac.id} value={ac.id} className="focus:bg-slate-800">
+                            {ac.name} ({ac.registration}) - {ac.passenger_capacity} {t('seats', lang)}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {aircraft.length === 0 &&
+                      <p className="text-sm text-red-400">{t('no_available_aircraft', lang)}</p>
+                    }
+                  </>
                 );
               })()}
             </div>
