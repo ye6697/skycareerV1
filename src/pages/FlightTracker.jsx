@@ -28,7 +28,7 @@ import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { calculateInsuranceForFlight, resolveAircraftInsurance } from "@/lib/insurance";
 import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
-import { recoverLandingBonus } from "@/components/flights/landingBonusRecovery";
+import { recoverLandingBonus } from "@/components/flights/landingBonusRecovery"; import { processAchievementsAfterFlight } from "@/components/achievements/processAchievementsAfterFlight";
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
 const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 150;
@@ -2201,17 +2201,13 @@ export default function FlightTracker() {
               }
             }
 
-            // WARTE bis Aircraft wirklich gespeichert ist und lade es neu
             await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Hole das aktualisierte Aircraft direkt aus der DB
             const updatedAircraft = await base44.entities.Aircraft.filter({ id: activeFlight.aircraft_id });
             console.log('✅ Aircraft nach Update:', updatedAircraft[0]);
-
-            // Invalidiere aircraft query um sicherzustellen, dass Fleet aktualisiert wird
             await queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-
-            // Hole den aktualisierten Flight aus DB
+            // Evaluate achievements + grant one-time XP/cash rewards. Reads the
+            // freshest company snapshot inside (after we wrote XP/balance above).
+            try { const _freshC = (await base44.entities.Company.filter({ id: company.id }))[0] || company; await processAchievementsAfterFlight({ company: _freshC, flight: { id: activeFlight.id } }); } catch (achErr) { console.warn('Achievement processing failed (non-fatal):', achErr); }
             const updatedFlightFromDB = await base44.entities.Flight.filter({ id: activeFlight.id });
             return updatedFlightFromDB[0];
     },

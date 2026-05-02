@@ -135,7 +135,13 @@ export function buildAchievementContext({ flights = [], company = null, aircraft
     totalProfit += FT(f?.profit, 0);
     totalRevenue += FT(f?.revenue, 0);
 
-    const score = FT(f?.overall_rating ?? f?.flight_rating, 0);
+    // Authoritative score is `flight_score` (0–100). `overall_rating`/`flight_rating`
+    // are stored on the same record as 0–5 stars (= flight_score / 20) and would
+    // never reach the 80/90/95/99 thresholds, so we read flight_score first.
+    const score = FT(
+      f?.flight_score ?? f?.xplane_data?.final_score ?? f?.xplane_data?.flight_score ?? f?.overall_rating ?? f?.flight_rating,
+      0
+    );
     if (score > bestScore) bestScore = score;
     if (score > 0) { scoreSum += score; scoreCount += 1; }
     if (score >= 99) perfectScoreCount += 1;

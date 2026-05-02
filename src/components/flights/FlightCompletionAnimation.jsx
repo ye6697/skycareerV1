@@ -4,6 +4,7 @@ import { X, ChevronRight, Star, AlertTriangle, CheckCircle2, Plane, DollarSign, 
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { resolveLandingMetricsFromFlight } from './landingMetrics';
+import AchievementUnlockList from '@/components/achievements/AchievementUnlockList';
 
 // Animated post-flight summary modal that highlights the most important
 // metrics + events with a cinematic reveal, before the user proceeds to the
@@ -430,6 +431,21 @@ export default function FlightCompletionAnimation({ flight: initialFlight, contr
             )}
           </AnimatePresence>
         </div>
+
+        {/* Achievements unlocked on this flight */}
+        <AnimatePresence>
+          {stage >= 6 && Array.isArray(xpd.achievements_unlocked) && xpd.achievements_unlocked.length > 0 && (
+            <div className="px-5 pb-2">
+              <AchievementUnlockList
+                achievements={xpd.achievements_unlocked}
+                xpBonus={xpd.achievements_xp_bonus}
+                cashBonus={xpd.achievements_cash_bonus}
+                lang={lang}
+                compact
+              />
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Continue button */}
         <AnimatePresence>

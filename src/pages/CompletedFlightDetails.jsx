@@ -34,6 +34,7 @@ import { buildFailuresFromEventFlags, sanitizeFailureList } from "@/components/f
 import { calculateDeadlineMinutes } from "@/components/flights/aircraftSpeedLookup";
 import { generatePassengerComments } from "@/components/flights/generatePassengerComments";
 import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMetrics";
+import AchievementUnlockList from "@/components/achievements/AchievementUnlockList";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -905,6 +906,17 @@ export default function CompletedFlightDetails() {
                     </div>
                   )}
                 </div>
+
+                {Array.isArray(flight?.xplane_data?.achievements_unlocked) && flight.xplane_data.achievements_unlocked.length > 0 && (
+                  <div className="mt-4">
+                    <AchievementUnlockList
+                      achievements={flight.xplane_data.achievements_unlocked}
+                      xpBonus={flight.xplane_data.achievements_xp_bonus}
+                      cashBonus={flight.xplane_data.achievements_cash_bonus}
+                      lang={lang}
+                    />
+                  </div>
+                )}
 
                 {emergencyOffAirportCompletion && (
                   <div className="mt-4 p-4 bg-amber-900/25 border border-amber-700/50 rounded-lg">

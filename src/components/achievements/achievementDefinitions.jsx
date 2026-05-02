@@ -90,7 +90,7 @@ export const ACHIEVEMENTS = [
   { id: "stable_approach", category: "precision", tier: tier.SILVER, icon: "TrendingDown",
     en: { title: "Stable Approach", desc: "Land with score 90+ on a 300+ NM flight." },
     de: { title: "Stabiler Anflug", desc: "Landung mit Score 90+ auf einem 300+ NM Flug." },
-    check: (ctx) => ctx.flights.some(f => (f.overall_rating || f.flight_rating || 0) >= 90 && (f.xplane_data?.contract_distance_nm || 0) >= 300) },
+    check: (ctx) => ctx.flights.some(f => (f.flight_score || f.xplane_data?.final_score || 0) >= 90 && (f.xplane_data?.contract_distance_nm || 0) >= 300) },
   { id: "steady_hand", category: "precision", tier: tier.GOLD, icon: "Activity",
     en: { title: "Steady Hand", desc: "Max G under 1.4 on an entire flight." },
     de: { title: "Ruhige Hand", desc: "Max-G unter 1,4 über einen ganzen Flug." },
@@ -428,7 +428,7 @@ export const ACHIEVEMENTS = [
     en: { title: "Flawless Flight", desc: "Score 99+ with a butter landing." },
     de: { title: "Makelloser Flug", desc: "Score 99+ mit Butter-Landung." },
     check: (ctx) => ctx.flights.some(f => {
-      const score = f.overall_rating || f.flight_rating || 0;
+      const score = f.flight_score || f.xplane_data?.final_score || 0;
       const vs = Math.abs(f.xplane_data?.touchdown_vspeed || 0);
       return score >= 99 && vs > 0 && vs < 100;
     }) },

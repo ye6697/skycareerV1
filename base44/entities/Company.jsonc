@@ -139,6 +139,14 @@
       "type": "boolean",
       "default": true,
       "description": "Whether the X-Plane bridge is allowed to trigger new failures"
+    },
+    "unlocked_achievements": {
+      "type": "array",
+      "description": "List of achievement IDs already unlocked (used to grant one-time XP/cash rewards)",
+      "items": {
+        "type": "string"
+      },
+      "default": []
     }
   },
   "required": [
