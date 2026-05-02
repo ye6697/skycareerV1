@@ -22,6 +22,7 @@ import {
 
 import AircraftCard from "@/components/aircraft/AircraftCard";
 import MarketHangar3DView from "@/components/fleet3d/MarketHangar3DView";
+import Fleet3DView from "@/components/fleet3d/Fleet3DView";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -591,6 +592,7 @@ export default function Fleet() {
   const [selectedPurchaseHangarId, setSelectedPurchaseHangarId] = useState('');
   const [marketSection, setMarketSection] = useState('new');
   const [marketViewMode, setMarketViewMode] = useState('3d');
+  const [is3DMaintenanceOpen, setIs3DMaintenanceOpen] = useState(false);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
@@ -1255,6 +1257,13 @@ export default function Fleet() {
               className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900" />
             
           </div>
+          <Button
+            size="sm"
+            onClick={() => setIs3DMaintenanceOpen(true)}
+            className="h-7 text-[10px] font-mono uppercase bg-cyan-900/40 text-cyan-300 border border-cyan-700/50 hover:bg-cyan-800/60"
+          >
+            🛠 {lang === 'de' ? '3D Wartung' : '3D Maintenance'}
+          </Button>
           <Dialog
             open={isPurchaseDialogOpen}
             onOpenChange={(open) => {
@@ -1676,6 +1685,18 @@ export default function Fleet() {
       </div>
 
       <InsolvencyBanner />
+
+      {is3DMaintenanceOpen && (
+        <div className="fixed inset-0 z-[300]">
+          <button
+            onClick={() => setIs3DMaintenanceOpen(false)}
+            className="absolute top-3 left-3 z-[310] px-3 py-1.5 text-[11px] font-mono uppercase border border-cyan-700 bg-cyan-950/80 text-cyan-300 rounded hover:bg-cyan-900 backdrop-blur-sm"
+          >
+            ◀ {lang === 'de' ? 'Schließen' : 'Close'}
+          </button>
+          <Fleet3DView aircraft={displayAircraft} />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto min-h-0">
         {ownedHangars.length > 0 && movableAircraft.length > 0 && (

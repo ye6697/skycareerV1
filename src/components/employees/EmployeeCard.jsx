@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { isPilotRole, getTypeLabel, getTrainingProgress } from "@/lib/typeRatings";
 
 export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
   const { lang } = useLanguage();
@@ -130,6 +131,40 @@ export default function EmployeeCard({ employee, onAssign, onFire, onView }) {
               <div className="flex items-center gap-1 text-xs text-blue-400">
                 <GraduationCap className="w-3 h-3" />
                 <span>{t('training_running', lang)}</span>
+              </div>
+            )}
+
+            {/* Type-Ratings (pilots only) */}
+            {isPilotRole(employee.role) && (
+              <div className="pt-2 border-t border-slate-700/50">
+                <div className="flex items-center gap-1 text-[10px] text-slate-400 mb-1.5">
+                  <Plane className="w-3 h-3" />
+                  <span className="uppercase tracking-wider">{lang === 'de' ? 'Type-Ratings' : 'Type-Ratings'}</span>
+                </div>
+                {Array.isArray(employee.licenses) && employee.licenses.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {employee.licenses.slice(0, 4).map((lic) => (
+                      <span key={lic} className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-600/20 text-emerald-300 border border-emerald-500/30">
+                        {getTypeLabel(lic, lang)}
+                      </span>
+                    ))}
+                    {employee.licenses.length > 4 && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                        +{employee.licenses.length - 4}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-amber-400 italic">
+                    {lang === 'de' ? '⚠ Keine Lizenzen' : '⚠ No licenses'}
+                  </p>
+                )}
+                {getTrainingProgress(employee) && (
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-cyan-400">
+                    <GraduationCap className="w-3 h-3" />
+                    <span>{getTypeLabel(getTrainingProgress(employee).type, lang)} · {Math.round(getTrainingProgress(employee).progress * 100)}%</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
