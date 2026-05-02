@@ -52,46 +52,34 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
         company,
       });
 
-      // Generate 3 short training contracts (<100 NM) via existing function.
-      try {
-        await base44.functions.invoke('generateContracts', {
+      // Create 3 short training contracts (<100 NM) directly so we can tag
+      // them with the model marker that the popup query looks for.
+      const hub = company.hub_airport || 'EDDF';
+      const now = Date.now();
+      const presetRoutes = [
+        { from: hub, to: hub === 'EDDM' ? 'EDDF' : 'EDDM', dist: 80 },
+        { from: hub, to: hub === 'EDDH' ? 'EDDF' : 'EDDH', dist: 95 },
+        { from: hub, to: hub === 'EDDS' ? 'EDDF' : 'EDDS', dist: 70 },
+      ];
+      await Promise.all(presetRoutes.map((r, i) =>
+        base44.entities.Contract.create({
           company_id: company.id,
-          count: 3,
-          max_distance: TYPE_RATING_MAX_NM,
+          title: `Type-Rating: ${modelName} (${i + 1}/3)`,
+          briefing: `__TR__:${modelName}`,
+          type: 'charter',
+          departure_airport: r.from,
+          arrival_airport: r.to,
+          distance_nm: r.dist,
+          payout: 5000,
+          deadline: new Date(now + 7 * 24 * 3600 * 1000).toISOString(),
           required_aircraft_type: [aircraft.type],
-          tag: `__TR__:${modelName}`,
-          title_prefix: lang === 'de' ? `Type-Rating: ${modelName}` : `Type-Rating: ${modelName}`,
-          auto_accept: true,
-        });
-      } catch (_) {
-        // Fallback: create 3 simple charter contracts directly.
-        const hub = company.hub_airport || 'EDDF';
-        const now = Date.now();
-        const presetRoutes = [
-          { from: hub, to: 'EDDM', dist: 80 },
-          { from: hub, to: 'EDDH', dist: 95 },
-          { from: hub, to: 'EDDS', dist: 70 },
-        ];
-        await Promise.all(presetRoutes.map((r, i) =>
-          base44.entities.Contract.create({
-            company_id: company.id,
-            title: `Type-Rating: ${modelName} (${i + 1}/3)`,
-            briefing: `__TR__:${modelName}`,
-            type: 'charter',
-            departure_airport: r.from,
-            arrival_airport: r.to,
-            distance_nm: r.dist,
-            payout: 5000,
-            deadline: new Date(now + 7 * 24 * 3600 * 1000).toISOString(),
-            required_aircraft_type: [aircraft.type],
-            required_crew: { captain: 1 },
-            status: 'accepted',
-            difficulty: 'easy',
-            level_requirement: 1,
-            bonus_potential: 2000,
-          })
-        ));
-      }
+          required_crew: { captain: 1 },
+          status: 'accepted',
+          difficulty: 'easy',
+          level_requirement: 1,
+          bonus_potential: 2000,
+        })
+      ));
       return { paid };
     },
     onSuccess: () => {
