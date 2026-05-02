@@ -342,9 +342,22 @@ export default function HangarWorldGlobe3D({
     if (!isFullscreen || typeof document === "undefined") return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Safety: if we are stuck in CSS-only fullscreen (e.g. iOS Safari where
+    // requestFullscreen is not available) and the user navigates away or the
+    // component unmounts, ensure body scroll is restored.
     return () => {
       document.body.style.overflow = previousOverflow;
     };
+  }, [isFullscreen]);
+
+  // Expose ESC to exit CSS-only fullscreen on devices without the Fullscreen API.
+  useEffect(() => {
+    if (!isFullscreen || typeof window === "undefined") return undefined;
+    const handleKey = (event) => {
+      if (event.key === "Escape") setIsFullscreen(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, [isFullscreen]);
 
   useEffect(() => {
@@ -388,6 +401,19 @@ export default function HangarWorldGlobe3D({
     const node = fullscreenRootRef.current;
     if (!node) return;
 
+    // CSS-only fullscreen toggle. The native Fullscreen API doesn't work on
+    // iOS Safari for non-video elements, so on mobile we ALWAYS rely on a
+    // CSS overlay (fixed inset-0). This prevents the page from getting
+    // stuck with body overflow:hidden while the request silently fails.
+    const isMobile = typeof window !== "undefined"
+      && (window.matchMedia?.("(max-width: 768px), (pointer: coarse)").matches);
+
+    if (isMobile || typeof node.requestFullscreen !== "function") {
+      setIsFullscreen((value) => !value);
+      try { window.scrollTo({ top: 0, behavior: "auto" }); } catch (_) { /* noop */ }
+      return;
+    }
+
     try {
       if (document.fullscreenElement === node) {
         await document.exitFullscreen();
@@ -399,16 +425,12 @@ export default function HangarWorldGlobe3D({
         await document.exitFullscreen();
       }
 
-      if (typeof node.requestFullscreen === "function") {
-        await node.requestFullscreen();
-      } else {
-        setIsFullscreen((value) => !value);
-      }
+      await node.requestFullscreen();
       window.scrollTo({ top: 0, behavior: "auto" });
       setIsFullscreen(true);
     } catch {
       setIsFullscreen((value) => !value);
-      window.scrollTo({ top: 0, behavior: "auto" });
+      try { window.scrollTo({ top: 0, behavior: "auto" }); } catch (_) { /* noop */ }
     }
   };
 
@@ -603,6 +625,31 @@ export default function HangarWorldGlobe3D({
                     <p className="mt-0.5 text-[10px] font-mono text-slate-300">
                       {contract.departure_airport} -&gt; {contract.arrival_airport}
                     </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] font-mono text-slate-400">
+                      {Number(contract.distance_nm) > 0 && (
+                        <span className="text-cyan-300">{Math.round(contract.distance_nm)} NM</span>
+                      )}
+                      {contract.type && (
+                        <span className="uppercase tracking-wider">{String(contract.type)}</span>
+                      )}
+                      {Number(contract.passenger_count) > 0 && (
+                        <span>{contract.passenger_count} PAX</span>
+                      )}
+                      {Number(contract.cargo_weight_kg) > 0 && (
+                        <span>{Math.round(contract.cargo_weight_kg).toLocaleString()} kg</span>
+                      )}
+                      {Array.isArray(contract.required_aircraft_type) && contract.required_aircraft_type.length > 0 && (
+                        <span className="text-amber-300/90">{contract.required_aircraft_type.join("/")}</span>
+                      )}
+                      {contract.difficulty && (
+                        <span className={`uppercase tracking-wider ${
+                          contract.difficulty === "extreme" ? "text-red-400"
+                            : contract.difficulty === "hard" ? "text-amber-400"
+                            : contract.difficulty === "easy" ? "text-emerald-400"
+                            : "text-cyan-300"
+                        }`}>{contract.difficulty}</span>
+                      )}
+                    </div>
                   </button>
                   {onAcceptContract && isAvailable && (
                     <Button

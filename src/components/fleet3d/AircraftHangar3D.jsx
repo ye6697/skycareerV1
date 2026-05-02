@@ -278,21 +278,38 @@ export default function AircraftHangar3D({ aircraft }) {
     built.ready
       .then((meta) => {
         if (cancelled || !sceneRef.current || sceneRef.current !== runtime) return;
+        // Compute hotspot positions from the REAL model bounds and attach the
+        // markers directly to the loaded model. This guarantees they always
+        // hug the aircraft, regardless of which profile preset was matched
+        // or how the GLB was scaled internally.
+        const model = meta?.model || null;
         const dynamicLayout = getHotspotLayoutForAircraft({
           aircraftHint,
           profile: meta?.profile || built.profile,
           modelId: meta?.modelId || built.modelId,
           bounds: meta?.bounds,
         });
+
+        // Translate world-space layout positions into model-LOCAL space so
+        // the spheres can be parented to the model itself.
+        let toLocal = (pos) => new THREE.Vector3(pos.x, pos.y, pos.z);
+        if (model) {
+          model.updateMatrixWorld(true);
+          const inverseMatrix = new THREE.Matrix4().copy(model.matrixWorld).invert();
+          toLocal = (pos) => new THREE.Vector3(pos.x, pos.y, pos.z).applyMatrix4(inverseMatrix);
+        }
+
+        const parent = model || aircraftGroup;
         const hotspotMeshes = {};
         Object.entries(dynamicLayout).forEach(([key, pos]) => {
+          const localPos = toLocal(pos);
           const sphere = new THREE.Mesh(
             new THREE.SphereGeometry(0.6, 16, 12),
-            new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0) })
+            new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0), depthTest: true })
           );
-          sphere.position.set(pos.x, pos.y, pos.z);
+          sphere.position.copy(localPos);
           sphere.userData.key = key;
-          aircraftGroup.add(sphere);
+          parent.add(sphere);
           const halo = new THREE.Mesh(
             new THREE.SphereGeometry(1.1, 16, 12),
             new THREE.MeshBasicMaterial({
@@ -302,8 +319,8 @@ export default function AircraftHangar3D({ aircraft }) {
               depthWrite: false,
             })
           );
-          halo.position.copy(sphere.position);
-          aircraftGroup.add(halo);
+          halo.position.copy(localPos);
+          parent.add(halo);
           hotspotMeshes[key] = { sphere, halo };
         });
         runtime.hotspotMeshes = hotspotMeshes;
