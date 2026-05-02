@@ -1130,8 +1130,11 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           </div>
         )}
 
-        {/* Touchdown / Liftoff Analysis HUD – compact single-line pill */}
-        {touchdownInfo && (() => {
+        {/* Touchdown / Liftoff Analysis HUD – compact single-line pill.
+            The touchdown details require touchdownInfo, but the centerline
+            block is also shown when only phase-specific accuracy is available
+            so it stays visible even on flights without a precise touchdown. */}
+        {(touchdownInfo || flight?.xplane_data?.runway_accuracy) && (() => {
           // Phase-specific centerline impact from the flight record.
           const rwAcc = flight?.xplane_data?.runway_accuracy || null;
           const phaseAcc = phase === 'takeoff' ? rwAcc?.takeoff : rwAcc?.landing;
@@ -1140,29 +1143,33 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
           const rmsM = Number(phaseAcc?.rmsMeters || 0);
           const scoreColor = scoreDelta > 0 ? 'text-emerald-400' : scoreDelta < 0 ? 'text-red-400' : 'text-slate-400';
           const cashColor = cashDelta > 0 ? 'text-emerald-400' : cashDelta < 0 ? 'text-red-400' : 'text-slate-400';
-          const alongM = touchdownInfo.alongM;
-          const lateralM = touchdownInfo.lateralM;
-          // Include 6m shoulders on each side (matches rendered paved area and
-          // accounts for ~5m GPS offsets vs OurAirports centerline data).
-          const halfWidth = (touchdownInfo.runwayWidthM || 45) / 2 + 6;
-          const runwayLen = touchdownInfo.runwayLenM || 2500;
-          const distFromThreshold = -alongM;
-          let labelText;
-          let labelColor;
-          if (phase === 'takeoff') {
-            if (alongM > 0) { labelText = lang === 'de' ? 'FRUEH' : 'EARLY'; labelColor = 'text-amber-400'; }
-            else if (distFromThreshold > runwayLen) { labelText = lang === 'de' ? 'UEBER ENDE' : 'PAST END'; labelColor = 'text-red-400'; }
-            else if (distFromThreshold < 600) { labelText = lang === 'de' ? 'KURZ' : 'SHORT'; labelColor = 'text-emerald-400'; }
-            else if (distFromThreshold < 1800) { labelText = lang === 'de' ? 'NORMAL' : 'NORMAL'; labelColor = 'text-emerald-400'; }
-            else { labelText = lang === 'de' ? 'LANG' : 'LONG'; labelColor = 'text-amber-400'; }
-          } else if (alongM > 0) { labelText = lang === 'de' ? 'VOR SCHWELLE' : 'SHORT'; labelColor = 'text-red-400'; }
-          else if (distFromThreshold > runwayLen) { labelText = lang === 'de' ? 'UEBER ENDE' : 'OVERSHOOT'; labelColor = 'text-red-400'; }
-          else if (distFromThreshold < 600) { labelText = lang === 'de' ? 'TDZ' : 'TDZ'; labelColor = 'text-emerald-400'; }
-          else { labelText = lang === 'de' ? 'SPAET' : 'LATE'; labelColor = 'text-amber-400'; }
-          const onRwy = Math.abs(lateralM) < halfWidth;
-          const latColor = Math.abs(lateralM) < 5 ? 'text-emerald-300' : Math.abs(lateralM) < halfWidth ? 'text-amber-400' : 'text-red-400';
-          return (
-            <div className="pointer-events-none absolute bottom-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md px-2.5 py-1 font-mono backdrop-blur-sm text-[10px] space-y-0.5">
+
+          // Touchdown/liftoff visualisation block (only when we have a precise
+          // touchdownInfo from the runway-aware projection).
+          let touchdownBlock = null;
+          if (touchdownInfo) {
+            const alongM = touchdownInfo.alongM;
+            const lateralM = touchdownInfo.lateralM;
+            // Include 6m shoulders on each side (matches rendered paved area and
+            // accounts for ~5m GPS offsets vs OurAirports centerline data).
+            const halfWidth = (touchdownInfo.runwayWidthM || 45) / 2 + 6;
+            const runwayLen = touchdownInfo.runwayLenM || 2500;
+            const distFromThreshold = -alongM;
+            let labelText;
+            let labelColor;
+            if (phase === 'takeoff') {
+              if (alongM > 0) { labelText = lang === 'de' ? 'FRUEH' : 'EARLY'; labelColor = 'text-amber-400'; }
+              else if (distFromThreshold > runwayLen) { labelText = lang === 'de' ? 'UEBER ENDE' : 'PAST END'; labelColor = 'text-red-400'; }
+              else if (distFromThreshold < 600) { labelText = lang === 'de' ? 'KURZ' : 'SHORT'; labelColor = 'text-emerald-400'; }
+              else if (distFromThreshold < 1800) { labelText = lang === 'de' ? 'NORMAL' : 'NORMAL'; labelColor = 'text-emerald-400'; }
+              else { labelText = lang === 'de' ? 'LANG' : 'LONG'; labelColor = 'text-amber-400'; }
+            } else if (alongM > 0) { labelText = lang === 'de' ? 'VOR SCHWELLE' : 'SHORT'; labelColor = 'text-red-400'; }
+            else if (distFromThreshold > runwayLen) { labelText = lang === 'de' ? 'UEBER ENDE' : 'OVERSHOOT'; labelColor = 'text-red-400'; }
+            else if (distFromThreshold < 600) { labelText = lang === 'de' ? 'TDZ' : 'TDZ'; labelColor = 'text-emerald-400'; }
+            else { labelText = lang === 'de' ? 'SPAET' : 'LATE'; labelColor = 'text-amber-400'; }
+            const onRwy = Math.abs(lateralM) < halfWidth;
+            const latColor = Math.abs(lateralM) < 5 ? 'text-emerald-300' : Math.abs(lateralM) < halfWidth ? 'text-amber-400' : 'text-red-400';
+            touchdownBlock = (
               <div className="flex items-center gap-2.5">
                 <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">
                   {phase === 'takeoff' ? (lang === 'de' ? 'LIFTOFF' : 'LIFTOFF') : (lang === 'de' ? 'TD' : 'TD')}
@@ -1181,18 +1188,46 @@ export default function FinalApproach3D({ flight, onClose, durationSeconds = 30,
                   {onRwy ? '●' : '✕'}
                 </span>
               </div>
-              {phaseAcc && (
-                <div className="flex items-center gap-2 text-[9px] pt-0.5 border-t border-slate-800/80">
-                  <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">CL</span>
-                  <span className="text-slate-300">Ø{rmsM.toFixed(1)}m</span>
-                  <span className={`font-bold border-l border-slate-700 pl-2 ${scoreColor}`}>
-                    {scoreDelta > 0 ? '+' : ''}{scoreDelta} pts
-                  </span>
-                  <span className={`font-bold border-l border-slate-700 pl-2 ${cashColor}`}>
-                    {cashDelta > 0 ? '+' : cashDelta < 0 ? '-' : ''}${Math.abs(cashDelta).toLocaleString()}
-                  </span>
-                </div>
+            );
+          }
+
+          // Centerline block: always visible when phase accuracy is available.
+          // Shows a simple "computing" placeholder if accuracy hasn't been
+          // applied yet, so the user knows it's coming.
+          const accApplied = !!flight?.xplane_data?.runway_accuracy_applied;
+          let centerlineBlock = null;
+          if (phaseAcc) {
+            centerlineBlock = (
+              <div className="flex items-center gap-2 text-[9px]">
+                <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">CL</span>
+                <span className="text-slate-300">Ø{rmsM.toFixed(1)}m</span>
+                <span className={`font-bold border-l border-slate-700 pl-2 ${scoreColor}`}>
+                  {scoreDelta > 0 ? '+' : ''}{scoreDelta} pts
+                </span>
+                <span className={`font-bold border-l border-slate-700 pl-2 ${cashColor}`}>
+                  {cashDelta > 0 ? '+' : cashDelta < 0 ? '-' : ''}${Math.abs(cashDelta).toLocaleString()}
+                </span>
+              </div>
+            );
+          } else if (!accApplied) {
+            centerlineBlock = (
+              <div className="flex items-center gap-2 text-[9px]">
+                <span className="text-[8px] uppercase tracking-[0.2em] text-cyan-500">CL</span>
+                <span className="text-slate-400 italic">
+                  {lang === 'de' ? 'wird berechnet…' : 'computing…'}
+                </span>
+              </div>
+            );
+          }
+
+          if (!touchdownBlock && !centerlineBlock) return null;
+          return (
+            <div className="pointer-events-none absolute bottom-4 left-4 bg-slate-950/90 border border-cyan-500/40 rounded-md px-2.5 py-1 font-mono backdrop-blur-sm text-[10px] space-y-0.5">
+              {touchdownBlock}
+              {touchdownBlock && centerlineBlock && (
+                <div className="border-t border-slate-800/80 pt-0.5">{centerlineBlock}</div>
               )}
+              {!touchdownBlock && centerlineBlock}
             </div>
           );
         })()}

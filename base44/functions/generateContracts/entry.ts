@@ -529,18 +529,19 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
     ? Math.max(10, Math.floor(Math.random() * aircraftType.cargo * 0.8) + Math.floor(aircraftType.cargo * 0.2))
     : 0;
 
-  // Exponential payout scaling based on aircraft tier
-  // Tier multipliers: small_prop=1, turboprop=3, regional_jet=8, narrow_body=25, wide_body=80, cargo=40
+  // Exponential payout scaling based on aircraft tier.
+  // Increased across the board so contracts pay realistically for fleet
+  // operating costs (fuel, crew, maintenance, hangar fees).
   const tierMultiplier = {
-    small_prop: 4,
-    turboprop: 8,
-    regional_jet: 20,
-    narrow_body: 65,
-    wide_body: 100,
-    cargo: 120
+    small_prop: 12,
+    turboprop: 25,
+    regional_jet: 55,
+    narrow_body: 160,
+    wide_body: 260,
+    cargo: 280
   }[aircraftType.type] || 1;
 
-  const basePayout = (distance * 8 + passengers * 120 + cargo * 1.5) * tierMultiplier;
+  const basePayout = (distance * 14 + passengers * 220 + cargo * 2.8) * tierMultiplier;
   const payout = Math.round(basePayout * (0.85 + Math.random() * 0.3));
 
   const briefings = briefingTemplates[contractType];

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Star, AlertTriangle, CheckCircle2, Plane, DollarSign, Timer, Award, Wind, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { base44 } from '@/api/base44Client';
 
 // Animated post-flight summary modal that highlights the most important
 // metrics + events with a cinematic reveal, before the user proceeds to the
@@ -12,8 +13,43 @@ import { Button } from '@/components/ui/button';
 //   contract – matching contract record
 //   lang     – 'de' | 'en'
 //   onContinue – called when user presses "Continue" or "X"
-export default function FlightCompletionAnimation({ flight, contract, lang = 'de', onContinue }) {
+export default function FlightCompletionAnimation({ flight: initialFlight, contract, lang = 'de', onContinue }) {
   const [stage, setStage] = useState(0);
+  // Local copy of the flight so we can re-fetch once runway centerline
+  // accuracy gets applied by the recompute backend (which runs in parallel
+  // when this animation first opens). Without this, the animation reads
+  // a snapshot from before the recompute and shows no centerline data.
+  const [flight, setFlight] = useState(initialFlight);
+  useEffect(() => { setFlight(initialFlight); }, [initialFlight]);
+
+  // Poll the flight record while accuracy hasn't been applied yet, until
+  // either it shows up or the user dismisses the animation.
+  useEffect(() => {
+    if (!flight?.id) return;
+    if (flight?.xplane_data?.runway_accuracy_applied) return;
+    let cancelled = false;
+    let timer = null;
+    let attempts = 0;
+    const tick = async () => {
+      attempts += 1;
+      try {
+        const rows = await base44.entities.Flight.filter({ id: flight.id });
+        const fresh = rows?.[0];
+        if (!cancelled && fresh) {
+          setFlight(fresh);
+          if (fresh?.xplane_data?.runway_accuracy_applied) return;
+        }
+      } catch (_) { /* ignore */ }
+      if (!cancelled && attempts < 20) {
+        timer = setTimeout(tick, 1000);
+      }
+    };
+    timer = setTimeout(tick, 800);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [flight?.id, flight?.xplane_data?.runway_accuracy_applied]);
 
   // Auto-progress through reveal stages.
   useEffect(() => {
