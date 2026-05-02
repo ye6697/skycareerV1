@@ -103,30 +103,37 @@ function LayoutInner({ children, currentPageName }) {
     return () => { cancelled = true; };
   }, [layoutData.loaded]);
 
-  // Re-check subscription when user navigates between pages or returns to the tab.
-  // This ensures that when an admin changes a user's subscription, the user
-  // sees the new state without manually reloading the browser.
+  // Re-check subscription when the tab regains focus (NOT on every page nav,
+  // because that caused short paywall flickers when the API call was slower
+  // than the route transition). Only DOWNGRADE isPro when we are SURE the
+  // server response is authoritative (HTTP-style success); on any error we
+  // keep the previous isPro value to avoid false paywalls.
   React.useEffect(() => {
     if (!layoutData.loaded) return;
+    let cancelled = false;
     const refresh = async () => {
       try {
         const subRes = await base44.functions.invoke('lemonsqueezyGetSubscription', {});
+        if (cancelled) return;
         const userRole = String(layoutData.user?.role || layoutData.user?.data?.role || '').toLowerCase();
         const isAdmin = userRole === 'admin';
-        const isPro = isAdmin || !!subRes.data?.is_pro;
-        setLayoutData((prev) => (prev.isPro === isPro ? prev : { ...prev, isPro }));
-      } catch (_) {}
+        const serverPro = !!subRes?.data?.is_pro;
+        const nextIsPro = isAdmin || serverPro;
+        setLayoutData((prev) => (prev.isPro === nextIsPro ? prev : { ...prev, isPro: nextIsPro }));
+      } catch (_) {
+        // Network/error: do NOT flip to false. Keep previous state.
+      }
     };
     const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', refresh);
-    refresh();
     return () => {
+      cancelled = true;
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', refresh);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutData.loaded, currentPageName]);
+  }, [layoutData.loaded]);
 
   const company = layoutData.company;
   const gameSettings = layoutData.gameSettings;

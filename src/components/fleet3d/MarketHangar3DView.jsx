@@ -51,11 +51,23 @@ export default function MarketHangar3DView({
 }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [hangarSelectionByListing, setHangarSelectionByListing] = useState({});
+  const topListRef = React.useRef(null);
 
   const visibleListings = useMemo(() => listings, [listings]);
   const clampedIdx = Math.min(Math.max(0, selectedIdx), Math.max(0, visibleListings.length - 1));
   const current = visibleListings[clampedIdx] || null;
   const currentKey = toListingKey(current);
+
+  // When the user uses the side arrows, scroll the top button list so the
+  // currently selected aircraft chip is in view (auto-update top buttons UX).
+  React.useEffect(() => {
+    const container = topListRef.current;
+    if (!container) return;
+    const child = container.children?.[clampedIdx];
+    if (child && typeof child.scrollIntoView === 'function') {
+      try { child.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (_) { /* noop */ }
+    }
+  }, [clampedIdx]);
 
   if (!current) {
     return (
@@ -94,18 +106,18 @@ export default function MarketHangar3DView({
           <button
             type="button"
             onClick={() => setSelectedIdx((idx) => (idx - 1 + visibleListings.length) % visibleListings.length)}
-            className="group absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-16 w-12 sm:h-20 sm:w-14 rounded-r-2xl rounded-l-md border border-cyan-500/60 bg-slate-950/80 hover:bg-cyan-950/80 hover:border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.25)] backdrop-blur-sm flex items-center justify-center transition-all"
+            className="group absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-14 w-11 sm:h-16 sm:w-12 rounded-xl border border-cyan-300/30 bg-cyan-950/20 hover:bg-cyan-900/30 hover:border-cyan-300/60 backdrop-blur-md flex items-center justify-center transition-all"
             aria-label="Previous aircraft"
           >
-            <ChevronLeft className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-300 group-hover:text-cyan-100 group-hover:-translate-x-0.5 transition-transform" />
+            <ChevronLeft className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-200 group-hover:text-cyan-50 group-hover:-translate-x-0.5 transition-transform" />
           </button>
           <button
             type="button"
             onClick={() => setSelectedIdx((idx) => (idx + 1) % visibleListings.length)}
-            className="group absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-16 w-12 sm:h-20 sm:w-14 rounded-l-2xl rounded-r-md border border-cyan-500/60 bg-slate-950/80 hover:bg-cyan-950/80 hover:border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.25)] backdrop-blur-sm flex items-center justify-center transition-all"
+            className="group absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-14 w-11 sm:h-16 sm:w-12 rounded-xl border border-cyan-300/30 bg-cyan-950/20 hover:bg-cyan-900/30 hover:border-cyan-300/60 backdrop-blur-md flex items-center justify-center transition-all"
             aria-label="Next aircraft"
           >
-            <ChevronRight className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-300 group-hover:text-cyan-100 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-200 group-hover:text-cyan-50 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </>
       )}
@@ -175,7 +187,7 @@ export default function MarketHangar3DView({
         </div>
 
         <div className="mt-2 flex items-center justify-between gap-2">
-          <div className="flex gap-1.5 overflow-x-auto">
+          <div ref={topListRef} className="flex gap-1.5 overflow-x-auto">
             {visibleListings.map((listing, idx) => (
               <button
                 key={toListingKey(listing) || `${listing.name}-${idx}`}
@@ -227,42 +239,41 @@ export default function MarketHangar3DView({
         )}
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent px-3 pt-8 pb-3">
-          <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-7 gap-2 text-[10px] font-mono">
-            <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
-              <div className="text-slate-500">PAX</div>
-              <div className="text-cyan-100">{current.passenger_capacity}</div>
+      {/* Glassy compact bottom panel */}
+      <div className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-slate-950/70 via-slate-950/30 to-transparent px-2 pt-2 pb-2">
+          <div className="max-w-6xl mx-auto grid grid-cols-3 sm:grid-cols-6 md:grid-cols-7 gap-1 text-[9px] font-mono">
+            <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1">
+              <span className="text-slate-400">PAX </span>
+              <span className="text-cyan-100">{current.passenger_capacity}</span>
             </div>
-            <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
-              <div className="text-slate-500">CGO</div>
-              <div className="text-cyan-100">{current.cargo_capacity_kg}kg</div>
+            <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1">
+              <span className="text-slate-400">CGO </span>
+              <span className="text-cyan-100">{current.cargo_capacity_kg}kg</span>
             </div>
-            <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
-              <div className="text-slate-500">BURN</div>
-              <div className="text-cyan-100">{current.fuel_consumption_per_hour}L/h</div>
+            <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1">
+              <span className="text-slate-400">BURN </span>
+              <span className="text-cyan-100">{current.fuel_consumption_per_hour}L/h</span>
             </div>
-            <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
-              <div className="text-slate-500">RNG</div>
-              <div className="text-cyan-100">{current.range_nm}NM</div>
+            <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1">
+              <span className="text-slate-400">RNG </span>
+              <span className="text-cyan-100">{current.range_nm}NM</span>
             </div>
-            <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
-              <div className="text-slate-500">SPD</div>
-              <div className="text-cyan-100">{getCruiseSpeedForModel(current.name, current.type)}kt</div>
+            <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1">
+              <span className="text-slate-400">SPD </span>
+              <span className="text-cyan-100">{getCruiseSpeedForModel(current.name, current.type)}kt</span>
             </div>
-            <div className="rounded border border-slate-800 bg-slate-950/85 p-2 md:col-span-2">
-              <div className="text-slate-500 mb-1">
-                {lang === 'de' ? 'Ziel-Hangar' : 'Target hangar'}
-              </div>
+            <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1 col-span-3 sm:col-span-1 md:col-span-2 flex items-center gap-1">
+              <span className="text-slate-400 shrink-0">{lang === 'de' ? 'HNG' : 'HNG'}</span>
               <select
                 value={effectiveHangarId}
                 onChange={(event) => {
                   const next = String(event.target.value || '').trim();
                   setHangarSelectionByListing((prev) => ({ ...prev, [currentKey]: next }));
                 }}
-                className="h-7 w-full rounded border border-cyan-900/60 bg-slate-950/90 px-2 text-[10px] text-cyan-100"
+                className="h-5 w-full rounded border border-cyan-300/20 bg-slate-950/40 px-1 text-[9px] text-cyan-100"
               >
                 {hangarOptions.length === 0 && (
-                  <option value="">{lang === 'de' ? 'Kein kompatibler Hangar' : 'No compatible hangar'}</option>
+                  <option value="">{lang === 'de' ? 'Kein Hangar' : 'No hangar'}</option>
                 )}
                 {hangarOptions.map((hangar) => {
                   const icao = toIcao(hangar.airport_icao);
@@ -274,36 +285,42 @@ export default function MarketHangar3DView({
                   );
                 })}
               </select>
-              {!hasLevel && (
-                <div className="mt-1 text-[9px] text-amber-500">
-                  {lang === 'de' ? `Level ${current.level_requirement} benoetigt` : `Requires level ${current.level_requirement}`}
-                </div>
-              )}
-              {hasLevel && !hasBalance && (
-                <div className="mt-1 text-[9px] text-red-400">
-                  {lang === 'de' ? 'Nicht genug Budget' : 'Insufficient budget'}
-                </div>
-              )}
-              {!hasRating && (
-                <div className="mt-1 text-[9px] text-amber-300">
-                  {lang === 'de' ? 'Type-Rating für dieses Modell erforderlich.' : 'Type-rating required for this model.'}
-                </div>
-              )}
-              {hangarOptions.length === 0 && (
-                <div className="mt-1 text-[9px] text-amber-300">
-                  {lang === 'de' ? 'Kein kompatibler Hangar mit freiem Slot.' : 'No compatible hangar with a free slot.'}
-                </div>
-              )}
             </div>
           </div>
 
-          <div className="max-w-6xl mx-auto mt-2 flex items-center justify-end gap-2">
+          {/* Compact warning row */}
+          {(!hasLevel || (hasLevel && !hasBalance) || !hasRating || hangarOptions.length === 0) && (
+            <div className="max-w-6xl mx-auto mt-1 flex flex-wrap gap-1 text-[9px] font-mono">
+              {!hasLevel && (
+                <span className="px-1.5 py-0.5 rounded bg-amber-900/30 text-amber-300 border border-amber-700/30 backdrop-blur-md">
+                  {lang === 'de' ? `Lvl ${current.level_requirement}` : `Lvl ${current.level_requirement}`}
+                </span>
+              )}
+              {hasLevel && !hasBalance && (
+                <span className="px-1.5 py-0.5 rounded bg-red-900/30 text-red-300 border border-red-700/30 backdrop-blur-md">
+                  {lang === 'de' ? 'Budget' : 'Budget'}
+                </span>
+              )}
+              {!hasRating && (
+                <span className="px-1.5 py-0.5 rounded bg-amber-900/30 text-amber-200 border border-amber-700/30 backdrop-blur-md">
+                  {lang === 'de' ? 'Type-Rating fehlt' : 'No type-rating'}
+                </span>
+              )}
+              {hangarOptions.length === 0 && (
+                <span className="px-1.5 py-0.5 rounded bg-amber-900/30 text-amber-200 border border-amber-700/30 backdrop-blur-md">
+                  {lang === 'de' ? 'Kein freier Hangar' : 'No free hangar'}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="max-w-6xl mx-auto mt-1.5 flex items-center justify-end gap-1.5">
             {!hasRating && onRequestTypeRating && (
               <Button
                 type="button"
                 onClick={() => onRequestTypeRating(current)}
                 size="sm"
-                className="h-7 bg-cyan-900/60 text-cyan-200 hover:bg-cyan-800 border border-cyan-700 text-[10px] font-mono uppercase"
+                className="h-7 bg-cyan-900/30 text-cyan-100 hover:bg-cyan-800/50 border border-cyan-300/30 backdrop-blur-md text-[10px] font-mono uppercase"
               >
                 <GraduationCap className="w-3 h-3 mr-1" />
                 {lang === 'de' ? 'Type-Rating' : 'Type-rating'}
@@ -313,7 +330,7 @@ export default function MarketHangar3DView({
               type="button"
               onClick={() => onBuy?.(current)}
               size="sm"
-              className="h-7 bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 text-[10px] font-mono uppercase"
+              className="h-7 bg-slate-900/30 border border-cyan-300/20 text-slate-100 hover:bg-slate-800/50 backdrop-blur-md text-[10px] font-mono uppercase"
             >
               {lang === 'de' ? 'Auswaehlen' : 'Select'}
             </Button>
@@ -322,10 +339,10 @@ export default function MarketHangar3DView({
               onClick={() => onConfirmBuy?.(current, effectiveHangarId)}
               disabled={!canDirectBuy || isBuying}
               size="sm"
-              className={`h-7 text-[10px] font-mono uppercase ${
+              className={`h-7 text-[10px] font-mono uppercase backdrop-blur-md ${
                 canDirectBuy
-                  ? 'bg-emerald-900/60 text-emerald-300 hover:bg-emerald-800 border border-emerald-700'
-                  : 'bg-slate-800 text-slate-500 border border-slate-700'
+                  ? 'bg-emerald-900/40 text-emerald-200 hover:bg-emerald-800/60 border border-emerald-300/40'
+                  : 'bg-slate-900/30 text-slate-500 border border-slate-300/10'
               }`}
             >
               {isBuyingThis ? (lang === 'de' ? 'Kaufe...' : 'Buying...') : (lang === 'de' ? 'Jetzt kaufen' : 'Buy now')}

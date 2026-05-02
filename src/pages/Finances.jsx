@@ -122,7 +122,15 @@ export default function Finances() {
     refetchOnWindowFocus: false,
   });
 
-  const fleetValue = aircraft.filter(a => a.status !== 'sold').reduce((sum, a) => sum + (a.current_value || 0), 0);
+  // Effective fleet value subtracts pending (uncovered) maintenance cost from each aircraft,
+  // so credit/loan limits and stat cards reflect the real net worth.
+  const fleetValue = aircraft.filter(a => a.status !== 'sold').reduce((sum, a) => {
+    const cap = Math.max(0, Number(a.purchase_price || a.original_purchase_price || a.current_value || 0));
+    const accMaint = Math.max(0, Number(a.accumulated_maintenance_cost || 0));
+    const cappedMaint = cap > 0 ? Math.min(accMaint, cap) : accMaint;
+    const effective = Math.max(0, Number(a.current_value || 0) - cappedMaint);
+    return sum + effective;
+  }, 0);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('de-DE', {

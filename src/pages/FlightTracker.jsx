@@ -2164,9 +2164,9 @@ export default function FlightTracker() {
               // Reputation based on score (0-100)
               const reputationChange = (hasCrashed || wrongAirport) ? -10 : Math.round((scoreWithInsurance - 85) / 5);
               
-              // XP and Level system with level-up bonus
-              const calculateXPForLevel = (level) => Math.round(100 * Math.pow(1.1, level - 1));
-              const calculateLevelUpBonus = (lvl) => Math.round(1000 * Math.pow(1.5, lvl - 1));
+              // XP curve: exp until Lvl 30, linear after, to keep late-game achievable
+              const calculateXPForLevel = (level) => { if (level <= 30) return Math.round(100 * Math.pow(1.1, level - 1)); const b = Math.round(100 * Math.pow(1.1, 29)); return b + Math.round(b * 0.05) * (level - 30); };
+              const calculateLevelUpBonus = (lvl) => { if (lvl <= 30) return Math.round(1000 * Math.pow(1.5, lvl - 1)); const b = Math.round(1000 * Math.pow(1.5, 29)); return b + Math.round(b * 0.05) * (lvl - 30); };
               const earnedXP = Math.round(scoreWithInsurance);
               let currentLevel = company.level || 1;
               let currentXP = (company.experience_points || 0) + earnedXP;
@@ -2180,26 +2180,12 @@ export default function FlightTracker() {
                 console.log(`🎉 LEVEL UP! Level ${currentLevel} - Bonus: $${bonus.toLocaleString()}`);
               }
 
-              await base44.entities.Company.update(company.id, {
-                balance: (company.balance || 0) + actualProfit + totalLevelUpBonus,
-                reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)),
-                level: currentLevel,
-                experience_points: currentXP,
-                total_flights: (company.total_flights || 0) + 1,
-                total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0),
-                total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0)
-              });
-
-              // Create transaction for flight revenue
-              await base44.entities.Transaction.create({
-                company_id: company.id,
-                type: 'income',
-                category: 'flight_revenue',
-                amount: actualProfit,
-                description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`,
-                reference_id: activeFlight?.id,
-                date: new Date().toISOString()
-              });
+              const _aL = company.active_loan || null; const _lRate = Math.max(0, Number(_aL?.monthly_payment || 0)); const _lRemB = Math.max(0, Number(_aL?.remaining || 0)); const loanPay = (_aL && _lRemB > 0 && _lRate > 0) ? Math.min(_lRate, _lRemB) : 0; const newLoanRem = Math.max(0, _lRemB - loanPay); const _cu = { balance: (company.balance || 0) + actualProfit + totalLevelUpBonus - loanPay, reputation: Math.min(100, Math.max(0, (company.reputation || 50) + reputationChange)), level: currentLevel, experience_points: currentXP, total_flights: (company.total_flights || 0) + 1, total_passengers: (company.total_passengers || 0) + (contract?.passenger_count || 0), total_cargo_kg: (company.total_cargo_kg || 0) + (contract?.cargo_weight_kg || 0) };
+              if (_aL) _cu.active_loan = newLoanRem <= 0 ? null : { ..._aL, remaining: newLoanRem };
+              await base44.entities.Company.update(company.id, _cu);
+              if (loanPay > 0) { try { const _fr = (await base44.entities.Flight.filter({ id: activeFlight.id }))[0]; await base44.entities.Flight.update(activeFlight.id, { xplane_data: { ...(_fr?.xplane_data || {}), loan_payment: loanPay, loan_remaining_after: newLoanRem, loan_fully_paid: newLoanRem <= 0 } }); } catch (_) {} }
+              await base44.entities.Transaction.create({ company_id: company.id, type: 'income', category: 'flight_revenue', amount: actualProfit, description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`, reference_id: activeFlight?.id, date: new Date().toISOString() });
+              if (loanPay > 0) { await base44.entities.Transaction.create({ company_id: company.id, type: 'expense', category: 'other', amount: loanPay, description: newLoanRem <= 0 ? 'Kreditrate (Flug) - Kredit vollständig getilgt' : `Kreditrate (Flug) - Restschuld $${Math.round(newLoanRem).toLocaleString()}`, reference_id: activeFlight?.id, date: new Date().toISOString() }); }
 
               // Create separate transaction for level-up bonus
               if (totalLevelUpBonus > 0) {

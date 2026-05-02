@@ -1400,6 +1400,19 @@ export default function CompletedFlightDetails() {
                     <span className="text-slate-400">{lang === 'de' ? 'Flughafen-Gebuehren' : 'Airport fees'}</span>
                     <span className="text-red-400 font-mono">-$150</span>
                   </div>
+                  {Number(flight?.xplane_data?.loan_payment) > 0 && (
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                      <span className="text-slate-400">
+                        {lang === 'de' ? 'Kreditrate (diese Flug)' : 'Loan installment (this flight)'}
+                        {flight.xplane_data.loan_fully_paid && (
+                          <span className="ml-2 text-emerald-400 text-xs">
+                            {lang === 'de' ? '✓ getilgt' : '✓ paid off'}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-red-400 font-mono">-${Math.round(flight.xplane_data.loan_payment).toLocaleString()}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center pt-3 border-t border-slate-700">
                     <span className="font-semibold text-white">{t('total_revenue', lang)}</span>
                     <span className="text-xl font-bold font-mono text-emerald-400">
