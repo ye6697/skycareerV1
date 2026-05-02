@@ -191,29 +191,9 @@ export default function AircraftHangar3D({ aircraft }) {
     const aircraftGroup = new THREE.Group();
     scene.add(aircraftGroup);
 
-    // Raycaster for clicking hotspots
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    const onClick = (e) => {
-      const s = dragStateRef.current;
-      if (s.moved > 5) return; // ignore if it was a drag
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const targets = Object.values(sceneRef.current?.hotspotMeshes || {}).map((h) => h.sphere);
-      const hits = raycaster.intersectObjects(targets, false);
-      if (hits.length > 0) {
-        const key = hits[0].object.userData.key;
-        setSelectedCategory(key);
-        // Anchor popup at click location so it stays put.
-        setPopupAnchor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-        setAutoRotate(false);
-      }
-    };
-    renderer.domElement.addEventListener('click', onClick);
-
-    sceneRef.current = { scene, camera, renderer, aircraftGroup, hotspotMeshes: {}, onClick };
+    // Hotspots are clicked via their HTML badges (see button onClick below),
+    // so no 3D raycaster is needed.
+    sceneRef.current = { scene, camera, renderer, aircraftGroup, hotspotMeshes: {} };
     setIsReady(true);
 
     const onResize = () => {
@@ -229,7 +209,6 @@ export default function AircraftHangar3D({ aircraft }) {
     return () => {
       sceneRef.current = null;
       window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('click', onClick);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       try {
         disposeObject3D(scene);
@@ -350,34 +329,18 @@ export default function AircraftHangar3D({ aircraft }) {
         parent.updateMatrixWorld(true);
         const inverseMatrix = new THREE.Matrix4().copy(parent.matrixWorld).invert();
 
-        // Use unit-radius spheres; the animation loop rescales them every
-        // frame so they always render at a CONSTANT pixel size on screen,
-        // regardless of camera distance or aircraft scale.
+        // Tiny invisible anchor objects at each hotspot location. The 3D
+        // model itself stays clean – all visible UI is the HTML badge,
+        // which is rendered at a constant pixel size and projected from
+        // the anchor's world position every frame.
         const hotspotMeshes = {};
         Object.entries(worldPositions).forEach(([key, worldPos]) => {
           const localPos = worldPos.clone().applyMatrix4(inverseMatrix);
-          const sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(1, 16, 12),
-            new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0), depthTest: false })
-          );
-          sphere.position.copy(localPos);
-          sphere.userData.key = key;
-          sphere.renderOrder = 50;
-          parent.add(sphere);
-          const halo = new THREE.Mesh(
-            new THREE.SphereGeometry(1, 16, 12),
-            new THREE.MeshBasicMaterial({
-              color: getHotspotColor(wear.total[key] || 0),
-              transparent: true,
-              opacity: 0.3,
-              depthWrite: false,
-              depthTest: false,
-            })
-          );
-          halo.position.copy(localPos);
-          halo.renderOrder = 49;
-          parent.add(halo);
-          hotspotMeshes[key] = { sphere, halo };
+          const anchor = new THREE.Object3D();
+          anchor.position.copy(localPos);
+          anchor.userData.key = key;
+          parent.add(anchor);
+          hotspotMeshes[key] = { sphere: anchor, halo: anchor };
         });
         runtime.hotspotMeshes = hotspotMeshes;
       })
@@ -390,16 +353,8 @@ export default function AircraftHangar3D({ aircraft }) {
     };
   }, [aircraft?.id, aircraft?.name, aircraft?.model, aircraft?.type]);
 
-  // Update hotspot colors when wear changes
-  useEffect(() => {
-    if (!sceneRef.current) return;
-    const { hotspotMeshes } = sceneRef.current;
-    Object.entries(hotspotMeshes).forEach(([key, { sphere, halo }]) => {
-      const c = new THREE.Color(getHotspotColor(wear.total[key] || 0));
-      sphere.material.color.copy(c);
-      halo.material.color.copy(c);
-    });
-  }, [wear]);
+  // Hotspot colors are read directly from `wear` in the HTML badge render,
+  // no 3D mesh color sync needed anymore.
 
   // Drag camera (only on empty area, not on hotspot UI)
   useEffect(() => {
@@ -465,32 +420,8 @@ export default function AircraftHangar3D({ aircraft }) {
         aircraftGroup.rotation.y += dt * 0.12;
       }
 
-      // Screen-space-constant hotspots: rescale every frame so the spheres
-      // appear at a fixed pixel size regardless of camera distance or
-      // aircraft size. Target ~14px sphere / ~26px halo at 1080p.
-      const pulse = (Math.sin(now * 0.005) + 1) * 0.5;
-      const mountEl = mountRef.current;
-      const screenH = mountEl?.clientHeight || 720;
-      const fovRad = (camera.fov * Math.PI) / 180;
-      const SPHERE_PX = 14;
-      const HALO_PX = 26;
-      const tmpWorld = new THREE.Vector3();
-      Object.entries(hotspotMeshes).forEach(([key, { sphere, halo }]) => {
-        const w = wear.total[key] || 0;
-        const pulseFactor = w > 75 ? 1 + pulse * 0.4 : 1;
-        const isSelected = selectedCategory === key;
-        const userScale = pulseFactor * (isSelected ? 1.5 : 1);
-
-        // Distance from camera to this hotspot in world units.
-        sphere.getWorldPosition(tmpWorld);
-        const dist = Math.max(0.01, camera.position.distanceTo(tmpWorld));
-        // worldPerPixel at this depth (perspective projection).
-        const worldPerPixel = (2 * Math.tan(fovRad / 2) * dist) / screenH;
-
-        sphere.scale.setScalar(SPHERE_PX * worldPerPixel * userScale);
-        halo.scale.setScalar(HALO_PX * worldPerPixel * userScale * (1 + pulse * 0.15));
-        halo.material.opacity = w > 50 ? 0.4 + pulse * 0.2 : 0.22;
-      });
+      // Hotspots are rendered as HTML badges only (constant pixel size).
+      // No 3D scaling needed – anchors hold their position automatically.
 
       // Camera
       const o = camOrbitRef.current;
