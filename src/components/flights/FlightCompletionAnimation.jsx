@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Star, AlertTriangle, CheckCircle2, Plane, DollarSign, Timer, Award, Wind, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import { resolveLandingMetricsFromFlight } from './landingMetrics';
 
 // Animated post-flight summary modal that highlights the most important
 // metrics + events with a cinematic reveal, before the user proceeds to the
@@ -67,8 +68,12 @@ export default function FlightCompletionAnimation({ flight: initialFlight, contr
   const score = Math.round(Number(xpd.final_score ?? flight?.flight_score ?? 0));
   const profit = Math.round(Number(flight?.profit ?? 0));
   const revenue = Math.round(Number(flight?.revenue ?? 0));
-  const landingG = Number(xpd.landingGForce ?? xpd.landing_g_force ?? flight?.landing_g_force ?? 0);
-  const landingVs = Math.abs(Number(xpd.touchdown_vspeed ?? flight?.landing_vs ?? 0));
+  // Use the SAME helper as the result page (CompletedFlightDetails) so the
+  // animation shows identical landing G / landing VS values, derived from the
+  // authoritative telemetry-history touchdown sample.
+  const landingMetrics = resolveLandingMetricsFromFlight(flight);
+  const landingG = Number(landingMetrics.landingG || 0);
+  const landingVs = Math.abs(Number(landingMetrics.landingVs || 0));
   const flightHours = Number(flight?.flight_duration_hours ?? xpd.flightHours ?? 0);
 
   // Merge incident sources: xpd.events.* (legacy), boolean flags on xpd.* (current backend),

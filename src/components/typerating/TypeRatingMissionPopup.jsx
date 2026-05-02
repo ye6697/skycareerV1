@@ -12,6 +12,7 @@ import {
   TYPE_RATING_MAX_NM,
   userHasTypeRating,
   getActiveTypeRating,
+  canEarnTypeRating,
 } from '@/lib/typeRatings';
 
 // Animated, glass-style popup that lets the player pay for and start a
@@ -26,6 +27,9 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
   const hasRating = userHasTypeRating(user, modelName);
   const active = getActiveTypeRating(user, modelName);
   const canPay = (company?.balance || 0) >= cost;
+  const requiredLevel = Number(aircraft?.level_requirement || 1);
+  const companyLevel = Number(company?.level || 1);
+  const hasLevel = canEarnTypeRating(company, aircraft);
 
   // Fetch existing accepted training contracts for this model.
   const { data: trainingContracts = [], refetch: refetchTraining } = useQuery({
@@ -80,6 +84,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
       const { cost: paid } = await startTypeRatingTraining({
         aircraftModel: modelName,
         aircraftType: aircraft.type,
+        aircraftLevelRequirement: requiredLevel,
         company,
       });
       await createTrainingContracts();
@@ -308,11 +313,11 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                         : `To purchase and fly the ${modelName}, you need a type-rating for this model.`}
                     </p>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="grid grid-cols-3 gap-2 text-xs">
                       <div className="rounded-lg bg-slate-950/60 border border-slate-700/50 p-3">
                         <div className="flex items-center gap-1.5 text-slate-400 mb-1">
                           <DollarSign className="w-3.5 h-3.5" />
-                          <span>{lang === 'de' ? 'Schulungskosten' : 'Training cost'}</span>
+                          <span>{lang === 'de' ? 'Kosten' : 'Cost'}</span>
                         </div>
                         <p className={`text-lg font-bold ${canPay ? 'text-emerald-400' : 'text-red-400'}`}>
                           ${cost.toLocaleString()}
@@ -321,9 +326,18 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                       <div className="rounded-lg bg-slate-950/60 border border-slate-700/50 p-3">
                         <div className="flex items-center gap-1.5 text-slate-400 mb-1">
                           <Trophy className="w-3.5 h-3.5" />
-                          <span>{lang === 'de' ? 'Mindest-Score' : 'Min score'}</span>
+                          <span>{lang === 'de' ? 'Min-Score' : 'Min score'}</span>
                         </div>
                         <p className="text-lg font-bold text-cyan-400">{TYPE_RATING_PASS_SCORE}%</p>
+                      </div>
+                      <div className="rounded-lg bg-slate-950/60 border border-slate-700/50 p-3">
+                        <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+                          <Plane className="w-3.5 h-3.5" />
+                          <span>{lang === 'de' ? 'Min-Level' : 'Min level'}</span>
+                        </div>
+                        <p className={`text-lg font-bold ${hasLevel ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {requiredLevel}
+                        </p>
                       </div>
                     </div>
 
@@ -343,7 +357,18 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                     </ul>
                   </div>
 
-                  {!canPay && (
+                  {!hasLevel && (
+                    <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <p className="text-xs text-red-300">
+                        {lang === 'de'
+                          ? `Dein Firmen-Level (${companyLevel}) ist zu niedrig. Mindestens Level ${requiredLevel} erforderlich.`
+                          : `Your company level (${companyLevel}) is too low. Level ${requiredLevel} required.`}
+                      </p>
+                    </div>
+                  )}
+
+                  {hasLevel && !canPay && (
                     <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-red-400" />
                       <p className="text-xs text-red-300">
@@ -360,7 +385,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
 
                   <Button
                     onClick={() => startMission.mutate()}
-                    disabled={!canPay || startMission.isPending}
+                    disabled={!canPay || !hasLevel || startMission.isPending}
                     className="w-full h-11 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold disabled:opacity-50"
                   >
                     <GraduationCap className="w-4 h-4 mr-2" />

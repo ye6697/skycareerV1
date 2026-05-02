@@ -2,6 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Plane, GraduationCap, CheckCircle2 } from 'lucide-react';
+
+const TYPE_LABELS_BY_TYPE = {
+  small_prop: { en: 'Propeller', de: 'Propeller' },
+  turboprop: { en: 'Turboprop', de: 'Turboprop' },
+  regional_jet: { en: 'Regional Jet', de: 'Regionaljet' },
+  narrow_body: { en: 'Narrow-Body', de: 'Narrow-Body' },
+  wide_body: { en: 'Wide-Body', de: 'Wide-Body' },
+  cargo: { en: 'Cargo', de: 'Fracht' },
+};
 import AircraftHangar3D from '@/components/fleet3d/AircraftHangar3D';
 import { userHasTypeRating } from '@/lib/typeRatings';
 import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
@@ -73,21 +82,37 @@ export default function MarketHangar3DView({
   const effectiveHangarId = selectedHangarId || fallbackHangarId;
   const canDirectBuy = Boolean(purchasable && effectiveHangarId && hangarOptions.length > 0 && hasRating);
 
+  const typeLabel = TYPE_LABELS_BY_TYPE[current.type]?.[lang] || TYPE_LABELS_BY_TYPE[current.type]?.en || String(current.type || '').replace(/_/g, ' ').toUpperCase();
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-950">
       <AircraftHangar3D aircraft={current} />
 
+      {/* Big prominent left/right arrows for switching aircraft */}
+      {visibleListings.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setSelectedIdx((idx) => (idx - 1 + visibleListings.length) % visibleListings.length)}
+            className="group absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-16 w-12 sm:h-20 sm:w-14 rounded-r-2xl rounded-l-md border border-cyan-500/60 bg-slate-950/80 hover:bg-cyan-950/80 hover:border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.25)] backdrop-blur-sm flex items-center justify-center transition-all"
+            aria-label="Previous aircraft"
+          >
+            <ChevronLeft className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-300 group-hover:text-cyan-100 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIdx((idx) => (idx + 1) % visibleListings.length)}
+            className="group absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-16 w-12 sm:h-20 sm:w-14 rounded-l-2xl rounded-r-md border border-cyan-500/60 bg-slate-950/80 hover:bg-cyan-950/80 hover:border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.25)] backdrop-blur-sm flex items-center justify-center transition-all"
+            aria-label="Next aircraft"
+          >
+            <ChevronRight className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-300 group-hover:text-cyan-100 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </>
+      )}
+
       <div className="absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-slate-950/95 via-slate-900/85 to-transparent px-3 pt-2 pb-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0 text-cyan-400 hover:bg-cyan-950 shrink-0"
-              onClick={() => setSelectedIdx((idx) => (idx - 1 + visibleListings.length) % visibleListings.length)}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
             <div className="min-w-0">
               <div className="text-cyan-300 font-mono font-bold text-sm truncate flex items-center gap-1.5">
                 <span className="truncate">{current.name}</span>
@@ -103,18 +128,14 @@ export default function MarketHangar3DView({
                   </span>
                 )}
               </div>
-              <div className="text-[10px] font-mono text-cyan-600 uppercase">
-                {clampedIdx + 1} / {visibleListings.length}
+              <div className="flex items-center gap-2 text-[10px] font-mono uppercase">
+                <span className="text-cyan-600">{clampedIdx + 1} / {visibleListings.length}</span>
+                <span className="text-slate-600">|</span>
+                <span className="px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-800/50">
+                  {typeLabel}
+                </span>
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0 text-cyan-400 hover:bg-cyan-950 shrink-0"
-              onClick={() => setSelectedIdx((idx) => (idx + 1) % visibleListings.length)}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
           </div>
 
           <div className="flex items-center gap-1">

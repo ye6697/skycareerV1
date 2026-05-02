@@ -1573,7 +1573,7 @@ export default function FlightTracker() {
      }
      const fuelUsedKg = Math.max(0, initialFuelKg - currentFuelKg);
      const fuelUsed = fuelUsedKg * 1.25; // kg -> liters (Jet-A density ~0.8 kg/L, so 1kg ≈ 1.25L)
-     const fuelCostPerLiter = 1.2; // $1.20 per liter for Jet-A fuel
+     const fuelCostPerLiter = 1.8; // $1.80 per liter for Jet-A fuel (current market rate)
      const fuelCost = fuelUsed * fuelCostPerLiter;
 
      // Flight hours: Use real-world time from flightStartTime, or departure_time from flight record

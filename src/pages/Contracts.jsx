@@ -1417,7 +1417,7 @@ export default function Contracts() {
         className="h-10 w-full justify-center bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 font-bold text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/20"
       >
         <Globe2 className="w-4 h-4 mr-2" />
-        {lang === "de" ? "Welt-Karte (Vollbild)" : "World Map (Fullscreen)"}
+        {lang === "de" ? "Map & Hangar Market (Vollbild)" : "Map & Hangar Market (Fullscreen)"}
       </Button>
 
       <section className="relative overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-950/95 p-3 sm:p-4">

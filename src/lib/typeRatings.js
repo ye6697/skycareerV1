@@ -45,6 +45,14 @@ export function getActiveTypeRating(user, modelName) {
   return active;
 }
 
+// Check if the company level is sufficient to earn a type-rating for this aircraft.
+// A type-rating cannot be earned without meeting the aircraft's level requirement.
+export function canEarnTypeRating(company, aircraft) {
+  const level = Number(company?.level || 1);
+  const required = Number(aircraft?.level_requirement || 1);
+  return level >= required;
+}
+
 // Persist a new rating onto the user.
 export async function grantUserTypeRating(modelName) {
   const user = await base44.auth.me();
@@ -58,8 +66,13 @@ export async function grantUserTypeRating(modelName) {
 }
 
 // Start a training session: deduct cost from company, mark user.
-export async function startTypeRatingTraining({ aircraftModel, aircraftType, company }) {
+export async function startTypeRatingTraining({ aircraftModel, aircraftType, aircraftLevelRequirement, company }) {
   if (!company) throw new Error('No company');
+  const requiredLevel = Number(aircraftLevelRequirement || 1);
+  const companyLevel = Number(company?.level || 1);
+  if (companyLevel < requiredLevel) {
+    throw new Error('level_too_low');
+  }
   const cost = COST_BY_TYPE[aircraftType] || 20000;
   if ((company.balance || 0) < cost) {
     throw new Error('insufficient_funds');

@@ -100,15 +100,19 @@ const readSpeed = (point) => firstFiniteNumber(
 // momentary glitches mid-flight where on_ground briefly toggles.
 const findTouchdownIndex = (history) => {
   // 1) Find the LAST stable airborne→ground transition with these guards:
-  //    - At least 5 consecutive airborne samples before
+  //    - At least 5 consecutive airborne samples before (real approach, not a spike)
   //    - At least 3 consecutive ground samples after (or end of history)
-  //    - Speed > 30 kts at touchdown sample
+  //    - Speed > 40 kts at touchdown sample (firmly rolling, not still floating)
+  //    - Sample BEFORE touchdown also had reasonable approach speed (>= 60 kts)
+  //      so we don't pick up a brief on_ground glitch while still high in the air.
   let touchdownIdx = -1;
   for (let i = 1; i < history.length; i += 1) {
     if (readOnGroundFlag(history[i]) !== true) continue;
     if (readOnGroundFlag(history[i - 1]) !== false) continue;
     const spd = readSpeed(history[i]);
-    if (Number.isFinite(spd) && spd < 30) continue;
+    if (Number.isFinite(spd) && spd < 40) continue;
+    const prevSpd = readSpeed(history[i - 1]);
+    if (Number.isFinite(prevSpd) && prevSpd < 60) continue;
 
     // Verify sustained airborne BEFORE (looking back up to 8 samples)
     let airborneBeforeCount = 0;
@@ -116,7 +120,7 @@ const findTouchdownIndex = (history) => {
       if (readOnGroundFlag(history[j]) === false) airborneBeforeCount += 1;
       else break;
     }
-    if (airborneBeforeCount < 3) continue;
+    if (airborneBeforeCount < 5) continue;
 
     // Verify sustained ground AFTER (looking forward up to 5 samples)
     let groundAfterCount = 1;
