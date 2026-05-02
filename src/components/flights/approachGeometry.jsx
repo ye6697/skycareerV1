@@ -276,11 +276,16 @@ export function buildGeoPath(telemetryPoints, runway) {
   //   Positive X = right of centerline (same as lateralM).
   // Therefore: sceneZ = -alongM.  A point in front of the threshold has
   // alongM < 0 (opposite to landing heading) and must map to Z > 0.
+  // Trail-Floor-Lift: lift the entire path slightly above the runway/ground
+  // so the colored centerline track stays visible during the ground roll
+  // (touchdown, takeoff roll). Without this, samples with alt = 0 disappear
+  // into the dark floor / runway surface.
+  const TRAIL_FLOOR_LIFT_M = 1.6;
   const path = geoPts.map((p) => {
     const { alongM, lateralM } = projectToRunwayFrame(p.lat, p.lon, runway);
     const z = -alongM;
     const x = lateralM;
-    const altM = Math.max(0, (p.alt || 0) * 0.3048 - thresholdElevM);
+    const altM = Math.max(0, (p.alt || 0) * 0.3048 - thresholdElevM) + TRAIL_FLOOR_LIFT_M;
     return new THREE.Vector3(x, altM, z);
   });
   return path;
@@ -435,7 +440,9 @@ export function buildSyntheticPath(telemetryPoints, runway, phase = 'landing') {
     const z = phase === 'takeoff'
       ? -t * (lenM * 0.4) + (1 - t) * 30          // rollout from ~+30 toward -40% of rwy
       : 600 - t * (600 + lenM * 0.3);
-    const altM = Math.max(0, ((p.alt || 0) - minAlt) * 0.3048);
+    // Same trail-floor-lift as in buildGeoPath – keeps the colored line
+    // visible above the dark ground during the ground roll phase.
+    const altM = Math.max(0, ((p.alt || 0) - minAlt) * 0.3048) + 1.6;
     // X: real lateral offset from track if we have geo, else 0.
     const x = localXY ? Math.max(-60, Math.min(60, localXY[i]?.lateral || 0)) : 0;
     return new THREE.Vector3(x, altM, z);

@@ -139,6 +139,8 @@ export default function HangarWorldGlobe3D({
   marketAirports = [],
   selectedContractId = null,
   onSelectContract,
+  onAcceptContract,
+  isAcceptingContract = false,
   selectedAirportIcao = "",
   onSelectAirport,
   selectedMarketVariantId = "",
@@ -151,7 +153,7 @@ export default function HangarWorldGlobe3D({
   lang = "de",
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showContractsPanel, setShowContractsPanel] = useState(true);
+  const [showContractsPanel, setShowContractsPanel] = useState(false);
   const [showMarketPanel, setShowMarketPanel] = useState(false);
   const [showOwnedHangarsList, setShowOwnedHangarsList] = useState(false);
   const [airportViewFilter, setAirportViewFilter] = useState("all");
@@ -576,28 +578,48 @@ export default function HangarWorldGlobe3D({
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 touch-pan-y">
             {visibleContracts.map((contract) => {
               const selected = contract.id === selectedContractId;
+              const isAvailable = String(contract?.status || "available").toLowerCase() === "available";
               return (
-                <button
+                <div
                   key={contract.id}
-                  type="button"
-                  onClick={() => {
-                    onSelectContract?.(contract.id);
-                    setShowContractsPanel(true);
-                  }}
-                  className={`w-full rounded-md border px-2 py-1.5 text-left transition ${
+                  className={`w-full rounded-md border px-2 py-1.5 transition ${
                     selected
                       ? "border-cyan-500/70 bg-cyan-900/30"
                       : "border-slate-700/80 bg-slate-900/75 hover:border-cyan-800/70"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-[11px] font-semibold text-cyan-100">{contract.title || "Contract"}</p>
-                    <span className="text-[10px] text-emerald-300">${Math.round(contract.payout || 0).toLocaleString()}</span>
-                  </div>
-                  <p className="mt-0.5 text-[10px] font-mono text-slate-300">
-                    {contract.departure_airport} -&gt; {contract.arrival_airport}
-                  </p>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectContract?.(contract.id);
+                      setShowContractsPanel(true);
+                    }}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-[11px] font-semibold text-cyan-100">{contract.title || "Contract"}</p>
+                      <span className="text-[10px] text-emerald-300">${Math.round(contract.payout || 0).toLocaleString()}</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] font-mono text-slate-300">
+                      {contract.departure_airport} -&gt; {contract.arrival_airport}
+                    </p>
+                  </button>
+                  {onAcceptContract && isAvailable && (
+                    <Button
+                      type="button"
+                      disabled={isAcceptingContract}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onAcceptContract(contract);
+                      }}
+                      className="mt-1.5 h-7 w-full bg-emerald-600 text-[10px] font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
+                    >
+                      {isAcceptingContract
+                        ? (lang === "de" ? "Wird angenommen..." : "Accepting...")
+                        : (lang === "de" ? "Annehmen" : "Accept")}
+                    </Button>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -266,35 +266,13 @@ export default function AircraftHangar3D({ aircraft }) {
     const built = buildCustomAircraftModel(aircraftHint);
     aircraftGroup.add(built.group);
 
-    const hotspotMeshes = {};
-    const initialLayout = getHotspotLayoutForAircraft({
-      aircraftHint,
-      profile: built.profile,
-      modelId: built.modelId,
-    });
-    Object.entries(initialLayout).forEach(([key, pos]) => {
-      const sphere = new THREE.Mesh(
-        new THREE.SphereGeometry(0.6, 16, 12),
-        new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0) })
-      );
-      sphere.position.set(pos.x, pos.y, pos.z);
-      sphere.userData.key = key;
-      aircraftGroup.add(sphere);
-
-      const halo = new THREE.Mesh(
-        new THREE.SphereGeometry(1.1, 16, 12),
-        new THREE.MeshBasicMaterial({
-          color: getHotspotColor(wear.total[key] || 0),
-          transparent: true,
-          opacity: 0.3,
-          depthWrite: false,
-        })
-      );
-      halo.position.copy(sphere.position);
-      aircraftGroup.add(halo);
-      hotspotMeshes[key] = { sphere, halo };
-    });
-    runtime.hotspotMeshes = hotspotMeshes;
+    // IMPORTANT: do NOT spawn hotspots before the model bounds are known.
+    // The default bounds (used when bounds are missing) are -15..+15 in X
+    // which is much larger than e.g. a Cessna model -> hotspots would float
+    // far outside the visible aircraft until the model finishes loading.
+    // Wait for `built.ready`, get the real bounds, then create the spheres
+    // exactly once with the correct positions.
+    runtime.hotspotMeshes = {};
 
     let cancelled = false;
     built.ready
@@ -306,12 +284,29 @@ export default function AircraftHangar3D({ aircraft }) {
           modelId: meta?.modelId || built.modelId,
           bounds: meta?.bounds,
         });
+        const hotspotMeshes = {};
         Object.entries(dynamicLayout).forEach(([key, pos]) => {
-          const target = runtime.hotspotMeshes?.[key];
-          if (!target) return;
-          target.sphere.position.set(pos.x, pos.y, pos.z);
-          target.halo.position.copy(target.sphere.position);
+          const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.6, 16, 12),
+            new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0) })
+          );
+          sphere.position.set(pos.x, pos.y, pos.z);
+          sphere.userData.key = key;
+          aircraftGroup.add(sphere);
+          const halo = new THREE.Mesh(
+            new THREE.SphereGeometry(1.1, 16, 12),
+            new THREE.MeshBasicMaterial({
+              color: getHotspotColor(wear.total[key] || 0),
+              transparent: true,
+              opacity: 0.3,
+              depthWrite: false,
+            })
+          );
+          halo.position.copy(sphere.position);
+          aircraftGroup.add(halo);
+          hotspotMeshes[key] = { sphere, halo };
         });
+        runtime.hotspotMeshes = hotspotMeshes;
       })
       .catch(() => {
         // Model loader already falls back internally.

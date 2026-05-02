@@ -1571,6 +1571,8 @@ export default function Contracts() {
           getMoveValidation={getMoveValidation}
           getTransferCost={getTransferCost}
           getAircraftModelName={getAircraftModelName}
+          onAcceptContract={(contract) => acceptContractMutation.mutate(contract)}
+          isAcceptingContract={acceptContractMutation.isPending}
           onBuyOrUpgrade={({ airportIcao, modelVariant }) =>
             upsertHangarMutation.mutate({
               airportIcao,

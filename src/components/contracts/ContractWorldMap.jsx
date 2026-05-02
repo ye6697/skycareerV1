@@ -43,9 +43,27 @@ function getRouteColor(contract) {
   return DIFFICULTY_COLORS[diff] || "#22d3ee";
 }
 
-// Build a "LIVE MAP" style ICAO bubble icon with pulse ring.
-// Large pill with the ICAO code text, glowing border and animated halo.
-function buildIcaoBubbleIcon({ icao, owned, selected }) {
+// Build a "LIVE MAP" style airport marker.
+// - Owned: green ICAO bubble with pulse ring (always shows code)
+// - Market: small ORANGE DOT only; ICAO code appears only at very high zoom
+// - Selected: bright cyan ICAO bubble (always shows code)
+function buildIcaoBubbleIcon({ icao, owned, selected, showLabel }) {
+  // Market (not owned, not selected) → simple orange dot until zoomed in
+  if (!owned && !selected && !showLabel) {
+    const dotHtml = `
+      <div style="position:relative;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+        <div style="position:absolute;inset:-6px;border-radius:999px;border:1px solid rgba(251,146,60,0.55);opacity:0.6;animation:icaoPulse 2.6s ease-out infinite;"></div>
+        <div style="width:9px;height:9px;border-radius:999px;background:#fb923c;border:1.5px solid rgba(2,6,23,0.85);box-shadow:0 0 10px rgba(251,146,60,0.7);"></div>
+      </div>
+    `;
+    return new L.DivIcon({
+      html: dotHtml,
+      className: "icao-bubble-icon",
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+  }
+
   const ringColor = selected ? "#e2e8f0" : owned ? "#22c55e" : "#fb923c";
   const textColor = selected ? "#ffffff" : owned ? "#bbf7d0" : "#fed7aa";
   const borderColor = selected ? "rgba(226,232,240,0.95)" : owned ? "rgba(34,197,94,0.85)" : "rgba(251,146,60,0.9)";
@@ -75,43 +93,62 @@ function toDegrees(value) {
   return (value * 180) / Math.PI;
 }
 
-function interpolateGreatCircle(departure, arrival, segments = 56) {
-  const lat1 = toRadians(departure.lat);
-  const lon1 = toRadians(departure.lon);
-  const lat2 = toRadians(arrival.lat);
-  const lon2 = toRadians(arrival.lon);
+function interpolateGreatCircle(departure, arrival, segments = 64) {
+  // Build a CURVED 3D-style arc on the 2D map: combine the great-circle
+  // path with an additional perpendicular "lift" so routes look like a
+  // domed 3D bow when seen on a flat projection (matches the design ref).
+  const lat1 = departure.lat;
+  const lon1 = departure.lon;
+  const lat2 = arrival.lat;
+  const lon2 = arrival.lon;
 
-  const start = [
-    Math.cos(lat1) * Math.cos(lon1),
-    Math.cos(lat1) * Math.sin(lon1),
-    Math.sin(lat1),
-  ];
-  const end = [
-    Math.cos(lat2) * Math.cos(lon2),
-    Math.cos(lat2) * Math.sin(lon2),
-    Math.sin(lat2),
-  ];
-
+  // Great-circle base (still used for very long routes so they wrap correctly).
+  const r1 = toRadians(lat1);
+  const r2 = toRadians(lat2);
+  const rl1 = toRadians(lon1);
+  const rl2 = toRadians(lon2);
+  const start = [Math.cos(r1) * Math.cos(rl1), Math.cos(r1) * Math.sin(rl1), Math.sin(r1)];
+  const end = [Math.cos(r2) * Math.cos(rl2), Math.cos(r2) * Math.sin(rl2), Math.sin(r2)];
   const dot = Math.min(1, Math.max(-1, start[0] * end[0] + start[1] * end[1] + start[2] * end[2]));
   const omega = Math.acos(dot);
   if (omega < 1e-6) {
-    return [
-      [departure.lat, departure.lon],
-      [arrival.lat, arrival.lon],
-    ];
+    return [[lat1, lon1], [lat2, lon2]];
   }
-
   const sinOmega = Math.sin(omega);
+
+  // Perpendicular offset for the dome shape. Bigger distance = bigger arc.
+  const distLat = lat2 - lat1;
+  const distLon = lon2 - lon1;
+  const flatDist = Math.sqrt(distLat * distLat + distLon * distLon);
+  // Perpendicular unit vector (rotate 90° in lat/lon space). We push routes
+  // upward in latitude (toward the north pole on the map) for a clean
+  // domed look like the reference image.
+  const perpLat = Math.abs(distLon) > 0.001 ? 1 : 0;
+  const perpLon = Math.abs(distLon) > 0.001 ? -distLat / distLon : 0;
+  const perpLen = Math.sqrt(perpLat * perpLat + perpLon * perpLon) || 1;
+  const ux = perpLat / perpLen;
+  const uy = perpLon / perpLen;
+  // Always lift toward "up" on the map (positive lat).
+  const liftSign = ux >= 0 ? 1 : -1;
+  // Arc height proportional to distance, capped so transcontinental routes
+  // don't dome off the map.
+  const arcHeight = Math.min(flatDist * 0.22, 28);
+
   const points = [];
   for (let i = 0; i <= segments; i += 1) {
     const t = i / segments;
+    // Great-circle interpolation
     const a = Math.sin((1 - t) * omega) / sinOmega;
     const b = Math.sin(t * omega) / sinOmega;
-    const x = a * start[0] + b * end[0];
-    const y = a * start[1] + b * end[1];
-    const z = a * start[2] + b * end[2];
-    const lat = toDegrees(Math.atan2(z, Math.sqrt(x * x + y * y)));
-    const lon = toDegrees(Math.atan2(y, x));
+    const gx = a * start[0] + b * end[0];
+    const gy = a * start[1] + b * end[1];
+    const gz = a * start[2] + b * end[2];
+    const baseLat = toDegrees(Math.atan2(gz, Math.sqrt(gx * gx + gy * gy)));
+    const baseLon = toDegrees(Math.atan2(gy, gx));
+    // Sine bow lifts the middle of the arc.
+    const bow = Math.sin(t * Math.PI) * arcHeight;
+    const lat = baseLat + bow * ux * liftSign;
+    const lon = baseLon + bow * uy * liftSign;
     points.push([lat, lon]);
   }
 
@@ -437,7 +474,7 @@ export default function ContractWorldMap({
               <Marker
                 key={`airport_${icao}`}
                 position={[airport.lat, airport.lon]}
-                icon={buildIcaoBubbleIcon({ icao, owned, selected })}
+                icon={buildIcaoBubbleIcon({ icao, owned, selected, showLabel: mapZoom >= 6 })}
                 bubblingMouseEvents={false}
                 eventHandlers={{
                   mousedown: markForegroundInteraction,
