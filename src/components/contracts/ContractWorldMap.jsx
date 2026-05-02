@@ -31,15 +31,40 @@ const arrivalIcon = new L.DivIcon({
   iconAnchor: [7, 7],
 });
 
-const TYPE_COLORS = {
-  passenger: "#22d3ee",
-  cargo: "#f59e0b",
-  charter: "#c084fc",
-  emergency: "#f87171",
+const DIFFICULTY_COLORS = {
+  easy: "#22d3ee",
+  medium: "#22d3ee",
+  hard: "#f59e0b",
+  extreme: "#f87171",
 };
 
-function getRouteColor(type) {
-  return TYPE_COLORS[type] || "#67e8f9";
+function getRouteColor(contract) {
+  const diff = String(contract?.difficulty || "medium").toLowerCase();
+  return DIFFICULTY_COLORS[diff] || "#22d3ee";
+}
+
+// Build a "LIVE MAP" style ICAO bubble icon with pulse ring.
+// Large pill with the ICAO code text, glowing border and animated halo.
+function buildIcaoBubbleIcon({ icao, owned, selected }) {
+  const ringColor = selected ? "#e2e8f0" : owned ? "#22c55e" : "#22d3ee";
+  const textColor = selected ? "#ffffff" : owned ? "#bbf7d0" : "#cffafe";
+  const borderColor = selected ? "rgba(226,232,240,0.95)" : owned ? "rgba(34,197,94,0.85)" : "rgba(34,211,238,0.85)";
+  const bg = selected ? "rgba(8,47,73,0.9)" : "rgba(2,6,23,0.78)";
+  const glow = selected ? "0 0 18px rgba(56,189,248,0.7)" : owned ? "0 0 14px rgba(34,197,94,0.55)" : "0 0 14px rgba(34,211,238,0.45)";
+  const html = `
+    <div style="position:relative;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+      <div style="position:absolute;inset:-10px;border-radius:999px;border:1.5px solid ${ringColor};opacity:0.55;animation:icaoPulse 2.2s ease-out infinite;"></div>
+      <div style="position:relative;padding:4px 10px;border-radius:999px;background:${bg};border:1.5px solid ${borderColor};color:${textColor};font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;box-shadow:${glow};white-space:nowrap;">
+        ${icao}
+      </div>
+    </div>
+  `;
+  return new L.DivIcon({
+    html,
+    className: "icao-bubble-icon",
+    iconSize: [60, 28],
+    iconAnchor: [30, 14],
+  });
 }
 
 function toRadians(value) {
@@ -283,6 +308,12 @@ export default function ContractWorldMap({
   const mapContent = (
     <>
       <style>{`
+        @keyframes icaoPulse {
+          0% { transform: scale(0.85); opacity: 0.7; }
+          70% { transform: scale(1.45); opacity: 0; }
+          100% { transform: scale(1.45); opacity: 0; }
+        }
+        .icao-bubble-icon { background: transparent !important; border: none !important; }
         .contract-globe-leaflet {
           background: #020617;
         }
@@ -290,7 +321,7 @@ export default function ContractWorldMap({
           background: radial-gradient(circle at 20% 15%, rgba(14,116,144,.2), transparent 35%), #020617;
         }
         .contract-globe-leaflet .leaflet-tile {
-          filter: saturate(1.05) contrast(1.1) brightness(0.7) hue-rotate(-6deg);
+          filter: saturate(0.85) contrast(1.15) brightness(0.55) hue-rotate(-4deg);
         }
         .contract-globe-leaflet .leaflet-control-zoom {
           border: 1px solid rgba(14, 116, 144, .55);
@@ -357,7 +388,7 @@ export default function ContractWorldMap({
 
         {routes.map((route) => {
           const selected = route.id === selectedContractId;
-          const color = getRouteColor(route.type);
+          const color = getRouteColor(route);
           return (
             <React.Fragment key={route.id}>
               <Polyline
@@ -403,22 +434,12 @@ export default function ContractWorldMap({
             const icao = String(airport.airport_icao || "").toUpperCase();
             const owned = ownedSet.has(icao);
             const selected = normalizedSelectedAirport === icao;
-            const zoomFactor = Math.max(0.58, Math.min(1, (mapZoom - 1.8) / 3.8));
-            const baseRadius = selected ? 7.6 : owned ? 5.8 : 4.1;
-            const cappedRadius = Math.min(baseRadius * zoomFactor, owned ? 6.1 : 4.2);
             return (
-              <CircleMarker
+              <Marker
                 key={`airport_${icao}`}
-                center={[airport.lat, airport.lon]}
+                position={[airport.lat, airport.lon]}
+                icon={buildIcaoBubbleIcon({ icao, owned, selected })}
                 bubblingMouseEvents={false}
-                radius={cappedRadius}
-                pathOptions={{
-                  color: selected ? "#e2e8f0" : owned ? "#22c55e" : "#d9b654",
-                  weight: selected ? 2.3 : 1.4,
-                  fillColor: selected ? "#38bdf8" : owned ? "#22c55e" : "#d9b654",
-                  fillOpacity: selected ? 0.96 : owned ? 0.8 : 0.34,
-                  opacity: 0.96,
-                }}
                 eventHandlers={{
                   mousedown: markForegroundInteraction,
                   touchstart: markForegroundInteraction,
@@ -429,12 +450,12 @@ export default function ContractWorldMap({
                   },
                 }}
               >
-                <Tooltip direction="top" offset={[0, -6]} opacity={1}>
+                <Tooltip direction="top" offset={[0, -16]} opacity={1}>
                   <span className="font-mono text-[11px] font-semibold">
-                    {icao} {owned ? "Owned" : "Market"}
+                    {icao} {owned ? "· Owned" : "· Market"}
                   </span>
                 </Tooltip>
-              </CircleMarker>
+              </Marker>
             );
           })}
         </Pane>
@@ -492,7 +513,19 @@ export default function ContractWorldMap({
   );
 
   if (embedded) {
-    return <div className="h-full w-full">{mapContent}</div>;
+    return (
+      <div className="relative h-full w-full">
+        {mapContent}
+        <div className="pointer-events-none absolute left-3 top-3 z-[600]">
+          <div className="flex items-center gap-1.5 rounded-md border-2 border-cyan-400/70 bg-slate-950/85 px-3 py-1.5 shadow-[0_0_18px_rgba(34,211,238,0.35)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-200">
+              {lang === "de" ? "LIVE MAP" : "LIVE MAP"}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
