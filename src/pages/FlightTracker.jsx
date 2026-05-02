@@ -28,7 +28,7 @@ import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { calculateInsuranceForFlight, resolveAircraftInsurance } from "@/lib/insurance";
 import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
-
+import { recoverLandingBonus } from "@/components/flights/landingBonusRecovery";
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
 const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 150;
@@ -1538,11 +1538,11 @@ export default function FlightTracker() {
       finalFlightData.landingGForce,
       finalFlightData.landing_g_force
     );
-     finalFlightData = {
+     finalFlightData = recoverLandingBonus({
        ...finalFlightData,
        landingVs: Math.max(0, Math.abs(Number(resolvedLandingVs || finalFlightData.landingVs || 0) || 0)),
        landingGForce: Math.max(0, Math.min(6, Number(resolvedLandingG || finalFlightData.landingGForce || 0))),
-     };
+     }, contract);
      const initialFuelKg = positiveNumber(
        xpData.initial_fuel_kg,
        liveData.initial_fuel_kg
@@ -1805,20 +1805,6 @@ export default function FlightTracker() {
             // Calculate ratings based on score for database (for compatibility)
             const scoreToRating = (s) => (s / 100) * 5;
 
-            // Update flight record with events and final score
-            console.log('🔍 SPEICHERE FINALE FLUGDATEN:', {
-              finalScore: scoreWithInsurance,
-              flightHours,
-              timeScoreChange,
-              timeBonus,
-              events: finalFlightData.events,
-              maintenanceCost: finalFlightData.maintenanceCost,
-              crashMaintenanceCost,
-              totalMaintenanceCostWithCrash,
-              insuranceCost,
-              insuranceCoveredMaintenance
-            });
-            
             // Fetch LATEST xplane_data from DB (local state may be stale, missing current flight_path)
             let existingXpData = activeFlight?.xplane_data || {};
             const freshFlights = await base44.entities.Flight.filter({ id: activeFlight.id });
