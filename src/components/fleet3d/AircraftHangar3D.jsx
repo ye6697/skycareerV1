@@ -350,34 +350,32 @@ export default function AircraftHangar3D({ aircraft }) {
         parent.updateMatrixWorld(true);
         const inverseMatrix = new THREE.Matrix4().copy(parent.matrixWorld).invert();
 
-        // Scale hotspot spheres proportionally to the aircraft's diagonal
-        // size so a Cessna and an A380 both get visually similar dot sizes.
-        // Clamp to a sensible range so very tiny / very huge models still
-        // produce readable markers.
-        const diag = Math.sqrt(size.x * size.x + size.y * size.y + size.z * size.z);
-        const sphereR = Math.max(0.35, Math.min(1.4, diag * 0.018));
-        const haloR = sphereR * 1.85;
-
+        // Use unit-radius spheres; the animation loop rescales them every
+        // frame so they always render at a CONSTANT pixel size on screen,
+        // regardless of camera distance or aircraft scale.
         const hotspotMeshes = {};
         Object.entries(worldPositions).forEach(([key, worldPos]) => {
           const localPos = worldPos.clone().applyMatrix4(inverseMatrix);
           const sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(sphereR, 16, 12),
-            new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0), depthTest: true })
+            new THREE.SphereGeometry(1, 16, 12),
+            new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0), depthTest: false })
           );
           sphere.position.copy(localPos);
           sphere.userData.key = key;
+          sphere.renderOrder = 50;
           parent.add(sphere);
           const halo = new THREE.Mesh(
-            new THREE.SphereGeometry(haloR, 16, 12),
+            new THREE.SphereGeometry(1, 16, 12),
             new THREE.MeshBasicMaterial({
               color: getHotspotColor(wear.total[key] || 0),
               transparent: true,
               opacity: 0.3,
               depthWrite: false,
+              depthTest: false,
             })
           );
           halo.position.copy(localPos);
+          halo.renderOrder = 49;
           parent.add(halo);
           hotspotMeshes[key] = { sphere, halo };
         });
@@ -467,17 +465,31 @@ export default function AircraftHangar3D({ aircraft }) {
         aircraftGroup.rotation.y += dt * 0.12;
       }
 
-      // Pulse hotspots
+      // Screen-space-constant hotspots: rescale every frame so the spheres
+      // appear at a fixed pixel size regardless of camera distance or
+      // aircraft size. Target ~14px sphere / ~26px halo at 1080p.
       const pulse = (Math.sin(now * 0.005) + 1) * 0.5;
+      const mountEl = mountRef.current;
+      const screenH = mountEl?.clientHeight || 720;
+      const fovRad = (camera.fov * Math.PI) / 180;
+      const SPHERE_PX = 14;
+      const HALO_PX = 26;
+      const tmpWorld = new THREE.Vector3();
       Object.entries(hotspotMeshes).forEach(([key, { sphere, halo }]) => {
         const w = wear.total[key] || 0;
-        const baseScale = 1 + (w / 100) * 0.4;
-        const pulseFactor = w > 75 ? 1 + pulse * 0.6 : 1;
+        const pulseFactor = w > 75 ? 1 + pulse * 0.4 : 1;
         const isSelected = selectedCategory === key;
-        const finalScale = baseScale * pulseFactor * (isSelected ? 1.6 : 1);
-        sphere.scale.setScalar(finalScale);
-        halo.scale.setScalar(finalScale * (1 + pulse * 0.3));
-        halo.material.opacity = w > 50 ? 0.4 + pulse * 0.25 : 0.22;
+        const userScale = pulseFactor * (isSelected ? 1.5 : 1);
+
+        // Distance from camera to this hotspot in world units.
+        sphere.getWorldPosition(tmpWorld);
+        const dist = Math.max(0.01, camera.position.distanceTo(tmpWorld));
+        // worldPerPixel at this depth (perspective projection).
+        const worldPerPixel = (2 * Math.tan(fovRad / 2) * dist) / screenH;
+
+        sphere.scale.setScalar(SPHERE_PX * worldPerPixel * userScale);
+        halo.scale.setScalar(HALO_PX * worldPerPixel * userScale * (1 + pulse * 0.15));
+        halo.material.opacity = w > 50 ? 0.4 + pulse * 0.2 : 0.22;
       });
 
       // Camera
