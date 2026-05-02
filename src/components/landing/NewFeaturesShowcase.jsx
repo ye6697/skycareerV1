@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { Wrench, Building2, Plane, Video, Sparkles, Globe2, ArrowRight, ChevronRight, MousePointerClick, X } from 'lucide-react';
+import { Wrench, Plane, Video, Sparkles, Globe2, ArrowRight, ChevronRight, MousePointerClick, X, Loader2, Play } from 'lucide-react';
 import { SignupGateProvider, useSignupGate, GateIndicator } from './SignupGate';
-import DemoTrigger, { PaywallTrigger } from './DemoTrigger';
 import { DEMO_AIRCRAFT_FLEET, DEMO_MARKET_LISTINGS, DEMO_COMPANY, DEMO_CONTRACTS, DEMO_MARKET_AIRPORTS, DEMO_FLIGHT } from './demoData';
-
-// Real in-app components – exactly what users see after sign up
-import AircraftHangar3D from '@/components/fleet3d/AircraftHangar3D';
-import Fleet3DView from '@/components/fleet3d/Fleet3DView';
-import MarketHangar3DView from '@/components/fleet3d/MarketHangar3DView';
-import FinalApproach3D from '@/components/flights/FinalApproach3D';
-import HangarWorldGlobe3D from '@/components/contracts/HangarWorldGlobe3D';
 import { HANGAR_MODEL_VARIANTS } from '@/components/contracts/hangarModelCatalog';
+
+// LAZY-LOAD heavy 3D components – only mount when user opens the modal.
+// This prevents the landing page from spawning multiple Three.js / Leaflet
+// instances on initial render (which crashed mobile browsers).
+const AircraftHangar3D = lazy(() => import('@/components/fleet3d/AircraftHangar3D'));
+const Fleet3DView = lazy(() => import('@/components/fleet3d/Fleet3DView'));
+const MarketHangar3DView = lazy(() => import('@/components/fleet3d/MarketHangar3DView'));
+const FinalApproach3D = lazy(() => import('@/components/flights/FinalApproach3D'));
+const HangarWorldGlobe3D = lazy(() => import('@/components/contracts/HangarWorldGlobe3D'));
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
@@ -21,7 +22,28 @@ const fadeUp = {
 };
 const stagger = { visible: { transition: { staggerChildren: 0.08 } } };
 
+// Real app screenshots / mockups that match the actual in-app views.
+const PREVIEW_IMAGES = {
+  replay: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/202c9e031_generated_image.png',
+  globe: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/47f1432af_generated_image.png',
+  market: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/c9ebac48c_generated_image.png',
+  maintenance: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/2775fdf5b_generated_image.png',
+};
+
 /* ------------------- Modal Wrappers ------------------- */
+
+function LoadingScreen({ lang }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto mb-3" />
+        <p className="text-cyan-300 font-mono text-sm uppercase tracking-widest">
+          {lang === 'de' ? 'Lade 3D Engine...' : 'Loading 3D Engine...'}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function ModalShell({ onClose, children, title, lang }) {
   return (
@@ -45,10 +67,12 @@ function ModalShell({ onClose, children, title, lang }) {
   );
 }
 
-function Fleet3DModal({ onClose, lang }) {
+function MaintenanceModal({ onClose, lang }) {
   return (
-    <ModalShell onClose={onClose} title={lang === 'de' ? 'Flotte 3D' : 'Fleet 3D'} lang={lang}>
-      <Fleet3DView aircraft={DEMO_AIRCRAFT_FLEET} />
+    <ModalShell onClose={onClose} title={lang === 'de' ? '3D Wartung & Flotte' : '3D Maintenance & Fleet'} lang={lang}>
+      <Suspense fallback={<LoadingScreen lang={lang} />}>
+        <Fleet3DView aircraft={DEMO_AIRCRAFT_FLEET} />
+      </Suspense>
     </ModalShell>
   );
 }
@@ -57,36 +81,47 @@ function MarketModal({ onClose, lang }) {
   const [marketSection, setMarketSection] = useState('new');
   return (
     <ModalShell onClose={onClose} title={lang === 'de' ? '3D Flugzeugmarkt' : '3D Aircraft Market'} lang={lang}>
-      <MarketHangar3DView
-        listings={DEMO_MARKET_LISTINGS}
-        lang={lang}
-        company={DEMO_COMPANY}
-        marketSection={marketSection}
-        usedConditionFilter="all"
-        usedConditionProfiles={[]}
-        onSetMarketSection={setMarketSection}
-        onSetMarketViewMode={() => {}}
-        onSetUsedConditionFilter={() => {}}
-        onClose={onClose}
-        canAfford={(price) => DEMO_COMPANY.balance >= price}
-        canPurchase={(listing) =>
-          DEMO_COMPANY.level >= (listing.level_requirement || 1) &&
-          DEMO_COMPANY.balance >= listing.purchase_price
-        }
-        onBuy={() => {}}
-        onConfirmBuy={() => {}}
-        getPurchaseHangarOptions={() => [
-          { id: 'demo-hangar-eddf', airport_icao: 'EDDF', usedSlots: 3, slots: 8, rule: { slots: 8 } },
-        ]}
-        isBuying={false}
-        selectedListingId=""
-      />
+      <Suspense fallback={<LoadingScreen lang={lang} />}>
+        <MarketHangar3DView
+          listings={DEMO_MARKET_LISTINGS}
+          lang={lang}
+          company={DEMO_COMPANY}
+          marketSection={marketSection}
+          usedConditionFilter="all"
+          usedConditionProfiles={[]}
+          onSetMarketSection={setMarketSection}
+          onSetMarketViewMode={() => {}}
+          onSetUsedConditionFilter={() => {}}
+          onClose={onClose}
+          canAfford={(price) => DEMO_COMPANY.balance >= price}
+          canPurchase={(listing) =>
+            DEMO_COMPANY.level >= (listing.level_requirement || 1) &&
+            DEMO_COMPANY.balance >= listing.purchase_price
+          }
+          onBuy={() => {}}
+          onConfirmBuy={() => {}}
+          getPurchaseHangarOptions={() => [
+            { id: 'demo-hangar-eddf', airport_icao: 'EDDF', usedSlots: 3, slots: 8, rule: { slots: 8 } },
+          ]}
+          isBuying={false}
+          selectedListingId=""
+        />
+      </Suspense>
     </ModalShell>
   );
 }
 
 function ReplayModal({ onClose, lang }) {
-  return <FinalApproach3D flight={DEMO_FLIGHT} onClose={onClose} phase="landing" />;
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 z-[180] bg-slate-950 flex items-center justify-center">
+        <LoadingScreen lang={lang} />
+        <button type="button" onClick={onClose} className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded border border-slate-700 bg-slate-900 text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+      </div>
+    }>
+      <FinalApproach3D flight={DEMO_FLIGHT} onClose={onClose} phase="landing" />
+    </Suspense>
+  );
 }
 
 function GlobeModal({ onClose, lang }) {
@@ -96,46 +131,58 @@ function GlobeModal({ onClose, lang }) {
 
   return (
     <ModalShell onClose={onClose} title={lang === 'de' ? 'Auftrags-Globus' : 'Contract Globe'} lang={lang}>
-      <div className="absolute inset-0 p-2 sm:p-4 overflow-auto">
-        <HangarWorldGlobe3D
-          hangars={DEMO_COMPANY.hangars}
-          ownedAircraft={DEMO_AIRCRAFT_FLEET}
-          contracts={DEMO_CONTRACTS}
-          contractsByHangar={{
-            EDDF: DEMO_CONTRACTS.filter((c) => c.departure_airport === 'EDDF'),
-            EGLL: DEMO_CONTRACTS.filter((c) => c.departure_airport === 'EGLL'),
-          }}
-          marketAirports={DEMO_MARKET_AIRPORTS}
-          selectedContractId={selectedContractId}
-          onSelectContract={setSelectedContractId}
-          selectedAirportIcao={selectedAirportIcao}
-          onSelectAirport={setSelectedAirportIcao}
-          selectedMarketVariantId={selectedVariantId}
-          onSelectMarketVariantId={setSelectedVariantId}
-          hangarVariants={HANGAR_MODEL_VARIANTS}
-          onMoveAircraft={() => {}}
-          isMovingAircraft={false}
-          getMoveValidation={() => ({ valid: false, reason: lang === 'de' ? 'Demo – sign up to enable' : 'Demo – sign up to enable' })}
-          getTransferCost={() => 0}
-          getAircraftModelName={(a) => a?.name || ''}
-          onBuyOrUpgrade={() => {}}
-          isBuyingOrUpgrading={false}
-          onSellHangar={() => {}}
-          isSellingHangar={false}
-          lang={lang}
-        />
-      </div>
+      <Suspense fallback={<LoadingScreen lang={lang} />}>
+        <div className="absolute inset-0 p-2 sm:p-4 overflow-auto">
+          <HangarWorldGlobe3D
+            hangars={DEMO_COMPANY.hangars}
+            ownedAircraft={DEMO_AIRCRAFT_FLEET}
+            contracts={DEMO_CONTRACTS}
+            contractsByHangar={{
+              EDDF: DEMO_CONTRACTS.filter((c) => c.departure_airport === 'EDDF'),
+              EGLL: DEMO_CONTRACTS.filter((c) => c.departure_airport === 'EGLL'),
+            }}
+            marketAirports={DEMO_MARKET_AIRPORTS}
+            selectedContractId={selectedContractId}
+            onSelectContract={setSelectedContractId}
+            selectedAirportIcao={selectedAirportIcao}
+            onSelectAirport={setSelectedAirportIcao}
+            selectedMarketVariantId={selectedVariantId}
+            onSelectMarketVariantId={setSelectedVariantId}
+            hangarVariants={HANGAR_MODEL_VARIANTS}
+            onMoveAircraft={() => {}}
+            isMovingAircraft={false}
+            getMoveValidation={() => ({ valid: false, reason: lang === 'de' ? 'Demo – Account erstellen zum Aktivieren' : 'Demo – sign up to enable' })}
+            getTransferCost={() => 0}
+            getAircraftModelName={(a) => a?.name || ''}
+            onBuyOrUpgrade={() => {}}
+            isBuyingOrUpgrading={false}
+            onSellHangar={() => {}}
+            isSellingHangar={false}
+            lang={lang}
+          />
+        </div>
+      </Suspense>
     </ModalShell>
   );
 }
 
-/* ------------------- Inline Live Previews ------------------- */
+/* ------------------- Static image preview (no Three.js inline) ------------------- */
 
-// Inline 3D hangar preview using the REAL AircraftHangar3D component.
-function Hangar3DInline({ aircraft }) {
+function ImagePreview({ src, alt, badge }) {
   return (
-    <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-slate-700/60">
-      <AircraftHangar3D aircraft={aircraft} />
+    <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-slate-700/60 bg-slate-950">
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent pointer-events-none" />
+      {badge && (
+        <span className="absolute top-2 left-2 text-[9px] font-mono uppercase tracking-widest text-cyan-300 bg-slate-950/80 border border-cyan-700/40 px-1.5 py-0.5 rounded">
+          {badge}
+        </span>
+      )}
     </div>
   );
 }
@@ -144,7 +191,6 @@ function Hangar3DInline({ aircraft }) {
 
 function FeatureCard({ item, openModal, lang }) {
   const Icon = item.icon;
-  const Preview = item.preview;
   const { requestInteraction } = useSignupGate();
 
   const handleOpen = () => {
@@ -160,15 +206,15 @@ function FeatureCard({ item, openModal, lang }) {
     <motion.div variants={fadeUp} className={item.featured ? 'mb-6' : ''}>
       <Card className={`bg-slate-900/70 border ${item.featured ? 'border-cyan-500/30' : 'border-slate-700/50'} overflow-hidden rounded-2xl p-4 sm:p-5 ${item.featured ? 'grid lg:grid-cols-5 gap-5 items-center' : 'flex flex-col h-full'}`}>
         <div className={item.featured ? 'lg:col-span-3 relative' : 'relative'}>
-          <Preview />
-          {/* Click overlay that triggers the modal open */}
+          <ImagePreview src={item.image} alt={item.title} badge={item.previewBadge} />
           <button
             type="button"
             onClick={handleOpen}
-            className="absolute inset-0 z-10 flex items-end justify-center bg-gradient-to-t from-slate-950/75 via-transparent to-transparent hover:from-slate-950/90 transition-colors p-4 group"
+            className="absolute inset-0 z-10 flex items-end justify-center p-4 group"
           >
             <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-sm shadow-[0_0_20px_rgba(34,211,238,0.4)] group-hover:scale-105 transition-transform">
-              ▶ {item.openLabel}
+              <Play className="w-4 h-4 fill-white" />
+              {item.openLabel}
             </span>
           </button>
           <div className="absolute top-2 right-2 z-20"><GateIndicator lang={lang} /></div>
@@ -207,6 +253,7 @@ function ShowcaseInner({ lang, onCta }) {
       icon: Video,
       iconColor: 'bg-cyan-500',
       badge: lang === 'de' ? 'NEU · 3D Replay' : 'NEW · 3D Replay',
+      previewBadge: lang === 'de' ? 'Landing Replay' : 'Landing Replay',
       title: lang === 'de' ? 'Takeoff & Landing 3D Replay mit Centerline-Score' : 'Takeoff & Landing 3D Replay with Centerline Score',
       desc: lang === 'de'
         ? 'Cinematischer 3D-Replay mit echter Bahn-Geometrie aus OurAirports, farbcodiertem Flugpfad nach seitlicher Abweichung, PFD-HUD, Touchdown-Marker und Centerline-Bewertung.'
@@ -215,16 +262,15 @@ function ShowcaseInner({ lang, onCta }) {
         ? ['Echte Runway-Daten aus OurAirports', 'Pfad-Farbe nach m-Abweichung', 'Touchdown-Marker mit RMS-Wert', 'Chase / Side / Top Cam']
         : ['Real OurAirports runway data', 'Path color = lateral deviation', 'Touchdown marker with RMS value', 'Chase / Side / Top cam'],
       featured: true,
+      image: PREVIEW_IMAGES.replay,
       openLabel: lang === 'de' ? 'Replay starten' : 'Start Replay',
-      // Inline preview = the real 3D hangar of the demo aircraft (since the
-      // replay itself is fullscreen-only). Keeps the inline area visually rich.
-      preview: () => <Hangar3DInline aircraft={DEMO_AIRCRAFT_FLEET[1]} />,
     },
     {
       key: 'globe',
       icon: Globe2,
       iconColor: 'bg-blue-500',
       badge: lang === 'de' ? 'NEU · Auftrags-Globus' : 'NEW · Contract Globe',
+      previewBadge: lang === 'de' ? 'Live Karte' : 'Live Map',
       title: lang === 'de' ? 'Interaktive Auftragskarte mit Hangar-Markt' : 'Interactive contract map with hangar market',
       desc: lang === 'de'
         ? 'Alle Aufträge live auf der Weltkarte. Klick auf jeden Airport öffnet den Hangar-Markt – Kauf, Upgrade, Verkauf, Aircraft-Transfer direkt im Globus.'
@@ -232,14 +278,15 @@ function ShowcaseInner({ lang, onCta }) {
       bullets: lang === 'de'
         ? ['Klickbare Routen + Großkreise', 'Filter nach Hub & NM', 'Hangar Markt im Popup', 'Aircraft Transfer mit Live-Kosten']
         : ['Clickable great-circle routes', 'Filter by hub & NM', 'Hangar market in popup', 'Aircraft transfer with live cost'],
+      image: PREVIEW_IMAGES.globe,
       openLabel: lang === 'de' ? 'Globus öffnen' : 'Open Globe',
-      preview: () => <Hangar3DInline aircraft={DEMO_AIRCRAFT_FLEET[0]} />,
     },
     {
       key: 'market',
       icon: Plane,
       iconColor: 'bg-purple-500',
       badge: lang === 'de' ? 'NEU · 3D Flugzeugmarkt' : 'NEW · 3D Aircraft Market',
+      previewBadge: lang === 'de' ? 'Showroom' : 'Showroom',
       title: lang === 'de' ? '3D Flugzeugmarkt mit Live-Specs' : '3D Aircraft market with live specs',
       desc: lang === 'de'
         ? '50+ Flugzeuge auf einer cineastischen 3D-Bühne mit Drehteller und Spec-Panel. New & Used Markt mit Versicherung und Hangar-Zuordnung.'
@@ -247,14 +294,15 @@ function ShowcaseInner({ lang, onCta }) {
       bullets: lang === 'de'
         ? ['New & Used Markt', 'Versicherungsplan pro Aircraft', 'Hangar-Slot-Check beim Kauf', 'Permanenter Verschleiß für Used']
         : ['New & used market', 'Per-aircraft insurance plan', 'Hangar slot check on purchase', 'Permanent wear on used aircraft'],
+      image: PREVIEW_IMAGES.market,
       openLabel: lang === 'de' ? 'Markt öffnen' : 'Open Market',
-      preview: () => <Hangar3DInline aircraft={DEMO_AIRCRAFT_FLEET[2]} />,
     },
     {
       key: 'maintenance',
       icon: Wrench,
       iconColor: 'bg-orange-500',
       badge: lang === 'de' ? 'NEU · 3D Wartung' : 'NEW · 3D Maintenance',
+      previewBadge: lang === 'de' ? 'Hotspots' : 'Hotspots',
       title: lang === 'de' ? '3D Wartungsansicht mit Hotspots' : '3D maintenance view with hotspots',
       desc: lang === 'de'
         ? 'Jedes Flugzeug als 3D-Modell – Hotspots zeigen Verschleiß je Kategorie direkt am Rumpf, Triebwerken, Fahrwerk und Avionik. Klick auf Hotspot öffnet Reparatur.'
@@ -262,8 +310,8 @@ function ShowcaseInner({ lang, onCta }) {
       bullets: lang === 'de'
         ? ['8 Wartungs-Kategorien als Hotspots', 'Permanenter & reparabler Verschleiß', 'Live-Failure-Trigger im Sim', 'Versicherung deckt Wartungsschäden']
         : ['8 maintenance categories as hotspots', 'Permanent & repairable wear', 'Live failure triggers in sim', 'Insurance covers maintenance damage'],
+      image: PREVIEW_IMAGES.maintenance,
       openLabel: lang === 'de' ? 'Flotte öffnen' : 'Open Fleet',
-      preview: () => <Hangar3DInline aircraft={DEMO_AIRCRAFT_FLEET[1]} />,
     },
   ];
 
@@ -286,25 +334,23 @@ function ShowcaseInner({ lang, onCta }) {
           </motion.h2>
           <motion.p variants={fadeUp} className="text-lg text-slate-400 max-w-3xl mx-auto">
             {lang === 'de'
-              ? 'Probiere die echten In-App-Komponenten direkt unten aus – mit Beispieldaten, aber 100 % gleicher 3D-Engine wie nach dem Sign-Up.'
-              : 'Try the real in-app components below – with sample data, but the exact same 3D engine you get after sign-up.'}
+              ? 'Klicke auf eine Vorschau – die echten In-App 3D-Komponenten öffnen sich live mit Beispieldaten.'
+              : 'Click any preview – the real in-app 3D components launch live with sample data.'}
           </motion.p>
           <motion.div variants={fadeUp} className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-mono text-cyan-200">
             <MousePointerClick className="w-3.5 h-3.5" />
             <span>
               {lang === 'de'
-                ? 'Klick öffnet die echte Live-Komponente. 5 Demo-Klicks frei.'
-                : 'Click opens the real live component. 5 demo interactions free.'}
+                ? '5 Demo-Klicks frei · danach Account erstellen'
+                : '5 demo interactions free · then create account'}
             </span>
           </motion.div>
         </motion.div>
 
-        {/* Featured row (Replay) */}
         {items.filter((it) => it.featured).map((item) => (
           <FeatureCard key={item.key} item={item} openModal={setOpenModal} lang={lang} />
         ))}
 
-        {/* Grid of remaining */}
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -330,11 +376,10 @@ function ShowcaseInner({ lang, onCta }) {
         )}
       </div>
 
-      {/* Modals: real components with demo data */}
       {openModal === 'replay' && <ReplayModal onClose={() => setOpenModal(null)} lang={lang} />}
       {openModal === 'globe' && <GlobeModal onClose={() => setOpenModal(null)} lang={lang} />}
       {openModal === 'market' && <MarketModal onClose={() => setOpenModal(null)} lang={lang} />}
-      {openModal === 'maintenance' && <Fleet3DModal onClose={() => setOpenModal(null)} lang={lang} />}
+      {openModal === 'maintenance' && <MaintenanceModal onClose={() => setOpenModal(null)} lang={lang} />}
     </section>
   );
 }
