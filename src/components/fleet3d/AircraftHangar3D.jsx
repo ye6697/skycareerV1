@@ -1,20 +1,14 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { AnimatePresence } from 'framer-motion';
 import { buildCustomAircraftModel } from '@/components/flights/customAircraftModel';
 import { buildHangar } from '@/components/fleet3d/hangarScene';
-import { getHotspotColor, getHotspotLayoutForAircraft } from '@/components/fleet3d/maintenanceHotspots';
 import { normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, MAINTENANCE_CATEGORY_KEYS } from '@/lib/maintenance';
 import { useLanguage } from '@/components/LanguageContext';
-import { AlertTriangle, Loader2 } from 'lucide-react';
-import HotspotInfoPopup from '@/components/fleet3d/HotspotInfoPopup';
+import { Loader2 } from 'lucide-react';
 
 function buildFrontAirportScenery() {
   const group = new THREE.Group();
 
-  // Place airport scenery IN FRONT of the open hangar door (+Z), so it is
-  // visible from the default hangar camera and does not appear like a flat
-  // background card.
   const runway = new THREE.Mesh(
     new THREE.PlaneGeometry(120, 420),
     new THREE.MeshStandardMaterial({ color: 0x1f252d, roughness: 0.92, metalness: 0.08 }),
@@ -31,14 +25,6 @@ function buildFrontAirportScenery() {
     group.add(mark);
   }
 
-  const taxiway = new THREE.Mesh(
-    new THREE.PlaneGeometry(42, 210),
-    new THREE.MeshStandardMaterial({ color: 0x2c3338, roughness: 0.9 }),
-  );
-  taxiway.rotation.x = -Math.PI / 2;
-  taxiway.position.set(94, 0.018, 180);
-  group.add(taxiway);
-
   const grass = new THREE.Mesh(
     new THREE.PlaneGeometry(900, 900),
     new THREE.MeshStandardMaterial({ color: 0x32422f, roughness: 1.0, metalness: 0.0 }),
@@ -47,109 +33,55 @@ function buildFrontAirportScenery() {
   grass.position.set(0, -0.05, 220);
   group.add(grass);
 
-  const apron = new THREE.Mesh(
-    new THREE.PlaneGeometry(180, 140),
-    new THREE.MeshStandardMaterial({ color: 0x788694, roughness: 0.86, metalness: 0.08 }),
-  );
-  apron.rotation.x = -Math.PI / 2;
-  apron.position.set(-120, 0.03, 170);
-  group.add(apron);
-
-  const terminalMat = new THREE.MeshStandardMaterial({ color: 0xb8c4d3, roughness: 0.8, metalness: 0.12 });
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x93b7d9,
-    roughness: 0.2,
-    metalness: 0.35,
-    transparent: true,
-    opacity: 0.85,
-    emissive: 0x1e3248,
-    emissiveIntensity: 0.18,
-  });
-
-  const terminalBase = new THREE.Mesh(new THREE.BoxGeometry(90, 16, 26), terminalMat);
-  terminalBase.position.set(-120, 8, 210);
-  group.add(terminalBase);
-
-  const terminalGlass = new THREE.Mesh(new THREE.BoxGeometry(84, 9, 14), glassMat);
-  terminalGlass.position.set(-120, 16, 210);
-  group.add(terminalGlass);
-
-  const towerBase = new THREE.Mesh(new THREE.BoxGeometry(14, 30, 14), terminalMat);
-  towerBase.position.set(-60, 15, 182);
-  group.add(towerBase);
-
-  const towerCab = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 12), glassMat);
-  towerCab.position.set(-60, 31, 182);
-  group.add(towerCab);
-
   return group;
 }
 
 function disposeObject3D(root) {
   if (!root) return;
   root.traverse((node) => {
-    if (node.geometry) {
-      node.geometry.dispose?.();
-    }
+    if (node.geometry) node.geometry.dispose?.();
     if (node.material) {
-      if (Array.isArray(node.material)) {
-        node.material.forEach((material) => material.dispose?.());
-      } else {
-        node.material.dispose?.();
-      }
+      if (Array.isArray(node.material)) node.material.forEach((m) => m.dispose?.());
+      else node.material.dispose?.();
     }
   });
 }
 
-function hasHotspotScreenChanged(previous, next) {
-  const previousKeys = Object.keys(previous || {});
-  const nextKeys = Object.keys(next || {});
-  if (previousKeys.length !== nextKeys.length) return true;
+// Camera framing per hotspot category. Defines yaw/pitch/distance to focus.
+const CATEGORY_FRAMING = {
+  engine:        { yaw: -1.2, pitch: 0.18, distFactor: 0.35 },
+  avionics:      { yaw: -2.0, pitch: 0.22, distFactor: 0.30 },
+  airframe:      { yaw: -0.7, pitch: 0.30, distFactor: 0.55 },
+  hydraulics:    { yaw: -0.9, pitch: 0.05, distFactor: 0.40 },
+  landing_gear:  { yaw: -0.8, pitch: 0.02, distFactor: 0.35 },
+  electrical:    { yaw: -0.5, pitch: 0.20, distFactor: 0.40 },
+  flight_controls:{ yaw: 1.4,  pitch: 0.25, distFactor: 0.40 },
+  pressurization:{ yaw: 0.6,  pitch: 0.30, distFactor: 0.45 },
+};
 
-  for (let i = 0; i < nextKeys.length; i += 1) {
-    const key = nextKeys[i];
-    const prev = previous?.[key];
-    const curr = next?.[key];
-    if (!prev || !curr) return true;
-    if (prev.visible !== curr.visible) return true;
-    if (Math.abs((prev.x || 0) - (curr.x || 0)) > 3) return true;
-    if (Math.abs((prev.y || 0) - (curr.y || 0)) > 3) return true;
-  }
-  return false;
-}
-
-// Fully interactive 3D hangar:
-// - Click hotspot sphere on the model → opens info popup (with repair action)
-// - Drag to rotate camera, scroll to zoom
-// - Auto-rotate toggle
-export default function AircraftHangar3D({ aircraft }) {
+// Fully interactive 3D hangar with camera-zoom on category selection.
+// Categories are clicked from the parent list panel via `selectedCategory` prop.
+export default function AircraftHangar3D({ aircraft, selectedCategory, onAutoRotateChange }) {
   const { lang } = useLanguage();
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rafRef = useRef(null);
-  const hotspotScreenRef = useRef({});
-  const lastOverlaySyncRef = useRef(0);
-  const [hotspotScreen, setHotspotScreen] = useState({});
   const [isReady, setIsReady] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  // Popup position is captured ONCE at open-time and stays fixed on screen
-  // (doesn't follow the rotating aircraft / hotspot).
-  const [popupAnchor, setPopupAnchor] = useState(null);
-  // Default camera starts outside the open front gate (negative Z), looking
-  // into the hangar. This avoids the impression that the gate is "closed" by
-  // the rear wall.
-  const camOrbitRef = useRef({ yaw: -0.6, pitch: 0.22, dist: 55 });
+
+  // Animated camera target (we lerp toward this each frame).
+  const camOrbitRef = useRef({ yaw: -0.6, pitch: 0.22, dist: 55, focusY: 4 });
+  const camTargetRef = useRef({ yaw: -0.6, pitch: 0.22, dist: 55, focusY: 4 });
   const dragStateRef = useRef({ active: false });
+  const hotspotPosRef = useRef({}); // local positions per category
+  const aircraftSizeRef = useRef(30);
 
   const wear = useMemo(() => {
     const cats = normalizeMaintenanceCategoryMap(aircraft?.maintenance_categories);
     const fallback = Math.max(0, Math.min(100, Number(aircraft?.used_permanent_avg || 0)));
     const perm = resolvePermanentWearCategories(aircraft?.permanent_wear_categories, fallback);
     const total = {};
-    MAINTENANCE_CATEGORY_KEYS.forEach((k) => {
-      total[k] = Math.min(100, (cats[k] || 0) + (perm[k] || 0));
-    });
+    MAINTENANCE_CATEGORY_KEYS.forEach((k) => { total[k] = Math.min(100, (cats[k] || 0) + (perm[k] || 0)); });
     return { active: cats, permanent: perm, total };
   }, [aircraft]);
 
@@ -172,12 +104,10 @@ export default function AircraftHangar3D({ aircraft }) {
     renderer.toneMappingExposure = 1.15;
     mount.appendChild(renderer.domElement);
 
-    // Procedural textured hangar (tall, with full PBR textures + props)
     const { group: hangar } = buildHangar({ width: 110, depth: 130, height: 55 });
     scene.add(hangar);
     scene.add(buildFrontAirportScenery());
 
-    // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
     scene.add(new THREE.HemisphereLight(0xb8d0ec, 0x404a3a, 0.55));
     const key = new THREE.DirectionalLight(0xffe8c0, 1.3);
@@ -187,13 +117,10 @@ export default function AircraftHangar3D({ aircraft }) {
     fill.position.set(-40, 30, -40);
     scene.add(fill);
 
-    // Keep renderer/scene persistent and only swap aircraft model/hotspots.
     const aircraftGroup = new THREE.Group();
     scene.add(aircraftGroup);
 
-    // Hotspots are clicked via their HTML badges (see button onClick below),
-    // so no 3D raycaster is needed.
-    sceneRef.current = { scene, camera, renderer, aircraftGroup, hotspotMeshes: {} };
+    sceneRef.current = { scene, camera, renderer, aircraftGroup };
     setIsReady(true);
 
     const onResize = () => {
@@ -220,153 +147,112 @@ export default function AircraftHangar3D({ aircraft }) {
     };
   }, []);
 
-  // Swap aircraft model and hotspot positions without rebuilding the renderer.
+  // Swap aircraft model and compute hotspot positions.
   useEffect(() => {
     if (!sceneRef.current) return;
     const runtime = sceneRef.current;
     const { aircraftGroup } = runtime;
 
-    // Reset selection while switching aircraft to avoid stale popup anchors.
-    setSelectedCategory(null);
-    setPopupAnchor(null);
-    hotspotScreenRef.current = {};
-    setHotspotScreen({});
-
     while (aircraftGroup.children.length > 0) {
       const child = aircraftGroup.children.pop();
-      if (child) {
-        aircraftGroup.remove(child);
-        disposeObject3D(child);
-      }
+      if (child) { aircraftGroup.remove(child); disposeObject3D(child); }
     }
-    runtime.hotspotMeshes = {};
 
     const aircraftHint = aircraft?.name || aircraft?.model || aircraft?.type || '';
     const built = buildCustomAircraftModel(aircraftHint);
     aircraftGroup.add(built.group);
 
-    // IMPORTANT: do NOT spawn hotspots before the model bounds are known.
-    // The default bounds (used when bounds are missing) are -15..+15 in X
-    // which is much larger than e.g. a Cessna model -> hotspots would float
-    // far outside the visible aircraft until the model finishes loading.
-    // Wait for `built.ready`, get the real bounds, then create the spheres
-    // exactly once with the correct positions.
-    runtime.hotspotMeshes = {};
-
     let cancelled = false;
-    built.ready
-      .then((meta) => {
-        if (cancelled || !sceneRef.current || sceneRef.current !== runtime) return;
-        const model = meta?.model || null;
+    built.ready.then((meta) => {
+      if (cancelled || !sceneRef.current || sceneRef.current !== runtime) return;
+      const model = meta?.model || null;
 
-        // CRITICAL: Measure bounds from BIG MESH GEOMETRY ONLY (the actual
-        // fuselage/wings), explicitly excluding navigation lights, strobes,
-        // beacons, and other tiny accessory meshes that artificially inflate
-        // the bounding box and push the hotspots above the visible aircraft.
-        //
-        // Strategy: collect all mesh bounds, sort by volume, keep only the
-        // top contributors (>= 5% of largest mesh volume). Lights are tiny
-        // spheres (~0.2 radius) so they get filtered out automatically.
-        const measureRealBounds = (root) => {
-          if (!root) return null;
-          root.updateMatrixWorld(true);
-          const meshBoxes = [];
-          root.traverse((node) => {
-            if (!node.isMesh || !node.geometry) return;
-            // Skip nodes flagged as navigation lights / strobes by name.
-            const name = String(node.name || '').toLowerCase();
-            if (name.includes('strobe') || name.includes('beacon') || name.includes('navlight')) return;
-            const box = new THREE.Box3().setFromObject(node);
-            if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return;
-            const sz = new THREE.Vector3();
-            box.getSize(sz);
-            const volume = sz.x * sz.y * sz.z;
-            if (volume <= 0) return;
-            meshBoxes.push({ box, volume });
-          });
-          if (meshBoxes.length === 0) return null;
-          const maxVolume = Math.max(...meshBoxes.map((b) => b.volume));
-          // Keep only meshes that are at least 5% of the largest mesh volume.
-          // This drops navigation-light spheres reliably without complex
-          // name-matching, and works for both procedural and GLB models.
-          const significant = meshBoxes.filter((b) => b.volume >= maxVolume * 0.05);
-          const merged = new THREE.Box3();
-          significant.forEach((b) => merged.union(b.box));
-          if (!Number.isFinite(merged.min.x) || !Number.isFinite(merged.max.x)) return null;
-          const size = new THREE.Vector3();
-          merged.getSize(size);
-          return { box: merged, size };
-        };
-        const measured = measureRealBounds(model || aircraftGroup);
-        if (!measured) return;
-
-        // Bounds-relative hotspot anchors (0..1 inside the bounding box).
-        // VERY conservative Y values – stay between 0.25 and 0.65 so spheres
-        // sit ON the fuselage skin, not above the canopy.
-        const HOTSPOTS = {
-          engine:        { x: 0.70, y: 0.35, z: 0.55 },  // wing-mounted engine
-          avionics:      { x: 0.88, y: 0.55, z: 0.00 },  // cockpit / nose
-          airframe:      { x: 0.50, y: 0.55, z: 0.00 },  // upper fuselage center
-          hydraulics:    { x: 0.45, y: 0.30, z: -0.35 }, // belly
-          landing_gear:  { x: 0.55, y: 0.10, z: 0.00 },  // gear, bottom
-          electrical:    { x: 0.40, y: 0.40, z: 0.30 },  // wing root
-          flight_controls: { x: 0.12, y: 0.60, z: 0.00 },// tail
-          pressurization:  { x: 0.28, y: 0.50, z: 0.00 },// fuselage upper
-        };
-
-        const { box, size } = measured;
-        const worldPositions = {};
-        Object.entries(HOTSPOTS).forEach(([key, anchor]) => {
-          worldPositions[key] = new THREE.Vector3(
-            box.min.x + size.x * anchor.x,
-            box.min.y + size.y * anchor.y,
-            box.min.z + size.z * 0.5 + (size.z * 0.5) * Math.max(-1, Math.min(1, anchor.z)),
-          );
+      const measureRealBounds = (root) => {
+        if (!root) return null;
+        root.updateMatrixWorld(true);
+        const meshBoxes = [];
+        root.traverse((node) => {
+          if (!node.isMesh || !node.geometry) return;
+          const name = String(node.name || '').toLowerCase();
+          if (name.includes('strobe') || name.includes('beacon') || name.includes('navlight')) return;
+          const box = new THREE.Box3().setFromObject(node);
+          if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return;
+          const sz = new THREE.Vector3();
+          box.getSize(sz);
+          const volume = sz.x * sz.y * sz.z;
+          if (volume <= 0) return;
+          meshBoxes.push({ box, volume });
         });
+        if (meshBoxes.length === 0) return null;
+        const maxVolume = Math.max(...meshBoxes.map((b) => b.volume));
+        const significant = meshBoxes.filter((b) => b.volume >= maxVolume * 0.05);
+        const merged = new THREE.Box3();
+        significant.forEach((b) => merged.union(b.box));
+        if (!Number.isFinite(merged.min.x) || !Number.isFinite(merged.max.x)) return null;
+        const size = new THREE.Vector3();
+        merged.getSize(size);
+        return { box: merged, size };
+      };
+      const measured = measureRealBounds(model || aircraftGroup);
+      if (!measured) return;
 
-        // Attach to the model (or aircraftGroup) in LOCAL coordinates.
-        const parent = model || aircraftGroup;
-        parent.updateMatrixWorld(true);
-        const inverseMatrix = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+      const HOTSPOTS = {
+        engine:        { x: 0.70, y: 0.35, z: 0.55 },
+        avionics:      { x: 0.88, y: 0.55, z: 0.00 },
+        airframe:      { x: 0.50, y: 0.55, z: 0.00 },
+        hydraulics:    { x: 0.45, y: 0.30, z: -0.35 },
+        landing_gear:  { x: 0.55, y: 0.10, z: 0.00 },
+        electrical:    { x: 0.40, y: 0.40, z: 0.30 },
+        flight_controls: { x: 0.12, y: 0.60, z: 0.00 },
+        pressurization:  { x: 0.28, y: 0.50, z: 0.00 },
+      };
 
-        // Tiny invisible anchor objects at each hotspot location. The 3D
-        // model itself stays clean – all visible UI is the HTML badge,
-        // which is rendered at a constant pixel size and projected from
-        // the anchor's world position every frame.
-        const hotspotMeshes = {};
-        Object.entries(worldPositions).forEach(([key, worldPos]) => {
-          const localPos = worldPos.clone().applyMatrix4(inverseMatrix);
-          const anchor = new THREE.Object3D();
-          anchor.position.copy(localPos);
-          anchor.userData.key = key;
-          parent.add(anchor);
-          hotspotMeshes[key] = { sphere: anchor, halo: anchor };
-        });
-        runtime.hotspotMeshes = hotspotMeshes;
-      })
-      .catch(() => {
-        // Model loader already falls back internally.
+      const { box, size } = measured;
+      const positions = {};
+      Object.entries(HOTSPOTS).forEach(([key, anchor]) => {
+        positions[key] = new THREE.Vector3(
+          box.min.x + size.x * anchor.x,
+          box.min.y + size.y * anchor.y,
+          box.min.z + size.z * 0.5 + (size.z * 0.5) * Math.max(-1, Math.min(1, anchor.z)),
+        );
       });
+      hotspotPosRef.current = positions;
+      aircraftSizeRef.current = Math.max(size.x, size.y, size.z);
+    }).catch(() => {});
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [aircraft?.id, aircraft?.name, aircraft?.model, aircraft?.type]);
 
-  // Hotspot colors are read directly from `wear` in the HTML badge render,
-  // no 3D mesh color sync needed anymore.
+  // React to selectedCategory prop: update camera target.
+  useEffect(() => {
+    if (!selectedCategory) {
+      // Reset to default overview
+      camTargetRef.current = { yaw: -0.6, pitch: 0.22, dist: 55, focusY: 4 };
+      setAutoRotate(true);
+      return;
+    }
+    const framing = CATEGORY_FRAMING[selectedCategory];
+    if (!framing) return;
+    setAutoRotate(false);
 
-  // Drag camera (only on empty area, not on hotspot UI)
+    // Compute zoom distance based on aircraft size – smaller aircraft need closer cam.
+    const aircraftSize = aircraftSizeRef.current || 30;
+    const dist = Math.max(8, aircraftSize * framing.distFactor);
+    const hotspotPos = hotspotPosRef.current[selectedCategory];
+    const focusY = hotspotPos ? hotspotPos.y : 4;
+
+    camTargetRef.current = { yaw: framing.yaw, pitch: framing.pitch, dist, focusY };
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    onAutoRotateChange?.(autoRotate);
+  }, [autoRotate, onAutoRotateChange]);
+
+  // Drag camera
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
     const onDown = (e) => {
-      // Click on empty area while popup is open → close popup.
-      if (!e.target.closest('button, [data-popup]')) {
-        setSelectedCategory(null);
-        setPopupAnchor(null);
-      }
-      if (e.target.closest('button, [data-popup]')) return;
       try { el.setPointerCapture(e.pointerId); } catch (_) {}
       dragStateRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, pid: e.pointerId, moved: 0 };
     };
@@ -378,11 +264,13 @@ export default function AircraftHangar3D({ aircraft }) {
       s.lastX = e.clientX; s.lastY = e.clientY;
       s.moved += Math.abs(dx) + Math.abs(dy);
       if (s.moved > 5) {
-      setAutoRotate(false);
-      camOrbitRef.current.yaw -= dx * 0.008;
-      // Clamp pitch: minimum 0.08 rad keeps the camera above the floor so
-      // you can never look under the ground plane.
-      camOrbitRef.current.pitch = Math.max(0.08, Math.min(1.2, camOrbitRef.current.pitch + dy * 0.006));
+        setAutoRotate(false);
+        const t = camTargetRef.current;
+        t.yaw -= dx * 0.008;
+        t.pitch = Math.max(0.05, Math.min(1.2, t.pitch + dy * 0.006));
+        // Sync current position so manual drag is instant.
+        camOrbitRef.current.yaw = t.yaw;
+        camOrbitRef.current.pitch = t.pitch;
       }
     };
     const onUp = (e) => {
@@ -394,8 +282,8 @@ export default function AircraftHangar3D({ aircraft }) {
     };
     const onWheel = (e) => {
       e.preventDefault();
-      const o = camOrbitRef.current;
-      o.dist = Math.max(20, Math.min(100, o.dist + e.deltaY * 0.05));
+      const t = camTargetRef.current;
+      t.dist = Math.max(8, Math.min(120, t.dist + e.deltaY * 0.05));
     };
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointermove', onMove);
@@ -419,54 +307,33 @@ export default function AircraftHangar3D({ aircraft }) {
       if (!sceneRef.current) return;
       const dt = (now - lastT) / 1000;
       lastT = now;
-      const { scene, camera, renderer, aircraftGroup, hotspotMeshes } = sceneRef.current;
+      const { scene, camera, renderer, aircraftGroup } = sceneRef.current;
 
       if (autoRotate) {
         aircraftGroup.rotation.y += dt * 0.12;
       }
 
-      // Hotspots are rendered as HTML badges only (constant pixel size).
-      // No 3D scaling needed – anchors hold their position automatically.
-
-      // Camera
+      // Smooth camera lerp toward target.
       const o = camOrbitRef.current;
+      const t = camTargetRef.current;
+      const lerpFactor = Math.min(1, dt * 4); // ~250ms ease
+      o.yaw += (t.yaw - o.yaw) * lerpFactor;
+      o.pitch += (t.pitch - o.pitch) * lerpFactor;
+      o.dist += (t.dist - o.dist) * lerpFactor;
+      o.focusY += (t.focusY - o.focusY) * lerpFactor;
+
       const cx = Math.cos(o.yaw) * Math.cos(o.pitch) * o.dist;
       const cz = Math.sin(o.yaw) * Math.cos(o.pitch) * o.dist;
-      const cy = Math.sin(o.pitch) * o.dist + 7;
+      const cy = Math.sin(o.pitch) * o.dist + o.focusY;
       camera.position.set(cx, cy, cz);
-      camera.lookAt(0, 4, 0);
-
-      // Project hotspots for HTML overlays at lower frequency to reduce React churn.
-      if (now - lastOverlaySyncRef.current > 66) {
-        const newScreen = {};
-        const mount = mountRef.current;
-        if (mount) {
-          const rect = { w: mount.clientWidth, h: mount.clientHeight };
-          const tmp = new THREE.Vector3();
-          Object.entries(hotspotMeshes).forEach(([key, { sphere }]) => {
-            tmp.setFromMatrixPosition(sphere.matrixWorld);
-            tmp.project(camera);
-            const visible = tmp.z < 1 && tmp.z > -1;
-            newScreen[key] = {
-              x: (tmp.x * 0.5 + 0.5) * rect.w,
-              y: (-tmp.y * 0.5 + 0.5) * rect.h,
-              visible,
-            };
-          });
-        }
-        if (hasHotspotScreenChanged(hotspotScreenRef.current, newScreen)) {
-          hotspotScreenRef.current = newScreen;
-          setHotspotScreen(newScreen);
-        }
-        lastOverlaySyncRef.current = now;
-      }
+      camera.lookAt(0, o.focusY, 0);
 
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [isReady, autoRotate, wear, selectedCategory]);
+  }, [isReady, autoRotate]);
 
   return (
     <div ref={mountRef} className="relative w-full h-full bg-slate-950 overflow-hidden cursor-grab active:cursor-grabbing select-none" style={{ touchAction: 'none' }}>
@@ -476,57 +343,8 @@ export default function AircraftHangar3D({ aircraft }) {
         </div>
       )}
 
-      {/* Hotspot HTML markers (small badges above each sphere) */}
-      {Object.entries(hotspotScreen).map(([key, scr]) => {
-        if (!scr?.visible) return null;
-        const w = wear.total[key] || 0;
-        const color = getHotspotColor(w);
-        const isCritical = w > 75;
-        const isSelected = selectedCategory === key;
-        return (
-          <button
-            key={key}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedCategory(key);
-              const rect = mountRef.current?.getBoundingClientRect();
-              if (rect) setPopupAnchor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-              setAutoRotate(false);
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className={`absolute flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[9px] uppercase font-bold transition-all -translate-x-1/2 -translate-y-1/2 ${isSelected ? 'z-30 scale-110' : 'z-20 hover:scale-110'}`}
-            style={{
-              left: scr.x, top: scr.y,
-              color, borderColor: color, borderWidth: 1,
-              background: 'rgba(10, 14, 24, 0.85)',
-              boxShadow: isCritical ? `0 0 10px ${color}` : `0 0 4px ${color}50`,
-            }}
-          >
-            {isCritical && <AlertTriangle className="w-2.5 h-2.5 animate-pulse" />}
-            {Math.round(w)}%
-          </button>
-        );
-      })}
-
-      {/* Info popup - anchored to the click position, doesn't follow the hotspot */}
-      <AnimatePresence>
-        {selectedCategory && popupAnchor && (
-          <div data-popup className="absolute inset-0 pointer-events-none">
-            <div className="pointer-events-auto">
-              <HotspotInfoPopup
-                aircraft={aircraft}
-                categoryKey={selectedCategory}
-                screenPos={popupAnchor}
-                onClose={() => { setSelectedCategory(null); setPopupAnchor(null); }}
-              />
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Controls hint */}
       <div className="absolute bottom-3 left-3 text-[10px] font-mono text-cyan-600/80 uppercase tracking-wider pointer-events-none bg-slate-950/60 px-2 py-1 rounded">
-        {lang === 'de' ? 'Punkte anklicken · Ziehen: rotieren · Scrollen: zoom' : 'Click dots · Drag: rotate · Scroll: zoom'}
+        {lang === 'de' ? 'Ziehen: rotieren · Scrollen: zoom' : 'Drag: rotate · Scroll: zoom'}
       </div>
       <button
         onClick={() => setAutoRotate(!autoRotate)}
