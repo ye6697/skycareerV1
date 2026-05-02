@@ -150,6 +150,46 @@ const airports = [
 { icao: "EDLW", city: "Dortmund", lat: 51.5183, lon: 7.6122 },
 { icao: "LPMA", city: "Madeira", lat: 32.6979, lon: -16.7745 },
 { icao: "LOWI", city: "Innsbruck", lat: 47.2602, lon: 11.3439 },
+// German regional / small airports (good for small_prop short hops <100NM)
+{ icao: "EDLN", city: "Mönchengladbach", lat: 51.2303, lon: 6.5044 },
+{ icao: "EDLE", city: "Essen-Mülheim", lat: 51.4022, lon: 6.9373 },
+{ icao: "EDLV", city: "Weeze", lat: 51.6024, lon: 6.1422 },
+{ icao: "EDLP", city: "Paderborn-Lippstadt", lat: 51.6141, lon: 8.6163 },
+{ icao: "EDDG", city: "Münster-Osnabrück", lat: 52.1346, lon: 7.6848 },
+{ icao: "EDLI", city: "Bielefeld", lat: 51.9658, lon: 8.5444 },
+{ icao: "EDFH", city: "Frankfurt-Hahn", lat: 49.9487, lon: 7.2639 },
+{ icao: "EDFE", city: "Egelsbach", lat: 49.9608, lon: 8.6453 },
+{ icao: "EDFM", city: "Mannheim", lat: 49.4731, lon: 8.5142 },
+{ icao: "EDDR", city: "Saarbrücken", lat: 49.2146, lon: 7.1095 },
+{ icao: "EDSB", city: "Karlsruhe-Baden", lat: 48.7794, lon: 8.0805 },
+{ icao: "EDNY", city: "Friedrichshafen", lat: 47.6713, lon: 9.5114 },
+{ icao: "EDMA", city: "Augsburg", lat: 48.4254, lon: 10.9316 },
+{ icao: "EDQM", city: "Hof-Plauen", lat: 50.2886, lon: 11.8556 },
+{ icao: "EDQD", city: "Bayreuth", lat: 49.9850, lon: 11.6400 },
+{ icao: "EDDP", city: "Leipzig-Halle", lat: 51.4324, lon: 12.2416 },
+{ icao: "EDDC", city: "Dresden", lat: 51.1328, lon: 13.7672 },
+{ icao: "EDDE", city: "Erfurt", lat: 50.9798, lon: 10.9581 },
+{ icao: "ETHM", city: "Mendig", lat: 50.3661, lon: 7.3153 },
+{ icao: "EDAH", city: "Heringsdorf", lat: 53.8786, lon: 14.1522 },
+{ icao: "EDXW", city: "Sylt", lat: 54.9132, lon: 8.3404 },
+{ icao: "EDHE", city: "Uetersen", lat: 53.6451, lon: 9.7050 },
+{ icao: "EDHL", city: "Lübeck", lat: 53.8054, lon: 10.7193 },
+{ icao: "EDWI", city: "Wilhelmshaven", lat: 53.5022, lon: 8.0533 },
+{ icao: "EDWE", city: "Emden", lat: 53.3911, lon: 7.2275 },
+{ icao: "EDXJ", city: "Juist", lat: 53.6811, lon: 7.0558 },
+{ icao: "EDWY", city: "Norderney", lat: 53.7069, lon: 7.2300 },
+{ icao: "EDXB", city: "Borkum", lat: 53.5964, lon: 6.7092 },
+{ icao: "EDWZ", city: "Wangerooge", lat: 53.7828, lon: 7.9139 },
+{ icao: "EDDV", city: "Hannover", lat: 52.4611, lon: 9.6851 },
+// Austria / Switzerland regional
+{ icao: "LOWS", city: "Salzburg", lat: 47.7933, lon: 13.0043 },
+{ icao: "LOWG", city: "Graz", lat: 46.9911, lon: 15.4396 },
+{ icao: "LOWL", city: "Linz", lat: 48.2332, lon: 14.1875 },
+{ icao: "LOWK", city: "Klagenfurt", lat: 46.6425, lon: 14.3375 },
+{ icao: "LSGG", city: "Geneva", lat: 46.2381, lon: 6.1090 },
+{ icao: "LSZB", city: "Bern", lat: 46.9141, lon: 7.4971 },
+{ icao: "LSZA", city: "Lugano", lat: 46.0043, lon: 8.9106 },
+{ icao: "LSZS", city: "Samedan", lat: 46.5341, lon: 9.8842 },
 ];
 
 const allAircraftTypes = [
@@ -846,13 +886,19 @@ Deno.serve(async (req) => {
       };
 
       let attempts = 0;
-      while (attempts < 60) {
+      const perHangarTarget = 8;
+      // Aircraft pool used for compatibility check: prefer aircraft stationed
+      // at this hangar, but fall back to ALL the user's filtered aircraft so
+      // we don't accidentally mark a contract as incompatible just because
+      // the hangar/aircraft assignment data is stale or missing.
+      const fulfillmentPool = hangarAircraft.length > 0 ? hangarAircraft : filteredAircraft;
+      while (attempts < 120) {
         attempts++;
         const acType = randomItem(typePool);
         const contract = generateContract(company.id, acType, company.level || 1, genOptions);
         if (!contract) continue;
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
-        const canFulfill = hangarAircraft.some((plane) => {
+        const canFulfill = fulfillmentPool.some((plane) => {
           const typeMatch = contract.required_aircraft_type.includes(plane.type);
           const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
           const rangeMatch = !contract.distance_nm || (plane.range_nm && plane.range_nm >= contract.distance_nm);
@@ -877,7 +923,7 @@ Deno.serve(async (req) => {
         const perHangarGenerated =
           compatibleContracts.filter((entry) => entry.hangar_id === hangar.id).length
           + incompatibleContracts.filter((entry) => entry.hangar_id === hangar.id).length;
-        if (perHangarGenerated >= 4) break;
+        if (perHangarGenerated >= perHangarTarget) break;
       }
     }
 
