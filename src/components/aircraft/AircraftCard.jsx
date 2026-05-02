@@ -402,12 +402,36 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
       await queryClient.refetchQueries({ queryKey: ['aircraft'] });
       setIsInsuranceDialogOpen(false);
     },
-    onError: () => {
+    onError: (err) => {
+      const msg = String(err?.message || '');
+      // Detect cooldown error from backend (HTTP 429 / insurance_cooldown).
+      if (/insurance_cooldown|429|24 hours|24h/i.test(msg)) {
+        setInsuranceError(lang === 'de'
+          ? 'Versicherung kann nur einmal pro 24 Stunden gewechselt werden.'
+          : 'Insurance can only be changed once every 24 hours.');
+        // Roll back optimistic change.
+        setOptimisticInsurancePlan(null);
+        setSelectedInsurancePlan(activeInsurance.planKey);
+        queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+        return;
+      }
       setInsuranceError(lang === 'de'
         ? 'Server-Speicherung fehlgeschlagen. Lokal bleibt dein Paket aktiv.'
         : 'Server save failed. Your package stays active locally.');
     }
   });
+
+  // 24h cooldown info derived from server-side timestamp on the aircraft record.
+  const insuranceCooldown = React.useMemo(() => {
+    const ts = aircraft?.insurance_changed_at ? new Date(aircraft.insurance_changed_at).getTime() : NaN;
+    if (!Number.isFinite(ts)) return { active: false, hoursRemaining: 0 };
+    const elapsed = Date.now() - ts;
+    const total = 24 * 60 * 60 * 1000;
+    if (elapsed >= total) return { active: false, hoursRemaining: 0 };
+    return { active: true, hoursRemaining: Math.ceil((total - elapsed) / (60 * 60 * 1000)) };
+  }, [aircraft?.insurance_changed_at]);
+  const wouldChangePlan = selectedInsurancePlan !== activeInsurance.planKey;
+  const insuranceSaveBlocked = insuranceCooldown.active && wouldChangePlan;
 
   // Legacy performMaintenanceMutation removed - now handled by MaintenanceCategories component
 
@@ -650,6 +674,13 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                   {insuranceError}
                 </div>
               )}
+              {insuranceCooldown.active && (
+                <div className="p-2 rounded border border-amber-800 bg-amber-950/40 text-xs text-amber-200">
+                  {lang === 'de'
+                    ? `Versicherungswechsel gesperrt – nur einmal alle 24h moeglich. Verbleibend: ~${insuranceCooldown.hoursRemaining}h.`
+                    : `Insurance changes locked – only once every 24h. Remaining: ~${insuranceCooldown.hoursRemaining}h.`}
+                </div>
+              )}
               <div className="p-3 rounded border border-cyan-900/40 bg-slate-950/70 text-xs">
                 <p className="text-slate-200 mb-2">
                   {lang === 'de'
@@ -698,12 +729,14 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
               </Button>
               <Button
                 onClick={() => insuranceMutation.mutate(selectedInsurancePlan)}
-                disabled={insuranceMutation.isPending}
-                className="h-8 text-[10px] bg-cyan-900/50 text-cyan-200 hover:bg-cyan-800 border border-cyan-800"
+                disabled={insuranceMutation.isPending || insuranceSaveBlocked}
+                className="h-8 text-[10px] bg-cyan-900/50 text-cyan-200 hover:bg-cyan-800 border border-cyan-800 disabled:opacity-50"
               >
                 {insuranceMutation.isPending
                   ? (lang === 'de' ? 'Speichern...' : 'Saving...')
-                  : (lang === 'de' ? 'Paket speichern' : 'Save package')}
+                  : insuranceSaveBlocked
+                    ? (lang === 'de' ? `Gesperrt (~${insuranceCooldown.hoursRemaining}h)` : `Locked (~${insuranceCooldown.hoursRemaining}h)`)
+                    : (lang === 'de' ? 'Paket speichern' : 'Save package')}
               </Button>
             </DialogFooter>
           </DialogContent>

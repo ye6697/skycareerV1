@@ -55,11 +55,34 @@ Deno.serve(async (req) => {
 
     const userCompanyId = resolveUserCompanyId(user);
 
+    // 24h cooldown: prevent dynamic insurance switching to game the system.
+    // Only enforce when the plan actually changes (same plan re-save is fine).
+    const currentPlan = String(aircraft.insurance_plan || '').trim().toLowerCase();
+    const isPlanChange = currentPlan && currentPlan !== plan.key;
+    if (isPlanChange && aircraft.insurance_changed_at) {
+      const last = new Date(aircraft.insurance_changed_at).getTime();
+      const now = Date.now();
+      const elapsedMs = now - last;
+      const cooldownMs = 24 * 60 * 60 * 1000;
+      if (Number.isFinite(last) && elapsedMs < cooldownMs) {
+        const remainingMs = cooldownMs - elapsedMs;
+        const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+        return Response.json({
+          error: 'insurance_cooldown',
+          message: `Insurance plan can only be changed once every 24 hours. Try again in ~${remainingHours}h.`,
+          cooldown_remaining_ms: remainingMs,
+          cooldown_remaining_hours: remainingHours,
+          insurance_changed_at: aircraft.insurance_changed_at,
+        }, { status: 429 });
+      }
+    }
+
     await base44.asServiceRole.entities.Aircraft.update(aircraft.id, {
       insurance_plan: plan.key,
       insurance_hourly_rate_pct: plan.hourlyRatePctOfNewValue,
       insurance_maintenance_coverage_pct: plan.maintenanceCoveragePct,
       insurance_score_bonus_pct: plan.scoreBonusPct,
+      insurance_changed_at: new Date().toISOString(),
     });
 
     // Keep in-flight session metadata aligned so result views don't fall back to BASIC.
@@ -96,6 +119,7 @@ Deno.serve(async (req) => {
       insurance_hourly_rate_pct: Number(refreshedAircraft.insurance_hourly_rate_pct ?? plan.hourlyRatePctOfNewValue),
       insurance_maintenance_coverage_pct: Number(refreshedAircraft.insurance_maintenance_coverage_pct ?? plan.maintenanceCoveragePct),
       insurance_score_bonus_pct: Number(refreshedAircraft.insurance_score_bonus_pct ?? plan.scoreBonusPct),
+      insurance_changed_at: refreshedAircraft.insurance_changed_at || null,
     });
   } catch (error: any) {
     return Response.json({ error: error?.message || 'set insurance failed' }, { status: 500 });

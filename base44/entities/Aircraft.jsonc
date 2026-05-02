@@ -196,6 +196,11 @@
       "type": "number",
       "description": "Score bonus per flight from insurance (0-1)"
     },
+    "insurance_changed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the last insurance plan change (used for 24h cooldown)"
+    },
     "market_origin": {
       "type": "string",
       "enum": [

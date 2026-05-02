@@ -3255,7 +3255,7 @@ export default function FlightTracker() {
                     }
                     const fuelUsedKg = Math.max(0, initFuel - curFuel);
                     const fuelUsed = fuelUsedKg * 1.25;
-                    const fuelCost = fuelUsed * 1.2;
+                    const fuelCost = fuelUsed * 1.8;
                     const flightHours = flightStartTime ? (Date.now() - flightStartTime) / 3600000 : (contract?.distance_nm ? contract.distance_nm / 450 : 2);
                     const crewCost = flightHours * 250;
                     const airportFee = 150;
