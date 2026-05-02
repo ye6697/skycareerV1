@@ -211,6 +211,18 @@ export default function XPlaneSetup() {
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const getApiKeyForDownload = async () => {
+    if (apiKey) return apiKey;
+
+    const response = await base44.functions.invoke('ensureApiKey', {});
+    const ensuredApiKey = String(response?.data?.api_key || '').trim();
+    if (!ensuredApiKey) {
+      throw new Error('API key unavailable');
+    }
+    setApiKey(ensuredApiKey);
+    return ensuredApiKey;
+  };
+
   const decodeBase64Zip = (base64) => {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -408,6 +420,7 @@ Port=500
       }
 
       if (!bytes) {
+        const fallbackApiKey = await getApiKeyForDownload();
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
         const payloadCandidates = [
@@ -453,7 +466,7 @@ Port=500
               lastError = `Invalid ZIP bytes @ ${payloadUrl}`;
               continue;
             }
-            let patched = await personalizeBridgePayloadZip(arr, apiKey || '', endpoint);
+            let patched = await personalizeBridgePayloadZip(arr, fallbackApiKey, endpoint);
             if (bootstrapBytes) {
               patched = await mergeBootstrapToolsIntoZip(patched, bootstrapBytes);
             }
