@@ -14,6 +14,8 @@ const TYPE_LABELS_BY_TYPE = {
 import AircraftHangar3D from '@/components/fleet3d/AircraftHangar3D';
 import { userHasTypeRating } from '@/lib/typeRatings';
 import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
+import { resolveAircraftModelConfig } from '@/components/flights/aircraftModelCatalog';
+import { prefetchGLB } from '@/components/flights/glbLoader';
 
 function toListingKey(listing) {
   if (!listing) return '';
@@ -68,6 +70,25 @@ export default function MarketHangar3DView({
       try { child.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (_) { /* noop */ }
     }
   }, [clampedIdx]);
+
+  // Background-prefetch the GLB models for the currently selected aircraft
+  // and its immediate neighbors, plus a small lookahead window. This way, by
+  // the time the user clicks the next/prev arrow, the model is already in the
+  // GLB cache and renders instantly.
+  React.useEffect(() => {
+    if (!Array.isArray(visibleListings) || visibleListings.length === 0) return;
+    const len = visibleListings.length;
+    const offsets = [0, 1, -1, 2, -2];
+    const seen = new Set();
+    for (const off of offsets) {
+      const idx = ((clampedIdx + off) % len + len) % len;
+      if (seen.has(idx)) continue;
+      seen.add(idx);
+      const listing = visibleListings[idx];
+      const cfg = resolveAircraftModelConfig(listing?.name || listing?.model || listing?.type || '');
+      if (cfg?.path) prefetchGLB(cfg.path);
+    }
+  }, [clampedIdx, visibleListings]);
 
   if (!current) {
     return (

@@ -2,10 +2,10 @@
 // first time. Rewards scale with tier so platinum badges feel meaningful while
 // bronze ones are still appreciable boosts.
 export const TIER_REWARDS = {
-  bronze:   { xp: 100,   cash: 200 },
-  silver:   { xp: 500,   cash: 1000 },
-  gold:     { xp: 2000,  cash: 5000 },
-  platinum: { xp: 10000, cash: 25000 },
+  bronze:   { xp: 25,  cash: 2000 },
+  silver:   { xp: 50,  cash: 15000 },
+  gold:     { xp: 150, cash: 50000 },
+  platinum: { xp: 300, cash: 500000 },
 };
 
 export function getRewardForAchievement(achievement) {
