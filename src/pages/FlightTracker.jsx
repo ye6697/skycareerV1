@@ -1385,19 +1385,11 @@ export default function FlightTracker() {
         date: new Date().toISOString()
       });
       
-      // Free up aircraft and crew
+      // Free up aircraft
       if (flight?.aircraft_id) {
         await base44.entities.Aircraft.update(flight.aircraft_id, {
           status: 'available'
         });
-      }
-      
-      if (flight?.crew) {
-        for (const member of flight.crew) {
-          await base44.entities.Employee.update(member.employee_id, {
-            status: 'available'
-          });
-        }
       }
       
       return { penalty };
@@ -1405,7 +1397,6 @@ export default function FlightTracker() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       navigate(createPageUrl("ActiveFlights"));
     }
@@ -1684,30 +1675,12 @@ export default function FlightTracker() {
      let revenue = 0;
      let landingBonusUsed = 0;
      let landingPenaltyUsed = 0;
-     // Calculate crew bonus based on attributes
+     // Crew bonus removed (employee system replaced by type ratings)
      let crewBonusAmount = 0;
      if (!hasCrashed && !wrongAirport) {
        if (emergencyOffAirportCompletion) {
          revenue = Math.round((contract?.payout || 0) * 0.30);
        } else {
-       const activeFl = flight || existingFlight;
-       if (activeFl?.crew && Array.isArray(activeFl.crew)) {
-         // Fetch crew member details for attribute bonuses
-         for (const member of activeFl.crew) {
-           const emps = await base44.entities.Employee.filter({ id: member.employee_id });
-           const emp = emps[0];
-           if (emp?.attributes) {
-             const passengerHandling = emp.attributes.passenger_handling || 50;
-             const efficiency = emp.attributes.efficiency || 50;
-             // Each crew member adds up to 2% of payout per attribute above 50
-             const handlingBonus = ((passengerHandling - 50) / 50) * 0.02 * (contract?.payout || 0);
-             const efficiencyBonus = ((efficiency - 50) / 50) * 0.01 * (contract?.payout || 0);
-             crewBonusAmount += Math.max(0, handlingBonus + efficiencyBonus);
-           }
-         }
-       }
-       crewBonusAmount = Math.round(crewBonusAmount);
-
        revenue = contract?.payout || 0;
        // Bonus/Penalty based on landing quality (G-force based)
        const landingBonus = finalFlightData.landingBonus || 0;
@@ -2198,39 +2171,7 @@ export default function FlightTracker() {
               console.error('❌ KEIN FLUGZEUG GEFUNDEN FÜR UPDATE:', activeFlight);
             }
 
-            // Free up crew - SOFORT Status auf available setzen
-            if (activeFlight?.crew && Array.isArray(activeFlight.crew)) {
-              console.log('🔄 Aktualisiere Crew Status:', activeFlight.crew);
-              for (const member of activeFlight.crew) {
-                // Hole aktuellen Employee um total_flight_hours zu bekommen
-                const employees = await base44.entities.Employee.filter({ id: member.employee_id });
-                const currentEmployee = employees[0];
-                
-                if (currentEmployee) {
-                  // Slowly improve skill_rating based on flight hours (+0.1 per hour, max 100)
-                  const newSkill = Math.min(100, (currentEmployee.skill_rating || 50) + flightHours * 0.1);
-                  // Slowly improve attributes based on flight hours (+0.05 per hour)
-                  const attrs = currentEmployee.attributes || {};
-                  const improvedAttrs = {
-                    nerve: Math.min(100, (attrs.nerve || 50) + flightHours * 0.05),
-                    passenger_handling: Math.min(100, (attrs.passenger_handling || 50) + flightHours * 0.05),
-                    precision: Math.min(100, (attrs.precision || 50) + flightHours * 0.05),
-                    efficiency: Math.min(100, (attrs.efficiency || 50) + flightHours * 0.05),
-                  };
-                  const employeeUpdate = {
-                    status: 'available',
-                    total_flight_hours: (currentEmployee.total_flight_hours || 0) + flightHours,
-                    skill_rating: Math.round(newSkill * 10) / 10,
-                    attributes: improvedAttrs,
-                  };
-                  console.log('✅ Update Employee:', member.employee_id, employeeUpdate);
-                  await base44.entities.Employee.update(member.employee_id, employeeUpdate);
-                } else {
-                  console.error('❌ Employee nicht gefunden:', member.employee_id);
-                }
-              }
-              console.log('✅ Alle Crew-Mitglieder aktualisiert');
-            }
+            // Crew updates removed (employee system replaced by type ratings)
 
             // Calculate actual balance change (revenue - direct costs + level bonus)
             const actualProfit = profit + levelBonus;

@@ -54,8 +54,6 @@ import CompletedFlightDetails from './pages/CompletedFlightDetails';
 import ContractDetails from './pages/ContractDetails';
 import Contracts from './pages/Contracts';
 import Dashboard from './pages/Dashboard';
-import EmployeeDetails from './pages/EmployeeDetails';
-import Employees from './pages/Employees';
 import Finances from './pages/Finances';
 import Fleet from './pages/Fleet';
 import FlightHistory from './pages/FlightHistory';
@@ -83,8 +81,6 @@ export const PAGES = {
     "ContractDetails": ContractDetails,
     "Contracts": Contracts,
     "Dashboard": Dashboard,
-    "EmployeeDetails": EmployeeDetails,
-    "Employees": Employees,
     "Finances": Finances,
     "Fleet": Fleet,
     "FlightHistory": FlightHistory,

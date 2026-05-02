@@ -60,14 +60,6 @@ export default function InsolvencyBanner() {
         }
       }
 
-      // Terminate all employees
-      const employees = await base44.entities.Employee.filter({ company_id: company.id });
-      for (const emp of employees) {
-        if (emp.status !== 'terminated') {
-          await base44.entities.Employee.update(emp.id, { status: 'terminated' });
-        }
-      }
-
       // Cancel all active contracts
       const contracts = await base44.entities.Contract.filter({ company_id: company.id });
       for (const c of contracts) {
@@ -145,7 +137,6 @@ export default function InsolvencyBanner() {
               <li>{de ? 'Reputation wird auf 0 gesetzt' : 'Reputation reset to 0'}</li>
               <li>{de ? 'Kreditwürdigkeit wird auf 0 gesetzt' : 'Credit score reset to 0'}</li>
               <li>{de ? 'Alle Flugzeuge werden entfernt' : 'All aircraft removed'}</li>
-              <li>{de ? 'Alle Mitarbeiter werden entlassen' : 'All employees terminated'}</li>
               <li>{de ? 'Aktive Aufträge werden storniert' : 'Active contracts cancelled'}</li>
               <li>{de ? 'Aktiver Kredit wird gelöscht' : 'Active loan cleared'}</li>
             </ul>

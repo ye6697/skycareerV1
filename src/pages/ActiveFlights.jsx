@@ -28,13 +28,11 @@ import { getInsurancePlanConfig, INSURANCE_PACKAGES } from "@/lib/insurance";
 
 import {
   Plane,
-  Users,
   MapPin,
   ArrowRight,
   AlertCircle,
   CheckCircle,
-  Play,
-  User } from
+  Play } from
 "lucide-react";
 
 export default function ActiveFlights() {
@@ -43,12 +41,6 @@ export default function ActiveFlights() {
   const [selectedContract, setSelectedContract] = useState(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState('');
-  const [selectedCrew, setSelectedCrew] = useState({
-    captain: '',
-    first_officer: '',
-    flight_attendant: '',
-    loadmaster: ''
-  });
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -97,12 +89,6 @@ export default function ActiveFlights() {
   const { data: aircraft = [] } = useQuery({
     queryKey: ['aircraft', 'available', company?.id],
     queryFn: () => base44.entities.Aircraft.filter({ company_id: company.id, status: 'available' }),
-    enabled: !!company?.id
-  });
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'available', company?.id],
-    queryFn: () => base44.entities.Employee.filter({ company_id: company.id, status: 'available' }),
     enabled: !!company?.id
   });
 
@@ -172,9 +158,7 @@ export default function ActiveFlights() {
         company_id: company.id,
         contract_id: selectedContract.id,
         aircraft_id: selectedAircraft,
-        crew: Object.entries(selectedCrew).
-        filter(([_, id]) => id).
-        map(([role, id]) => ({ role, employee_id: id })),
+        crew: [],
         departure_time: new Date().toISOString(),
         status: 'in_flight',
         active_failures: [],
@@ -214,23 +198,14 @@ export default function ActiveFlights() {
       // Update aircraft status
       await base44.entities.Aircraft.update(selectedAircraft, { status: 'in_flight' });
 
-      // Update crew status
-      for (const [role, id] of Object.entries(selectedCrew)) {
-        if (id) {
-          await base44.entities.Employee.update(id, { status: 'on_duty' });
-        }
-      }
-
       return flight;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
       setIsAssignDialogOpen(false);
       setSelectedContract(null);
       setSelectedAircraft('');
-      setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
     }
   });
 
@@ -277,55 +252,18 @@ export default function ActiveFlights() {
         });
       }
 
-      if (activeFlight?.crew) {
-        for (const member of activeFlight.crew) {
-          await base44.entities.Employee.update(member.employee_id, {
-            status: 'available'
-          });
-        }
-      }
-
       return { penalty };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['flights'] });
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
     }
   });
 
-  const getCrewRequirement = (contract, role) => {
-    return contract?.required_crew?.[role] || 0;
-  };
-
-  const isCrewComplete = (contract) => {
-    if (!contract?.required_crew) return true;
-
-    for (const [role, required] of Object.entries(contract.required_crew)) {
-      if (required > 0 && (!selectedCrew[role] || selectedCrew[role] === '__none__')) return false;
-    }
-    return true;
-  };
-
   const canStartFlight = () => {
-    return selectedAircraft && isCrewComplete(selectedContract);
-  };
-
-  const getRoleLabel = (role) => {
-    const labels = lang === 'de' ? {
-      captain: 'Kapitaen',
-      first_officer: 'Erster Offizier',
-      flight_attendant: 'Flugbegleiter/in',
-      loadmaster: 'Lademeister'
-    } : {
-      captain: 'Captain',
-      first_officer: 'First Officer',
-      flight_attendant: 'Flight Attendant',
-      loadmaster: 'Loadmaster'
-    };
-    return labels[role] || role;
+    return Boolean(selectedAircraft);
   };
 
   const allContracts = [...contracts, ...inProgressContracts];
@@ -462,23 +400,6 @@ export default function ActiveFlights() {
                       }
                         </div>
                       </div>
-
-                      {/* Required Crew */}
-                      {contract.required_crew &&
-                  <div className="flex items-center gap-4 mb-4 p-3 bg-slate-900 rounded-lg">
-                          <span className="text-sm text-slate-400">{t('required_crew', lang)}:</span>
-                          <div className="flex items-center gap-3">
-                            {Object.entries(contract.required_crew).map(([role, count]) =>
-                      count > 0 &&
-                      <Badge key={role} variant="outline" className="text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 flex items-center gap-1">
-                                  <User className="w-3 h-3" />
-                                  {count}x {getRoleLabel(role)}
-                                </Badge>
-
-                      )}
-                          </div>
-                        </div>
-                  }
 
                       <div className="flex justify-end gap-2">
                         {contract.status === 'accepted' &&
@@ -710,67 +631,6 @@ export default function ActiveFlights() {
                 <p className="text-sm text-red-500">{t('no_available_aircraft', lang)}</p>
                 }
               </div>
-
-              {/* Crew Selection */}
-              <div className="space-y-4">
-                <Label className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  {t('assign_crew', lang)}
-                </Label>
-
-                {['captain', 'first_officer', 'flight_attendant', 'loadmaster'].map((role) => {
-                  const required = getCrewRequirement(selectedContract, role);
-                  const roleEmployees = employees.filter((e) => e.role === role);
-
-                  if (required === 0 && roleEmployees.length === 0) return null;
-
-                  return (
-                    <div key={role} className="flex items-center gap-4">
-                      <div className="w-40">
-                        <span className="text-sm font-medium">
-                          {getRoleLabel(role)}
-                          {required > 0 && <span className="text-red-100 ml-1">*</span>}
-                        </span>
-                      </div>
-                      <Select
-                        value={selectedCrew[role]}
-                        onValueChange={(value) => setSelectedCrew({ ...selectedCrew, [role]: value === 'none' ? '' : value })}>
-
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder={`${getRoleLabel(role)}...`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">{t('do_not_assign', lang)}</SelectItem>
-                          {roleEmployees.map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              {emp.name} (Skill: {emp.skill_rating})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {required > 0 && !selectedCrew[role] &&
-                      <AlertCircle className="w-5 h-5 text-amber-100" />
-                      }
-                      {selectedCrew[role] &&
-                      <CheckCircle className="w-5 h-5 text-emerald-100" />
-                      }
-                    </div>);
-
-                })}
-              </div>
-
-              {/* Warning */}
-              {!isCrewComplete(selectedContract) &&
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-amber-800">{t('incomplete_crew', lang)}</p>
-                    <p className="text-sm text-amber-700">
-                      {t('incomplete_crew_msg', lang)}
-                    </p>
-                  </div>
-                </div>
-              }
 
             </div>
 

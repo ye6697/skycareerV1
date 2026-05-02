@@ -23,9 +23,8 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
       if (!company) return;
 
       // Delete all company data
-      const [aircraft, employees, flights, contracts, transactions, logs] = await Promise.all([
+      const [aircraft, flights, contracts, transactions, logs] = await Promise.all([
         base44.entities.Aircraft.filter({ company_id: company.id }),
-        base44.entities.Employee.filter({ company_id: company.id }),
         base44.entities.Flight.filter({ company_id: company.id }),
         base44.entities.Contract.filter({ company_id: company.id }),
         base44.entities.Transaction.filter({ company_id: company.id }),
@@ -40,7 +39,6 @@ export default function DeleteAccountDialog({ open, onOpenChange, company }) {
 
       await Promise.all([
         deleteAll(aircraft, base44.entities.Aircraft),
-        deleteAll(employees, base44.entities.Employee),
         deleteAll(flights, base44.entities.Flight),
         deleteAll(contracts, base44.entities.Contract),
         deleteAll(transactions, base44.entities.Transaction),

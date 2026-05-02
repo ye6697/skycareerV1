@@ -65,34 +65,6 @@ export default function Setup() {
         image_url: template?.image_url
       });
 
-      // Create starter employees
-      await base44.entities.Employee.bulkCreate([
-        {
-          company_id: company.id,
-          name: "Max Mustermann",
-          role: "captain",
-          experience_level: "intermediate",
-          skill_rating: 65,
-          salary_per_month: 4500,
-          status: "available",
-          hired_date: new Date().toISOString().split('T')[0],
-          total_flight_hours: 850,
-          licenses: ["small_prop", "turboprop"]
-        },
-        {
-          company_id: company.id,
-          name: "Anna Schmidt",
-          role: "first_officer",
-          experience_level: "junior",
-          skill_rating: 55,
-          salary_per_month: 3000,
-          status: "available",
-          hired_date: new Date().toISOString().split('T')[0],
-          total_flight_hours: 320,
-          licenses: ["small_prop"]
-        }
-      ]);
-
       // Create sample contracts
       await base44.entities.Contract.bulkCreate([
         {
@@ -291,7 +263,7 @@ export default function Setup() {
                       <ul className="text-sm text-blue-200/80 mt-2 space-y-1">
                         <li>• $500.000 Startkapital</li>
                         <li>• 1x Cessna 172 Skyhawk</li>
-                        <li>• 2 Piloten (Kapitän + Erster Offizier)</li>
+                        <li>• 1 Type-Rating (Cessna 172)</li>
                         <li>• 3 Starter-Aufträge</li>
                       </ul>
                     </div>

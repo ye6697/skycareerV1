@@ -11,7 +11,7 @@ import SubscriptionPaywall from "@/components/subscription/SubscriptionPaywall";
 import {
         LayoutDashboard,
         FileText,
-        Users,
+        GraduationCap,
         Plane,
         DollarSign,
         History,
@@ -33,7 +33,7 @@ function getNavItems(lang) {
     { name: t('nav_dashboard', lang), icon: LayoutDashboard, path: "Dashboard" },
     { name: t('nav_contracts', lang), icon: FileText, path: "Contracts" },
     { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights" },
-    { name: lang === 'de' ? 'Type-Ratings' : 'Type Ratings', icon: Users, path: "TypeRatings" },
+    { name: lang === 'de' ? 'Type-Ratings' : 'Type Ratings', icon: GraduationCap, path: "TypeRatings" },
     { name: t('nav_fleet', lang), icon: Plane, path: "Fleet" },
     { name: t('nav_finances', lang), icon: DollarSign, path: "Finances" },
     { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory" },

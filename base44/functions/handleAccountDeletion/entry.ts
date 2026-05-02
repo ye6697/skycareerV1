@@ -17,9 +17,8 @@ Deno.serve(async (req) => {
     }
 
     // Use service role to delete all associated data
-    const [aircraft, employees, flights, contracts, transactions, logs] = await Promise.all([
+    const [aircraft, flights, contracts, transactions, logs] = await Promise.all([
       base44.asServiceRole.entities.Aircraft.filter({ company_id: companyId }),
-      base44.asServiceRole.entities.Employee.filter({ company_id: companyId }),
       base44.asServiceRole.entities.Flight.filter({ company_id: companyId }),
       base44.asServiceRole.entities.Contract.filter({ company_id: companyId }),
       base44.asServiceRole.entities.Transaction.filter({ company_id: companyId }),
@@ -34,7 +33,6 @@ Deno.serve(async (req) => {
 
     await Promise.all([
       deleteAll(aircraft, 'Aircraft'),
-      deleteAll(employees, 'Employee'),
       deleteAll(flights, 'Flight'),
       deleteAll(contracts, 'Contract'),
       deleteAll(transactions, 'Transaction'),
@@ -45,7 +43,6 @@ Deno.serve(async (req) => {
       success: true, 
       deleted: {
         aircraft: aircraft.length,
-        employees: employees.length,
         flights: flights.length,
         contracts: contracts.length,
         transactions: transactions.length,

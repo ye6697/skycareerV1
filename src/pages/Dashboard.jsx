@@ -8,7 +8,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Plane,
-  Users,
+  GraduationCap,
   Package,
   DollarSign,
   TrendingUp,
@@ -121,14 +121,6 @@ export default function Dashboard() {
 
   const contracts = allContracts.filter(c => c.status === 'available' || !c.company_id);
   const acceptedContracts = allContracts.filter(c => c.status === 'accepted' && c.company_id === companyId);
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees', companyId],
-    queryFn: () => base44.entities.Employee.filter({ company_id: companyId, status: 'available' }),
-    enabled: !!companyId,
-    staleTime: 120000,
-    refetchOnWindowFocus: false,
-  });
 
   const { data: allAircraft = [] } = useQuery({
     queryKey: ['aircraft', 'all', companyId],
@@ -253,7 +245,7 @@ export default function Dashboard() {
           { name: t('nav_contracts', lang), icon: FileText, path: "Contracts", color: "text-blue-400", alert: acceptedContracts.length > 0 },
           { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights", color: "text-emerald-400" },
           { name: t('nav_fleet', lang), icon: Plane, path: "Fleet", color: "text-cyan-400" },
-          { name: t('nav_employees', lang), icon: Users, path: "Employees", color: "text-indigo-400" },
+          { name: lang === 'de' ? 'Type-Ratings' : 'Type Ratings', icon: GraduationCap, path: "TypeRatings", color: "text-indigo-400" },
           { name: t('nav_finances', lang), icon: DollarSign, path: "Finances", color: "text-amber-400" },
           { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory", color: "text-purple-400" },
           { name: "FREE FLIGHT", icon: Plane, path: "FreeFlight", color: "text-violet-400" },
