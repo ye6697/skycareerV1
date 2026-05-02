@@ -316,12 +316,27 @@ export default function ActiveFlights() {
     }
   });
 
+  // Selected aircraft model rating check (only relevant for non-TR contracts)
+  const selectedAircraftObj = React.useMemo(
+    () => aircraft.find((a) => a.id === selectedAircraft) || null,
+    [aircraft, selectedAircraft]
+  );
+  const selectedAircraftMissingRating = React.useMemo(() => {
+    if (!selectedAircraftObj) return false;
+    if (isTrContract(selectedContract)) return false;
+    const modelName = String(selectedAircraftObj?.name || '').trim();
+    if (!modelName) return false;
+    return !userTypeRatings.includes(modelName);
+  }, [selectedAircraftObj, selectedContract, userTypeRatings]);
+
   const canStartFlight = () => {
     if (isTrContract(selectedContract)) {
       // TR mission: any owned aircraft works as a placeholder for the flight record.
       return anyOwnedAircraft.length > 0 || aircraft.length > 0;
     }
-    return Boolean(selectedAircraft);
+    if (!selectedAircraft) return false;
+    if (selectedAircraftMissingRating) return false;
+    return true;
   };
 
   const allContracts = [...contracts, ...inProgressContracts];
@@ -760,6 +775,34 @@ export default function ActiveFlights() {
                     {aircraft.length === 0 &&
                       <p className="text-sm text-red-400">{t('no_available_aircraft', lang)}</p>
                     }
+
+                    {selectedAircraftMissingRating && selectedAircraftObj && (
+                      <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 p-4 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-amber-200">
+                              {lang === 'de' ? 'Type-Rating fehlt' : 'Missing Type-Rating'}
+                            </p>
+                            <p className="text-xs text-amber-300/90 mt-1">
+                              {lang === 'de'
+                                ? `Du hast kein gültiges Type-Rating für die ${selectedAircraftObj.name}. Erwirb das Rating, um diesen Flug starten zu können.`
+                                : `You don't have a valid type-rating for the ${selectedAircraftObj.name}. Earn the rating to start this flight.`}
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          to={createPageUrl(`TypeRatings?model=${encodeURIComponent(selectedAircraftObj.name || '')}`)}
+                          onClick={() => setIsAssignDialogOpen(false)}
+                          className="block"
+                        >
+                          <Button className="w-full h-10 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold">
+                            <GraduationCap className="w-4 h-4 mr-2" />
+                            {lang === 'de' ? 'Type-Rating erwerben' : 'Earn Type-Rating'}
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
                   </>
                 );
               })()}

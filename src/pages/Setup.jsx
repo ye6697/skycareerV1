@@ -32,22 +32,43 @@ export default function Setup() {
 
   const createCompanyMutation = useMutation({
     mutationFn: async (data) => {
-      // Create company
+      const hubIcao = (data.hub_airport || 'EDDF').toUpperCase();
+      const nowIso = new Date().toISOString();
+
+      // Starter hangar: airport_single (1 slot, small_prop) at hub airport.
+      const starterHangarId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `hangar_${Date.now()}`;
+      const starterHangar = {
+        id: starterHangarId,
+        airport_icao: hubIcao,
+        size: 'small',
+        model_variant: 'airport_single',
+        upgrade_tier: 1,
+        purchase_price: 0,
+        slots: 1,
+        allowed_types: ['small_prop'],
+        purchased_at: nowIso,
+      };
+
+      // Create company (with starter hangar at hub)
       const company = await base44.entities.Company.create({
         ...data,
+        hub_airport: hubIcao,
         balance: 500000,
         reputation: 50,
         level: 1,
         total_flights: 0,
         total_passengers: 0,
-        total_cargo_kg: 0
+        total_cargo_kg: 0,
+        hangars: [starterHangar],
       });
 
       // Get template image for Cessna 172 Skyhawk
       const templates = await base44.entities.AircraftTemplate.filter({ name: "Cessna 172 Skyhawk" });
       const template = templates[0];
 
-      // Create starter aircraft
+      // Create starter aircraft (parked in starter hangar)
       await base44.entities.Aircraft.create({
         company_id: company.id,
         name: "Cessna 172 Skyhawk",
@@ -62,7 +83,10 @@ export default function Setup() {
         status: "available",
         total_flight_hours: 0,
         current_value: 425000,
-        image_url: template?.image_url
+        image_url: template?.image_url,
+        hangar_id: starterHangarId,
+        hangar_airport: hubIcao,
+        hangar_model_variant: 'airport_single',
       });
 
       // Create sample contracts
