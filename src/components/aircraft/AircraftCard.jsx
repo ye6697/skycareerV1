@@ -418,9 +418,29 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     companyReputation: company?.reputation || 50,
     baseScore: 100,
   });
-  const displayStatus = (aircraft.status === 'available' && needsMaintenance) 
+  // If the aircraft is flagged as 'maintenance' in the DB but actual wear is
+  // below the maintenance threshold, treat it as 'available' (stale flag from
+  // an earlier flight). This also allows it to be assigned to new contracts.
+  const effectiveStatus = (aircraft.status === 'maintenance' && !needsMaintenance)
+    ? 'available'
+    : aircraft.status;
+  const displayStatus = (effectiveStatus === 'available' && needsMaintenance)
     ? { label: t('maintenance_required', lang), color: "bg-orange-100 text-orange-700 border-orange-200" }
-    : (statusConfig[aircraft.status] || statusConfig.available);
+    : (statusConfig[effectiveStatus] || statusConfig.available);
+
+  // One-time auto-clear: if DB status is 'maintenance' but no maintenance is
+  // actually needed, clear it so other code paths (contracts, fleet filters)
+  // see the aircraft as available again.
+  React.useEffect(() => {
+    if (aircraft?.status === 'maintenance' && !needsMaintenance && aircraft?.id) {
+      base44.entities.Aircraft.update(aircraft.id, { status: 'available' })
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+        })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aircraft?.id, aircraft?.status, needsMaintenance]);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>

@@ -87,15 +87,80 @@ function orientModelToForwardX(root) {
   const baseSize = new THREE.Vector3();
   baseBox.getSize(baseSize);
 
-  if (baseSize.z > baseSize.x * 1.05) {
+  // Use the shape-based estimator first: it samples vertex spread at the X
+  // and Z extremes to figure out which axis the nose actually points along.
+  // For aircraft where wingspan > fuselage length (e.g. Cessna 172), the
+  // simple "longer axis = forward" heuristic is wrong — a high-aspect-ratio
+  // wing makes Z the longest axis even when the nose already points along X.
+  const nose = estimateNoseAxis(root);
+  if (nose.axis === 'z') {
+    // Nose is along Z → rotate so it points along X.
     root.rotation.y += Math.PI / 2;
     root.updateMatrixWorld(true);
+  } else if (nose.axis === null) {
+    // Estimator inconclusive: fall back to the size heuristic.
+    if (baseSize.z > baseSize.x * 1.05) {
+      root.rotation.y += Math.PI / 2;
+      root.updateMatrixWorld(true);
+    }
   }
 
   if (estimateNoseDirection(root) < 0) {
     root.rotation.y += Math.PI;
     root.updateMatrixWorld(true);
   }
+}
+
+// Decide which horizontal axis the nose points along by comparing the radial
+// spread of vertices at the X-extremes vs. the Z-extremes. The nose end has
+// a much smaller cross-section than the tail end (and is much smaller than
+// the wingtips), so the axis with the most asymmetric front/back spread is
+// the longitudinal axis.
+function estimateNoseAxis(root) {
+  const points = collectSampledVertices(root);
+  if (points.length < 50) return { axis: null };
+
+  const computeAsymmetry = (axis) => {
+    let min = Infinity;
+    let max = -Infinity;
+    let meanA = 0;
+    let meanB = 0;
+    points.forEach((p) => {
+      const v = axis === 'x' ? p.x : p.z;
+      min = Math.min(min, v);
+      max = Math.max(max, v);
+      meanA += axis === 'x' ? p.y : p.y;
+      meanB += axis === 'x' ? p.z : p.x;
+    });
+    meanA /= points.length;
+    meanB /= points.length;
+    const length = Math.max(0.001, max - min);
+    const slice = Math.max(0.2, length * 0.09);
+    const front = points.filter((p) => (axis === 'x' ? p.x : p.z) > max - slice);
+    const back = points.filter((p) => (axis === 'x' ? p.x : p.z) < min + slice);
+    if (front.length < 12 || back.length < 12) return 0;
+
+    const radialSpread = (set) => {
+      let sum = 0;
+      set.forEach((p) => {
+        const dA = (axis === 'x' ? p.y : p.y) - meanA;
+        const dB = (axis === 'x' ? p.z : p.x) - meanB;
+        sum += Math.sqrt(dA * dA + dB * dB);
+      });
+      return sum / Math.max(1, set.length);
+    };
+    const fs = radialSpread(front);
+    const bs = radialSpread(back);
+    // Higher = more asymmetric (one end small, the other big) → longitudinal axis.
+    return Math.abs(fs - bs) / Math.max(0.001, Math.max(fs, bs));
+  };
+
+  const asymX = computeAsymmetry('x');
+  const asymZ = computeAsymmetry('z');
+  if (asymX === 0 && asymZ === 0) return { axis: null };
+  // Require a meaningful difference before picking; otherwise stay neutral.
+  if (Math.abs(asymX - asymZ) < 0.05) return { axis: null };
+  return { axis: asymX >= asymZ ? 'x' : 'z' };
 }
 
 function measureBounds(root) {
@@ -252,4 +317,3 @@ export function buildCustomAircraftModel(aircraftHint) {
     modelId: config?.id || 'procedural',
   };
 }
-

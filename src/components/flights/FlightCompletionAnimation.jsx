@@ -40,8 +40,15 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
   const eventsLog = Array.isArray(xpd.flight_events_log) ? xpd.flight_events_log : [];
   const logHas = (type) => eventsLog.some((e) => String(e?.type || '').toLowerCase() === String(type).toLowerCase());
   const legacyEvents = xpd.events || {};
+  // If xpd.events.crash (or top-level xpd.crash) is explicitly set to false,
+  // ignore stale 'crash' entries in flight_events_log (false-positive markers
+  // from the bridge that were never confirmed as a real crash).
+  const authoritativeCrashFalse = (
+    legacyEvents?.crash === false || legacyEvents?.crash === 0 ||
+    xpd?.crash === false || xpd?.crash === 0
+  );
   const events = {
-    crash: !!(legacyEvents.crash || xpd.crash || xpd.has_crashed || logHas('crash')),
+    crash: !!(legacyEvents.crash || xpd.crash || xpd.has_crashed || (!authoritativeCrashFalse && logHas('crash'))),
     tailstrike: !!(legacyEvents.tailstrike || xpd.tailstrike || logHas('tailstrike')),
     stall: !!(legacyEvents.stall || xpd.stall || xpd.is_in_stall || xpd.stall_warning || logHas('stall')),
     overstress: !!(legacyEvents.overstress || xpd.overstress || logHas('overstress')),

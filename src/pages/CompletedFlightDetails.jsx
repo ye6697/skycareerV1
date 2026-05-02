@@ -673,11 +673,20 @@ export default function CompletedFlightDetails() {
                     staticMode={true}
                     title="Flugroute & Flugverlauf"
                     flightPath={fp}
-                    flightEventsLog={
-                      (Array.isArray(xpd.flight_events_log) && xpd.flight_events_log.length > 0)
+                    flightEventsLog={(() => {
+                      const rawLog = (Array.isArray(xpd.flight_events_log) && xpd.flight_events_log.length > 0)
                         ? xpd.flight_events_log
-                        : (Array.isArray(xpd.bridge_event_log) ? xpd.bridge_event_log : [])
-                    }
+                        : (Array.isArray(xpd.bridge_event_log) ? xpd.bridge_event_log : []);
+                      // Filter out stale 'crash' markers when xplane_data.events.crash
+                      // is explicitly false (false-positive from earlier session/bridge).
+                      const events = xpd.events || {};
+                      const authoritativeCrashFalse = events?.crash === false || events?.crash === 0;
+                      if (!authoritativeCrashFalse) return rawLog;
+                      return rawLog.filter((entry) => {
+                        const type = String((typeof entry === 'string' ? entry : entry?.type) || '').toLowerCase();
+                        return type !== 'crash' && type !== 'crashed' && type !== 'has_crashed';
+                      });
+                    })()}
                     routeWaypoints={mapRouteWaypoints}
                     departureCoords={depLat ? { lat: depLat, lon: depLon } : null}
                     arrivalCoords={arrLat ? { lat: arrLat, lon: arrLon } : null}
@@ -1183,10 +1192,18 @@ export default function CompletedFlightDetails() {
                       if (type === "flaps_overspeeding") return "flaps_overspeed";
                       return type;
                     };
+                    // Authoritative crash flag from xplane_data.events.crash.
+                    // Some bridge sessions persist stale crash markers in the
+                    // flight_events_log (e.g. SimConnect "crash" pings during
+                    // a normal landing roll). If events.crash is explicitly
+                    // false, ignore any "crash" entries in the event log so
+                    // they don't show up as a phantom incident.
+                    const authoritativeCrashFalse = events?.crash === false || events?.crash === 0;
                     const logTypes = new Set(
                       [...rawFlightEventsLog, ...rawBridgeEventsLog]
                         .map((entry) => normalizeEventType(typeof entry === "string" ? entry : entry?.type))
                         .filter(Boolean)
+                        .filter((type) => !(authoritativeCrashFalse && type === "crash"))
                     );
                     const isTruthyEvent = (value) => (
                       value === true ||
