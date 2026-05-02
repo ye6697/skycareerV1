@@ -112,8 +112,8 @@ function hasHotspotScreenChanged(previous, next) {
     const curr = next?.[key];
     if (!prev || !curr) return true;
     if (prev.visible !== curr.visible) return true;
-    if (Math.abs((prev.x || 0) - (curr.x || 0)) > 0.8) return true;
-    if (Math.abs((prev.y || 0) - (curr.y || 0)) > 0.8) return true;
+    if (Math.abs((prev.x || 0) - (curr.x || 0)) > 3) return true;
+    if (Math.abs((prev.y || 0) - (curr.y || 0)) > 3) return true;
   }
   return false;
 }
@@ -361,6 +361,11 @@ export default function AircraftHangar3D({ aircraft }) {
     const el = mountRef.current;
     if (!el) return;
     const onDown = (e) => {
+      // Click on empty area while popup is open → close popup.
+      if (!e.target.closest('button, [data-popup]')) {
+        setSelectedCategory(null);
+        setPopupAnchor(null);
+      }
       if (e.target.closest('button, [data-popup]')) return;
       try { el.setPointerCapture(e.pointerId); } catch (_) {}
       dragStateRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, pid: e.pointerId, moved: 0 };
