@@ -24,23 +24,49 @@ const departureIcon = new L.DivIcon({
   iconAnchor: [7, 7],
 });
 
+// Modern neon "stecknadel" pin for arrivals: tall pin with a glowing head,
+// a thin neck and a sharp point that anchors exactly on the airport coord.
 const arrivalIcon = new L.DivIcon({
-  html: `<div style="width:14px;height:14px;border-radius:999px;background:#f59e0b;border:2px solid #451a03;box-shadow:0 0 10px rgba(245,158,11,.75)"></div>`,
+  html: `
+    <div style="position:relative;width:22px;height:34px;pointer-events:auto;filter:drop-shadow(0 0 6px rgba(244,114,182,0.85));">
+      <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:14px;height:14px;border-radius:999px;background:radial-gradient(circle at 35% 30%,#fda4af,#ec4899 60%,#831843);border:1.5px solid #fce7f3;box-shadow:0 0 10px #ec4899,0 0 18px rgba(236,72,153,0.6);"></div>
+      <div style="position:absolute;left:50%;top:12px;transform:translateX(-50%);width:2px;height:18px;background:linear-gradient(180deg,#ec4899,rgba(236,72,153,0));"></div>
+      <div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:6px solid #ec4899;"></div>
+    </div>
+  `,
   className: "",
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
+  iconSize: [22, 34],
+  iconAnchor: [11, 34],
 });
 
-const DIFFICULTY_COLORS = {
-  easy: "#22d3ee",
-  medium: "#22d3ee",
-  hard: "#f59e0b",
-  extreme: "#f87171",
-};
+// Vibrant palette for routes: each contract gets a stable color picked from
+// this list via a deterministic hash of its id, so the map is multi-colored
+// like a flight network diagram.
+const ROUTE_PALETTE = [
+  "#22d3ee", // cyan
+  "#a78bfa", // violet
+  "#f472b6", // pink
+  "#fbbf24", // amber
+  "#34d399", // emerald
+  "#60a5fa", // blue
+  "#f87171", // red
+  "#fb923c", // orange
+  "#c084fc", // purple
+  "#2dd4bf", // teal
+];
+
+function hashString(value) {
+  const str = String(value || "");
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
 
 function getRouteColor(contract) {
-  const diff = String(contract?.difficulty || "medium").toLowerCase();
-  return DIFFICULTY_COLORS[diff] || "#22d3ee";
+  const key = contract?.id || `${contract?.departure_airport}-${contract?.arrival_airport}`;
+  return ROUTE_PALETTE[hashString(key) % ROUTE_PALETTE.length];
 }
 
 // Build a "LIVE MAP" style airport marker.
@@ -48,11 +74,10 @@ function getRouteColor(contract) {
 // - Market: small ORANGE DOT only; ICAO code appears only at very high zoom
 // - Selected: bright cyan ICAO bubble (always shows code)
 function buildIcaoBubbleIcon({ icao, owned, selected, showLabel }) {
-  // Market (not owned, not selected) → simple orange dot until zoomed in
+  // Market (not owned, not selected) → simple static orange dot until zoomed in
   if (!owned && !selected && !showLabel) {
     const dotHtml = `
       <div style="position:relative;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
-        <div style="position:absolute;inset:-6px;border-radius:999px;border:1px solid rgba(251,146,60,0.55);opacity:0.6;animation:icaoPulse 2.6s ease-out infinite;"></div>
         <div style="width:9px;height:9px;border-radius:999px;background:#fb923c;border:1.5px solid rgba(2,6,23,0.85);box-shadow:0 0 10px rgba(251,146,60,0.7);"></div>
       </div>
     `;
@@ -71,7 +96,6 @@ function buildIcaoBubbleIcon({ icao, owned, selected, showLabel }) {
   const glow = selected ? "0 0 18px rgba(56,189,248,0.7)" : owned ? "0 0 14px rgba(34,197,94,0.55)" : "0 0 14px rgba(251,146,60,0.55)";
   const html = `
     <div style="position:relative;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
-      <div style="position:absolute;inset:-10px;border-radius:999px;border:1.5px solid ${ringColor};opacity:0.55;animation:icaoPulse 2.2s ease-out infinite;"></div>
       <div style="position:relative;padding:4px 10px;border-radius:999px;background:${bg};border:1.5px solid ${borderColor};color:${textColor};font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;box-shadow:${glow};white-space:nowrap;">
         ${icao}
       </div>

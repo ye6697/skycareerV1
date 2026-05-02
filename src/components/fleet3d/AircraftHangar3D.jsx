@@ -350,18 +350,26 @@ export default function AircraftHangar3D({ aircraft }) {
         parent.updateMatrixWorld(true);
         const inverseMatrix = new THREE.Matrix4().copy(parent.matrixWorld).invert();
 
+        // Scale hotspot spheres proportionally to the aircraft's diagonal
+        // size so a Cessna and an A380 both get visually similar dot sizes.
+        // Clamp to a sensible range so very tiny / very huge models still
+        // produce readable markers.
+        const diag = Math.sqrt(size.x * size.x + size.y * size.y + size.z * size.z);
+        const sphereR = Math.max(0.35, Math.min(1.4, diag * 0.018));
+        const haloR = sphereR * 1.85;
+
         const hotspotMeshes = {};
         Object.entries(worldPositions).forEach(([key, worldPos]) => {
           const localPos = worldPos.clone().applyMatrix4(inverseMatrix);
           const sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(0.6, 16, 12),
+            new THREE.SphereGeometry(sphereR, 16, 12),
             new THREE.MeshBasicMaterial({ color: getHotspotColor(wear.total[key] || 0), depthTest: true })
           );
           sphere.position.copy(localPos);
           sphere.userData.key = key;
           parent.add(sphere);
           const halo = new THREE.Mesh(
-            new THREE.SphereGeometry(1.1, 16, 12),
+            new THREE.SphereGeometry(haloR, 16, 12),
             new THREE.MeshBasicMaterial({
               color: getHotspotColor(wear.total[key] || 0),
               transparent: true,
