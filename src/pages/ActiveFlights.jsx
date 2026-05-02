@@ -98,6 +98,17 @@ export default function ActiveFlights() {
     enabled: !!company?.id
   });
 
+  // For TR missions, any owned (non-sold) aircraft works as a placeholder
+  // for the flight record — the sim handles the actual training aircraft.
+  const { data: anyOwnedAircraft = [] } = useQuery({
+    queryKey: ['aircraft', 'any-owned', company?.id],
+    queryFn: async () => {
+      const all = await base44.entities.Aircraft.filter({ company_id: company.id });
+      return Array.isArray(all) ? all.filter((a) => String(a?.status || '').toLowerCase() !== 'sold') : [];
+    },
+    enabled: !!company?.id
+  });
+
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
     queryFn: () => base44.auth.me(),
@@ -123,11 +134,19 @@ export default function ActiveFlights() {
       // not own — pick any available owned aircraft just to satisfy the
       // flight record (the sim handles the actual training evaluation).
       const isTr = isTrContract(selectedContract);
+      // For TR: pick any owned aircraft (even non-available) as placeholder.
+      const trFallback = anyOwnedAircraft[0] || aircraft[0];
       const aircraftIdToUse = isTr
-        ? (selectedAircraft || aircraft[0]?.id)
+        ? (selectedAircraft || trFallback?.id)
         : selectedAircraft;
-      const ac = aircraft.find((a) => a.id === aircraftIdToUse);
-      if (!ac) throw new Error(lang === 'de' ? 'Kein Flugzeug verfügbar' : 'No aircraft available');
+      const ac = isTr
+        ? (anyOwnedAircraft.find((a) => a.id === aircraftIdToUse) || aircraft.find((a) => a.id === aircraftIdToUse) || trFallback)
+        : aircraft.find((a) => a.id === aircraftIdToUse);
+      if (!ac) {
+        throw new Error(lang === 'de'
+          ? 'Du brauchst mindestens ein Flugzeug in deiner Flotte (egal welcher Typ).'
+          : 'You need at least one aircraft in your fleet (any type).');
+      }
       if (!isTr) {
         // Validate aircraft is suitable for contract
         if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
@@ -227,8 +246,11 @@ export default function ActiveFlights() {
       // Update contract status
       await base44.entities.Contract.update(selectedContract.id, { status: 'in_progress' });
 
-      // Update aircraft status
-      await base44.entities.Aircraft.update(aircraftIdToUse, { status: 'in_flight' });
+      // Update aircraft status — but only if it isn't already in flight
+      // (TR missions may reuse an aircraft that's busy in another sim session).
+      if (!isTr || String(ac?.status || '').toLowerCase() === 'available') {
+        await base44.entities.Aircraft.update(aircraftIdToUse, { status: 'in_flight' });
+      }
 
       return flight;
     },
@@ -297,7 +319,7 @@ export default function ActiveFlights() {
   const canStartFlight = () => {
     if (isTrContract(selectedContract)) {
       // TR mission: any owned aircraft works as a placeholder for the flight record.
-      return aircraft.length > 0;
+      return anyOwnedAircraft.length > 0 || aircraft.length > 0;
     }
     return Boolean(selectedAircraft);
   };
