@@ -42,6 +42,36 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
     staleTime: 5000,
   });
 
+  // Helper: create the 3 training contracts for this model.
+  async function createTrainingContracts() {
+    const hub = company.hub_airport || 'EDDF';
+    const now = Date.now();
+    const presetRoutes = [
+      { from: hub, to: hub === 'EDDM' ? 'EDDF' : 'EDDM', dist: 80 },
+      { from: hub, to: hub === 'EDDH' ? 'EDDF' : 'EDDH', dist: 95 },
+      { from: hub, to: hub === 'EDDS' ? 'EDDF' : 'EDDS', dist: 70 },
+    ];
+    await Promise.all(presetRoutes.map((r, i) =>
+      base44.entities.Contract.create({
+        company_id: company.id,
+        title: `Type-Rating: ${modelName} (${i + 1}/3)`,
+        briefing: `__TR__:${modelName}`,
+        type: 'charter',
+        departure_airport: r.from,
+        arrival_airport: r.to,
+        distance_nm: r.dist,
+        payout: 5000,
+        deadline: new Date(now + 7 * 24 * 3600 * 1000).toISOString(),
+        required_aircraft_type: [aircraft.type],
+        required_crew: { captain: 1 },
+        status: 'available',
+        difficulty: 'easy',
+        level_requirement: 1,
+        bonus_potential: 2000,
+      })
+    ));
+  }
+
   // Pay & generate 3 training mission contracts (status=available so the
   // player can pick one and accept it from this popup).
   const startMission = useMutation({
@@ -52,33 +82,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
         aircraftType: aircraft.type,
         company,
       });
-
-      const hub = company.hub_airport || 'EDDF';
-      const now = Date.now();
-      const presetRoutes = [
-        { from: hub, to: hub === 'EDDM' ? 'EDDF' : 'EDDM', dist: 80 },
-        { from: hub, to: hub === 'EDDH' ? 'EDDF' : 'EDDH', dist: 95 },
-        { from: hub, to: hub === 'EDDS' ? 'EDDF' : 'EDDS', dist: 70 },
-      ];
-      await Promise.all(presetRoutes.map((r, i) =>
-        base44.entities.Contract.create({
-          company_id: company.id,
-          title: `Type-Rating: ${modelName} (${i + 1}/3)`,
-          briefing: `__TR__:${modelName}`,
-          type: 'charter',
-          departure_airport: r.from,
-          arrival_airport: r.to,
-          distance_nm: r.dist,
-          payout: 5000,
-          deadline: new Date(now + 7 * 24 * 3600 * 1000).toISOString(),
-          required_aircraft_type: [aircraft.type],
-          required_crew: { captain: 1 },
-          status: 'available',
-          difficulty: 'easy',
-          level_requirement: 1,
-          bonus_potential: 2000,
-        })
-      ));
+      await createTrainingContracts();
       return { paid };
     },
     onSuccess: () => {
@@ -86,6 +90,21 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
       queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      refetchTraining();
+    },
+  });
+
+  // Recovery: if user already paid (active rating exists) but no contracts
+  // are present (e.g. previous create call failed or contracts were deleted),
+  // allow them to regenerate the 3 missions for free.
+  const regenContracts = useMutation({
+    mutationFn: async () => {
+      if (!aircraft || !company) throw new Error('Missing data');
+      await createTrainingContracts();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
       refetchTraining();
     },
   });
@@ -192,9 +211,27 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                   {/* Training contract cards */}
                   <div className="space-y-2">
                     {trainingContracts.length === 0 && (
-                      <p className="text-xs text-slate-400 italic text-center py-3">
-                        {lang === 'de' ? 'Aufträge werden generiert…' : 'Generating contracts…'}
-                      </p>
+                      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-center space-y-3">
+                        <p className="text-xs text-amber-200">
+                          {lang === 'de'
+                            ? 'Keine Trainingsaufträge gefunden. Klicke unten, um sie (erneut) zu erzeugen.'
+                            : 'No training contracts found. Click below to (re)generate them.'}
+                        </p>
+                        <Button
+                          onClick={() => regenContracts.mutate()}
+                          disabled={regenContracts.isPending}
+                          className="h-9 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold"
+                        >
+                          {regenContracts.isPending
+                            ? (lang === 'de' ? 'Erzeuge…' : 'Generating…')
+                            : (lang === 'de' ? 'Aufträge erzeugen' : 'Generate contracts')}
+                        </Button>
+                        {regenContracts.isError && (
+                          <p className="text-xs text-red-400">
+                            {String(regenContracts.error?.message || 'Error')}
+                          </p>
+                        )}
+                      </div>
                     )}
                     {trainingContracts.map((contract, idx) => {
                       const status = String(contract?.status || 'available').toLowerCase();
