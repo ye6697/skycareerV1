@@ -32,6 +32,7 @@ import { t } from "@/components/i18n/translations";
 import { useToast } from "@/components/ui/use-toast";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
 import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
+import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
 const AIRCRAFT_MARKET_SPECS = [
@@ -1532,7 +1533,8 @@ export default function Fleet() {
                             <div className="flex justify-between"><span className="text-slate-500">CGO</span><span className="text-cyan-100">{ac.cargo_capacity_kg}kg</span></div>
                             <div className="flex justify-between"><span className="text-slate-500">BURN</span><span className="text-cyan-100">{ac.fuel_consumption_per_hour}L/h</span></div>
                             <div className="flex justify-between"><span className="text-slate-500">RNG</span><span className="text-cyan-100">{ac.range_nm}NM</span></div>
-                            <div className="flex justify-between col-span-2"><span className="text-slate-500">MIN LVL</span><span className={hasLevel ? 'text-emerald-400' : 'text-amber-400'}>{ac.level_requirement || 1}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">SPD</span><span className="text-cyan-100">{getCruiseSpeedForModel(ac.name, ac.type)}kt</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">MIN LVL</span><span className={hasLevel ? 'text-emerald-400' : 'text-amber-400'}>{ac.level_requirement || 1}</span></div>
                             {ac.marketType === 'used' &&
                             <div className="flex justify-between col-span-2">
                                 <span className="text-slate-500">{lang === 'de' ? 'ALTER / HRS' : 'AGE / HRS'}</span>

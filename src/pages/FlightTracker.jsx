@@ -1437,13 +1437,10 @@ export default function FlightTracker() {
      // KRITISCH: Wenn Crash erkannt wurde (egal ob im State oder via has_crashed), 
      // stelle sicher dass das crash-Event gesetzt ist
     if (finalFlightData.events && !finalFlightData.events.crash) {
-     const latestXPlane = latestFlight?.xplane_data || activeFlight?.xplane_data;
-      const trustedCrash = !!latestXPlane?.crash;
-      if (trustedCrash) {
-        finalFlightData = {
-          ...finalFlightData,
-          events: { ...finalFlightData.events, crash: true }
-        };
+      const latestXPlane = latestFlight?.xplane_data || activeFlight?.xplane_data;
+      // Only trust simconnect_crash_event - persisted "crash" can be sticky/stale.
+      if (!!(latestXPlane?.simconnect_crash_event || latestXPlane?.simconnectCrashEvent)) {
+        finalFlightData = { ...finalFlightData, events: { ...finalFlightData.events, crash: true } };
       }
     }
      

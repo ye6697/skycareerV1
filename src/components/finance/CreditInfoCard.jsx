@@ -73,8 +73,11 @@ export default function CreditInfoCard({ company, fleetValue }) {
   const overdraftAvailable = overdraftEnabled ? Math.max(0, overdraftLimit - overdraftUsed) : 0;
   const overdraftInterestDaily = 0.5;
 
-  // Loan
-  const maxLoan = level * 25000 + Math.max(0, balance) * 0.5 + fleet * 0.1;
+  // Loan – max amount scales with credit score (Bonität).
+  // Score 100 = full base, score 39 (min eligible) ≈ 25%, linear in between.
+  const baseMaxLoan = level * 25000 + Math.max(0, balance) * 0.5 + fleet * 0.1;
+  const creditScoreFactor = Math.max(0, Math.min(1, (creditScore - 39) / (100 - 39))) * 0.75 + 0.25;
+  const maxLoan = canTakeLoan ? baseMaxLoan * creditScoreFactor : 0;
   const loanInterestPerFlight = 1.5; // 1.5% per flight
   const hasActiveLoan = activeLoan && activeLoan.remaining > 0;
 
@@ -304,7 +307,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
             <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <div className="text-xs text-blue-300 space-y-1">
               <p><strong>{lang === 'de' ? 'Dispo' : 'Overdraft'}:</strong> Level × $5,000 = ${overdraftLimit.toLocaleString()}</p>
-              <p><strong>{lang === 'de' ? 'Kredit' : 'Loan'}:</strong> {t('info_loan', lang)}</p>
+              <p><strong>{lang === 'de' ? 'Kredit' : 'Loan'}:</strong> {t('info_loan', lang)} × {lang === 'de' ? 'Bonitäts-Faktor' : 'credit factor'} ({Math.round(creditScoreFactor * 100)}%)</p>
               <p><strong>{lang === 'de' ? 'Mindest-Score' : 'Min. Score'}:</strong> {t('info_min_score', lang)}</p>
             </div>
           </div>

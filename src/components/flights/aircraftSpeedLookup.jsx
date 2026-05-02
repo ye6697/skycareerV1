@@ -111,3 +111,74 @@ export function calculateDeadlineMinutes(distanceNm, xplaneIcao, fleetAircraftTy
   // Flight time + 20min taxi/climb/descent + 15min buffer
   return Math.round((distanceNm / cruiseSpeed) * 60 + 20 + 15);
 }
+
+// Mapping from common aircraft model names (as used in the marketplace) to ICAO type codes.
+// Used to resolve a realistic max cruise speed for fleet/market UI.
+const MODEL_NAME_TO_ICAO = [
+  // Small Props
+  [/icon\s*a5/i, "ICON"], [/piper\s*pa-?18.*super\s*cub/i, "PA18"], [/robin\s*dr400/i, "DR40"],
+  [/cessna\s*152/i, "C152"], [/cessna\s*150/i, "C150"], [/cessna\s*172/i, "C172"],
+  [/cessna\s*182/i, "C182"], [/cessna\s*177/i, "C177"], [/cessna\s*185/i, "C185"],
+  [/cessna\s*206/i, "C206"], [/cessna\s*210/i, "C210"], [/cessna\s*208b?\s*(grand\s*)?caravan/i, "C208"],
+  [/vans?\s*rv-?10/i, "RV10"], [/vans?\s*rv-?7/i, "RV7"],
+  [/diamond\s*da40/i, "DA40"], [/diamond\s*da42/i, "DA42"], [/diamond\s*da62/i, "DA62"],
+  [/cirrus\s*sr22/i, "SR22"], [/cirrus\s*vision\s*sf?50/i, "SF50"],
+  [/beechcraft\s*bonanza|bonanza\s*g36/i, "G36"], [/beechcraft\s*baron\s*58|baron\s*58/i, "BE58"],
+  [/honda\s*(ha-?420\s*)?hondajet/i, "HDJT"],
+  // Turboprops
+  [/daher\s*kodiak\s*100/i, "KODI"], [/lancair\s*evolution/i, "PA46"],
+  [/daher\s*tbm\s*930|tbm\s*930/i, "TBM9"], [/tbm\s*940/i, "TBM9"], [/tbm\s*900/i, "TBM9"],
+  [/king\s*air\s*c?90/i, "C90"], [/king\s*air\s*350/i, "B350"], [/king\s*air/i, "BE20"],
+  [/pilatus\s*pc-?12/i, "PC12"], [/pilatus\s*pc-?24/i, "PC24"],
+  [/atr\s*72f/i, "AT76"], [/atr\s*72/i, "AT76"], [/atr\s*42/i, "AT43"],
+  [/bombardier\s*dash\s*8-?400|dash\s*8-?400|dhc-?8/i, "DH8D"],
+  // Regional Jets
+  [/cessna\s*citation\s*cj4/i, "C25C"], [/cessna\s*citation\s*longitude/i, "C700"],
+  [/cessna\s*citation\s*x/i, "C750"], [/cessna\s*citation/i, "C25A"],
+  [/bombardier\s*crj-?200|crj\s*200/i, "CRJ2"], [/bombardier\s*crj-?700|crj\s*700/i, "CRJ7"],
+  [/bombardier\s*crj-?900|crj\s*900/i, "CRJ9"],
+  [/embraer\s*e?175|e-?175/i, "E175"], [/embraer\s*e?170|e-?170/i, "E170"],
+  [/embraer\s*e?190|e-?190/i, "E190"], [/embraer\s*e?195|e-?195/i, "E195"],
+  [/airbus\s*a220-?300|a220/i, "BCS3"],
+  // Narrow Body
+  [/mcdonnell\s*douglas\s*md-?82|md-?82/i, "MD82"], [/md-?83/i, "MD83"], [/md-?88/i, "MD88"],
+  [/airbus\s*a310-?300|a310/i, "A310"], [/airbus\s*a318/i, "A318"], [/airbus\s*a319/i, "A319"],
+  [/airbus\s*a320neo|a320\s*neo|a20n/i, "A20N"], [/airbus\s*a320/i, "A320"],
+  [/airbus\s*a321neo|a321\s*neo|a21n/i, "A21N"], [/airbus\s*a321/i, "A321"],
+  [/boeing\s*737-?700|737-?700/i, "B737"], [/boeing\s*737-?800|737-?800/i, "B738"],
+  [/boeing\s*737\s*max\s*8|737\s*max\s*8|b38m/i, "B38M"], [/boeing\s*737\s*max\s*9|737\s*max\s*9|b39m/i, "B39M"],
+  [/boeing\s*737/i, "B737"], [/boeing\s*757-?200|757-?200/i, "B752"],
+  [/boeing\s*787-?8|787-?8/i, "B788"], [/boeing\s*787-?9|787-?9/i, "B789"],
+  [/boeing\s*787-?10|787-?10/i, "B78X"], [/boeing\s*787/i, "B788"],
+  // Wide Body
+  [/airbus\s*a300-?600|a300/i, "A306"], [/boeing\s*767-?300er|767-?300/i, "B763"],
+  [/airbus\s*a330-?200f/i, "A332"], [/airbus\s*a330-?900neo|a330-?900/i, "A339"],
+  [/airbus\s*a330-?300|a330/i, "A333"],
+  [/boeing\s*747-?400|747-?400/i, "B744"], [/boeing\s*747-?8f|747-?8f/i, "B748"], [/boeing\s*747-?8|747-?8/i, "B748"],
+  [/boeing\s*777-?200er|777-?200/i, "B772"], [/boeing\s*777-?300er|777-?300/i, "B773"],
+  [/boeing\s*777f/i, "B77L"], [/boeing\s*777/i, "B772"],
+  [/airbus\s*a350-?900|a350/i, "A359"], [/airbus\s*a350-?1000|a35k/i, "A35K"],
+  [/airbus\s*a380/i, "A388"], [/concorde/i, "CONC"],
+];
+
+/**
+ * Resolve a realistic max cruise speed (knots TAS) from a marketplace aircraft model name and/or category.
+ * @param {string|null} modelName - Display name like "Boeing 737-800"
+ * @param {string|null} fleetAircraftType - Category fallback (small_prop, turboprop, ...)
+ * @returns {number} Cruise speed in knots
+ */
+export function getCruiseSpeedForModel(modelName, fleetAircraftType) {
+  const name = String(modelName || "");
+  if (name) {
+    for (const [pattern, icao] of MODEL_NAME_TO_ICAO) {
+      if (pattern.test(name)) {
+        const speed = aircraftCruiseSpeeds[icao];
+        if (speed) return speed;
+      }
+    }
+  }
+  if (fleetAircraftType && categoryFallbackSpeeds[fleetAircraftType]) {
+    return categoryFallbackSpeeds[fleetAircraftType];
+  }
+  return 250;
+}

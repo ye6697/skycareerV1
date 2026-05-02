@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Plane, GraduationCap, CheckCircle2 } from 'lucide-react';
 import AircraftHangar3D from '@/components/fleet3d/AircraftHangar3D';
 import { userHasTypeRating } from '@/lib/typeRatings';
+import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
 
 function toListingKey(listing) {
   if (!listing) return '';
@@ -206,7 +207,7 @@ export default function MarketHangar3DView({
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent px-3 pt-8 pb-3">
-          <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-6 gap-2 text-[10px] font-mono">
+          <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-7 gap-2 text-[10px] font-mono">
             <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
               <div className="text-slate-500">PAX</div>
               <div className="text-cyan-100">{current.passenger_capacity}</div>
@@ -222,6 +223,10 @@ export default function MarketHangar3DView({
             <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
               <div className="text-slate-500">RNG</div>
               <div className="text-cyan-100">{current.range_nm}NM</div>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950/85 p-2">
+              <div className="text-slate-500">SPD</div>
+              <div className="text-cyan-100">{getCruiseSpeedForModel(current.name, current.type)}kt</div>
             </div>
             <div className="rounded border border-slate-800 bg-slate-950/85 p-2 md:col-span-2">
               <div className="text-slate-500 mb-1">

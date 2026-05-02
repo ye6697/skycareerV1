@@ -31,6 +31,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { calculateInsuranceForFlight, DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig, INSURANCE_PACKAGES, resolveAircraftInsurance } from '@/lib/insurance';
 import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from '@/lib/maintenance';
+import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
 const INSURANCE_UI_VERSION = 'ins-2026-04-06-a';
 
 export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView }) {
@@ -475,6 +476,14 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             <span className={currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}>
               ${(currentValue/1000000).toFixed(1)}M
             </span>
+          </div>
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">SPD</span>
+            <span className="text-cyan-100">{getCruiseSpeedForModel(aircraft.name, aircraft.type)}kt</span>
+          </div>
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">RNG</span>
+            <span className="text-cyan-100">{aircraft.range_nm || 0}NM</span>
           </div>
         </div>
 
