@@ -24,7 +24,7 @@ const stagger = { visible: { transition: { staggerChildren: 0.08 } } };
 
 // Real app screenshots / mockups that match the actual in-app views.
 const PREVIEW_IMAGES = {
-  replay: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/202c9e031_generated_image.png',
+  replay: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/e7b5fa01b_generated_image.png',
   globe: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/47f1432af_generated_image.png',
   market: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/c9ebac48c_generated_image.png',
   maintenance: 'https://media.base44.com/images/public/6983dde00291b5dfd85079e6/2775fdf5b_generated_image.png',

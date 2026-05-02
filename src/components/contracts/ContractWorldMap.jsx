@@ -46,11 +46,11 @@ function getRouteColor(contract) {
 // Build a "LIVE MAP" style ICAO bubble icon with pulse ring.
 // Large pill with the ICAO code text, glowing border and animated halo.
 function buildIcaoBubbleIcon({ icao, owned, selected }) {
-  const ringColor = selected ? "#e2e8f0" : owned ? "#22c55e" : "#22d3ee";
-  const textColor = selected ? "#ffffff" : owned ? "#bbf7d0" : "#cffafe";
-  const borderColor = selected ? "rgba(226,232,240,0.95)" : owned ? "rgba(34,197,94,0.85)" : "rgba(34,211,238,0.85)";
+  const ringColor = selected ? "#e2e8f0" : owned ? "#22c55e" : "#fb923c";
+  const textColor = selected ? "#ffffff" : owned ? "#bbf7d0" : "#fed7aa";
+  const borderColor = selected ? "rgba(226,232,240,0.95)" : owned ? "rgba(34,197,94,0.85)" : "rgba(251,146,60,0.9)";
   const bg = selected ? "rgba(8,47,73,0.9)" : "rgba(2,6,23,0.78)";
-  const glow = selected ? "0 0 18px rgba(56,189,248,0.7)" : owned ? "0 0 14px rgba(34,197,94,0.55)" : "0 0 14px rgba(34,211,238,0.45)";
+  const glow = selected ? "0 0 18px rgba(56,189,248,0.7)" : owned ? "0 0 14px rgba(34,197,94,0.55)" : "0 0 14px rgba(251,146,60,0.55)";
   const html = `
     <div style="position:relative;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
       <div style="position:absolute;inset:-10px;border-radius:999px;border:1.5px solid ${ringColor};opacity:0.55;animation:icaoPulse 2.2s ease-out infinite;"></div>
@@ -397,8 +397,8 @@ export default function ContractWorldMap({
                 bubblingMouseEvents={false}
                 pathOptions={{
                   color,
-                  weight: selected ? 10 : 6,
-                  opacity: selected ? 0.22 : 0.1,
+                  weight: selected ? 6 : 3,
+                  opacity: selected ? 0.18 : 0.08,
                 }}
                 eventHandlers={{
                   mousedown: markForegroundInteraction,
@@ -410,9 +410,8 @@ export default function ContractWorldMap({
                 bubblingMouseEvents={false}
                 pathOptions={{
                   color,
-                  weight: selected ? 4.8 : 2.1,
-                  opacity: selected ? 0.98 : 0.42,
-                  dashArray: selected ? undefined : "7 10",
+                  weight: selected ? 2.4 : 1.4,
+                  opacity: selected ? 0.95 : 0.7,
                 }}
                 eventHandlers={{
                   mousedown: markForegroundInteraction,
