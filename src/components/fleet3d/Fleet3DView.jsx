@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plane, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -6,12 +6,23 @@ import AircraftHangar3D from '@/components/fleet3d/AircraftHangar3D';
 import MaintenanceCategoryList from '@/components/fleet3d/MaintenanceCategoryList';
 import { useLanguage } from '@/components/LanguageContext';
 
-export default function Fleet3DView({ aircraft }) {
+export default function Fleet3DView({ aircraft, initialAircraftId = null }) {
   const { lang } = useLanguage();
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const visible = useMemo(() => aircraft.filter((a) => a.status !== 'sold'), [aircraft]);
+  const initialIdx = useMemo(() => {
+    if (!initialAircraftId) return 0;
+    const idx = visible.findIndex((a) => a.id === initialAircraftId);
+    return idx >= 0 ? idx : 0;
+  }, [initialAircraftId, visible]);
+  const [selectedIdx, setSelectedIdx] = useState(initialIdx);
   const [selectedCategory, setSelectedCategory] = useState(null);
 
-  const visible = useMemo(() => aircraft.filter((a) => a.status !== 'sold'), [aircraft]);
+  // When the initial aircraft changes (user clicks a different card), jump to it.
+  React.useEffect(() => {
+    setSelectedIdx(initialIdx);
+    setSelectedCategory(null);
+  }, [initialIdx]);
+
   const current = visible[selectedIdx] || null;
 
   if (visible.length === 0) {

@@ -497,8 +497,15 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
                     size="sm"
                     className="h-6 flex-1 text-[9px] bg-amber-900/40 text-amber-400 hover:bg-amber-800 border border-amber-900/50"
                     onClick={() => {
-                      setShowMaintenanceHangar3D(true);
-                      setIsMaintenanceDialogOpen(true);
+                      // Dispatch event so Fleet page can open the fullscreen 3D maintenance view.
+                      try {
+                        window.dispatchEvent(new CustomEvent('fleet3d-open', {
+                          detail: { aircraftId: aircraft.id }
+                        }));
+                      } catch (_) {
+                        setShowMaintenanceHangar3D(true);
+                        setIsMaintenanceDialogOpen(true);
+                      }
                     }}
                   >
                     {t('maintenance', lang).toUpperCase()}

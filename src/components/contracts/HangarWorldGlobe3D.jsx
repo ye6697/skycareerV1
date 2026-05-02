@@ -491,7 +491,7 @@ export default function HangarWorldGlobe3D({
       </div>
 
       <div className={`relative z-0 w-full ${isFullscreen ? "h-screen" : "h-[650px]"}`}>
-        <div className="absolute left-3 top-12 z-[1450] flex items-center gap-1 rounded-md border border-cyan-900/50 bg-slate-950/85 p-1">
+        <div className="absolute left-3 top-14 z-[1450] flex items-center gap-1 rounded-md border border-cyan-900/50 bg-slate-950/85 p-1">
           <button
             type="button"
             onClick={() => setAirportViewFilter("all")}
@@ -903,10 +903,10 @@ export default function HangarWorldGlobe3D({
         </div>
       )}
 
-      <div className="pointer-events-none absolute left-3 top-14 z-[1400] rounded-md border border-cyan-900/50 bg-slate-950/85 px-2 py-1 text-[10px] text-cyan-200">
+      <div className="pointer-events-none absolute right-3 bottom-3 z-[1400] rounded-md border border-cyan-900/50 bg-slate-950/85 px-2 py-1 text-[10px] text-cyan-200 max-w-[calc(100%-1.5rem)]">
         {lang === "de"
-          ? "Alles in Leaflet: Klick auf Airport fuer Hangar Popup, Klick auf Route fuer Fokus"
-          : "All in Leaflet: click airport for hangar popup, click route to focus"}
+          ? "Klick auf Airport für Hangar, Klick auf Route für Fokus"
+          : "Click airport for hangar, click route for focus"}
       </div>
     </div>
   );

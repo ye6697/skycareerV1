@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import CrewAttributes from "@/components/employees/CrewAttributes";
 import CrewTraining from "@/components/employees/CrewTraining";
-import TypeRatingPanel from "@/components/employees/TypeRatingPanel";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -195,9 +194,6 @@ export default function EmployeeDetails() {
 
             {/* Training */}
             <CrewTraining employee={employee} company={company} />
-
-            {/* Type-Ratings */}
-            <TypeRatingPanel employee={employee} company={company} />
           </div>
 
           {/* Right Column */}

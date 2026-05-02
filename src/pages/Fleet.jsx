@@ -24,6 +24,9 @@ import AircraftCard from "@/components/aircraft/AircraftCard";
 import MarketHangar3DView from "@/components/fleet3d/MarketHangar3DView";
 import Fleet3DView from "@/components/fleet3d/Fleet3DView";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
+import TypeRatingMissionPopup from "@/components/typerating/TypeRatingMissionPopup";
+import { userHasTypeRating } from "@/lib/typeRatings";
+import { GraduationCap, CheckCircle2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { useToast } from "@/components/ui/use-toast";
@@ -593,10 +596,23 @@ export default function Fleet() {
   const [marketSection, setMarketSection] = useState('new');
   const [marketViewMode, setMarketViewMode] = useState('3d');
   const [is3DMaintenanceOpen, setIs3DMaintenanceOpen] = useState(false);
+  const [is3DMaintenanceAircraftId, setIs3DMaintenanceAircraftId] = useState(null);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
+  const [typeRatingPopupAircraft, setTypeRatingPopupAircraft] = useState(null);
   const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  // Listen for "open 3D maintenance for this aircraft" events from AircraftCard.
+  React.useEffect(() => {
+    const handler = (e) => {
+      const acId = e?.detail?.aircraftId || null;
+      setIs3DMaintenanceAircraftId(acId);
+      setIs3DMaintenanceOpen(true);
+    };
+    window.addEventListener('fleet3d-open', handler);
+    return () => window.removeEventListener('fleet3d-open', handler);
+  }, []);
   const resolveUserCompanyId = React.useCallback((user) =>
   user?.company_id ||
   user?.data?.company_id ||
@@ -824,6 +840,15 @@ export default function Fleet() {
       const callsignPrefix = company?.callsign || 'N';
       const aircraftCount = aircraft.filter((a) => isAircraftActiveInFleet(a)).length;
       const registration = `${callsignPrefix}-${String(aircraftCount + 1).padStart(3, '0')}`;
+
+      // Hard block: cannot buy without a type-rating for this exact model.
+      if (!userHasTypeRating(currentUser, aircraftData.name)) {
+        throw new Error(
+          lang === 'de'
+            ? `Type-Rating für ${aircraftData.name} erforderlich. Schließe zuerst das Training ab.`
+            : `Type-rating for ${aircraftData.name} required. Complete training first.`
+        );
+      }
 
       const specs = AIRCRAFT_MARKET_SPECS.find((a) => a.name === aircraftData.name) || aircraftData;
       const template = templates.find((t) => t.name === aircraftData.name);
@@ -1212,11 +1237,15 @@ export default function Fleet() {
   });
 
   const canAfford = (price) => (company?.balance || 0) >= price;
+  const hasRatingFor = React.useCallback(
+    (ac) => userHasTypeRating(currentUser, ac?.name),
+    [currentUser]
+  );
   const canPurchase = (ac) => {
     const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
     const hasBalance = canAfford(ac.purchase_price);
     const hasHangarCapacity = getAssignableHangarsForType(ownedHangars, aircraft, ac.type).length > 0;
-    return hasLevel && hasBalance && hasHangarCapacity;
+    return hasLevel && hasBalance && hasHangarCapacity && hasRatingFor(ac);
   };
 
   const marketAircraft = (marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS).
@@ -1257,13 +1286,7 @@ export default function Fleet() {
               className="pl-7 h-7 text-[10px] font-mono w-32 sm:w-48 bg-slate-950 border-cyan-900/50 text-cyan-100 placeholder:text-cyan-900" />
             
           </div>
-          <Button
-            size="sm"
-            onClick={() => setIs3DMaintenanceOpen(true)}
-            className="h-7 text-[10px] font-mono uppercase bg-cyan-900/40 text-cyan-300 border border-cyan-700/50 hover:bg-cyan-800/60"
-          >
-            🛠 {lang === 'de' ? '3D Wartung' : '3D Maintenance'}
-          </Button>
+
           <Dialog
             open={isPurchaseDialogOpen}
             onOpenChange={(open) => {
@@ -1457,7 +1480,8 @@ export default function Fleet() {
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                   const hasBalance = canAfford(ac.purchase_price);
                   const hasHangarCapacity = getAssignableHangarsForType(ownedHangars, aircraft, ac.type).length > 0;
-                  const isPurchasable = hasLevel && hasBalance && hasHangarCapacity;
+                  const hasRating = hasRatingFor(ac);
+                  const isPurchasable = hasLevel && hasBalance && hasHangarCapacity && hasRating;
                   const isBuyingThis = purchaseMutation.isPending && (
                   ac.market_listing_id && selectedAircraft?.market_listing_id === ac.market_listing_id ||
                   !ac.market_listing_id && selectedAircraft?.name === ac.name);
@@ -1487,6 +1511,19 @@ export default function Fleet() {
                               }
                             </p>
                             <p className="text-[10px] text-cyan-600">{typeLabels[ac.type]?.toUpperCase()}</p>
+                            <div className="mt-1 flex items-center gap-1">
+                              {hasRating ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/50">
+                                  <CheckCircle2 className="w-2.5 h-2.5" />
+                                  {lang === 'de' ? 'Type-Rating ✓' : 'Type-Rating ✓'}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50">
+                                  <GraduationCap className="w-2.5 h-2.5" />
+                                  {lang === 'de' ? 'Rating benötigt' : 'Rating required'}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-1 text-[10px] font-mono mb-3">
                             <div className="flex justify-between"><span className="text-slate-500">PAX</span><span className="text-cyan-100">{ac.passenger_capacity}</span></div>
@@ -1554,14 +1591,23 @@ export default function Fleet() {
                               {lang === 'de' ? 'Kein passender Hangar frei.' : 'No compatible hangar free.'}
                             </p>
                             }
-                            <Button
-                              onClick={() => {beginPurchaseFlow(ac);}}
-                              disabled={!isPurchasable}
-                              size="sm"
-                              className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}>
-                              
-                              {isBuyingThis ? t('buying', lang) : t('buy', lang)}
-                            </Button>
+                            {!hasRating ? (
+                              <Button
+                                onClick={() => setTypeRatingPopupAircraft(ac)}
+                                size="sm"
+                                className="w-full h-7 text-[10px] font-mono uppercase bg-cyan-900/50 text-cyan-300 hover:bg-cyan-800 border border-cyan-700/50">
+                                <GraduationCap className="w-3 h-3 mr-1" />
+                                {lang === 'de' ? 'Type-Rating' : 'Type-Rating'}
+                              </Button>
+                            ) : (
+                              <Button
+                                onClick={() => {beginPurchaseFlow(ac);}}
+                                disabled={!isPurchasable}
+                                size="sm"
+                                className={`w-full h-7 text-[10px] font-mono uppercase ${isPurchasable ? 'bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 border border-emerald-800' : 'bg-slate-800 text-slate-500'}`}>
+                                {isBuyingThis ? t('buying', lang) : t('buy', lang)}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </Card>
@@ -1686,15 +1732,23 @@ export default function Fleet() {
 
       <InsolvencyBanner />
 
+      <TypeRatingMissionPopup
+        open={!!typeRatingPopupAircraft}
+        aircraft={typeRatingPopupAircraft}
+        company={company}
+        user={currentUser}
+        onClose={() => setTypeRatingPopupAircraft(null)}
+      />
+
       {is3DMaintenanceOpen && (
         <div className="fixed inset-0 z-[300]">
           <button
-            onClick={() => setIs3DMaintenanceOpen(false)}
+            onClick={() => { setIs3DMaintenanceOpen(false); setIs3DMaintenanceAircraftId(null); }}
             className="absolute top-3 left-3 z-[310] px-3 py-1.5 text-[11px] font-mono uppercase border border-cyan-700 bg-cyan-950/80 text-cyan-300 rounded hover:bg-cyan-900 backdrop-blur-sm"
           >
             ◀ {lang === 'de' ? 'Schließen' : 'Close'}
           </button>
-          <Fleet3DView aircraft={displayAircraft} />
+          <Fleet3DView aircraft={displayAircraft} initialAircraftId={is3DMaintenanceAircraftId} />
         </div>
       )}
 

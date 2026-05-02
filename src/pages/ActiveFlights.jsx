@@ -25,7 +25,7 @@ import { createPageUrl } from "@/utils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { getInsurancePlanConfig, INSURANCE_PACKAGES } from "@/lib/insurance";
-import { hasTypeRating, isPilotRole, getTypeLabel } from "@/lib/typeRatings";
+
 import {
   Plane,
   Users,
@@ -121,20 +121,6 @@ export default function ActiveFlights() {
       }
       if (ac.range_nm < (selectedContract?.distance_nm || 0)) {
         throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Reichweite' : 'Aircraft does not have enough range');
-      }
-
-      // Type-rating validation: every assigned pilot MUST have a license for this aircraft type.
-      for (const [role, empId] of Object.entries(selectedCrew)) {
-        if (!empId || !isPilotRole(role)) continue;
-        const emp = employees.find((e) => e.id === empId);
-        if (!emp) continue;
-        if (!hasTypeRating(emp, ac.type)) {
-          throw new Error(
-            lang === 'de'
-              ? `${emp.name} hat keine Type-Rating für ${getTypeLabel(ac.type, 'de')}. Training erforderlich!`
-              : `${emp.name} has no type-rating for ${getTypeLabel(ac.type, 'en')}. Training required!`
-          );
-        }
       }
 
       const nowIso = new Date().toISOString();
@@ -323,25 +309,8 @@ export default function ActiveFlights() {
     return true;
   };
 
-  const selectedAircraftType = aircraft.find((a) => a.id === selectedAircraft)?.type || null;
-
-  const getPilotLicenseError = () => {
-    if (!selectedAircraftType) return null;
-    for (const [role, empId] of Object.entries(selectedCrew)) {
-      if (!empId || !isPilotRole(role)) continue;
-      const emp = employees.find((e) => e.id === empId);
-      if (!emp) continue;
-      if (!hasTypeRating(emp, selectedAircraftType)) {
-        return lang === 'de'
-          ? `${emp.name} hat keine Type-Rating für ${getTypeLabel(selectedAircraftType, 'de')}`
-          : `${emp.name} has no type-rating for ${getTypeLabel(selectedAircraftType, 'en')}`;
-      }
-    }
-    return null;
-  };
-
   const canStartFlight = () => {
-    return selectedAircraft && isCrewComplete(selectedContract) && !getPilotLicenseError();
+    return selectedAircraft && isCrewComplete(selectedContract);
   };
 
   const getRoleLabel = (role) => {
@@ -755,8 +724,6 @@ export default function ActiveFlights() {
 
                   if (required === 0 && roleEmployees.length === 0) return null;
 
-                  const needsLicense = isPilotRole(role) && selectedAircraftType;
-
                   return (
                     <div key={role} className="flex items-center gap-4">
                       <div className="w-40">
@@ -774,16 +741,11 @@ export default function ActiveFlights() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">{t('do_not_assign', lang)}</SelectItem>
-                          {roleEmployees.map((emp) => {
-                            const licensed = needsLicense ? hasTypeRating(emp, selectedAircraftType) : true;
-                            return (
-                              <SelectItem key={emp.id} value={emp.id} disabled={!licensed}>
-                                {emp.name} (Skill: {emp.skill_rating})
-                                {needsLicense && !licensed && ` · ${lang === 'de' ? '🚫 Keine Lizenz' : '🚫 No license'}`}
-                                {needsLicense && licensed && ` · ✓`}
-                              </SelectItem>
-                            );
-                          })}
+                          {roleEmployees.map((emp) => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.name} (Skill: {emp.skill_rating})
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       {required > 0 && !selectedCrew[role] &&
@@ -810,23 +772,6 @@ export default function ActiveFlights() {
                 </div>
               }
 
-              {/* Type-Rating block */}
-              {getPilotLicenseError() &&
-              <div className="p-3 bg-red-950/40 border border-red-500/40 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-red-300">
-                      {lang === 'de' ? 'Type-Rating fehlt' : 'Type-rating missing'}
-                    </p>
-                    <p className="text-sm text-red-200">{getPilotLicenseError()}</p>
-                    <p className="text-xs text-red-200/80 mt-1">
-                      {lang === 'de'
-                        ? 'Sende den Piloten zum Training (Pilot-Details).'
-                        : 'Send the pilot to training (employee details).'}
-                    </p>
-                  </div>
-                </div>
-              }
             </div>
 
             <DialogFooter>

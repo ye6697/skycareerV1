@@ -369,6 +369,28 @@ export default function CompletedFlightDetails() {
     return generatePassengerComments(scoreForFallback, flight?.xplane_data || {}, 'en');
   }, [flight?.passenger_comments, flight?.xplane_data, flight?.flight_score, lang]);
 
+  // Auto-grant type-rating if this was a successful training flight (≥80% score).
+  const ratingGrantedRef = React.useRef(new Set());
+  React.useEffect(() => {
+    (async () => {
+      if (!flight?.id || !finalContract?.briefing) return;
+      const briefing = String(finalContract.briefing || '');
+      const match = briefing.match(/__TR__:(.+)$/m);
+      if (!match) return;
+      const modelName = match[1].trim();
+      if (!modelName) return;
+      const guardKey = `${flight.id}|${modelName}`;
+      if (ratingGrantedRef.current.has(guardKey)) return;
+      ratingGrantedRef.current.add(guardKey);
+      const score = Number(flight?.xplane_data?.final_score ?? flight?.flight_score ?? 0);
+      if (score < 80) return;
+      try {
+        const { grantUserTypeRating } = await import('@/lib/typeRatings');
+        await grantUserTypeRating(modelName);
+      } catch (_) { /* noop */ }
+    })();
+  }, [flight?.id, finalContract?.briefing, flight?.flight_score, flight?.xplane_data?.final_score]);
+
   React.useEffect(() => {
     if (animTriggeredRef.current) return;
     if (!flight?.id || !finalContract?.id) return;
