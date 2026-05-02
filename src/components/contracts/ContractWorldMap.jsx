@@ -208,22 +208,32 @@ function mapContractRoute(contract, airportByIcao) {
   };
 }
 
-function FitToRoutes({ bounds, fitKey }) {
+function FitToRoutes({ bounds, fitKey, isSelected }) {
   const map = useMap();
   const lastFitKey = useRef(null);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     if (!bounds || !bounds.isValid()) return;
     if (lastFitKey.current === fitKey) return;
 
+    // Initial mount: don't auto-zoom into routes — let the map open centered
+    // on its default world view. Only follow user actions (selecting a
+    // route or filter that changes fitKey afterwards).
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      lastFitKey.current = fitKey;
+      return;
+    }
+
     map.fitBounds(bounds, {
       padding: [56, 56],
-      maxZoom: 8,
+      maxZoom: isSelected ? 8 : 4,
       animate: true,
       duration: 0.75,
     });
     lastFitKey.current = fitKey;
-  }, [bounds, fitKey, map]);
+  }, [bounds, fitKey, isSelected, map]);
 
   return null;
 }
@@ -231,9 +241,17 @@ function FitToRoutes({ bounds, fitKey }) {
 function FocusAirport({ selectedAirportIcao, airportByIcao }) {
   const map = useMap();
   const lastIcaoRef = useRef("");
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     const icao = String(selectedAirportIcao || "").toUpperCase();
+    // Skip the very first render: don't auto-zoom into whatever airport is
+    // already selected when the map mounts. The map should open centered.
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      lastIcaoRef.current = icao;
+      return;
+    }
     if (!icao || lastIcaoRef.current === icao) return;
     const point = airportByIcao.get(icao);
     if (!point) return;
@@ -421,7 +439,7 @@ export default function ContractWorldMap({
         attributionControl
         worldCopyJump
       >
-        <FitToRoutes bounds={bounds} fitKey={fitKey} />
+        <FitToRoutes bounds={bounds} fitKey={fitKey} isSelected={Boolean(selectedRoute)} />
         <MapZoomTracker onZoomChange={(zoom) => setMapZoom(Number(zoom) || 3)} />
         <FocusAirport selectedAirportIcao={selectedAirportIcao} airportByIcao={airportByIcao} />
         <MapClickCatcher

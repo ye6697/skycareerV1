@@ -42,7 +42,8 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
     staleTime: 5000,
   });
 
-  // Pay & generate 3 training mission contracts.
+  // Pay & generate 3 training mission contracts (status=available so the
+  // player can pick one and accept it from this popup).
   const startMission = useMutation({
     mutationFn: async () => {
       if (!aircraft || !company) throw new Error('Missing data');
@@ -52,8 +53,6 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
         company,
       });
 
-      // Create 3 short training contracts (<100 NM) directly so we can tag
-      // them with the model marker that the popup query looks for.
       const hub = company.hub_airport || 'EDDF';
       const now = Date.now();
       const presetRoutes = [
@@ -74,7 +73,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
           deadline: new Date(now + 7 * 24 * 3600 * 1000).toISOString(),
           required_aircraft_type: [aircraft.type],
           required_crew: { captain: 1 },
-          status: 'accepted',
+          status: 'available',
           difficulty: 'easy',
           level_requirement: 1,
           bonus_potential: 2000,
@@ -84,8 +83,21 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      refetchTraining();
+    },
+  });
+
+  // Accept a single training contract (sets it to accepted/in-progress).
+  const acceptContract = useMutation({
+    mutationFn: async (contract) => {
+      await base44.functions.invoke('acceptContract', { contractId: contract.id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
       refetchTraining();
     },
   });
@@ -184,46 +196,67 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                         {lang === 'de' ? 'Aufträge werden generiert…' : 'Generating contracts…'}
                       </p>
                     )}
-                    {trainingContracts.map((contract, idx) => (
-                      <motion.div
-                        key={contract.id}
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: idx * 0.08 }}
-                        className="rounded-xl border border-slate-700 bg-slate-900/60 backdrop-blur p-4 hover:border-cyan-500/50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-white truncate">{contract.title}</p>
-                            <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                              <MapPin className="w-3 h-3" />
-                              <span>{contract.departure_airport}</span>
-                              <ArrowRight className="w-3 h-3" />
-                              <span>{contract.arrival_airport}</span>
-                              <span className="text-slate-600">·</span>
-                              <span className="text-cyan-300">{contract.distance_nm} NM</span>
+                    {trainingContracts.map((contract, idx) => {
+                      const status = String(contract?.status || 'available').toLowerCase();
+                      const isAvailable = status === 'available';
+                      const isAccepted = status === 'accepted' || status === 'in_progress';
+                      return (
+                        <motion.div
+                          key={contract.id}
+                          initial={{ x: -20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: idx * 0.08 }}
+                          className="rounded-xl border border-slate-700 bg-slate-900/60 backdrop-blur p-4 hover:border-cyan-500/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-white truncate">{contract.title}</p>
+                              <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                                <MapPin className="w-3 h-3" />
+                                <span>{contract.departure_airport}</span>
+                                <ArrowRight className="w-3 h-3" />
+                                <span>{contract.arrival_airport}</span>
+                                <span className="text-slate-600">·</span>
+                                <span className="text-cyan-300">{contract.distance_nm} NM</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-emerald-400">
+                                ${(contract.payout || 0).toLocaleString()}
+                              </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold text-emerald-400">
-                              ${(contract.payout || 0).toLocaleString()}
-                            </p>
+                          <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1 mb-2">
+                            <Trophy className="w-3 h-3" />
+                            {lang === 'de'
+                              ? `Mindestens ${TYPE_RATING_PASS_SCORE}% Score nötig`
+                              : `Minimum ${TYPE_RATING_PASS_SCORE}% score required`}
                           </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1">
-                          <Trophy className="w-3 h-3" />
-                          {lang === 'de'
-                            ? `Mindestens ${TYPE_RATING_PASS_SCORE}% Score nötig`
-                            : `Minimum ${TYPE_RATING_PASS_SCORE}% score required`}
-                        </div>
-                      </motion.div>
-                    ))}
+                          {isAvailable && (
+                            <Button
+                              onClick={() => acceptContract.mutate(contract)}
+                              disabled={acceptContract.isPending}
+                              className="w-full h-8 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
+                            >
+                              {acceptContract.isPending
+                                ? (lang === 'de' ? 'Wird angenommen…' : 'Accepting…')
+                                : (lang === 'de' ? 'Auftrag annehmen' : 'Accept contract')}
+                            </Button>
+                          )}
+                          {isAccepted && (
+                            <div className="text-[10px] text-emerald-300 text-center font-mono uppercase tracking-wider">
+                              {lang === 'de' ? '✓ Angenommen – siehe „Aktive Flüge"' : '✓ Accepted – see "Active Flights"'}
+                            </div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
                   </div>
 
                   <div className="text-[11px] text-slate-400 text-center">
                     {lang === 'de'
-                      ? 'Gehe zu „Aktive Flüge", um den Trainingsflug zu starten.'
-                      : 'Go to "Active Flights" to start the training mission.'}
+                      ? 'Wähle einen Auftrag aus und nimm ihn an.'
+                      : 'Pick a contract and accept it to start training.'}
                   </div>
                 </>
               )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -127,7 +127,7 @@ function getActionContext(hangars, airportIcao, selectedVariant, lang) {
   };
 }
 
-export default function HangarWorldGlobe3D({
+function HangarWorldGlobe3DBase({
   hangars = [],
   ownedAircraft = [],
   onMoveAircraft,
@@ -152,7 +152,7 @@ export default function HangarWorldGlobe3D({
   onSellHangar,
   isSellingHangar = false,
   lang = "de",
-}) {
+}, ref) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showContractsPanel, setShowContractsPanel] = useState(false);
   const [showMarketPanel, setShowMarketPanel] = useState(false);
@@ -434,6 +434,11 @@ export default function HangarWorldGlobe3D({
       try { window.scrollTo({ top: 0, behavior: "auto" }); } catch (_) { /* noop */ }
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    enterFullscreen: () => { if (!isFullscreen) toggleFullscreen(); },
+    toggleFullscreen: () => toggleFullscreen(),
+  }), [isFullscreen]);
 
   const content = (
     <div
@@ -919,3 +924,6 @@ export default function HangarWorldGlobe3D({
   }
   return content;
 }
+
+const HangarWorldGlobe3D = forwardRef(HangarWorldGlobe3DBase);
+export default HangarWorldGlobe3D;
