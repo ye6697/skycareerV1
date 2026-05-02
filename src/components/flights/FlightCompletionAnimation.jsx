@@ -28,14 +28,31 @@ export default function FlightCompletionAnimation({ flight, contract, lang = 'de
   }, []);
 
   const xpd = flight?.xplane_data || {};
-  const isCrash = !!xpd?.events?.crash || flight?.status === 'failed';
   const score = Math.round(Number(xpd.final_score ?? flight?.flight_score ?? 0));
   const profit = Math.round(Number(flight?.profit ?? 0));
   const revenue = Math.round(Number(flight?.revenue ?? 0));
   const landingG = Number(xpd.landingGForce ?? xpd.landing_g_force ?? flight?.landing_g_force ?? 0);
   const landingVs = Math.abs(Number(xpd.touchdown_vspeed ?? flight?.landing_vs ?? 0));
   const flightHours = Number(flight?.flight_duration_hours ?? xpd.flightHours ?? 0);
-  const events = xpd.events || {};
+
+  // Merge incident sources: xpd.events.* (legacy), boolean flags on xpd.* (current backend),
+  // and the flight_events_log array (definitive source of truth for triggered incidents).
+  const eventsLog = Array.isArray(xpd.flight_events_log) ? xpd.flight_events_log : [];
+  const logHas = (type) => eventsLog.some((e) => String(e?.type || '').toLowerCase() === String(type).toLowerCase());
+  const legacyEvents = xpd.events || {};
+  const events = {
+    crash: !!(legacyEvents.crash || xpd.crash || xpd.has_crashed || logHas('crash')),
+    tailstrike: !!(legacyEvents.tailstrike || xpd.tailstrike || logHas('tailstrike')),
+    stall: !!(legacyEvents.stall || xpd.stall || xpd.is_in_stall || xpd.stall_warning || logHas('stall')),
+    overstress: !!(legacyEvents.overstress || xpd.overstress || logHas('overstress')),
+    overspeed: !!(legacyEvents.overspeed || xpd.overspeed || logHas('overspeed')),
+    flaps_overspeed: !!(legacyEvents.flaps_overspeed || xpd.flaps_overspeed || logHas('flaps_overspeed')),
+    gear_up_landing: !!(legacyEvents.gear_up_landing || xpd.gear_up_landing || logHas('gear_up_landing')),
+    hard_landing: !!(legacyEvents.hard_landing || (Number(landingVs) >= 600)),
+    high_g_force: !!(legacyEvents.high_g_force || logHas('high_g_force') || (Number(xpd.max_g_force || 0) >= 1.5)),
+    wrong_airport: !!legacyEvents.wrong_airport,
+  };
+  const isCrash = !!events.crash || flight?.status === 'failed';
 
   // Centerline accuracy (takeoff + landing) for both deltas and labels.
   const rwAcc = xpd.runway_accuracy || null;

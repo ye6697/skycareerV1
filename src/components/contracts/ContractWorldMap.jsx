@@ -576,7 +576,7 @@ export default function ContractWorldMap({
     return (
       <div className="relative h-full w-full">
         {mapContent}
-        <div className="pointer-events-none absolute left-3 top-3 z-[600]">
+        <div className="pointer-events-none absolute left-3 bottom-12 z-[600]">
           <div className="flex items-center gap-1.5 rounded-md border-2 border-cyan-400/70 bg-slate-950/85 px-3 py-1.5 shadow-[0_0_18px_rgba(34,211,238,0.35)]">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
             <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-200">
