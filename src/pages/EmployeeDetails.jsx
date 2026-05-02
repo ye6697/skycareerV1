@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import CrewAttributes from "@/components/employees/CrewAttributes";
 import CrewTraining from "@/components/employees/CrewTraining";
+import TypeRatingPanel from "@/components/employees/TypeRatingPanel";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -195,19 +196,8 @@ export default function EmployeeDetails() {
             {/* Training */}
             <CrewTraining employee={employee} company={company} />
 
-            {/* Licenses */}
-            {employee.licenses && employee.licenses.length > 0 && (
-              <Card className="p-6 bg-slate-800 border border-slate-700">
-                <h3 className="text-lg font-semibold text-white mb-4">{t('licenses_certs', lang)}</h3>
-                <div className="flex flex-wrap gap-2">
-                  {employee.licenses.map((license, index) => (
-                    <Badge key={index} className="bg-blue-600 text-white">
-                      {license}
-                    </Badge>
-                  ))}
-                </div>
-              </Card>
-            )}
+            {/* Type-Ratings */}
+            <TypeRatingPanel employee={employee} company={company} />
           </div>
 
           {/* Right Column */}
