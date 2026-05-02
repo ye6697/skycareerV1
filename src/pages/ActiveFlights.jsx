@@ -32,7 +32,13 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle,
-  Play } from
+  Play,
+  GraduationCap,
+  Lock,
+  Users,
+  Package,
+  Gauge,
+  ShoppingCart } from
 "lucide-react";
 
 export default function ActiveFlights() {
@@ -91,6 +97,23 @@ export default function ActiveFlights() {
     queryFn: () => base44.entities.Aircraft.filter({ company_id: company.id, status: 'available' }),
     enabled: !!company?.id
   });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+    staleTime: 60000,
+  });
+
+  const { data: aircraftTemplates = [] } = useQuery({
+    queryKey: ['aircraftTemplates'],
+    queryFn: () => base44.entities.AircraftTemplate.list(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const userTypeRatings = React.useMemo(() => {
+    const list = currentUser?.type_ratings || currentUser?.data?.type_ratings || [];
+    return Array.isArray(list) ? list : [];
+  }, [currentUser]);
 
   const startFlightMutation = useMutation({
     mutationFn: async () => {
@@ -597,52 +620,186 @@ export default function ActiveFlights() {
 
         {/* Assignment Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t('prepare_flight_title', lang)}: {selectedContract?.title}</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="max-w-3xl bg-slate-900 border border-slate-700/60 text-slate-100 shadow-2xl shadow-black/50 p-0 overflow-hidden">
+            {/* Header with gradient */}
+            <div className="relative bg-gradient-to-r from-cyan-950 via-slate-900 to-slate-900 border-b border-cyan-900/40 px-6 py-5">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(14,165,233,0.18),transparent_55%)]" />
+              <DialogHeader className="relative">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center">
+                    <Plane className="w-5 h-5 text-cyan-300" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-cyan-300/80">
+                      {t('prepare_flight_title', lang)}
+                    </p>
+                    <DialogTitle className="text-lg font-bold text-white">{selectedContract?.title}</DialogTitle>
+                  </div>
+                </div>
+                {selectedContract && (
+                  <div className="relative mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                    <span className="flex items-center gap-1 font-mono"><MapPin className="w-3 h-3" />{selectedContract.departure_airport}</span>
+                    <ArrowRight className="w-3 h-3 text-slate-500" />
+                    <span className="flex items-center gap-1 font-mono"><MapPin className="w-3 h-3" />{selectedContract.arrival_airport}</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="font-mono">{selectedContract.distance_nm} NM</span>
+                    {selectedContract.passenger_count > 0 && (<><span className="text-slate-600">|</span><span className="flex items-center gap-1 font-mono"><Users className="w-3 h-3" />{selectedContract.passenger_count}</span></>)}
+                    {selectedContract.cargo_weight_kg > 0 && (<><span className="text-slate-600">|</span><span className="flex items-center gap-1 font-mono"><Package className="w-3 h-3" />{selectedContract.cargo_weight_kg} kg</span></>)}
+                  </div>
+                )}
+              </DialogHeader>
+            </div>
 
-            <div className="space-y-6">
-              {/* Aircraft Selection */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+            <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2 text-sm font-mono uppercase tracking-wider text-cyan-300">
                   <Plane className="w-4 h-4" />
                   {t('select_aircraft_label', lang)}
                 </Label>
-                <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('choose_aircraft', lang)} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {aircraft.filter((ac) => {
-                      // Filter to only show compatible aircraft
-                      const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
-                      const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
-                      const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                      return passengerOk && cargoOk && rangeOk;
-                    }).map((ac) =>
-                    <SelectItem key={ac.id} value={ac.id}>
-                        {ac.name} ({ac.registration}) - {ac.passenger_capacity} {t('seats', lang)}
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {aircraft.length === 0 &&
-                <p className="text-sm text-red-500">{t('no_available_aircraft', lang)}</p>
-                }
+                <span className="text-[10px] font-mono uppercase text-slate-500">
+                  {lang === 'de' ? 'Type-Ratings' : 'Type ratings'}: {userTypeRatings.length}
+                </span>
               </div>
 
+              {(() => {
+                const isCompatibleSpec = (a) => {
+                  const passengerOk = (a.passenger_capacity || 0) >= (selectedContract?.passenger_count || 0);
+                  const cargoOk = (a.cargo_capacity_kg || 0) >= (selectedContract?.cargo_weight_kg || 0);
+                  const rangeOk = (a.range_nm || 0) >= (selectedContract?.distance_nm || 0);
+                  return passengerOk && cargoOk && rangeOk;
+                };
+
+                // Owned aircraft with this user's type-rating + spec match
+                const ownedRated = aircraft.filter((ac) =>
+                  userTypeRatings.includes(ac.name) && isCompatibleSpec(ac)
+                );
+
+                // Templates user has rating for but doesn't own (info only)
+                const ownedNames = new Set(aircraft.map((a) => a.name));
+                const ratedTemplatesNotOwned = aircraftTemplates.filter((tpl) =>
+                  userTypeRatings.includes(tpl.name) &&
+                  !ownedNames.has(tpl.name) &&
+                  isCompatibleSpec(tpl)
+                );
+
+                if (ownedRated.length === 0 && ratedTemplatesNotOwned.length === 0) {
+                  return (
+                    <div className="rounded-lg border border-amber-700/40 bg-amber-950/30 p-4 text-sm text-amber-200">
+                      <div className="flex items-start gap-2">
+                        <GraduationCap className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-semibold">
+                            {lang === 'de' ? 'Kein passendes Type-Rating' : 'No matching type rating'}
+                          </p>
+                          <p className="text-xs text-amber-300/80 mt-1">
+                            {lang === 'de'
+                              ? 'Du hast für keines deiner Flugzeuge ein passendes Type-Rating für diesen Auftrag.'
+                              : 'You don\'t have a matching type rating for any aircraft for this contract.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {ownedRated.map((ac) => {
+                      const isSelected = selectedAircraft === ac.id;
+                      return (
+                        <button
+                          type="button"
+                          key={ac.id}
+                          onClick={() => setSelectedAircraft(ac.id)}
+                          className={`w-full text-left rounded-lg border p-3 transition-all ${
+                            isSelected
+                              ? 'border-cyan-400 bg-cyan-950/40 shadow-[0_0_0_1px_rgba(34,211,238,0.4)]'
+                              : 'border-slate-700/60 bg-slate-900/60 hover:border-cyan-700/60 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {ac.image_url ? (
+                              <img src={ac.image_url} alt={ac.name} className="w-16 h-12 object-cover rounded border border-slate-700" />
+                            ) : (
+                              <div className="w-16 h-12 rounded border border-slate-700 bg-slate-800 flex items-center justify-center">
+                                <Plane className="w-5 h-5 text-slate-500" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-white truncate">{ac.name}</p>
+                                <Badge className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono uppercase">
+                                  <CheckCircle className="w-3 h-3 mr-1" />{lang === 'de' ? 'Im Besitz' : 'Owned'}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 mt-0.5">
+                                <span>{ac.registration}</span>
+                                <span className="flex items-center gap-1"><Users className="w-3 h-3" />{ac.passenger_capacity}</span>
+                                <span className="flex items-center gap-1"><Gauge className="w-3 h-3" />{ac.range_nm} NM</span>
+                              </div>
+                            </div>
+                            <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-cyan-400 bg-cyan-400' : 'border-slate-600'}`} />
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {ratedTemplatesNotOwned.length > 0 && (
+                      <>
+                        <div className="pt-2 pb-1">
+                          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
+                            {lang === 'de' ? 'Type-Rating vorhanden — Flugzeug nicht im Besitz' : 'Type rating earned — aircraft not owned'}
+                          </p>
+                        </div>
+                        {ratedTemplatesNotOwned.map((tpl) => (
+                          <div
+                            key={tpl.id}
+                            className="w-full rounded-lg border border-slate-800 bg-slate-950/60 p-3 opacity-70"
+                          >
+                            <div className="flex items-center gap-3">
+                              {tpl.image_url ? (
+                                <img src={tpl.image_url} alt={tpl.name} className="w-16 h-12 object-cover rounded border border-slate-800 grayscale" />
+                              ) : (
+                                <div className="w-16 h-12 rounded border border-slate-800 bg-slate-900 flex items-center justify-center">
+                                  <Plane className="w-5 h-5 text-slate-600" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-slate-300 truncate">{tpl.name}</p>
+                                  <Badge className="bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono uppercase">
+                                    <Lock className="w-3 h-3 mr-1" />{lang === 'de' ? 'Nicht im Besitz' : 'Not owned'}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-3 text-[11px] font-mono text-slate-500 mt-0.5">
+                                  {tpl.passenger_capacity > 0 && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{tpl.passenger_capacity}</span>}
+                                  {tpl.range_nm > 0 && <span className="flex items-center gap-1"><Gauge className="w-3 h-3" />{tpl.range_nm} NM</span>}
+                                </div>
+                              </div>
+                              <Link to={createPageUrl('Fleet')} className="flex-shrink-0">
+                                <Button size="sm" variant="outline" className="h-7 text-[10px] font-mono uppercase border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white">
+                                  <ShoppingCart className="w-3 h-3 mr-1" />{lang === 'de' ? 'Kaufen' : 'Buy'}
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+            <DialogFooter className="px-6 py-4 bg-slate-950/60 border-t border-slate-800">
+              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)} className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white">
                 {t('abort', lang)}
               </Button>
               <Button
                 onClick={() => startFlightMutation.mutate()}
                 disabled={!canStartFlight() || startFlightMutation.isPending}
-                className="bg-emerald-600 hover:bg-emerald-700">
-
+                className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:shadow-none">
+                <Play className="w-4 h-4 mr-2" />
                 {startFlightMutation.isPending ? t('starting', lang) : t('start_flight', lang)}
               </Button>
             </DialogFooter>
