@@ -16,6 +16,7 @@ import LangToggle from '@/components/landing/LangToggle';
 import AppScreenshot from '@/components/landing/AppScreenshot';
 import ComparisonSection from '@/components/landing/ComparisonSection';
 import PricingSection from '@/components/landing/PricingSection';
+import NewFeaturesShowcase from '@/components/landing/NewFeaturesShowcase';
 import { t } from '@/components/landing/translations';
 import {
   Dialog,
@@ -180,6 +181,9 @@ export default function Landing() {
           </motion.div>
         </div>
       </motion.section>
+
+      {/* ═══════ NEW V1 SHOWCASE: 3D Replay, 3D Hangar, Globe, 3D Market, 3D Maintenance ═══════ */}
+      <NewFeaturesShowcase lang={lang} onCta={handleLogin} />
 
       {/* ═══════ FEATURES (moved up – show what it does early) ═══════ */}
       <section id="features" className="py-16 sm:py-28 px-4 sm:px-6 bg-slate-900/30">
