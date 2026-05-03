@@ -26,9 +26,11 @@
       "enum": [
         "monthly",
         "yearly",
-        "lifetime"
+        "lifetime",
+        "catalog",
+        "one_time"
       ],
-      "description": "Type of subscription plan"
+      "description": "Type of subscription / purchase plan"
     },
     "status": {
       "type": "string",
@@ -38,7 +40,8 @@
         "expired",
         "past_due",
         "paused",
-        "unpaid"
+        "unpaid",
+        "delivered"
       ],
       "default": "active"
     },
@@ -53,11 +56,33 @@
     "amount": {
       "type": "number",
       "description": "Price in cents"
+    },
+    "sku": {
+      "type": "string",
+      "description": "Catalog SKU for one-time items (e.g. sc_pack_s)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Item-specific metadata (sc_amount, aircraft_model, etc.)"
     }
   },
   "required": [
     "user_email",
     "plan_type",
     "status"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "data.user_email": "{{user.email}}"
+    },
+    "update": {
+      "data.user_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.user_email": "{{user.email}}"
+    }
+  }
 }

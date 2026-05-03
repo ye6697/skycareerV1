@@ -14,6 +14,8 @@ import {
   getActiveTypeRating,
   canEarnTypeRating,
 } from '@/lib/typeRatings';
+import RealMoneyBuyButton from '@/components/store/RealMoneyBuyButton';
+import { TYPE_RATING_ITEM } from '@/lib/lemonItemCatalog';
 
 // Animated, glass-style popup that lets the player pay for and start a
 // type-rating training mission for a specific aircraft model. The mission
@@ -393,6 +395,41 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                       ? (lang === 'de' ? 'Starte Training…' : 'Starting…')
                       : (lang === 'de' ? `Training starten (-$${cost.toLocaleString()})` : `Start training (-$${cost.toLocaleString()})`)}
                   </Button>
+
+                  {/* Real-money instant unlock */}
+                  <div className="relative my-2">
+                    <div className="absolute inset-0 flex items-center" aria-hidden>
+                      <div className="w-full border-t border-slate-700" />
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="px-2 text-[10px] font-mono uppercase tracking-wider bg-slate-950 text-slate-500">
+                        {lang === 'de' ? 'oder' : 'or'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-amber-200">
+                        {lang === 'de' ? 'Sofort freischalten' : 'Instant unlock'}
+                      </p>
+                      <p className="text-[10px] text-amber-300/80">
+                        {lang === 'de'
+                          ? 'Kein Training nötig — sofort verfügbar.'
+                          : 'No training required — available immediately.'}
+                      </p>
+                    </div>
+                    <RealMoneyBuyButton
+                      sku={TYPE_RATING_ITEM.sku}
+                      priceCents={TYPE_RATING_ITEM.priceCents}
+                      metadata={{ aircraft_model: modelName }}
+                      label={`$${(TYPE_RATING_ITEM.priceCents / 100).toFixed(2)}`}
+                      onDelivered={() => {
+                        queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+                        onClose?.();
+                      }}
+                    />
+                  </div>
                 </>
               )}
             </div>

@@ -32,6 +32,7 @@ import StatCard from "@/components/dashboard/StatCard";
 import CreditInfoCard from "@/components/finance/CreditInfoCard";
 import LevelBonusInfo from "@/components/finance/LevelBonusInfo";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
+import SkyDollarPacks from "@/components/finance/SkyDollarPacks";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -338,6 +339,11 @@ export default function Finances() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <CreditInfoCard company={company} fleetValue={fleetValue} />
           <LevelBonusInfo company={company} />
+        </div>
+
+        {/* SkyCareer Dollar Packs */}
+        <div className="mb-6 sm:mb-8">
+          <SkyDollarPacks />
         </div>
 
         {/* Recent Transactions */}

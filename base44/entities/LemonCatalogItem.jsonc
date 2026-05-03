@@ -1,0 +1,33 @@
+{
+  "name": "LemonCatalogItem",
+  "type": "object",
+  "properties": {
+    "sku": {
+      "type": "string",
+      "description": "Internal SKU identifier (e.g. sc_pack_s, aircraft_tier1, type_rating_unlock)"
+    },
+    "label": {
+      "type": "string"
+    },
+    "price_cents": {
+      "type": "number"
+    },
+    "variant_id": {
+      "type": "string",
+      "description": "Lemon Squeezy variant ID"
+    },
+    "product_id": {
+      "type": "string",
+      "description": "Lemon Squeezy product ID"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "sku"
+  ],
+  "rls": {
+    "read": {}
+  }
+}

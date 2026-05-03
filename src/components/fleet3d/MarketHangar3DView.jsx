@@ -16,6 +16,9 @@ import { userHasTypeRating } from '@/lib/typeRatings';
 import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
 import { resolveAircraftModelConfig } from '@/components/flights/aircraftModelCatalog';
 import { prefetchGLB } from '@/components/flights/glbLoader';
+import RealMoneyBuyButton from '@/components/store/RealMoneyBuyButton';
+import { getAircraftTierItem } from '@/lib/lemonItemCatalog';
+import { useQueryClient } from '@tanstack/react-query';
 
 function toListingKey(listing) {
   if (!listing) return '';
@@ -54,6 +57,7 @@ export default function MarketHangar3DView({
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [hangarSelectionByListing, setHangarSelectionByListing] = useState({});
   const topListRef = React.useRef(null);
+  const queryClient = useQueryClient();
 
   const visibleListings = useMemo(() => listings, [listings]);
   const clampedIdx = Math.min(Math.max(0, selectedIdx), Math.max(0, visibleListings.length - 1));
@@ -340,7 +344,27 @@ export default function MarketHangar3DView({
             </div>
           )}
 
-          <div className="max-w-6xl mx-auto mt-1.5 flex items-center justify-end gap-1.5">
+          <div className="max-w-6xl mx-auto mt-1.5 flex items-center justify-end flex-wrap gap-1.5">
+            {/* Real-money instant unlock — always available */}
+            {(() => {
+              const tier = getAircraftTierItem(current.type);
+              return (
+                <RealMoneyBuyButton
+                  sku={tier.sku}
+                  priceCents={tier.priceCents}
+                  metadata={{
+                    listing_id: currentKey,
+                    listing_price: Math.round(current.purchase_price || 0),
+                    aircraft_name: current.name,
+                  }}
+                  label={lang === 'de' ? `Sofort $${(tier.priceCents / 100).toFixed(2)}` : `Instant $${(tier.priceCents / 100).toFixed(2)}`}
+                  onDelivered={() => {
+                    queryClient.invalidateQueries({ queryKey: ['company'] });
+                    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                  }}
+                />
+              );
+            })()}
             {!hasRating && onRequestTypeRating && (
               <Button
                 type="button"
