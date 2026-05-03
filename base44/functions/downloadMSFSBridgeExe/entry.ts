@@ -1,7 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import JSZip from 'npm:jszip@3.10.1';
 
-const API_ENDPOINT_DEFAULT = 'https://aero-career-pilot.base44.app/api/functions/receiveXPlaneData';
+const API_ENDPOINT_DEFAULT = 'https://sky-career.com/api/functions/receiveXPlaneData';
+const LOCAL_RELAY_ENDPOINT = 'http://127.0.0.1:50080/bridge';
 const BRIDGE_VERSION = 'bridge-2026-04-08-r1';
 const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
 const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
@@ -21,7 +22,7 @@ const BRIDGE_ROOT_README = `SkyCareer MSFS Bridge (${BRIDGE_VERSION})
 1) Run: SC Installer.exe (recommended)
 2) If needed, remove everything with: SC Uninstaller.exe
 3) Bridge runtime files are inside the folder: ${BRIDGE_PACKAGE_DIR}
-4) Direct start (without installer): open ${BRIDGE_PACKAGE_DIR} and run SkyCareerMsfsBridge.exe
+4) Direct start (without installer): run Start_SkyCareer_Bridge_Fixed.cmd
 `;
 const BRIDGE_ZIP_CANDIDATES = [
   new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
@@ -95,15 +96,149 @@ function upsertAppSetting(configText: string, key: string, value: string) {
   );
 }
 
+function buildRelayScript(forwardEndpoint: string) {
+  return `#!/usr/bin/env python3
+import json
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+
+LISTEN_HOST = '127.0.0.1'
+LISTEN_PORT = 50080
+TARGET_ENDPOINT = ${JSON.stringify(forwardEndpoint)}
+FORWARD_TIMEOUT_SEC = 12
+LOG_PATH = r'C:\\Users\\Public\\SkyCareerBridgeRelay.log'
+ALLOWED_FORWARD_KEYS = {
+    'simulator', 'altitude', 'speed', 'ias', 'vertical_speed', 'heading',
+    'pitch', 'g_force', 'max_g_force', 'latitude', 'longitude', 'on_ground',
+    'was_airborne', 'parking_brake', 'engine1_running', 'aircraft_icao',
+}
+
+state_lock = threading.Lock()
+request_count = 0
+forward_count = 0
+last_forward_status = None
+last_forward_elapsed_ms = None
+
+def log(msg):
+    try:
+        with open(LOG_PATH, 'a', encoding='utf-8') as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\\n")
+    except Exception:
+        pass
+
+def forward_payload(payload, api_key):
+    global forward_count, last_forward_status, last_forward_elapsed_ms
+    sep = '&' if '?' in TARGET_ENDPOINT else '?'
+    target_url = f"{TARGET_ENDPOINT}{sep}api_key={api_key}"
+    clean = {k: payload[k] for k in ALLOWED_FORWARD_KEYS if k in payload}
+    data = json.dumps(clean, separators=(',', ':')).encode('utf-8')
+    req = Request(target_url, data=data, method='POST')
+    req.add_header('Content-Type', 'application/json')
+    status = 0
+    started = time.time()
+    preview = ''
+    try:
+        with urlopen(req, timeout=FORWARD_TIMEOUT_SEC) as resp:
+            status = getattr(resp, 'status', 200)
+            preview = resp.read(256).decode('utf-8', errors='replace')
+    except HTTPError as e:
+        status = int(getattr(e, 'code', 0) or 0)
+        try:
+            preview = e.read(256).decode('utf-8', errors='replace')
+        except Exception:
+            preview = ''
+    except (URLError, Exception) as e:
+        preview = str(e)
+    elapsed = int((time.time() - started) * 1000)
+    with state_lock:
+        forward_count += 1
+        last_forward_status = status
+        last_forward_elapsed_ms = elapsed
+    if status >= 400 or status == 0:
+        log(f"forward status={status} elapsed_ms={elapsed} response={preview[:180]}")
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = 'SkyCareerBridgeRelay/1.1'
+    def log_message(self, fmt, *args):
+        return
+    def do_POST(self):
+        global request_count
+        api_key = (parse_qs(urlparse(self.path).query or '').get('api_key') or [''])[0].strip()
+        raw = self.rfile.read(int(self.headers.get('Content-Length', '0') or '0'))
+        try:
+            payload = json.loads(raw.decode('utf-8') or '{}')
+            if not isinstance(payload, dict):
+                raise ValueError('payload must be object')
+        except Exception:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b'{"error":"invalid_json"}')
+            return
+        if not api_key:
+            self.send_response(401)
+            self.end_headers()
+            self.wfile.write(b'{"error":"api_key_required"}')
+            return
+        with state_lock:
+            request_count += 1
+        threading.Thread(target=forward_payload, args=(payload, api_key), daemon=True).start()
+        body = b'{"status":"queued"}'
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+    def do_GET(self):
+        if urlparse(self.path).path != '/stats':
+            self.send_response(404)
+            self.end_headers()
+            return
+        with state_lock:
+            body = json.dumps({
+                'request_count': request_count,
+                'forward_count': forward_count,
+                'last_forward_status': last_forward_status,
+                'last_forward_elapsed_ms': last_forward_elapsed_ms,
+            }).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+if __name__ == '__main__':
+    log('relay starting')
+    ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler).serve_forever()
+`;
+}
+
+function buildStartScript() {
+  return `@echo off
+setlocal
+set "ROOT=%~dp0"
+set "BRIDGE_DIR=%ROOT%${BRIDGE_PACKAGE_DIR}"
+set "RELAY=%BRIDGE_DIR%\\SkyCareerBridgeRelay.py"
+if not exist "%RELAY%" set "RELAY=%ROOT%SkyCareerBridgeRelay.py"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-NetTCPConnection -LocalPort 50080 -State Listen -ErrorAction SilentlyContinue)) { Start-Process -FilePath 'python.exe' -ArgumentList @('%RELAY%') -WorkingDirectory '%BRIDGE_DIR%' -WindowStyle Hidden }"
+timeout /t 2 /nobreak >nul
+start "" "%BRIDGE_DIR%\\SkyCareerMsfsBridge.exe"
+`;
+}
+
 function patchBridgeConfig(configText: string, apiKey: string, endpoint: string) {
+  void endpoint;
   let patched = configText;
-  patched = upsertAppSetting(patched, 'ApiEndpoint', endpoint);
+  patched = upsertAppSetting(patched, 'ApiEndpoint', LOCAL_RELAY_ENDPOINT);
   patched = upsertAppSetting(patched, 'ApiKey', apiKey);
-  patched = upsertAppSetting(patched, 'LoopIntervalMs', '2000');
-  patched = upsertAppSetting(patched, 'PollIntervalMs', '2000');
-  patched = upsertAppSetting(patched, 'SendIntervalMs', '2000');
+  patched = upsertAppSetting(patched, 'LoopIntervalMs', '5000');
+  patched = upsertAppSetting(patched, 'PollIntervalMs', '5000');
+  patched = upsertAppSetting(patched, 'SendIntervalMs', '5000');
   patched = upsertAppSetting(patched, 'SampleIntervalMs', '200');
-  patched = upsertAppSetting(patched, 'HttpTimeoutMs', '10000');
+  patched = upsertAppSetting(patched, 'HttpTimeoutMs', '5000');
   patched = upsertAppSetting(patched, 'AutoRestartWorkerOnTimeout', 'true');
   patched = upsertAppSetting(patched, 'WorkerTimeoutMs', '15000');
   patched = upsertAppSetting(patched, 'WorkerRestartDelayMs', '2000');
@@ -117,17 +252,18 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
 }
 
 function buildBridgeConfig(apiKey: string, endpoint: string) {
+  void endpoint;
   return `<?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <appSettings>
-    <add key="ApiEndpoint" value="${endpoint}" />
+    <add key="ApiEndpoint" value="${LOCAL_RELAY_ENDPOINT}" />
     <add key="ApiKey" value="${apiKey}" />
     <add key="Simulator" value="auto" />
-    <add key="LoopIntervalMs" value="2000" />
-    <add key="PollIntervalMs" value="2000" />
-    <add key="SendIntervalMs" value="2000" />
+    <add key="LoopIntervalMs" value="5000" />
+    <add key="PollIntervalMs" value="5000" />
+    <add key="SendIntervalMs" value="5000" />
     <add key="SampleIntervalMs" value="200" />
-    <add key="HttpTimeoutMs" value="10000" />
+    <add key="HttpTimeoutMs" value="5000" />
     <add key="AutoRestartWorkerOnTimeout" value="true" />
     <add key="WorkerTimeoutMs" value="15000" />
     <add key="WorkerRestartDelayMs" value="2000" />
@@ -278,10 +414,12 @@ Deno.serve(async (req) => {
       bridgeConfigPath = `${dir}SkyCareerMsfsBridge.exe.config`;
       outputZip.file(bridgeConfigPath, buildBridgeConfig(apiKey, endpoint));
       outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
+      outputZip.file(`${dir}SkyCareerBridgeRelay.py`, buildRelayScript(endpoint));
     } else if (bridgeExePath) {
       const slash = bridgeExePath.lastIndexOf('/');
       const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
       outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
+      outputZip.file(`${dir}SkyCareerBridgeRelay.py`, buildRelayScript(endpoint));
     }
 
     if (bridgeExePath && !hasSimConnectCfg) {
@@ -292,6 +430,7 @@ Deno.serve(async (req) => {
 
     // Keep the latest runtime payload next to SC Installer so it cannot fall back to stale remote assets.
     outputZip.file(BRIDGE_PAYLOAD_FILE, payloadZipBytes);
+    outputZip.file('Start_SkyCareer_Bridge_Fixed.cmd', buildStartScript());
     outputZip.file('README_START_HERE.txt', BRIDGE_ROOT_README);
     outputZip.file('BRIDGE_VERSION.txt', `${BRIDGE_VERSION}\n`);
     const finalZipBytes = await outputZip.generateAsync({
