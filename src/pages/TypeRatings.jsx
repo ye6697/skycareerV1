@@ -20,12 +20,11 @@ import {
 import { useLanguage } from '@/components/LanguageContext';
 import {
   getTypeRatingCost,
-  userHasTypeRating,
-  getActiveTypeRating,
   TYPE_RATING_PASS_SCORE,
   TYPE_RATING_MAX_NM,
 } from '@/lib/typeRatings';
 import TypeRatingMissionPopup from '@/components/typerating/TypeRatingMissionPopup';
+import { AIRCRAFT_MARKET_SPECS } from '@/pages/Fleet';
 
 const TYPE_LABELS = {
   small_prop: { en: 'Small Prop', de: 'Propeller (klein)' },
@@ -98,8 +97,8 @@ export default function TypeRatings() {
   });
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['aircraftTemplates'],
-    queryFn: () => base44.entities.AircraftTemplate.list(),
+    queryKey: ['aircraftTemplates', 'typeRatings'],
+    queryFn: () => base44.entities.AircraftTemplate.list('-created_date', 1000),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -107,7 +106,21 @@ export default function TypeRatings() {
   const ratings = useMemo(() => {
     const earnedSet = new Set(Array.isArray(user?.type_ratings) ? user.type_ratings : []);
     const active = user?.active_type_rating || null;
-    return (templates || [])
+    const templateByName = new Map(
+      (Array.isArray(templates) ? templates : [])
+        .filter((tpl) => tpl?.name)
+        .map((tpl) => [String(tpl.name), tpl])
+    );
+    const staticNames = new Set(AIRCRAFT_MARKET_SPECS.map((tpl) => String(tpl.name)));
+    const allModels = [
+      ...AIRCRAFT_MARKET_SPECS.map((spec) => ({
+        ...spec,
+        ...(templateByName.get(String(spec.name)) || {}),
+      })),
+      ...(Array.isArray(templates) ? templates : []).filter((tpl) => tpl?.name && !staticNames.has(String(tpl.name))),
+    ];
+
+    return allModels
       .map((tpl) => {
         const status = earnedSet.has(tpl.name)
           ? 'earned'
