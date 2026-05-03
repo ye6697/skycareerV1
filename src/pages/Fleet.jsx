@@ -35,7 +35,7 @@ import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
-const AIRCRAFT_MARKET_SPECS = [
+export const AIRCRAFT_MARKET_SPECS = [
 // === SMALL PROPS (Level 1-3) ===
 { name: "Icon A5", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 60, fuel_consumption_per_hour: 23, range_nm: 300, purchase_price: 120000, maintenance_cost_per_hour: 20, level_requirement: 1 },
 { name: "Piper PA-18 Super Cub", type: "small_prop", passenger_capacity: 1, cargo_capacity_kg: 100, fuel_consumption_per_hour: 35, range_nm: 400, purchase_price: 180000, maintenance_cost_per_hour: 30, level_requirement: 1 },
