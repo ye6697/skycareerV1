@@ -1536,7 +1536,7 @@ export default function Fleet() {
                             <div className="flex justify-between"><span className="text-slate-500">RNG</span><span className="text-cyan-100">{ac.range_nm}NM</span></div>
                             <div className="flex justify-between"><span className="text-slate-500">SPD</span><span className="text-cyan-100">{getCruiseSpeedForModel(ac.name, ac.type)}kt</span></div>
                             <div className="flex justify-between"><span className="text-slate-500">MIN LVL</span><span className={hasLevel ? 'text-emerald-400' : 'text-amber-400'}>{ac.level_requirement || 1}</span></div>
-                            <div className="flex justify-between col-span-2" title={lang === 'de' ? 'Auftrags-Payout-Faktor (1.0 = kleinster Tier)' : 'Contract payout factor (1.0 = lowest tier)'}><span className="text-slate-500">PAYOUT</span><span className="text-amber-300 font-bold">{formatPayoutFactor(ac.type)}</span></div>
+                            <div className="flex justify-between col-span-2" title={lang === 'de' ? 'Auftrags-Payout-Faktor pro Modell (1.0 = niedrigstes Modell)' : 'Per-model contract payout factor (1.0 = lowest model)'}><span className="text-slate-500">PAYOUT</span><span className="text-amber-300 font-bold">{formatPayoutFactor(ac.name, ac.type)}</span></div>
                             {ac.marketType === 'used' &&
                             <div className="flex justify-between col-span-2">
                                 <span className="text-slate-500">{lang === 'de' ? 'ALTER / HRS' : 'AGE / HRS'}</span>

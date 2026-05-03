@@ -201,6 +201,61 @@ const allAircraftTypes = [
   { type: "cargo", passengers: 0, cargo: 20000, range: 4000 }
 ];
 
+// Per-MODEL payout factors (must stay in sync with src/lib/payoutFactors.js).
+// Multiplied by PAYOUT_BASE_MULTIPLIER to convert into the legacy tier
+// multiplier scale (small_prop entry-level ≈ 12).
+const MODEL_PAYOUT_FACTORS: Record<string, number> = {
+  // small props
+  "Icon A5": 1.0, "Piper PA-18 Super Cub": 1.1, "Robin DR400": 1.2,
+  "Cessna 152": 1.2, "Vans RV-10": 1.4, "Diamond DA40 NG": 1.4,
+  "Cessna 172 Skyhawk": 1.5, "Beechcraft Bonanza G36": 1.7,
+  "Beechcraft Baron 58": 1.9, "Diamond DA62": 2.0,
+  "Cessna 208B Grand Caravan": 2.2, "Cirrus SR22": 2.0,
+  // turboprops
+  "Daher Kodiak 100": 2.4, "Lancair Evolution": 2.5, "Daher TBM 930": 2.7,
+  "Beechcraft King Air C90B": 3.0, "Pilatus PC-12 NGX": 3.2,
+  "Beechcraft King Air 350i": 3.5,
+  // light jets / regional
+  "Cirrus Vision SF50": 3.6, "Honda HA-420 HondaJet": 4.0,
+  "Cessna Citation CJ4": 4.6, "Cessna Citation Longitude": 5.4,
+  "Cessna Citation X": 5.8,
+  // regional airliners
+  "Pilatus PC-24": 5.0, "Bombardier Dash 8-400": 5.5, "ATR 72F": 6.0,
+  "Bombardier CRJ-200": 6.2, "Bombardier CRJ-700": 7.0, "Embraer E175": 7.6,
+  "Airbus A220-300": 8.5, "McDonnell Douglas MD-82": 9.0,
+  // narrow body
+  "Airbus A310-300": 10.0, "Airbus A318": 10.5, "Boeing 737-700": 11.5,
+  "Airbus A319": 12.0, "Boeing 737-800": 13.0, "Airbus A320neo": 13.5,
+  "Boeing 737 MAX 8": 14.0, "Boeing 757-200": 14.5, "Airbus A321neo": 15.0,
+  "Boeing 787-8": 16.0, "Boeing 787-10": 17.5,
+  // wide body
+  "Airbus A300": 18.0, "Boeing 767-300ER": 18.5, "Airbus A330-200F": 19.0,
+  "Airbus A330-900neo": 20.0, "Airbus A330-300": 20.5, "Boeing 747-400": 22.0,
+  "Boeing 777-200ER": 22.5, "Boeing 777-300ER": 23.5, "Airbus A350-900": 24.0,
+  "Boeing 777F": 24.0, "Boeing 747-8": 25.0, "Boeing 747-8F": 26.0,
+  "Aérospatiale/BAC Concorde": 24.0, "Airbus A380": 28.0,
+};
+
+const CATEGORY_PAYOUT_FALLBACK: Record<string, number> = {
+  small_prop: 1.5,
+  turboprop: 3.0,
+  regional_jet: 6.0,
+  narrow_body: 13.0,
+  wide_body: 21.0,
+  cargo: 22.0,
+};
+
+const PAYOUT_BASE_MULTIPLIER = 12;
+
+function resolvePayoutMultiplier(aircraftName?: string | null, aircraftType?: string | null): number {
+  const fromModel = MODEL_PAYOUT_FACTORS[String(aircraftName || '').trim()];
+  const factor =
+    Number.isFinite(fromModel) && fromModel > 0
+      ? fromModel
+      : (CATEGORY_PAYOUT_FALLBACK[String(aircraftType || '').trim().toLowerCase()] || 1.0);
+  return factor * PAYOUT_BASE_MULTIPLIER;
+}
+
 const contractTypes = ["passenger", "cargo", "charter", "emergency"];
 const HANGAR_SIZE_RULES: Record<string, { slots: number; allowed_types: string[] }> = {
   small: { slots: 2, allowed_types: ['small_prop', 'turboprop'] },
@@ -529,17 +584,10 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
     ? Math.max(10, Math.floor(Math.random() * aircraftType.cargo * 0.8) + Math.floor(aircraftType.cargo * 0.2))
     : 0;
 
-  // Exponential payout scaling based on aircraft tier.
-  // Increased across the board so contracts pay realistically for fleet
-  // operating costs (fuel, crew, maintenance, hangar fees).
-  const tierMultiplier = {
-    small_prop: 12,
-    turboprop: 25,
-    regional_jet: 55,
-    narrow_body: 160,
-    wide_body: 260,
-    cargo: 280
-  }[aircraftType.type] || 1;
+  // Per-MODEL payout scaling (falls back to category factor if name unknown).
+  // Each contract is generated for a specific aircraft model owned by the
+  // company at the hangar, so the payout scales with the model factor.
+  const tierMultiplier = resolvePayoutMultiplier(options.aircraftName, aircraftType.type);
 
   const basePayout = (distance * 14 + passengers * 220 + cargo * 2.8) * tierMultiplier;
   const payout = Math.round(basePayout * (0.85 + Math.random() * 0.3));
@@ -896,7 +944,17 @@ Deno.serve(async (req) => {
       while (attempts < 120) {
         attempts++;
         const acType = randomItem(typePool);
-        const contract = generateContract(company.id, acType, company.level || 1, genOptions);
+        // Pick a concrete owned aircraft of this type (if any) so the contract
+        // payout scales by the specific MODEL the user owns.
+        const matchingOwnedPlanes = hangarAircraft.filter((plane) => plane.type === acType.type);
+        const concretePlane = matchingOwnedPlanes.length > 0
+          ? randomItem(matchingOwnedPlanes)
+          : null;
+        const aircraftNameForPayout = concretePlane?.name || null;
+        const contract = generateContract(company.id, acType, company.level || 1, {
+          ...genOptions,
+          aircraftName: aircraftNameForPayout,
+        });
         if (!contract) continue;
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
         const canFulfill = fulfillmentPool.some((plane) => {

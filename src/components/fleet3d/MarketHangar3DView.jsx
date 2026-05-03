@@ -295,10 +295,10 @@ export default function MarketHangar3DView({
             </div>
             <div
               className="rounded border border-amber-300/25 bg-amber-950/20 backdrop-blur-md px-1.5 py-1"
-              title={lang === 'de' ? 'Auftrags-Payout-Faktor (1.0 = kleinster Tier)' : 'Contract payout factor (1.0 = lowest tier)'}
+              title={lang === 'de' ? 'Auftrags-Payout-Faktor pro Modell (1.0 = niedrigstes Modell)' : 'Per-model contract payout factor (1.0 = lowest model)'}
             >
               <span className="text-slate-400">PAYOUT </span>
-              <span className="text-amber-300 font-bold">{formatPayoutFactor(current.type)}</span>
+              <span className="text-amber-300 font-bold">{formatPayoutFactor(current.name, current.type)}</span>
             </div>
             <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1 col-span-3 sm:col-span-1 md:col-span-2 flex items-center gap-1">
               <span className="text-slate-400 shrink-0">{lang === 'de' ? 'HNG' : 'HNG'}</span>
