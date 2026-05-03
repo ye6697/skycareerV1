@@ -234,7 +234,10 @@ const calcEngineThrustProfileSeconds = (telemetryHistory, currentThrustLeverPct)
 
 const calcEngineWearFromThrustProfile = (fullThrustSeconds, totalFlightSeconds, knownThrustSeconds = null) => {
   const totalSeconds = Math.max(0, Number(totalFlightSeconds || 0));
-  const knownSeconds = Math.max(0, Number(knownThrustSeconds ?? totalSeconds) || 0);
+  const rawKnownSeconds = Number(knownThrustSeconds);
+  const knownSeconds = Number.isFinite(rawKnownSeconds) && rawKnownSeconds > 0
+    ? clamp(rawKnownSeconds, 0, totalSeconds)
+    : totalSeconds;
   const fullSeconds = clamp(Number(fullThrustSeconds || 0), 0, knownSeconds);
   const nonFullSeconds = Math.max(0, knownSeconds - fullSeconds);
   const fullSteps = Math.floor(fullSeconds / ENGINE_FULL_THRUST_STEP_SECONDS);

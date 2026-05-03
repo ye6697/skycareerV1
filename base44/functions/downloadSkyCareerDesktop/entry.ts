@@ -93,6 +93,12 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
+try:
+    from SimConnect import AircraftRequests, SimConnect
+except Exception:
+    AircraftRequests = None
+    SimConnect = None
+
 LISTEN_HOST = '127.0.0.1'
 LISTEN_PORT = 50080
 TARGET_ENDPOINT = ${JSON.stringify(forwardEndpoint)}
@@ -105,7 +111,7 @@ ALLOWED_FORWARD_KEYS = {
     'engine2_running', 'engines_running', 'engine_load_pct', 'engine1_load_pct',
     'engine2_load_pct', 'thrust_lever_pct', 'thrust_lever1_pct',
     'thrust_lever2_pct', 'throttle_pct', 'throttle1_pct', 'throttle2_pct',
-    'gear_down', 'flap_ratio', 'speedbrake', 'speed_brake',
+    'thrust_source', 'gear_down', 'flap_ratio', 'speedbrake', 'speed_brake',
     'spoiler', 'fuel_percentage', 'fuel_kg', 'fuel_total_kg',
     'fuel_flow_total_kgph', 'fuel_flow_total_lph', 'fuel_flow_total_pph',
     'engine1_fuel_flow_pph', 'engine2_fuel_flow_pph', 'fuel_flow_source',
@@ -125,6 +131,12 @@ last_forward_elapsed_ms = None
 last_fuel_kg = None
 last_fuel_ts = 0.0
 fuel_flow_smoothed_kgph = 0.0
+sim_lock = threading.Lock()
+sim_sm = None
+sim_aq = None
+sim_last_attempt_ts = 0.0
+sim_last_snapshot_ts = 0.0
+sim_last_snapshot = {}
 
 def log(msg):
     try:
@@ -133,12 +145,122 @@ def log(msg):
     except Exception:
         pass
 
+def to_float(value, default=None):
+    try:
+        n = float(value)
+        return n if n == n else default
+    except Exception:
+        return default
+
+def normalize_percent_like(value):
+    n = to_float(value)
+    if n is None:
+        return None
+    if n <= 1.5:
+        n *= 100.0
+    return max(0.0, min(100.0, n))
+
+def payload_has_number(payload, *keys):
+    for key in keys:
+        if normalize_percent_like(payload.get(key)) is not None:
+            return True
+    return False
+
+def get_simconnect_aircraft_requests():
+    global sim_sm, sim_aq, sim_last_attempt_ts
+    if SimConnect is None or AircraftRequests is None:
+        return None
+    now_ts = time.time()
+    if sim_aq is not None:
+        return sim_aq
+    if now_ts - sim_last_attempt_ts < 5:
+        return None
+    sim_last_attempt_ts = now_ts
+    try:
+        sim_sm = SimConnect()
+        sim_aq = AircraftRequests(sim_sm, _time=2000)
+        log('simconnect throttle reader connected')
+        return sim_aq
+    except Exception as exc:
+        sim_sm = None
+        sim_aq = None
+        log(f'simconnect throttle reader unavailable: {str(exc)[:180]}')
+        return None
+
+def simconnect_get(aq, key):
+    try:
+        return aq.get(key)
+    except Exception:
+        return None
+
+def read_simconnect_throttle_snapshot(payload):
+    global sim_sm, sim_aq, sim_last_snapshot_ts, sim_last_snapshot
+    now_ts = time.time()
+    with sim_lock:
+        if sim_last_snapshot and now_ts - sim_last_snapshot_ts < 0.35:
+            return dict(sim_last_snapshot)
+        aq = get_simconnect_aircraft_requests()
+        if aq is None:
+            return {}
+        try:
+            throttle1 = normalize_percent_like(simconnect_get(aq, 'GENERAL_ENG_THROTTLE_LEVER_POSITION:1'))
+            throttle2 = normalize_percent_like(simconnect_get(aq, 'GENERAL_ENG_THROTTLE_LEVER_POSITION:2'))
+            n1_1 = normalize_percent_like(simconnect_get(aq, 'TURB_ENG_N1:1'))
+            n1_2 = normalize_percent_like(simconnect_get(aq, 'TURB_ENG_N1:2'))
+            engine1_running = bool(payload.get('engine1_running', True))
+            engine2_running = bool(payload.get('engine2_running', False))
+            active = []
+            if throttle1 is not None and (engine1_running or not engine2_running):
+                active.append(throttle1)
+            if throttle2 is not None and engine2_running:
+                active.append(throttle2)
+            if not active:
+                active = [v for v in (throttle1, throttle2) if v is not None]
+            throttle_avg = sum(active) / len(active) if active else None
+            snapshot = {}
+            if throttle1 is not None:
+                snapshot['throttle1_pct'] = round(throttle1, 1)
+                snapshot['thrust_lever1_pct'] = round(throttle1, 1)
+                snapshot['engine1_load_pct'] = round(throttle1, 1)
+            if throttle2 is not None:
+                snapshot['throttle2_pct'] = round(throttle2, 1)
+                snapshot['thrust_lever2_pct'] = round(throttle2, 1)
+                snapshot['engine2_load_pct'] = round(throttle2, 1)
+            if throttle_avg is not None:
+                snapshot['throttle_pct'] = round(throttle_avg, 1)
+                snapshot['thrust_lever_pct'] = round(throttle_avg, 1)
+                snapshot['engine_load_pct'] = round(throttle_avg, 1)
+                snapshot['thrust_source'] = 'relay_simconnect_throttle'
+            elif n1_1 is not None or n1_2 is not None:
+                n1_values = [v for v in (n1_1, n1_2) if v is not None]
+                n1_avg = sum(n1_values) / len(n1_values)
+                snapshot['engine_load_pct'] = round(n1_avg, 1)
+                snapshot['thrust_source'] = 'relay_simconnect_n1'
+            sim_last_snapshot = snapshot
+            sim_last_snapshot_ts = now_ts
+            return dict(snapshot)
+        except Exception as exc:
+            sim_aq = None
+            sim_sm = None
+            sim_last_snapshot = {}
+            sim_last_snapshot_ts = 0.0
+            log(f'simconnect throttle reader reset: {str(exc)[:180]}')
+            return {}
+
+def enrich_payload_with_thrust(payload):
+    if payload_has_number(payload, 'thrust_lever_pct', 'throttle_pct', 'engine_load_pct', 'thrust_lever1_pct', 'throttle1_pct', 'engine1_load_pct'):
+        return
+    snapshot = read_simconnect_throttle_snapshot(payload)
+    for key, value in snapshot.items():
+        payload[key] = value
+
 def forward_payload(payload, api_key):
     global forward_count, last_forward_status, last_forward_elapsed_ms
     global last_fuel_kg, last_fuel_ts, fuel_flow_smoothed_kgph
     sep = '&' if '?' in TARGET_ENDPOINT else '?'
     target_url = f"{TARGET_ENDPOINT}{sep}api_key={api_key}"
     try:
+        enrich_payload_with_thrust(payload)
         now_ts = time.time()
         fuel_kg = float(payload.get('fuel_kg') or payload.get('fuel_total_kg') or 0)
         has_flow = float(payload.get('fuel_flow_total_kgph') or 0) > 0
