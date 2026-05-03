@@ -30,8 +30,8 @@ import { calculateInsuranceForFlight, resolveAircraftInsurance } from "@/lib/ins
 import { MAINTENANCE_CATEGORY_KEYS, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
 import { recoverLandingBonus } from "@/components/flights/landingBonusRecovery"; import { processAchievementsAfterFlight } from "@/components/achievements/processAchievementsAfterFlight";
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 98;
-const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
 const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 150;
+const ENGINE_FULL_THRUST_WEAR_MULTIPLIER = 5;
 const ENGINE_WEAR_PER_STEP = 0.1;
 const ENGINE_HIGH_G_THRESHOLD = 1.6;
 const ENGINE_HIGH_G_MULTIPLIER = 1.4;
@@ -240,9 +240,9 @@ const calcEngineWearFromThrustProfile = (fullThrustSeconds, totalFlightSeconds, 
     : totalSeconds;
   const fullSeconds = clamp(Number(fullThrustSeconds || 0), 0, knownSeconds);
   const nonFullSeconds = Math.max(0, knownSeconds - fullSeconds);
-  const fullSteps = Math.floor(fullSeconds / ENGINE_FULL_THRUST_STEP_SECONDS);
+  const fullSteps = Math.floor(fullSeconds / ENGINE_PARTIAL_THRUST_STEP_SECONDS);
   const nonFullSteps = Math.floor(nonFullSeconds / ENGINE_PARTIAL_THRUST_STEP_SECONDS);
-  const fullWear = fullSteps * ENGINE_WEAR_PER_STEP;
+  const fullWear = fullSteps * ENGINE_WEAR_PER_STEP * ENGINE_FULL_THRUST_WEAR_MULTIPLIER;
   const nonFullWear = nonFullSteps * ENGINE_WEAR_PER_STEP;
   return {
     knownSeconds,
