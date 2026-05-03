@@ -64,13 +64,14 @@ export default function RealMoneyBuyButton({
     }
   }
 
+  const isFullWidth = String(className || '').includes('w-full');
   return (
-    <div className={`inline-flex flex-col gap-1 ${className}`}>
+    <div className={`${isFullWidth ? 'flex' : 'inline-flex'} flex-col gap-1 ${className}`}>
       <Button
         size={size}
         onClick={handleClick}
         disabled={busy}
-        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold border-0"
+        className={`bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold border-0 ${isFullWidth ? 'w-full' : ''}`}
       >
         {busy ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : (icon && <Zap className="w-3.5 h-3.5 mr-1.5" />)}
         {label || `Sofort: ${priceLabel}`}
