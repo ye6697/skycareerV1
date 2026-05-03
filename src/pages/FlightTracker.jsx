@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { calculateInsuranceForFlight, resolveAircraftInsurance } from "@/lib/insurance";
 import { MAINTENANCE_CATEGORY_KEYS, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
 import { recoverLandingBonus } from "@/components/flights/landingBonusRecovery"; import { processAchievementsAfterFlight } from "@/components/achievements/processAchievementsAfterFlight";
-const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
+const ENGINE_FULL_THRUST_THRESHOLD_PCT = 98;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
 const ENGINE_PARTIAL_THRUST_STEP_SECONDS = 150;
 const ENGINE_WEAR_PER_STEP = 0.1;
