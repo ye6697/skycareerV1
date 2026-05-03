@@ -34,11 +34,9 @@ import {
   CheckCircle,
   Play,
   GraduationCap,
-  Lock,
   Users,
   Package,
   Gauge,
-  ShoppingCart,
   Activity,
   CheckCircle2,
   XCircle,
@@ -105,17 +103,6 @@ export default function ActiveFlights() {
     enabled: !!company?.id
   });
 
-  // For TR missions, any owned (non-sold) aircraft works as a placeholder
-  // for the flight record — the sim handles the actual training aircraft.
-  const { data: anyOwnedAircraft = [] } = useQuery({
-    queryKey: ['aircraft', 'any-owned', company?.id],
-    queryFn: async () => {
-      const all = await base44.entities.Aircraft.filter({ company_id: company.id });
-      return Array.isArray(all) ? all.filter((a) => String(a?.status || '').toLowerCase() !== 'sold') : [];
-    },
-    enabled: !!company?.id
-  });
-
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
     queryFn: () => base44.auth.me(),
@@ -138,18 +125,15 @@ export default function ActiveFlights() {
   const startFlightMutation = useMutation({
     mutationFn: async () => {
       // For type-rating training contracts, the user flies a model they may
-      // not own — pick any available owned aircraft just to satisfy the
-      // flight record (the sim handles the actual training evaluation).
+      // not own. We therefore allow starting without an owned aircraft.
       const isTr = isTrContract(selectedContract);
-      // For TR: pick any owned aircraft (even non-available) as placeholder.
-      const trFallback = anyOwnedAircraft[0] || aircraft[0];
       const aircraftIdToUse = isTr
-        ? (selectedAircraft || trFallback?.id)
+        ? null
         : selectedAircraft;
       const ac = isTr
-        ? (anyOwnedAircraft.find((a) => a.id === aircraftIdToUse) || aircraft.find((a) => a.id === aircraftIdToUse) || trFallback)
+        ? null
         : aircraft.find((a) => a.id === aircraftIdToUse);
-      if (!ac) {
+      if (!isTr && !ac) {
         throw new Error(lang === 'de'
           ? 'Du brauchst mindestens ein Flugzeug in deiner Flotte (egal welcher Typ).'
           : 'You need at least one aircraft in your fleet (any type).');
@@ -337,10 +321,7 @@ export default function ActiveFlights() {
   }, [selectedAircraftObj, selectedContract, userTypeRatings]);
 
   const canStartFlight = () => {
-    if (isTrContract(selectedContract)) {
-      // TR mission: any owned aircraft works as a placeholder for the flight record.
-      return anyOwnedAircraft.length > 0 || aircraft.length > 0;
-    }
+    if (isTrContract(selectedContract)) return true;
     if (!selectedAircraft) return false;
     if (selectedAircraftMissingRating) return false;
     return true;
