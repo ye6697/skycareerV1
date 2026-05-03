@@ -38,8 +38,15 @@ import {
   Users,
   Package,
   Gauge,
-  ShoppingCart } from
+  ShoppingCart,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  Radio,
+  TrendingUp } from
 "lucide-react";
+
+import ActiveFlightCard from "@/components/flights/ActiveFlightCard";
 
 export default function ActiveFlights() {
   const { lang } = useLanguage();
@@ -342,207 +349,185 @@ export default function ActiveFlights() {
   const allContracts = [...contracts, ...inProgressContracts];
   const [activeTab, setActiveTab] = useState('active');
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8">
+  const isXplaneConnected = company?.xplane_connection_status === 'connected';
+  const trainingCount = allContracts.filter((c) => /__TR__:/.test(String(c?.briefing || ''))).length;
 
-          <h1 className="text-3xl font-bold text-white">{t('active_flights', lang)}</h1>
-          <p className="text-slate-400">
-            {lang === 'de'
-              ? 'Bereite Fluege vor und starte sie mit FlightSim'
-              : 'Prepare flights and start them with FlightSim'}
-          </p>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className="max-w-7xl mx-auto p-3 sm:p-6">
+        {/* Modern Header with HUD-style stats */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-5">
+          <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-1 h-6 bg-gradient-to-b from-cyan-400 to-blue-500 rounded-full" />
+                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                  {t('active_flights', lang)}
+                </h1>
+              </div>
+              <p className="text-slate-400 text-sm pl-3">
+                {lang === 'de'
+                  ? 'Bereite Fluege vor und starte sie mit FlightSim'
+                  : 'Prepare flights and start them with FlightSim'}
+              </p>
+            </div>
+
+            {/* HUD-style sim connection chip */}
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border backdrop-blur-md ${
+              isXplaneConnected
+                ? 'bg-emerald-950/40 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+                : 'bg-slate-900/60 border-slate-700'
+            }`}>
+              <div className="relative">
+                <div className={`w-2 h-2 rounded-full ${
+                  isXplaneConnected ? 'bg-emerald-400' : 'bg-slate-600'
+                }`} />
+                {isXplaneConnected && (
+                  <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                )}
+              </div>
+              <Radio className={`w-3.5 h-3.5 ${isXplaneConnected ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <div className="flex flex-col">
+                <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 leading-none">
+                  FlightSim
+                </span>
+                <span className={`text-[11px] font-mono font-bold uppercase leading-tight ${
+                  isXplaneConnected ? 'text-emerald-300' : 'text-slate-400'
+                }`}>
+                  {isXplaneConnected
+                    ? (lang === 'de' ? 'Verbunden' : 'Connected')
+                    : (lang === 'de' ? 'Getrennt' : 'Offline')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stat strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-950/40 to-slate-900 px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Activity className="w-3 h-3 text-cyan-400" />
+                <span className="text-[9px] font-mono uppercase tracking-wider text-cyan-400">
+                  {lang === 'de' ? 'Aktiv' : 'Active'}
+                </span>
+              </div>
+              <p className="text-xl font-bold font-mono text-cyan-200">{allContracts.length}</p>
+            </div>
+            <div className="rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-950/40 to-slate-900 px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <GraduationCap className="w-3 h-3 text-amber-400" />
+                <span className="text-[9px] font-mono uppercase tracking-wider text-amber-400">
+                  {lang === 'de' ? 'Training' : 'Training'}
+                </span>
+              </div>
+              <p className="text-xl font-bold font-mono text-amber-200">{trainingCount}</p>
+            </div>
+            <div className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 to-slate-900 px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-400">
+                  {lang === 'de' ? 'Fertig' : 'Done'}
+                </span>
+              </div>
+              <p className="text-xl font-bold font-mono text-emerald-200">{completedContracts.length}</p>
+            </div>
+            <div className="rounded-lg border border-red-500/30 bg-gradient-to-br from-red-950/40 to-slate-900 px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <XCircle className="w-3 h-3 text-red-400" />
+                <span className="text-[9px] font-mono uppercase tracking-wider text-red-400">
+                  {lang === 'de' ? 'Fehler' : 'Failed'}
+                </span>
+              </div>
+              <p className="text-xl font-bold font-mono text-red-200">{failedContracts.length}</p>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Connection Status */}
-        <Card className="p-4 mb-6 bg-slate-900 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${
-              company?.xplane_connection_status === 'connected' ?
-              'bg-emerald-400 animate-pulse' :
-              'bg-slate-600'}`
-              } />
-              <span>
-                FlightSim: {company?.xplane_connection_status === 'connected'
-                  ? (lang === 'de' ? 'Verbunden' : 'Connected')
-                  : (lang === 'de' ? 'Nicht verbunden' : 'Disconnected')}
-              </span>
-            </div>
-            {company?.xplane_connection_status !== 'connected' &&
-            <p className="text-sm text-slate-300">
-                {t('plugin_required', lang)}
-              </p>
-            }
-          </div>
-        </Card>
-
-        {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-slate-700">
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'active' ?
-            'border-b-2 border-blue-500 text-blue-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-
-            {t('active_flights_tab', lang)} ({allContracts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'completed' ?
-            'border-b-2 border-emerald-500 text-emerald-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-
-            {t('completed_flights', lang)} ({completedContracts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('failed')}
-            className={`pb-3 px-4 font-medium transition-colors ${
-            activeTab === 'failed' ?
-            'border-b-2 border-red-500 text-red-400' :
-            'text-slate-400 hover:text-white'}`
-            }>
-
-            {t('failed_flights', lang)} ({failedContracts.length})
-          </button>
+        {/* Modernized segmented tabs */}
+        <div className="flex gap-1.5 mb-5 p-1 rounded-lg bg-slate-900/60 border border-slate-800 backdrop-blur-sm">
+          {[
+            { key: 'active', label: t('active_flights_tab', lang), count: allContracts.length, icon: Activity, color: 'cyan' },
+            { key: 'completed', label: t('completed_flights', lang), count: completedContracts.length, icon: CheckCircle2, color: 'emerald' },
+            { key: 'failed', label: t('failed_flights', lang), count: failedContracts.length, icon: XCircle, color: 'red' },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            const colors = {
+              cyan: isActive ? 'bg-cyan-500/20 text-cyan-200 border-cyan-500/40 shadow-[0_0_12px_rgba(34,211,238,0.25)]' : 'text-slate-400 hover:text-cyan-300',
+              emerald: isActive ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]' : 'text-slate-400 hover:text-emerald-300',
+              red: isActive ? 'bg-red-500/20 text-red-200 border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.25)]' : 'text-slate-400 hover:text-red-300',
+            };
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-[11px] sm:text-xs font-mono uppercase tracking-wider font-bold transition-all border ${
+                  isActive ? colors[tab.color] : `border-transparent ${colors[tab.color]}`
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                  isActive ? 'bg-slate-950/60' : 'bg-slate-800/60'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Active Contracts */}
-        {activeTab === 'active' && allContracts.length > 0 ?
-        <div className="space-y-4">
+        {activeTab === 'active' && allContracts.length > 0 ? (
+          <div className="space-y-3">
             <AnimatePresence>
-              {allContracts.map((contract) =>
-            <motion.div
-              key={contract.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}>
-
-                  <Card className="overflow-hidden bg-slate-800 border border-slate-700">
-                    <div className={`h-1 ${
-                contract.status === 'in_progress' ?
-                'bg-blue-500' :
-                'bg-amber-500'}`
-                } />
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-semibold text-white">
-                              {contract.title}
-                            </h3>
-                            <Badge className={
-                        contract.status === 'in_progress' ?
-                        'bg-blue-100 text-blue-700 border-blue-200' :
-                        'bg-amber-100 text-amber-700 border-amber-200'
-                        }>
-                              {contract.status === 'in_progress' ? t('in_flight', lang) : t('ready', lang)}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 text-slate-400">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4" />
-                              {contract.departure_airport}
-                            </span>
-                            <ArrowRight className="w-4 h-4" />
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4" />
-                              {contract.arrival_airport}
-                            </span>
-                            <span className="text-slate-600">|</span>
-                            <span>{contract.distance_nm} NM</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-emerald-600">
-                            ${contract.payout?.toLocaleString()}
-                          </p>
-                          {contract.bonus_potential > 0 &&
-                      <p className="text-sm text-amber-600">
-                              +${contract.bonus_potential?.toLocaleString()} {lang === 'de' ? 'Bonus' : 'Bonus'}
-                            </p>
+              {allContracts.map((contract) => {
+                const linkedFlight = contract.status === 'in_progress'
+                  ? (inFlightRecords.find((f) => f.contract_id === contract.id) || null)
+                  : null;
+                return (
+                  <ActiveFlightCard
+                    key={contract.id}
+                    contract={contract}
+                    flight={linkedFlight}
+                    lang={lang}
+                    isCancelling={cancelFlightMutation.isPending}
+                    onPrepare={() => {
+                      setSelectedContract(contract);
+                      setIsAssignDialogOpen(true);
+                    }}
+                    onCancel={() => {
+                      const penalty = contract?.payout * 0.3 || 5000;
+                      if (confirm(`${t('cancel_confirm', lang)} $${penalty.toLocaleString()}`)) {
+                        cancelFlightMutation.mutate({ contract, flight: linkedFlight });
                       }
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-2">
-                        {contract.status === 'accepted' &&
-                    <>
-                            <Button
-                        onClick={() => {
-                          const penalty = contract?.payout * 0.3 || 5000;
-                          if (confirm(`${t('cancel_confirm', lang)} $${penalty.toLocaleString()}`)) {
-                            cancelFlightMutation.mutate({ contract, flight: null });
-                          }
-                        }}
-                        disabled={cancelFlightMutation.isPending}
-                        variant="destructive">
-
-                              {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
-                            </Button>
-                            <Button
-                        onClick={() => {
-                          setSelectedContract(contract);
-                          setIsAssignDialogOpen(true);
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700">
-
-                              <Play className="w-4 h-4 mr-2" />
-                              {t('prepare_flight', lang)}
-                            </Button>
-                          </>
-                    }
-                        {contract.status === 'in_progress' &&
-                    <>
-                            <Button
-                        onClick={() => {
-                          const penalty = contract?.payout * 0.3 || 5000;
-                          if (confirm(`${t('cancel_confirm', lang)} $${penalty.toLocaleString()}`)) {
-                            const linkedFlight = inFlightRecords.find((f) => f.contract_id === contract.id) || null;
-                            cancelFlightMutation.mutate({ contract, flight: linkedFlight });
-                          }
-                        }}
-                        disabled={cancelFlightMutation.isPending}
-                        variant="destructive">
-
-                              {cancelFlightMutation.isPending ? t('cancelling', lang) : t('cancel_flight', lang)}
-                            </Button>
-                            <Link to={createPageUrl(`FlightTracker?contractId=${contract.id}`)}>
-                              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                                <Plane className="w-4 h-4 mr-2" />
-                                {t('track_flight', lang)}
-                              </Button>
-                            </Link>
-                          </>
-                    }
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-            )}
+                    }}
+                  />
+                );
+              })}
             </AnimatePresence>
-          </div> :
-        activeTab === 'active' ?
-        <Card className="p-12 text-center bg-slate-800 border border-slate-700">
-            <Plane className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">{t('no_active_contracts', lang)}</h3>
-            <p className="text-slate-400 mb-4">
+          </div>
+        ) : activeTab === 'active' ? (
+          <Card className="p-10 text-center bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800">
+            <div className="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/30 mx-auto mb-4 flex items-center justify-center">
+              <Plane className="w-8 h-8 text-cyan-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-1">{t('no_active_contracts', lang)}</h3>
+            <p className="text-slate-400 mb-5 text-sm">
               {t('accept_contract_to_start', lang)}
             </p>
             <Link to={createPageUrl("Contracts")}>
-              <Button>{t('browse_contracts_label', lang)}</Button>
+              <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                {t('browse_contracts_label', lang)}
+              </Button>
             </Link>
-          </Card> :
-        null}
+          </Card>
+        ) : null}
 
         {/* Completed Contracts */}
         {activeTab === 'completed' && completedContracts.length > 0 ?

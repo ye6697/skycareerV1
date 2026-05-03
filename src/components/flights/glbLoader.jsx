@@ -6,8 +6,47 @@ import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.j
 
 // Simple cached GLB loader. Returns a clone of the loaded scene each call so
 // the same model can be placed many times without sharing transforms.
+//
+// Cache uses an LRU policy: when the cache exceeds MAX_CACHE_SIZE, the
+// least-recently-used GLB is disposed (geometries + materials freed) to keep
+// memory usage bounded. Without this, browsing a long aircraft catalog would
+// accumulate dozens of GLBs in RAM and eventually crash on mobile devices.
 const cache = new Map();
 const inflight = new Map();
+const MAX_CACHE_SIZE = 8;
+
+function disposeRoot(root) {
+  if (!root) return;
+  root.traverse((node) => {
+    if (node.geometry?.dispose) node.geometry.dispose();
+    if (node.material) {
+      if (Array.isArray(node.material)) {
+        node.material.forEach((m) => m?.dispose?.());
+      } else {
+        node.material.dispose?.();
+      }
+    }
+  });
+}
+
+function evictIfNeeded() {
+  while (cache.size > MAX_CACHE_SIZE) {
+    const oldestKey = cache.keys().next().value;
+    if (!oldestKey) break;
+    const oldestRoot = cache.get(oldestKey);
+    cache.delete(oldestKey);
+    try { disposeRoot(oldestRoot); } catch (_) { /* noop */ }
+  }
+}
+
+function touchCache(key) {
+  // Re-insert to mark as most-recently used (Map preserves insertion order).
+  if (cache.has(key)) {
+    const value = cache.get(key);
+    cache.delete(key);
+    cache.set(key, value);
+  }
+}
 
 // Enable Three's built-in HTTP cache so re-loads (e.g. after navigation) skip
 // the network round-trip entirely.
@@ -54,7 +93,10 @@ function cloneSceneDeep(root) {
 }
 
 export function loadGLB(url) {
-  if (cache.has(url)) return Promise.resolve(cloneSceneDeep(cache.get(url)));
+  if (cache.has(url)) {
+    touchCache(url);
+    return Promise.resolve(cloneSceneDeep(cache.get(url)));
+  }
   if (inflight.has(url)) return inflight.get(url).then((o) => cloneSceneDeep(o));
   const p = new Promise((resolve, reject) => {
     getLoader().load(
@@ -63,6 +105,7 @@ export function loadGLB(url) {
         const root = gltf.scene || gltf.scenes?.[0];
         if (!root) { reject(new Error('GLB has no scene')); return; }
         cache.set(url, root);
+        evictIfNeeded();
         resolve(cloneSceneDeep(root));
       },
       undefined,
