@@ -133,7 +133,7 @@ export default function MaintenanceCategories({ aircraft }) {
 
   const failureTriggersEnabled = (typeof failureTriggerState === 'boolean')
     ? failureTriggerState
-    : true;
+    : false;
   const effectiveFailureEnabled = failureTriggersEnabled;
 
   const toggleFailureTriggersMutation = useMutation({

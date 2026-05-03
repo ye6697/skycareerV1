@@ -56,6 +56,7 @@ export default function MarketHangar3DView({
   onRequestTypeRating,
 }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [showMaintenanceDetails, setShowMaintenanceDetails] = useState(false);
   const [hangarSelectionByListing, setHangarSelectionByListing] = useState({});
   const topListRef = React.useRef(null);
   const queryClient = useQueryClient();
@@ -126,6 +127,9 @@ export default function MarketHangar3DView({
   const canDirectBuy = Boolean(purchasable && effectiveHangarId && hangarOptions.length > 0 && hasRating);
 
   const typeLabel = TYPE_LABELS_BY_TYPE[current.type]?.[lang] || TYPE_LABELS_BY_TYPE[current.type]?.en || String(current.type || '').replace(/_/g, ' ').toUpperCase();
+  const usedWearAvgPct = Math.max(0, Math.min(100, Number(current.used_wear_avg || 0)));
+  const usedWearPeakPct = Math.max(0, Math.min(100, Number(current.used_wear_peak || 0)));
+  const usedPermanentAvgPct = Math.max(0, Math.min(100, Number(current.used_permanent_avg || 0)));
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-950">
@@ -353,6 +357,16 @@ export default function MarketHangar3DView({
           )}
 
           <div className="max-w-6xl mx-auto mt-1.5 flex items-center justify-end flex-wrap gap-1.5">
+            {marketSection === 'used' && (
+              <Button
+                type="button"
+                onClick={() => setShowMaintenanceDetails(true)}
+                size="sm"
+                className="h-7 bg-amber-900/30 text-amber-200 hover:bg-amber-800/40 border border-amber-300/30 backdrop-blur-md text-[10px] font-mono uppercase"
+              >
+                {lang === 'de' ? 'Wartungsdetails' : 'Maintenance details'}
+              </Button>
+            )}
             {/* Real-money instant unlock — always available */}
             {(() => {
               const tier = getAircraftTierItem(current.type);
@@ -407,6 +421,54 @@ export default function MarketHangar3DView({
             </Button>
           </div>
       </div>
+
+      {showMaintenanceDetails && marketSection === 'used' && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/80 flex items-end sm:items-center justify-center p-2 sm:p-6"
+          onClick={() => setShowMaintenanceDetails(false)}
+        >
+          <div
+            className="w-full max-w-xl bg-slate-900 border border-amber-700/50 text-slate-200 rounded-lg overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="px-4 pt-4 pb-2 border-b border-slate-800">
+              <h3 className="text-amber-300 uppercase font-semibold">
+                {lang === 'de' ? 'Wartungsstand im Detail' : 'Maintenance details'}
+              </h3>
+            </div>
+            <div className="p-4 space-y-3 text-xs font-mono">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{lang === 'de' ? 'Aktiver Verschleiss (Ø)' : 'Active wear (avg)'}</span>
+                <span className="text-amber-200">{Math.round(usedWearAvgPct)}%</span>
+              </div>
+              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-amber-500" style={{ width: `${usedWearAvgPct}%` }} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{lang === 'de' ? 'Max. aktiver Verschleiss' : 'Max active wear'}</span>
+                <span className="text-amber-300">{Math.round(usedWearPeakPct)}%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{lang === 'de' ? 'Permanenter Verschleiss (Ø)' : 'Permanent wear (avg)'}</span>
+                <span className="text-red-300">{Math.round(usedPermanentAvgPct)}%</span>
+              </div>
+              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-red-500" style={{ width: `${usedPermanentAvgPct}%` }} />
+              </div>
+              <div className="pt-1 text-[11px] text-slate-400">
+                {lang === 'de'
+                  ? 'Hinweis: Permanenter Verschleiss kann nicht vollstaendig entfernt werden.'
+                  : 'Note: Permanent wear cannot be fully removed.'}
+              </div>
+              <div className="pt-1 flex justify-end">
+                <Button size="sm" className="h-7 text-[10px] font-mono uppercase bg-slate-800 text-slate-200" onClick={() => setShowMaintenanceDetails(false)}>
+                  {lang === 'de' ? 'Schliessen' : 'Close'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
