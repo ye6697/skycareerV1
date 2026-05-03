@@ -70,6 +70,8 @@ import Leaderboard from './pages/Leaderboard';
 import AdminDiscounts from './pages/AdminDiscounts';
 import Achievements from './pages/Achievements';
 import TypeRatings from './pages/TypeRatings.jsx';
+import About from './pages/About.jsx';
+import Contact from './pages/Contact.jsx';
 import __Layout from './Layout.jsx';
 
 
@@ -97,6 +99,8 @@ export const PAGES = {
     "Setup": Setup,
     "XPlaneDebug": XPlaneDebug,
     "XPlaneSetup": XPlaneSetup,
+    "About": About,
+    "Contact": Contact,
 }
 
 export const pagesConfig = {

@@ -147,6 +147,11 @@
         "type": "string"
       },
       "default": []
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this company"
     }
   },
   "required": [

@@ -142,7 +142,7 @@ function LayoutInner({ children, currentPageName }) {
 
   const xplaneStatus = company?.xplane_connection_status || 'disconnected';
 
-  if (currentPageName === "Setup" || currentPageName === "Landing") {
+  if (currentPageName === "Setup" || currentPageName === "Landing" || currentPageName === "About" || currentPageName === "Contact") {
     return children;
   }
 
@@ -194,6 +194,15 @@ function LayoutInner({ children, currentPageName }) {
           children
         )}
       </main>
+
+      {/* Global footer with public links */}
+      <footer className="border-t border-slate-800 bg-slate-950/80 py-3 px-4 flex-shrink-0">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-mono uppercase tracking-wider text-slate-500">
+          <Link to={createPageUrl("About")} className="hover:text-cyan-400">About</Link>
+          <Link to={createPageUrl("Contact")} className="hover:text-cyan-400">Contact</Link>
+          <span className="text-slate-700">© SkyCareer</span>
+        </div>
+      </footer>
     </div>
   );
   }

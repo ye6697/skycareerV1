@@ -1,0 +1,38 @@
+{
+  "name": "XPlaneLog",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Reference to company"
+    },
+    "raw_data": {
+      "type": "object",
+      "description": "Complete received data from X-Plane"
+    },
+    "altitude": {
+      "type": "number"
+    },
+    "speed": {
+      "type": "number"
+    },
+    "on_ground": {
+      "type": "boolean"
+    },
+    "flight_score": {
+      "type": "number"
+    },
+    "has_active_flight": {
+      "type": "boolean",
+      "description": "Whether there was an active flight when data was received"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this log entry"
+    }
+  },
+  "required": [
+    "company_id"
+  ]
+}

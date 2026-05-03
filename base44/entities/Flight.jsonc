@@ -1,0 +1,172 @@
+{
+  "name": "Flight",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Reference to company operating this flight"
+    },
+    "contract_id": {
+      "type": "string",
+      "description": "Reference to contract"
+    },
+    "aircraft_id": {
+      "type": "string",
+      "description": "Reference to aircraft used"
+    },
+    "crew": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "departure_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "arrival_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "flight_duration_hours": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "boarding",
+        "in_flight",
+        "landed",
+        "completed",
+        "cancelled"
+      ],
+      "default": "scheduled"
+    },
+    "takeoff_rating": {
+      "type": "number"
+    },
+    "flight_rating": {
+      "type": "number"
+    },
+    "landing_rating": {
+      "type": "number"
+    },
+    "overall_rating": {
+      "type": "number"
+    },
+    "landing_vs": {
+      "type": "number"
+    },
+    "max_g_force": {
+      "type": "number"
+    },
+    "fuel_used_liters": {
+      "type": "number"
+    },
+    "revenue": {
+      "type": "number"
+    },
+    "fuel_cost": {
+      "type": "number"
+    },
+    "crew_cost": {
+      "type": "number"
+    },
+    "maintenance_cost": {
+      "type": "number"
+    },
+    "profit": {
+      "type": "number"
+    },
+    "xplane_data": {
+      "type": "object",
+      "description": "Raw data from X-Plane connection"
+    },
+    "passenger_comments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "flight_score": {
+      "type": "number"
+    },
+    "active_failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "List of failures triggered during this flight"
+    },
+    "maintenance_damage": {
+      "type": "object",
+      "description": "Maintenance damage per category caused by this flight",
+      "properties": {
+        "engine": {
+          "type": "number",
+          "default": 0
+        },
+        "hydraulics": {
+          "type": "number",
+          "default": 0
+        },
+        "avionics": {
+          "type": "number",
+          "default": 0
+        },
+        "airframe": {
+          "type": "number",
+          "default": 0
+        },
+        "landing_gear": {
+          "type": "number",
+          "default": 0
+        },
+        "electrical": {
+          "type": "number",
+          "default": 0
+        },
+        "flight_controls": {
+          "type": "number",
+          "default": 0
+        },
+        "pressurization": {
+          "type": "number",
+          "default": 0
+        }
+      }
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this flight"
+    }
+  },
+  "required": [
+    "company_id",
+    "contract_id"
+  ]
+}

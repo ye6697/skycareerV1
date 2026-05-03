@@ -236,6 +236,11 @@
     "source_market_listing_id": {
       "type": "string",
       "description": "ID of the used-market listing this aircraft was purchased from"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this aircraft"
     }
   },
   "required": [

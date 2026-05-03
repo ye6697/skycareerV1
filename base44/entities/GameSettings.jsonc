@@ -1,0 +1,177 @@
+{
+  "name": "GameSettings",
+  "type": "object",
+  "properties": {
+    "tailstrike_score_penalty": {
+      "type": "number",
+      "default": 20,
+      "description": "Score-Abzug bei Heckaufsetzer"
+    },
+    "tailstrike_maintenance_percent": {
+      "type": "number",
+      "default": 2,
+      "description": "Wartungskosten bei Heckaufsetzer (% des Neuwertes)"
+    },
+    "stall_score_penalty": {
+      "type": "number",
+      "default": 50,
+      "description": "Score-Abzug bei Str\u00f6mungsabriss"
+    },
+    "overstress_score_penalty": {
+      "type": "number",
+      "default": 30,
+      "description": "Score-Abzug bei Strukturschaden"
+    },
+    "overstress_maintenance_percent": {
+      "type": "number",
+      "default": 4,
+      "description": "Wartungskosten bei Strukturschaden (% des Neuwertes)"
+    },
+    "flaps_overspeed_score_penalty": {
+      "type": "number",
+      "default": 15,
+      "description": "Score-Abzug bei Klappen-Overspeed"
+    },
+    "flaps_overspeed_maintenance_percent": {
+      "type": "number",
+      "default": 2.5,
+      "description": "Wartungskosten bei Klappen-Overspeed (% des Neuwertes)"
+    },
+    "g_force_threshold": {
+      "type": "number",
+      "default": 1.5,
+      "description": "G-Kraft Schwellenwert f\u00fcr Wartungskosten"
+    },
+    "g_force_score_penalty": {
+      "type": "number",
+      "default": 25,
+      "description": "Score-Abzug pro G-Kraft \u00dcberschreitung"
+    },
+    "g_force_maintenance_percent_per_g": {
+      "type": "number",
+      "default": 1,
+      "description": "Wartungskosten pro G-Kraft (% des Neuwertes pro G)"
+    },
+    "hard_landing_vs_threshold": {
+      "type": "number",
+      "default": 600,
+      "description": "Vertikalgeschwindigkeit Schwellenwert f\u00fcr harte Landung (ft/min)"
+    },
+    "hard_landing_score_penalty": {
+      "type": "number",
+      "default": 15,
+      "description": "Score-Abzug bei harter Landung"
+    },
+    "hard_landing_maintenance_percent": {
+      "type": "number",
+      "default": 1,
+      "description": "Wartungskosten bei harter Landung (% des Flugzeugwerts)"
+    },
+    "soft_landing_vs_threshold": {
+      "type": "number",
+      "default": 150,
+      "description": "Vertikalgeschwindigkeit Schwellenwert f\u00fcr weiche Landung (ft/min)"
+    },
+    "soft_landing_score_bonus": {
+      "type": "number",
+      "default": 5,
+      "description": "Score-Bonus bei weicher Landung"
+    },
+    "butter_landing_vs_threshold": {
+      "type": "number",
+      "default": 100,
+      "description": "Vertikalgeschwindigkeit Schwellenwert f\u00fcr butterweiche Landung (ft/min)"
+    },
+    "butter_landing_score_bonus": {
+      "type": "number",
+      "default": 10,
+      "description": "Score-Bonus bei butterweicher Landung"
+    },
+    "crash_vs_threshold": {
+      "type": "number",
+      "default": 1000,
+      "description": "Vertikalgeschwindigkeit Schwellenwert f\u00fcr Crash (ft/min)"
+    },
+    "crash_score_penalty": {
+      "type": "number",
+      "default": 100,
+      "description": "Score-Abzug bei Crash"
+    },
+    "crash_maintenance_percent": {
+      "type": "number",
+      "default": 70,
+      "description": "Wartungskosten bei Crash (% des Neuwertes)"
+    },
+    "level_1_4_title": {
+      "type": "string",
+      "default": "Freizeit-Simmer",
+      "description": "Level-Titel f\u00fcr Level 1-4"
+    },
+    "level_5_8_title": {
+      "type": "string",
+      "default": "Hobby-Pilot",
+      "description": "Level-Titel f\u00fcr Level 5-8"
+    },
+    "level_9_12_title": {
+      "type": "string",
+      "default": "Regional-Kapit\u00e4n",
+      "description": "Level-Titel f\u00fcr Level 9-12"
+    },
+    "level_13_16_title": {
+      "type": "string",
+      "default": "Airline-Profi",
+      "description": "Level-Titel f\u00fcr Level 13-16"
+    },
+    "level_17_20_title": {
+      "type": "string",
+      "default": "Flug-Veteran",
+      "description": "Level-Titel f\u00fcr Level 17-20"
+    },
+    "level_21_30_title": {
+      "type": "string",
+      "default": "Charter-Experte",
+      "description": "Level-Titel f\u00fcr Level 21-30"
+    },
+    "level_31_40_title": {
+      "type": "string",
+      "default": "Langstrecken-Ass",
+      "description": "Level-Titel f\u00fcr Level 31-40"
+    },
+    "level_41_50_title": {
+      "type": "string",
+      "default": "Linien-Kapit\u00e4n",
+      "description": "Level-Titel f\u00fcr Level 41-50"
+    },
+    "level_51_60_title": {
+      "type": "string",
+      "default": "Flotten-Chef",
+      "description": "Level-Titel f\u00fcr Level 51-60"
+    },
+    "level_61_70_title": {
+      "type": "string",
+      "default": "Luftfahrt-Mogul",
+      "description": "Level-Titel f\u00fcr Level 61-70"
+    },
+    "level_71_80_title": {
+      "type": "string",
+      "default": "Aviation-Tycoon",
+      "description": "Level-Titel f\u00fcr Level 71-80"
+    },
+    "level_81_90_title": {
+      "type": "string",
+      "default": "Sky-Emperor",
+      "description": "Level-Titel f\u00fcr Level 81-90"
+    },
+    "level_91_100_title": {
+      "type": "string",
+      "default": "Luftfahrt-Legende",
+      "description": "Level-Titel f\u00fcr Level 91-100"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for these game settings"
+    }
+  },
+  "required": []
+}

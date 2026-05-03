@@ -1,0 +1,134 @@
+{
+  "name": "Contract",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Reference to company that accepted this contract (null if available)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Contract title"
+    },
+    "briefing": {
+      "type": "string",
+      "description": "Short mission briefing"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "passenger",
+        "cargo",
+        "charter",
+        "emergency"
+      ],
+      "description": "Contract type"
+    },
+    "departure_airport": {
+      "type": "string",
+      "description": "ICAO code of departure airport"
+    },
+    "departure_city": {
+      "type": "string"
+    },
+    "arrival_airport": {
+      "type": "string",
+      "description": "ICAO code of arrival airport"
+    },
+    "arrival_city": {
+      "type": "string"
+    },
+    "distance_nm": {
+      "type": "number",
+      "description": "Distance in nautical miles"
+    },
+    "passenger_count": {
+      "type": "number",
+      "description": "Number of passengers (for passenger contracts)"
+    },
+    "cargo_weight_kg": {
+      "type": "number",
+      "description": "Cargo weight in kg (for cargo contracts)"
+    },
+    "payout": {
+      "type": "number",
+      "description": "Contract payout in dollars"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Contract deadline"
+    },
+    "deadline_minutes": {
+      "type": "number",
+      "description": "Realistische Flugzeit-Deadline in Minuten (basierend auf Distanz)"
+    },
+    "required_aircraft_type": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Required aircraft types"
+    },
+    "required_crew": {
+      "type": "object",
+      "properties": {
+        "captain": {
+          "type": "number"
+        },
+        "first_officer": {
+          "type": "number"
+        },
+        "flight_attendant": {
+          "type": "number"
+        },
+        "loadmaster": {
+          "type": "number"
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "accepted",
+        "in_progress",
+        "completed",
+        "failed",
+        "expired"
+      ],
+      "default": "available"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "easy",
+        "medium",
+        "hard",
+        "extreme"
+      ],
+      "default": "medium"
+    },
+    "bonus_potential": {
+      "type": "number",
+      "description": "Potential bonus for excellent performance"
+    },
+    "level_requirement": {
+      "type": "number",
+      "default": 1,
+      "description": "Minimum company level required"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this contract"
+    }
+  },
+  "required": [
+    "title",
+    "type",
+    "departure_airport",
+    "arrival_airport",
+    "payout"
+  ]
+}

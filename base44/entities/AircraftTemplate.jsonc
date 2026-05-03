@@ -1,0 +1,56 @@
+{
+  "name": "AircraftTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Aircraft name/model"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "small_prop",
+        "turboprop",
+        "regional_jet",
+        "narrow_body",
+        "wide_body",
+        "cargo"
+      ],
+      "description": "Aircraft category"
+    },
+    "passenger_capacity": {
+      "type": "number"
+    },
+    "cargo_capacity_kg": {
+      "type": "number"
+    },
+    "fuel_consumption_per_hour": {
+      "type": "number"
+    },
+    "range_nm": {
+      "type": "number"
+    },
+    "purchase_price": {
+      "type": "number"
+    },
+    "maintenance_cost_per_hour": {
+      "type": "number"
+    },
+    "level_requirement": {
+      "type": "number",
+      "default": 1
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this aircraft template"
+    }
+  },
+  "required": [
+    "name",
+    "type"
+  ]
+}

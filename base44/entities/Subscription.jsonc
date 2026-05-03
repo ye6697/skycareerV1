@@ -64,25 +64,16 @@
     "metadata": {
       "type": "object",
       "description": "Item-specific metadata (sc_amount, aircraft_model, etc.)"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this subscription"
     }
   },
   "required": [
     "user_email",
     "plan_type",
     "status"
-  ],
-  "rls": {
-    "create": {
-      "data.user_email": "{{user.email}}"
-    },
-    "read": {
-      "data.user_email": "{{user.email}}"
-    },
-    "update": {
-      "data.user_email": "{{user.email}}"
-    },
-    "delete": {
-      "data.user_email": "{{user.email}}"
-    }
-  }
+  ]
 }
