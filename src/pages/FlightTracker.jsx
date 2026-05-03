@@ -200,28 +200,49 @@ const calcConditionSecondsFromTelemetry = ({
   return seconds;
 };
 
-const calcEngineFullThrustSeconds = (telemetryHistory, currentThrustLeverPct) => {
-  return calcConditionSecondsFromTelemetry({
+const readEffectiveThrustPct = (curPt, prevPt) => {
+  const curLever = firstFiniteNumber(curPt?.value, readThrustLeverPct(curPt));
+  const prevLever = readThrustLeverPct(prevPt);
+  return Number.isFinite(curLever) ? curLever : prevLever;
+};
+
+const calcEngineThrustProfileSeconds = (telemetryHistory, currentThrustLeverPct) => {
+  const knownSeconds = calcConditionSecondsFromTelemetry({
+    telemetryHistory,
+    currentSampleValue: currentThrustLeverPct,
+    predicate: (curPt, prevPt) => Number.isFinite(readEffectiveThrustPct(curPt, prevPt)),
+  });
+
+  if (knownSeconds <= 0) {
+    return { fullSeconds: 0, knownSeconds: 0 };
+  }
+
+  const fullSeconds = calcConditionSecondsFromTelemetry({
     telemetryHistory,
     currentSampleValue: currentThrustLeverPct,
     predicate: (curPt, prevPt) => {
-      const curLever = firstFiniteNumber(curPt?.value, readThrustLeverPct(curPt));
-      const prevLever = readThrustLeverPct(prevPt);
-      const effectiveLever = Number.isFinite(curLever) ? curLever : prevLever;
+      const effectiveLever = readEffectiveThrustPct(curPt, prevPt);
       return Number.isFinite(effectiveLever) && effectiveLever >= ENGINE_FULL_THRUST_THRESHOLD_PCT;
     },
   });
+
+  return {
+    fullSeconds: clamp(fullSeconds, 0, knownSeconds),
+    knownSeconds,
+  };
 };
 
-const calcEngineWearFromThrustProfile = (fullThrustSeconds, totalFlightSeconds) => {
+const calcEngineWearFromThrustProfile = (fullThrustSeconds, totalFlightSeconds, knownThrustSeconds = null) => {
   const totalSeconds = Math.max(0, Number(totalFlightSeconds || 0));
-  const fullSeconds = clamp(Number(fullThrustSeconds || 0), 0, totalSeconds);
-  const nonFullSeconds = Math.max(0, totalSeconds - fullSeconds);
+  const knownSeconds = Math.max(0, Number(knownThrustSeconds ?? totalSeconds) || 0);
+  const fullSeconds = clamp(Number(fullThrustSeconds || 0), 0, knownSeconds);
+  const nonFullSeconds = Math.max(0, knownSeconds - fullSeconds);
   const fullSteps = Math.floor(fullSeconds / ENGINE_FULL_THRUST_STEP_SECONDS);
   const nonFullSteps = Math.floor(nonFullSeconds / ENGINE_PARTIAL_THRUST_STEP_SECONDS);
   const fullWear = fullSteps * ENGINE_WEAR_PER_STEP;
   const nonFullWear = nonFullSteps * ENGINE_WEAR_PER_STEP;
   return {
+    knownSeconds,
     fullSeconds,
     nonFullSeconds,
     fullSteps,
@@ -301,7 +322,9 @@ export default function FlightTracker() {
   const [completedFlightForAnim, setCompletedFlightForAnim] = useState(null);
   const [flightStartedAt, setFlightStartedAt] = useState(null);
   const [emergencyLanding, setEmergencyLanding] = useState(false);
-  const [engineHighLoadSecondsLive, setEngineHighLoadSecondsLive] = useState(0); const [highAltitudeSecondsLive, setHighAltitudeSecondsLive] = useState(0);
+  const [engineHighLoadSecondsLive, setEngineHighLoadSecondsLive] = useState(0);
+  const [engineKnownThrustSecondsLive, setEngineKnownThrustSecondsLive] = useState(0);
+  const [highAltitudeSecondsLive, setHighAltitudeSecondsLive] = useState(0);
   const flightDataRef = React.useRef(null);
   const autoCompleteTimeoutRef = useRef(null);
   const lastAutoFailureTsRef = useRef(null);
@@ -410,8 +433,8 @@ export default function FlightTracker() {
     };
 
     const landingG = Number(currentLiveData.landingGForce || 0);
-    const engineThrustWear = calcEngineWearFromThrustProfile(engineHighLoadSecondsLive, flightDurationSeconds);
-    if (engineThrustWear.totalWear > 0 || flightDurationSeconds > 0) {
+    const engineThrustWear = calcEngineWearFromThrustProfile(engineHighLoadSecondsLive, flightDurationSeconds, engineKnownThrustSecondsLive);
+    if (engineThrustWear.totalWear > 0 || engineThrustWear.knownSeconds > 0) {
       flightWear.engine += engineThrustWear.totalWear;
       addReason(
         'engine',
@@ -608,6 +631,7 @@ export default function FlightTracker() {
     lang,
     maintenanceCategoryConfig,
     engineHighLoadSecondsLive,
+    engineKnownThrustSecondsLive,
     highAltitudeSecondsLive,
   ]);
 
@@ -695,6 +719,7 @@ export default function FlightTracker() {
   useEffect(() => {
     if (flightPhase === 'preflight' || flightPhase === 'completed') {
       setEngineHighLoadSecondsLive(0);
+      setEngineKnownThrustSecondsLive(0);
       setHighAltitudeSecondsLive(0);
       return;
     }
@@ -707,12 +732,15 @@ export default function FlightTracker() {
     const history = filterTelemetryHistoryForSession(raw.telemetry_history, sessionStartMs);
     if (history.length === 0) {
       setEngineHighLoadSecondsLive(0);
+      setEngineKnownThrustSecondsLive(0);
       setHighAltitudeSecondsLive(0);
       return;
     }
 
     const currentThrustLever = readThrustLeverPct(raw);
-    setEngineHighLoadSecondsLive(calcEngineFullThrustSeconds(history, currentThrustLever));
+    const thrustProfile = calcEngineThrustProfileSeconds(history, currentThrustLever);
+    setEngineHighLoadSecondsLive(thrustProfile.fullSeconds);
+    setEngineKnownThrustSecondsLive(thrustProfile.knownSeconds);
 
     const currentAltitude = firstFiniteNumber(raw.altitude, raw.alt);
     const highAltSeconds = calcConditionSecondsFromTelemetry({
@@ -1872,9 +1900,10 @@ export default function FlightTracker() {
 
             const latestThrustLever = readThrustLeverPct({ ...(xpData || {}), ...(liveXpData || {}) });
             const finalMaxG = Number(finalFlightData.maxGForce || 1);
-            const highLoadSeconds = calcEngineFullThrustSeconds(telemetryHistory, latestThrustLever);
+            const thrustProfile = calcEngineThrustProfileSeconds(telemetryHistory, latestThrustLever);
+            const highLoadSeconds = thrustProfile.fullSeconds;
             const totalFlightSeconds = Math.max(0, Number(flightHours || 0) * 3600);
-            const engineThrustWear = calcEngineWearFromThrustProfile(highLoadSeconds, totalFlightSeconds);
+            const engineThrustWear = calcEngineWearFromThrustProfile(highLoadSeconds, totalFlightSeconds, thrustProfile.knownSeconds);
             const engineHighGWear = calcEngineWearFromHighG(finalMaxG);
             const engineHardLandingWear = calcEngineWearFromHardLanding(storedLandingG);
             const finalEvents = finalFlightData.events || {};
