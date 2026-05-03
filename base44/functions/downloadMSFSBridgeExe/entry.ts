@@ -115,6 +115,17 @@ ALLOWED_FORWARD_KEYS = {
     'simulator', 'altitude', 'speed', 'ias', 'vertical_speed', 'heading',
     'pitch', 'g_force', 'max_g_force', 'latitude', 'longitude', 'on_ground',
     'was_airborne', 'parking_brake', 'engine1_running', 'aircraft_icao',
+    'engine2_running', 'engines_running', 'engine_load_pct', 'engine1_load_pct',
+    'engine2_load_pct', 'gear_down', 'flap_ratio', 'speedbrake', 'speed_brake',
+    'spoiler', 'fuel_percentage', 'fuel_kg', 'fuel_total_kg',
+    'fuel_flow_total_kgph', 'fuel_flow_total_lph', 'fuel_flow_total_pph',
+    'engine1_fuel_flow_pph', 'engine2_fuel_flow_pph', 'fuel_flow_source',
+    'total_weight_kg', 'tow_kg', 'oat_c', 'tat_c', 'tat',
+    'total_air_temperature', 'total_air_temperature_c', 'ground_elevation_ft',
+    'baro_setting', 'wind_speed_kts', 'wind_gust_kts', 'wind_direction',
+    'rain_intensity', 'rain_detected', 'precipitation', 'precip_rate',
+    'precip_state', 'ambient_precip_rate', 'ambient_precip_state',
+    'turbulence', 'turbulence_intensity',
 }
 
 state_lock = threading.Lock()
@@ -122,6 +133,9 @@ request_count = 0
 forward_count = 0
 last_forward_status = None
 last_forward_elapsed_ms = None
+last_fuel_kg = None
+last_fuel_ts = 0.0
+fuel_flow_smoothed_kgph = 0.0
 
 def log(msg):
     try:
@@ -132,8 +146,29 @@ def log(msg):
 
 def forward_payload(payload, api_key):
     global forward_count, last_forward_status, last_forward_elapsed_ms
+    global last_fuel_kg, last_fuel_ts, fuel_flow_smoothed_kgph
     sep = '&' if '?' in TARGET_ENDPOINT else '?'
     target_url = f"{TARGET_ENDPOINT}{sep}api_key={api_key}"
+    try:
+        now_ts = time.time()
+        fuel_kg = float(payload.get('fuel_kg') or payload.get('fuel_total_kg') or 0)
+        has_flow = float(payload.get('fuel_flow_total_kgph') or 0) > 0
+        if fuel_kg > 0 and last_fuel_kg is not None and last_fuel_ts > 0 and not has_flow:
+            dt = now_ts - last_fuel_ts
+            burned = last_fuel_kg - fuel_kg
+            if dt >= 2 and burned > 0:
+                instant_kgph = (burned * 3600.0) / dt
+                if 1 <= instant_kgph <= 5000:
+                    fuel_flow_smoothed_kgph = instant_kgph if fuel_flow_smoothed_kgph <= 0 else ((fuel_flow_smoothed_kgph * 0.7) + (instant_kgph * 0.3))
+                    payload['fuel_flow_total_kgph'] = round(fuel_flow_smoothed_kgph, 1)
+                    payload['fuel_flow_total_lph'] = round(fuel_flow_smoothed_kgph * 1.25, 1)
+                    payload['fuel_flow_total_pph'] = round(fuel_flow_smoothed_kgph / 0.45359237, 1)
+                    payload['fuel_flow_source'] = 'relay_delta'
+        if fuel_kg > 0:
+            last_fuel_kg = fuel_kg
+            last_fuel_ts = now_ts
+    except Exception:
+        pass
     clean = {k: payload[k] for k in ALLOWED_FORWARD_KEYS if k in payload}
     data = json.dumps(clean, separators=(',', ':')).encode('utf-8')
     req = Request(target_url, data=data, method='POST')
