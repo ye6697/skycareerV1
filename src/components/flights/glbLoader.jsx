@@ -9,11 +9,16 @@ import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.j
 const cache = new Map();
 const inflight = new Map();
 
+// Enable Three's built-in HTTP cache so re-loads (e.g. after navigation) skip
+// the network round-trip entirely.
+try { THREE.Cache.enabled = true; } catch (_) { /* noop */ }
+
 // Singleton loader with Draco + Meshopt decoders pre-configured. Many GLB
 // files in the model catalog are Draco-compressed; without these decoders
 // loading either fails or falls back to slow JS decoding paths. Reusing one
 // loader (and one Draco worker pool) across all calls dramatically cuts
-// per-model load time after the first model.
+// per-model load time after the first model. We use the WASM decoder
+// (much faster than the JS fallback) so first-load parse time drops too.
 let sharedLoader = null;
 function getLoader() {
   if (sharedLoader) return sharedLoader;
@@ -21,7 +26,7 @@ function getLoader() {
   try {
     const draco = new DRACOLoader();
     draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-    draco.setDecoderConfig({ type: 'js' });
+    draco.setDecoderConfig({ type: 'wasm' });
     draco.preload();
     loader.setDRACOLoader(draco);
   } catch (_) { /* ignore – non-draco GLBs still work */ }

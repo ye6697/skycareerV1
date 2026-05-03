@@ -90,6 +90,43 @@ export default function MarketHangar3DView({
     }
   }, [clampedIdx, visibleListings]);
 
+  // Aggressive idle-time prefetch: once the user is on the marketplace, walk
+  // through ALL listings in the background and pre-warm the GLB cache. This
+  // way no matter where the user clicks next, the model is already loaded.
+  // We use requestIdleCallback so it doesn't fight with the active render.
+  React.useEffect(() => {
+    if (!Array.isArray(visibleListings) || visibleListings.length === 0) return;
+    let cancelled = false;
+    const ric = window.requestIdleCallback || ((cb) => setTimeout(() => cb({ timeRemaining: () => 5 }), 200));
+    const cancelRic = window.cancelIdleCallback || clearTimeout;
+    let handle = null;
+    let i = 0;
+    const seen = new Set();
+    const tick = () => {
+      if (cancelled) return;
+      // Process up to 2 listings per idle slot to avoid network bursts.
+      let processed = 0;
+      while (processed < 2 && i < visibleListings.length) {
+        const listing = visibleListings[i];
+        i += 1;
+        const cfg = resolveAircraftModelConfig(listing?.name || listing?.model || listing?.type || '');
+        if (cfg?.path && !seen.has(cfg.path)) {
+          seen.add(cfg.path);
+          prefetchGLB(cfg.path);
+          processed += 1;
+        }
+      }
+      if (i < visibleListings.length) {
+        handle = ric(tick);
+      }
+    };
+    handle = ric(tick);
+    return () => {
+      cancelled = true;
+      if (handle) try { cancelRic(handle); } catch (_) { /* noop */ }
+    };
+  }, [visibleListings]);
+
   if (!current) {
     return (
       <Card className="p-8 text-center bg-slate-900/80 border border-cyan-900/30 flex flex-col items-center">

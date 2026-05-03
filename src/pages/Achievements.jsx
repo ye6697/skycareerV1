@@ -6,6 +6,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { useAchievements } from "@/components/achievements/useAchievements";
 import AchievementBadge from "@/components/achievements/AchievementBadge";
 import { ACHIEVEMENT_CATEGORIES, TIER_STYLES } from "@/components/achievements/achievementDefinitions";
+import { getAchievementProgress } from "@/components/achievements/achievementProgress";
 
 export default function Achievements() {
   const { lang } = useLanguage();
@@ -38,7 +39,7 @@ export default function Achievements() {
     staleTime: 120000,
   });
 
-  const { achievements, unlocked, total, isLoading } = useAchievements(company?.id, company);
+  const { achievements, unlocked, total, ctx, isLoading } = useAchievements(company?.id, company);
 
   const unlockedCount = unlocked.size;
   const pct = total > 0 ? Math.round((unlockedCount / total) * 100) : 0;
@@ -162,9 +163,20 @@ export default function Achievements() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {filtered.map((a) => (
-            <AchievementBadge key={a.id} achievement={a} unlocked={unlocked.has(a.id)} lang={lang} size="md" />
-          ))}
+          {filtered.map((a) => {
+            const isUnlocked = unlocked.has(a.id);
+            const progress = ctx ? getAchievementProgress(a, ctx, isUnlocked) : null;
+            return (
+              <AchievementBadge
+                key={a.id}
+                achievement={a}
+                unlocked={isUnlocked}
+                lang={lang}
+                size="md"
+                progress={progress}
+              />
+            );
+          })}
           {filtered.length === 0 && (
             <div className="col-span-full text-center py-10 text-slate-500 font-mono text-sm">
               {lang === "de" ? "Keine Einträge" : "No entries"}
