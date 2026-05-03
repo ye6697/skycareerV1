@@ -14,6 +14,7 @@ const TYPE_LABELS_BY_TYPE = {
 import AircraftHangar3D from '@/components/fleet3d/AircraftHangar3D';
 import { userHasTypeRating } from '@/lib/typeRatings';
 import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
+import { formatPayoutFactor } from '@/lib/payoutFactors';
 import { resolveAircraftModelConfig } from '@/components/flights/aircraftModelCatalog';
 import { prefetchGLB } from '@/components/flights/glbLoader';
 import RealMoneyBuyButton from '@/components/store/RealMoneyBuyButton';
@@ -291,6 +292,13 @@ export default function MarketHangar3DView({
             <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1">
               <span className="text-slate-400">SPD </span>
               <span className="text-cyan-100">{getCruiseSpeedForModel(current.name, current.type)}kt</span>
+            </div>
+            <div
+              className="rounded border border-amber-300/25 bg-amber-950/20 backdrop-blur-md px-1.5 py-1"
+              title={lang === 'de' ? 'Auftrags-Payout-Faktor (1.0 = kleinster Tier)' : 'Contract payout factor (1.0 = lowest tier)'}
+            >
+              <span className="text-slate-400">PAYOUT </span>
+              <span className="text-amber-300 font-bold">{formatPayoutFactor(current.type)}</span>
             </div>
             <div className="rounded border border-cyan-300/15 bg-slate-900/30 backdrop-blur-md px-1.5 py-1 col-span-3 sm:col-span-1 md:col-span-2 flex items-center gap-1">
               <span className="text-slate-400 shrink-0">{lang === 'de' ? 'HNG' : 'HNG'}</span>
