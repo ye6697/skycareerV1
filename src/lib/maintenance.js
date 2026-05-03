@@ -47,17 +47,34 @@ export function resolvePermanentWearCategories(source, fallbackValue = 0) {
   }, {});
 }
 
-export function calculatePermanentWearIncrease({ repairedWearPct, repairCost, purchasePrice }) {
-  const repairedWear = clamp(toFinite(repairedWearPct, 0), 0, 100);
-  const cost = Math.max(0, toFinite(repairCost, 0));
-  const baseValue = Math.max(1, toFinite(purchasePrice, 1));
-  const costRatio = cost / baseValue;
+// Each category contributes 1/N of the aircraft's new value at 100% wear.
+// So 1% wear in one category = (1 / N / 100) × purchasePrice.
+// Repair cost and permanent wear gain are both linear in wear share.
+const CATEGORY_VALUE_SHARE = 1 / MAINTENANCE_CATEGORY_KEYS.length;
 
-  // Blend wear severity + economic impact for a clearly visible but controlled permanent increase.
-  const wearComponent = repairedWear * 0.08;
-  const costComponent = costRatio * 120;
-  const raw = wearComponent + costComponent;
-  return clamp(Math.max(0.2, raw), 0, 25);
+/**
+ * Maintenance/repair cost for a given wear percentage in a single category,
+ * scaled linearly against the aircraft's new value.
+ *  - 100% wear in one category = 1/8 of new value
+ *  - 100% wear in all 8 categories = 100% of new value
+ */
+export function calculateCategoryRepairCost({ wearPct, purchasePrice }) {
+  const wear = clamp(toFinite(wearPct, 0), 0, 100);
+  const baseValue = Math.max(0, toFinite(purchasePrice, 0));
+  if (wear <= 0 || baseValue <= 0) return 0;
+  return baseValue * CATEGORY_VALUE_SHARE * (wear / 100);
+}
+
+/**
+ * Permanent wear added when repairing a category, linear in the repaired wear.
+ * 100% repaired wear → +100% permanent wear in that category (capped at 100).
+ */
+export function calculatePermanentWearIncrease({ repairedWearPct, repairCost, purchasePrice }) {
+  // repairCost / purchasePrice are accepted for backwards compatibility but no longer used.
+  void repairCost;
+  void purchasePrice;
+  const repairedWear = clamp(toFinite(repairedWearPct, 0), 0, 100);
+  return repairedWear;
 }
 
 export function applyPermanentWearIncrease({
@@ -65,7 +82,7 @@ export function applyPermanentWearIncrease({
   repairedWearPct,
   repairCost,
   purchasePrice,
-  maxPermanentWear = 45,
+  maxPermanentWear = 100,
 }) {
   const current = clamp(toFinite(currentPermanentWear, 0), 0, 100);
   const increase = calculatePermanentWearIncrease({
@@ -73,5 +90,5 @@ export function applyPermanentWearIncrease({
     repairCost,
     purchasePrice,
   });
-  return clamp(current + increase, 0, clamp(toFinite(maxPermanentWear, 95), 0, 100));
+  return clamp(current + increase, 0, clamp(toFinite(maxPermanentWear, 100), 0, 100));
 }

@@ -27,7 +27,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { calculateInsuranceForFlight, resolveAircraftInsurance } from "@/lib/insurance";
-import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
+import { MAINTENANCE_CATEGORY_KEYS, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
 import { recoverLandingBonus } from "@/components/flights/landingBonusRecovery"; import { processAchievementsAfterFlight } from "@/components/achievements/processAchievementsAfterFlight";
 const ENGINE_FULL_THRUST_THRESHOLD_PCT = 90;
 const ENGINE_FULL_THRUST_STEP_SECONDS = 3;
@@ -1094,45 +1094,41 @@ export default function FlightTracker() {
   }, [flight?.active_failures, existingFlight?.active_failures, flightData?.events, lang]);
 
   const liveMaintenanceCostSnapshot = useMemo(() => {
+    // Repair cost is purely wear-based now: each category contributes (newValue/N) at 100% wear.
     const purchasePrice = Math.max(0, Number(assignedAircraft?.purchase_price || 0));
-    const baseCost = purchasePrice * 0.02;
-    const accumulatedCost = Math.max(0, Number(assignedAircraft?.accumulated_maintenance_cost || 0));
     const existingCats = assignedAircraft?.maintenance_categories || {};
-    const existingWearTotal = maintenanceCategoryConfig.reduce((sum, cfg) => (
-      sum + Math.max(0, Number(existingCats?.[cfg.key] || 0))
-    ), 0);
-
     const byCategory = {};
-    for (const cfg of maintenanceCategoryConfig) {
-      const existingWear = Math.max(0, Number(existingCats?.[cfg.key] || 0));
-      const baseShare = existingWearTotal > 0 ? accumulatedCost * (existingWear / existingWearTotal) : 0;
-      byCategory[cfg.key] = { base: baseShare, added: 0, total: baseShare };
-    }
+    let baseTotal = 0;
+    let addedTotal = 0;
 
-    if (baseCost > 0 && Array.isArray(liveMaintenanceCategories)) {
+    const addedByKey = {};
+    if (Array.isArray(liveMaintenanceCategories)) {
       for (const category of liveMaintenanceCategories) {
         const key = category?.key;
-        if (!key || !byCategory[key]) continue;
-        const addedWear = Math.max(0, Number(category?.addedWear ?? category?.wear ?? 0));
-        const added = baseCost * (addedWear / 100);
-        byCategory[key] = {
-          ...byCategory[key],
-          added,
-          total: byCategory[key].base + added,
-        };
+        if (!key) continue;
+        addedByKey[key] = Math.max(0, Number(category?.addedWear ?? category?.wear ?? 0));
       }
     }
 
-    const addedTotal = Object.values(byCategory).reduce((sum, entry) => sum + Number(entry?.added || 0), 0);
+    for (const cfg of maintenanceCategoryConfig) {
+      const existingWear = Math.max(0, Number(existingCats?.[cfg.key] || 0));
+      const addedWear = addedByKey[cfg.key] || 0;
+      const base = calculateCategoryRepairCost({ wearPct: existingWear, purchasePrice });
+      const totalCost = calculateCategoryRepairCost({ wearPct: existingWear + addedWear, purchasePrice });
+      const added = Math.max(0, totalCost - base);
+      byCategory[cfg.key] = { base, added, total: totalCost };
+      baseTotal += base;
+      addedTotal += added;
+    }
+
     return {
-      baseTotal: accumulatedCost,
+      baseTotal,
       addedTotal,
-      currentTotal: accumulatedCost + addedTotal,
+      currentTotal: baseTotal + addedTotal,
       byCategory,
     };
   }, [
     assignedAircraft?.purchase_price,
-    assignedAircraft?.accumulated_maintenance_cost,
     assignedAircraft?.maintenance_categories,
     maintenanceCategoryConfig,
     liveMaintenanceCategories,
@@ -1140,7 +1136,7 @@ export default function FlightTracker() {
 
   const liveFlightAddedMaintenanceCost = Math.max(0, Number(liveMaintenanceCostSnapshot?.addedTotal || 0));
   const liveCurrentTotalMaintenanceCost = Math.max(0, Number(liveMaintenanceCostSnapshot?.currentTotal || 0));
-  liveCostExplanationRef.current = (category) => { const wP = Math.max(0, Math.min(100, Number(category?.wear || 0))), aP = Math.max(0, Math.min(100, Number(category?.addedWear || 0))), pp = assignedAircraft?.purchase_price || 0, est = pp * 0.02 * (aP / 100), cc = liveMaintenanceCostSnapshot?.byCategory?.[category?.key] || { total: 0 }; return { title: lang === 'de' ? 'Live-Kosten' : 'Live cost', details: `${wP.toFixed(1)}% (+${aP.toFixed(1)}%)`, formula: `${pp.toLocaleString()} x 2% x ${wP.toFixed(1)}%`, possibleFailures: '', breakdown: `+$${Math.round(est).toLocaleString()} | $${Math.round(cc.total || 0).toLocaleString()}` }; };
+  liveCostExplanationRef.current = (category) => { const wP = Math.max(0, Math.min(100, Number(category?.wear || 0))), aP = Math.max(0, Math.min(100, Number(category?.addedWear || 0))), pp = assignedAircraft?.purchase_price || 0, share = pp / Math.max(1, MAINTENANCE_CATEGORY_KEYS.length), est = share * (aP / 100), cc = liveMaintenanceCostSnapshot?.byCategory?.[category?.key] || { total: 0 }; return { title: lang === 'de' ? 'Live-Kosten' : 'Live cost', details: `${wP.toFixed(1)}% (+${aP.toFixed(1)}%)`, formula: `${pp.toLocaleString()} / ${MAINTENANCE_CATEGORY_KEYS.length} x ${wP.toFixed(1)}%`, possibleFailures: '', breakdown: `+$${Math.round(est).toLocaleString()} | $${Math.round(cc.total || 0).toLocaleString()}` }; };
   const [simbriefRoute, setSimbriefRoute] = useState(null);
   const prevContractIdRef = React.useRef(contractIdFromUrl);
   useEffect(() => { if (contractIdFromUrl !== prevContractIdRef.current) { prevContractIdRef.current = contractIdFromUrl; setSimbriefRoute(null); setXplaneLog(null); } }, [contractIdFromUrl]);
@@ -2027,32 +2023,8 @@ export default function FlightTracker() {
             console.log('Aktualisiere Contract Status:', activeFlight.contract_id, (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed');
             await base44.entities.Contract.update(activeFlight.contract_id, { status: (hasCrashedFinal || wrongAirport) ? 'failed' : 'completed' });
 
-            // Nur tatsächliche Event-Wartungskosten hinzufügen, nicht die normalen Flugstunden-Kosten
-            const aircraftNewValueCap = Math.max(
-              0,
-              Number(
-                airplaneToUpdate?.purchase_price ||
-                airplaneToUpdate?.original_purchase_price ||
-                airplaneToUpdate?.current_value ||
-                0
-              )
-            );
-            const currentAccumulatedCost = Math.max(0, Number(airplaneToUpdate?.accumulated_maintenance_cost || 0));
-            const maintenanceDeltaCapped = aircraftNewValueCap > 0
-              ? Math.min(Math.max(0, maintenanceCostAfterInsurance), aircraftNewValueCap)
-              : Math.max(0, maintenanceCostAfterInsurance);
-            const newAccumulatedCostRaw = currentAccumulatedCost + maintenanceDeltaCapped;
-            const newAccumulatedCost = aircraftNewValueCap > 0
-              ? Math.min(aircraftNewValueCap, newAccumulatedCostRaw)
-              : newAccumulatedCostRaw;
-
-            console.log('Wartungskosten Update:', {
-              currentAccumulatedCost,
-              maintenanceDeltaCapped,
-              totalMaintenanceCostWithCrash,
-              aircraftNewValueCap,
-              newAccumulatedCost
-            });
+            // Maintenance/repair cost is now derived purely from wear (% of new value).
+            // The legacy accumulated_maintenance_cost pool is no longer written.
 
             // Update aircraft with depreciation, crash status, and maintenance costs
             if (activeFlight?.aircraft_id) {
@@ -2085,37 +2057,21 @@ export default function FlightTracker() {
                     ));
                 const updatedPermanentCats = {};
                 const eventsForPermanent = finalFlightData?.events || {};
+                // Permanent wear grows linearly with the wear added during this flight (1:1).
+                // 100% added wear → +100% permanent wear in that category, capped at 100.
                 for (const cat of maintenanceCategories) {
                   const permanent = Number(existingPermanentCats?.[cat] || 0);
                   const safePermanent = Number.isFinite(permanent) ? Math.max(0, permanent) : 0;
                   const addedWear = Math.max(0, Number(roundedFlightDamage?.[cat] || 0));
-                  const wearBasedPermanentGain = addedWear > 0
-                    ? Math.max(0.08, Math.min(1.25, addedWear * 0.06))
-                    : 0;
-                  let eventBonus = 0;
-                  if (hasCrashed) {
-                    eventBonus = 2.5;
-                  } else if (cat === 'engine') {
-                    if (eventsForPermanent.hard_landing) eventBonus += 0.2;
-                    if (eventsForPermanent.high_g_force) eventBonus += 0.15;
-                  } else if (cat === 'landing_gear') {
-                    if (eventsForPermanent.hard_landing) eventBonus += 0.35;
-                    if (eventsForPermanent.gear_up_landing) eventBonus += 0.7;
-                  } else if (cat === 'airframe') {
-                    if (eventsForPermanent.overstress) eventBonus += 0.35;
-                    if (eventsForPermanent.overspeed) eventBonus += 0.25;
-                    if (eventsForPermanent.tailstrike) eventBonus += 0.5;
-                  } else if (cat === 'avionics') {
-                    if (eventsForPermanent.overspeed) eventBonus += 0.15;
-                  } else if (cat === 'flight_controls') {
-                    if (eventsForPermanent.flaps_overspeed) eventBonus += 0.25;
-                  }
-                  const nextPermanent = Math.max(0, Math.min(45, safePermanent + wearBasedPermanentGain + eventBonus));
+                  const nextPermanent = hasCrashed
+                    ? 100
+                    : Math.max(0, Math.min(100, safePermanent + addedWear));
                   updatedPermanentCats[cat] = Math.round(nextPermanent * 100) / 100;
                   if (!Number.isFinite(Number(updatedCats?.[cat]))) {
                     updatedCats[cat] = 0;
                   }
                 }
+                void eventsForPermanent;
 
                 // Determine aircraft status based on updated categories
                 let newAircraftStatus = 'available';
@@ -2138,7 +2094,6 @@ export default function FlightTracker() {
                   status: newAircraftStatus,
                   total_flight_hours: newFlightHours,
                   current_value: hasCrashed ? 0 : Math.max(0, newAircraftValue),
-                  accumulated_maintenance_cost: newAccumulatedCost,
                   maintenance_categories: updatedCats,
                   permanent_wear_categories: updatedPermanentCats
                 };

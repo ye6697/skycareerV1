@@ -30,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { calculateInsuranceForFlight, DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig, INSURANCE_PACKAGES, resolveAircraftInsurance } from '@/lib/insurance';
-import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from '@/lib/maintenance';
+import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
 const INSURANCE_UI_VERSION = 'ins-2026-04-06-a';
 
@@ -108,13 +108,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
 
   const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
   const rawCurrentValue = aircraft.current_value || aircraft.purchase_price || 0;
-  const maintenanceValueCap = Math.max(0, Number(aircraft.purchase_price || aircraft.original_purchase_price || rawCurrentValue || 0));
-  const accumulatedMaintCostRaw = Math.max(0, Number(aircraft.accumulated_maintenance_cost || 0));
-  const accumulatedMaintCost = maintenanceValueCap > 0
-    ? Math.min(accumulatedMaintCostRaw, maintenanceValueCap)
-    : accumulatedMaintCostRaw;
-  // Temporär Wartungskosten vom Wert abziehen (bis gewartet)
-  const currentValue = Math.max(0, rawCurrentValue - accumulatedMaintCost);
+  const purchasePriceForRepair = Math.max(0, Number(aircraft.purchase_price || aircraft.original_purchase_price || rawCurrentValue || 0));
   
   // New category-based maintenance check
   const cats = normalizeMaintenanceCategoryMap(aircraft.maintenance_categories);
@@ -146,6 +140,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     permanentCats.pressurization || 0
   );
   const needsMaintenance = maxWear > 75 || avgWear > 50;
+  // Repair cost = sum over categories of (newValue / N × wear%). 100% wear total = 100% of new value.
+  const accumulatedMaintCost = MAINTENANCE_CATEGORY_KEYS.reduce(
+    (sum, key) => sum + calculateCategoryRepairCost({ wearPct: cats[key] || 0, purchasePrice: purchasePriceForRepair }),
+    0,
+  );
+  const currentValue = Math.max(0, rawCurrentValue - accumulatedMaintCost);
   const insuranceStorageKey = React.useMemo(
     () => `insurance_plan_${aircraft?.id || 'unknown'}`,
     [aircraft?.id]
@@ -243,13 +243,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
           repairedWearPct: repairedWear,
           repairCost: categoryRepairCost,
           purchasePrice: aircraft.purchase_price || rawCurrentValue || 1,
-          maxPermanentWear: 45,
+          maxPermanentWear: 100,
         });
       });
       
       await base44.entities.Aircraft.update(aircraft.id, { 
         status: newStatus,
-        accumulated_maintenance_cost: 0,
         maintenance_categories: newCats,
         permanent_wear_categories: newPermanentCats,
         lifetime_maintenance_cost: newLifetimeMaintCost,

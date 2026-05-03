@@ -8,7 +8,7 @@ import { isAtOverdraftLimit } from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t as tl } from "@/components/i18n/translations";
 import { resolveAircraftInsurance } from "@/lib/insurance";
-import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
+import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
 import {
   Dialog,
   DialogContent,
@@ -213,18 +213,11 @@ export default function MaintenanceCategories({ aircraft }) {
   const insuranceCoveragePct = Math.max(0, Math.min(1, Number(activeInsurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));
   const currentValue = Math.max(0, Number(aircraft?.current_value || purchasePrice));
-  const rawAccumulatedCost = Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0));
-  // Never let the maintenance backlog exceed aircraft new value.
-  const accumulatedCost = Math.min(rawAccumulatedCost, purchasePrice);
   const totalDynamicWear = categories.reduce((sum, c) => sum + clampPct(cats[c.key]), 0);
 
   const getCategoryCost = (key) => {
     const wear = clampPct(cats[key]);
-    if (wear <= 0 || totalDynamicWear <= 0 || accumulatedCost <= 0) return 0;
-    const wearShare = wear / totalDynamicWear;
-    const grossRaw = accumulatedCost * wearShare;
-    const categoryCap = purchasePrice * wearShare;
-    return Math.round(Math.min(grossRaw, categoryCap));
+    return Math.round(calculateCategoryRepairCost({ wearPct: wear, purchasePrice }));
   };
 
   const getCategoryCostSummary = (key) => {
@@ -235,8 +228,7 @@ export default function MaintenanceCategories({ aircraft }) {
   };
 
   const totalCostSummary = (() => {
-    const grossByCategory = categories.reduce((sum, cat) => sum + getCategoryCost(cat.key), 0);
-    const gross = Math.max(0, Math.min(Math.round(accumulatedCost), grossByCategory));
+    const gross = categories.reduce((sum, cat) => sum + getCategoryCost(cat.key), 0);
     const insuranceCovered = Math.round(gross * insuranceCoveragePct);
     const payable = Math.max(0, gross - insuranceCovered);
     return { gross, insuranceCovered, payable };
@@ -257,9 +249,11 @@ export default function MaintenanceCategories({ aircraft }) {
     const costs = getCategoryCostSummary(category.key);
     const failures = CATEGORY_FAILURES[category.key];
     const wearShare = totalDynamicWear > 0 ? (wear / totalDynamicWear) * 100 : 0;
+    void wearShare;
+    const categoryShareValue = purchasePrice / Math.max(1, MAINTENANCE_CATEGORY_KEYS.length);
     const baseText = lang === 'de'
-      ? `Pool $${Math.round(accumulatedCost).toLocaleString()} x Anteil ${wearShare.toFixed(1)}%`
-      : `Pool $${Math.round(accumulatedCost).toLocaleString()} x share ${wearShare.toFixed(1)}%`;
+      ? `Neuwert $${Math.round(purchasePrice).toLocaleString()} / ${MAINTENANCE_CATEGORY_KEYS.length} Kat. = $${Math.round(categoryShareValue).toLocaleString()} bei 100%`
+      : `New value $${Math.round(purchasePrice).toLocaleString()} / ${MAINTENANCE_CATEGORY_KEYS.length} cat. = $${Math.round(categoryShareValue).toLocaleString()} at 100%`;
 
     return {
       title: lang === 'de' ? 'Live-Kosten und Trigger' : 'Live cost and triggers',
@@ -267,8 +261,8 @@ export default function MaintenanceCategories({ aircraft }) {
         ? `Kategorie: ${category.description}. Aktiver Verschleiss ${wear.toFixed(1)}%, permanenter Verschleiss ${permanent.toFixed(2)}%.`
         : `Category: ${category.description}. Active wear ${wear.toFixed(1)}%, permanent wear ${permanent.toFixed(2)}%.`,
       formula: lang === 'de'
-        ? 'Kosten = Wartungspool x (Kategorie-Verschleiss / Summe aktiver Verschleisswerte)'
-        : 'Cost = maintenance pool x (category wear / sum of active wear)',
+        ? `Kosten = Neuwert x (1/${MAINTENANCE_CATEGORY_KEYS.length}) x Kategorie-Verschleiss%`
+        : `Cost = new value x (1/${MAINTENANCE_CATEGORY_KEYS.length}) x category wear %`,
       possibleFailures: `${lang === 'de' ? 'Moegliche Ausfaelle' : 'Possible failures'}: ${lang === 'de' ? failures.de : failures.en}`,
       breakdown: lang === 'de'
         ? `${baseText} | Brutto $${costs.gross.toLocaleString()} | Versicherung -$${costs.insuranceCovered.toLocaleString()} | Du zahlst $${costs.payable.toLocaleString()}`
@@ -295,11 +289,10 @@ export default function MaintenanceCategories({ aircraft }) {
           repairedWearPct: repairedWear,
           repairCost: costSummary.gross,
           purchasePrice,
-          maxPermanentWear: 45,
+          maxPermanentWear: 100,
         }),
       };
       const newLifetimeMaintCost = Math.max(0, Number(aircraft?.lifetime_maintenance_cost || 0)) + costSummary.gross;
-      const newAccumulated = Math.max(0, accumulatedCost - costSummary.gross);
       const nextWearSnapshot = getWearSnapshot(newCats, newPermanentCats);
       const newStatus = newValue <= 0
         ? 'total_loss'
@@ -309,7 +302,6 @@ export default function MaintenanceCategories({ aircraft }) {
         maintenance_categories: newCats,
         permanent_wear_categories: newPermanentCats,
         current_value: newValue,
-        accumulated_maintenance_cost: newAccumulated,
         lifetime_maintenance_cost: newLifetimeMaintCost,
         status: newStatus,
       });
@@ -353,7 +345,7 @@ export default function MaintenanceCategories({ aircraft }) {
           repairedWearPct: repairedWear,
           repairCost: categoryCost,
           purchasePrice,
-          maxPermanentWear: 45,
+          maxPermanentWear: 100,
         });
       });
 
@@ -367,7 +359,6 @@ export default function MaintenanceCategories({ aircraft }) {
         maintenance_categories: newCats,
         permanent_wear_categories: newPermanentCats,
         current_value: newValue,
-        accumulated_maintenance_cost: 0,
         lifetime_maintenance_cost: newLifetimeMaintCost,
         status: newStatus,
       });
