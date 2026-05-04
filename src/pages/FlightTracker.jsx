@@ -68,6 +68,20 @@ const AUTO_FAILURE_CATEGORY_COOLDOWN_MS = 10 * 60 * 1000;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+const DIFFICULTY_PAYOUT_BONUS_RATE = {
+  easy: 0,
+  medium: 0.10,
+  hard: 0.25,
+  extreme: 0.50,
+};
+
+const normalizeChallengeDifficulty = (value) => {
+  const normalized = String(value || '').toLowerCase().trim();
+  return Object.prototype.hasOwnProperty.call(DIFFICULTY_PAYOUT_BONUS_RATE, normalized)
+    ? normalized
+    : 'medium';
+};
+
 const deterministicFailureRoll = (seed) => {
   const text = String(seed || "");
   let hash = 2166136261;
@@ -1694,6 +1708,19 @@ export default function FlightTracker() {
         };
       }
       const emergencyScorePenalty = emergencyOffAirportCompletion ? 30 : 0;
+      const challengeDifficulty = normalizeChallengeDifficulty(
+        contract?.difficulty
+        || xpData?.selected_difficulty
+        || activeFlight?.xplane_data?.selected_difficulty
+        || finalFlightData?.selected_difficulty
+      );
+      const difficultyPayoutBonusRate = DIFFICULTY_PAYOUT_BONUS_RATE[challengeDifficulty] || 0;
+      const difficultyPayoutBonusPercent = Math.round(difficultyPayoutBonusRate * 100);
+      const baseContractPayout = Number(contract?.payout || 0);
+      const payoutFactor = emergencyOffAirportCompletion ? 0.30 : 1.0;
+      const difficultyPayoutBonus = (!hasCrashed && !wrongAirport && difficultyPayoutBonusRate > 0)
+        ? Math.round(baseContractPayout * difficultyPayoutBonusRate * payoutFactor)
+        : 0;
 
      // Bei Crash: KEIN Payout und KEIN Bonus
      let revenue = 0;
@@ -1703,9 +1730,9 @@ export default function FlightTracker() {
      let crewBonusAmount = 0;
      if (!hasCrashed && !wrongAirport) {
        if (emergencyOffAirportCompletion) {
-         revenue = Math.round((contract?.payout || 0) * 0.30);
+         revenue = Math.round(baseContractPayout * 0.30) + difficultyPayoutBonus;
        } else {
-       revenue = contract?.payout || 0;
+       revenue = baseContractPayout + difficultyPayoutBonus;
        // Bonus/Penalty based on landing quality (G-force based)
        const landingBonus = finalFlightData.landingBonus || 0;
        const landingMaintenanceCost = finalFlightData.landingMaintenanceCost || 0;
@@ -2025,7 +2052,12 @@ export default function FlightTracker() {
                  timeBonus,
                  madeDeadline,
                  deadlineMinutes,
-                 totalRevenue: contract?.payout || 0,
+                 totalRevenue: baseContractPayout,
+                 selected_difficulty: challengeDifficulty,
+                 difficulty_payout_bonus: difficultyPayoutBonus,
+                 difficulty_payout_bonus_percent: difficultyPayoutBonusPercent,
+                 difficulty_payout_bonus_rate: difficultyPayoutBonusRate,
+                 difficulty_payout_base: baseContractPayout,
                  landingBonus: landingBonusUsed,
                  landingPenalty: landingPenaltyUsed,
                  levelBonus: levelBonus,
@@ -2171,7 +2203,7 @@ export default function FlightTracker() {
               if (_aL) _cu.active_loan = newLoanRem <= 0 ? null : { ..._aL, remaining: newLoanRem };
               await base44.entities.Company.update(company.id, _cu);
               if (loanPay > 0) { try { const _fr = (await base44.entities.Flight.filter({ id: activeFlight.id }))[0]; await base44.entities.Flight.update(activeFlight.id, { xplane_data: { ...(_fr?.xplane_data || {}), loan_payment: loanPay, loan_remaining_after: newLoanRem, loan_fully_paid: newLoanRem <= 0 } }); } catch (_) {} }
-              await base44.entities.Transaction.create({ company_id: company.id, type: 'income', category: 'flight_revenue', amount: actualProfit, description: `Flug: ${contract?.title}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`, reference_id: activeFlight?.id, date: new Date().toISOString() });
+              await base44.entities.Transaction.create({ company_id: company.id, type: 'income', category: 'flight_revenue', amount: actualProfit, description: `Flug: ${contract?.title}${difficultyPayoutBonus > 0 ? ` (Schwierigkeit +${Math.round(difficultyPayoutBonus)})` : ''}${levelBonus > 0 ? ` (Levelbonus +${Math.round(levelBonus)})` : ''}`, reference_id: activeFlight?.id, date: new Date().toISOString() });
               if (loanPay > 0) { await base44.entities.Transaction.create({ company_id: company.id, type: 'expense', category: 'other', amount: loanPay, description: newLoanRem <= 0 ? 'Kreditrate (Flug) - Kredit vollständig getilgt' : `Kreditrate (Flug) - Restschuld $${Math.round(newLoanRem).toLocaleString()}`, reference_id: activeFlight?.id, date: new Date().toISOString() }); }
 
               // Create separate transaction for level-up bonus

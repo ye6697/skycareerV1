@@ -105,6 +105,32 @@ const DIFFICULTY_OPTIONS = [
 const normalizeDifficulty = (value) =>
   DIFFICULTY_OPTIONS.some((option) => option.value === value) ? value : 'medium';
 
+const DIFFICULTY_PAYOUT_BONUS = {
+  easy: 0,
+  medium: 10,
+  hard: 25,
+  extreme: 50,
+};
+
+const DIFFICULTY_EFFECTS = {
+  easy: {
+    de: 'Kein Wetterwechsel, kein Bonus. Du fliegst mit deinem eigenen Wetter oder Live Weather.',
+    en: 'No weather change, no bonus. You fly with your own weather or live weather.',
+  },
+  medium: {
+    de: 'Moderater Wind, Regen und Wolken. +10% auf das Auftrags-Payout.',
+    en: 'Moderate wind, rain, and cloud cover. +10% contract payout.',
+  },
+  hard: {
+    de: 'Tiefe Wolken, starke Boeen und deutlich schlechtere Sicht. +25% auf das Auftrags-Payout.',
+    en: 'Low clouds, strong gusts, and notably worse visibility. +25% contract payout.',
+  },
+  extreme: {
+    de: 'Sehr tiefe Wolken, Sturm, Gewitter, harter Wind und minimale Sicht. +50% auf das Auftrags-Payout.',
+    en: 'Very low clouds, storm, thunderstorm, harsh wind, and minimal visibility. +50% contract payout.',
+  },
+};
+
 const WEATHER_PRESETS_BY_DIFFICULTY = {
   medium: {
     label: 'Medium',
@@ -855,6 +881,28 @@ export default function ActiveFlights() {
                             ? 'Free mode only saves the contract and does not change your weather.'
                             : 'This selection is saved when the flight starts and sent to the bridge as a weather preset. Medium, Hard, and Extreme each apply a dedicated MSFS weather preset.'}
                       </p>
+                      <div className="rounded border border-slate-700 bg-slate-950/60 overflow-hidden">
+                        {DIFFICULTY_OPTIONS.map((option) => {
+                          const payoutPct = DIFFICULTY_PAYOUT_BONUS[option.value] || 0;
+                          const isActive = option.value === selectedDifficulty;
+                          return (
+                            <div
+                              key={option.value}
+                              className={`grid grid-cols-[84px_54px_1fr] gap-2 px-3 py-2 text-[11px] border-b border-slate-800 last:border-b-0 ${isActive ? 'bg-cyan-500/10' : ''}`}
+                            >
+                              <span className={`font-bold ${option.color}`}>
+                                {option.label[lang === 'de' ? 'de' : 'en']}
+                              </span>
+                              <span className={payoutPct > 0 ? 'text-emerald-300 font-mono' : 'text-slate-500 font-mono'}>
+                                {payoutPct > 0 ? `+${payoutPct}%` : '+0%'}
+                              </span>
+                              <span className="text-slate-300 leading-snug">
+                                {DIFFICULTY_EFFECTS[option.value][lang === 'de' ? 'de' : 'en']}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -996,7 +1044,7 @@ export default function ActiveFlights() {
             </DialogHeader>
             <div className="text-sm text-slate-300 space-y-2">
               <p>{lang === 'de' ? 'Vor dem Climb kannst du waehlen, ob SkyCareer dein MSFS-Wetter setzen soll. Freier Modus laesst dein Wetter unveraendert; Mittel, Schwer und Extrem senden ein sichtbares SkyCareer-Wetterpreset an die Bridge.' : 'Before climb, you can choose whether SkyCareer should set your MSFS weather. Free mode leaves weather unchanged; Medium, Hard, and Extreme send a visible SkyCareer weather preset to the bridge.'}</p>
-              <p>{lang === 'de' ? 'Freier Modus: kein Wetterwechsel | Mittel: moderater Wind/Regen | Schwer: tiefe Wolken und starke Boeen | Extrem: Sturm, sehr tiefe Wolken und harte Boeen' : 'Free mode: no weather change | Medium: moderate wind/rain | Hard: low clouds and strong gusts | Extreme: storm, very low clouds, and harsh gusts'}</p>
+              <p>{lang === 'de' ? 'Payout-Bonus: Freier Modus +0%, Mittel +10%, Schwer +25%, Extrem +50%. Der Bonus wird beim Flugabschluss wirklich auf die Auszahlung gerechnet und auf der Ergebnisseite angezeigt.' : 'Payout bonus: Free mode +0%, Medium +10%, Hard +25%, Extreme +50%. The bonus is really added when the flight is completed and shown on the results page.'}</p>
               <p className="text-amber-300">{lang === 'de' ? 'Extrem ist jetzt deutlich staerker und kann kleine Flugzeuge, Autopiloten und Anfluege schnell ueberfordern.' : 'Extreme is now much stronger and can quickly overwhelm small aircraft, autopilots, and approaches.'}</p>
             </div>
           </DialogContent>
