@@ -565,6 +565,59 @@ function rememberRoute(contract, blockedPairs, departureUsage) {
   }
 }
 
+function toNumber(value: any, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeWindDeltaDegrees(value: number) {
+  const normalized = ((value % 360) + 360) % 360;
+  return normalized > 180 ? 360 - normalized : normalized;
+}
+
+function determineDifficultyFromWeather(distanceNm: number, weather: any = null) {
+  const distanceScore = distanceNm < 500 ? 0 : distanceNm < 1500 ? 1 : 2;
+  if (!weather || typeof weather !== "object") {
+    return distanceScore === 0 ? "easy" : distanceScore === 1 ? "medium" : "hard";
+  }
+
+  const windSpeedKts = toNumber(weather.wind_speed_kts, 0);
+  const windDirection = toNumber(weather.wind_direction, 0);
+  const runwayHeading = toNumber(weather.runway_heading, 0);
+  const gustKts = toNumber(weather.wind_gust_kts, windSpeedKts);
+  const rainIntensity = Math.max(
+    toNumber(weather.rain_intensity, 0),
+    toNumber(weather.precipitation, 0),
+    toNumber(weather.precip_rate, 0)
+  );
+  const turbulence = toNumber(weather.turbulence, 0);
+
+  const crosswind = Math.abs(windSpeedKts * Math.sin((normalizeWindDeltaDegrees(windDirection - runwayHeading) * Math.PI) / 180));
+  const gustSpread = Math.max(0, gustKts - windSpeedKts);
+
+  let weatherScore = 0;
+  if (crosswind >= 20) weatherScore += 2;
+  else if (crosswind >= 12) weatherScore += 1;
+
+  if (gustSpread >= 10 || gustKts >= 30) weatherScore += 1;
+  if (turbulence >= 0.55) weatherScore += 1;
+  if (rainIntensity >= 0.55) weatherScore += 1;
+
+  const totalScore = Math.max(0, Math.min(2, distanceScore + weatherScore));
+  return totalScore === 0 ? "easy" : totalScore === 1 ? "medium" : "hard";
+}
+
+function extractWeatherSnapshotFromLog(log: any) {
+  const raw = log?.raw_data || {};
+  return {
+    wind_speed_kts: toNumber(raw.wind_speed_kts ?? raw.wind_speed ?? raw.windspeed_kts, 0),
+    wind_direction: toNumber(raw.wind_direction ?? raw.wind_dir ?? raw.wind_heading, 0),
+    wind_gust_kts: toNumber(raw.wind_gust_kts ?? raw.wind_gust ?? raw.gust_speed_kts, 0),
+    turbulence: toNumber(raw.turbulence ?? raw.turbulence_intensity, 0),
+    rain_intensity: toNumber(raw.rain_intensity ?? raw.precipitation ?? raw.precip_rate, 0),
+  };
+}
+
 function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   const route = pickRouteForContract(aircraftType.range, {
     ...options,
@@ -595,7 +648,7 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   const briefings = briefingTemplates[contractType];
   const briefing = randomItem(briefings);
 
-  const difficulty = distance < 500 ? "easy" : distance < 1500 ? "medium" : distance < 3000 ? "hard" : "extreme";
+  const difficulty = determineDifficultyFromWeather(distance, options.weather);
 
   // Realistic cruise speeds per aircraft type (in knots)
   const cruiseSpeeds = {
@@ -691,6 +744,11 @@ Deno.serve(async (req) => {
 
     const todayIso = new Date().toISOString().slice(0, 10);
     const airportByIcao = new Map(airports.map((airport) => [airport.icao, airport]));
+    const latestLogs = await base44.asServiceRole.entities.XPlaneLog
+      .filter({ company_id: company.id }, "-created_date", 10)
+      .catch(() => []);
+    const latestLog = Array.isArray(latestLogs) && latestLogs.length > 0 ? latestLogs[0] : null;
+    const weatherSnapshot = latestLog ? extractWeatherSnapshotFromLog(latestLog) : null;
 
     // Enrich the hardcoded airport list with hangar airports that the client
     // sent along (with lat/lon). This lets us correctly compute distances and
@@ -892,6 +950,7 @@ Deno.serve(async (req) => {
       departurePool: globalDeparturePool,
       minNm,
       maxNm: Number.isFinite(maxNm) ? maxNm : Infinity,
+      weather: weatherSnapshot,
     };
 
     const hangarsForGeneration = normalizedHangars.length > 0
@@ -932,6 +991,7 @@ Deno.serve(async (req) => {
         departurePool: departurePool.length > 0 ? departurePool : globalDeparturePool,
         minNm,
         maxNm: Number.isFinite(maxNm) ? maxNm : Infinity,
+        weather: weatherSnapshot,
       };
 
       let attempts = 0;
