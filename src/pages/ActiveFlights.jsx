@@ -47,6 +47,64 @@ import {
 
 import ActiveFlightCard from "@/components/flights/ActiveFlightCard";
 
+const DIFFICULTY_OPTIONS = [
+  {
+    value: 'easy',
+    color: 'text-emerald-300',
+    label: { de: 'Leicht', en: 'Easy' },
+    summary: {
+      de: 'Entspannter Flug mit niedriger Herausforderung.',
+      en: 'Relaxed flight with a low challenge level.'
+    },
+    detail: {
+      de: 'Gut fuer kurze Routen, neue Flugzeuge oder wenn du ohne Druck fliegen willst.',
+      en: 'Good for short routes, new aircraft, or flying without pressure.'
+    }
+  },
+  {
+    value: 'medium',
+    color: 'text-cyan-300',
+    label: { de: 'Mittel', en: 'Medium' },
+    summary: {
+      de: 'Normaler Auftrag mit ausgewogenem Anspruch.',
+      en: 'Normal contract with a balanced challenge.'
+    },
+    detail: {
+      de: 'Der Standard fuer die meisten Fluege: realistisch, aber nicht hart bestrafend.',
+      en: 'The default for most flights: realistic without being too punishing.'
+    }
+  },
+  {
+    value: 'hard',
+    color: 'text-amber-300',
+    label: { de: 'Schwer', en: 'Hard' },
+    summary: {
+      de: 'Anspruchsvoller Flug fuer sauberes Arbeiten.',
+      en: 'Demanding flight for precise operation.'
+    },
+    detail: {
+      de: 'Passend fuer laengere Strecken, groessere Flugzeuge oder wenn du bewusst mehr Risiko willst.',
+      en: 'Fits longer routes, larger aircraft, or when you want more intentional risk.'
+    }
+  },
+  {
+    value: 'extreme',
+    color: 'text-red-300',
+    label: { de: 'Extrem', en: 'Extreme' },
+    summary: {
+      de: 'Maximale Herausforderung fuer erfahrene Piloten.',
+      en: 'Maximum challenge for experienced pilots.'
+    },
+    detail: {
+      de: 'Waehle das nur, wenn du den Auftrag wirklich als harte Challenge fliegen moechtest.',
+      en: 'Choose this only when you want the contract to be a real challenge.'
+    }
+  }
+];
+
+const normalizeDifficulty = (value) =>
+  DIFFICULTY_OPTIONS.some((option) => option.value === value) ? value : 'medium';
+
 export default function ActiveFlights() {
   const { lang } = useLanguage();
   const queryClient = useQueryClient();
@@ -54,6 +112,7 @@ export default function ActiveFlights() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState('');
   const [isWeatherInfoOpen, setIsWeatherInfoOpen] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -236,8 +295,11 @@ export default function ActiveFlights() {
         }
       });
 
-      // Update contract status
-      await base44.entities.Contract.update(selectedContract.id, { status: 'in_progress' });
+      // Update contract status and persist the user-selected challenge level.
+      await base44.entities.Contract.update(selectedContract.id, {
+        status: 'in_progress',
+        difficulty: normalizeDifficulty(selectedDifficulty || selectedContract?.difficulty)
+      });
 
       // Update aircraft status — but only if it isn't already in flight
       // (TR missions may reuse an aircraft that's busy in another sim session).
@@ -253,6 +315,7 @@ export default function ActiveFlights() {
       setIsAssignDialogOpen(false);
       setSelectedContract(null);
       setSelectedAircraft('');
+      setSelectedDifficulty('medium');
     }
   });
 
@@ -323,6 +386,7 @@ export default function ActiveFlights() {
   }, [selectedAircraftObj, selectedContract, userTypeRatings]);
 
   const canStartFlight = () => {
+    if (!selectedDifficulty) return false;
     if (isTrContract(selectedContract)) return true;
     if (!selectedAircraft) return false;
     if (selectedAircraftMissingRating) return false;
@@ -334,6 +398,12 @@ export default function ActiveFlights() {
 
   const isXplaneConnected = company?.xplane_connection_status === 'connected';
   const trainingCount = allContracts.filter((c) => /__TR__:/.test(String(c?.briefing || ''))).length;
+  const selectedDifficultyOption = DIFFICULTY_OPTIONS.find((option) => option.value === selectedDifficulty) || DIFFICULTY_OPTIONS[1];
+  const openPrepareDialog = (contract) => {
+    setSelectedContract(contract);
+    setSelectedDifficulty(normalizeDifficulty(contract?.difficulty));
+    setIsAssignDialogOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -480,8 +550,7 @@ export default function ActiveFlights() {
                     lang={lang}
                     isCancelling={cancelFlightMutation.isPending}
                     onPrepare={() => {
-                      setSelectedContract(contract);
-                      setIsAssignDialogOpen(true);
+                      openPrepareDialog(contract);
                     }}
                     onCancel={() => {
                       const penalty = contract?.payout * 0.3 || 5000;
@@ -669,6 +738,49 @@ export default function ActiveFlights() {
             </div>
 
             <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2 text-sm font-mono uppercase tracking-wider text-cyan-300">
+                  <Gauge className="w-4 h-4" />
+                  {lang === 'de' ? 'Schwierigkeitsgrad' : 'Difficulty'}
+                </Label>
+                <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+                  <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+                    <SelectValue placeholder={lang === 'de' ? 'Schwierigkeitsgrad waehlen...' : 'Choose difficulty...'} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    {DIFFICULTY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="focus:bg-slate-800">
+                        {option.label[lang === 'de' ? 'de' : 'en']}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-cyan-300 flex-shrink-0 mt-0.5" />
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs font-mono uppercase tracking-wider text-cyan-300">
+                          {lang === 'de' ? 'Info zum Schwierigkeitsgrad' : 'Difficulty info'}
+                        </p>
+                        <p className={`text-sm font-bold ${selectedDifficultyOption.color}`}>
+                          {selectedDifficultyOption.label[lang === 'de' ? 'de' : 'en']}: {selectedDifficultyOption.summary[lang === 'de' ? 'de' : 'en']}
+                        </p>
+                      </div>
+                      <p className="text-xs leading-relaxed text-slate-300">
+                        {selectedDifficultyOption.detail[lang === 'de' ? 'de' : 'en']}
+                      </p>
+                      <p className="text-xs leading-relaxed text-slate-400">
+                        {lang === 'de'
+                          ? 'Diese Auswahl wird beim Starten auf dem Auftrag gespeichert. Du legst damit fest, als welche Challenge dieser Flug in SkyCareer weitergefuehrt und angezeigt wird.'
+                          : 'This selection is saved on the contract when you start the flight. It defines which challenge level SkyCareer keeps and displays for this flight.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {(() => {
                 // Detect type-rating training contract via briefing tag __TR__:ModelName
                 const trMatch = String(selectedContract?.briefing || '').match(/__TR__:(.+)/);

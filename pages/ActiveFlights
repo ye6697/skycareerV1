@@ -32,30 +32,56 @@ import {
   CheckCircle,
   Play,
   DollarSign,
-  User,
-  Info } from
+  Gauge,
+  User } from
 "lucide-react";
+
+const difficultyOptions = [
+  {
+    value: 'easy',
+    label: 'Leicht',
+    color: 'text-emerald-300',
+    summary: 'Entspannter Flug mit niedriger Herausforderung.',
+    detail: 'Gut fuer kurze Routen, neue Flugzeuge oder wenn du ohne Druck fliegen willst.'
+  },
+  {
+    value: 'medium',
+    label: 'Mittel',
+    color: 'text-cyan-300',
+    summary: 'Normaler Auftrag mit ausgewogenem Anspruch.',
+    detail: 'Der Standard fuer die meisten Fluege: realistisch, aber nicht hart bestrafend.'
+  },
+  {
+    value: 'hard',
+    label: 'Schwer',
+    color: 'text-amber-300',
+    summary: 'Anspruchsvoller Flug fuer sauberes Arbeiten.',
+    detail: 'Passend fuer laengere Strecken, groessere Flugzeuge oder wenn du bewusst mehr Risiko willst.'
+  },
+  {
+    value: 'extreme',
+    label: 'Extrem',
+    color: 'text-red-300',
+    summary: 'Maximale Herausforderung fuer erfahrene Piloten.',
+    detail: 'Waehle das nur, wenn du den Auftrag wirklich als harte Challenge fliegen moechtest.'
+  }
+];
+
+const normalizeDifficulty = (value) =>
+  difficultyOptions.some((option) => option.value === value) ? value : 'medium';
 
 export default function ActiveFlights() {
   const queryClient = useQueryClient();
   const [selectedContract, setSelectedContract] = useState(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState('');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
   const [selectedCrew, setSelectedCrew] = useState({
     captain: '',
     first_officer: '',
     flight_attendant: '',
     loadmaster: ''
   });
-
-  const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
-
-  const difficultyOptions = [
-    { value: 'easy', label: 'Einfach', description: 'Niedriger Anspruch, ideal für kurze und routinierte Flüge.' },
-    { value: 'medium', label: 'Mittel', description: 'Ausgewogene Herausforderung mit solider Belohnung.' },
-    { value: 'hard', label: 'Schwer', description: 'Höhere Anforderungen an Planung, Crew und Flugdisziplin.' },
-    { value: 'extreme', label: 'Extrem', description: 'Maximale Herausforderung mit erhöhtem Risiko bei Fehlern.' }
-  ];
 
   const { data: contracts = [] } = useQuery({
     queryKey: ['contracts', 'accepted'],
@@ -118,10 +144,10 @@ export default function ActiveFlights() {
         status: 'in_flight'
       });
 
-      // Update contract status and selected difficulty
+      // Update contract status
       await base44.entities.Contract.update(selectedContract.id, {
         status: 'in_progress',
-        difficulty: selectedDifficulty
+        difficulty: normalizeDifficulty(selectedDifficulty || selectedContract?.difficulty)
       });
 
       // Update aircraft status
@@ -143,8 +169,8 @@ export default function ActiveFlights() {
       setIsAssignDialogOpen(false);
       setSelectedContract(null);
       setSelectedAircraft('');
-      setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
       setSelectedDifficulty('medium');
+      setSelectedCrew({ captain: '', first_officer: '', flight_attendant: '', loadmaster: '' });
     }
   });
 
@@ -208,6 +234,13 @@ export default function ActiveFlights() {
 
   const allContracts = [...contracts, ...inProgressContracts];
   const [activeTab, setActiveTab] = useState('active');
+  const selectedDifficultyOption =
+    difficultyOptions.find((option) => option.value === selectedDifficulty) || difficultyOptions[1];
+  const openPrepareDialog = (contract) => {
+    setSelectedContract(contract);
+    setSelectedDifficulty(normalizeDifficulty(contract?.difficulty));
+    setIsAssignDialogOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -347,9 +380,7 @@ export default function ActiveFlights() {
                     <>
                             <Button
                         onClick={() => {
-                          setSelectedContract(contract);
-                          setSelectedDifficulty(contract?.difficulty || 'medium');
-                          setIsAssignDialogOpen(true);
+                          openPrepareDialog(contract);
                         }}
                         className="bg-blue-600 hover:bg-blue-700">
 
@@ -474,6 +505,39 @@ export default function ActiveFlights() {
             </DialogHeader>
 
             <div className="space-y-6">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Gauge className="w-4 h-4" />
+                  Schwierigkeitsgrad
+                </Label>
+                <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Schwierigkeitsgrad waehlen..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {difficultyOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="p-3 bg-cyan-950/30 border border-cyan-500/30 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-cyan-300 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-cyan-200">Info zum Schwierigkeitsgrad</p>
+                    <p className={`text-sm font-semibold ${selectedDifficultyOption.color}`}>
+                      {selectedDifficultyOption.label}: {selectedDifficultyOption.summary}
+                    </p>
+                    <p className="text-sm text-slate-300">{selectedDifficultyOption.detail}</p>
+                    <p className="text-sm text-slate-400 mt-1">
+                      Diese Auswahl wird beim Starten auf dem Auftrag gespeichert. Du legst damit fest,
+                      als welche Challenge dieser Flug in SkyCareer weitergefuehrt und angezeigt wird.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Aircraft Selection */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -509,38 +573,6 @@ export default function ActiveFlights() {
                   <Users className="w-4 h-4" />
                   Crew zuweisen
                 </Label>
-
-              {/* Difficulty Selection */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Info className="w-4 h-4" />
-                  Schwierigkeitsgrad festlegen
-                </Label>
-                <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Schwierigkeitsgrad wählen..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {difficultyOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="p-3 bg-slate-900/80 border border-slate-700 rounded-lg text-sm text-slate-300">
-                  <p className="flex items-center gap-2 font-medium text-slate-100">
-                    <Info className="w-4 h-4 text-blue-400" />
-                    Info zum Schwierigkeitsgrad
-                  </p>
-                  <p className="mt-1">
-                    {difficultyOptions.find((option) => option.value === selectedDifficulty)?.description}
-                  </p>
-                  <p className="mt-2 text-slate-400">
-                    Der gewählte Schwierigkeitsgrad wird direkt für diesen Auftrag gespeichert, bevor der Flug gestartet wird.
-                  </p>
-                </div>
-              </div>
 
                 {['captain', 'first_officer', 'flight_attendant', 'loadmaster'].map((role) => {
                   const required = getCrewRequirement(selectedContract, role);
