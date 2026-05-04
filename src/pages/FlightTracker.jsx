@@ -70,9 +70,9 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const DIFFICULTY_PAYOUT_BONUS_RATE = {
   easy: 0,
-  medium: 0.10,
-  hard: 0.25,
-  extreme: 0.50,
+  medium: 0.15,
+  hard: 0.35,
+  extreme: 0.80,
 };
 
 const normalizeChallengeDifficulty = (value) => {

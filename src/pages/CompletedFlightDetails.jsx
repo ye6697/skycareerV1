@@ -40,9 +40,9 @@ import { t } from "@/components/i18n/translations";
 
 const DIFFICULTY_PAYOUT_BONUS_RATE = {
   easy: 0,
-  medium: 0.10,
-  hard: 0.25,
-  extreme: 0.50,
+  medium: 0.15,
+  hard: 0.35,
+  extreme: 0.80,
 };
 
 const DIFFICULTY_LABELS = {

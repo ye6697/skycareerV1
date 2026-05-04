@@ -107,9 +107,9 @@ const normalizeDifficulty = (value) =>
 
 const DIFFICULTY_PAYOUT_BONUS = {
   easy: 0,
-  medium: 10,
-  hard: 25,
-  extreme: 50,
+  medium: 15,
+  hard: 35,
+  extreme: 80,
 };
 
 const DIFFICULTY_EFFECTS = {
@@ -118,16 +118,16 @@ const DIFFICULTY_EFFECTS = {
     en: 'No weather change, no bonus. You fly with your own weather or live weather.',
   },
   medium: {
-    de: 'Moderater Wind, Regen und Wolken. +10% auf das Auftrags-Payout.',
-    en: 'Moderate wind, rain, and cloud cover. +10% contract payout.',
+    de: 'Moderater Wind, Regen und Wolken. +15% auf das Auftrags-Payout.',
+    en: 'Moderate wind, rain, and cloud cover. +15% contract payout.',
   },
   hard: {
-    de: 'Tiefe Wolken, starke Boeen und deutlich schlechtere Sicht. +25% auf das Auftrags-Payout.',
-    en: 'Low clouds, strong gusts, and notably worse visibility. +25% contract payout.',
+    de: 'Tiefe Wolken, starke Boeen und deutlich schlechtere Sicht. +35% auf das Auftrags-Payout.',
+    en: 'Low clouds, strong gusts, and notably worse visibility. +35% contract payout.',
   },
   extreme: {
-    de: 'Sehr tiefe Wolken, Sturm, Gewitter, harter Wind und minimale Sicht. +50% auf das Auftrags-Payout.',
-    en: 'Very low clouds, storm, thunderstorm, harsh wind, and minimal visibility. +50% contract payout.',
+    de: 'Sehr tiefe Wolken, Sturm, Gewitter, harter Wind und minimale Sicht. +80% auf das Auftrags-Payout.',
+    en: 'Very low clouds, storm, thunderstorm, harsh wind, and minimal visibility. +80% contract payout.',
   },
 };
 
@@ -1044,7 +1044,7 @@ export default function ActiveFlights() {
             </DialogHeader>
             <div className="text-sm text-slate-300 space-y-2">
               <p>{lang === 'de' ? 'Vor dem Climb kannst du waehlen, ob SkyCareer dein MSFS-Wetter setzen soll. Freier Modus laesst dein Wetter unveraendert; Mittel, Schwer und Extrem senden ein sichtbares SkyCareer-Wetterpreset an die Bridge.' : 'Before climb, you can choose whether SkyCareer should set your MSFS weather. Free mode leaves weather unchanged; Medium, Hard, and Extreme send a visible SkyCareer weather preset to the bridge.'}</p>
-              <p>{lang === 'de' ? 'Payout-Bonus: Freier Modus +0%, Mittel +10%, Schwer +25%, Extrem +50%. Der Bonus wird beim Flugabschluss wirklich auf die Auszahlung gerechnet und auf der Ergebnisseite angezeigt.' : 'Payout bonus: Free mode +0%, Medium +10%, Hard +25%, Extreme +50%. The bonus is really added when the flight is completed and shown on the results page.'}</p>
+              <p>{lang === 'de' ? 'Payout-Bonus: Freier Modus +0%, Mittel +15%, Schwer +35%, Extrem +80%. Der Bonus wird beim Flugabschluss wirklich auf die Auszahlung gerechnet und auf der Ergebnisseite angezeigt.' : 'Payout bonus: Free mode +0%, Medium +15%, Hard +35%, Extreme +80%. The bonus is really added when the flight is completed and shown on the results page.'}</p>
               <p className="text-amber-300">{lang === 'de' ? 'Extrem ist jetzt deutlich staerker und kann kleine Flugzeuge, Autopiloten und Anfluege schnell ueberfordern.' : 'Extreme is now much stronger and can quickly overwhelm small aircraft, autopilots, and approaches.'}</p>
             </div>
           </DialogContent>
