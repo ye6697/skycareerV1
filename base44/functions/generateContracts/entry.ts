@@ -201,10 +201,10 @@ const allAircraftTypes = [
   { type: "cargo", passengers: 0, cargo: 20000, range: 4000 }
 ];
 
-// Per-MODEL payout factors (must stay in sync with src/lib/payoutFactors.js).
+// Per-MODEL raw payout factors (must stay in sync with src/lib/payoutFactors.js).
 // Multiplied by PAYOUT_BASE_MULTIPLIER to convert into the legacy tier
-// multiplier scale (small_prop entry-level ≈ 12).
-const MODEL_PAYOUT_FACTORS: Record<string, number> = {
+// multiplier scale after the exponential curve (Icon A5 stays at 12).
+const RAW_MODEL_PAYOUT_FACTORS: Record<string, number> = {
   // small props
   "Icon A5": 1.0, "Piper PA-18 Super Cub": 1.1, "Robin DR400": 1.2,
   "Cessna 152": 1.2, "Vans RV-10": 1.4, "Diamond DA40 NG": 1.4,
@@ -236,7 +236,7 @@ const MODEL_PAYOUT_FACTORS: Record<string, number> = {
   "Aérospatiale/BAC Concorde": 24.0, "Airbus A380": 28.0,
 };
 
-const CATEGORY_PAYOUT_FALLBACK: Record<string, number> = {
+const RAW_CATEGORY_PAYOUT_FALLBACK: Record<string, number> = {
   small_prop: 1.5,
   turboprop: 3.0,
   regional_jet: 6.0,
@@ -246,14 +246,22 @@ const CATEGORY_PAYOUT_FALLBACK: Record<string, number> = {
 };
 
 const PAYOUT_BASE_MULTIPLIER = 12;
+const PAYOUT_FACTOR_EXPONENT = 1.18;
+
+function curvePayoutFactor(rawFactor: number): number {
+  const factor = Number(rawFactor);
+  if (!Number.isFinite(factor) || factor <= 0) return 1.0;
+  if (factor <= 1) return 1.0;
+  return Math.round(Math.pow(factor, PAYOUT_FACTOR_EXPONENT) * 10) / 10;
+}
 
 function resolvePayoutMultiplier(aircraftName?: string | null, aircraftType?: string | null): number {
-  const fromModel = MODEL_PAYOUT_FACTORS[String(aircraftName || '').trim()];
+  const fromModel = RAW_MODEL_PAYOUT_FACTORS[String(aircraftName || '').trim()];
   const factor =
     Number.isFinite(fromModel) && fromModel > 0
       ? fromModel
-      : (CATEGORY_PAYOUT_FALLBACK[String(aircraftType || '').trim().toLowerCase()] || 1.0);
-  return factor * PAYOUT_BASE_MULTIPLIER;
+      : (RAW_CATEGORY_PAYOUT_FALLBACK[String(aircraftType || '').trim().toLowerCase()] || 1.0);
+  return curvePayoutFactor(factor) * PAYOUT_BASE_MULTIPLIER;
 }
 
 const contractTypes = ["passenger", "cargo", "charter", "emergency"];

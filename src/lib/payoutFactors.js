@@ -6,7 +6,7 @@
 // Within each category the factors vary so that, for example, a King Air 350i
 // pays more than a Kodiak 100, and an A380 pays more than a 747-400.
 
-const MODEL_FACTORS = {
+const RAW_MODEL_FACTORS = {
   // === SMALL PROPS ===
   "Icon A5": 1.0,
   "Piper PA-18 Super Cub": 1.1,
@@ -77,7 +77,7 @@ const MODEL_FACTORS = {
 };
 
 // Fallback per category (used if model is unknown).
-const CATEGORY_FALLBACK = {
+const RAW_CATEGORY_FALLBACK = {
   small_prop: 1.5,
   turboprop: 3.0,
   regional_jet: 6.0,
@@ -86,11 +86,20 @@ const CATEGORY_FALLBACK = {
   cargo: 22.0,
 };
 
+export const PAYOUT_FACTOR_EXPONENT = 1.18;
+
+export function curvePayoutFactor(rawFactor) {
+  const factor = Number(rawFactor);
+  if (!Number.isFinite(factor) || factor <= 0) return 1.0;
+  if (factor <= 1) return 1.0;
+  return Math.round(Math.pow(factor, PAYOUT_FACTOR_EXPONENT) * 10) / 10;
+}
+
 export function getPayoutFactor(aircraftName, aircraftType) {
-  const fromModel = MODEL_FACTORS[String(aircraftName || '').trim()];
-  if (Number.isFinite(fromModel) && fromModel > 0) return fromModel;
-  const fallback = CATEGORY_FALLBACK[String(aircraftType || '').trim().toLowerCase()];
-  return Number.isFinite(fallback) && fallback > 0 ? fallback : 1.0;
+  const fromModel = RAW_MODEL_FACTORS[String(aircraftName || '').trim()];
+  if (Number.isFinite(fromModel) && fromModel > 0) return curvePayoutFactor(fromModel);
+  const fallback = RAW_CATEGORY_FALLBACK[String(aircraftType || '').trim().toLowerCase()];
+  return curvePayoutFactor(Number.isFinite(fallback) && fallback > 0 ? fallback : 1.0);
 }
 
 export function formatPayoutFactor(aircraftName, aircraftType) {
@@ -98,7 +107,7 @@ export function formatPayoutFactor(aircraftName, aircraftType) {
   return `${factor.toFixed(1)}x`;
 }
 
-// Backend export: same numbers reused in functions/generateContracts.
-// Base multiplier used to convert factor → payout multiplier in `generateContract`.
-// (Old per-category numbers were 12..280; we keep small_prop ≈ 12 for parity.)
+// Backend export: same curve/numbers are mirrored in functions/generateContracts.
+// Base multiplier used to convert curved factor → payout multiplier in `generateContract`.
+// (Icon A5 stays at 12, larger models now scale more exponentially.)
 export const PAYOUT_BASE_MULTIPLIER = 12;
