@@ -246,7 +246,7 @@ const RAW_CATEGORY_PAYOUT_FALLBACK: Record<string, number> = {
 };
 
 const PAYOUT_BASE_MULTIPLIER = 12;
-const PAYOUT_FACTOR_EXPONENT = 1.28;
+const PAYOUT_FACTOR_EXPONENT = 1.35;
 
 function curvePayoutFactor(rawFactor: number): number {
   const factor = Number(rawFactor);
