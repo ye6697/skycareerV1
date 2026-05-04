@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/components/LanguageContext';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, applyPermanentWearIncrease } from '@/lib/maintenance';
+import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, applyPermanentWearIncrease, calculateCategoryRepairCost } from '@/lib/maintenance';
 import { resolveAircraftInsurance } from '@/lib/insurance';
 import { isAtOverdraftLimit } from '@/components/InsolvencyBanner';
 
@@ -52,7 +52,9 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
   const insuranceCovPct = Math.max(0, Math.min(1, Number(insurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));
   const accumulated = Math.min(Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0)), purchasePrice);
-  const grossTotal = Math.round(accumulated);
+  const modeledTotal = MAINTENANCE_CATEGORY_KEYS.reduce((sum, key) => sum + calculateCategoryRepairCost({ wearPct: clampPct(cats[key]), purchasePrice }), 0);
+  const repairBaseTotal = accumulated > 0 ? accumulated : modeledTotal;
+  const grossTotal = Math.max(0, Math.round(repairBaseTotal));
   const insuredTotal = Math.round(grossTotal * insuranceCovPct);
   const payableTotal = Math.max(0, grossTotal - insuredTotal);
 
@@ -90,7 +92,7 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
       const activeWear = clampPct(cats[categoryKey]);
       const totalDynamicWear = MAINTENANCE_CATEGORY_KEYS.reduce((s, k) => s + clampPct(cats[k]), 0);
       const wearShare = totalDynamicWear > 0 ? activeWear / totalDynamicWear : 0;
-      const grossCost = Math.round(accumulated * wearShare);
+      const grossCost = Math.max(0, Math.round(repairBaseTotal * wearShare));
       if (grossCost <= 0) return;
       const insuredCost = Math.round(grossCost * insuranceCovPct);
       const payable = Math.max(0, grossCost - insuredCost);
@@ -192,7 +194,7 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
 
           const totalDynamicWear = MAINTENANCE_CATEGORY_KEYS.reduce((s, k) => s + clampPct(cats[k]), 0);
           const wearShare = totalDynamicWear > 0 ? active / totalDynamicWear : 0;
-          const grossCost = Math.round(accumulated * wearShare);
+          const grossCost = Math.max(0, Math.round(repairBaseTotal * wearShare));
           const insuredCost = Math.round(grossCost * insuranceCovPct);
           const payable = Math.max(0, grossCost - insuredCost);
           const isRepairing = repairMutation.isPending && repairMutation.variables === key;
