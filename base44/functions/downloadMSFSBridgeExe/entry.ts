@@ -3,7 +3,8 @@ import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://sky-career.com/api/functions/receiveXPlaneData';
 const LOCAL_RELAY_ENDPOINT = 'http://127.0.0.1:50080/bridge';
-const BRIDGE_VERSION = 'bridge-2026-05-04-weather-r2';
+const BRIDGE_VERSION = 'bridge-2026-05-04-weather-r3';
+const DOWNLOAD_BUILD_ID = 'weather-package-layout-2026-05-04-r3';
 const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
 const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
 const DEFAULT_SIMCONNECT_CFG = `[SimConnect]
@@ -57,7 +58,7 @@ async function fetchFromGithubMedia(fileName: string) {
   if (!fileName) {
     throw new Error('Missing download filename');
   }
-  const res = await fetch(`${GITHUB_MEDIA_BASE}/${encodeURIComponent(fileName)}`);
+  const res = await fetch(`${GITHUB_MEDIA_BASE}/${encodeURIComponent(fileName)}?v=${encodeURIComponent(DOWNLOAD_BUILD_ID)}`);
   if (!res.ok) {
     throw new Error(`GitHub media download failed: HTTP ${res.status}`);
   }
@@ -604,6 +605,7 @@ Deno.serve(async (req) => {
       base64: toBase64(finalZipBytes),
       byte_length: finalZipBytes.length,
       bridge_version: BRIDGE_VERSION,
+      payload_version: DOWNLOAD_BUILD_ID,
       personalized: true,
     });
   } catch (error) {
