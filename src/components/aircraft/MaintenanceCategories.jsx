@@ -287,7 +287,7 @@ export default function MaintenanceCategories({ aircraft }) {
         [categoryKey]: applyPermanentWearIncrease({
           currentPermanentWear: permanentCats[categoryKey],
           repairedWearPct: repairedWear,
-          repairCost: costSummary.payable,
+          repairCost: costSummary.gross,
           purchasePrice,
           maxPermanentWear: 100,
         }),
@@ -343,7 +343,7 @@ export default function MaintenanceCategories({ aircraft }) {
         newPermanentCats[key] = applyPermanentWearIncrease({
           currentPermanentWear: permanentCats[key],
           repairedWearPct: repairedWear,
-          repairCost: Math.max(0, categoryCost * (totalCostSummary.payable / Math.max(1, totalCostSummary.gross))),
+          repairCost: categoryCost,
           purchasePrice,
           maxPermanentWear: 100,
         });
