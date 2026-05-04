@@ -67,14 +67,23 @@ export function calculateCategoryRepairCost({ wearPct, purchasePrice }) {
 
 /**
  * Permanent wear added when repairing a category, linear in the repaired wear.
- * 100% repaired wear → +100% permanent wear in that category (capped at 100).
+ * Permanent wear only increases by 25% of the repaired share paid for maintenance.
+ * Full paid repair of one category now adds +25% permanent wear in that category.
  */
 export function calculatePermanentWearIncrease({ repairedWearPct, repairCost, purchasePrice }) {
-  // repairCost / purchasePrice are accepted for backwards compatibility but no longer used.
-  void repairCost;
-  void purchasePrice;
   const repairedWear = clamp(toFinite(repairedWearPct, 0), 0, 100);
-  return repairedWear;
+  const paidRepairCost = Math.max(0, toFinite(repairCost, 0));
+  const baseValue = Math.max(0, toFinite(purchasePrice, 0));
+
+  // Infer the effective repaired share from paid maintenance cost when possible,
+  // so insurance-covered repairs grow permanent wear less.
+  const categoryBaseValue = baseValue * CATEGORY_VALUE_SHARE;
+  const impliedRepairedWear = categoryBaseValue > 0
+    ? clamp((paidRepairCost / categoryBaseValue) * 100, 0, 100)
+    : repairedWear;
+
+  const effectiveRepairedWear = Math.min(repairedWear, impliedRepairedWear);
+  return effectiveRepairedWear * 0.25;
 }
 
 export function applyPermanentWearIncrease({

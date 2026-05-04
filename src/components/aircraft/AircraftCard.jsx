@@ -241,7 +241,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         newPermanentCats[key] = applyPermanentWearIncrease({
           currentPermanentWear: permanentCats[key] || 0,
           repairedWearPct: repairedWear,
-          repairCost: categoryRepairCost,
+          repairCost: Math.max(0, categoryRepairCost * (repairPrice / Math.max(1, repairPriceGross))),
           purchasePrice: aircraft.purchase_price || rawCurrentValue || 1,
           maxPermanentWear: 100,
         });

@@ -106,7 +106,7 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
         [categoryKey]: applyPermanentWearIncrease({
           currentPermanentWear: perm[categoryKey],
           repairedWearPct: activeWear,
-          repairCost: grossCost,
+          repairCost: payable,
           purchasePrice,
           maxPermanentWear: 45,
         }),

@@ -111,7 +111,7 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
         [categoryKey]: applyPermanentWearIncrease({
           currentPermanentWear: perm[categoryKey],
           repairedWearPct: activeWear,
-          repairCost: grossCost,
+          repairCost: payable,
           purchasePrice,
           maxPermanentWear: 45,
         }),
