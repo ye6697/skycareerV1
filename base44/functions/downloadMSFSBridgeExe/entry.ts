@@ -3,7 +3,7 @@ import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://sky-career.com/api/functions/receiveXPlaneData';
 const LOCAL_RELAY_ENDPOINT = 'http://127.0.0.1:50080/bridge';
-const BRIDGE_VERSION = 'bridge-2026-04-08-r1';
+const BRIDGE_VERSION = 'bridge-2026-05-04-weather-r1';
 const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
 const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
 const DEFAULT_SIMCONNECT_CFG = `[SimConnect]

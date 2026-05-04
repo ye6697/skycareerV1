@@ -2219,7 +2219,7 @@ Deno.serve(async (req) => {
 
     // Build minimal update object - only include what changes
     const updateData: Record<string, any> = { xplane_data: xplaneData };
-    const queuedBridgeCommandsRaw = Array.isArray((flight as any)?.bridge_command_queue)
+    const queuedBridgeCommandsBase = Array.isArray((flight as any)?.bridge_command_queue)
       ? (flight as any).bridge_command_queue
       : (Array.isArray((flight as any)?.xplane_data?.bridge_command_queue)
           ? (flight as any).xplane_data.bridge_command_queue
@@ -2228,9 +2228,52 @@ Deno.serve(async (req) => {
       const commandType = String(cmd?.type || "").toLowerCase().trim();
       return commandType === "worker_restart" || commandType === "restart_worker" || commandType === "bridge_worker_restart";
     };
+    const isWeatherCommand = (cmd: any) => {
+      const commandType = String(cmd?.type || "").toLowerCase().trim();
+      return commandType === "set_weather" || commandType === "weather_preset" || commandType === "apply_weather";
+    };
+    const isSessionStartCommand = (cmd: any) => isWorkerRestartCommand(cmd) || isWeatherCommand(cmd);
+    const buildWeatherPresetPayload = (difficultyRaw: any) => {
+      const difficulty = ["easy", "medium", "hard", "extreme"].includes(String(difficultyRaw || "").toLowerCase().trim())
+        ? String(difficultyRaw || "").toLowerCase().trim()
+        : "medium";
+      const presets: Record<string, any> = {
+        easy: { label: "Easy", wind_speed_kts: 6, wind_gust_kts: 9, wind_direction: 240, visibility_sm: 10, cloud_base_ft: 4500, cloud_coverage: "SCT", rain_intensity: 0, precip_rate: 0, turbulence: 0.05, temperature_c: 18, qnh_hpa: 1016 },
+        medium: { label: "Medium", wind_speed_kts: 14, wind_gust_kts: 22, wind_direction: 260, visibility_sm: 7, cloud_base_ft: 3000, cloud_coverage: "BKN", rain_intensity: 0.15, precip_rate: 0.4, turbulence: 0.22, temperature_c: 14, qnh_hpa: 1012 },
+        hard: { label: "Hard", wind_speed_kts: 28, wind_gust_kts: 42, wind_direction: 290, visibility_sm: 4, cloud_base_ft: 1500, cloud_coverage: "BKN", rain_intensity: 0.55, precip_rate: 2.4, turbulence: 0.58, temperature_c: 9, qnh_hpa: 1006 },
+        extreme: { label: "Extreme", wind_speed_kts: 42, wind_gust_kts: 62, wind_direction: 310, visibility_sm: 1, cloud_base_ft: 700, cloud_coverage: "OVC", rain_intensity: 0.95, precip_rate: 5.5, turbulence: 0.9, thunderstorm: true, temperature_c: 7, qnh_hpa: 998 },
+      };
+      return { difficulty, ...(presets[difficulty] || presets.medium) };
+    };
+    const difficultyForWeather = contract?.difficulty ?? (flight as any)?.difficulty ?? prevXd.selected_difficulty;
+    const hasQueuedWeatherCommand = queuedBridgeCommandsBase.some((cmd: any) => isWeatherCommand(cmd));
+    const shouldQueueMissingWeatherPreset =
+      !hasQueuedWeatherCommand &&
+      !prevXd.weather_preset_dispatched_at &&
+      !prevXd.weather_preset_command_id &&
+      !!difficultyForWeather;
+    const queuedBridgeCommandsRaw = shouldQueueMissingWeatherPreset
+      ? [
+          ...queuedBridgeCommandsBase,
+          {
+            id: `cmd-set-weather-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: "set_weather",
+            simulator: simulator || "msfs",
+            created_at: new Date().toISOString(),
+            source: "receive_flight_weather_fallback",
+            persist_until_landed: false,
+            payload: buildWeatherPresetPayload(difficultyForWeather),
+          },
+        ]
+      : queuedBridgeCommandsBase;
+    if (shouldQueueMissingWeatherPreset) {
+      xplaneData.selected_difficulty = buildWeatherPresetPayload(difficultyForWeather).difficulty;
+      xplaneData.forced_weather = buildWeatherPresetPayload(difficultyForWeather);
+      updateData.xplane_data = xplaneData;
+    }
     const queuedBridgeCommandsSanitized = failureTriggersEnabled
       ? queuedBridgeCommandsRaw
-      : queuedBridgeCommandsRaw.filter((cmd: any) => isWorkerRestartCommand(cmd));
+      : queuedBridgeCommandsRaw.filter((cmd: any) => isSessionStartCommand(cmd));
     if (!failureTriggersEnabled && queuedBridgeCommandsSanitized.length !== queuedBridgeCommandsRaw.length) {
       updateData.bridge_command_queue = queuedBridgeCommandsSanitized;
       updateData.xplane_data = {
@@ -2240,16 +2283,16 @@ Deno.serve(async (req) => {
     }
     if (resetStaleFailureState) {
       // Ensure old failures/commands do not leak into a newly started flight session.
-      const restartCommands = queuedBridgeCommandsSanitized.filter((cmd: any) => isWorkerRestartCommand(cmd)).slice(-1);
+      const sessionStartCommands = queuedBridgeCommandsSanitized.filter((cmd: any) => isSessionStartCommand(cmd)).slice(-4);
       updateData.active_failures = [];
-      updateData.bridge_command_queue = restartCommands;
+      updateData.bridge_command_queue = sessionStartCommands;
       updateData.xplane_data = {
         ...xplaneData,
-        bridge_command_queue: restartCommands,
+        bridge_command_queue: sessionStartCommands,
       };
     }
     const dispatchCandidateQueue = (resetStaleFailureState || !failureTriggersEnabled)
-      ? queuedBridgeCommandsSanitized.filter((cmd: any) => isWorkerRestartCommand(cmd))
+      ? queuedBridgeCommandsSanitized.filter((cmd: any) => isSessionStartCommand(cmd))
       : queuedBridgeCommandsSanitized;
     const bridgeCommandsForBridge = dispatchCandidateQueue
       .filter((cmd: any) => cmd && typeof cmd === "object" && cmd.type)
@@ -2261,6 +2304,7 @@ Deno.serve(async (req) => {
         created_at: cmd.created_at || new Date().toISOString(),
         source: cmd.source || "unknown",
         persist_until_landed: cmd.persist_until_landed === true,
+        payload: cmd.payload && typeof cmd.payload === "object" ? cmd.payload : undefined,
       }));
     if (bridgeCommandsForBridge.length > 0) {
       const sentIds = new Set(bridgeCommandsForBridge.map((cmd: any) => String(cmd.id)));
@@ -2275,6 +2319,16 @@ Deno.serve(async (req) => {
       };
       updateData.last_bridge_command_dispatch_at = new Date().toISOString();
       updateData.last_bridge_command_dispatch_count = bridgeCommandsForBridge.length;
+      const dispatchedWeatherCommand = bridgeCommandsForBridge.find((cmd: any) => isWeatherCommand(cmd));
+      if (dispatchedWeatherCommand) {
+        xplaneData.weather_preset_command_id = dispatchedWeatherCommand.id;
+        xplaneData.weather_preset_dispatched_at = updateData.last_bridge_command_dispatch_at;
+        xplaneData.forced_weather = dispatchedWeatherCommand.payload || xplaneData.forced_weather || null;
+        updateData.xplane_data = {
+          ...xplaneData,
+          bridge_command_queue: remainingCommands,
+        };
+      }
     }
 
     // Track max G-force on flight level

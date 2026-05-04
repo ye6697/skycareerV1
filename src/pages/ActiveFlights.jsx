@@ -105,6 +105,83 @@ const DIFFICULTY_OPTIONS = [
 const normalizeDifficulty = (value) =>
   DIFFICULTY_OPTIONS.some((option) => option.value === value) ? value : 'medium';
 
+const WEATHER_PRESETS_BY_DIFFICULTY = {
+  easy: {
+    label: 'Easy',
+    wind_speed_kts: 6,
+    wind_gust_kts: 9,
+    wind_direction: 240,
+    visibility_sm: 10,
+    cloud_base_ft: 4500,
+    cloud_coverage: 'SCT',
+    rain_intensity: 0,
+    precip_rate: 0,
+    turbulence: 0.05,
+    temperature_c: 18,
+    qnh_hpa: 1016,
+  },
+  medium: {
+    label: 'Medium',
+    wind_speed_kts: 14,
+    wind_gust_kts: 22,
+    wind_direction: 260,
+    visibility_sm: 7,
+    cloud_base_ft: 3000,
+    cloud_coverage: 'BKN',
+    rain_intensity: 0.15,
+    precip_rate: 0.4,
+    turbulence: 0.22,
+    temperature_c: 14,
+    qnh_hpa: 1012,
+  },
+  hard: {
+    label: 'Hard',
+    wind_speed_kts: 28,
+    wind_gust_kts: 42,
+    wind_direction: 290,
+    visibility_sm: 4,
+    cloud_base_ft: 1500,
+    cloud_coverage: 'BKN',
+    rain_intensity: 0.55,
+    precip_rate: 2.4,
+    turbulence: 0.58,
+    temperature_c: 9,
+    qnh_hpa: 1006,
+  },
+  extreme: {
+    label: 'Extreme',
+    wind_speed_kts: 42,
+    wind_gust_kts: 62,
+    wind_direction: 310,
+    visibility_sm: 1,
+    cloud_base_ft: 700,
+    cloud_coverage: 'OVC',
+    rain_intensity: 0.95,
+    precip_rate: 5.5,
+    turbulence: 0.9,
+    thunderstorm: true,
+    temperature_c: 7,
+    qnh_hpa: 998,
+  },
+};
+
+const buildWeatherCommand = (difficulty, createdAtIso) => {
+  const normalizedDifficulty = normalizeDifficulty(difficulty);
+  const preset = WEATHER_PRESETS_BY_DIFFICULTY[normalizedDifficulty] || WEATHER_PRESETS_BY_DIFFICULTY.medium;
+  return {
+    id: `cmd-set-weather-${normalizedDifficulty}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: 'set_weather',
+    simulator: 'msfs',
+    created_at: createdAtIso,
+    source: 'active_flight_start',
+    persist_until_landed: false,
+    payload: {
+      difficulty: normalizedDifficulty,
+      ...preset,
+    },
+  };
+};
+
 export default function ActiveFlights() {
   const { lang } = useLanguage();
   const queryClient = useQueryClient();
@@ -234,6 +311,7 @@ export default function ActiveFlights() {
       const insuranceHourlyRatePct = normalizePctLike(ac?.insurance_hourly_rate_pct) ?? insuranceCfg.hourlyRatePctOfNewValue;
       const insuranceCoveragePct = normalizePctLike(ac?.insurance_maintenance_coverage_pct) ?? insuranceCfg.maintenanceCoveragePct;
       const insuranceScoreBonusPct = normalizePctLike(ac?.insurance_score_bonus_pct) ?? insuranceCfg.scoreBonusPct;
+      const normalizedDifficulty = normalizeDifficulty(selectedDifficulty || selectedContract?.difficulty);
       const restartCommand = {
         id: `cmd-worker-restart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: 'worker_restart',
@@ -242,6 +320,8 @@ export default function ActiveFlights() {
         source: 'active_flight_start',
         persist_until_landed: false
       };
+      const weatherCommand = buildWeatherCommand(normalizedDifficulty, nowIso);
+      const startBridgeCommands = [restartCommand, weatherCommand];
       const currentUser = await base44.auth.me();
       const userFailurePref = (
         typeof currentUser?.failure_triggers_enabled_user === 'boolean'
@@ -265,9 +345,11 @@ export default function ActiveFlights() {
         departure_time: new Date().toISOString(),
         status: 'in_flight',
         active_failures: [],
-        bridge_command_queue: [restartCommand],
+        bridge_command_queue: startBridgeCommands,
         xplane_data: {
           contract_id: selectedContract.id,
+          selected_difficulty: normalizedDifficulty,
+          forced_weather: weatherCommand.payload,
           was_airborne: false,
           airborne_started_at: null,
           completion_armed: false,
@@ -291,14 +373,14 @@ export default function ActiveFlights() {
           insurance_score_bonus_pct: insuranceScoreBonusPct !== null ? Math.round(insuranceScoreBonusPct * 100) : null,
           bridge_reset_requested_at: nowIso,
           bridge_reset_reason: 'new_contract_flight_start',
-          bridge_command_queue: [restartCommand]
+          bridge_command_queue: startBridgeCommands
         }
       });
 
       // Update contract status and persist the user-selected challenge level.
       await base44.entities.Contract.update(selectedContract.id, {
         status: 'in_progress',
-        difficulty: normalizeDifficulty(selectedDifficulty || selectedContract?.difficulty)
+        difficulty: normalizedDifficulty
       });
 
       // Update aircraft status — but only if it isn't already in flight
@@ -773,8 +855,8 @@ export default function ActiveFlights() {
                       </p>
                       <p className="text-xs leading-relaxed text-slate-400">
                         {lang === 'de'
-                          ? 'Diese Auswahl wird beim Starten auf dem Auftrag gespeichert. Du legst damit fest, als welche Challenge dieser Flug in SkyCareer weitergefuehrt und angezeigt wird.'
-                          : 'This selection is saved on the contract when you start the flight. It defines which challenge level SkyCareer keeps and displays for this flight.'}
+                          ? 'Diese Auswahl wird beim Starten gespeichert und als Wetter-Preset an die Bridge gesendet. Je hoeher die Stufe, desto mehr Wind, Boeen, Regen und Turbulenz setzt SkyCareer im Simulator.'
+                          : 'This selection is saved when the flight starts and sent to the bridge as a weather preset. Higher levels add more wind, gusts, rain, and turbulence in the simulator.'}
                       </p>
                     </div>
                   </div>
