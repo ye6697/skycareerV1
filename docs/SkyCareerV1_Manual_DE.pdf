@@ -1,0 +1,3108 @@
+%PDF-1.3
+%߬
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 5125
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 793.8899999999999864 Td
+(# SkyCareerV1  Vollstndiges Benutzer- und Systemhandbuch) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 763.8899999999999864 Td
+(Stand: 2026-05-04) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 733.8899999999999864 Td
+(## 1. berblick) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 718.8899999999999864 Td
+(SkyCareerV1 ist eine umfassende Airline-Karriere-Simulation mit) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(Vertragsmanagement, Flugbetrieb, Flottenmanagement, Finanzen,) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Achievements, Leaderboard, Type Ratings und Integrationen fr) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 673.8899999999999864 Td
+(Flugsimulatoren \(u. a. MSFS/X-Plane\).) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 643.8899999999999864 Td
+(## 2. Hauptmodule) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(- Dashboard und Unternehmensstatus) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(- Vertrge und Einsatzplanung) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(- Aktive Flge, Tracking und Auswertung) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(- Flotte, Wartung und 3D-Hangar) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 568.8899999999999864 Td
+(- Finanzen, Credits, Shop und Abos) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(- Pilotprofil, Konto und Einstellungen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(- Achievements, Leaderboard und Type Ratings) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(- Admin-Bereiche \(Discounts, Bildverwaltung, Game Settings\)) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 493.8899999999999864 Td
+(## 3. Seiten und Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(### CompletedFlightDetails) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(fr den Bereich **CompletedFlightDetails**. Sie ist ber das zentrale) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(Routing registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(### ActiveFlights) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(fr den Bereich **ActiveFlights**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(### PerformanceCalculator) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(fr den Bereich **PerformanceCalculator**. Sie ist ber das zentrale) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 283.8899999999999864 Td
+(Routing registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(### About) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 223.8899999999999864 Td
+(fr den Bereich **About**. Sie ist ber das zentrale Routing registriert) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(### Contracts) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 163.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(fr den Bereich **Contracts**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 133.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 103.8899999999999864 Td
+(### Fleet) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 73.8899999999999864 Td
+(fr den Bereich **Fleet**. Sie ist ber das zentrale Routing registriert) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 1/9) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 5178
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(### AdminAircraftImages) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 763.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(fr den Bereich **AdminAircraftImages**. Sie ist ber das zentrale) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 733.8899999999999864 Td
+(Routing registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(### Achievements) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 673.8899999999999864 Td
+(fr den Bereich **Achievements**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(### FlightTracker) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(fr den Bereich **FlightTracker**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(### FlightHistory) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(fr den Bereich **FlightHistory**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 508.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(### ContractDetails) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(fr den Bereich **ContractDetails**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(### XPlaneDebug) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(fr den Bereich **XPlaneDebug**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(### XPlaneSetup) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(fr den Bereich **XPlaneSetup**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 283.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(### Setup) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 223.8899999999999864 Td
+(fr den Bereich **Setup**. Sie ist ber das zentrale Routing registriert) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(### Finances) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 163.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(fr den Bereich **Finances**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 133.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 103.8899999999999864 Td
+(### GameSettingsAdmin) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 73.8899999999999864 Td
+(fr den Bereich **GameSettingsAdmin**. Sie ist ber das zentrale) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(Routing registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 2/9) Tj
+ET
+endstream
+endobj
+7 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 5064
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(### Landing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 763.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(fr den Bereich **Landing**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 733.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(### Account) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 673.8899999999999864 Td
+(fr den Bereich **Account**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(### FreeFlight) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(fr den Bereich **FreeFlight**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(### Contact) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(fr den Bereich **Contact**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 508.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(### TypeRatings) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(fr den Bereich **TypeRatings**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(### Dashboard) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(fr den Bereich **Dashboard**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(### FlightMap) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(fr den Bereich **FlightMap**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 283.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(### Leaderboard) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 223.8899999999999864 Td
+(fr den Bereich **Leaderboard**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(### AdminDiscounts) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 163.8899999999999864 Td
+(Diese Seite ist Teil der App-Routen und bietet spezifische Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(fr den Bereich **AdminDiscounts**. Sie ist ber das zentrale Routing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 133.8899999999999864 Td
+(registriert und in das Hauptlayout eingebunden.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 103.8899999999999864 Td
+(## 4. Komponenten nach Fachbereich) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(### finance) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 73.8899999999999864 Td
+(- **LevelBonusInfo**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(Business-Logik im Bereich finance.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 3/9) Tj
+ET
+endstream
+endobj
+9 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 5287
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 793.8899999999999864 Td
+(- **CreditInfoCard**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(Business-Logik im Bereich finance.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 763.8899999999999864 Td
+(- **SkyDollarPacks**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(Business-Logik im Bereich finance.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 718.8899999999999864 Td
+(### landing) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(- **ComparisonSection**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 673.8899999999999864 Td
+(- **demoData**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 643.8899999999999864 Td
+(- **AppScreenshot**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(- **PricingSection**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(- **LangToggle**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 568.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(- **SignupGate**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(- **translations**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 508.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 493.8899999999999864 Td
+(- **NewFeaturesShowcase**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(Business-Logik im Bereich landing.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(### leaderboard) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(- **LeaderboardRow**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 418.8899999999999864 Td
+(Business-Logik im Bereich leaderboard.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(- **LeaderboardFilters**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(Business-Logik im Bereich leaderboard.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(- **LeaderboardHeader**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(Business-Logik im Bereich leaderboard.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(### typerating) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(- **TypeRatingMissionPopup**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(Business-Logik im Bereich typerating.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 268.8899999999999864 Td
+(### UserNotRegisteredError.jsx) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(- **UserNotRegisteredError**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(Business-Logik im Bereich UserNotRegisteredError.jsx.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(### store) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 193.8899999999999864 Td
+(- **RealMoneyBuyButton**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(Business-Logik im Bereich store.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(### account) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 133.8899999999999864 Td
+(- **DeleteAccountDialog**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 118.8899999999999864 Td
+(Business-Logik im Bereich account.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(### InsolvencyBanner.jsx) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 73.8899999999999864 Td
+(- **InsolvencyBanner**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(Business-Logik im Bereich InsolvencyBanner.jsx.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 4/9) Tj
+ET
+endstream
+endobj
+11 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 5568
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(### i18n) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 763.8899999999999864 Td
+(- **translations**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(Business-Logik im Bereich i18n.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 718.8899999999999864 Td
+(### fleet3d) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(- **HotspotInfoPopup**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Business-Logik im Bereich fleet3d.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 673.8899999999999864 Td
+(- **MaintenanceCategoryList**: Untersttzt die Benutzeroberflche) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(und Business-Logik im Bereich fleet3d.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 643.8899999999999864 Td
+(- **maintenanceHotspots**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(Business-Logik im Bereich fleet3d.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(- **AircraftHangar3D**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(Business-Logik im Bereich fleet3d.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(- **Fleet3DView**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 568.8899999999999864 Td
+(Business-Logik im Bereich fleet3d.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(- **MarketHangar3DView**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(Business-Logik im Bereich fleet3d.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(- **hangarScene**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 508.8899999999999864 Td
+(Business-Logik im Bereich fleet3d.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(### dashboard) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(- **XPlaneStatus**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(Business-Logik im Bereich dashboard.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(- **CreditScoreBadge**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 418.8899999999999864 Td
+(Business-Logik im Bereich dashboard.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(- **ReputationGauge**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(Business-Logik im Bereich dashboard.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(- **StatCard**: Untersttzt die Benutzeroberflche und Business-Logik) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(im Bereich dashboard.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(### LanguageContext.jsx) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(- **LanguageContext**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(Business-Logik im Bereich LanguageContext.jsx.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 268.8899999999999864 Td
+(### contracts) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(- **ContractCard**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 223.8899999999999864 Td
+(- **HangarModelPreview3D**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 193.8899999999999864 Td
+(- **ContractWorldMap**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 163.8899999999999864 Td
+(- **FuelCalculator**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 133.8899999999999864 Td
+(- **HangarMarket3D**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 118.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 103.8899999999999864 Td
+(- **hangarModelCatalog**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 73.8899999999999864 Td
+(- **HangarWorldGlobe3D**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 5/9) Tj
+ET
+endstream
+endobj
+13 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 14 0 R
+>>
+endobj
+14 0 obj
+<<
+/Length 6017
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 793.8899999999999864 Td
+(- **hangarModelCatalog**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(Business-Logik im Bereich contracts.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(### aircraft) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 733.8899999999999864 Td
+(- **MaintenanceCategories**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 718.8899999999999864 Td
+(Business-Logik im Bereich aircraft.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(- **AircraftCard**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Business-Logik im Bereich aircraft.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(### flights) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 643.8899999999999864 Td
+(- **ActiveFlightCard**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(- **failureUtils**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(- **LandingQualityVisual**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 568.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(- **FuelPrediction**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(- **aircraftModels3D**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 508.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 493.8899999999999864 Td
+(- **glbScenery**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(- **centerlineColor**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(- **WeatherDisplay**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 418.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(- **FinalApproach3D**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(- **SimBriefImport**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 343.8899999999999864 Td
+(- **glbLoader**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(- **approachGeometry**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 283.8899999999999864 Td
+(- **PreFlightCalculator**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 268.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(- **NearbyAirports**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 223.8899999999999864 Td
+(- **customAircraftModel**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 193.8899999999999864 Td
+(- **RouteWaypoints**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 163.8899999999999864 Td
+(- **realisticTrees**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 133.8899999999999864 Td
+(- **useReplayRecorder**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 118.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 103.8899999999999864 Td
+(- **aircraftModelCatalog**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 73.8899999999999864 Td
+(- **FlightMapIframe**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 6/9) Tj
+ET
+endstream
+endobj
+15 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 16 0 R
+>>
+endobj
+16 0 obj
+<<
+/Length 6078
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 793.8899999999999864 Td
+(- **airportDetails**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 763.8899999999999864 Td
+(- **runwayAccuracy**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 733.8899999999999864 Td
+(- **customAirportModel**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 718.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(- **aircraftSpeedLookup**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 673.8899999999999864 Td
+(- **cityBuildings**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 643.8899999999999864 Td
+(- **RunwayAccuracyCard**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(- **LandingScoreCalculator**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(- **TakeoffLandingCalculator**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 568.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(- **AdvancedLandingScore**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(- **FlightProfileChart**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 508.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 493.8899999999999864 Td
+(- **RouteCorridorAirports**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(- **landingMetrics**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(- **landingMetrics**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 418.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(- **airportScene**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(- **FlightMap**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 343.8899999999999864 Td
+(- **roadNetwork**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(- **ActiveFailuresDisplay**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 283.8899999999999864 Td
+(- **useMp4Exporter**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 268.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(- **generatePassengerComments**: Untersttzt die) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(Benutzeroberflche und Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 223.8899999999999864 Td
+(- **landingBonusRecovery**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 193.8899999999999864 Td
+(- **FlightRating**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 163.8899999999999864 Td
+(- **FlightCompletionAnimation**: Untersttzt die Benutzeroberflche) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(und Business-Logik im Bereich flights.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 118.8899999999999864 Td
+(### ProtectedRoute.jsx) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 103.8899999999999864 Td
+(- **ProtectedRoute**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(Business-Logik im Bereich ProtectedRoute.jsx.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(### achievements) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 7/9) Tj
+ET
+endstream
+endobj
+17 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 18 0 R
+>>
+endobj
+18 0 obj
+<<
+/Length 5911
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 793.8899999999999864 Td
+(- **achievementDefinitions**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 763.8899999999999864 Td
+(- **achievementProgress**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 733.8899999999999864 Td
+(- **AchievementUnlockList**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 718.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(- **achievementRewards**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 673.8899999999999864 Td
+(- **processAchievementsAfterFlight**: Untersttzt die) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(Benutzeroberflche und Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 643.8899999999999864 Td
+(- **AchievementsWidget**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(- **useAchievements**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 583.8899999999999864 Td
+(- **achievementEvaluator**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 568.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(- **AchievementBadge**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(Business-Logik im Bereich achievements.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 508.8899999999999864 Td
+(### subscription) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 493.8899999999999864 Td
+(- **PricingCards**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(Business-Logik im Bereich subscription.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(- **SubscriptionPaywall**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 448.8899999999999864 Td
+(Business-Logik im Bereich subscription.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(- **SubscriptionStatus**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 418.8899999999999864 Td
+(Business-Logik im Bereich subscription.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(### admin) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(- **CreateDiscountForm**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(Business-Logik im Bereich admin.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 343.8899999999999864 Td
+(- **DiscountList**: Untersttzt die Benutzeroberflche und) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(Business-Logik im Bereich admin.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(## 5. Datenmodell \(Base44 Entities\)) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 283.8899999999999864 Td
+(- **Subscription**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 268.8899999999999864 Td
+(- **LemonCatalogItem**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 253.8899999999999864 Td
+(- **Contract**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 238.8899999999999864 Td
+(- **Hangar**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 223.8899999999999864 Td
+(- **Company**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 208.8899999999999864 Td
+(- **Flight**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 193.8899999999999864 Td
+(- **AircraftTemplate**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 178.8899999999999864 Td
+(- **XPlaneLog**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 163.8899999999999864 Td
+(- **Aircraft**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 148.8899999999999864 Td
+(- **GameSettings**: Persistentes Datenobjekt fr Kernprozesse.) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 118.8899999999999864 Td
+(## 6. Typische End-to-End Workflows) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 103.8899999999999864 Td
+(### 6.1 Vertragsflug) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 88.8899999999999864 Td
+(1. Vertrag auswhlen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 73.8899999999999864 Td
+(2. Flug vorbereiten \(Route, Treibstoff, Wetter, ggf. SimBrief\)) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 58.8899999999999864 Td
+(3. Flug starten und live verfolgen) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 8/9) Tj
+ET
+endstream
+endobj
+19 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 20 0 R
+>>
+endobj
+20 0 obj
+<<
+/Length 3444
+>>
+stream
+0.200025 w
+0 G
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 793.8899999999999864 Td
+(4. Landung analysieren \(Runway Accuracy, Landing Score\)) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 778.8899999999999864 Td
+(5. Abschluss, Auszahlung, Reputation und Achievements) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 748.8899999999999864 Td
+(### 6.2 Flottenwachstum) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 733.8899999999999864 Td
+(1. Finanzstatus prfen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 718.8899999999999864 Td
+(2. Aircraft erwerben/zuweisen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 703.8899999999999864 Td
+(3. Wartung & Versicherungsrisiko managen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 688.8899999999999864 Td
+(4. Hherwertige Vertrge annehmen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 658.8899999999999864 Td
+(### 6.3 Skill-Fortschritt) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 643.8899999999999864 Td
+(1. Type Ratings starten) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 628.8899999999999864 Td
+(2. Missionsziele erfllen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 613.8899999999999864 Td
+(3. Achievements freischalten) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 598.8899999999999864 Td
+(4. Leaderboard-Rang verbessern) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 568.8899999999999864 Td
+(## 7. Integrationen und Tools) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 553.8899999999999864 Td
+(- MSFS Bridge, Ingame Tablet und Desktop-Tools ber Downloads) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 538.8899999999999864 Td
+(- X-Plane Setup/Debug fr Datenanbindung) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 523.8899999999999864 Td
+(- Replay- und MP4-Export-Funktionen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 493.8899999999999864 Td
+(## 8. Rollen und Berechtigungen) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 478.8899999999999864 Td
+(- Standardnutzer: Flugbetrieb, Flotte, Finanzen, Profil) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 463.8899999999999864 Td
+(- Adminnutzer: Discounts, Aircraft Images, Game Settings) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 433.8899999999999864 Td
+(## 9. Technische Architektur) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 418.8899999999999864 Td
+(- React + Vite Frontend) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 403.8899999999999864 Td
+(- React Router mit dynamischem Seitenregister) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 388.8899999999999864 Td
+(- React Query fr Serverstate) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 373.8899999999999864 Td
+(- Base44 SDK/API-Anbindung) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 358.8899999999999864 Td
+(- UI-Bausteine ber Radix/Shadcn-Komponenten) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 328.8899999999999864 Td
+(## 10. Vollstndigkeitsindex) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 313.8899999999999864 Td
+(Dieses Handbuch deckt alle im Repository registrierten Seiten,) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 298.8899999999999864 Td
+(Fachkomponenten und Datenentitten ab und dient als umfassende) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+0 g
+48. 283.8899999999999864 Td
+(Referenz fr Bedienung, Onboarding, Support und Weiterentwicklung.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0 g
+48. 20. Td
+(SkyCareerV1 Manual  Seite 9/9) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R ]
+/Count 9
+>>
+endobj
+21 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+22 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+23 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+24 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+25 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+26 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+27 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+28 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+29 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+30 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+31 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+32 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+33 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+34 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 21 0 R
+/F2 22 0 R
+/F3 23 0 R
+/F4 24 0 R
+/F5 25 0 R
+/F6 26 0 R
+/F7 27 0 R
+/F8 28 0 R
+/F9 29 0 R
+/F10 30 0 R
+/F11 31 0 R
+/F12 32 0 R
+/F13 33 0 R
+/F14 34 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+35 0 obj
+<<
+/Producer (jsPDF 4.0.0)
+/CreationDate (D:20260504002802-00'00')
+>>
+endobj
+36 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 37
+0000000000 65535 f 
+0000049405 00000 n 
+0000051280 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000005329 00000 n 
+0000005466 00000 n 
+0000010696 00000 n 
+0000010833 00000 n 
+0000015949 00000 n 
+0000016087 00000 n 
+0000021427 00000 n 
+0000021566 00000 n 
+0000027187 00000 n 
+0000027326 00000 n 
+0000033396 00000 n 
+0000033535 00000 n 
+0000039666 00000 n 
+0000039805 00000 n 
+0000045769 00000 n 
+0000045908 00000 n 
+0000049515 00000 n 
+0000049641 00000 n 
+0000049772 00000 n 
+0000049906 00000 n 
+0000050044 00000 n 
+0000050168 00000 n 
+0000050297 00000 n 
+0000050429 00000 n 
+0000050565 00000 n 
+0000050693 00000 n 
+0000050820 00000 n 
+0000050949 00000 n 
+0000051082 00000 n 
+0000051184 00000 n 
+0000051533 00000 n 
+0000051619 00000 n 
+trailer
+<<
+/Size 37
+/Root 36 0 R
+/Info 35 0 R
+/ID [ <786B85560F5E3E5D0F250848FCBA67D7> <786B85560F5E3E5D0F250848FCBA67D7> ]
+>>
+startxref
+51723
+%%EOF
