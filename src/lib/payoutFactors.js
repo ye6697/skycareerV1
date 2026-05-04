@@ -86,7 +86,7 @@ const RAW_CATEGORY_FALLBACK = {
   cargo: 22.0,
 };
 
-export const PAYOUT_FACTOR_EXPONENT = 1.35;
+export const PAYOUT_FACTOR_EXPONENT = 1.45;
 
 export function curvePayoutFactor(rawFactor) {
   const factor = Number(rawFactor);
