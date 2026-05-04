@@ -51,14 +51,14 @@ const DIFFICULTY_OPTIONS = [
   {
     value: 'easy',
     color: 'text-emerald-300',
-    label: { de: 'Leicht', en: 'Easy' },
+    label: { de: 'Freier Modus', en: 'Free mode' },
     summary: {
-      de: 'Entspannter Flug mit niedriger Herausforderung.',
-      en: 'Relaxed flight with a low challenge level.'
+      de: 'Kein SkyCareer-Wetterpreset.',
+      en: 'No SkyCareer weather preset.'
     },
     detail: {
-      de: 'Gut fuer kurze Routen, neue Flugzeuge oder wenn du ohne Druck fliegen willst.',
-      en: 'Good for short routes, new aircraft, or flying without pressure.'
+      de: 'SkyCareer laesst dein aktuelles Simulator-Wetter unveraendert. Nutze das fuer Live Weather, eigene Presets oder komplett freie Fluege.',
+      en: 'SkyCareer leaves your current simulator weather unchanged. Use this for live weather, custom presets, or fully free flights.'
     }
   },
   {
@@ -106,22 +106,10 @@ const normalizeDifficulty = (value) =>
   DIFFICULTY_OPTIONS.some((option) => option.value === value) ? value : 'medium';
 
 const WEATHER_PRESETS_BY_DIFFICULTY = {
-  easy: {
-    label: 'Easy',
-    wind_speed_kts: 6,
-    wind_gust_kts: 9,
-    wind_direction: 240,
-    visibility_sm: 10,
-    cloud_base_ft: 4500,
-    cloud_coverage: 'SCT',
-    rain_intensity: 0,
-    precip_rate: 0,
-    turbulence: 0.05,
-    temperature_c: 18,
-    qnh_hpa: 1016,
-  },
   medium: {
     label: 'Medium',
+    preset_name: 'SkyCareer Medium Challenge',
+    theme_path: 'WeatherPresets\\SkyCareer Medium Challenge.WPR',
     wind_speed_kts: 14,
     wind_gust_kts: 22,
     wind_direction: 260,
@@ -136,6 +124,8 @@ const WEATHER_PRESETS_BY_DIFFICULTY = {
   },
   hard: {
     label: 'Hard',
+    preset_name: 'SkyCareer Hard Challenge',
+    theme_path: 'WeatherPresets\\SkyCareer Hard Challenge.WPR',
     wind_speed_kts: 28,
     wind_gust_kts: 42,
     wind_direction: 290,
@@ -150,24 +140,27 @@ const WEATHER_PRESETS_BY_DIFFICULTY = {
   },
   extreme: {
     label: 'Extreme',
-    wind_speed_kts: 42,
-    wind_gust_kts: 62,
-    wind_direction: 310,
-    visibility_sm: 1,
-    cloud_base_ft: 700,
+    preset_name: 'SkyCareer Extreme Challenge',
+    theme_path: 'WeatherPresets\\SkyCareer Extreme Challenge.WPR',
+    wind_speed_kts: 65,
+    wind_gust_kts: 92,
+    wind_direction: 315,
+    visibility_sm: 0.5,
+    cloud_base_ft: 350,
     cloud_coverage: 'OVC',
-    rain_intensity: 0.95,
-    precip_rate: 5.5,
-    turbulence: 0.9,
+    rain_intensity: 1,
+    precip_rate: 22,
+    turbulence: 1,
     thunderstorm: true,
-    temperature_c: 7,
-    qnh_hpa: 998,
+    temperature_c: 5,
+    qnh_hpa: 982,
   },
 };
 
 const buildWeatherCommand = (difficulty, createdAtIso) => {
   const normalizedDifficulty = normalizeDifficulty(difficulty);
-  const preset = WEATHER_PRESETS_BY_DIFFICULTY[normalizedDifficulty] || WEATHER_PRESETS_BY_DIFFICULTY.medium;
+  const preset = WEATHER_PRESETS_BY_DIFFICULTY[normalizedDifficulty];
+  if (!preset) return null;
   return {
     id: `cmd-set-weather-${normalizedDifficulty}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     type: 'set_weather',
@@ -321,7 +314,7 @@ export default function ActiveFlights() {
         persist_until_landed: false
       };
       const weatherCommand = buildWeatherCommand(normalizedDifficulty, nowIso);
-      const startBridgeCommands = [restartCommand, weatherCommand];
+      const startBridgeCommands = [restartCommand, weatherCommand].filter(Boolean);
       const currentUser = await base44.auth.me();
       const userFailurePref = (
         typeof currentUser?.failure_triggers_enabled_user === 'boolean'
@@ -349,7 +342,7 @@ export default function ActiveFlights() {
         xplane_data: {
           contract_id: selectedContract.id,
           selected_difficulty: normalizedDifficulty,
-          forced_weather: weatherCommand.payload,
+          forced_weather: weatherCommand?.payload || null,
           was_airborne: false,
           airborne_started_at: null,
           completion_armed: false,
@@ -855,8 +848,12 @@ export default function ActiveFlights() {
                       </p>
                       <p className="text-xs leading-relaxed text-slate-400">
                         {lang === 'de'
-                          ? 'Diese Auswahl wird beim Starten gespeichert und als Wetter-Preset an die Bridge gesendet. Je hoeher die Stufe, desto mehr Wind, Boeen, Regen und Turbulenz setzt SkyCareer im Simulator.'
-                          : 'This selection is saved when the flight starts and sent to the bridge as a weather preset. Higher levels add more wind, gusts, rain, and turbulence in the simulator.'}
+                          ? selectedDifficulty === 'easy'
+                            ? 'Freier Modus speichert nur den Auftrag und veraendert dein Wetter nicht.'
+                            : 'Diese Auswahl wird beim Starten gespeichert und als Wetter-Preset an die Bridge gesendet. Mittel, Schwer und Extrem setzen jeweils ein eigenes MSFS-Wetterpreset.'
+                          : selectedDifficulty === 'easy'
+                            ? 'Free mode only saves the contract and does not change your weather.'
+                            : 'This selection is saved when the flight starts and sent to the bridge as a weather preset. Medium, Hard, and Extreme each apply a dedicated MSFS weather preset.'}
                       </p>
                     </div>
                   </div>
@@ -998,9 +995,9 @@ export default function ActiveFlights() {
               <DialogTitle>{lang === 'de' ? 'Info: Wetter-Schwierigkeit' : 'Info: Weather difficulty'}</DialogTitle>
             </DialogHeader>
             <div className="text-sm text-slate-300 space-y-2">
-              <p>{lang === 'de' ? 'Vor dem Climb kannst du die Missions-Schwierigkeit wählen. SkyCareer sendet dann ein passendes Wetter-Preset an die Bridge (Wind, Richtung, Böen, Turbulenz, Regen).' : 'Before climb, you can choose mission difficulty. SkyCareer sends a matching weather preset to the bridge (wind, direction, gusts, turbulence, rain).'}</p>
-              <p>Easy: +0% payout · Medium: +10% payout · Hard: +25% payout · Extreme: +50% payout</p>
-              <p className="text-amber-300">{lang === 'de' ? 'Extreme kann kleine Flugzeuge und manche Jets überlasten. Nutze es nur mit genügend Leistungsreserve.' : 'Extreme may overload small aircraft and some jets. Use only with enough performance margin.'}</p>
+              <p>{lang === 'de' ? 'Vor dem Climb kannst du waehlen, ob SkyCareer dein MSFS-Wetter setzen soll. Freier Modus laesst dein Wetter unveraendert; Mittel, Schwer und Extrem senden ein sichtbares SkyCareer-Wetterpreset an die Bridge.' : 'Before climb, you can choose whether SkyCareer should set your MSFS weather. Free mode leaves weather unchanged; Medium, Hard, and Extreme send a visible SkyCareer weather preset to the bridge.'}</p>
+              <p>{lang === 'de' ? 'Freier Modus: kein Wetterwechsel | Mittel: moderater Wind/Regen | Schwer: tiefe Wolken und starke Boeen | Extrem: Sturm, sehr tiefe Wolken und harte Boeen' : 'Free mode: no weather change | Medium: moderate wind/rain | Hard: low clouds and strong gusts | Extreme: storm, very low clouds, and harsh gusts'}</p>
+              <p className="text-amber-300">{lang === 'de' ? 'Extrem ist jetzt deutlich staerker und kann kleine Flugzeuge, Autopiloten und Anfluege schnell ueberfordern.' : 'Extreme is now much stronger and can quickly overwhelm small aircraft, autopilots, and approaches.'}</p>
             </div>
           </DialogContent>
         </Dialog>

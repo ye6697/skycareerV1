@@ -2234,24 +2234,24 @@ Deno.serve(async (req) => {
     };
     const isSessionStartCommand = (cmd: any) => isWorkerRestartCommand(cmd) || isWeatherCommand(cmd);
     const buildWeatherPresetPayload = (difficultyRaw: any) => {
-      const difficulty = ["easy", "medium", "hard", "extreme"].includes(String(difficultyRaw || "").toLowerCase().trim())
+      const difficulty = ["medium", "hard", "extreme"].includes(String(difficultyRaw || "").toLowerCase().trim())
         ? String(difficultyRaw || "").toLowerCase().trim()
         : "medium";
       const presets: Record<string, any> = {
-        easy: { label: "Easy", wind_speed_kts: 6, wind_gust_kts: 9, wind_direction: 240, visibility_sm: 10, cloud_base_ft: 4500, cloud_coverage: "SCT", rain_intensity: 0, precip_rate: 0, turbulence: 0.05, temperature_c: 18, qnh_hpa: 1016 },
-        medium: { label: "Medium", wind_speed_kts: 14, wind_gust_kts: 22, wind_direction: 260, visibility_sm: 7, cloud_base_ft: 3000, cloud_coverage: "BKN", rain_intensity: 0.15, precip_rate: 0.4, turbulence: 0.22, temperature_c: 14, qnh_hpa: 1012 },
-        hard: { label: "Hard", wind_speed_kts: 28, wind_gust_kts: 42, wind_direction: 290, visibility_sm: 4, cloud_base_ft: 1500, cloud_coverage: "BKN", rain_intensity: 0.55, precip_rate: 2.4, turbulence: 0.58, temperature_c: 9, qnh_hpa: 1006 },
-        extreme: { label: "Extreme", wind_speed_kts: 42, wind_gust_kts: 62, wind_direction: 310, visibility_sm: 1, cloud_base_ft: 700, cloud_coverage: "OVC", rain_intensity: 0.95, precip_rate: 5.5, turbulence: 0.9, thunderstorm: true, temperature_c: 7, qnh_hpa: 998 },
+        medium: { label: "Medium", preset_name: "SkyCareer Medium Challenge", theme_path: "WeatherPresets\\SkyCareer Medium Challenge.WPR", wind_speed_kts: 14, wind_gust_kts: 22, wind_direction: 260, visibility_sm: 7, cloud_base_ft: 3000, cloud_coverage: "BKN", rain_intensity: 0.15, precip_rate: 0.4, turbulence: 0.22, temperature_c: 14, qnh_hpa: 1012 },
+        hard: { label: "Hard", preset_name: "SkyCareer Hard Challenge", theme_path: "WeatherPresets\\SkyCareer Hard Challenge.WPR", wind_speed_kts: 28, wind_gust_kts: 42, wind_direction: 290, visibility_sm: 4, cloud_base_ft: 1500, cloud_coverage: "BKN", rain_intensity: 0.55, precip_rate: 2.4, turbulence: 0.58, temperature_c: 9, qnh_hpa: 1006 },
+        extreme: { label: "Extreme", preset_name: "SkyCareer Extreme Challenge", theme_path: "WeatherPresets\\SkyCareer Extreme Challenge.WPR", wind_speed_kts: 65, wind_gust_kts: 92, wind_direction: 315, visibility_sm: 0.5, cloud_base_ft: 350, cloud_coverage: "OVC", rain_intensity: 1, precip_rate: 22, turbulence: 1, thunderstorm: true, temperature_c: 5, qnh_hpa: 982 },
       };
       return { difficulty, ...(presets[difficulty] || presets.medium) };
     };
     const difficultyForWeather = contract?.difficulty ?? (flight as any)?.difficulty ?? prevXd.selected_difficulty;
+    const normalizedDifficultyForWeather = String(difficultyForWeather || "").toLowerCase().trim();
     const hasQueuedWeatherCommand = queuedBridgeCommandsBase.some((cmd: any) => isWeatherCommand(cmd));
     const shouldQueueMissingWeatherPreset =
       !hasQueuedWeatherCommand &&
       !prevXd.weather_preset_dispatched_at &&
       !prevXd.weather_preset_command_id &&
-      !!difficultyForWeather;
+      ["medium", "hard", "extreme"].includes(normalizedDifficultyForWeather);
     const queuedBridgeCommandsRaw = shouldQueueMissingWeatherPreset
       ? [
           ...queuedBridgeCommandsBase,
