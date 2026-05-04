@@ -33,6 +33,8 @@ function getColor(p) {
 }
 
 const clampPct = (v) => Math.max(0, Math.min(100, Number(v) || 0));
+const roundMoney = (v) => Math.max(0, Math.round((Number(v) || 0) * 100) / 100);
+const formatMoney = (v) => roundMoney(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function MaintenanceCategoryList({ aircraft, selectedCategory, onSelectCategory }) {
   const { lang } = useLanguage();
@@ -52,9 +54,9 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
   const insuranceCovPct = Math.max(0, Math.min(1, Number(insurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));
   const accumulated = Math.min(Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0)), purchasePrice);
-  const grossTotal = Math.round(accumulated);
-  const insuredTotal = Math.round(grossTotal * insuranceCovPct);
-  const payableTotal = Math.max(0, grossTotal - insuredTotal);
+  const grossTotal = roundMoney(accumulated);
+  const insuredTotal = roundMoney(grossTotal * insuranceCovPct);
+  const payableTotal = roundMoney(grossTotal - insuredTotal);
 
   const { data: companyForLimit } = useQuery({
     queryKey: ['company-maint-limit'],
@@ -90,10 +92,10 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
       const activeWear = clampPct(cats[categoryKey]);
       const totalDynamicWear = MAINTENANCE_CATEGORY_KEYS.reduce((s, k) => s + clampPct(cats[k]), 0);
       const wearShare = totalDynamicWear > 0 ? activeWear / totalDynamicWear : 0;
-      const grossCost = Math.round(accumulated * wearShare);
+      const grossCost = roundMoney(accumulated * wearShare);
       if (grossCost <= 0) return;
-      const insuredCost = Math.round(grossCost * insuranceCovPct);
-      const payable = Math.max(0, grossCost - insuredCost);
+      const insuredCost = roundMoney(grossCost * insuranceCovPct);
+      const payable = roundMoney(grossCost - insuredCost);
 
       const valueReduction = grossCost * 0.10;
       const currentValue = Math.max(0, Number(aircraft?.current_value || purchasePrice));
@@ -165,17 +167,17 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
       <div className="px-3 py-2 border-b border-cyan-900/40 bg-slate-900/40 backdrop-blur-md text-[10px]">
         <div className="flex items-center justify-between mb-1">
           <span className="text-slate-400 uppercase tracking-wider text-[9px]">{lang === 'de' ? 'Reparatur Gesamt' : 'Total Repair'}</span>
-          <span className="text-amber-300 font-bold">${grossTotal.toLocaleString()}</span>
+          <span className="text-amber-300 font-bold">${formatMoney(grossTotal)}</span>
         </div>
         <div className="flex items-center justify-between mb-1">
           <span className="text-slate-400 uppercase tracking-wider text-[9px]">
             {lang === 'de' ? 'Versicherung' : 'Insurance'} ({Math.round(insuranceCovPct * 100)}%)
           </span>
-          <span className="text-emerald-300 font-bold">-${insuredTotal.toLocaleString()}</span>
+          <span className="text-emerald-300 font-bold">-${formatMoney(insuredTotal)}</span>
         </div>
         <div className="flex items-center justify-between pt-1 border-t border-slate-700/60">
           <span className="text-cyan-300 uppercase tracking-wider text-[10px] font-bold">{lang === 'de' ? 'Du zahlst' : 'You pay'}</span>
-          <span className="text-cyan-300 font-bold text-sm">${payableTotal.toLocaleString()}</span>
+          <span className="text-cyan-300 font-bold text-sm">${formatMoney(payableTotal)}</span>
         </div>
       </div>
 
@@ -192,9 +194,9 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
 
           const totalDynamicWear = MAINTENANCE_CATEGORY_KEYS.reduce((s, k) => s + clampPct(cats[k]), 0);
           const wearShare = totalDynamicWear > 0 ? active / totalDynamicWear : 0;
-          const grossCost = Math.round(accumulated * wearShare);
-          const insuredCost = Math.round(grossCost * insuranceCovPct);
-          const payable = Math.max(0, grossCost - insuredCost);
+          const grossCost = roundMoney(accumulated * wearShare);
+          const insuredCost = roundMoney(grossCost * insuranceCovPct);
+          const payable = roundMoney(grossCost - insuredCost);
           const isRepairing = repairMutation.isPending && repairMutation.variables === key;
 
           return (
@@ -233,15 +235,15 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
                     <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-1 text-[10px]">
                       <div className="flex justify-between">
                         <span className="text-slate-400">{lang === 'de' ? 'Brutto' : 'Gross'}</span>
-                        <span className="text-amber-300">${grossCost.toLocaleString()}</span>
+                        <span className="text-amber-300">${formatMoney(grossCost)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">{lang === 'de' ? 'Versich.' : 'Insured'}</span>
-                        <span className="text-emerald-300">-${insuredCost.toLocaleString()}</span>
+                        <span className="text-emerald-300">-${formatMoney(insuredCost)}</span>
                       </div>
                       <div className="flex justify-between font-bold">
                         <span className="text-cyan-300">{lang === 'de' ? 'Du zahlst' : 'You pay'}</span>
-                        <span className="text-cyan-300">${payable.toLocaleString()}</span>
+                        <span className="text-cyan-300">${formatMoney(payable)}</span>
                       </div>
                       {overdraftBlocked ? (
                         <div className="flex items-center gap-1 text-[10px] text-red-300 bg-red-950/40 border border-red-500/30 rounded px-1.5 py-1 mt-1">

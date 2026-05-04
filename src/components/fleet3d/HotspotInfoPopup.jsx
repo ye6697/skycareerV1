@@ -44,6 +44,8 @@ function getColor(p) {
 }
 
 const clampPct = (v) => Math.max(0, Math.min(100, Number(v) || 0));
+const roundMoney = (v) => Math.max(0, Math.round((Number(v) || 0) * 100) / 100);
+const formatMoney = (v) => roundMoney(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, screenPos }) {
   const { lang } = useLanguage();
@@ -80,9 +82,9 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
   const accumulated = Math.min(Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0)), purchasePrice);
   const totalDynamicWear = MAINTENANCE_CATEGORY_KEYS.reduce((s, k) => s + clampPct(cats[k]), 0);
   const wearShare = totalDynamicWear > 0 ? activeWear / totalDynamicWear : 0;
-  const grossCost = Math.round(accumulated * wearShare);
-  const insuredCost = Math.round(grossCost * insuranceCovPct);
-  const payable = Math.max(0, grossCost - insuredCost);
+  const grossCost = roundMoney(accumulated * wearShare);
+  const insuredCost = roundMoney(grossCost * insuranceCovPct);
+  const payable = roundMoney(grossCost - insuredCost);
 
   const repairMutation = useMutation({
     mutationFn: async () => {
@@ -220,9 +222,9 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
         {/* Cost breakdown */}
         {grossCost > 0 ? (
           <div className="space-y-1 text-[10px] bg-slate-900/60 rounded p-2 border border-slate-800">
-            <div className="flex justify-between"><span className="text-slate-500">{lang === 'de' ? 'Brutto' : 'Gross'}</span><span className="text-amber-300">${grossCost.toLocaleString()}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">{lang === 'de' ? 'Versicherung' : 'Insurance'}</span><span className="text-emerald-300">-${insuredCost.toLocaleString()}</span></div>
-            <div className="flex justify-between border-t border-slate-700 pt-1 font-bold"><span className="text-slate-300">{lang === 'de' ? 'Du zahlst' : 'You pay'}</span><span className="text-cyan-300">${payable.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">{lang === 'de' ? 'Brutto' : 'Gross'}</span><span className="text-amber-300">${formatMoney(grossCost)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">{lang === 'de' ? 'Versicherung' : 'Insurance'}</span><span className="text-emerald-300">-${formatMoney(insuredCost)}</span></div>
+            <div className="flex justify-between border-t border-slate-700 pt-1 font-bold"><span className="text-slate-300">{lang === 'de' ? 'Du zahlst' : 'You pay'}</span><span className="text-cyan-300">${formatMoney(payable)}</span></div>
           </div>
         ) : (
           <div className="text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 rounded p-2 text-center">
@@ -248,7 +250,7 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
             <Wrench className="w-3 h-3 mr-1.5" />
             {repairMutation.isPending
               ? (lang === 'de' ? 'Reparatur laeuft...' : 'Repairing...')
-              : (lang === 'de' ? `Reparieren $${payable.toLocaleString()}` : `Repair $${payable.toLocaleString()}`)}
+              : (lang === 'de' ? `Reparieren $${formatMoney(payable)}` : `Repair $${formatMoney(payable)}`)}
           </Button>
         )}
       </div>
