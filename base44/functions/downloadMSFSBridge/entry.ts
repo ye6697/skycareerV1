@@ -137,6 +137,7 @@ def reset_flight_state():
         "prev_fuel_kg": None,
         "prev_fuel_ts": None,
         "fuel_flow_fallback_kgph": 0.0,
+        "forced_weather": None,
     }
 
 def queue_event(state, event_type, lat, lon, altitude, speed, vertical_speed, g_force, val=None, cooldown=0.0):
@@ -591,6 +592,16 @@ def main():
                 except Exception:
                     rain_detected = False
 
+            # Optional weather override from SkyCareer bridge commands (fallback mode).
+            forced_weather = state.get("forced_weather")
+            if isinstance(forced_weather, dict):
+                wind_speed_kts = to_float(forced_weather.get("wind_speed_kts"), wind_speed_kts)
+                wind_gust_kts = to_float(forced_weather.get("wind_gust_kts"), wind_gust_kts)
+                wind_direction = to_float(forced_weather.get("wind_direction"), wind_direction)
+                rain_intensity = to_float(forced_weather.get("rain_intensity"), rain_intensity)
+                turbulence = to_float(forced_weather.get("turbulence"), turbulence)
+                rain_detected = (rain_intensity is not None and rain_intensity > 0.01)
+
             bridge_position_samples = [
                 {
                     "lat": float(s.get("lat")),
@@ -730,6 +741,17 @@ def main():
                             elif current_flight_id != last_seen_flight_id:
                                 last_seen_flight_id = current_flight_id
                                 raise RuntimeError(f"Active flight changed -> worker restart ({current_flight_id})")
+
+                        # Fallback bridge: apply weather presets from command queue response.
+                        bridge_commands = (resp_json or {}).get("bridge_commands") or (resp_json or {}).get("commands") or []
+                        if isinstance(bridge_commands, list):
+                            for cmd in bridge_commands:
+                                ctype = str((cmd or {}).get("type") or "").strip().lower()
+                                if ctype == "set_weather":
+                                    payload_cmd = (cmd or {}).get("payload")
+                                    if isinstance(payload_cmd, dict):
+                                        state["forced_weather"] = payload_cmd
+                                        print(f"[SkyCareer] Applied weather preset (fallback): {payload_cmd}")
 
                         # Reset per-post peak window only after a successful send.
                         state["window_peak_g"] = g_force

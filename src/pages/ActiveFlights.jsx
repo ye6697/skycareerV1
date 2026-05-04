@@ -41,6 +41,7 @@ import {
   CheckCircle2,
   XCircle,
   Radio,
+  Info,
   TrendingUp } from
 "lucide-react";
 
@@ -52,6 +53,7 @@ export default function ActiveFlights() {
   const [selectedContract, setSelectedContract] = useState(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState('');
+  const [isWeatherInfoOpen, setIsWeatherInfoOpen] = useState(false);
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -786,6 +788,26 @@ export default function ActiveFlights() {
                 {startFlightMutation.isPending ? t('starting', lang) : t('start_flight', lang)}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+                        <button
+                          type="button"
+                          onClick={() => setIsWeatherInfoOpen(true)}
+                          className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20"
+                          aria-label="Weather difficulty info"
+                        >
+                          <Info className="w-3 h-3" />
+                        </button>
+        <Dialog open={isWeatherInfoOpen} onOpenChange={setIsWeatherInfoOpen}>
+          <DialogContent className="max-w-lg bg-slate-900 border border-slate-700 text-slate-100">
+            <DialogHeader>
+              <DialogTitle>{lang === 'de' ? 'Info: Wetter-Schwierigkeit' : 'Info: Weather difficulty'}</DialogTitle>
+            </DialogHeader>
+            <div className="text-sm text-slate-300 space-y-2">
+              <p>{lang === 'de' ? 'Vor dem Climb kannst du die Missions-Schwierigkeit wählen. SkyCareer sendet dann ein passendes Wetter-Preset an die Bridge (Wind, Richtung, Böen, Turbulenz, Regen).' : 'Before climb, you can choose mission difficulty. SkyCareer sends a matching weather preset to the bridge (wind, direction, gusts, turbulence, rain).'}</p>
+              <p>Easy: +0% payout · Medium: +10% payout · Hard: +25% payout · Extreme: +50% payout</p>
+              <p className="text-amber-300">{lang === 'de' ? 'Extreme kann kleine Flugzeuge und manche Jets überlasten. Nutze es nur mit genügend Leistungsreserve.' : 'Extreme may overload small aircraft and some jets. Use only with enough performance margin.'}</p>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
