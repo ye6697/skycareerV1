@@ -26,8 +26,8 @@ Deno.serve(async (req) => {
     }
 
     const script = `#!/usr/bin/env python3
-# SkyCareer MSFS Bridge v2.5 (MSFS 2020 + 2024 via SimConnect)
-# Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike
+# SkyCareer MSFS Bridge v2.6-weather-r3 (MSFS 2020 + 2024 via SimConnect)
+# Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike, weather preset commands
 # Usage:
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2020
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2024
@@ -214,7 +214,7 @@ def main():
     last_successful_post_at = time.time()
     last_seen_flight_id = None
 
-    print("[SkyCareer] Starting MSFS bridge v2.5 ...")
+    print("[SkyCareer] Starting MSFS bridge v2.6-weather-r3 ...")
     print(f"[SkyCareer] Endpoint: {API_ENDPOINT}")
     print(f"[SkyCareer] Simulator label: {args.sim}")
 
