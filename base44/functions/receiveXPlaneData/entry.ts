@@ -1768,11 +1768,39 @@ Deno.serve(async (req) => {
       prevXd.insurance_hourly_rate_pct ??
       data.insurance_hourly_rate_pct
     );
+    const normalizeWeatherDifficulty = (value: any) => {
+      const normalized = String(value || "").toLowerCase().trim();
+      if (["easy", "free", "freemode", "free_mode"].includes(normalized)) return "easy";
+      if (["medium", "hard", "extreme"].includes(normalized)) return normalized;
+      return "";
+    };
+    const selectedWeatherDifficulty = normalizeWeatherDifficulty(
+      prevXd.selected_difficulty ??
+      data.selected_difficulty ??
+      data.weather_difficulty ??
+      data.bridge_weather_difficulty ??
+      (flight as any)?.selected_difficulty ??
+      (flight as any)?.difficulty ??
+      contract?.difficulty
+    ) || "medium";
+    const bridgeWeatherCommandId = String(data.bridge_weather_command_id || prevXd.bridge_weather_command_id || "").trim();
+    const bridgeWeatherAppliedAt = String(data.bridge_weather_applied_at || prevXd.bridge_weather_applied_at || "").trim();
+    const bridgeWeatherDifficulty = normalizeWeatherDifficulty(data.bridge_weather_difficulty || prevXd.bridge_weather_difficulty);
 
     const xplaneData = {
       simulator,
       flight_id: flight.id,
       contract_id: flight.contract_id || null,
+      selected_difficulty: selectedWeatherDifficulty,
+      forced_weather: prevXd.forced_weather || null,
+      weather_preset_command_id: prevXd.weather_preset_command_id || null,
+      weather_preset_dispatched_at: prevXd.weather_preset_dispatched_at || null,
+      weather_preset_ack_at: prevXd.weather_preset_ack_at || null,
+      weather_preset_ack_command_id: prevXd.weather_preset_ack_command_id || null,
+      bridge_weather_command_id: bridgeWeatherCommandId || null,
+      bridge_weather_applied_at: bridgeWeatherAppliedAt || null,
+      bridge_weather_difficulty: bridgeWeatherDifficulty || null,
+      bridge_weather_preset: data.bridge_weather_preset || prevXd.bridge_weather_preset || null,
       altitude,
       speed,
       vertical_speed,
@@ -2234,8 +2262,8 @@ Deno.serve(async (req) => {
     };
     const isSessionStartCommand = (cmd: any) => isWorkerRestartCommand(cmd) || isWeatherCommand(cmd);
     const buildWeatherPresetPayload = (difficultyRaw: any) => {
-      const difficulty = ["medium", "hard", "extreme"].includes(String(difficultyRaw || "").toLowerCase().trim())
-        ? String(difficultyRaw || "").toLowerCase().trim()
+      const difficulty = ["medium", "hard", "extreme"].includes(normalizeWeatherDifficulty(difficultyRaw))
+        ? normalizeWeatherDifficulty(difficultyRaw)
         : "medium";
       const presets: Record<string, any> = {
         medium: { label: "Medium", preset_name: "SkyCareer Medium Challenge", theme_path: "WeatherPresets\\SkyCareer Medium Challenge.WPR", wind_speed_kts: 14, wind_gust_kts: 22, wind_direction: 260, visibility_sm: 7, cloud_base_ft: 3000, cloud_coverage: "BKN", rain_intensity: 0.15, precip_rate: 0.4, turbulence: 0.22, temperature_c: 14, qnh_hpa: 1012 },
@@ -2244,13 +2272,21 @@ Deno.serve(async (req) => {
       };
       return { difficulty, ...(presets[difficulty] || presets.medium) };
     };
-    const difficultyForWeather = contract?.difficulty ?? (flight as any)?.difficulty ?? prevXd.selected_difficulty;
-    const normalizedDifficultyForWeather = String(difficultyForWeather || "").toLowerCase().trim();
+    const difficultyForWeather = selectedWeatherDifficulty;
+    const normalizedDifficultyForWeather = normalizeWeatherDifficulty(difficultyForWeather);
     const hasQueuedWeatherCommand = queuedBridgeCommandsBase.some((cmd: any) => isWeatherCommand(cmd));
+    const acknowledgedWeatherCommandId = String(data.bridge_weather_command_id || prevXd.weather_preset_ack_command_id || "").trim();
+    const acknowledgedWeatherDifficulty = normalizeWeatherDifficulty(data.bridge_weather_difficulty || prevXd.bridge_weather_difficulty);
+    const hasWeatherAckForDifficulty =
+      !!acknowledgedWeatherCommandId &&
+      !!(data.bridge_weather_applied_at || prevXd.weather_preset_ack_at || prevXd.bridge_weather_applied_at) &&
+      (!acknowledgedWeatherDifficulty || acknowledgedWeatherDifficulty === normalizedDifficultyForWeather);
+    const lastWeatherDispatchMs = Date.parse(String(prevXd.weather_preset_dispatched_at || ""));
+    const weatherDispatchIsStale = !Number.isFinite(lastWeatherDispatchMs) || (Date.now() - lastWeatherDispatchMs) >= 8000;
     const shouldQueueMissingWeatherPreset =
       !hasQueuedWeatherCommand &&
-      !prevXd.weather_preset_dispatched_at &&
-      !prevXd.weather_preset_command_id &&
+      !hasWeatherAckForDifficulty &&
+      weatherDispatchIsStale &&
       ["medium", "hard", "extreme"].includes(normalizedDifficultyForWeather);
     const queuedBridgeCommandsRaw = shouldQueueMissingWeatherPreset
       ? [
@@ -2269,6 +2305,12 @@ Deno.serve(async (req) => {
     if (shouldQueueMissingWeatherPreset) {
       xplaneData.selected_difficulty = buildWeatherPresetPayload(difficultyForWeather).difficulty;
       xplaneData.forced_weather = buildWeatherPresetPayload(difficultyForWeather);
+      updateData.xplane_data = xplaneData;
+    }
+    if (data.bridge_weather_command_id && data.bridge_weather_applied_at) {
+      xplaneData.weather_preset_ack_command_id = String(data.bridge_weather_command_id);
+      xplaneData.weather_preset_ack_at = String(data.bridge_weather_applied_at);
+      xplaneData.weather_preset_ack_difficulty = normalizedDifficultyForWeather;
       updateData.xplane_data = xplaneData;
     }
     const queuedBridgeCommandsSanitized = failureTriggersEnabled
