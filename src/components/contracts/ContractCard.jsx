@@ -165,7 +165,7 @@ export default function ContractCard({
           </p>
           <p className="text-lg font-bold text-emerald-300">${payout.toLocaleString()}</p>
           <p className="text-[11px] text-emerald-200/90">
-            ~ ${payoutPerNm.toFixed(2)}/NM
+            ~ ${Math.round(payoutPerNm).toLocaleString()}/NM
           </p>
           {bonus > 0 && (
             <p className="text-[11px] text-amber-300">
