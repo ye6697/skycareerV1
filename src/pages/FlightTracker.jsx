@@ -1898,10 +1898,10 @@ export default function FlightTracker() {
                     )))
               : 0;
             const resolvedLandingGForSave = saveLandingTrusted
-              ? (localLandingG > 0
-                  ? localLandingG
+              ? (telemetryLandingG > 0
+                  ? telemetryLandingG
                   : Number(
-                      telemetryLandingG ||
+                      localLandingG ||
                       xpData.landing_g_force ||
                       xpData.landingGForce ||
                       liveData.landing_g_force ||

@@ -77,6 +77,10 @@ export default function RunwayAccuracyCard({ flight }) {
   const [error, setError] = React.useState(null);
   const [result, setResult] = React.useState(flight?.xplane_data?.runway_accuracy || null);
   const applied = !!flight?.xplane_data?.runway_accuracy_applied;
+  const needsActualRunwayRecompute = !!(
+    result?.unavailable_reason === "runway_mismatch" ||
+    ((result?.departure_runway_mismatch || result?.arrival_runway_mismatch) && !result?.takeoff && !result?.landing)
+  );
 
   // If the flight changes, re-sync local result with stored data.
   React.useEffect(() => {
@@ -89,13 +93,13 @@ export default function RunwayAccuracyCard({ flight }) {
   const autoRanRef = React.useRef(new Set());
   React.useEffect(() => {
     if (!flight?.id) return;
-    if (applied) return;
+    if (applied && !needsActualRunwayRecompute) return;
     if (busy) return;
     if (autoRanRef.current.has(flight.id)) return;
     autoRanRef.current.add(flight.id);
     handleCompute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flight?.id, applied]);
+  }, [flight?.id, applied, needsActualRunwayRecompute]);
 
   const handleCompute = async () => {
     if (!flight?.id) return;
@@ -159,8 +163,8 @@ export default function RunwayAccuracyCard({ flight }) {
         <div className="mb-3 p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
           <p className="text-xs text-amber-200">
             {lang === "de"
-              ? "Abweichende Runway erkannt: Landung/Start erfolgte auf einer anderen Bahn als im Flugplan."
-              : "Different runway detected: takeoff/landing happened on a runway different from the flight plan."}
+              ? "Tatsaechliche Runway erkannt: Start/Landung erfolgte auf einer anderen Bahn als im Flugplan. Gewertet wird die wirklich genutzte Bahn."
+              : "Actual runway detected: takeoff/landing happened on a runway different from the flight plan. Scoring uses the runway actually flown."}
           </p>
           <p className="text-[11px] text-amber-300/80 mt-1 font-mono">
             {depMismatch && `DEP ${result?.planned_dep_runway || '--'} → ${result?.detected_dep_runway || '--'} `}

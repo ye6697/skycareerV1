@@ -127,20 +127,9 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  const start = Math.max(0, touchdownIdx - 3);
+  const start = Math.max(0, touchdownIdx - 2);
   const end = Math.min(sessionHistory.length - 1, touchdownIdx + 3);
   const window = sessionHistory.slice(start, end + 1);
-  const center = touchdownIdx - start;
-
-  let gPeakIdx = -1;
-  let gPeak = 0;
-  for (let i = 0; i < window.length; i += 1) {
-    const g = readGForce(window[i]);
-    if (Number.isFinite(g) && g > gPeak) {
-      gPeak = g;
-      gPeakIdx = i;
-    }
-  }
 
   const vsValues = window
     .map((point) => readVerticalSpeedFpm(point))
@@ -150,30 +139,13 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     .filter((value) => Number.isFinite(value) && Math.abs(value) > 0);
   const descendingVs = vsValues.filter((value) => value < 0);
   let resolvedVs = 0;
-  if (gPeakIdx >= 0) {
-    const gPeakPoint = window[gPeakIdx] || {};
-    const fromTouchdownField = readTouchdownVerticalSpeedFpm(gPeakPoint);
-    if (Number.isFinite(fromTouchdownField) && Math.abs(fromTouchdownField) > 0) {
-      resolvedVs = Math.abs(fromTouchdownField);
-    } else {
-      const fromVerticalField = readVerticalSpeedFpm(gPeakPoint);
-      if (Number.isFinite(fromVerticalField) && Math.abs(fromVerticalField) > 0) {
-        resolvedVs = Math.abs(fromVerticalField);
-      }
-    }
-  }
-  if (resolvedVs <= 0 && touchdownVsValues.length > 0) {
+  if (touchdownVsValues.length > 0) {
     resolvedVs = Math.max(...touchdownVsValues.map((value) => Math.abs(value)));
   }
   if (resolvedVs <= 0 && descendingVs.length > 0) {
     resolvedVs = Math.abs(Math.min(...descendingVs));
   } else if (resolvedVs <= 0 && vsValues.length > 0) {
-    const nearTouchdownVs = readVerticalSpeedFpm(window[center] || {});
-    if (Number.isFinite(nearTouchdownVs) && Math.abs(nearTouchdownVs) > 0) {
-      resolvedVs = Math.abs(nearTouchdownVs);
-    } else {
     resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
-    }
   }
 
   const gValues = window

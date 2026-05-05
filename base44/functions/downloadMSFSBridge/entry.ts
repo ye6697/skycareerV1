@@ -48,7 +48,7 @@ SAMPLE_BUFFER_SECONDS = 2.0
 TOUCHDOWN_CAPTURE_BEFORE_S = 0.6
 TOUCHDOWN_CAPTURE_AFTER_S = 0.4
 TOUCHDOWN_MAX_AGL_FT = 60.0
-TOUCHDOWN_SAMPLE_OFFSET = 3
+TOUCHDOWN_PEAK_SAMPLE_COUNT = 6
 MAX_EVENT_QUEUE = 120
 MAX_CONSECUTIVE_POST_TIMEOUTS = 3
 WORKER_RESTART_BACKOFF_S = 2.0
@@ -191,22 +191,13 @@ def pick_touchdown_sample_metrics(sample_buffer, touchdown_epoch, now_epoch):
             touchdown_idx = idx
             break
 
-    before_idx = max(0, touchdown_idx - TOUCHDOWN_SAMPLE_OFFSET)
-    after_idx = min(len(candidates) - 1, touchdown_idx + TOUCHDOWN_SAMPLE_OFFSET)
-    before_sample = candidates[before_idx]
-    after_sample = candidates[after_idx]
+    before_idx = max(0, touchdown_idx - 2)
+    after_idx = min(len(candidates) - 1, touchdown_idx + 3)
+    sample_window = candidates[before_idx:after_idx + 1][-TOUCHDOWN_PEAK_SAMPLE_COUNT:]
 
-    before_g = max(1.0, float(before_sample.get("g", 1.0) or 1.0))
-    after_g = max(1.0, float(after_sample.get("g", 1.0) or 1.0))
-    chosen_sample = before_sample if before_g >= after_g else after_sample
-    chosen_g = before_g if before_g >= after_g else after_g
-
-    chosen_vs_raw = float(chosen_sample.get("vs", 0.0) or 0.0)
-    chosen_vs = abs(chosen_vs_raw) if chosen_vs_raw < -20.0 else 0.0
-    if chosen_vs <= 0.0:
-        vs_candidates = [abs(float(s.get("vs", 0.0))) for s in candidates if float(s.get("vs", 0.0)) < -20.0]
-        if vs_candidates:
-            chosen_vs = max(vs_candidates)
+    chosen_g = max([max(1.0, float(s.get("g", 1.0) or 1.0)) for s in sample_window] or [1.0])
+    vs_candidates = [abs(float(s.get("vs", 0.0))) for s in sample_window if float(s.get("vs", 0.0)) < -20.0]
+    chosen_vs = max(vs_candidates) if vs_candidates else 0.0
     return chosen_vs, chosen_g
 
 def main():

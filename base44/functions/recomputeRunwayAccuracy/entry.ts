@@ -357,7 +357,9 @@ function measureDeviation(points, runway) {
 // runway as the 3D replay.
 function getHintFromPoints(points, phase) {
   if (!Array.isArray(points) || points.length === 0) return { lat: null, lon: null, heading: null };
-  const hintIdx = phase === 'takeoff' ? 0 : points.length - 1;
+  // Match FinalApproach3D runway picking:
+  // takeoff uses the last ground point before liftoff, landing uses touchdown.
+  const hintIdx = phase === 'takeoff' ? points.length - 1 : 0;
   const hint = points[hintIdx] || {};
   const prev = points[Math.max(0, hintIdx - 1)] || hint;
   const next = points[Math.min(points.length - 1, hintIdx + 1)] || hint;
@@ -518,8 +520,8 @@ Deno.serve(async (req) => {
     const depRunwayMismatch = !!(plannedDepRunway && detectedDepRunway && normalizeRunwayIdent(detectedDepRunway) !== plannedDepRunway);
     const arrRunwayMismatch = !!(plannedArrRunway && detectedArrRunway && normalizeRunwayIdent(detectedArrRunway) !== plannedArrRunway);
 
-    const takeoffAcc = depRunway && !depRunwayMismatch ? measureDeviation(takeoffPoints, depRunway) : null;
-    const landingAcc = arrRunway && !arrRunwayMismatch ? measureDeviation(landingPoints, arrRunway) : null;
+    const takeoffAcc = depRunway ? measureDeviation(takeoffPoints, depRunway) : null;
+    const landingAcc = arrRunway ? measureDeviation(landingPoints, arrRunway) : null;
 
     const takeoffEval = takeoffAcc ? evaluate(takeoffAcc.rmsMeters, basePayout) : null;
     const landingEval = landingAcc ? evaluate(landingAcc.rmsMeters, basePayout) : null;
@@ -555,7 +557,7 @@ Deno.serve(async (req) => {
           takeoff_points_used: takeoffPoints.length,
           landing_points_used: landingPoints.length,
           unavailable_reason: (!takeoffAcc && !landingAcc)
-            ? (depRunwayMismatch || arrRunwayMismatch ? 'runway_mismatch' : 'no_runway_match')
+            ? 'no_runway_match'
             : null,
         },
       },

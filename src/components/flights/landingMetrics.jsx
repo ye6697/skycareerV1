@@ -164,18 +164,32 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  // Use the EXACT telemetry sample at the touchdown moment — same data the
-  // FlightProfileChart displays. No window-max, no approximation — so the
-  // result card matches the chart 1:1.
-  const tdPoint = sessionHistory[touchdownIdx] || {};
-  const tdVsRaw = readTouchdownVerticalSpeedFpm(tdPoint);
-  const vsRaw = Number.isFinite(tdVsRaw) && Math.abs(tdVsRaw) > 0
-    ? tdVsRaw
-    : readVerticalSpeedFpm(tdPoint);
-  const gRaw = readGForce(tdPoint);
+  // Use the last 6 samples around touchdown for peak landing values.
+  const start = Math.max(0, touchdownIdx - 2);
+  const end = Math.min(sessionHistory.length - 1, touchdownIdx + 3);
+  const window = sessionHistory.slice(start, end + 1);
 
-  let resolvedVs = Number.isFinite(vsRaw) ? Math.abs(vsRaw) : 0;
-  const resolvedG = Number.isFinite(gRaw) && gRaw > 0 ? gRaw : 0;
+  const touchdownVsValues = window
+    .map((point) => readTouchdownVerticalSpeedFpm(point))
+    .filter((value) => Number.isFinite(value) && Math.abs(value) > 0);
+  const vsValues = window
+    .map((point) => readVerticalSpeedFpm(point))
+    .filter((value) => Number.isFinite(value));
+  const descendingVs = vsValues.filter((value) => value < 0);
+  let resolvedVs = 0;
+  if (touchdownVsValues.length > 0) {
+    resolvedVs = Math.max(...touchdownVsValues.map((value) => Math.abs(value)));
+  }
+  if (resolvedVs <= 0 && descendingVs.length > 0) {
+    resolvedVs = Math.abs(Math.min(...descendingVs));
+  } else if (resolvedVs <= 0 && vsValues.length > 0) {
+    resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
+  }
+
+  const gValues = window
+    .map((point) => readGForce(point))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
 
   // Sanitize: real touchdown V/S is 0..1500 fpm. Higher values are sensor
   // spikes — approximate from G instead.
