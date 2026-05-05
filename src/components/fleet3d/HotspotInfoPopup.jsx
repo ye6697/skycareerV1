@@ -5,7 +5,7 @@ import { Wrench, X, AlertTriangle, Cog, Gauge, CircuitBoard, Shield, Plane, Zap,
 import { useLanguage } from '@/components/LanguageContext';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, applyPermanentWearIncrease, calculateCategoryRepairCost } from '@/lib/maintenance';
+import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, applyPermanentWearIncrease, calculateCategoryRepairCost, resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { resolveAircraftInsurance } from '@/lib/insurance';
 import { isAtOverdraftLimit } from '@/components/InsolvencyBanner';
 
@@ -77,11 +77,14 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
   const insurance = resolveAircraftInsurance(aircraft);
   const insuranceCovPct = Math.max(0, Math.min(1, Number(insurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));
+  const valueSnapshot = resolveAircraftValueSnapshot(aircraft);
   const accumulated = Math.min(Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0)), purchasePrice);
   const totalDynamicWear = MAINTENANCE_CATEGORY_KEYS.reduce((s, k) => s + clampPct(cats[k]), 0);
   const wearShare = totalDynamicWear > 0 ? activeWear / totalDynamicWear : 0;
   const modeledTotal = MAINTENANCE_CATEGORY_KEYS.reduce((sum, key) => sum + calculateCategoryRepairCost({ wearPct: clampPct(cats[key]), purchasePrice }), 0);
-  const repairBaseTotal = accumulated > 0 ? accumulated : modeledTotal;
+  const repairBaseTotal = valueSnapshot.activeMaintenanceCost > 0
+    ? valueSnapshot.activeMaintenanceCost
+    : (accumulated > 0 ? accumulated : modeledTotal);
   const grossCost = Math.max(0, Math.round(repairBaseTotal * wearShare));
   const insuredCost = Math.round(grossCost * insuranceCovPct);
   const payable = Math.max(0, grossCost - insuredCost);
@@ -103,7 +106,7 @@ export default function HotspotInfoPopup({ aircraft, categoryKey, onClose, scree
       if (grossCost <= 0) return;
 
       const valueReduction = grossCost * 0.10;
-      const currentValue = Math.max(0, Number(aircraft?.current_value || purchasePrice));
+      const currentValue = valueSnapshot.storedCurrentValue;
       const newValue = Math.max(0, currentValue - valueReduction);
       const newCats = { ...cats, [categoryKey]: 0 };
       const newPerm = {

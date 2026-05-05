@@ -30,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { calculateInsuranceForFlight, DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig, INSURANCE_PACKAGES, resolveAircraftInsurance } from '@/lib/insurance';
-import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from '@/lib/maintenance';
+import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, normalizeMaintenanceCategoryMap, resolveAircraftValueSnapshot, resolvePermanentWearCategories } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
 const INSURANCE_UI_VERSION = 'ins-2026-04-06-a';
 
@@ -106,9 +106,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     sold: { label: t('sold', lang), color: "bg-slate-100 text-slate-600 border-slate-200" }
   };
 
-  const scrapValue = (aircraft.current_value || aircraft.purchase_price || 0) * 0.10;
-  const rawCurrentValue = aircraft.current_value || aircraft.purchase_price || 0;
-  const purchasePriceForRepair = Math.max(0, Number(aircraft.purchase_price || aircraft.original_purchase_price || rawCurrentValue || 0));
+  const valueSnapshot = resolveAircraftValueSnapshot(aircraft);
+  const rawCurrentValue = valueSnapshot.storedCurrentValue;
+  const currentValue = valueSnapshot.effectiveCurrentValue;
+  const activeMaintenanceValueDeduction = valueSnapshot.activeMaintenanceCost;
+  const newAircraftValue = valueSnapshot.newValue;
+  const scrapValue = currentValue * 0.10;
   
   // New category-based maintenance check
   const cats = normalizeMaintenanceCategoryMap(aircraft.maintenance_categories);
@@ -141,11 +144,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   );
   const needsMaintenance = maxWear > 75 || avgWear > 50;
   // Repair cost = sum over categories of (newValue / N × wear%). 100% wear total = 100% of new value.
-  const accumulatedMaintCost = MAINTENANCE_CATEGORY_KEYS.reduce(
-    (sum, key) => sum + calculateCategoryRepairCost({ wearPct: cats[key] || 0, purchasePrice: purchasePriceForRepair }),
-    0,
-  );
-  const currentValue = Math.max(0, rawCurrentValue - accumulatedMaintCost);
+  const accumulatedMaintCost = activeMaintenanceValueDeduction;
   const insuranceStorageKey = React.useMemo(
     () => `insurance_plan_${aircraft?.id || 'unknown'}`,
     [aircraft?.id]
@@ -251,6 +250,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
         status: newStatus,
         maintenance_categories: newCats,
         permanent_wear_categories: newPermanentCats,
+        accumulated_maintenance_cost: 0,
         lifetime_maintenance_cost: newLifetimeMaintCost,
         current_value: newValue
       });
@@ -296,7 +296,7 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
     }
   });
 
-  const sellPrice = (aircraft.current_value || aircraft.purchase_price || 0) * 0.85;
+  const sellPrice = currentValue * 0.85;
 
   const sellMutation = useMutation({
     mutationFn: async () => {
@@ -451,6 +451,12 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
   const displayStatus = (effectiveStatus === 'available' && needsMaintenance)
     ? { label: t('maintenance_required', lang), color: "bg-orange-100 text-orange-700 border-orange-200" }
     : (statusConfig[effectiveStatus] || statusConfig.available);
+  const formatCompactValue = (amount) => {
+    const value = Math.max(0, Number(amount || 0));
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${Math.round(value / 1000)}k`;
+    return `$${Math.round(value).toLocaleString()}`;
+  };
 
   // One-time auto-clear: if DB status is 'maintenance' but no maintenance is
   // actually needed, clear it so other code paths (contracts, fleet filters)
@@ -495,9 +501,19 @@ export default function AircraftCard({ aircraft, onSelect, onMaintenance, onView
             <span className="text-amber-100">{aircraft.total_flight_hours?.toLocaleString() || 0}</span>
           </div>
           <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
-            <span className="text-slate-600">VAL</span>
+            <span className="text-slate-600">NEW</span>
+            <span className="text-cyan-100">{formatCompactValue(newAircraftValue)}</span>
+          </div>
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">CUR</span>
             <span className={currentValue < (aircraft.purchase_price || 0) * 0.5 ? 'text-red-400' : 'text-emerald-400'}>
-              ${(currentValue/1000000).toFixed(1)}M
+              {formatCompactValue(currentValue)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">
+            <span className="text-slate-600">MNT</span>
+            <span className={activeMaintenanceValueDeduction > 0 ? 'text-orange-300' : 'text-slate-500'}>
+              {activeMaintenanceValueDeduction > 0 ? `-${formatCompactValue(activeMaintenanceValueDeduction)}` : '$0'}
             </span>
           </div>
           <div className="flex justify-between items-center bg-slate-950/50 px-1 rounded">

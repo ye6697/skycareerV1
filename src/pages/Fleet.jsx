@@ -31,6 +31,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { useToast } from "@/components/ui/use-toast";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
+import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
 import { formatPayoutFactor } from "@/lib/payoutFactors";
@@ -1494,6 +1495,11 @@ export default function Fleet() {
                   const usedWearAvgPct = Math.max(0, Math.min(100, Number(ac.used_wear_avg || 0)));
                   const usedWearPeakPct = Math.max(0, Math.min(100, Number(ac.used_wear_peak || 0)));
                   const usedPermanentAvgPct = Math.max(0, Math.min(100, Number(ac.used_permanent_avg || 0)));
+                  const listingValueSnapshot = resolveAircraftValueSnapshot({
+                    ...ac,
+                    original_purchase_price: ac.original_price || ac.original_purchase_price,
+                    current_value: ac.current_value || ac.purchase_price,
+                  });
 
                   return (
                     <motion.div
@@ -1587,7 +1593,7 @@ export default function Fleet() {
                                   </div>
                                 </button>
                                 <div className="text-[10px] text-amber-300 bg-amber-950/20 border border-amber-800/30 rounded p-1">
-                                  {lang === 'de' ? 'Neupreis' : 'New price'} ${Math.round(ac.original_price || 0).toLocaleString()} | {lang === 'de' ? 'Angebot' : 'Listing'} ${Math.round(ac.purchase_price).toLocaleString()}
+                                  {lang === 'de' ? 'Neupreis' : 'New price'} ${Math.round(listingValueSnapshot.newValue || 0).toLocaleString()} | {lang === 'de' ? 'Aktueller Wert' : 'Current value'} ${Math.round(listingValueSnapshot.effectiveCurrentValue).toLocaleString()} | {lang === 'de' ? 'Angebot' : 'Listing'} ${Math.round(ac.purchase_price).toLocaleString()}
                                 </div>
                               </div>
                             }

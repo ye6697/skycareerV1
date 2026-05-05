@@ -38,6 +38,7 @@ import AchievementsWidget from "@/components/achievements/AchievementsWidget";
 import { Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
+import { resolveAircraftValueSnapshot } from "@/lib/maintenance";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -132,7 +133,9 @@ export default function Dashboard() {
 
   const aircraft = allAircraft.filter(a => a.status === 'available');
 
-  const fleetValue = allAircraft.filter(a => a.status !== 'sold').reduce((sum, a) => sum + (a.current_value || 0), 0);
+  const fleetValue = allAircraft
+    .filter(a => a.status !== 'sold')
+    .reduce((sum, a) => sum + resolveAircraftValueSnapshot(a).effectiveCurrentValue, 0);
 
   const { data: recentFlights = [] } = useQuery({
     queryKey: ['flights', 'recent', companyId],

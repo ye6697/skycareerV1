@@ -19,6 +19,7 @@ import { resolveAircraftModelConfig } from '@/components/flights/aircraftModelCa
 import { prefetchGLB } from '@/components/flights/glbLoader';
 import RealMoneyBuyButton from '@/components/store/RealMoneyBuyButton';
 import { getAircraftTierItem } from '@/lib/lemonItemCatalog';
+import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { useQueryClient } from '@tanstack/react-query';
 
 function toListingKey(listing) {
@@ -114,6 +115,11 @@ export default function MarketHangar3DView({
 
   const hasLevel = (company?.level || 1) >= (current.level_requirement || 1);
   const hasBalance = canAfford(current.purchase_price);
+  const valueSnapshot = resolveAircraftValueSnapshot({
+    ...current,
+    original_purchase_price: current.original_price || current.original_purchase_price,
+    current_value: current.current_value || current.purchase_price,
+  });
   const hasRating = userHasTypeRating(currentUser, current.name);
   const purchasable = canPurchase(current);
   const isBuyingThis = isBuying && String(selectedListingId || '') === currentKey;
@@ -244,6 +250,11 @@ export default function MarketHangar3DView({
             <div className="text-[10px] text-slate-500">
               {lang === 'de' ? 'Level' : 'Level'} {current.level_requirement || 1}
             </div>
+            {current.marketType === 'used' && (
+              <div className="text-[10px] text-emerald-300">
+                {lang === 'de' ? 'Wert' : 'Value'} ${Math.round(valueSnapshot.effectiveCurrentValue).toLocaleString()}
+              </div>
+            )}
           </div>
         </div>
 

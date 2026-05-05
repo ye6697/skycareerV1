@@ -8,7 +8,7 @@ import { isAtOverdraftLimit } from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { t as tl } from "@/components/i18n/translations";
 import { resolveAircraftInsurance } from "@/lib/insurance";
-import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories } from "@/lib/maintenance";
+import { MAINTENANCE_CATEGORY_KEYS, applyPermanentWearIncrease, calculateCategoryRepairCost, normalizeMaintenanceCategoryMap, resolveAircraftValueSnapshot, resolvePermanentWearCategories } from "@/lib/maintenance";
 import {
   Dialog,
   DialogContent,
@@ -212,11 +212,21 @@ export default function MaintenanceCategories({ aircraft }) {
   const activeInsurance = resolveAircraftInsurance(aircraft);
   const insuranceCoveragePct = Math.max(0, Math.min(1, Number(activeInsurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));
-  const currentValue = Math.max(0, Number(aircraft?.current_value || purchasePrice));
+  const valueSnapshot = resolveAircraftValueSnapshot(aircraft);
+  const currentValue = valueSnapshot.storedCurrentValue;
+  const displayCurrentValue = valueSnapshot.effectiveCurrentValue;
+  const activeMaintenanceValueDeduction = valueSnapshot.activeMaintenanceCost;
   const totalDynamicWear = categories.reduce((sum, c) => sum + clampPct(cats[c.key]), 0);
+  const modeledTotalCost = categories.reduce(
+    (sum, cat) => sum + calculateCategoryRepairCost({ wearPct: clampPct(cats[cat.key]), purchasePrice }),
+    0,
+  );
 
   const getCategoryCost = (key) => {
     const wear = clampPct(cats[key]);
+    if (activeMaintenanceValueDeduction > modeledTotalCost && totalDynamicWear > 0) {
+      return Math.round(activeMaintenanceValueDeduction * (wear / totalDynamicWear));
+    }
     return Math.round(calculateCategoryRepairCost({ wearPct: wear, purchasePrice }));
   };
 
@@ -292,6 +302,7 @@ export default function MaintenanceCategories({ aircraft }) {
           maxPermanentWear: 100,
         }),
       };
+      const newAccumulatedMaintCost = Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0) - costSummary.gross);
       const newLifetimeMaintCost = Math.max(0, Number(aircraft?.lifetime_maintenance_cost || 0)) + costSummary.gross;
       const nextWearSnapshot = getWearSnapshot(newCats, newPermanentCats);
       const newStatus = newValue <= 0
@@ -301,6 +312,7 @@ export default function MaintenanceCategories({ aircraft }) {
       await base44.entities.Aircraft.update(aircraft.id, {
         maintenance_categories: newCats,
         permanent_wear_categories: newPermanentCats,
+        accumulated_maintenance_cost: newAccumulatedMaintCost,
         current_value: newValue,
         lifetime_maintenance_cost: newLifetimeMaintCost,
         status: newStatus,
@@ -358,6 +370,7 @@ export default function MaintenanceCategories({ aircraft }) {
       await base44.entities.Aircraft.update(aircraft.id, {
         maintenance_categories: newCats,
         permanent_wear_categories: newPermanentCats,
+        accumulated_maintenance_cost: 0,
         current_value: newValue,
         lifetime_maintenance_cost: newLifetimeMaintCost,
         status: newStatus,
@@ -430,6 +443,23 @@ export default function MaintenanceCategories({ aircraft }) {
         </Button>
         {failureToggleError && (
           <div className="text-[11px] text-red-300">{failureToggleError}</div>
+        )}
+      </div>
+
+      <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-500">{lang === 'de' ? 'Neuwert' : 'New value'}</span>
+          <span className="text-cyan-200 font-mono">${Math.round(valueSnapshot.newValue).toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">{lang === 'de' ? 'Aktueller Wert' : 'Current value'}</span>
+          <span className="text-emerald-300 font-mono">${Math.round(displayCurrentValue).toLocaleString()}</span>
+        </div>
+        {activeMaintenanceValueDeduction > 0 && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-orange-300">{lang === 'de' ? 'Aktive Wartung abgezogen' : 'Active maintenance deducted'}</span>
+            <span className="text-orange-300 font-mono">-${Math.round(activeMaintenanceValueDeduction).toLocaleString()}</span>
+          </div>
         )}
       </div>
 

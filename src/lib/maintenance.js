@@ -16,6 +16,15 @@ const toFinite = (value, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+const firstFiniteValue = (...values) => {
+  for (const value of values) {
+    if (value === undefined || value === null || value === '') continue;
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+};
+
 const parseMaybeJsonObject = (value) => {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value;
   if (typeof value !== 'string') return {};
@@ -63,6 +72,53 @@ export function calculateCategoryRepairCost({ wearPct, purchasePrice }) {
   const baseValue = Math.max(0, toFinite(purchasePrice, 0));
   if (wear <= 0 || baseValue <= 0) return 0;
   return baseValue * CATEGORY_VALUE_SHARE * (wear / 100);
+}
+
+export function calculateActiveMaintenanceCost(aircraft) {
+  const purchasePrice = Math.max(
+    0,
+    firstFiniteValue(
+      aircraft?.purchase_price,
+      aircraft?.original_purchase_price,
+      aircraft?.current_value,
+    ),
+  );
+  const categories = normalizeMaintenanceCategoryMap(aircraft?.maintenance_categories);
+  const modeledCost = MAINTENANCE_CATEGORY_KEYS.reduce(
+    (sum, key) => sum + calculateCategoryRepairCost({ wearPct: categories[key], purchasePrice }),
+    0,
+  );
+  const accumulatedCost = Math.max(0, toFinite(aircraft?.accumulated_maintenance_cost, 0));
+  const cap = purchasePrice > 0 ? purchasePrice : Math.max(0, toFinite(aircraft?.current_value, 0));
+  const activeCost = Math.max(modeledCost, accumulatedCost);
+  return cap > 0 ? Math.min(activeCost, cap) : activeCost;
+}
+
+export function resolveAircraftValueSnapshot(aircraft) {
+  const newValue = Math.max(
+    0,
+    firstFiniteValue(
+      aircraft?.original_purchase_price,
+      aircraft?.purchase_price,
+      aircraft?.current_value,
+    ),
+  );
+  const storedCurrentValue = Math.max(
+    0,
+    firstFiniteValue(
+      aircraft?.current_value,
+      aircraft?.purchase_price,
+      aircraft?.original_purchase_price,
+    ),
+  );
+  const activeMaintenanceCost = calculateActiveMaintenanceCost(aircraft);
+  const effectiveCurrentValue = Math.max(0, storedCurrentValue - activeMaintenanceCost);
+  return {
+    newValue,
+    storedCurrentValue,
+    activeMaintenanceCost,
+    effectiveCurrentValue,
+  };
 }
 
 /**

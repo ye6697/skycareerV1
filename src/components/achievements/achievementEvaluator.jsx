@@ -1,5 +1,6 @@
 // Builds the ctx object consumed by ACHIEVEMENTS[].check.
 import { ACHIEVEMENTS } from "./achievementDefinitions";
+import { resolveAircraftValueSnapshot } from "@/lib/maintenance";
 
 const FT = (v, def = 0) => {
   const n = Number(v);
@@ -236,7 +237,7 @@ export function buildAchievementContext({ flights = [], company = null, aircraft
   const avgScore = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0;
   const fleetValue = (aircraft || [])
     .filter(a => a?.status !== "sold")
-    .reduce((sum, a) => sum + FT(a?.current_value, 0), 0);
+    .reduce((sum, a) => sum + resolveAircraftValueSnapshot(a).effectiveCurrentValue, 0);
   const fleetSize = (aircraft || []).filter(a => a?.status !== "sold").length;
 
   return {

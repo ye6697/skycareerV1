@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/components/LanguageContext';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, applyPermanentWearIncrease, calculateCategoryRepairCost } from '@/lib/maintenance';
+import { MAINTENANCE_CATEGORY_KEYS, normalizeMaintenanceCategoryMap, resolvePermanentWearCategories, applyPermanentWearIncrease, calculateCategoryRepairCost, resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { resolveAircraftInsurance } from '@/lib/insurance';
 import { isAtOverdraftLimit } from '@/components/InsolvencyBanner';
 
@@ -51,9 +51,12 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
   const insurance = resolveAircraftInsurance(aircraft);
   const insuranceCovPct = Math.max(0, Math.min(1, Number(insurance.maintenanceCoveragePct || 0)));
   const purchasePrice = Math.max(1, Number(aircraft?.purchase_price || aircraft?.current_value || 1));
+  const valueSnapshot = resolveAircraftValueSnapshot(aircraft);
   const accumulated = Math.min(Math.max(0, Number(aircraft?.accumulated_maintenance_cost || 0)), purchasePrice);
   const modeledTotal = MAINTENANCE_CATEGORY_KEYS.reduce((sum, key) => sum + calculateCategoryRepairCost({ wearPct: clampPct(cats[key]), purchasePrice }), 0);
-  const repairBaseTotal = accumulated > 0 ? accumulated : modeledTotal;
+  const repairBaseTotal = valueSnapshot.activeMaintenanceCost > 0
+    ? valueSnapshot.activeMaintenanceCost
+    : (accumulated > 0 ? accumulated : modeledTotal);
   const grossTotal = Math.max(0, Math.round(repairBaseTotal));
   const insuredTotal = Math.round(grossTotal * insuranceCovPct);
   const payableTotal = Math.max(0, grossTotal - insuredTotal);
@@ -98,7 +101,7 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
       const payable = Math.max(0, grossCost - insuredCost);
 
       const valueReduction = grossCost * 0.10;
-      const currentValue = Math.max(0, Number(aircraft?.current_value || purchasePrice));
+      const currentValue = valueSnapshot.storedCurrentValue;
       const newValue = Math.max(0, currentValue - valueReduction);
       const newCats = { ...cats, [categoryKey]: 0 };
       const newPerm = {
@@ -165,6 +168,20 @@ export default function MaintenanceCategoryList({ aircraft, selectedCategory, on
 
       {/* Insurance summary */}
       <div className="px-3 py-2 border-b border-cyan-900/40 bg-slate-900/40 backdrop-blur-md text-[10px]">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-slate-400 uppercase tracking-wider text-[9px]">{lang === 'de' ? 'Neuwert' : 'New value'}</span>
+          <span className="text-cyan-200 font-bold">${Math.round(valueSnapshot.newValue).toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-slate-400 uppercase tracking-wider text-[9px]">{lang === 'de' ? 'Aktueller Wert' : 'Current value'}</span>
+          <span className="text-emerald-300 font-bold">${Math.round(valueSnapshot.effectiveCurrentValue).toLocaleString()}</span>
+        </div>
+        {valueSnapshot.activeMaintenanceCost > 0 && (
+          <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-700/60">
+            <span className="text-orange-300 uppercase tracking-wider text-[9px]">{lang === 'de' ? 'Wartung abgezogen' : 'Maintenance deducted'}</span>
+            <span className="text-orange-300 font-bold">-${Math.round(valueSnapshot.activeMaintenanceCost).toLocaleString()}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-1">
           <span className="text-slate-400 uppercase tracking-wider text-[9px]">{lang === 'de' ? 'Reparatur Gesamt' : 'Total Repair'}</span>
           <span className="text-amber-300 font-bold">${grossTotal.toLocaleString()}</span>
