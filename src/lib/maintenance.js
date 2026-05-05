@@ -112,11 +112,35 @@ export function resolveAircraftValueSnapshot(aircraft) {
     ),
   );
   const activeMaintenanceCost = calculateActiveMaintenanceCost(aircraft);
-  const effectiveCurrentValue = Math.max(0, storedCurrentValue - activeMaintenanceCost);
+  const permanentWearFallback = clamp(
+    firstFiniteValue(
+      aircraft?.used_permanent_avg,
+      aircraft?.used_wear_avg,
+      0,
+    ),
+    0,
+    100,
+  );
+  const permanentWearCategories = resolvePermanentWearCategories(
+    aircraft?.permanent_wear_categories,
+    permanentWearFallback,
+  );
+  const permanentMaintenanceCost = MAINTENANCE_CATEGORY_KEYS.reduce(
+    (sum, key) => sum + calculateCategoryRepairCost({
+      wearPct: permanentWearCategories[key],
+      purchasePrice: newValue,
+    }),
+    0,
+  );
+  const effectiveCurrentValue = Math.max(
+    0,
+    storedCurrentValue - activeMaintenanceCost - permanentMaintenanceCost,
+  );
   return {
     newValue,
     storedCurrentValue,
     activeMaintenanceCost,
+    permanentMaintenanceCost,
     effectiveCurrentValue,
   };
 }
