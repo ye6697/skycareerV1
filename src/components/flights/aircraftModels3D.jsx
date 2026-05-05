@@ -188,27 +188,10 @@ function makePropeller(mats, { radius, bladeCount = 3 }) {
   return group;
 }
 
-// Nav lights + strobe.
-function addNavLights(group, wingTipZ, tailX, strobeY) {
-  const red = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xff2222 }),
-  );
-  red.position.set(0, 0, -wingTipZ);
-  group.add(red);
-  const green = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0x22ff22 }),
-  );
-  green.position.set(0, 0, wingTipZ);
-  group.add(green);
-  const strobe = new THREE.Mesh(
-    new THREE.SphereGeometry(0.22, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
-  );
-  strobe.position.set(tailX, strobeY, 0);
-  group.add(strobe);
-  return strobe;
+// Aircraft marker lights are intentionally disabled; the replay/hangar should
+// show the model silhouette without glowing dots on wings or tail.
+function addNavLights() {
+  return null;
 }
 
 // --- Small single-engine propeller (Cessna 172-like) ---

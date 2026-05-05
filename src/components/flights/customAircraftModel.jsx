@@ -9,11 +9,44 @@ import {
 
 const GROUND_CLEARANCE = 1.2;
 const VERTEX_SAMPLE_CAP = 5500;
+const AIRCRAFT_LIGHT_NAME_PATTERNS = [
+  'strobe',
+  'beacon',
+  'navlight',
+  'nav_light',
+  'navigationlight',
+  'navigation_light',
+  'positionlight',
+  'position_light',
+  'landinglight',
+  'landing_light',
+  'taxilight',
+  'taxi_light',
+];
+
+function isAircraftLightArtifact(node) {
+  const materials = Array.isArray(node?.material) ? node.material : [node?.material];
+  const text = [
+    node?.name,
+    node?.userData?.name,
+    node?.userData?.type,
+    ...materials.flatMap((mat) => [mat?.name, mat?.userData?.name, mat?.userData?.type]),
+  ].filter(Boolean).join(' ').toLowerCase().replace(/[\s.-]+/g, '_');
+  return AIRCRAFT_LIGHT_NAME_PATTERNS.some((pattern) => text.includes(pattern));
+}
 
 function sanitizeLoadedModel(root) {
   root.traverse((node) => {
     const name = String(node?.name || '').toLowerCase();
+    if (node?.isLight) {
+      node.visible = false;
+      return;
+    }
     if (name.includes('collider') || name.includes('collision') || name.includes('helper')) {
+      node.visible = false;
+      return;
+    }
+    if (isAircraftLightArtifact(node)) {
       node.visible = false;
       return;
     }
@@ -177,85 +210,8 @@ function measureBounds(root) {
   };
 }
 
-function attachLightsToModel(model, strobe) {
-  model.updateMatrixWorld(true);
-  const worldBox = new THREE.Box3().setFromObject(model);
-  const worldSize = new THREE.Vector3();
-  worldBox.getSize(worldSize);
-
-  const localHalfSpan = Math.max(0.5, worldSize.z / 2);
-  const localMidY = worldBox.min.y + worldSize.y * 0.5;
-  const localTopY = worldBox.max.y;
-  const localBottomY = worldBox.min.y;
-  const localTailX = worldBox.min.x;
-  const modelLen = Math.max(1, worldSize.x);
-  const radius = Math.max(0.1, modelLen * 0.0075);
-
-  const red = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 10, 10),
-    new THREE.MeshBasicMaterial({ color: 0xff2020 })
-  );
-  red.position.set(0, localMidY, -localHalfSpan);
-  model.add(red);
-
-  const green = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 10, 10),
-    new THREE.MeshBasicMaterial({ color: 0x22ff22 })
-  );
-  green.position.set(0, localMidY, localHalfSpan);
-  model.add(green);
-
-  strobe.geometry.dispose();
-  strobe.geometry = new THREE.SphereGeometry(radius * 0.85, 10, 10);
-  strobe.position.set(localTailX + radius * 2.2, localTopY, 0);
-  model.add(strobe);
-
-  const wingStrobeGeo = new THREE.SphereGeometry(radius * 0.75, 8, 8);
-  const leftStrobe = new THREE.Mesh(
-    wingStrobeGeo,
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
-  );
-  leftStrobe.position.set(0, localMidY, -localHalfSpan);
-  leftStrobe.name = 'wingStrobe';
-  model.add(leftStrobe);
-
-  const rightStrobe = new THREE.Mesh(
-    wingStrobeGeo,
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
-  );
-  rightStrobe.position.set(0, localMidY, localHalfSpan);
-  rightStrobe.name = 'wingStrobe';
-  model.add(rightStrobe);
-
-  const beacon = new THREE.Mesh(
-    new THREE.SphereGeometry(radius * 0.9, 10, 10),
-    new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9 })
-  );
-  beacon.position.set(0, localBottomY + radius * 0.7, 0);
-  beacon.name = 'beacon';
-  model.add(beacon);
-
-  const strobeMat = strobe.material;
-  let currentOpacity = Number(strobeMat.opacity || 0);
-  Object.defineProperty(strobeMat, 'opacity', {
-    configurable: true,
-    get() {
-      return currentOpacity;
-    },
-    set(nextOpacity) {
-      currentOpacity = nextOpacity;
-      leftStrobe.material.opacity = nextOpacity;
-      rightStrobe.material.opacity = nextOpacity;
-      beacon.material.opacity = nextOpacity > 0.1 ? 0.2 : 0.85;
-    },
-  });
-}
-
-function makeStrobePlaceholder() {
-  return new THREE.Mesh(
-    new THREE.SphereGeometry(0.22, 10, 10),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
-  );
+function attachLightsToModel() {
+  return null;
 }
 
 async function loadConfiguredAircraftModel(config) {
@@ -278,7 +234,7 @@ function buildProceduralFallback(aircraftHint, profile) {
 
 export function buildCustomAircraftModel(aircraftHint) {
   const group = new THREE.Group();
-  const strobe = makeStrobePlaceholder();
+  const strobe = null;
   const config = resolveAircraftModelConfig(aircraftHint);
   const profile = config?.profile || resolveAircraftProfile(aircraftHint);
 
