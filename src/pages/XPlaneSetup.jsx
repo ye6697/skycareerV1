@@ -177,11 +177,10 @@ const COPY = {
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
   const text = COPY[lang] || COPY.en;
-  const BRIDGE_VERSION = 'bridge-2026-05-04-weather-r3';
-  const DOWNLOAD_CACHE_BUST = '20260504-weather-r3';
+  const BRIDGE_VERSION = 'bridge-2026-05-04-weather-r2';
+  const DOWNLOAD_CACHE_BUST = '20260504-weather-r2';
   const BRIDGE_BOOTSTRAP_FILE = 'SkyCareer_MSFS_Bridge_Windows.zip';
   const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
-  const BRIDGE_ALL_IN_ONE_FILE = 'SkyCareer_Desktop_AllInOne_Windows.zip';
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
@@ -424,12 +423,6 @@ Port=500
         const fallbackApiKey = await getApiKeyForDownload();
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-        const allInOneCandidates = [
-          new URL(`downloads/${BRIDGE_ALL_IN_ONE_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
-          new URL(`${normalizedBase}downloads/${BRIDGE_ALL_IN_ONE_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          new URL(`/downloads/${BRIDGE_ALL_IN_ONE_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${BRIDGE_ALL_IN_ONE_FILE}?v=${DOWNLOAD_CACHE_BUST}`,
-        ];
         const payloadCandidates = [
           new URL(`downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
           new URL(`${normalizedBase}downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
@@ -443,31 +436,6 @@ Port=500
           `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`,
         ];
         let bootstrapBytes = null;
-
-        for (const allInOneUrl of allInOneCandidates) {
-          try {
-            const res = await fetch(allInOneUrl, { cache: 'no-store' });
-            if (!res.ok) {
-              lastError = `HTTP ${res.status} @ ${allInOneUrl}`;
-              continue;
-            }
-            const arr = new Uint8Array(await res.arrayBuffer());
-            if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
-              bytes = arr;
-              fileName = BRIDGE_ALL_IN_ONE_FILE;
-              break;
-            }
-            lastError = `Invalid ZIP bytes @ ${allInOneUrl}`;
-          } catch (e) {
-            lastError = `${e?.message || e} @ ${allInOneUrl}`;
-          }
-        }
-
-        if (bytes) {
-          triggerZipDownload(bytes, fileName);
-          return;
-        }
-
         for (const bootUrl of bootstrapCandidates) {
           try {
             const res = await fetch(bootUrl, { cache: 'no-store' });
