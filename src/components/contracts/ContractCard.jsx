@@ -77,6 +77,8 @@ export default function ContractCard({
   const Icon = meta.icon;
   const payout = Math.round(contract.payout || 0);
   const bonus = Math.round(contract.bonus_potential || 0);
+  const distanceNm = Number(contract.distance_nm || 0);
+  const payoutPerNm = distanceNm > 0 ? payout / distanceNm : 0;
 
   return (
     <motion.div
@@ -162,6 +164,9 @@ export default function ContractCard({
             {lang === "de" ? "Auszahlung" : "Payout"}
           </p>
           <p className="text-lg font-bold text-emerald-300">${payout.toLocaleString()}</p>
+          <p className="text-[11px] text-emerald-200/90">
+            {lang === "de" ? "Geschaetzt" : "Estimated"} ${payoutPerNm.toFixed(2)}/NM
+          </p>
           {bonus > 0 && (
             <p className="text-[11px] text-amber-300">
               +${bonus.toLocaleString()} {lang === "de" ? "Bonus moeglich" : "bonus possible"}
