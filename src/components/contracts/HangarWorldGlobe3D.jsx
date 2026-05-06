@@ -446,7 +446,7 @@ function HangarWorldGlobe3DBase({
       className={`relative overflow-hidden border border-cyan-900/50 bg-slate-950/95 ${isFullscreen ? "h-[100dvh] w-[100vw] rounded-none" : "rounded-xl"}`}
       style={isFullscreen ? { position: "fixed", inset: 0, zIndex: 9999 } : undefined}
     >
-      <div className="absolute left-3 top-3 z-[1400] flex items-center gap-2">
+      <div className="absolute left-3 right-3 top-3 z-[1400] flex flex-wrap items-center gap-2 pr-20 sm:right-auto sm:pr-0">
         <Badge className="border-cyan-700/50 bg-slate-950/90 text-[10px] font-mono uppercase text-cyan-100">
           <RouteIcon className="mr-1 h-3 w-3" />
           {visibleContracts.length} {lang === "de" ? "Routen" : "Routes"}
@@ -456,7 +456,7 @@ function HangarWorldGlobe3DBase({
         </Badge>
       </div>
 
-      <div className="absolute right-3 top-3 z-[1400] flex gap-2">
+      <div className="absolute right-3 top-3 z-[1400] flex gap-1.5 sm:gap-2">
         <Button
           type="button"
           size="icon"
@@ -496,7 +496,7 @@ function HangarWorldGlobe3DBase({
       </div>
 
       <div className={`relative z-0 w-full ${isFullscreen ? "h-screen" : "h-[650px]"}`}>
-        <div className="absolute left-3 top-14 z-[1450] flex items-center gap-1 rounded-md border border-cyan-900/50 bg-slate-950/85 p-1">
+        <div className="absolute left-3 top-[4.7rem] z-[1450] flex items-center gap-1 rounded-md border border-cyan-900/50 bg-slate-950/85 p-1 sm:top-14">
           <button
             type="button"
             onClick={() => setAirportViewFilter("all")}
