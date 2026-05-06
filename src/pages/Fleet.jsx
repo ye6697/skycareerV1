@@ -1468,7 +1468,8 @@ export default function Fleet() {
                 isBuying={purchaseMutation.isPending}
                 selectedListingId={selectedAircraft?.market_listing_id || selectedAircraft?.name}
                 currentUser={currentUser}
-                onRequestTypeRating={(ac) => setTypeRatingPopupAircraft(ac)} /> :
+                onRequestTypeRating={(ac) => setTypeRatingPopupAircraft(ac)}
+                interactionsLocked={!!typeRatingPopupAircraft} /> :
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {company &&
                 <motion.div

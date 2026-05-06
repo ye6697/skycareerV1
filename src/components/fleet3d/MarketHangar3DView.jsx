@@ -55,6 +55,7 @@ export default function MarketHangar3DView({
   selectedListingId,
   currentUser = null,
   onRequestTypeRating,
+  interactionsLocked = false,
 }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [showMaintenanceDetails, setShowMaintenanceDetails] = useState(false);
@@ -138,7 +139,10 @@ export default function MarketHangar3DView({
   const usedPermanentAvgPct = Math.max(0, Math.min(100, Number(current.used_permanent_avg || 0)));
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-slate-950">
+    <div
+      className={`relative h-full min-h-0 overflow-hidden bg-slate-950 ${interactionsLocked ? 'pointer-events-none' : ''}`}
+      aria-hidden={interactionsLocked ? true : undefined}
+    >
       <AircraftHangar3D aircraft={current} />
 
       {/* Big prominent left/right arrows for switching aircraft */}
