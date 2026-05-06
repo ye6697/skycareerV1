@@ -136,7 +136,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm pointer-events-auto touch-auto"
         onClick={onClose}
       >
         <motion.div
@@ -144,7 +144,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 280, damping: 24 }}
-          className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-cyan-500/40 shadow-[0_0_60px_rgba(6,182,212,0.3)]"
+          className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-cyan-500/40 shadow-[0_0_60px_rgba(6,182,212,0.3)] pointer-events-auto touch-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Glow accents */}
