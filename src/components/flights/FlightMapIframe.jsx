@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Navigation, Maximize2, Minimize2, Map, LocateFixed, CloudSun } from 'lucide-react';
+import { Navigation, Maximize2, Minimize2, CloudSun } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -101,18 +101,6 @@ export default function FlightMapIframe({
                 <CloudSun className="w-3.5 h-3.5 mr-1" />
                 {weatherOn ? t('weather_on', lang) : t('weather_off', lang)}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-7 px-2 text-xs font-mono ${viewMode === 'follow' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-slate-600'}`}
-                onClick={() => {
-                  const next = viewMode === 'fplan' ? 'follow' : 'fplan';
-                  setViewMode(next);
-                }}
-              >
-                {viewMode === 'follow' ? <LocateFixed className="w-3.5 h-3.5 mr-1" /> : <Map className="w-3.5 h-3.5 mr-1" />}
-                {viewMode === 'follow' ? 'FOLLOW' : 'F-PLN'}
-              </Button>
             </>
           )}
           <Button
@@ -193,12 +181,12 @@ function buildIframeHtml() {
 
   /* HUD overlay - top center, enlarged in fullscreen */
   #hud-top { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; gap:5px; pointer-events:none; }
-  #hud-top .hud-cell { background:rgba(10,20,40,0.8); backdrop-filter:blur(6px); border:1px solid rgba(34,211,238,0.22); border-radius:6px; padding:3px 8px; display:flex; align-items:center; gap:5px; font-family:'Courier New',monospace; }
-  #hud-top .hud-label { font-size:8px; color:#64748b; text-transform:uppercase; letter-spacing:0.9px; }
-  #hud-top .hud-val { font-size:12px; font-weight:bold; }
-  #hud-top.fs .hud-cell { padding:8px 16px; gap:8px; border-radius:8px; }
-  #hud-top.fs .hud-label { font-size:11px; }
-  #hud-top.fs .hud-val { font-size:18px; }
+  #hud-top .hud-cell { background:linear-gradient(145deg, rgba(8,22,48,0.9), rgba(7,35,62,0.78)); backdrop-filter:blur(12px); border:1px solid rgba(56,189,248,0.35); box-shadow:0 8px 24px rgba(2,8,23,0.45), inset 0 1px 0 rgba(148,163,184,0.12); border-radius:12px; padding:5px 10px; display:flex; align-items:baseline; gap:6px; font-family:'Courier New',monospace; min-height:40px; }
+  #hud-top .hud-label { font-size:7px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+  #hud-top .hud-val { font-size:10px; font-weight:bold; line-height:1.1; }
+  #hud-top.fs .hud-cell { padding:8px 12px; gap:7px; border-radius:14px; min-height:52px; }
+  #hud-top.fs .hud-label { font-size:9px; }
+  #hud-top.fs .hud-val { font-size:14px; }
   .hud-cyan { color:#22d3ee; }
   .hud-green { color:#34d399; }
   .hud-amber { color:#fbbf24; }
@@ -242,12 +230,14 @@ function buildIframeHtml() {
     #hud-top .hud-cell {
       min-width: 0;
       width: 100%;
-      padding: 3px 5px;
+      padding: 4px 6px;
       justify-content: space-between;
-      gap: 3px;
+      gap: 4px;
+      border-radius: 10px;
+      min-height: 34px;
     }
-    #hud-top .hud-label { font-size: 7px; letter-spacing: 0.6px; }
-    #hud-top .hud-val { font-size: 11px; }
+    #hud-top .hud-label { font-size: 6px; letter-spacing: 0.7px; }
+    #hud-top .hud-val { font-size: 9px; }
 
     #weather-overlay {
       top: 82px;
@@ -386,7 +376,7 @@ function updateHUD(fd, live) {
   el.innerHTML = 
     '<div class="hud-cell"><span class="hud-label">G</span><span class="hud-val '+gCol+'">'+g.toFixed(2)+'</span></div>' +
     '<div class="hud-cell"><span class="hud-label">MAX G</span><span class="hud-val '+mgCol+'">'+mg.toFixed(2)+'</span></div>' +
-    '<div class="hud-cell"><span class="hud-label">FUEL</span><span class="hud-val '+fCol+'">'+Math.round(fp)+'%</span><span style="font-size:9px;color:#64748b;font-family:monospace;">'+Math.round(fk).toLocaleString()+'kg</span></div>' +
+    '<div class="hud-cell"><span class="hud-label">FUEL</span><span class="hud-val '+fCol+'">'+Math.round(fp)+'%</span><span style="font-size:8px;color:#94a3b8;font-family:monospace;">'+Math.round(fk).toLocaleString()+'kg</span></div>' +
     '<div class="hud-cell"><span class="hud-label">SCORE</span><span class="hud-val '+sCol+'">'+Math.round(sc)+'</span></div>';
 }
 
