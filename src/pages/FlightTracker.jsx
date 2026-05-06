@@ -2431,7 +2431,7 @@ export default function FlightTracker() {
         // Revenue = contract payout (Gesamteinnahmen)
         const totalRevenue = contract?.payout || 0;
 
-        if (gForce < 1.0) {
+        if (gForce < 1.09) {
           landingType = 'butter';
           landingScoreChange = 40;
           landingBonus = totalRevenue * 4; // 4x Gesamteinnahmen
