@@ -160,12 +160,14 @@ export default function Dashboard() {
         // Check cargo capacity
         const cargoMatch = !contract.cargo_weight_kg || 
                           (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
+        const passengerMatch = !contract.passenger_count ||
+                          Number(plane.passenger_capacity || 0) >= Number(contract.passenger_count);
         
         // Check range
         const rangeMatch = !contract.distance_nm || 
                           (plane.range_nm && plane.range_nm >= contract.distance_nm);
         
-        return typeMatch && cargoMatch && rangeMatch;
+        return typeMatch && cargoMatch && passengerMatch && rangeMatch;
       });
     }).slice(0, 10);
   }, [contracts, aircraft]);

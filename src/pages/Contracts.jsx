@@ -352,11 +352,14 @@ function isContractCompatibleWithAircraft(contract, aircraft) {
   const cargoMatch =
     !contract.cargo_weight_kg ||
     Number(aircraft.cargo_capacity_kg || 0) >= Number(contract.cargo_weight_kg);
+  const passengerMatch =
+    !contract.passenger_count ||
+    Number(aircraft.passenger_capacity || 0) >= Number(contract.passenger_count);
   const rangeMatch =
     !contract.distance_nm ||
     Number(aircraft.range_nm || 0) >= Number(contract.distance_nm);
 
-  return typeMatch && cargoMatch && rangeMatch;
+  return typeMatch && cargoMatch && passengerMatch && rangeMatch;
 }
 
 function tabMatches(contract, activeTab) {
@@ -420,6 +423,15 @@ function getCompatibilityReason(contract, selectedAircraft, lang) {
     return lang === "de"
       ? `Zu wenig Zuladung (${selectedAircraft.cargo_capacity_kg || 0} kg / ${contract.cargo_weight_kg} kg)`
       : `Insufficient cargo (${selectedAircraft.cargo_capacity_kg || 0} kg / ${contract.cargo_weight_kg} kg)`;
+  }
+
+  if (
+    contract.passenger_count &&
+    Number(selectedAircraft.passenger_capacity || 0) < Number(contract.passenger_count)
+  ) {
+    return lang === "de"
+      ? `Zu wenige Sitze (${selectedAircraft.passenger_capacity || 0} PAX / ${contract.passenger_count} PAX)`
+      : `Insufficient seats (${selectedAircraft.passenger_capacity || 0} PAX / ${contract.passenger_count} PAX)`;
   }
 
   if (contract.distance_nm && Number(selectedAircraft.range_nm || 0) < Number(contract.distance_nm)) {

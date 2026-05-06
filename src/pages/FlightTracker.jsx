@@ -100,6 +100,30 @@ const firstFiniteNumber = (...values) => {
   return NaN;
 };
 
+const normalizeMapWaypointList = (list) => {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((wp, index) => {
+      const lat = Number(wp?.lat ?? wp?.latitude);
+      const lon = Number(wp?.lon ?? wp?.lng ?? wp?.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) return null;
+      return {
+        ...wp,
+        lat,
+        lon,
+        name: wp?.name || wp?.ident || wp?.id || `WPT ${index + 1}`,
+      };
+    })
+    .filter(Boolean);
+};
+
+const normalizeMapCoords = (coords) => {
+  const lat = Number(coords?.lat ?? coords?.latitude);
+  const lon = Number(coords?.lon ?? coords?.lng ?? coords?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) return null;
+  return { lat, lon };
+};
+
 const readEngineLoadPct = (point) => firstFiniteNumber(
   point?.eng,
   point?.engine_load_pct,
@@ -329,7 +353,6 @@ export default function FlightTracker() {
   ), []);
 
   const [flightPhase, setFlightPhase] = useState('preflight');
-  const [viewMode, setViewMode] = useState('fplan');
   const [flight, setFlight] = useState(null);
   const [flightStartTime, setFlightStartTime] = useState(null);
   const [flightDurationSeconds, setFlightDurationSeconds] = useState(0);
@@ -1632,13 +1655,24 @@ export default function FlightTracker() {
        flightHours = contract?.distance_nm ? contract.distance_nm / 450 : 2; // Fallback: Average cruise speed 450 knots
      }
 
-     // Time efficiency bonus/penalty based on contract deadline
-     // Dynamic deadline: use X-Plane aircraft ICAO if available, fallback to fleet aircraft type
-     const xplaneIcao = xpData.aircraft_icao || activeFlight?.xplane_data?.aircraft_icao || null;
-     const fleetType = assignedAircraft?.type || null;
-     const deadlineMinutes = (contract?.distance_nm)
-       ? calculateDeadlineMinutes(contract.distance_nm, xplaneIcao, fleetType)
-       : (contract?.deadline_minutes || 120);
+      // Time efficiency bonus/penalty based on contract deadline
+      // Dynamic deadline: use X-Plane aircraft ICAO if available, fallback to fleet aircraft type
+      const xplaneIcao = xpData.aircraft_icao || activeFlight?.xplane_data?.aircraft_icao || null;
+      const fleetType = assignedAircraft?.type || null;
+      const deadlineDistanceNm = Number(
+        xpData.simbrief_total_nm
+        || xpData.livemap_total_nm
+        || activeFlight?.xplane_data?.simbrief_total_nm
+        || activeFlight?.xplane_data?.livemap_total_nm
+        || contract?.distance_nm
+        || 0
+      );
+      const shouldUseStoredDeadline = !xplaneIcao && !fleetType && contract?.deadline_minutes;
+      const deadlineMinutes = shouldUseStoredDeadline
+        ? contract.deadline_minutes
+        : deadlineDistanceNm > 0
+        ? calculateDeadlineMinutes(deadlineDistanceNm, xplaneIcao, fleetType)
+        : (contract?.deadline_minutes || 120);
      const deadlineHours = deadlineMinutes / 60;
      let timeBonus = 0;
      let timeScoreChange = 0;
@@ -2679,14 +2713,56 @@ export default function FlightTracker() {
     return R * c;
   };
 
+  const liveRawData = xplaneLog?.raw_data || {};
+  const liveXpd = (flight || existingFlight)?.xplane_data || {};
+  const rawFmsWaypoints = normalizeMapWaypointList(liveRawData?.fms_waypoints);
+  const storedFmsWaypoints = normalizeMapWaypointList(liveXpd?.fms_waypoints);
+  const effectiveMapWaypoints = rawFmsWaypoints.length > 0 ? rawFmsWaypoints : storedFmsWaypoints;
+
+  const importedSimbriefWaypoints = normalizeMapWaypointList(simbriefRoute?.waypoints);
+  const rawSimbriefWaypoints = normalizeMapWaypointList(liveRawData?.simbrief_waypoints);
+  const storedSimbriefWaypoints = normalizeMapWaypointList(liveXpd?.simbrief_waypoints);
+  const contractSimbriefWaypoints = normalizeMapWaypointList(contract?.simbrief_waypoints);
+  const effectiveRouteWaypoints =
+    importedSimbriefWaypoints.length > 0 ? importedSimbriefWaypoints :
+    rawSimbriefWaypoints.length > 0 ? rawSimbriefWaypoints :
+    storedSimbriefWaypoints.length > 0 ? storedSimbriefWaypoints :
+    contractSimbriefWaypoints;
+  const effectiveSimbriefRoute = {
+    waypoints: effectiveRouteWaypoints,
+    departure_runway:
+      simbriefRoute?.departure_runway ||
+      liveRawData?.simbrief_departure_runway ||
+      liveXpd?.simbrief_departure_runway ||
+      contract?.simbrief_departure_runway ||
+      null,
+    arrival_runway:
+      simbriefRoute?.arrival_runway ||
+      liveRawData?.simbrief_arrival_runway ||
+      liveXpd?.simbrief_arrival_runway ||
+      contract?.simbrief_arrival_runway ||
+      null,
+    departure_coords:
+      normalizeMapCoords(simbriefRoute?.departure_coords) ||
+      normalizeMapCoords(liveRawData?.simbrief_departure_coords) ||
+      normalizeMapCoords(liveXpd?.simbrief_departure_coords) ||
+      normalizeMapCoords(contract?.simbrief_departure_coords) ||
+      normalizeMapCoords(contract?.departure_airport ? getAirportCoords(contract.departure_airport) : null),
+    arrival_coords:
+      normalizeMapCoords(simbriefRoute?.arrival_coords) ||
+      normalizeMapCoords(liveRawData?.simbrief_arrival_coords) ||
+      normalizeMapCoords(liveXpd?.simbrief_arrival_coords) ||
+      normalizeMapCoords(contract?.simbrief_arrival_coords) ||
+      normalizeMapCoords(contract?.arrival_airport ? getAirportCoords(contract.arrival_airport) : null),
+  };
+
   const calculateDistanceInfo = () => {
     if (!contract || flightPhase === 'preflight') return { progress: 0, remainingNm: contract?.distance_nm || 0, totalNm: contract?.distance_nm || 0 };
     const hasPos = flightData.latitude !== 0 || flightData.longitude !== 0;
     // Use SimBrief route if available
-    const xpd = (flight || existingFlight)?.xplane_data || {};
-    const sbWps = simbriefRoute?.waypoints || xpd.simbrief_waypoints || [];
-    const sbDep = simbriefRoute?.departure_coords || xpd.simbrief_departure_coords;
-    const sbArr = simbriefRoute?.arrival_coords || xpd.simbrief_arrival_coords;
+    const sbWps = effectiveSimbriefRoute.waypoints || [];
+    const sbDep = effectiveSimbriefRoute.departure_coords;
+    const sbArr = effectiveSimbriefRoute.arrival_coords;
     if (sbWps.length >= 2 && hasPos) {
       const pts = [];
       if (sbDep?.lat && sbDep?.lon) pts.push({ lat: +sbDep.lat, lon: +sbDep.lon });
@@ -2733,9 +2809,8 @@ export default function FlightTracker() {
 
   const distanceInfo = calculateDistanceInfo();
   const distanceProgress = distanceInfo.progress;
-  const liveXpd = (flight || existingFlight)?.xplane_data || {};
-  const backendMapPath = (Array.isArray(xplaneLog?.raw_data?.flight_path) && xplaneLog.raw_data.flight_path.length > 0)
-    ? xplaneLog.raw_data.flight_path
+  const backendMapPath = (Array.isArray(liveRawData?.flight_path) && liveRawData.flight_path.length > 0)
+    ? liveRawData.flight_path
     : (Array.isArray(liveXpd.flight_path) ? liveXpd.flight_path : []);
   const mapFlightPath = (Array.isArray(backendMapPath) && backendMapPath.length >= localMapPath.length)
     ? backendMapPath
@@ -2941,8 +3016,12 @@ export default function FlightTracker() {
                   // Dynamic deadline based on actual X-Plane aircraft, fallback to fleet type
                   const xpIcao = xplaneLog?.raw_data?.aircraft_icao || null;
                   const flType = assignedAircraft?.type || null;
-                  const deadlineMin = (contract?.distance_nm)
-                    ? calculateDeadlineMinutes(contract.distance_nm, xpIcao, flType)
+                  const deadlineDistanceNm = Number(distanceInfo?.totalNm || contract?.distance_nm || 0);
+                  const shouldUseStoredDeadline = !xpIcao && !flType && contract?.deadline_minutes;
+                  const deadlineMin = shouldUseStoredDeadline
+                    ? contract.deadline_minutes
+                    : deadlineDistanceNm > 0
+                    ? calculateDeadlineMinutes(deadlineDistanceNm, xpIcao, flType)
                     : (contract?.deadline_minutes || 120);
                   const deadlineSec = deadlineMin * 60;
                   const bufferSec = 5 * 60; // 5 minutes buffer
@@ -3392,14 +3471,14 @@ export default function FlightTracker() {
               key={`map-${contractIdFromUrl}`}
               flightData={flightData}
               contract={contract}
-              waypoints={xplaneLog?.raw_data?.fms_waypoints || []}
-              routeWaypoints={simbriefRoute?.waypoints || []}
+              waypoints={effectiveMapWaypoints}
+              routeWaypoints={effectiveSimbriefRoute.waypoints}
               flightPath={mapFlightPath}
               flightEventsLog={mapFlightEventsLog}
-              departureRunway={simbriefRoute?.departure_runway}
-              arrivalRunway={simbriefRoute?.arrival_runway}
-              departureCoords={simbriefRoute?.departure_coords}
-              arrivalCoords={simbriefRoute?.arrival_coords}
+              departureRunway={effectiveSimbriefRoute.departure_runway}
+              arrivalRunway={effectiveSimbriefRoute.arrival_runway}
+              departureCoords={effectiveSimbriefRoute.departure_coords}
+              arrivalCoords={effectiveSimbriefRoute.arrival_coords}
               onViewModeChange={null}
               liveFlightData={{
                 gForce: flightData.gForce, maxGForce: flightData.maxGForce,

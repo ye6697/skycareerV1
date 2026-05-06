@@ -16,6 +16,62 @@ import {
 } from '@/lib/typeRatings';
 import RealMoneyBuyButton from '@/components/store/RealMoneyBuyButton';
 import { TYPE_RATING_ITEM } from '@/lib/lemonItemCatalog';
+import { getAllAirportCoords, getAirportCoords } from '@/utils/airportCoordinates';
+import { getCruiseSpeedForModel } from '@/components/flights/aircraftSpeedLookup';
+
+const calculateDistanceNm = (lat1, lon1, lat2, lon2) => {
+  const radiusNm = 3440.065;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos((lat1 * Math.PI) / 180)
+      * Math.cos((lat2 * Math.PI) / 180)
+      * Math.sin(dLon / 2) ** 2;
+  return radiusNm * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+const calculateTrainingDeadlineMinutes = (distanceNm, aircraft) => {
+  const cruiseSpeed = getCruiseSpeedForModel(aircraft?.name, aircraft?.type);
+  return Math.round((Number(distanceNm || 0) / cruiseSpeed) * 60 + 20 + 15);
+};
+
+function buildTrainingRoutes(hubIcao) {
+  const requestedHub = String(hubIcao || 'EDDF').trim().toUpperCase();
+  const hub = getAirportCoords(requestedHub) ? requestedHub : 'EDDF';
+  const hubCoords = getAirportCoords(hub);
+  if (!hubCoords) {
+    return [
+      { from: hub, to: 'EDDK', dist: 80 },
+      { from: hub, to: 'EDDL', dist: 95 },
+      { from: hub, to: 'EDDS', dist: 70 },
+    ];
+  }
+
+  const candidates = getAllAirportCoords({ realOnly: true })
+    .filter((airport) => airport.airport_icao !== hub)
+    .map((airport) => ({
+      from: hub,
+      to: airport.airport_icao,
+      dist: Math.round(calculateDistanceNm(hubCoords.lat, hubCoords.lon, airport.lat, airport.lon)),
+    }))
+    .filter((route) => route.dist >= 25 && route.dist <= TYPE_RATING_MAX_NM)
+    .sort((a, b) => a.dist - b.dist);
+
+  const routes = candidates.slice(0, 3);
+  if (routes.length >= 3) return routes;
+
+  const closest = getAllAirportCoords({ realOnly: true })
+    .filter((airport) => airport.airport_icao !== hub)
+    .map((airport) => ({
+      from: hub,
+      to: airport.airport_icao,
+      dist: Math.round(calculateDistanceNm(hubCoords.lat, hubCoords.lon, airport.lat, airport.lon)),
+    }))
+    .filter((route) => route.dist >= 10)
+    .sort((a, b) => a.dist - b.dist);
+
+  return [...routes, ...closest.filter((route) => !routes.some((r) => r.to === route.to))].slice(0, 3);
+}
 
 // Animated, glass-style popup that lets the player pay for and start a
 // type-rating training mission for a specific aircraft model. The mission
@@ -52,13 +108,10 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
   async function createTrainingContracts() {
     const hub = company.hub_airport || 'EDDF';
     const now = Date.now();
-    const presetRoutes = [
-      { from: hub, to: hub === 'EDDM' ? 'EDDF' : 'EDDM', dist: 80 },
-      { from: hub, to: hub === 'EDDH' ? 'EDDF' : 'EDDH', dist: 95 },
-      { from: hub, to: hub === 'EDDS' ? 'EDDF' : 'EDDS', dist: 70 },
-    ];
-    await Promise.all(presetRoutes.map((r, i) =>
-      base44.entities.Contract.create({
+    const presetRoutes = buildTrainingRoutes(hub);
+    await Promise.all(presetRoutes.map((r, i) => {
+      const deadlineMinutes = calculateTrainingDeadlineMinutes(r.dist, aircraft);
+      return base44.entities.Contract.create({
         company_id: company.id,
         title: `Type-Rating: ${modelName} (${i + 1}/3)`,
         briefing: `__TR__:${modelName}`,
@@ -67,15 +120,16 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
         arrival_airport: r.to,
         distance_nm: r.dist,
         payout: 5000,
-        deadline: new Date(now + 7 * 24 * 3600 * 1000).toISOString(),
+        deadline: new Date(now + deadlineMinutes * 60 * 1000).toISOString(),
+        deadline_minutes: deadlineMinutes,
         required_aircraft_type: [aircraft.type],
         required_crew: { captain: 1 },
         status: 'available',
         difficulty: 'easy',
         level_requirement: 1,
         bonus_potential: 2000,
-      })
-    ));
+      });
+    }));
   }
 
   // Pay & generate 3 training mission contracts (status=available so the
@@ -262,6 +316,12 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                                 <span>{contract.arrival_airport}</span>
                                 <span className="text-slate-600">·</span>
                                 <span className="text-cyan-300">{contract.distance_nm} NM</span>
+                                {contract.deadline_minutes && (
+                                  <>
+                                    <span className="text-slate-600">|</span>
+                                    <span className="text-amber-300">{contract.deadline_minutes} min</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                             <div className="text-right">

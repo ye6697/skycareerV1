@@ -626,6 +626,26 @@ function extractWeatherSnapshotFromLog(log: any) {
   };
 }
 
+function buildAircraftSpecForGeneration(categorySpec: any, plane: any = null) {
+  if (!plane) return categorySpec;
+  return {
+    ...categorySpec,
+    passengers: Math.max(0, Number(plane?.passenger_capacity || 0)),
+    cargo: Math.max(0, Number(plane?.cargo_capacity_kg || 0)),
+    range: Math.max(0, Number(plane?.range_nm || 0)),
+  };
+}
+
+function canAircraftFulfillContract(plane: any, contract: any) {
+  if (!plane || !contract) return false;
+  const requiredTypes = Array.isArray(contract?.required_aircraft_type) ? contract.required_aircraft_type : [];
+  const typeMatch = requiredTypes.length === 0 || requiredTypes.includes(plane.type);
+  const cargoMatch = !contract?.cargo_weight_kg || Number(plane?.cargo_capacity_kg || 0) >= Number(contract?.cargo_weight_kg || 0);
+  const rangeMatch = !contract?.distance_nm || Number(plane?.range_nm || 0) >= Number(contract?.distance_nm || 0);
+  const passengerMatch = !contract?.passenger_count || Number(plane?.passenger_capacity || 0) >= Number(contract?.passenger_count || 0);
+  return typeMatch && cargoMatch && rangeMatch && passengerMatch;
+}
+
 function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   const route = pickRouteForContract(aircraftType.range, {
     ...options,
@@ -635,7 +655,14 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   if (!route) return null;
   const { depAirport, arrAirport, distance } = route;
 
-  const contractType = options.forceContractType || randomItem(contractTypes);
+  const allowedContractTypes = contractTypes.filter((type) => {
+    if (type === "passenger" || type === "charter") return Number(aircraftType.passengers || 0) > 0;
+    if (type === "cargo") return Number(aircraftType.cargo || 0) > 0;
+    return true;
+  });
+  if (allowedContractTypes.length === 0) return null;
+  if (options.forceContractType && !allowedContractTypes.includes(options.forceContractType)) return null;
+  const contractType = options.forceContractType || randomItem(allowedContractTypes);
   
   const passengers = (contractType === "passenger" || contractType === "charter")
     ? Math.max(1, Math.floor(Math.random() * aircraftType.passengers * 0.8) + Math.floor(aircraftType.passengers * 0.2))
@@ -854,15 +881,7 @@ Deno.serve(async (req) => {
       return filteredAircraft.some((plane) => {
         const aircraftAirport = String(plane?.hangar_airport || '').toUpperCase();
         if (!aircraftAirport || aircraftAirport !== departureAirport) return false;
-        const requiredTypes = Array.isArray(contract?.required_aircraft_type) ? contract.required_aircraft_type : [];
-        const typeMatch = requiredTypes.length === 0 || requiredTypes.includes(plane.type);
-        const requiredCargo = Number(contract?.cargo_weight_kg || 0);
-        const requiredRange = Number(contract?.distance_nm || 0);
-        const requiredPax = Number(contract?.passenger_count || 0);
-        const cargoMatch = requiredCargo <= 0 || Number(plane?.cargo_capacity_kg || 0) >= requiredCargo;
-        const rangeMatch = requiredRange <= 0 || Number(plane?.range_nm || 0) >= requiredRange;
-        const passengerMatch = requiredPax <= 0 || Number(plane?.passenger_capacity || 0) >= requiredPax;
-        return typeMatch && cargoMatch && rangeMatch && passengerMatch;
+        return canAircraftFulfillContract(plane, contract);
       });
     });
     const hasAvailableFromOwnedHangar = existingContracts.some((contract) =>
@@ -985,13 +1004,11 @@ Deno.serve(async (req) => {
           : planeHangarAirport === hangarAirport;
         return stationedHere && hangarRule.allowed_types.includes(plane.type);
       });
+      if (hangarAircraft.length === 0) continue;
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];
-      const fallbackOwnedTypesAtHangar = allAircraftTypes.filter((entry) =>
-        ownedTypes.includes(entry.type) && hangarRule.allowed_types.includes(entry.type)
-      );
       const typePool = ownedTypesAtHangar.length > 0
         ? allAircraftTypes.filter((entry) => ownedTypesAtHangar.includes(entry.type))
-        : fallbackOwnedTypesAtHangar;
+        : [];
       if (typePool.length === 0) continue;
 
       const genOptions = {
@@ -1007,37 +1024,26 @@ Deno.serve(async (req) => {
 
       let attempts = 0;
       const perHangarTarget = 8;
-      // Aircraft pool used for compatibility check: prefer aircraft stationed
-      // at this hangar, but fall back to ALL the user's filtered aircraft so
-      // we don't accidentally mark a contract as incompatible just because
-      // the hangar/aircraft assignment data is stale or missing.
-      const fulfillmentPool = hangarAircraft.length > 0 ? hangarAircraft : filteredAircraft;
+      const fulfillmentPool = hangarAircraft;
       while (attempts < 120) {
         attempts++;
         const acType = randomItem(typePool);
         // Pick a concrete owned aircraft of this type (if any) so the contract
-        // payout scales by the specific MODEL the user owns.
+        // payload and payout scale by the specific MODEL the user owns.
         const matchingOwnedPlanes = hangarAircraft.filter((plane) => plane.type === acType.type);
         const concretePlane = matchingOwnedPlanes.length > 0
           ? randomItem(matchingOwnedPlanes)
           : null;
         const aircraftNameForPayout = concretePlane?.name || null;
-        const contract = generateContract(company.id, acType, company.level || 1, {
+        const generationSpec = buildAircraftSpecForGeneration(acType, concretePlane);
+        if (generationSpec.range <= 0) continue;
+        const contract = generateContract(company.id, generationSpec, company.level || 1, {
           ...genOptions,
           aircraftName: aircraftNameForPayout,
         });
         if (!contract) continue;
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
-        const canFulfill = fulfillmentPool.some((plane) => {
-          const typeMatch = contract.required_aircraft_type.includes(plane.type);
-          const requiredCargo = Number(contract.cargo_weight_kg || 0);
-          const requiredRange = Number(contract.distance_nm || 0);
-          const requiredPax = Number(contract.passenger_count || 0);
-          const cargoMatch = requiredCargo <= 0 || Number(plane.cargo_capacity_kg || 0) >= requiredCargo;
-          const rangeMatch = requiredRange <= 0 || Number(plane.range_nm || 0) >= requiredRange;
-          const passengerMatch = requiredPax <= 0 || Number(plane.passenger_capacity || 0) >= requiredPax;
-          return typeMatch && cargoMatch && rangeMatch && passengerMatch;
-        });
+        const canFulfill = fulfillmentPool.some((plane) => canAircraftFulfillContract(plane, contract));
         if (hangarAirport) {
           contract.departure_airport = hangarAirport;
           contract.hangar_airport = hangarAirport;

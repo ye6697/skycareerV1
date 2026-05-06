@@ -20,8 +20,7 @@ export default function FlightMapIframe({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
   const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
-  const [viewMode, setViewMode] = useState('fplan');
-  const [weatherOn, setWeatherOn] = useState(false);
+  const [weatherOn, setWeatherOn] = useState(true);
   const fd = flightData || {};
   const estimatedArrivalText = React.useMemo(() => {
     const arrDist = Number(mapDistances?.arrDist);
@@ -50,10 +49,10 @@ export default function FlightMapIframe({
       payload: {
         flightData, contract, waypoints, routeWaypoints, staticMode,
         flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords,
-        viewMode, liveFlightData, lang, weatherOn, flightEventsLog
+        viewMode: 'fplan', liveFlightData, lang, weatherOn, flightEventsLog
       }
     }, '*');
-  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, viewMode, liveFlightData, lang, weatherOn, flightEventsLog]);
+  }, [iframeReady, flightData, contract, waypoints, routeWaypoints, staticMode, flightPath, departureRunway, arrivalRunway, departureCoords, arrivalCoords, liveFlightData, lang, weatherOn, flightEventsLog]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -224,7 +223,7 @@ function buildIframeHtml() {
   #events-overlay .ev-item { font-size:13px; color:#fca5a5; padding:2px 0; display:flex; align-items:center; gap:6px; }
   #events-overlay .ev-detail { font-size:11px; color:#94a3b8; margin-left:11px; padding:1px 0; }
   #events-overlay .ev-dot { width:6px; height:6px; border-radius:50%; background:#f87171; flex-shrink:0; }
-  #weather-overlay { position:absolute; top:12px; right:12px; z-index:1000; pointer-events:none; display:none; }
+  #weather-overlay { position:absolute; top:56px; right:12px; z-index:1000; pointer-events:none; display:none; max-width:calc(100% - 24px); }
   #weather-overlay .wx-card { background:rgba(10,20,40,0.88); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:8px 10px; font-family:'Courier New',monospace; min-width:220px; }
   #weather-overlay .wx-title { color:#7dd3fc; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:6px; font-weight:bold; }
   #weather-overlay .wx-row { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#cbd5e1; line-height:1.35; }
@@ -397,9 +396,9 @@ function findNextWp(rp,wps,lat,lon,csi){
   return null;
 }
 
-function updateHUD(fd, live) {
+function updateHUD(fd, live, staticMode) {
   var el = document.getElementById('hud-top');
-  if (!el || !isFullscreen || !live) { if(el) el.style.display='none'; return; }
+  if (!el || staticMode || !live) { if(el) el.style.display='none'; return; }
   el.style.display = 'flex';
   el.className = isFullscreen ? 'fs' : '';
   el.id = 'hud-top';
@@ -1168,7 +1167,7 @@ function update(d) {
   }
 
   // HUD + Events
-  updateHUD(fd, live);
+  updateHUD(fd, live, staticMode);
   updateEvents(live?.events);
 
   parent.postMessage({ type: 'flightmap-distances', payload: distInfo }, '*');
