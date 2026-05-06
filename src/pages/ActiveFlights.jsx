@@ -962,26 +962,51 @@ export default function ActiveFlights() {
                       <Plane className="w-4 h-4" />
                       {t('select_aircraft_label', lang)}
                     </Label>
-                    <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
-                      <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
-                        <SelectValue placeholder={t('choose_aircraft', lang)} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        {aircraft.filter((ac) => {
-                          const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
-                          const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
-                          const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
-                          return passengerOk && cargoOk && rangeOk;
-                        }).map((ac) =>
-                          <SelectItem key={ac.id} value={ac.id} className="focus:bg-slate-800">
-                            {ac.name} ({ac.registration}) - {ac.passenger_capacity} {t('seats', lang)}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {aircraft.length === 0 &&
-                      <p className="text-sm text-red-400">{t('no_available_aircraft', lang)}</p>
-                    }
+                    {(() => {
+                      const withEligibility = aircraft.map((ac) => {
+                        const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
+                        const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
+                        const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
+                        const eligible = passengerOk && cargoOk && rangeOk;
+                        return { ac, eligible, passengerOk, cargoOk, rangeOk };
+                      });
+                      const eligibleAircraftCount = withEligibility.filter((item) => item.eligible).length;
+
+                      return (
+                        <>
+                          <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
+                            <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+                              <SelectValue placeholder={t('choose_aircraft', lang)} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                              {withEligibility.map(({ ac, eligible }) => (
+                                <SelectItem
+                                  key={ac.id}
+                                  value={ac.id}
+                                  disabled={!eligible}
+                                  className="focus:bg-slate-800"
+                                >
+                                  {ac.name} ({ac.registration}) - {ac.passenger_capacity} {t('seats', lang)}
+                                  {!eligible && ` • ${lang === 'de' ? 'nicht kompatibel' : 'not compatible'}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {aircraft.length === 0 && (
+                            <p className="text-sm text-red-400">{t('no_available_aircraft', lang)}</p>
+                          )}
+
+                          {aircraft.length > 0 && eligibleAircraftCount === 0 && (
+                            <p className="text-sm text-amber-300">
+                              {lang === 'de'
+                                ? 'Keines deiner verfügbaren Flugzeuge erfüllt aktuell die Anforderungen dieses Auftrags (Sitze/Fracht/Reichweite).'
+                                : "None of your available aircraft currently meets this contract's requirements (seats/cargo/range)."}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {selectedAircraftMissingRating && selectedAircraftObj && (
                       <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 p-4 space-y-3">
