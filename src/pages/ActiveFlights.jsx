@@ -244,7 +244,7 @@ export default function ActiveFlights() {
 
   const { data: failedContracts = [] } = useQuery({
     queryKey: ['contracts', 'failed', company?.id],
-    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'failed' }),
+    queryFn: () => base44.entities.Contract.filter({ company_id: company.id, status: 'cancelled' }),
     enabled: !!company?.id
   });
 
@@ -437,7 +437,7 @@ export default function ActiveFlights() {
       }
 
       await base44.entities.Contract.update(contract.id, {
-        status: 'failed'
+        status: 'cancelled'
       });
 
       if (company) {

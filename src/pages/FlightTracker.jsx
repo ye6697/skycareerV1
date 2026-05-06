@@ -1407,7 +1407,7 @@ export default function FlightTracker() {
       
       // Update contract status
       await base44.entities.Contract.update(contractIdFromUrl, {
-        status: 'failed'
+        status: 'cancelled'
       });
       
       // Deduct penalty from company balance
