@@ -43,7 +43,7 @@ export default function ComparisonSection({ L, lang }) {
                   i === 3 
                     ? 'bg-gradient-to-b from-blue-600/20 to-blue-600/5 text-blue-300 border-l-2 border-blue-500/40' 
                     : i === 0 ? 'text-slate-500' : 'text-slate-500 text-center'
-                } ${i === 0 ? 'text-left' : i < 3 ? 'text-center' : 'text-center'}`}>
+                } text-center`}>
                   {i === 3 && <Crown className="w-4 h-4 inline mr-1.5 mb-0.5 text-amber-400" />}
                   {col}
                 </div>
@@ -52,7 +52,7 @@ export default function ComparisonSection({ L, lang }) {
             {/* Rows */}
             {L.compare_rows.map((row, i) => (
               <div key={i} className={`grid grid-cols-[1.4fr_1fr_1fr_1.3fr] border-b border-slate-800/40 last:border-0 transition-colors hover:bg-slate-800/20`}>
-                <div className="p-4 text-sm text-white font-medium flex items-center">{row.feature}</div>
+                <div className="p-4 text-sm text-white font-medium flex items-center justify-center text-center">{row.feature}</div>
                 <div className="p-4 text-sm text-center flex items-center justify-center">
                   <div className="flex flex-col items-center gap-1">
                     <CellIcon value={row.basic} />
