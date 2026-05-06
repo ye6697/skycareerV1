@@ -22,6 +22,16 @@ export default function FlightMapIframe({
   const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
   const [viewMode, setViewMode] = useState('fplan');
   const [weatherOn, setWeatherOn] = useState(false);
+  const estimatedArrivalText = React.useMemo(() => {
+    const arrDist = Number(mapDistances?.arrDist);
+    const gs = Number(fd?.speed);
+    if (!Number.isFinite(arrDist) || arrDist <= 0 || !Number.isFinite(gs) || gs <= 0) return null;
+    const hours = arrDist / gs;
+    const etaDate = new Date(Date.now() + hours * 3600 * 1000);
+    const hh = String(etaDate.getHours()).padStart(2, '0');
+    const mm = String(etaDate.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }, [mapDistances?.arrDist, fd?.speed]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -141,6 +151,7 @@ export default function FlightMapIframe({
                 : '—'}
             </span>
             <span className="text-amber-400 font-semibold">
+              {estimatedArrivalText ? `ETA ${estimatedArrivalText} · ` : ''}
               {mapDistances.arrDist !== null 
                 ? `ARR: ${mapDistances.arrDist} NM` 
                 : '—'}
@@ -182,10 +193,10 @@ function buildIframeHtml() {
   .dark-popup .leaflet-popup-tip { background:#0f172a; }
 
   /* HUD overlay - top center, enlarged in fullscreen */
-  #hud-top { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; gap:6px; pointer-events:none; }
-  #hud-top .hud-cell { background:rgba(10,20,40,0.85); backdrop-filter:blur(8px); border:1px solid rgba(34,211,238,0.25); border-radius:6px; padding:4px 10px; display:flex; align-items:center; gap:6px; font-family:'Courier New',monospace; }
-  #hud-top .hud-label { font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:1px; }
-  #hud-top .hud-val { font-size:13px; font-weight:bold; }
+  #hud-top { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; gap:5px; pointer-events:none; }
+  #hud-top .hud-cell { background:rgba(10,20,40,0.8); backdrop-filter:blur(6px); border:1px solid rgba(34,211,238,0.22); border-radius:6px; padding:3px 8px; display:flex; align-items:center; gap:5px; font-family:'Courier New',monospace; }
+  #hud-top .hud-label { font-size:8px; color:#64748b; text-transform:uppercase; letter-spacing:0.9px; }
+  #hud-top .hud-val { font-size:12px; font-weight:bold; }
   #hud-top.fs .hud-cell { padding:8px 16px; gap:8px; border-radius:8px; }
   #hud-top.fs .hud-label { font-size:11px; }
   #hud-top.fs .hud-val { font-size:18px; }
@@ -218,6 +229,50 @@ function buildIframeHtml() {
   #wind-overlay { position:absolute; bottom:60px; right:12px; z-index:1000; pointer-events:none; display:none; }
   #wind-overlay .wind-card { background:rgba(10,20,40,0.85); backdrop-filter:blur(10px); border:1px solid rgba(56,189,248,0.3); border-radius:50%; width:80px; height:80px; display:flex; align-items:center; justify-content:center; position:relative; }
   #wind-overlay .wind-label { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:10px; color:#94a3b8; font-family:'Courier New',monospace; white-space:nowrap; }
+
+  @media (max-width: 640px) {
+    #hud-top {
+      top: 6px;
+      left: 8px;
+      right: 8px;
+      transform: none;
+      gap: 3px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #hud-top .hud-cell {
+      min-width: 0;
+      width: 100%;
+      padding: 3px 5px;
+      justify-content: space-between;
+      gap: 3px;
+    }
+    #hud-top .hud-label { font-size: 7px; letter-spacing: 0.6px; }
+    #hud-top .hud-val { font-size: 11px; }
+
+    #weather-overlay {
+      top: 82px;
+      left: 8px;
+      right: 8px;
+    }
+    #weather-overlay .wx-card {
+      min-width: 0;
+      width: 100%;
+      padding: 7px 8px;
+    }
+    #wind-overlay {
+      bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+      right: 8px;
+    }
+    #wind-overlay .wind-card {
+      width: 68px;
+      height: 68px;
+    }
+    #wind-overlay .wind-label {
+      bottom: -16px;
+      font-size: 9px;
+    }
+  }
 </style>
 </head><body>
 <div id="map"></div>
