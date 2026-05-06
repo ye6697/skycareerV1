@@ -22,6 +22,7 @@ export default function FlightMapIframe({
   const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
   const [viewMode, setViewMode] = useState('fplan');
   const [weatherOn, setWeatherOn] = useState(false);
+  const fd = flightData || {};
   const estimatedArrivalText = React.useMemo(() => {
     const arrDist = Number(mapDistances?.arrDist);
     const gs = Number(fd?.speed);
@@ -65,8 +66,6 @@ export default function FlightMapIframe({
     if (!iframeReady || !iframeRef.current?.contentWindow) return;
     iframeRef.current.contentWindow.postMessage({ type: 'flightmap-resize', isFullscreen }, '*');
   }, [isFullscreen, iframeReady]);
-
-  const fd = flightData || {};
   const validWaypoints = (waypoints || []).filter(wp => wp.lat && wp.lon);
   const iframeSrc = buildIframeHtml();
 
