@@ -856,9 +856,12 @@ Deno.serve(async (req) => {
         if (!aircraftAirport || aircraftAirport !== departureAirport) return false;
         const requiredTypes = Array.isArray(contract?.required_aircraft_type) ? contract.required_aircraft_type : [];
         const typeMatch = requiredTypes.length === 0 || requiredTypes.includes(plane.type);
-        const cargoMatch = !contract?.cargo_weight_kg || Number(plane?.cargo_capacity_kg || 0) >= Number(contract?.cargo_weight_kg || 0);
-        const rangeMatch = !contract?.distance_nm || Number(plane?.range_nm || 0) >= Number(contract?.distance_nm || 0);
-        const passengerMatch = !contract?.passenger_count || Number(plane?.passenger_capacity || 0) >= Number(contract?.passenger_count || 0);
+        const requiredCargo = Number(contract?.cargo_weight_kg || 0);
+        const requiredRange = Number(contract?.distance_nm || 0);
+        const requiredPax = Number(contract?.passenger_count || 0);
+        const cargoMatch = requiredCargo <= 0 || Number(plane?.cargo_capacity_kg || 0) >= requiredCargo;
+        const rangeMatch = requiredRange <= 0 || Number(plane?.range_nm || 0) >= requiredRange;
+        const passengerMatch = requiredPax <= 0 || Number(plane?.passenger_capacity || 0) >= requiredPax;
         return typeMatch && cargoMatch && rangeMatch && passengerMatch;
       });
     });
@@ -1027,9 +1030,12 @@ Deno.serve(async (req) => {
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
         const canFulfill = fulfillmentPool.some((plane) => {
           const typeMatch = contract.required_aircraft_type.includes(plane.type);
-          const cargoMatch = !contract.cargo_weight_kg || (plane.cargo_capacity_kg && plane.cargo_capacity_kg >= contract.cargo_weight_kg);
-          const rangeMatch = !contract.distance_nm || (plane.range_nm && plane.range_nm >= contract.distance_nm);
-          const passengerMatch = !contract.passenger_count || (plane.passenger_capacity && plane.passenger_capacity >= contract.passenger_count);
+          const requiredCargo = Number(contract.cargo_weight_kg || 0);
+          const requiredRange = Number(contract.distance_nm || 0);
+          const requiredPax = Number(contract.passenger_count || 0);
+          const cargoMatch = requiredCargo <= 0 || Number(plane.cargo_capacity_kg || 0) >= requiredCargo;
+          const rangeMatch = requiredRange <= 0 || Number(plane.range_nm || 0) >= requiredRange;
+          const passengerMatch = requiredPax <= 0 || Number(plane.passenger_capacity || 0) >= requiredPax;
           return typeMatch && cargoMatch && rangeMatch && passengerMatch;
         });
         if (hangarAirport) {
