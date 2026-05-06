@@ -263,6 +263,23 @@ function buildIframeHtml() {
     }
     #hud-top .hud-label { font-size: 7px; letter-spacing: 0.95px; }
     #hud-top .hud-val { font-size: 12px; }
+    #hud-top.fs {
+      top: 6px;
+      gap: 6px;
+      left: 8px;
+      right: 8px;
+      transform: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #hud-top.fs .hud-cell {
+      min-width: 0;
+      width: 100%;
+      padding: 6px 8px 7px;
+      border-radius: 11px;
+      min-height: 42px;
+    }
+    #hud-top.fs .hud-label { font-size: 7px; letter-spacing: 0.95px; }
+    #hud-top.fs .hud-val { font-size: 12px; }
 
     #weather-overlay {
       top: 82px;
