@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { getAirportCoords } from "@/utils/airportCoordinates";
 import { Plane, PlaneTakeoff, PlaneLanding, MapPin, Clock, Fuel, Gauge, ArrowUp, Star, DollarSign, CheckCircle2, AlertTriangle, Timer, Activity, Wrench, Cog, CircuitBoard, Shield, Zap, Wind, Info } from "lucide-react";
@@ -653,8 +653,11 @@ export default function FlightTracker() {
   ]);
 
   const liveCostExplanationRef = React.useRef(null);
-  const urlParams = new URLSearchParams(window.location.search);
-  const contractIdFromUrl = urlParams.get('contractId');
+  const location = useLocation();
+  const contractIdFromUrl = useMemo(() => {
+    const params = new URLSearchParams(location?.search || '');
+    return params.get('contractId');
+  }, [location?.search]);
 
   const { data: contract } = useQuery({
     queryKey: ['contract', contractIdFromUrl],
