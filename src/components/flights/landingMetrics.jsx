@@ -164,26 +164,49 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  // Use the last 6 samples around touchdown for peak landing values.
-  const start = Math.max(0, touchdownIdx - 2);
+  // Use a slightly wider touchdown window and resolve V/S robustly.
+  // Older logic took the max value from a tiny window and could lock onto
+  // single-sample spikes (e.g. 2200+) even when surrounding values were normal.
+  const start = Math.max(0, touchdownIdx - 6);
   const end = Math.min(sessionHistory.length - 1, touchdownIdx + 3);
   const window = sessionHistory.slice(start, end + 1);
 
+  const percentile = (arr, p) => {
+    if (!Array.isArray(arr) || arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
+    return sorted[idx];
+  };
+
   const touchdownVsValues = window
     .map((point) => readTouchdownVerticalSpeedFpm(point))
-    .filter((value) => Number.isFinite(value) && Math.abs(value) > 0);
+    .filter((value) => Number.isFinite(value) && Math.abs(value) > 0)
+    .map((value) => Math.abs(value));
+
   const vsValues = window
     .map((point) => readVerticalSpeedFpm(point))
     .filter((value) => Number.isFinite(value));
-  const descendingVs = vsValues.filter((value) => value < 0);
+  const descendingVsAbs = vsValues
+    .filter((value) => value < 0)
+    .map((value) => Math.abs(value));
+
   let resolvedVs = 0;
+
+  // Prefer explicit touchdown V/S fields, but robustify with median + p80 cap.
   if (touchdownVsValues.length > 0) {
-    resolvedVs = Math.max(...touchdownVsValues.map((value) => Math.abs(value)));
+    const tdMedian = percentile(touchdownVsValues, 0.5);
+    const tdP80 = percentile(touchdownVsValues, 0.8);
+    resolvedVs = Math.min(tdP80, Math.max(tdMedian, 0));
   }
-  if (resolvedVs <= 0 && descendingVs.length > 0) {
-    resolvedVs = Math.abs(Math.min(...descendingVs));
+
+  // Fallback: derive from raw vertical speed near touchdown with same robust rule.
+  if (resolvedVs <= 0 && descendingVsAbs.length > 0) {
+    const vsMedian = percentile(descendingVsAbs, 0.5);
+    const vsP80 = percentile(descendingVsAbs, 0.8);
+    resolvedVs = Math.min(vsP80, Math.max(vsMedian, 0));
   } else if (resolvedVs <= 0 && vsValues.length > 0) {
-    resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
+    const absVs = vsValues.map((value) => Math.abs(value));
+    resolvedVs = percentile(absVs, 0.8);
   }
 
   const gValues = window
