@@ -35,6 +35,7 @@ import XPlaneStatus from "@/components/dashboard/XPlaneStatus";
 import CreditScoreBadge from "@/components/dashboard/CreditScoreBadge";
 import ContractCard from "@/components/contracts/ContractCard";
 import AchievementsWidget from "@/components/achievements/AchievementsWidget";
+import AviationMediaFeed from "@/components/dashboard/AviationMediaFeed";
 import { Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
@@ -274,6 +275,12 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+
+      <AviationMediaFeed
+        company={company}
+        recentFlights={recentFlights}
+        acceptedContracts={acceptedContracts}
+      />
       
       {/* Achievements Widget */}
       <AchievementsWidget companyId={companyId} company={company} />

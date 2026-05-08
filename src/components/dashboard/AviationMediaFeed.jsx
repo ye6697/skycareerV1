@@ -1,0 +1,157 @@
+import React, { useMemo } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Heart, MessageCircle, Repeat2, TrendingUp, TriangleAlert, Plane, Clock3, Users, Newspaper } from 'lucide-react';
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const toNumber = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const formatDelta = (value) => {
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? '+' : ''}${rounded}`;
+};
+
+function createPosts(company, flights, acceptedContracts) {
+  const reputation = toNumber(company?.reputation, 50);
+  const completedFlights = flights || [];
+  const withIssues = completedFlights.filter(
+    (f) => toNumber(f?.landing_vs) < -550 || (Array.isArray(f?.active_failures) && f.active_failures.length > 0),
+  );
+  const serviceLeaders = completedFlights.filter((f) => toNumber(f?.overall_rating) >= 88);
+  const avgRating = completedFlights.length
+    ? completedFlights.reduce((sum, f) => sum + toNumber(f?.overall_rating, 72), 0) / completedFlights.length
+    : 75;
+
+  const posts = [
+    {
+      source: 'SkyNews Aviation',
+      handle: '@skynews.av',
+      icon: Newspaper,
+      tone: reputation >= 70 ? 'positive' : reputation <= 40 ? 'negative' : 'neutral',
+      headline:
+        reputation >= 70
+          ? 'Public confidence climbs after consistently smooth operations.'
+          : reputation <= 40
+            ? 'Brand trust under pressure as reliability concerns trend online.'
+            : 'Mixed passenger feedback keeps reputation in a volatile range.',
+      description: `Reputation index now at ${Math.round(reputation)}. Analysts cite dispatch consistency and post-flight communication as key drivers this week.`,
+      metrics: {
+        likes: 1800 + Math.round(reputation * 21),
+        comments: 250 + completedFlights.length * 24,
+        reposts: 90 + Math.round(reputation * 4),
+      },
+    },
+    {
+      source: 'PaxPulse',
+      handle: '@paxpulse',
+      icon: Users,
+      tone: avgRating >= 85 ? 'positive' : avgRating <= 65 ? 'negative' : 'neutral',
+      headline: 'Passenger sentiment update',
+      description: `Average onboard rating sits at ${Math.round(avgRating)}%. ${serviceLeaders.length} recent flights were highlighted for exceptional service by frequent travelers.`,
+      metrics: {
+        likes: 900 + serviceLeaders.length * 250,
+        comments: 120 + Math.round(avgRating * 2),
+        reposts: 60 + serviceLeaders.length * 35,
+      },
+    },
+    {
+      source: 'ATC Watch',
+      handle: '@atc.watch',
+      icon: TriangleAlert,
+      tone: withIssues.length > 0 ? 'negative' : 'positive',
+      headline: withIssues.length > 0 ? 'Operational events flagged by aviation forums' : 'Clean run: no critical incidents reported',
+      description:
+        withIssues.length > 0
+          ? `${withIssues.length} recent flight(s) involved hard landings, emergency handling, or technical anomalies. Forum threads are pushing for stronger SOP transparency.`
+          : 'No diversions or emergency-related alerts were detected in recent operations. Reliability discussions are trending positively.',
+      metrics: {
+        likes: 1100 + withIssues.length * 80,
+        comments: 70 + withIssues.length * 180,
+        reposts: 45 + withIssues.length * 95,
+      },
+    },
+    {
+      source: 'Investor Radar',
+      handle: '@investorradar',
+      icon: TrendingUp,
+      tone: reputation >= 65 && withIssues.length === 0 ? 'positive' : 'neutral',
+      headline: 'Investor confidence monitor',
+      description: `Confidence score ${clamp(Math.round(reputation * 0.9 + (acceptedContracts?.length || 0) * 3 - withIssues.length * 8), 5, 99)} / 100 with ${(acceptedContracts?.length || 0)} active contract commitments in pipeline.`,
+      metrics: {
+        likes: 740 + (acceptedContracts?.length || 0) * 90,
+        comments: 90 + withIssues.length * 50,
+        reposts: 30 + (acceptedContracts?.length || 0) * 22,
+      },
+    },
+  ];
+
+  return posts;
+}
+
+const toneStyles = {
+  positive: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
+  negative: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
+  neutral: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
+};
+
+export default function AviationMediaFeed({ company, recentFlights, acceptedContracts }) {
+  const posts = useMemo(
+    () => createPosts(company, recentFlights, acceptedContracts),
+    [company, recentFlights, acceptedContracts],
+  );
+
+  return (
+    <Card className="border-cyan-900/40 bg-slate-950/70 p-0 overflow-hidden">
+      <div className="px-4 py-3 border-b border-cyan-900/30 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-cyan-200">Airline Media Feed</h3>
+          <p className="text-xs text-slate-400">Live reputation narrative inspired by social + aviation channels.</p>
+        </div>
+        <Badge variant="outline" className="border-cyan-700 text-cyan-300"><Clock3 className="w-3 h-3 mr-1" /> Live</Badge>
+      </div>
+
+      <ScrollArea className="h-[500px]">
+        <div className="p-3 space-y-3">
+          {posts.map((post, idx) => {
+            const Icon = post.icon || Plane;
+            return (
+              <article key={`${post.source}-${idx}`} className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Avatar className="h-9 w-9 border border-cyan-900/50">
+                    <AvatarFallback className="bg-slate-800 text-cyan-200 text-xs font-bold">
+                      {post.source.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-sm text-slate-100 font-semibold leading-none">{post.source}</p>
+                    <p className="text-xs text-slate-400">{post.handle}</p>
+                  </div>
+                  <Badge className={`ml-auto ${toneStyles[post.tone]}`}>{post.tone}</Badge>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800 p-3 mb-2">
+                  <div className="flex items-center gap-2 mb-2 text-cyan-300">
+                    <Icon className="w-4 h-4" />
+                    <span className="text-xs uppercase tracking-wider">Breaking update</span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-100 mb-1">{post.headline}</h4>
+                  <p className="text-xs text-slate-300 leading-relaxed">{post.description}</p>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-slate-400 px-1">
+                  <span className="inline-flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {formatDelta(post.metrics.likes)}</span>
+                  <span className="inline-flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> {formatDelta(post.metrics.comments)}</span>
+                  <span className="inline-flex items-center gap-1"><Repeat2 className="w-3.5 h-3.5" /> {formatDelta(post.metrics.reposts)}</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </ScrollArea>
+    </Card>
+  );
+}
