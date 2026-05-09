@@ -27,6 +27,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import StatCard from "@/components/dashboard/StatCard";
 import InsolvencyBanner from "@/components/InsolvencyBanner";
@@ -49,6 +50,7 @@ export default function Dashboard() {
   const [simbriefUsername, setSimbriefUsername] = useState('');
   const [simbriefPilotId, setSimbriefPilotId] = useState('');
   const [simbriefSaved, setSimbriefSaved] = useState(false);
+  const [selectedStatusCard, setSelectedStatusCard] = useState(null);
 
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['currentUser'],
@@ -236,14 +238,31 @@ export default function Dashboard() {
             { label: 'REP', value: `${company.reputation || 0}`, unit: '%', color: 'text-amber-400' },
             { label: 'FLT', value: String(allAircraft.filter(a => a.status !== 'sold').length).padStart(2, '0'), unit: 'ACFT', color: 'text-purple-400' },
           ].map((g, i) => (
-            <div key={i} className="flex flex-col items-center justify-center px-2 py-1.5">
+            <button key={i} type="button" onClick={() => setSelectedStatusCard(g)} className="flex flex-col items-center justify-center px-2 py-1.5 hover:bg-cyan-900/20 transition-colors">
               <span className="text-[9px] font-mono font-bold text-cyan-700 tracking-[0.25em] uppercase">{g.label}</span>
               <span className={`text-xl sm:text-2xl font-mono font-black ${g.color} leading-none tabular-nums tracking-tight`}>{g.value}</span>
               <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider mt-0.5">{g.unit}</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+      <Dialog open={!!selectedStatusCard} onOpenChange={(open) => !open && setSelectedStatusCard(null)}>
+        <DialogContent className="bg-slate-900 border-cyan-900/60 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>{selectedStatusCard?.label}</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {selectedStatusCard?.label === 'BAL' && 'Current company liquidity and operating cash.'}
+              {selectedStatusCard?.label === 'LVL' && 'Company level progression based on completed flights and XP.'}
+              {selectedStatusCard?.label === 'REP' && 'Reputation influences contract payouts, financing terms, and unlock pacing.'}
+              {selectedStatusCard?.label === 'FLT' && 'Number of active aircraft currently in your fleet.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-cyan-900/40 bg-slate-950 p-4">
+            <p className={`text-3xl font-black font-mono ${selectedStatusCard?.color}`}>{selectedStatusCard?.value}</p>
+            <p className="text-xs text-slate-500 mt-1">{selectedStatusCard?.unit}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Main Grid Menu */}
       <div className="flex-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 auto-rows-fr">

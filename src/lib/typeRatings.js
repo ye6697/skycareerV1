@@ -18,6 +18,14 @@ const COST_BY_TYPE = {
   wide_body: 120000,
   cargo: 80000,
 };
+const MIN_REPUTATION_BY_TYPE = {
+  small_prop: 20,
+  turboprop: 30,
+  regional_jet: 40,
+  narrow_body: 50,
+  wide_body: 65,
+  cargo: 55,
+};
 
 // Score required to earn the rating after the training flight.
 export const TYPE_RATING_PASS_SCORE = 80;
@@ -50,7 +58,9 @@ export function getActiveTypeRating(user, modelName) {
 export function canEarnTypeRating(company, aircraft) {
   const level = Number(company?.level || 1);
   const required = Number(aircraft?.level_requirement || 1);
-  return level >= required;
+  const reputation = Number(company?.reputation || 0);
+  const minReputation = Number(MIN_REPUTATION_BY_TYPE[aircraft?.type] || 20);
+  return level >= required && reputation >= minReputation;
 }
 
 // Persist a new rating onto the user.
@@ -72,6 +82,11 @@ export async function startTypeRatingTraining({ aircraftModel, aircraftType, air
   const companyLevel = Number(company?.level || 1);
   if (companyLevel < requiredLevel) {
     throw new Error('level_too_low');
+  }
+  const companyReputation = Number(company?.reputation || 0);
+  const requiredReputation = Number(MIN_REPUTATION_BY_TYPE[aircraftType] || 20);
+  if (companyReputation < requiredReputation) {
+    throw new Error('reputation_too_low');
   }
   const cost = COST_BY_TYPE[aircraftType] || 20000;
   if ((company.balance || 0) < cost) {

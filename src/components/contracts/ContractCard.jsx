@@ -76,6 +76,8 @@ export default function ContractCard({
   const meta = TYPE_META[contract.type] || TYPE_META.passenger;
   const Icon = meta.icon;
   const payout = Math.round(contract.payout || 0);
+  const reputationMultiplier = Number(contract.reputation_multiplier || 1);
+  const reputationImpactPercent = Math.round((reputationMultiplier - 1) * 100);
   const bonus = Math.round(contract.bonus_potential || 0);
   const distanceNm = Number(contract.distance_nm || 0);
   const payoutPerNm = distanceNm > 0 ? payout / distanceNm : 0;
@@ -166,6 +168,9 @@ export default function ContractCard({
           <p className="text-lg font-bold text-emerald-300">${payout.toLocaleString()}</p>
           <p className="text-[11px] text-emerald-200/90">
             ~ ${Math.round(payoutPerNm).toLocaleString()}/NM
+          </p>
+          <p className={`text-[11px] ${reputationImpactPercent >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+            {lang === "de" ? "Reputations-Effekt" : "Reputation effect"}: {reputationImpactPercent >= 0 ? '+' : ''}{reputationImpactPercent}%
           </p>
           {bonus > 0 && (
             <p className="text-[11px] text-amber-300">
