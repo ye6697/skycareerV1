@@ -359,6 +359,7 @@ export default function Dashboard() {
         company={company}
         recentFlights={recentFlights}
         acceptedContracts={acceptedContracts}
+        lang={lang}
       />
       
       {/* Achievements Widget */}

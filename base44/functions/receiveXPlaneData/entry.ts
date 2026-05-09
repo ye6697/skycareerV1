@@ -497,7 +497,7 @@ Deno.serve(async (req) => {
     const on_ground = toBool(data.on_ground ?? data.onGround ?? data.sim_on_ground ?? data.isOnGround, false);
     // Do not alias generic landing_vs here; some bridges use it as current vertical speed (not touchdown value).
     const touchdown_vspeed = data.touchdown_vspeed ?? data.touchdownVspeed ?? data.landing_vspeed ?? data.touchdown_vs;
-    const landing_g_force = data.landing_g_force ?? data.landingGForce ?? data.touchdown_g ?? data.landing_g;
+    const landing_g_force = data.landing_g_force ?? data.landingGForce ?? data.landing_gforce ?? data.touchdown_g ?? data.landing_g;
     // Events - support X-Plane datarefs AND MSFS SimConnect event names
     const tailstrike = data.tailstrike ?? data.tail_strike ?? data.tailStrike ?? false;
     const stall = data.stall ?? data.isStalling ?? data.stall_active ?? false;
@@ -1688,16 +1688,20 @@ Deno.serve(async (req) => {
       : (useBridgeLocalLanding ? 0 : transitionTouchdownVspeed);
     const touchdownCandidate = Math.max(0, Math.min(10000, touchdownCandidateRaw));
     // During capture window: keep PEAK values so the real spike is never lost
-    const effectiveTouchdownVspeedGround = landingCaptureActive
-      ? Math.max(touchdownCandidate, Number(prevTouchdownVspeed || 0))
-      : ((Number(prevTouchdownVspeed || 0) > 0) ? Number(prevTouchdownVspeed || 0) : touchdownCandidate);
+    const effectiveTouchdownVspeedGround = useBridgeLocalLanding
+      ? touchdownCandidate
+      : (landingCaptureActive
+          ? Math.max(touchdownCandidate, Number(prevTouchdownVspeed || 0))
+          : ((Number(prevTouchdownVspeed || 0) > 0) ? Number(prevTouchdownVspeed || 0) : touchdownCandidate));
     const mergedLandingGNum = Number(mergedLandingG || 0);
     const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceCurrent) : 0;
     const landingGCandidateRaw = mergedLandingGNum > 0 ? mergedLandingGNum : (useBridgeLocalLanding ? 0 : transitionLandingG);
     const landingGCandidate = Math.max(0, Math.min(6, landingGCandidateRaw));
-    const effectiveLandingGGround = landingCaptureActive
-      ? Math.max(landingGCandidate, Number(prevLandingG || 0))
-      : ((Number(prevLandingG || 0) > 0) ? Number(prevLandingG || 0) : landingGCandidate);
+    const effectiveLandingGGround = useBridgeLocalLanding
+      ? landingGCandidate
+      : (landingCaptureActive
+          ? Math.max(landingGCandidate, Number(prevLandingG || 0))
+          : ((Number(prevLandingG || 0) > 0) ? Number(prevLandingG || 0) : landingGCandidate));
     const effectiveTouchdownVspeed = (hasBeenAirborne && on_ground) ? effectiveTouchdownVspeedGround : 0;
     const effectiveLandingG = (hasBeenAirborne && on_ground) ? effectiveLandingGGround : 0;
     const touchdownDetected = hasBeenAirborne && on_ground && (
@@ -1834,7 +1838,10 @@ Deno.serve(async (req) => {
       thrust_lever1_pct: Number.isFinite(thrustLever1Pct) ? Number(thrustLever1Pct.toFixed(1)) : null,
       thrust_lever2_pct: Number.isFinite(thrustLever2Pct) ? Number(thrustLever2Pct.toFixed(1)) : null,
       touchdown_vspeed: effectiveTouchdownVspeed,
+      landing_vspeed: effectiveTouchdownVspeed,
+      landing_vs: effectiveTouchdownVspeed,
       landing_g_force: effectiveLandingG,
+      landing_gforce: effectiveLandingG,
       landing_data_source: useBridgeLocalLanding ? "bridge_local" : (data.landing_data_source || null),
       bridge_local_landing_locked: useBridgeLocalLanding,
       landing_data_locked: landingDataLocked,
@@ -2266,8 +2273,8 @@ Deno.serve(async (req) => {
         ? normalizeWeatherDifficulty(difficultyRaw)
         : "medium";
       const presets: Record<string, any> = {
-        medium: { label: "Medium", preset_name: "SkyCareer Medium Challenge", theme_path: "WeatherPresets\\SkyCareer Medium Challenge.WPR", wind_speed_kts: 14, wind_gust_kts: 22, wind_direction: 260, visibility_sm: 7, cloud_base_ft: 3000, cloud_coverage: "BKN", rain_intensity: 0.15, precip_rate: 0.4, turbulence: 0.22, temperature_c: 14, qnh_hpa: 1012 },
-        hard: { label: "Hard", preset_name: "SkyCareer Hard Challenge", theme_path: "WeatherPresets\\SkyCareer Hard Challenge.WPR", wind_speed_kts: 28, wind_gust_kts: 42, wind_direction: 290, visibility_sm: 4, cloud_base_ft: 1500, cloud_coverage: "BKN", rain_intensity: 0.55, precip_rate: 2.4, turbulence: 0.58, temperature_c: 9, qnh_hpa: 1006 },
+        medium: { label: "Medium", preset_name: "SkyCareer Medium Challenge", theme_path: "WeatherPresets\\SkyCareer Medium Challenge.WPR", wind_speed_kts: 10, wind_gust_kts: 16, wind_direction: 260, visibility_sm: 9, cloud_base_ft: 3800, cloud_coverage: "SCT", rain_intensity: 0.06, precip_rate: 0.18, turbulence: 0.12, temperature_c: 15, qnh_hpa: 1014 },
+        hard: { label: "Hard", preset_name: "SkyCareer Hard Challenge", theme_path: "WeatherPresets\\SkyCareer Hard Challenge.WPR", wind_speed_kts: 20, wind_gust_kts: 30, wind_direction: 290, visibility_sm: 6, cloud_base_ft: 2200, cloud_coverage: "BKN", rain_intensity: 0.28, precip_rate: 1.1, turbulence: 0.34, temperature_c: 10, qnh_hpa: 1009 },
         extreme: { label: "Extreme", preset_name: "SkyCareer Extreme Challenge", theme_path: "WeatherPresets\\SkyCareer Extreme Challenge.WPR", wind_speed_kts: 65, wind_gust_kts: 92, wind_direction: 315, visibility_sm: 0.5, cloud_base_ft: 350, cloud_coverage: "OVC", rain_intensity: 1, precip_rate: 22, turbulence: 1, thunderstorm: true, temperature_c: 5, qnh_hpa: 982 },
       };
       return { difficulty, ...(presets[difficulty] || presets.medium) };

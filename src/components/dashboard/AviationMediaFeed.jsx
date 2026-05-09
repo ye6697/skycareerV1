@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Repeat2, TrendingUp, TriangleAlert, Plane, Clock3, Users, Newspaper } from 'lucide-react';
+import { TrendingUp, TriangleAlert, Plane, Clock3, Users, Newspaper } from 'lucide-react';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -12,12 +12,35 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
-const formatDelta = (value) => {
-  const rounded = Math.round(value);
-  return `${rounded > 0 ? '+' : ''}${rounded}`;
+const getFlightDate = (flight) => {
+  const raw = flight?.completed_at || flight?.arrival_time || flight?.updated_date || flight?.created_date;
+  const date = raw ? new Date(raw) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
 };
 
-function createPosts(company, flights, acceptedContracts) {
+const getAnchorDate = (flights) => {
+  const firstFlightDate = (flights || []).map(getFlightDate).find(Boolean);
+  return firstFlightDate || new Date();
+};
+
+const offsetMinutes = (date, minutes) => new Date(date.getTime() - minutes * 60 * 1000);
+
+const formatSharedAt = (date, lang) =>
+  new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+
+const getMood = (impact, lang) => {
+  if (impact > 2) return lang === 'de' ? 'Stimmung steigt' : 'Mood improving';
+  if (impact < -2) return lang === 'de' ? 'Unter Beobachtung' : 'Under review';
+  return lang === 'de' ? 'Abwartend' : 'Measured';
+};
+
+function createPosts(company, flights, acceptedContracts, lang) {
   const reputation = toNumber(company?.reputation, 50);
   const repImpact = clamp(Math.round((reputation - 50) / 5), -10, 10);
   const completedFlights = flights || [];
@@ -28,75 +51,92 @@ function createPosts(company, flights, acceptedContracts) {
   const avgRating = completedFlights.length
     ? completedFlights.reduce((sum, f) => sum + toNumber(f?.overall_rating, 72), 0) / completedFlights.length
     : 75;
+  const anchorDate = getAnchorDate(completedFlights);
 
-  const posts = [
+  return [
     {
       source: 'SkyNews Aviation',
       handle: '@skynews.av',
       icon: Newspaper,
       tone: reputation >= 70 ? 'positive' : reputation <= 40 ? 'negative' : 'neutral',
+      sharedAt: offsetMinutes(anchorDate, 18),
       headline:
         reputation >= 70
-          ? 'Network desk: carrier reports steady recovery with fewer disruption events.'
+          ? lang === 'de'
+            ? 'Luftfahrtredaktion sieht ruhigeres Bild im SkyCareer-Netz'
+            : 'Aviation desk sees a calmer picture across the SkyCareer network'
           : reputation <= 40
-            ? 'Evening bulletin: reliability concerns pressure the brand in key markets.'
-            : 'Correspondents report mixed passenger feedback across regional routes.',
-      description: `Reputation index now at ${Math.round(reputation)} after stricter on-time reporting and disruption tracking across the last operating week. Reputational momentum is currently tied to recovery speed after delays and incident transparency.`,
+            ? lang === 'de'
+              ? 'Abendbericht: Marke steht nach unruhigen Umlaeufen unter Druck'
+              : 'Evening report: brand faces pressure after unsettled rotations'
+            : lang === 'de'
+              ? 'Korrespondenten melden gemischte Reaktionen auf Regionalstrecken'
+              : 'Correspondents report mixed reactions across regional routes',
+      description:
+        lang === 'de'
+          ? 'Aus der Redaktion heisst es, dass Reisende weniger auf einzelne Kennzahlen schauen, sondern auf den Gesamteindruck: klare Kommunikation, saubere Ablaeufe und glaubwuerdige Reaktionen nach Stoerungen praegen aktuell das Bild.'
+          : 'Our desk hears that travelers are judging the whole operation more than a single score: clear communication, tidy recovery work, and credible reactions after disruption are shaping the current story.',
       reputationImpact: repImpact,
-      metrics: {
-        likes: 1800 + Math.round(reputation * 21),
-        comments: 250 + completedFlights.length * 24,
-        reposts: 90 + Math.round(reputation * 4),
-      },
     },
     {
       source: 'PaxPulse',
       handle: '@paxpulse',
       icon: Users,
       tone: avgRating >= 85 ? 'positive' : avgRating <= 65 ? 'negative' : 'neutral',
-      headline: 'Airport correspondents summarize passenger sentiment',
-      description: `Average onboard rating is ${Math.round(avgRating)}%, with frequent flyers highlighting cabin consistency, boarding flow, and crew communication. ${serviceLeaders.length} recent flights were explicitly praised in premium-traveler summaries.`,
+      sharedAt: offsetMinutes(anchorDate, 47),
+      headline: lang === 'de' ? 'Passagierreporter fassen die Stimmung an Bord zusammen' : 'Passenger reporters summarize the mood on board',
+      description:
+        serviceLeaders.length > 0
+          ? lang === 'de'
+            ? 'Vielflieger loben vor allem die ruhige Kabinenroutine und das Gefuehl, dass die Crews den Ablauf im Griff haben. Das Feedback liest sich weniger euphorisch, aber deutlich vertrauensvoller.'
+            : 'Frequent flyers are praising the calm cabin rhythm and the sense that crews have the operation in hand. The feedback reads less flashy, but noticeably more confident.'
+          : lang === 'de'
+            ? 'Die Stimmen aus den Terminals bleiben vorsichtig. Besonders Boarding, Ansagen und die letzten Minuten vor der Ankunft entscheiden darueber, ob der Flug als professionell wahrgenommen wird.'
+            : 'Terminal voices remain cautious. Boarding flow, announcements, and the final minutes before arrival are deciding whether the flight feels professionally handled.',
       reputationImpact: clamp(Math.round((avgRating - 75) / 4), -8, 8),
-      metrics: {
-        likes: 900 + serviceLeaders.length * 250,
-        comments: 120 + Math.round(avgRating * 2),
-        reposts: 60 + serviceLeaders.length * 35,
-      },
     },
     {
       source: 'ATC Watch',
       handle: '@atc.watch',
       icon: TriangleAlert,
       tone: withIssues.length > 0 ? 'negative' : 'positive',
-      headline: withIssues.length > 0 ? 'Operations desk confirms incident review after irregular flights' : 'Ops bulletin: no critical incidents in latest operating cycle',
+      sharedAt: offsetMinutes(anchorDate, 79),
+      headline:
+        withIssues.length > 0
+          ? lang === 'de'
+            ? 'Operationsdesk fordert Nacharbeit nach auffaelligen Fluegen'
+            : 'Operations desk calls for follow-up after irregular flights'
+          : lang === 'de'
+            ? 'Ops-Bulletin: Betriebslage bleibt ruhig'
+            : 'Ops bulletin: operating picture stays calm',
       description:
         withIssues.length > 0
-          ? `${withIssues.length} recent flight(s) triggered attention due to hard touchdowns, emergency handling, or technical irregularities. Industry watchdog threads are now demanding stronger SOP disclosure and corrective action updates.`
-          : 'No diversions, emergency declarations, or severe handling alerts were logged in the latest operations cycle. Reliability discourse remains constructive and confidence is stabilizing.',
+          ? lang === 'de'
+            ? 'Nach haerteren Anfluegen oder technischen Auffaelligkeiten geht der Blick nun auf die Reaktion der Airline. Entscheidend ist, ob die naechsten Umlaeufe wieder diszipliniert und nachvollziehbar laufen.'
+            : 'After harder approaches or technical irregularities, attention is moving to the airline response. The next rotations now matter most: disciplined, explainable, and uneventful.'
+          : lang === 'de'
+            ? 'Die juengsten Umlaeufe liefern keinen Stoff fuer Alarmmeldungen. In der Branche wird das als leises, aber wichtiges Signal fuer stabile Standards gelesen.'
+            : 'The latest rotations are giving monitors little to sound alarms about. Around the industry, that is being read as a quiet but useful signal of stable standards.',
       reputationImpact: withIssues.length > 0 ? -Math.min(12, withIssues.length * 3) : 4,
-      metrics: {
-        likes: 1100 + withIssues.length * 80,
-        comments: 70 + withIssues.length * 180,
-        reposts: 45 + withIssues.length * 95,
-      },
     },
     {
       source: 'Investor Radar',
       handle: '@investorradar',
       icon: TrendingUp,
       tone: reputation >= 65 && withIssues.length === 0 ? 'positive' : 'neutral',
-      headline: 'Business desk: investor confidence monitor',
-      description: `Confidence score ${clamp(Math.round(reputation * 0.9 + (acceptedContracts?.length || 0) * 3 - withIssues.length * 8), 5, 99)} / 100, driven by ${(acceptedContracts?.length || 0)} active contract commitments and execution discipline across recent sectors.`,
+      sharedAt: offsetMinutes(anchorDate, 121),
+      headline: lang === 'de' ? 'Wirtschaftsdesk schaut auf Vertrauen statt Tempo' : 'Business desk watches trust more than pace',
+      description:
+        (acceptedContracts?.length || 0) > 0
+          ? lang === 'de'
+            ? 'Analysten sehen die offenen Auftraege als Chance, aber auch als Belastungstest. Der Markt reagiert vor allem darauf, ob Zusagen sauber abgeflogen werden und die Qualitaet im Alltag haelt.'
+            : 'Analysts see the open contract book as both opportunity and stress test. The market is reacting most to whether promises are flown cleanly and quality holds in daily service.'
+          : lang === 'de'
+            ? 'Ohne grossen Auftragsdruck liegt der Fokus auf Konsolidierung. Reporter beschreiben die Lage als Moment, in dem ruhige, zuverlaessige Fluege mehr zaehlen als Schlagzeilen.'
+            : 'With no heavy contract pressure, the focus shifts to consolidation. Reporters describe this as a moment where quiet, reliable flights matter more than headlines.',
       reputationImpact: clamp(Math.round((acceptedContracts?.length || 0) - withIssues.length * 2), -8, 8),
-      metrics: {
-        likes: 740 + (acceptedContracts?.length || 0) * 90,
-        comments: 90 + withIssues.length * 50,
-        reposts: 30 + (acceptedContracts?.length || 0) * 22,
-      },
     },
   ];
-
-  return posts;
 }
 
 const toneStyles = {
@@ -105,18 +145,22 @@ const toneStyles = {
   neutral: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
 };
 
-export default function AviationMediaFeed({ company, recentFlights, acceptedContracts }) {
+export default function AviationMediaFeed({ company, recentFlights, acceptedContracts, lang = 'en' }) {
   const posts = useMemo(
-    () => createPosts(company, recentFlights, acceptedContracts),
-    [company, recentFlights, acceptedContracts],
+    () => createPosts(company, recentFlights, acceptedContracts, lang),
+    [company, recentFlights, acceptedContracts, lang],
   );
 
   return (
     <Card className="border-cyan-900/40 bg-slate-950/70 p-0 overflow-hidden">
       <div className="px-4 py-3 border-b border-cyan-900/30 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-cyan-200">Airline Media Feed</h3>
-          <p className="text-xs text-slate-400">Reporter-style coverage based on your latest operational data.</p>
+          <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-cyan-200">
+            {lang === 'de' ? 'Airline Media Feed' : 'Airline Media Feed'}
+          </h3>
+          <p className="text-xs text-slate-400">
+            {lang === 'de' ? 'Reporterberichte aus deinen letzten Betriebsdaten.' : 'Reporter-style coverage from your latest operational data.'}
+          </p>
         </div>
         <Badge variant="outline" className="border-cyan-700 text-cyan-300"><Clock3 className="w-3 h-3 mr-1" /> Live</Badge>
       </div>
@@ -126,7 +170,7 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
           {posts.map((post, idx) => {
             const Icon = post.icon || Plane;
             return (
-              <article key={`${post.source}-${idx}`} className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
+              <article key={`${post.source}-${idx}`} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Avatar className="h-9 w-9 border border-cyan-900/50">
                     <AvatarFallback className="bg-slate-800 text-cyan-200 text-xs font-bold">
@@ -135,25 +179,21 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
                   </Avatar>
                   <div className="min-w-0">
                     <p className="text-sm text-slate-100 font-semibold leading-none">{post.source}</p>
-                    <p className="text-xs text-slate-400">{post.handle}</p>
+                    <p className="text-xs text-slate-400">
+                      {post.handle} - {lang === 'de' ? 'geteilt' : 'shared'} {formatSharedAt(post.sharedAt, lang)}
+                    </p>
                   </div>
-                  <Badge className={`ml-auto ${toneStyles[post.tone]}`}>{post.tone}</Badge>
+                  <Badge className={`ml-auto ${toneStyles[post.tone]}`}>{getMood(post.reputationImpact, lang)}</Badge>
                 </div>
-                <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800 p-3 mb-2">
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                   <div className="flex items-center gap-2 mb-2 text-cyan-300">
                     <Icon className="w-4 h-4" />
-                    <span className="text-xs uppercase tracking-wider">Reporter bulletin</span>
+                    <span className="text-xs uppercase tracking-wider">
+                      {lang === 'de' ? 'Reporterbericht' : 'Reporter bulletin'}
+                    </span>
                   </div>
                   <h4 className="text-sm font-semibold text-slate-100 mb-1">{post.headline}</h4>
                   <p className="text-xs text-slate-300 leading-relaxed">{post.description}</p>
-                  <p className={`mt-2 text-[11px] font-mono ${post.reputationImpact >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                    REP Impact: {formatDelta(post.reputationImpact)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-slate-400 px-1">
-                  <span className="inline-flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {formatDelta(post.metrics.likes)}</span>
-                  <span className="inline-flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> {formatDelta(post.metrics.comments)}</span>
-                  <span className="inline-flex items-center gap-1"><Repeat2 className="w-3.5 h-3.5" /> {formatDelta(post.metrics.reposts)}</span>
                 </div>
               </article>
             );

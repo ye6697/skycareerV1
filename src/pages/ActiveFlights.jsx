@@ -130,33 +130,33 @@ const WEATHER_PRESETS_BY_DIFFICULTY = {
     label: 'Medium',
     preset_name: 'SkyCareer Medium Challenge',
     theme_path: 'WeatherPresets\\SkyCareer Medium Challenge.WPR',
-    wind_speed_kts: 14,
-    wind_gust_kts: 22,
+    wind_speed_kts: 10,
+    wind_gust_kts: 16,
     wind_direction: 260,
-    visibility_sm: 7,
-    cloud_base_ft: 3000,
-    cloud_coverage: 'BKN',
-    rain_intensity: 0.15,
-    precip_rate: 0.4,
-    turbulence: 0.22,
-    temperature_c: 14,
-    qnh_hpa: 1012,
+    visibility_sm: 9,
+    cloud_base_ft: 3800,
+    cloud_coverage: 'SCT',
+    rain_intensity: 0.06,
+    precip_rate: 0.18,
+    turbulence: 0.12,
+    temperature_c: 15,
+    qnh_hpa: 1014,
   },
   hard: {
     label: 'Hard',
     preset_name: 'SkyCareer Hard Challenge',
     theme_path: 'WeatherPresets\\SkyCareer Hard Challenge.WPR',
-    wind_speed_kts: 28,
-    wind_gust_kts: 42,
+    wind_speed_kts: 20,
+    wind_gust_kts: 30,
     wind_direction: 290,
-    visibility_sm: 4,
-    cloud_base_ft: 1500,
+    visibility_sm: 6,
+    cloud_base_ft: 2200,
     cloud_coverage: 'BKN',
-    rain_intensity: 0.55,
-    precip_rate: 2.4,
-    turbulence: 0.58,
-    temperature_c: 9,
-    qnh_hpa: 1006,
+    rain_intensity: 0.28,
+    precip_rate: 1.1,
+    turbulence: 0.34,
+    temperature_c: 10,
+    qnh_hpa: 1009,
   },
   extreme: {
     label: 'Extreme',
@@ -850,6 +850,17 @@ export default function ActiveFlights() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {selectedDifficulty !== 'easy' && (
+                  <div className="flex items-start gap-2 rounded-lg border border-orange-400/40 bg-orange-500/10 px-3 py-2 text-orange-200">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-orange-300" />
+                    <p className="text-xs leading-relaxed">
+                      {lang === 'de'
+                        ? 'Klicke im Simulator das SkyCareer Ingame-Wetterpanel einmal an, damit die Bridge das wartende Wetterpreset laden kann.'
+                        : 'Click the SkyCareer in-game weather panel once in the simulator so the bridge can load the queued weather preset.'}
+                    </p>
+                  </div>
+                )}
 
                 <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-4">
                   <div className="flex items-start gap-3">

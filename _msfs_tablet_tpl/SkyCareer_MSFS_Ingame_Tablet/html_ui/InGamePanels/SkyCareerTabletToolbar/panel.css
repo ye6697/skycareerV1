@@ -1,18 +1,20 @@
-html, body {
+html,
+body {
   margin: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
   background: #0a0f1a;
-  font-family: Arial, sans-serif;
+  font-family: "Segoe UI", Arial, sans-serif;
 }
 
 #frameWrap {
+  position: relative;
   width: 100%;
   height: 100%;
-  border: 2px solid #1f2937;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   box-sizing: border-box;
-  background: linear-gradient(160deg, #0f172a, #111827);
+  background: #10151f;
 }
 
 #skycareerFrame {
@@ -20,4 +22,134 @@ html, body {
   height: 100%;
   border: 0;
   background: #ffffff;
+}
+
+#SkyCareerWeatherPanel {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 20;
+  display: flex;
+  width: min(310px, calc(100% - 28px));
+  min-height: 76px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  border: 1px solid rgba(209, 213, 219, 0.22);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, rgba(38, 42, 51, 0.88), rgba(15, 18, 24, 0.82));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
+  color: #eef2f7;
+  cursor: pointer;
+  pointer-events: auto;
+  text-align: left;
+  backdrop-filter: blur(14px);
+}
+
+#SkyCareerWeatherPanel.isHidden {
+  display: none;
+}
+
+#SkyCareerWeatherPanel:hover,
+#SkyCareerWeatherPanel:focus-visible {
+  border-color: rgba(251, 146, 60, 0.58);
+  outline: none;
+}
+
+.weatherTopline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: #d8dee9;
+}
+
+.weatherHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.weatherBrand {
+  display: inline-flex;
+  width: 28px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(251, 146, 60, 0.45);
+  border-radius: 6px;
+  background: rgba(251, 146, 60, 0.12);
+  color: #fed7aa;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+#SkyCareerWeatherClose {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(226, 232, 240, 0.16);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.58);
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+#SkyCareerWeatherClose:hover,
+#SkyCareerWeatherClose:focus-visible {
+  border-color: rgba(251, 146, 60, 0.55);
+  color: #ffffff;
+  outline: none;
+}
+
+.weatherDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+  box-shadow: 0 0 12px rgba(148, 163, 184, 0.5);
+}
+
+.weatherDot.isQueued {
+  background: #fb923c;
+  box-shadow: 0 0 14px rgba(251, 146, 60, 0.7);
+}
+
+.weatherDot.isReady,
+.weatherDot.isApplied {
+  background: #22c55e;
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.65);
+}
+
+.weatherDot.isOffline {
+  background: #ef4444;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.65);
+}
+
+#SkyCareerWeatherPreset {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.15;
+  color: #ffffff;
+}
+
+#SkyCareerWeatherHint {
+  font-size: 11px;
+  line-height: 1.25;
+  color: #fdba74;
 }

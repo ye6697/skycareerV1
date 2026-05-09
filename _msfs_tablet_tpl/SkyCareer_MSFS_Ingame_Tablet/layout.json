@@ -1,24 +1,14 @@
 ﻿{
     "content":  [
                     {
-                        "path":  "manifest.json",
-                        "size":  331,
-                        "date":  134173652526173382
-                    },
-                    {
-                        "path":  "README.txt",
-                        "size":  970,
-                        "date":  134173652605806082
-                    },
-                    {
                         "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.css",
                         "size":  241,
                         "date":  134173684914134557
                     },
                     {
                         "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.html",
-                        "size":  1460,
-                        "date":  134173684850066175
+                        "size":  1463,
+                        "date":  134228276835785284
                     },
                     {
                         "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.js",
@@ -27,18 +17,18 @@
                     },
                     {
                         "path":  "html_ui/InGamePanels/SkyCareerTabletToolbar/panel.css",
-                        "size":  383,
-                        "date":  134173652722852047
+                        "size":  2985,
+                        "date":  134228276687575685
                     },
                     {
                         "path":  "html_ui/InGamePanels/SkyCareerTabletToolbar/panel.html",
-                        "size":  511,
-                        "date":  134173652664304259
+                        "size":  1170,
+                        "date":  134228276566541893
                     },
                     {
                         "path":  "html_ui/InGamePanels/SkyCareerTabletToolbar/panel.js",
-                        "size":  455,
-                        "date":  134173652790625406
+                        "size":  4161,
+                        "date":  134228277545665425
                     },
                     {
                         "path":  "html_ui/SkyCareerTablet3D/README.txt",
@@ -59,6 +49,16 @@
                         "path":  "html_ui/SkyCareerTablet3D/tablet.js",
                         "size":  237,
                         "date":  134173652979492064
+                    },
+                    {
+                        "path":  "manifest.json",
+                        "size":  331,
+                        "date":  134228274429458582
+                    },
+                    {
+                        "path":  "README.txt",
+                        "size":  970,
+                        "date":  134173652605806082
                     }
                 ]
 }

@@ -62,6 +62,7 @@ const readTouchdownVerticalSpeedFpm = (point) => {
   return firstFiniteNumber(
     point?.touchdown_vspeed,
     point?.touchdownVs,
+    point?.landing_vspeed,
     point?.landing_vs,
     point?.landingVs
   );
@@ -73,6 +74,7 @@ const readGForce = (point) => {
     point?.g_force,
     point?.gForce,
     point?.landing_g_force,
+    point?.landing_gforce,
     point?.landingGForce
   );
 };
@@ -266,7 +268,7 @@ export function resolveLandingMetricsFromFlight(flight) {
   // In that case approximate V/S from landing G-force instead.
   // Reads both snake_case and camelCase variants of the bridge fields.
   const bridgeG = firstPositive(xpd.landing_g_force, xpd.landingGForce, xpd.landing_gforce);
-  const bridgeVs = firstPositiveAbs(xpd.touchdown_vspeed, xpd.landingVs, xpd.landing_vs, xpd.touchdownVs);
+  const bridgeVs = firstPositiveAbs(xpd.touchdown_vspeed, xpd.landing_vspeed, xpd.landingVs, xpd.landing_vs, xpd.touchdownVs);
   const safeG = bridgeG > 0 && bridgeG < 4 ? bridgeG : 0;
   let safeVs = 0;
   if (bridgeVs > 0 && bridgeVs <= 1500) {

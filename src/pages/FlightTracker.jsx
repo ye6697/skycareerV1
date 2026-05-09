@@ -1536,8 +1536,8 @@ export default function FlightTracker() {
      let xpData = latestFlight?.xplane_data || activeFlight?.xplane_data || {};
      const hasAnyTouchdownValues = (packet = {}) => {
        if (!packetTimestampInSession(packet)) return false;
-       const vs = nonZeroNumber(packet.touchdown_vspeed);
-       const g = positiveNumber(packet.landing_g_force, packet.landingGForce);
+       const vs = nonZeroNumber(packet.touchdown_vspeed, packet.landing_vspeed, packet.landing_vs);
+       const g = positiveNumber(packet.landing_g_force, packet.landingGForce, packet.landing_gforce);
        return Math.abs(vs) > 0 || g > 0;
      };
      const localHasTouchdownValues = Math.abs(nonZeroNumber(finalFlightData.landingVs, finalFlightData.landing_vs)) > 0
@@ -1583,14 +1583,14 @@ export default function FlightTracker() {
       ))
     );
     const resolvedLandingVs = nonZeroNumber(
-      ...(landingDataTrusted && xpLandingPacketInSession ? [xpData.touchdown_vspeed] : []),
-      ...(landingDataTrusted && liveLandingPacketInSession ? [liveData.touchdown_vspeed] : []),
+      ...(landingDataTrusted && xpLandingPacketInSession ? [xpData.touchdown_vspeed, xpData.landing_vspeed, xpData.landing_vs] : []),
+      ...(landingDataTrusted && liveLandingPacketInSession ? [liveData.touchdown_vspeed, liveData.landing_vspeed, liveData.landing_vs] : []),
       finalFlightData.landingVs,
       finalFlightData.landing_vs
     );
     const resolvedLandingG = positiveNumber(
-      ...(landingDataTrusted && xpLandingPacketInSession ? [xpData.landing_g_force, xpData.landingGForce] : []),
-      ...(landingDataTrusted && liveLandingPacketInSession ? [liveData.landing_g_force, liveData.landingGForce] : []),
+      ...(landingDataTrusted && xpLandingPacketInSession ? [xpData.landing_g_force, xpData.landingGForce, xpData.landing_gforce] : []),
+      ...(landingDataTrusted && liveLandingPacketInSession ? [liveData.landing_g_force, liveData.landingGForce, liveData.landing_gforce] : []),
       finalFlightData.landingGForce,
       finalFlightData.landing_g_force
     );
