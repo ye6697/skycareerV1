@@ -12,7 +12,6 @@ import {
   TYPE_RATING_MAX_NM,
   userHasTypeRating,
   getActiveTypeRating,
-  canEarnTypeRating,
 } from '@/lib/typeRatings';
 import RealMoneyBuyButton from '@/components/store/RealMoneyBuyButton';
 import { TYPE_RATING_ITEM } from '@/lib/lemonItemCatalog';
@@ -87,7 +86,18 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
   const canPay = (company?.balance || 0) >= cost;
   const requiredLevel = Number(aircraft?.level_requirement || 1);
   const companyLevel = Number(company?.level || 1);
-  const hasLevel = canEarnTypeRating(company, aircraft);
+  const hasLevel = companyLevel >= requiredLevel;
+  const minReputationByType = {
+    small_prop: 20,
+    turboprop: 30,
+    regional_jet: 40,
+    narrow_body: 50,
+    wide_body: 65,
+    cargo: 55,
+  };
+  const requiredReputation = Number(minReputationByType[aircraft?.type] || 20);
+  const companyReputation = Number(company?.reputation || 0);
+  const hasReputation = companyReputation >= requiredReputation;
 
   // Fetch existing accepted training contracts for this model.
   const { data: trainingContracts = [], refetch: refetchTraining } = useQuery({
@@ -430,7 +440,18 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                     </div>
                   )}
 
-                  {hasLevel && !canPay && (
+                  {hasLevel && !hasReputation && (
+                    <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <p className="text-xs text-red-300">
+                        {lang === 'de'
+                          ? `Deine Reputation (${companyReputation}) ist zu niedrig. Mindestens ${requiredReputation} erforderlich.`
+                          : `Your reputation (${companyReputation}) is too low. At least ${requiredReputation} required.`}
+                      </p>
+                    </div>
+                  )}
+
+                  {hasLevel && hasReputation && !canPay && (
                     <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-red-400" />
                       <p className="text-xs text-red-300">
@@ -447,7 +468,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
 
                   <Button
                     onClick={() => startMission.mutate()}
-                    disabled={!canPay || !hasLevel || startMission.isPending}
+                    disabled={!canPay || !hasLevel || !hasReputation || startMission.isPending}
                     className="w-full h-11 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold disabled:opacity-50"
                   >
                     <GraduationCap className="w-4 h-4 mr-2" />
