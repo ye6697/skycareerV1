@@ -56,6 +56,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
   const [loanFlights, setLoanFlights] = useState(6);
 
   const level = company?.level || 1;
+  const reputation = Number(company?.reputation || 50);
   const balance = company?.balance || 0;
   const overdraftEnabled = company?.overdraft_enabled !== false;
   const activeLoan = company?.active_loan;
@@ -78,7 +79,7 @@ export default function CreditInfoCard({ company, fleetValue }) {
   const baseMaxLoan = level * 25000 + Math.max(0, balance) * 0.5 + fleet * 0.1;
   const creditScoreFactor = Math.max(0, Math.min(1, (creditScore - 39) / (100 - 39))) * 0.75 + 0.25;
   const maxLoan = canTakeLoan ? baseMaxLoan * creditScoreFactor : 0;
-  const loanInterestPerFlight = 1.5; // 1.5% per flight
+  const loanInterestPerFlight = Math.max(0.6, Math.min(3.2, Number((2.2 - (reputation / 100) * 1.6).toFixed(2))));
   const hasActiveLoan = activeLoan && activeLoan.remaining > 0;
 
   // Toggle overdraft

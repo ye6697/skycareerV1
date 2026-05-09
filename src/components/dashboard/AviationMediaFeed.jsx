@@ -19,6 +19,7 @@ const formatDelta = (value) => {
 
 function createPosts(company, flights, acceptedContracts) {
   const reputation = toNumber(company?.reputation, 50);
+  const repImpact = clamp(Math.round((reputation - 50) / 5), -10, 10);
   const completedFlights = flights || [];
   const withIssues = completedFlights.filter(
     (f) => toNumber(f?.landing_vs) < -550 || (Array.isArray(f?.active_failures) && f.active_failures.length > 0),
@@ -40,7 +41,8 @@ function createPosts(company, flights, acceptedContracts) {
           : reputation <= 40
             ? 'Brand trust under pressure as reliability concerns trend online.'
             : 'Mixed passenger feedback keeps reputation in a volatile range.',
-      description: `Reputation index now at ${Math.round(reputation)}. Analysts cite dispatch consistency and post-flight communication as key drivers this week.`,
+      description: `Reputation index now at ${Math.round(reputation)} after stricter on-time reporting and disruption tracking across the last operating week. Reputational momentum is currently tied to recovery speed after delays and incident transparency.`,
+      reputationImpact: repImpact,
       metrics: {
         likes: 1800 + Math.round(reputation * 21),
         comments: 250 + completedFlights.length * 24,
@@ -53,7 +55,8 @@ function createPosts(company, flights, acceptedContracts) {
       icon: Users,
       tone: avgRating >= 85 ? 'positive' : avgRating <= 65 ? 'negative' : 'neutral',
       headline: 'Passenger sentiment update',
-      description: `Average onboard rating sits at ${Math.round(avgRating)}%. ${serviceLeaders.length} recent flights were highlighted for exceptional service by frequent travelers.`,
+      description: `Average onboard rating is ${Math.round(avgRating)}%, with frequent flyers highlighting cabin consistency, boarding flow, and crew communication. ${serviceLeaders.length} recent flights were explicitly praised in premium-traveler summaries.`,
+      reputationImpact: clamp(Math.round((avgRating - 75) / 4), -8, 8),
       metrics: {
         likes: 900 + serviceLeaders.length * 250,
         comments: 120 + Math.round(avgRating * 2),
@@ -68,8 +71,9 @@ function createPosts(company, flights, acceptedContracts) {
       headline: withIssues.length > 0 ? 'Operational events flagged by aviation forums' : 'Clean run: no critical incidents reported',
       description:
         withIssues.length > 0
-          ? `${withIssues.length} recent flight(s) involved hard landings, emergency handling, or technical anomalies. Forum threads are pushing for stronger SOP transparency.`
-          : 'No diversions or emergency-related alerts were detected in recent operations. Reliability discussions are trending positively.',
+          ? `${withIssues.length} recent flight(s) triggered attention due to hard touchdowns, emergency handling, or technical irregularities. Industry watchdog threads are now demanding stronger SOP disclosure and corrective action updates.`
+          : 'No diversions, emergency declarations, or severe handling alerts were logged in the latest operations cycle. Reliability discourse remains constructive and confidence is stabilizing.',
+      reputationImpact: withIssues.length > 0 ? -Math.min(12, withIssues.length * 3) : 4,
       metrics: {
         likes: 1100 + withIssues.length * 80,
         comments: 70 + withIssues.length * 180,
@@ -82,7 +86,8 @@ function createPosts(company, flights, acceptedContracts) {
       icon: TrendingUp,
       tone: reputation >= 65 && withIssues.length === 0 ? 'positive' : 'neutral',
       headline: 'Investor confidence monitor',
-      description: `Confidence score ${clamp(Math.round(reputation * 0.9 + (acceptedContracts?.length || 0) * 3 - withIssues.length * 8), 5, 99)} / 100 with ${(acceptedContracts?.length || 0)} active contract commitments in pipeline.`,
+      description: `Confidence score ${clamp(Math.round(reputation * 0.9 + (acceptedContracts?.length || 0) * 3 - withIssues.length * 8), 5, 99)} / 100, driven by ${(acceptedContracts?.length || 0)} active contract commitments and execution discipline across recent sectors.`,
+      reputationImpact: clamp(Math.round((acceptedContracts?.length || 0) - withIssues.length * 2), -8, 8),
       metrics: {
         likes: 740 + (acceptedContracts?.length || 0) * 90,
         comments: 90 + withIssues.length * 50,
@@ -141,6 +146,9 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
                   </div>
                   <h4 className="text-sm font-semibold text-slate-100 mb-1">{post.headline}</h4>
                   <p className="text-xs text-slate-300 leading-relaxed">{post.description}</p>
+                  <p className={`mt-2 text-[11px] font-mono ${post.reputationImpact >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    REP Impact: {formatDelta(post.reputationImpact)}
+                  </p>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-slate-400 px-1">
                   <span className="inline-flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {formatDelta(post.metrics.likes)}</span>

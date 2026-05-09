@@ -647,6 +647,7 @@ function canAircraftFulfillContract(plane: any, contract: any) {
 }
 
 function generateContract(companyId, aircraftType, companyLevel, options = {}) {
+  const companyReputation = Number(options?.companyReputation || 50);
   const route = pickRouteForContract(aircraftType.range, {
     ...options,
     minNm: options.minNm,
@@ -678,7 +679,8 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   const tierMultiplier = resolvePayoutMultiplier(options.aircraftName, aircraftType.type);
 
   const basePayout = (distance * 14 + passengers * 220 + cargo * 2.8) * tierMultiplier;
-  const payout = Math.round(basePayout * (0.85 + Math.random() * 0.3));
+  const reputationMultiplier = Math.max(0.75, Math.min(1.25, 1 + ((companyReputation - 50) / 250)));
+  const payout = Math.round(basePayout * (0.85 + Math.random() * 0.3) * reputationMultiplier);
 
   const briefings = briefingTemplates[contractType];
   const briefing = randomItem(briefings);
@@ -712,6 +714,7 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
     passenger_count: passengers,
     cargo_weight_kg: cargo,
     payout,
+    reputation_multiplier: reputationMultiplier,
     bonus_potential: Math.round(payout * 0.3),
     required_aircraft_type: [aircraftType.type],
     required_crew: {
@@ -981,6 +984,7 @@ Deno.serve(async (req) => {
       minNm,
       maxNm: Number.isFinite(maxNm) ? maxNm : Infinity,
       weather: weatherSnapshot,
+      companyReputation: company?.reputation || 50,
     };
 
     const hangarsForGeneration = normalizedHangars.length > 0
@@ -1040,6 +1044,7 @@ Deno.serve(async (req) => {
         const contract = generateContract(company.id, generationSpec, company.level || 1, {
           ...genOptions,
           aircraftName: aircraftNameForPayout,
+          companyReputation: company?.reputation || 50,
         });
         if (!contract) continue;
         if (contract.distance_nm < minNm || contract.distance_nm > maxNm) continue;
