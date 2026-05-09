@@ -195,7 +195,8 @@ export default function Dashboard() {
     { level: companyLevel + 2, bonus: (companyLevel + 2) * 3000 },
     { level: companyLevel + 3, bonus: (companyLevel + 3) * 3600 },
   ]), [companyLevel]);
-  const reputationTier = company.reputation >= 80 ? 'Elite' : company.reputation >= 60 ? 'Trusted' : company.reputation >= 40 ? 'Standard' : 'Risk';
+  const companyReputation = Number(company?.reputation ?? 0);
+  const reputationTier = companyReputation >= 80 ? 'Elite' : companyReputation >= 60 ? 'Trusted' : companyReputation >= 40 ? 'Standard' : 'Risk';
 
   if (companyLoading) {
     return (
