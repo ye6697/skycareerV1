@@ -37,26 +37,18 @@ import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMet
 import AchievementUnlockList from "@/components/achievements/AchievementUnlockList";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
-
-const DIFFICULTY_PAYOUT_BONUS_RATE = {
-  easy: 0,
-  medium: 0.15,
-  hard: 0.35,
-  extreme: 0.80,
-};
+import {
+  calculateDifficultyPayoutAdjustment,
+  formatSignedPercent,
+  getDifficultyPayoutPercent,
+  normalizeChallengeDifficulty,
+} from "@/lib/difficultyRewards";
 
 const DIFFICULTY_LABELS = {
   easy: { de: 'Freier Modus', en: 'Free mode' },
   medium: { de: 'Mittel', en: 'Medium' },
   hard: { de: 'Schwer', en: 'Hard' },
   extreme: { de: 'Extrem', en: 'Extreme' },
-};
-
-const normalizeChallengeDifficulty = (value) => {
-  const normalized = String(value || '').toLowerCase().trim();
-  return Object.prototype.hasOwnProperty.call(DIFFICULTY_PAYOUT_BONUS_RATE, normalized)
-    ? normalized
-    : 'medium';
 };
 
 export default function CompletedFlightDetails() {
@@ -486,18 +478,15 @@ export default function CompletedFlightDetails() {
   );
   const difficultyPayoutBonusPercent = Number.isFinite(Number(flight?.xplane_data?.difficulty_payout_bonus_percent))
     ? Number(flight.xplane_data.difficulty_payout_bonus_percent)
-    : Math.round((DIFFICULTY_PAYOUT_BONUS_RATE[selectedDifficulty] || 0) * 100);
+    : getDifficultyPayoutPercent(selectedDifficulty);
   const difficultyBonusEligible = !(
     flight?.xplane_data?.events?.crash ||
     ((flight?.xplane_data?.events?.wrong_airport || flight?.xplane_data?.landed_too_far_from_arrival) && !emergencyOffAirportCompletion)
   );
-  const calculatedDifficultyBonus = difficultyBonusEligible
-    ? Math.round(
-        basePayout
-        * (DIFFICULTY_PAYOUT_BONUS_RATE[selectedDifficulty] || 0)
-        * (emergencyOffAirportCompletion ? emergencyPayoutFactor : 1)
-      )
-    : 0;
+  const calculatedDifficultyBonus = calculateDifficultyPayoutAdjustment(basePayout, selectedDifficulty, {
+    eligible: difficultyBonusEligible,
+    payoutFactor: emergencyOffAirportCompletion ? emergencyPayoutFactor : 1,
+  });
   const difficultyPayoutBonus = Number.isFinite(Number(flight?.xplane_data?.difficulty_payout_bonus))
     ? Number(flight.xplane_data.difficulty_payout_bonus)
     : calculatedDifficultyBonus;
@@ -1406,14 +1395,16 @@ export default function CompletedFlightDetails() {
                      <span className="text-red-400 font-mono">-${Math.round(emergencyPayoutReduction).toLocaleString()}</span>
                    </div>
                    )}
-                   {difficultyPayoutBonusPercent > 0 && difficultyPayoutBonus > 0 && (
+                   {difficultyPayoutBonusPercent !== 0 && difficultyPayoutBonus !== 0 && (
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700">
-                     <span className="text-emerald-300">
+                     <span className={difficultyPayoutBonus > 0 ? 'text-emerald-300' : 'text-red-300'}>
                        {lang === 'de'
-                         ? `Schwierigkeitsbonus (${difficultyLabel} +${Math.round(difficultyPayoutBonusPercent)}%)`
-                         : `Difficulty bonus (${difficultyLabel} +${Math.round(difficultyPayoutBonusPercent)}%)`}
+                         ? `Schwierigkeitsanpassung (${difficultyLabel} ${formatSignedPercent(difficultyPayoutBonusPercent)})`
+                         : `Difficulty adjustment (${difficultyLabel} ${formatSignedPercent(difficultyPayoutBonusPercent)})`}
                      </span>
-                     <span className="text-emerald-400 font-mono">+${Math.round(difficultyPayoutBonus).toLocaleString()}</span>
+                     <span className={`${difficultyPayoutBonus > 0 ? 'text-emerald-400' : 'text-red-400'} font-mono`}>
+                       {difficultyPayoutBonus > 0 ? '+' : '-'}${Math.abs(Math.round(difficultyPayoutBonus)).toLocaleString()}
+                     </span>
                    </div>
                    )}
                    {flight?.xplane_data?.landingBonus > 0 && (

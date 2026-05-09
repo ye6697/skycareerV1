@@ -25,6 +25,7 @@ import { createPageUrl } from "@/utils";
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 import { getInsurancePlanConfig, INSURANCE_PACKAGES } from "@/lib/insurance";
+import { formatSignedPercent, getDifficultyPayoutPercent } from "@/lib/difficultyRewards";
 
 import {
   Plane,
@@ -105,17 +106,10 @@ const DIFFICULTY_OPTIONS = [
 const normalizeDifficulty = (value) =>
   DIFFICULTY_OPTIONS.some((option) => option.value === value) ? value : 'medium';
 
-const DIFFICULTY_PAYOUT_BONUS = {
-  easy: 0,
-  medium: 15,
-  hard: 35,
-  extreme: 80,
-};
-
 const DIFFICULTY_EFFECTS = {
   easy: {
-    de: 'Kein Wetterwechsel, kein Bonus. Du fliegst mit deinem eigenen Wetter oder Live Weather.',
-    en: 'No weather change, no bonus. You fly with your own weather or live weather.',
+    de: 'Kein Wetterwechsel, -20% auf das Auftrags-Payout. Du fliegst mit deinem eigenen Wetter oder Live Weather.',
+    en: 'No weather change, -20% contract payout. You fly with your own weather or live weather.',
   },
   medium: {
     de: 'Moderater Wind, Regen und Wolken. +15% auf das Auftrags-Payout.',
@@ -883,7 +877,7 @@ export default function ActiveFlights() {
                       </p>
                       <div className="rounded border border-slate-700 bg-slate-950/60 overflow-hidden">
                         {DIFFICULTY_OPTIONS.map((option) => {
-                          const payoutPct = DIFFICULTY_PAYOUT_BONUS[option.value] || 0;
+                          const payoutPct = getDifficultyPayoutPercent(option.value);
                           const isActive = option.value === selectedDifficulty;
                           return (
                             <div
@@ -893,8 +887,14 @@ export default function ActiveFlights() {
                               <span className={`font-bold ${option.color}`}>
                                 {option.label[lang === 'de' ? 'de' : 'en']}
                               </span>
-                              <span className={`${payoutPct > 0 ? 'text-emerald-300' : payoutPct < 0 ? 'text-rose-300' : 'text-slate-500'} font-mono`}>
-                                {`${payoutPct > 0 ? '+' : ''}${payoutPct}%`}
+                              <span className={`font-mono ${
+                                payoutPct > 0
+                                  ? 'text-emerald-300'
+                                  : payoutPct < 0
+                                    ? 'text-red-300'
+                                    : 'text-slate-500'
+                              }`}>
+                                {formatSignedPercent(payoutPct)}
                               </span>
                               <span className="text-slate-300 leading-snug">
                                 {DIFFICULTY_EFFECTS[option.value][lang === 'de' ? 'de' : 'en']}
@@ -1069,7 +1069,9 @@ export default function ActiveFlights() {
             </DialogHeader>
             <div className="text-sm text-slate-300 space-y-2">
               <p>{lang === 'de' ? 'Vor dem Climb kannst du waehlen, ob SkyCareer dein MSFS-Wetter setzen soll. Freier Modus laesst dein Wetter unveraendert; Mittel, Schwer und Extrem senden ein sichtbares SkyCareer-Wetterpreset an die Bridge.' : 'Before climb, you can choose whether SkyCareer should set your MSFS weather. Free mode leaves weather unchanged; Medium, Hard, and Extreme send a visible SkyCareer weather preset to the bridge.'}</p>
-              <p>{lang === 'de' ? 'Payout-Bonus: Freier Modus +0%, Mittel +15%, Schwer +35%, Extrem +80%. Der Bonus wird beim Flugabschluss wirklich auf die Auszahlung gerechnet und auf der Ergebnisseite angezeigt.' : 'Payout bonus: Free mode +0%, Medium +15%, Hard +35%, Extreme +80%. The bonus is really added when the flight is completed and shown on the results page.'}</p>
+              <p>{lang === 'de'
+                ? `Payout-Anpassung: Freier Modus ${formatSignedPercent(getDifficultyPayoutPercent('easy'))}, Mittel ${formatSignedPercent(getDifficultyPayoutPercent('medium'))}, Schwer ${formatSignedPercent(getDifficultyPayoutPercent('hard'))}, Extrem ${formatSignedPercent(getDifficultyPayoutPercent('extreme'))}. Die Anpassung wird beim Flugabschluss wirklich auf die Auszahlung gerechnet und auf der Ergebnisseite angezeigt.`
+                : `Payout adjustment: Free mode ${formatSignedPercent(getDifficultyPayoutPercent('easy'))}, Medium ${formatSignedPercent(getDifficultyPayoutPercent('medium'))}, Hard ${formatSignedPercent(getDifficultyPayoutPercent('hard'))}, Extreme ${formatSignedPercent(getDifficultyPayoutPercent('extreme'))}. The adjustment is really applied when the flight is completed and shown on the results page.`}</p>
               <p className="text-amber-300">{lang === 'de' ? 'Extrem ist jetzt deutlich staerker und kann kleine Flugzeuge, Autopiloten und Anfluege schnell ueberfordern.' : 'Extreme is now much stronger and can quickly overwhelm small aircraft, autopilots, and approaches.'}</p>
             </div>
           </DialogContent>
