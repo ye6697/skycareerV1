@@ -11,6 +11,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
 export default function ReputationGauge({ reputation = 50, level = 1 }) {
+  const formatSigned = (value) => `${value > 0 ? '+' : ''}${value}`;
   const { lang } = useLanguage();
   const getReputationLabel = (rep) => {
     if (rep >= 90) return t('rep_excellent', lang);
@@ -42,12 +43,10 @@ export default function ReputationGauge({ reputation = 50, level = 1 }) {
             <PopoverContent className="w-72 bg-slate-800 border-slate-700 text-white p-4" side="bottom">
               <h4 className="text-sm font-semibold mb-2 text-blue-400">{t('rep_how_calculated', lang)}</h4>
               <ul className="text-xs text-slate-300 space-y-1.5">
-                <li className="flex items-start gap-2"><span className="text-emerald-400">+</span><span>{t('rep_good_landings', lang)}</span></li>
-                <li className="flex items-start gap-2"><span className="text-emerald-400">+</span><span>{t('rep_successful_flights', lang)}</span></li>
-                <li className="flex items-start gap-2"><span className="text-emerald-400">+</span><span>{t('rep_punctuality', lang)}</span></li>
-                <li className="flex items-start gap-2"><span className="text-red-400">−</span><span>{t('rep_hard_landings', lang)}</span></li>
-                <li className="flex items-start gap-2"><span className="text-red-400">−</span><span>{t('rep_cancelled', lang)}</span></li>
-                <li className="flex items-start gap-2"><span className="text-red-400">−</span><span>{t('rep_bad_score', lang)}</span></li>
+                <li className="flex items-start justify-between gap-3"><span>{t('rep_score_formula', lang)}</span><span className="font-mono text-slate-200">{t('rep_score_formula_value', lang)}</span></li>
+                <li className="flex items-start justify-between gap-3"><span>{t('rep_crash_wrong_airport', lang)}</span><span className="font-mono text-red-300">{formatSigned(-10)}</span></li>
+                <li className="flex items-start justify-between gap-3"><span>{t('rep_cancelled_contract', lang)}</span><span className="font-mono text-red-300">{formatSigned(-5)}</span></li>
+                <li className="flex items-start justify-between gap-3"><span>{t('rep_range_hint', lang)}</span><span className="font-mono text-cyan-300">0-100%</span></li>
               </ul>
               <p className="text-[10px] text-slate-500 mt-3">{t('rep_affects', lang)}</p>
             </PopoverContent>

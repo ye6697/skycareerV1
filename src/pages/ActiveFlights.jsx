@@ -893,8 +893,8 @@ export default function ActiveFlights() {
                               <span className={`font-bold ${option.color}`}>
                                 {option.label[lang === 'de' ? 'de' : 'en']}
                               </span>
-                              <span className={payoutPct > 0 ? 'text-emerald-300 font-mono' : 'text-slate-500 font-mono'}>
-                                {payoutPct > 0 ? `+${payoutPct}%` : '+0%'}
+                              <span className={`${payoutPct > 0 ? 'text-emerald-300' : payoutPct < 0 ? 'text-rose-300' : 'text-slate-500'} font-mono`}>
+                                {`${payoutPct > 0 ? '+' : ''}${payoutPct}%`}
                               </span>
                               <span className="text-slate-300 leading-snug">
                                 {DIFFICULTY_EFFECTS[option.value][lang === 'de' ? 'de' : 'en']}
