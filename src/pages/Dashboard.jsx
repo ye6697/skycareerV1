@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
@@ -25,6 +25,8 @@ import {
   Map,
   Calculator,
   Trophy,
+  ShieldCheck,
+  ArrowUpRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -187,6 +189,13 @@ export default function Dashboard() {
   const companyLevel = Math.max(1, Number(company?.level || 1));
   const currentXP = Math.max(0, Number(company?.experience_points ?? company?.xp ?? 0));
   const xpToNextLevel = calculateXPForLevel(companyLevel);
+  const xpProgress = Math.min(100, Math.round((currentXP / Math.max(1, xpToNextLevel)) * 100));
+  const levelBonusPreview = useMemo(() => ([
+    { level: companyLevel + 1, bonus: (companyLevel + 1) * 2500 },
+    { level: companyLevel + 2, bonus: (companyLevel + 2) * 3000 },
+    { level: companyLevel + 3, bonus: (companyLevel + 3) * 3600 },
+  ]), [companyLevel]);
+  const reputationTier = company.reputation >= 80 ? 'Elite' : company.reputation >= 60 ? 'Trusted' : company.reputation >= 40 ? 'Standard' : 'Risk';
 
   if (companyLoading) {
     return (
@@ -257,10 +266,60 @@ export default function Dashboard() {
               {selectedStatusCard?.label === 'FLT' && 'Number of active aircraft currently in your fleet.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-lg border border-cyan-900/40 bg-slate-950 p-4">
-            <p className={`text-3xl font-black font-mono ${selectedStatusCard?.color}`}>{selectedStatusCard?.value}</p>
-            <p className="text-xs text-slate-500 mt-1">{selectedStatusCard?.unit}</p>
-          </div>
+          <AnimatePresence mode="wait">
+            {selectedStatusCard?.label === 'BAL' && (
+              <motion.div key="bal" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="rounded-lg border border-emerald-900/40 bg-slate-950 p-4 space-y-3">
+                <p className={`text-3xl font-black font-mono ${selectedStatusCard?.color}`}>{selectedStatusCard?.value}</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-md border border-slate-800 p-2">Fleet value: <span className="text-emerald-300">{formatCurrency(fleetValue)}</span></div>
+                  <div className="rounded-md border border-slate-800 p-2">Open contracts: <span className="text-cyan-300">{acceptedContracts.length}</span></div>
+                </div>
+              </motion.div>
+            )}
+            {selectedStatusCard?.label === 'LVL' && (
+              <motion.div key="lvl" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="rounded-lg border border-cyan-900/40 bg-slate-950 p-4 space-y-3">
+                <p className={`text-3xl font-black font-mono ${selectedStatusCard?.color}`}>LVL {companyLevel}</p>
+                <div className="h-3 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${xpProgress}%` }} transition={{ duration: 0.8 }} className="h-full bg-gradient-to-r from-cyan-500 to-blue-400" />
+                </div>
+                <p className="text-xs text-slate-400">{currentXP}/{xpToNextLevel} XP • {xpProgress}%</p>
+                <div className="space-y-2">
+                  {levelBonusPreview.map((item) => (
+                    <div key={item.level} className="flex items-center justify-between rounded-md border border-slate-800 px-2 py-1 text-xs">
+                      <span>Level {item.level} bonus payout</span><span className="text-amber-300">+${item.bonus.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+            {selectedStatusCard?.label === 'REP' && (
+              <motion.div key="rep" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="rounded-lg border border-amber-900/40 bg-slate-950 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className={`text-3xl font-black font-mono ${selectedStatusCard?.color}`}>{company.reputation || 0}%</p>
+                  <span className="px-2 py-1 rounded border border-amber-600/40 text-amber-300 text-xs">{reputationTier}</span>
+                </div>
+                <p className="text-xs text-slate-300">Higher reputation improves contract payouts and unlock quality contracts. Low reputation can reduce payouts and increase risk penalties.</p>
+                <ul className="text-xs text-slate-400 list-disc pl-4 space-y-1">
+                  <li>Improve with smooth landings, no failures, and on-time operations.</li>
+                  <li>Avoid hard touchdowns and emergency incidents to stop decay.</li>
+                  <li>Premium passenger ratings accelerate reputation growth.</li>
+                </ul>
+              </motion.div>
+            )}
+            {selectedStatusCard?.label === 'FLT' && (
+              <motion.div key="flt" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="rounded-lg border border-purple-900/40 bg-slate-950 p-4 space-y-3">
+                <p className={`text-3xl font-black font-mono ${selectedStatusCard?.color}`}>{allAircraft.filter((a) => a.status !== 'sold').length} aircraft</p>
+                <div className="max-h-56 overflow-auto space-y-2">
+                  {allAircraft.filter((a) => a.status !== 'sold').map((a) => (
+                    <div key={a.id} className="rounded-md border border-slate-800 px-2 py-1.5 text-xs">
+                      <div className="flex items-center justify-between"><span className="font-semibold text-slate-100">{a.name || a.aircraft_name || a.type}</span><span className="text-cyan-300">{a.type}</span></div>
+                      <div className="text-slate-400">Range {Math.round(a.range_nm || 0)} NM • Cargo {Math.round(a.cargo_capacity_kg || 0)} kg • Pax {Math.round(a.passenger_capacity || 0)}</div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </DialogContent>
       </Dialog>
 

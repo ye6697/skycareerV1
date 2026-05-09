@@ -37,10 +37,10 @@ function createPosts(company, flights, acceptedContracts) {
       tone: reputation >= 70 ? 'positive' : reputation <= 40 ? 'negative' : 'neutral',
       headline:
         reputation >= 70
-          ? 'Public confidence climbs after consistently smooth operations.'
+          ? 'Network desk: carrier reports steady recovery with fewer disruption events.'
           : reputation <= 40
-            ? 'Brand trust under pressure as reliability concerns trend online.'
-            : 'Mixed passenger feedback keeps reputation in a volatile range.',
+            ? 'Evening bulletin: reliability concerns pressure the brand in key markets.'
+            : 'Correspondents report mixed passenger feedback across regional routes.',
       description: `Reputation index now at ${Math.round(reputation)} after stricter on-time reporting and disruption tracking across the last operating week. Reputational momentum is currently tied to recovery speed after delays and incident transparency.`,
       reputationImpact: repImpact,
       metrics: {
@@ -54,7 +54,7 @@ function createPosts(company, flights, acceptedContracts) {
       handle: '@paxpulse',
       icon: Users,
       tone: avgRating >= 85 ? 'positive' : avgRating <= 65 ? 'negative' : 'neutral',
-      headline: 'Passenger sentiment update',
+      headline: 'Airport correspondents summarize passenger sentiment',
       description: `Average onboard rating is ${Math.round(avgRating)}%, with frequent flyers highlighting cabin consistency, boarding flow, and crew communication. ${serviceLeaders.length} recent flights were explicitly praised in premium-traveler summaries.`,
       reputationImpact: clamp(Math.round((avgRating - 75) / 4), -8, 8),
       metrics: {
@@ -68,7 +68,7 @@ function createPosts(company, flights, acceptedContracts) {
       handle: '@atc.watch',
       icon: TriangleAlert,
       tone: withIssues.length > 0 ? 'negative' : 'positive',
-      headline: withIssues.length > 0 ? 'Operational events flagged by aviation forums' : 'Clean run: no critical incidents reported',
+      headline: withIssues.length > 0 ? 'Operations desk confirms incident review after irregular flights' : 'Ops bulletin: no critical incidents in latest operating cycle',
       description:
         withIssues.length > 0
           ? `${withIssues.length} recent flight(s) triggered attention due to hard touchdowns, emergency handling, or technical irregularities. Industry watchdog threads are now demanding stronger SOP disclosure and corrective action updates.`
@@ -85,7 +85,7 @@ function createPosts(company, flights, acceptedContracts) {
       handle: '@investorradar',
       icon: TrendingUp,
       tone: reputation >= 65 && withIssues.length === 0 ? 'positive' : 'neutral',
-      headline: 'Investor confidence monitor',
+      headline: 'Business desk: investor confidence monitor',
       description: `Confidence score ${clamp(Math.round(reputation * 0.9 + (acceptedContracts?.length || 0) * 3 - withIssues.length * 8), 5, 99)} / 100, driven by ${(acceptedContracts?.length || 0)} active contract commitments and execution discipline across recent sectors.`,
       reputationImpact: clamp(Math.round((acceptedContracts?.length || 0) - withIssues.length * 2), -8, 8),
       metrics: {
@@ -116,7 +116,7 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
       <div className="px-4 py-3 border-b border-cyan-900/30 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-cyan-200">Airline Media Feed</h3>
-          <p className="text-xs text-slate-400">Live reputation narrative inspired by social + aviation channels.</p>
+          <p className="text-xs text-slate-400">Reporter-style coverage based on your latest operational data.</p>
         </div>
         <Badge variant="outline" className="border-cyan-700 text-cyan-300"><Clock3 className="w-3 h-3 mr-1" /> Live</Badge>
       </div>
@@ -142,7 +142,7 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
                 <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800 p-3 mb-2">
                   <div className="flex items-center gap-2 mb-2 text-cyan-300">
                     <Icon className="w-4 h-4" />
-                    <span className="text-xs uppercase tracking-wider">Breaking update</span>
+                    <span className="text-xs uppercase tracking-wider">Reporter bulletin</span>
                   </div>
                   <h4 className="text-sm font-semibold text-slate-100 mb-1">{post.headline}</h4>
                   <p className="text-xs text-slate-300 leading-relaxed">{post.description}</p>
