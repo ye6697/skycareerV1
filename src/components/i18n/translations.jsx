@@ -330,6 +330,11 @@ const translations = {
   rep_hard_landings: { en: "Hard landings & crashes decrease reputation significantly", de: "Harte Landungen & Crashes verringern die Reputation stark" },
   rep_cancelled: { en: "Cancelled contracts – Cancellations cost reputation", de: "Abgebrochene Aufträge – Stornierungen kosten Reputation" },
   rep_bad_score: { en: "Poor flight score – G-forces, overspeed, stall", de: "Schlechter Flug-Score – G-Kräfte, Overspeed, Stall" },
+  rep_score_formula: { en: "Normal flight (from score)", de: "Normaler Flug (aus Score)" },
+  rep_score_formula_value: { en: "round((score - 85) / 5)", de: "round((Score - 85) / 5)" },
+  rep_crash_wrong_airport: { en: "Crash or wrong destination", de: "Crash oder falscher Zielflughafen" },
+  rep_cancelled_contract: { en: "Cancelled contract", de: "Auftrag storniert" },
+  rep_range_hint: { en: "Final reputation is clamped", de: "Endgültige Reputation ist begrenzt" },
   rep_affects: { en: "Reputation affects your creditworthiness and unlocked contracts.", de: "Reputation beeinflusst deine Kreditwürdigkeit und freigeschaltete Aufträge." },
 
   // === XPLANE STATUS ===
