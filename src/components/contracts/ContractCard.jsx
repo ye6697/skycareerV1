@@ -76,9 +76,17 @@ export default function ContractCard({
   const meta = TYPE_META[contract.type] || TYPE_META.passenger;
   const Icon = meta.icon;
   const payout = Math.round(contract.payout || 0);
-  const reputationMultiplier = Number(contract.reputation_multiplier || 1);
-  const reputationImpactPercent = Number(((reputationMultiplier - 1) * 100).toFixed(1));
-  const reputationImpactLabel = Object.is(reputationImpactPercent, -0) ? 0 : reputationImpactPercent;
+  const reputationMultiplierRaw = Number(contract?.reputation_multiplier);
+  const reputationMultiplier = Number.isFinite(reputationMultiplierRaw) && reputationMultiplierRaw > 0
+    ? reputationMultiplierRaw
+    : 1;
+  const reputationImpactRawPercent = (reputationMultiplier - 1) * 100;
+  const reputationImpactPercent = Math.abs(reputationImpactRawPercent) < 0.005
+    ? 0
+    : Number(reputationImpactRawPercent.toFixed(2));
+  const reputationImpactLabel = Number.isInteger(reputationImpactPercent)
+    ? reputationImpactPercent.toFixed(0)
+    : reputationImpactPercent.toFixed(2).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
   const bonus = Math.round(contract.bonus_potential || 0);
   const distanceNm = Number(contract.distance_nm || 0);
   const payoutPerNm = distanceNm > 0 ? payout / distanceNm : 0;
@@ -171,6 +179,7 @@ export default function ContractCard({
             ~ ${Math.round(payoutPerNm).toLocaleString()}/NM
           </p>
           <p className={`text-[11px] ${reputationImpactPercent >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+
             {lang === "de" ? "Reputations-Effekt" : "Reputation effect"}: {reputationImpactLabel >= 0 ? '+' : ''}{reputationImpactLabel}%
           </p>
           {bonus > 0 && (
