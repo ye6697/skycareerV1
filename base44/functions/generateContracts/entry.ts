@@ -679,7 +679,9 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   const tierMultiplier = resolvePayoutMultiplier(options.aircraftName, aircraftType.type);
 
   const basePayout = (distance * 14 + passengers * 220 + cargo * 2.8) * tierMultiplier;
-  const reputationMultiplier = Math.max(0.75, Math.min(1.25, 1 + ((companyReputation - 50) / 250)));
+  const reputationBaseMultiplier = Math.max(0.72, Math.min(1.22, 1 + ((companyReputation - 50) / 170)));
+  const reputationVariance = 0.975 + Math.random() * 0.05; // keeps slight per-contract variation
+  const reputationMultiplier = Math.max(0.68, Math.min(1.25, reputationBaseMultiplier * reputationVariance));
   const payout = Math.round(basePayout * (0.85 + Math.random() * 0.3) * reputationMultiplier);
 
   const briefings = briefingTemplates[contractType];
