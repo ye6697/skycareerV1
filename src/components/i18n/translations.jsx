@@ -330,6 +330,7 @@ const translations = {
   rep_score_80: { en: "Final score 80 gives -1 reputation.", de: "Final Score 80 gibt -1 Reputation." },
   rep_score_50: { en: "Final score 50 gives -7 reputation.", de: "Final Score 50 gibt -7 Reputation." },
   rep_crash_wrong_airport: { en: "Crash or wrong destination airport overrides the score formula: -10.", de: "Crash oder falscher Zielflughafen ueberschreibt die Score-Formel: -10." },
+  rep_crash_wrong_airport_exact: { en: "Crash or wrong destination airport overrides the score formula: -10.", de: "Crash oder falscher Zielflughafen ueberschreibt die Score-Formel: -10." },
   rep_cancelled_exact: { en: "Cancelled or aborted contract: -5.", de: "Stornierter oder abgebrochener Auftrag: -5." },
   rep_clamped: { en: "After every change, reputation is clamped to 0-100.", de: "Nach jeder Aenderung wird Reputation auf 0-100 begrenzt." },
   rep_good_landings: { en: "Good Landings – Soft/butter landings increase reputation", de: "Gute Landungen – Weiche/butterweiche Landungen erhöhen die Reputation" },

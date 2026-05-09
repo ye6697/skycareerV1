@@ -11,6 +11,10 @@ import {
   Users,
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
+import {
+  formatContractReputationImpact,
+  getContractReputationImpactPercent,
+} from "@/lib/contractReputation";
 
 const TYPE_META = {
   passenger: {
@@ -71,22 +75,14 @@ export default function ContractCard({
   selected = false,
   onSelect,
   disabled = false,
+  companyReputation = 50,
 }) {
   const { lang } = useLanguage();
   const meta = TYPE_META[contract.type] || TYPE_META.passenger;
   const Icon = meta.icon;
   const payout = Math.round(contract.payout || 0);
-  const reputationMultiplierRaw = Number(contract?.reputation_multiplier);
-  const reputationMultiplier = Number.isFinite(reputationMultiplierRaw) && reputationMultiplierRaw > 0
-    ? reputationMultiplierRaw
-    : 1;
-  const reputationImpactRawPercent = (reputationMultiplier - 1) * 100;
-  const reputationImpactPercent = Math.abs(reputationImpactRawPercent) < 0.005
-    ? 0
-    : Number(reputationImpactRawPercent.toFixed(2));
-  const reputationImpactLabel = Number.isInteger(reputationImpactPercent)
-    ? reputationImpactPercent.toFixed(0)
-    : reputationImpactPercent.toFixed(2).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+  const reputationImpactPercent = getContractReputationImpactPercent(contract, companyReputation);
+  const reputationImpactLabel = formatContractReputationImpact(contract, companyReputation);
   const bonus = Math.round(contract.bonus_potential || 0);
   const distanceNm = Number(contract.distance_nm || 0);
   const payoutPerNm = distanceNm > 0 ? payout / distanceNm : 0;
@@ -180,7 +176,7 @@ export default function ContractCard({
           </p>
           <p className={`text-[11px] ${reputationImpactPercent >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
 
-            {lang === "de" ? "Reputations-Effekt" : "Reputation effect"}: {reputationImpactLabel >= 0 ? '+' : ''}{reputationImpactLabel}%
+            {lang === "de" ? "Reputations-Effekt" : "Reputation effect"}: {reputationImpactLabel}
           </p>
           {bonus > 0 && (
             <p className="text-[11px] text-amber-300">

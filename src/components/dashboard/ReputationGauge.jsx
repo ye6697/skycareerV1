@@ -66,7 +66,7 @@ export default function ReputationGauge({ reputation = 50, level = 1 }) {
                 </li>
                 <li className="flex items-start gap-2 border-t border-slate-700 pt-2">
                   <span className="min-w-12 font-mono text-red-400">-10</span>
-                  <span>{t('rep_crash_wrong_airport', lang)}</span>
+                  <span>{t('rep_crash_wrong_airport_exact', lang)}</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="min-w-12 font-mono text-red-400">-5</span>
