@@ -114,6 +114,10 @@
       "type": "number",
       "description": "Potential bonus for excellent performance"
     },
+    "reputation_multiplier": {
+      "type": "number",
+      "description": "Payout multiplier based on company reputation at generation time"
+    },
     "level_requirement": {
       "type": "number",
       "default": 1,
