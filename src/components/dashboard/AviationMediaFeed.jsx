@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { TrendingUp, TriangleAlert, Plane, Clock3, Users, Newspaper } from 'lucide-react';
+import { TrendingUp, TriangleAlert, Plane, Clock3, Users, Newspaper, BadgeCheck, Activity, PlaneTakeoff, CalendarRange } from 'lucide-react';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -139,6 +140,24 @@ function createPosts(company, flights, acceptedContracts, lang) {
   ];
 }
 
+
+const categoryDefs = [
+  { key: 'all', icon: CalendarRange },
+  { key: 'month', icon: Activity },
+  { key: 'week', icon: Clock3 },
+];
+
+const filterFlightsByCategory = (flights, category) => {
+  if (category === 'all') return flights;
+  const now = new Date();
+  const days = category === 'week' ? 7 : 30;
+  return (flights || []).filter((f) => {
+    const d = getFlightDate(f);
+    if (!d) return false;
+    return now.getTime() - d.getTime() <= days * 24 * 60 * 60 * 1000;
+  });
+};
+
 const toneStyles = {
   positive: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
   negative: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
@@ -146,9 +165,12 @@ const toneStyles = {
 };
 
 export default function AviationMediaFeed({ company, recentFlights, acceptedContracts, lang = 'en' }) {
+  const [category, setCategory] = useState('all');
+  const [selectedPost, setSelectedPost] = useState(null);
+  const scopedFlights = useMemo(() => filterFlightsByCategory(recentFlights, category), [recentFlights, category]);
   const posts = useMemo(
-    () => createPosts(company, recentFlights, acceptedContracts, lang),
-    [company, recentFlights, acceptedContracts, lang],
+    () => createPosts(company, scopedFlights, acceptedContracts, lang),
+    [company, scopedFlights, acceptedContracts, lang],
   );
 
   return (
@@ -162,7 +184,15 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
             {lang === 'de' ? 'Reporterberichte aus deinen letzten Betriebsdaten.' : 'Reporter-style coverage from your latest operational data.'}
           </p>
         </div>
-        <Badge variant="outline" className="border-cyan-700 text-cyan-300"><Clock3 className="w-3 h-3 mr-1" /> Live</Badge>
+        <div className="flex items-center gap-2">
+          {categoryDefs.map(({ key, icon: FilterIcon }) => (
+            <button key={key} onClick={() => setCategory(key)} className={`px-2 py-1 rounded-md border text-xs flex items-center gap-1 ${category === key ? 'border-cyan-400 text-cyan-200 bg-cyan-500/10' : 'border-slate-700 text-slate-400'}`}>
+              <FilterIcon className="w-3 h-3" />
+              {lang === 'de' ? (key === 'all' ? 'Alle Zeit' : key === 'month' ? 'Monat' : 'Woche') : (key === 'all' ? 'All time' : key === 'month' ? 'Month' : 'Week')}
+            </button>
+          ))}
+          <Badge variant="outline" className="border-cyan-700 text-cyan-300"><Clock3 className="w-3 h-3 mr-1" /> Live</Badge>
+        </div>
       </div>
 
       <ScrollArea className="h-[500px]">
@@ -172,18 +202,24 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
             return (
               <article key={`${post.source}-${idx}`} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <Avatar className="h-9 w-9 border border-cyan-900/50">
+                  <button type="button" onClick={() => setSelectedPost(post)} className="rounded-full"><Avatar className="h-9 w-9 border border-cyan-900/50 hover:border-cyan-500">
                     <AvatarFallback className="bg-slate-800 text-cyan-200 text-xs font-bold">
                       {post.source.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
-                  </Avatar>
+                  </Avatar></button>
                   <div className="min-w-0">
                     <p className="text-sm text-slate-100 font-semibold leading-none">{post.source}</p>
                     <p className="text-xs text-slate-400">
                       {post.handle} - {lang === 'de' ? 'geteilt' : 'shared'} {formatSharedAt(post.sharedAt, lang)}
                     </p>
                   </div>
-                  <Badge className={`ml-auto ${toneStyles[post.tone]}`}>{getMood(post.reputationImpact, lang)}</Badge>
+                  <div className="ml-auto flex items-center gap-2">
+                    <Badge className="border-indigo-500/40 bg-indigo-500/10 text-indigo-200">
+                      <BadgeCheck className="w-3 h-3 mr-1" />
+                      {lang === 'de' ? 'Rep-Impact' : 'Rep Impact'} {post.reputationImpact > 0 ? '+' : ''}{post.reputationImpact}
+                    </Badge>
+                    <Badge className={`${toneStyles[post.tone]}`}>{getMood(post.reputationImpact, lang)}</Badge>
+                  </div>
                 </div>
                 <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                   <div className="flex items-center gap-2 mb-2 text-cyan-300">
@@ -200,6 +236,24 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
           })}
         </div>
       </ScrollArea>
+      <Dialog open={!!selectedPost} onOpenChange={(open) => !open && setSelectedPost(null)}>
+        <DialogContent className="bg-slate-900 border-cyan-900/60 text-slate-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><PlaneTakeoff className="w-4 h-4 text-cyan-300" />{selectedPost?.source}</DialogTitle>
+            <DialogDescription className="text-slate-400">{selectedPost?.handle}</DialogDescription>
+          </DialogHeader>
+          {selectedPost && (
+            <div className="space-y-3 text-sm">
+              <p className="text-slate-200 font-semibold">{selectedPost.headline}</p>
+              <p className="text-slate-300">{selectedPost.description}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded border border-slate-700 p-2"><span className="text-slate-400 text-xs">{lang === 'de' ? 'Reputation Impact' : 'Reputation Impact'}</span><p className="text-cyan-300 font-mono">{selectedPost.reputationImpact > 0 ? '+' : ''}{selectedPost.reputationImpact}</p></div>
+                <div className="rounded border border-slate-700 p-2"><span className="text-slate-400 text-xs">KOIs/KPIs</span><p className="text-cyan-300 font-mono">{scopedFlights.length} flights • {acceptedContracts?.length || 0} contracts</p></div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
