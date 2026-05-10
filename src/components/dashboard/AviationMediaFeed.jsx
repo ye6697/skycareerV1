@@ -46,7 +46,7 @@ function createPosts(company, flights, acceptedContracts, lang) {
   const repImpact = clamp(Math.round((reputation - 50) / 5), -10, 10);
   const completedFlights = flights || [];
   const withIssues = completedFlights.filter(
-    (f) => toNumber(f?.landing_vs) < -550 || (Array.isArray(f?.active_failures) && f.active_failures.length > 0),
+    (f) => toNumber(f?.landing_g_force) >= 1.6 || (Array.isArray(f?.active_failures) && f.active_failures.length > 0),
   );
   const serviceLeaders = completedFlights.filter((f) => toNumber(f?.overall_rating) >= 88);
   const avgRating = completedFlights.length
