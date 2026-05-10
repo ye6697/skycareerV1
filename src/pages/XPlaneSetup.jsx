@@ -177,8 +177,8 @@ const COPY = {
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
   const text = COPY[lang] || COPY.en;
-  const BRIDGE_VERSION = 'bridge-2026-05-10-weather-panel-r6';
-  const DOWNLOAD_CACHE_BUST = '20260510-weather-panel-r6';
+  const BRIDGE_VERSION = 'bridge-2026-05-10-weather-panel-r7';
+  const DOWNLOAD_CACHE_BUST = '20260510-weather-panel-r7';
   const BRIDGE_BOOTSTRAP_FILE = 'SkyCareer_MSFS_Bridge_Windows.zip';
   const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
   const [copied, setCopied] = React.useState(false);

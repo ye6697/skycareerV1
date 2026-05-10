@@ -108,8 +108,8 @@ const normalizeDifficulty = (value) =>
 
 const DIFFICULTY_EFFECTS = {
   easy: {
-    de: 'Kein Wetterwechsel, -20% auf das Auftrags-Payout. Du fliegst mit deinem eigenen Wetter oder Live Weather.',
-    en: 'No weather change, -20% contract payout. You fly with your own weather or live weather.',
+    de: 'Kein Wetterwechsel, +0% auf das Auftrags-Payout. Du fliegst mit deinem eigenen Wetter oder Live Weather.',
+    en: 'No weather change, +0% contract payout. You fly with your own weather or live weather.',
   },
   medium: {
     de: 'Moderater Wind, Regen und Wolken. +15% auf das Auftrags-Payout.',
@@ -899,7 +899,7 @@ export default function ActiveFlights() {
                                 {option.label[lang === 'de' ? 'de' : 'en']}
                               </span>
                               <span className={`font-mono ${
-                                payoutPct > 0
+                                payoutPct >= 0
                                   ? 'text-emerald-300'
                                   : payoutPct < 0
                                     ? 'text-red-300'

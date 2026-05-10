@@ -1,4 +1,4 @@
-﻿{
+{
     "content":  [
                     {
                         "path":  "Build/icon.png",
@@ -18,47 +18,47 @@
                     {
                         "path":  "Build/PackageSources/maximus-ingamepanels-custom.xml",
                         "size":  528,
-                        "date":  134228944880000000
+                        "date":  134228954960000000
                     },
                     {
                         "path":  "html_ui/InGamePanels/CustomPanel/CustomPanel.css",
-                        "size":  3334,
-                        "date":  134228944640000000
+                        "size":  3381,
+                        "date":  134228954960000000
                     },
                     {
                         "path":  "html_ui/InGamePanels/CustomPanel/CustomPanel.html",
-                        "size":  1784,
-                        "date":  134228944300000000
+                        "size":  1777,
+                        "date":  134228954960000000
                     },
                     {
                         "path":  "html_ui/InGamePanels/CustomPanel/CustomPanel.js",
-                        "size":  8444,
-                        "date":  134228944740000000
+                        "size":  9742,
+                        "date":  134228959690125623
                     },
                     {
                         "path":  "html_ui/InGamePanels/CustomPanel/SkyCareerWeather.v2.css",
-                        "size":  3334,
-                        "date":  134228944640000000
+                        "size":  3381,
+                        "date":  134228954960000000
                     },
                     {
                         "path":  "html_ui/InGamePanels/CustomPanel/SkyCareerWeather.v2.js",
-                        "size":  8444,
-                        "date":  134228944740000000
+                        "size":  9742,
+                        "date":  134228959690140502
                     },
                     {
                         "path":  "html_ui/Textures/Menu/toolbar/ICON_TOOLBAR_MAXIMUS_CUSTOM_PANEL.svg",
-                        "size":  2651,
-                        "date":  134225513260000000
+                        "size":  773,
+                        "date":  134228954960000000
                     },
                     {
                         "path":  "InGamePanels/maximus-ingamepanels-custom.spb",
                         "size":  698,
-                        "date":  134225513260000000
+                        "date":  134228957660000000
                     },
                     {
                         "path":  "manifest.json",
-                        "size":  631,
-                        "date":  134225554340000000
+                        "size":  1107,
+                        "date":  134228957840000000
                     }
                 ]
 }

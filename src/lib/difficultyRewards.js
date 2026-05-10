@@ -1,5 +1,5 @@
 export const DIFFICULTY_PAYOUT_RATE = Object.freeze({
-  easy: -0.20,
+  easy: 0,
   medium: 0.15,
   hard: 0.35,
   extreme: 0.80,
@@ -37,5 +37,5 @@ export function formatSignedPercent(value) {
   const percent = Math.round(Number(value) || 0);
   if (percent > 0) return `+${percent}%`;
   if (percent < 0) return `${percent}%`;
-  return '0%';
+  return '+0%';
 }

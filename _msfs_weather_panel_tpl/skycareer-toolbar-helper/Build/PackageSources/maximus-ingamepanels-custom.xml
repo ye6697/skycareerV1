@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <SimBase.Document Type="InGamePanels" version="1,0">
   <Filename>InGamePanel_CustomPanel.spb</Filename>
-  <InGamePanels.InGamePanelDefinition id="PANEL_CUSTOM_PANEL" Name="SC" url="html_UI/ingamePanels/CustomPanel/CustomPanel.html" resizeDirections="Both" minWidth="18" minHeight="14" defaultWidth="18" defaultHeight="14" defaultTop="33" defaultRight="2" icon="ICON_TOOLBAR_MAXIMUS_CUSTOM_PANEL" buttonVisible="true">
+  <InGamePanels.InGamePanelDefinition id="PANEL_CUSTOM_PANEL" Name="SC" url="html_UI/ingamePanels/CustomPanel/CustomPanel.html" resizeDirections="Both" minWidth="13" minHeight="10" defaultWidth="13" defaultHeight="10" defaultTop="33" defaultRight="2" icon="ICON_TOOLBAR_MAXIMUS_CUSTOM_PANEL" buttonVisible="true">
   </InGamePanels.InGamePanelDefinition>
 </SimBase.Document>

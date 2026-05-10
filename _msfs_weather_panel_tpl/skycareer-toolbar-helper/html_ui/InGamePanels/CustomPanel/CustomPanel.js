@@ -17,9 +17,20 @@ class IngamePanelCustomPanel extends TemplateElement {
         this.status = this.querySelector('#SkyCareerStatus');
 
         const applyBtn = this.querySelector('#ApplySkyCareerWeather');
-        if (applyBtn) applyBtn.addEventListener('click', () => this.applyPendingWeather(true));
+        if (applyBtn) applyBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.applyPendingWeather(true);
+        });
         const closeBtn = this.querySelector('#WeatherPanelClose');
-        if (closeBtn) closeBtn.addEventListener('click', () => this.closeWeatherPanel());
+        if (closeBtn) {
+            closeBtn.addEventListener('pointerdown', (event) => event.stopPropagation());
+            closeBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.closeWeatherPanel();
+            });
+        }
 
         this.setText(this.weatherApplyState, 'loading');
         setTimeout(() => this.setupWeatherHelper(), 1500);
@@ -39,11 +50,29 @@ class IngamePanelCustomPanel extends TemplateElement {
     }
 
     closeWeatherPanel() {
-        const panel = this.querySelector('#SkyCareerPanel');
-        if (panel) panel.classList.add('is-hidden');
+        const frame = document.getElementById('CustomPanel') || this.querySelector('ingame-ui');
+        const panelId = frame && frame.getAttribute ? (frame.getAttribute('panel-id') || 'PANEL_CUSTOM_PANEL') : 'PANEL_CUSTOM_PANEL';
+        try {
+            if (frame) {
+                if (typeof frame.close === 'function') frame.close();
+                if (typeof frame.hide === 'function') frame.hide();
+                if (typeof frame.setVisible === 'function') frame.setVisible(false);
+                frame.classList.add('panelInvisible');
+                frame.classList.remove('panelVisible');
+                frame.setAttribute('visible', 'false');
+            }
+        } catch (e) {}
         try {
             if (window.Coherent && typeof window.Coherent.trigger === 'function') {
-                window.Coherent.trigger('TOOLBAR_BUTTON_TOGGLE', 'PANEL_CUSTOM_PANEL');
+                window.Coherent.trigger('TOOLBAR_PANEL_CLOSE', panelId);
+                window.Coherent.trigger('CLOSE_INGAME_PANEL', panelId);
+                window.Coherent.trigger('HIDE_INGAME_PANEL', panelId);
+                window.Coherent.trigger('TOOLBAR_BUTTON_TOGGLE', panelId);
+            }
+        } catch (e) {}
+        try {
+            if (typeof LaunchFlowEvent === 'function') {
+                LaunchFlowEvent('TOOLBAR_BUTTON_TOGGLE', panelId);
             }
         } catch (e) {}
     }
