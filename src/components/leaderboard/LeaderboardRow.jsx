@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Award, Plane, Users, Star } from 'lucide-react';
+import { Trophy, Medal, Award, Plane, Users } from 'lucide-react';
 
 function RankBadge({ rank }) {
   if (rank === 1) return <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center"><Trophy className="w-4 h-4 text-amber-400" /></div>;
@@ -18,11 +18,11 @@ function ScoreBar({ value, max = 100, color }) {
   );
 }
 
-export default function LeaderboardRow({ entry, expanded }) {
+export default function LeaderboardRow({ entry, onOpenProfile }) {
   const isMe = entry.is_me;
   
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+    <button type="button" onClick={() => onOpenProfile?.(entry)} className={`w-full text-left flex items-center gap-3 p-3 rounded-lg border transition-all ${
       isMe 
         ? 'bg-cyan-950/30 border-cyan-700/50 shadow-lg shadow-cyan-900/20' 
         : 'bg-slate-900/60 border-slate-800/50 hover:bg-slate-800/60'
@@ -95,6 +95,6 @@ export default function LeaderboardRow({ entry, expanded }) {
           entry.rank <= 3 ? 'text-amber-400' : isMe ? 'text-cyan-400' : 'text-white'
         }`}>{entry.composite_score}</p>
       </div>
-    </div>
+    </button>
   );
 }
