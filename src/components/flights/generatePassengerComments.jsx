@@ -127,6 +127,13 @@ export function generatePassengerComments(score, data, lang = "de") {
       comments.push("Fuel situation during arrival felt too risky.");
     }
 
+    const route = [data?.departure_icao || data?.departureICAO, data?.arrival_icao || data?.arrivalICAO].filter(Boolean).join(' → ');
+    const aircraftType = data?.aircraft_type || data?.aircraftType || data?.aircraft || '';
+    const durationHours = Number(data?.flightTimeHours || data?.flight_duration_hours || data?.flight_time_hours || 0);
+    if (route) comments.push(`Route ${route} felt ${scoreBand >= 80 ? 'well managed' : 'stressful'} from gate to gate.`);
+    if (aircraftType) comments.push(`Cabin experience on the ${aircraftType} was ${maxG < 1.35 ? 'surprisingly smooth' : 'noticeably rough'} today.`);
+    if (durationHours > 0) comments.push(durationHours > 3 ? 'On this longer sector, service rhythm and updates mattered a lot.' : 'On this short hop, boarding and landing quality defined the whole experience.');
+
     const unique = [];
     const seen = new Set();
     for (const c of comments) {
@@ -390,6 +397,13 @@ export function generatePassengerComments(score, data, lang = "de") {
   if (data?.events?.gear_up_landing) comments.push(...pickRandom(incidentTemplates.gear_up_landing, 1));
   if (data?.events?.hard_landing) comments.push(...pickRandom(incidentTemplates.hard_landing, 1));
   if (data?.events?.fuel_emergency && Number(data?.fuel || 100) < 5) comments.push(...pickRandom(incidentTemplates.fuel_emergency, 1));
+
+  const route = [data?.departure_icao || data?.departureICAO, data?.arrival_icao || data?.arrivalICAO].filter(Boolean).join(' -> ');
+  const aircraftType = data?.aircraft_type || data?.aircraftType || data?.aircraft || '';
+  const durationHours = Number(data?.flightTimeHours || data?.flight_duration_hours || data?.flight_time_hours || 0);
+  if (route) comments.push(`Strecke ${route}: ${scoreBand >= 80 ? 'wirkte durchgaengig strukturiert.' : 'hatte spuerbare operative Brueche.'}`);
+  if (aircraftType) comments.push(`Im ${aircraftType} fuehlte sich die Kabine ${maxG < 1.35 ? 'ruhig und kontrolliert' : 'unruhig und belastet'} an.`);
+  if (durationHours > 0) comments.push(durationHours > 3 ? 'Auf der laengeren Etappe waren Ansagen und Service fuer das Sicherheitsgefuehl entscheidend.' : 'Auf dem kurzen Flug haben vor allem Boarding, Sinkflug und Aufsetzen den Eindruck gepraegt.');
 
   // De-duplicate and cap output count for UI readability.
   const unique = [];
