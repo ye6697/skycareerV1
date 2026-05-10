@@ -1,0 +1,179 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: rgba(11, 13, 18, 0.72);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+ingame-ui#CustomPanel {
+  display: flex;
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+}
+
+ingame-ui#CustomPanel .ingameUiContent,
+ingame-ui#CustomPanel .ingameUiWrapper {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+#SkyCareerPanel {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid rgba(229, 231, 235, 0.16);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(55, 59, 66, 0.88), rgba(18, 21, 27, 0.84));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.32);
+  color: #eef2f7;
+  backdrop-filter: blur(14px);
+}
+
+#SkyCareerPanel.is-hidden {
+  display: none;
+}
+
+.panel-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.brand-chip {
+  display: inline-flex;
+  width: 25px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(251, 146, 60, 0.46);
+  border-radius: 6px;
+  background: rgba(251, 146, 60, 0.12);
+  color: #fed7aa;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+#SkyCareerPanel h2 {
+  margin: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#SkyCareerPanel p {
+  margin: 1px 0 0;
+  overflow: hidden;
+  color: #cbd5e1;
+  font-size: 10px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close-btn {
+  display: inline-flex;
+  width: 21px;
+  height: 21px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(226, 232, 240, 0.16);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.58);
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.close-btn:hover,
+.close-btn:focus-visible {
+  border-color: rgba(251, 146, 60, 0.55);
+  color: #ffffff;
+  outline: none;
+}
+
+.status-grid {
+  display: grid;
+  gap: 5px;
+}
+
+.status-grid div,
+.apply-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.status-grid span {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-grid strong,
+.apply-row strong {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apply-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.sc-btn {
+  border: 0;
+  padding: 5px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  background: #e5e7eb;
+  color: #0f172a;
+}
+
+.sc-btn.primary {
+  background: #fb923c;
+  color: #111827;
+}
+
+#SkyCareerStatus {
+  overflow: hidden;
+  color: #fdba74;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

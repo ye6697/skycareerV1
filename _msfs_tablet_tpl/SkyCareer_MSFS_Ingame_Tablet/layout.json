@@ -7,8 +7,8 @@
                     },
                     {
                         "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.html",
-                        "size":  1463,
-                        "date":  134228276835785284
+                        "size":  1493,
+                        "date":  134228943152433595
                     },
                     {
                         "path":  "html_ui/InGamePanels/PanelToolbarSkyCareer/PanelToolbarSkyCareer.js",
@@ -17,18 +17,18 @@
                     },
                     {
                         "path":  "html_ui/InGamePanels/SkyCareerTabletToolbar/panel.css",
-                        "size":  2985,
-                        "date":  134228276687575685
+                        "size":  3102,
+                        "date":  134228943068434051
                     },
                     {
                         "path":  "html_ui/InGamePanels/SkyCareerTabletToolbar/panel.html",
-                        "size":  1170,
-                        "date":  134228276566541893
+                        "size":  1198,
+                        "date":  134228350860631458
                     },
                     {
                         "path":  "html_ui/InGamePanels/SkyCareerTabletToolbar/panel.js",
-                        "size":  4161,
-                        "date":  134228277545665425
+                        "size":  4281,
+                        "date":  134228350860646338
                     },
                     {
                         "path":  "html_ui/SkyCareerTablet3D/README.txt",
@@ -52,8 +52,8 @@
                     },
                     {
                         "path":  "manifest.json",
-                        "size":  331,
-                        "date":  134228274429458582
+                        "size":  346,
+                        "date":  134228350860661218
                     },
                     {
                         "path":  "README.txt",

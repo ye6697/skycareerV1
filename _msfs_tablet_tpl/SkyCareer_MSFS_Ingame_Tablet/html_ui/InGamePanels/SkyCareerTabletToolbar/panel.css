@@ -26,20 +26,20 @@ body {
 
 #SkyCareerWeatherPanel {
   position: absolute;
-  right: 14px;
-  bottom: 14px;
+  right: 10px;
+  bottom: 10px;
   z-index: 20;
   display: flex;
-  width: min(310px, calc(100% - 28px));
-  min-height: 76px;
+  width: min(235px, calc(100% - 20px));
+  min-height: 62px;
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
+  gap: 3px;
   border: 1px solid rgba(209, 213, 219, 0.22);
   border-radius: 8px;
-  padding: 10px 12px;
-  background: linear-gradient(145deg, rgba(38, 42, 51, 0.88), rgba(15, 18, 24, 0.82));
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
+  padding: 8px 9px;
+  background: linear-gradient(145deg, rgba(53, 57, 64, 0.82), rgba(21, 24, 30, 0.78));
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
   color: #eef2f7;
   cursor: pointer;
   pointer-events: auto;
@@ -62,7 +62,7 @@ body {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -73,28 +73,28 @@ body {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
+  gap: 7px;
 }
 
 .weatherBrand {
   display: inline-flex;
-  width: 28px;
-  height: 22px;
+  width: 24px;
+  height: 19px;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(251, 146, 60, 0.45);
   border-radius: 6px;
   background: rgba(251, 146, 60, 0.12);
   color: #fed7aa;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   line-height: 1;
 }
 
 #SkyCareerWeatherClose {
   display: inline-flex;
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(226, 232, 240, 0.16);
@@ -102,7 +102,7 @@ body {
   background: rgba(15, 23, 42, 0.58);
   color: #cbd5e1;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1;
 }
@@ -142,14 +142,14 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 750;
   line-height: 1.15;
   color: #ffffff;
 }
 
 #SkyCareerWeatherHint {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.25;
   color: #fdba74;
 }
