@@ -1,38 +1,60 @@
 import React from 'react';
-import { Trophy, TrendingUp, Hash } from 'lucide-react';
+import { Activity, Hash, Radar, Trophy } from 'lucide-react';
 
-export default function LeaderboardHeader({ myRank, totalAirlines }) {
+function MetricCard({ icon: Icon, label, value, detail, tone = 'cyan' }) {
+  const tones = {
+    amber: 'border-amber-500/25 bg-amber-500/10 text-amber-300',
+    cyan: 'border-cyan-500/25 bg-cyan-500/10 text-cyan-300',
+    emerald: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300',
+    slate: 'border-slate-700 bg-slate-900/70 text-slate-300',
+  };
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-          <Trophy className="w-5 h-5 text-amber-400" />
+    <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${tones[tone] || tones.cyan}`}>
+          <Icon className="h-5 w-5" />
         </div>
-        <div>
-          <p className="text-[10px] text-slate-500 uppercase font-mono">Your Rank</p>
-          <p className="text-xl font-mono font-black text-cyan-400">
-            {myRank ? `#${myRank}` : '—'}
-          </p>
-        </div>
-      </div>
-      <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-          <Hash className="w-5 h-5 text-purple-400" />
-        </div>
-        <div>
-          <p className="text-[10px] text-slate-500 uppercase font-mono">Airlines</p>
-          <p className="text-xl font-mono font-black text-white">{totalAirlines}</p>
+        <div className="min-w-0">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">{label}</p>
+          <p className="truncate text-xl font-black text-white">{value}</p>
+          {detail && <p className="truncate text-[10px] text-slate-500">{detail}</p>}
         </div>
       </div>
-      <div className="hidden sm:flex bg-slate-900/80 border border-slate-800 rounded-lg p-3 items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-          <TrendingUp className="w-5 h-5 text-emerald-400" />
-        </div>
-        <div>
-          <p className="text-[10px] text-slate-500 uppercase font-mono">Score Formula</p>
-          <p className="text-[10px] font-mono text-slate-400">40% Score · 25% Level · 20% Landing · 15% Rep</p>
-        </div>
-      </div>
+    </div>
+  );
+}
+
+export default function LeaderboardHeader({ myRank, totalAirlines, leader, scopedCount }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MetricCard
+        icon={Trophy}
+        label="Your Rank"
+        value={myRank ? `#${myRank}` : '-'}
+        detail="Global airline position"
+        tone="amber"
+      />
+      <MetricCard
+        icon={Hash}
+        label="Airlines"
+        value={totalAirlines}
+        detail={`${scopedCount || 0} shown in this view`}
+        tone="cyan"
+      />
+      <MetricCard
+        icon={Radar}
+        label="Current Leader"
+        value={leader?.name || '-'}
+        detail={leader ? `Rating ${leader.composite_score}` : 'No ranked airline yet'}
+        tone="emerald"
+      />
+      <MetricCard
+        icon={Activity}
+        label="Score Model"
+        value="40 / 25 / 20 / 15"
+        detail="Flight score, level, landing, rep"
+        tone="slate"
+      />
     </div>
   );
 }

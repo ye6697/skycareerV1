@@ -2,7 +2,6 @@ import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Filter } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
-import { t } from "@/components/i18n/translations";
 
 const AIRCRAFT_TYPES = [
   { value: 'all', label_en: 'All Aircraft', label_de: 'Alle Flugzeuge' },
@@ -40,13 +39,13 @@ export default function LeaderboardFilters({ aircraftType, region, onAircraftTyp
   const { lang } = useLanguage();
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-1.5 text-slate-500">
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex h-8 items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900/80 px-2 text-slate-400">
         <Filter className="w-3.5 h-3.5" />
-        <span className="text-[10px] font-mono uppercase tracking-wider">Filter</span>
+        <span className="text-[10px] font-mono uppercase tracking-wider">{lang === 'de' ? 'Filter' : 'Filters'}</span>
       </div>
       <Select value={aircraftType} onValueChange={onAircraftTypeChange}>
-        <SelectTrigger className="w-36 h-8 bg-slate-900 border-slate-700 text-xs font-mono">
+        <SelectTrigger className="w-40 h-8 bg-slate-900 border-slate-700 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -58,7 +57,7 @@ export default function LeaderboardFilters({ aircraftType, region, onAircraftTyp
         </SelectContent>
       </Select>
       <Select value={region} onValueChange={onRegionChange}>
-        <SelectTrigger className="w-40 h-8 bg-slate-900 border-slate-700 text-xs font-mono">
+        <SelectTrigger className="w-44 h-8 bg-slate-900 border-slate-700 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

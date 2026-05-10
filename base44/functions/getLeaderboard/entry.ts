@@ -33,14 +33,27 @@ Deno.serve(async (req) => {
       flightsByCompany[f.company_id].push(f);
     }
 
-    // If aircraft type filter, also fetch aircraft to map aircraft_id -> type
-    let aircraftTypeMap = {};
-    if (aircraftTypeFilter && aircraftTypeFilter !== 'all') {
-      const allAircraft = await base44.asServiceRole.entities.Aircraft.filter({}, '-created_date', 5000);
-      for (const ac of allAircraft) {
-        aircraftTypeMap[ac.id] = ac.type;
-      }
+    const allAircraft = await base44.asServiceRole.entities.Aircraft.filter({}, '-created_date', 5000);
+    const aircraftTypeMap = {};
+    const aircraftByCompany = {};
+    for (const ac of allAircraft) {
+      aircraftTypeMap[ac.id] = ac.type;
+      if (!ac.company_id) continue;
+      if (!aircraftByCompany[ac.company_id]) aircraftByCompany[ac.company_id] = [];
+      aircraftByCompany[ac.company_id].push(ac);
     }
+
+    const normalizeScore = (value) => {
+      const n = Number(value || 0);
+      if (!Number.isFinite(n) || n <= 0) return 0;
+      return n <= 5 ? n * 20 : n;
+    };
+
+    const getFlightDate = (flight) => {
+      const raw = flight?.completed_at || flight?.arrival_time || flight?.updated_date || flight?.created_date;
+      const date = raw ? new Date(raw) : null;
+      return date && !Number.isNaN(date.getTime()) ? date : null;
+    };
 
     // Build leaderboard entries
     const entries = [];
@@ -58,8 +71,17 @@ Deno.serve(async (req) => {
       const totalFlights = companyFlights.length;
       if (totalFlights === 0 && (aircraftTypeFilter && aircraftTypeFilter !== 'all')) continue;
 
+      const companyAircraft = aircraftByCompany[company.id] || [];
+      const aircraftTypes = {};
+      for (const ac of companyAircraft) {
+        const type = ac.type || 'unknown';
+        aircraftTypes[type] = (aircraftTypes[type] || 0) + 1;
+      }
+      const primaryAircraftType = Object.entries(aircraftTypes).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const fleetValue = companyAircraft.reduce((sum, ac) => sum + Number(ac.current_value || ac.value || ac.purchase_price || ac.price || 0), 0);
+
       // Calculate averages
-      const scores = companyFlights.map(f => f.flight_score ?? f.overall_rating ?? 0).filter(s => s > 0);
+      const scores = companyFlights.map(f => normalizeScore(f.flight_score ?? f.overall_rating ?? 0)).filter(s => s > 0);
       const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
       const landingVs = companyFlights.map(f => Math.abs(f.landing_vs || 0)).filter(v => v > 0);
@@ -68,6 +90,12 @@ Deno.serve(async (req) => {
       // Butter landings (< 100 fpm)
       const butterCount = landingVs.filter(v => v < 100).length;
       const butterPct = landingVs.length > 0 ? (butterCount / landingVs.length) * 100 : 0;
+      const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
+      const bestLandingVs = landingVs.length > 0 ? Math.min(...landingVs) : null;
+      const lastFlightDate = companyFlights
+        .map(getFlightDate)
+        .filter(Boolean)
+        .sort((a, b) => b.getTime() - a.getTime())[0] || null;
 
       // Composite ranking score:
       // 40% avg flight score + 25% level contribution + 20% landing quality + 15% reputation
@@ -92,11 +120,20 @@ Deno.serve(async (req) => {
         reputation: company.reputation || 50,
         total_flights: company.total_flights || totalFlights,
         total_passengers: company.total_passengers || 0,
+        total_cargo_kg: company.total_cargo_kg || 0,
         xp: company.experience_points || 0,
+        fleet_size: companyAircraft.length,
+        fleet_value: Math.round(fleetValue),
+        aircraft_types: aircraftTypes,
+        primary_aircraft_type: primaryAircraftType,
+        maintenance_ratio: company.current_maintenance_ratio || 0,
         avg_score: Math.round(avgScore * 10) / 10,
         avg_landing_vs: Math.round(avgLandingVs),
+        best_score: Math.round(bestScore * 10) / 10,
+        best_landing_vs: bestLandingVs === null ? null : Math.round(bestLandingVs),
         butter_pct: Math.round(butterPct),
         composite_score: Math.round(compositeScore * 10) / 10,
+        last_flight_date: lastFlightDate ? lastFlightDate.toISOString() : null,
         is_me: company.created_by === user.email,
       });
     }

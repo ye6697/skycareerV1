@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { TrendingUp, TriangleAlert, Plane, Clock3, Users, Newspaper, BadgeCheck, Activity, PlaneTakeoff, CalendarRange } from 'lucide-react';
+import { TrendingUp, TriangleAlert, Plane, Clock3, Users, Newspaper, BadgeCheck, PlaneTakeoff } from 'lucide-react';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -141,23 +141,6 @@ function createPosts(company, flights, acceptedContracts, lang) {
 }
 
 
-const categoryDefs = [
-  { key: 'all', icon: CalendarRange },
-  { key: 'month', icon: Activity },
-  { key: 'week', icon: Clock3 },
-];
-
-const filterFlightsByCategory = (flights, category) => {
-  if (category === 'all') return flights;
-  const now = new Date();
-  const days = category === 'week' ? 7 : 30;
-  return (flights || []).filter((f) => {
-    const d = getFlightDate(f);
-    if (!d) return false;
-    return now.getTime() - d.getTime() <= days * 24 * 60 * 60 * 1000;
-  });
-};
-
 const toneStyles = {
   positive: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
   negative: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
@@ -165,12 +148,10 @@ const toneStyles = {
 };
 
 export default function AviationMediaFeed({ company, recentFlights, acceptedContracts, lang = 'en' }) {
-  const [category, setCategory] = useState('all');
   const [selectedPost, setSelectedPost] = useState(null);
-  const scopedFlights = useMemo(() => filterFlightsByCategory(recentFlights, category), [recentFlights, category]);
   const posts = useMemo(
-    () => createPosts(company, scopedFlights, acceptedContracts, lang),
-    [company, scopedFlights, acceptedContracts, lang],
+    () => createPosts(company, recentFlights || [], acceptedContracts, lang),
+    [company, recentFlights, acceptedContracts, lang],
   );
 
   return (
@@ -185,12 +166,6 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {categoryDefs.map(({ key, icon: FilterIcon }) => (
-            <button key={key} onClick={() => setCategory(key)} className={`px-2 py-1 rounded-md border text-xs flex items-center gap-1 ${category === key ? 'border-cyan-400 text-cyan-200 bg-cyan-500/10' : 'border-slate-700 text-slate-400'}`}>
-              <FilterIcon className="w-3 h-3" />
-              {lang === 'de' ? (key === 'all' ? 'Alle Zeit' : key === 'month' ? 'Monat' : 'Woche') : (key === 'all' ? 'All time' : key === 'month' ? 'Month' : 'Week')}
-            </button>
-          ))}
           <Badge variant="outline" className="border-cyan-700 text-cyan-300"><Clock3 className="w-3 h-3 mr-1" /> Live</Badge>
         </div>
       </div>
@@ -216,7 +191,7 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
                   <div className="ml-auto flex items-center gap-2">
                     <Badge className="border-indigo-500/40 bg-indigo-500/10 text-indigo-200">
                       <BadgeCheck className="w-3 h-3 mr-1" />
-                      {lang === 'de' ? 'Rep-Impact' : 'Rep Impact'} {post.reputationImpact > 0 ? '+' : ''}{post.reputationImpact}
+                      REP {post.reputationImpact > 0 ? '+' : ''}{post.reputationImpact}
                     </Badge>
                     <Badge className={`${toneStyles[post.tone]}`}>{getMood(post.reputationImpact, lang)}</Badge>
                   </div>
@@ -247,8 +222,8 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
               <p className="text-slate-200 font-semibold">{selectedPost.headline}</p>
               <p className="text-slate-300">{selectedPost.description}</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded border border-slate-700 p-2"><span className="text-slate-400 text-xs">{lang === 'de' ? 'Reputation Impact' : 'Reputation Impact'}</span><p className="text-cyan-300 font-mono">{selectedPost.reputationImpact > 0 ? '+' : ''}{selectedPost.reputationImpact}</p></div>
-                <div className="rounded border border-slate-700 p-2"><span className="text-slate-400 text-xs">KOIs/KPIs</span><p className="text-cyan-300 font-mono">{scopedFlights.length} flights • {acceptedContracts?.length || 0} contracts</p></div>
+                <div className="rounded border border-slate-700 p-2"><span className="text-slate-400 text-xs">REP</span><p className="text-cyan-300 font-mono">{selectedPost.reputationImpact > 0 ? '+' : ''}{selectedPost.reputationImpact}</p></div>
+                <div className="rounded border border-slate-700 p-2"><span className="text-slate-400 text-xs">KOIs/KPIs</span><p className="text-cyan-300 font-mono">{(recentFlights || []).length} flights • {acceptedContracts?.length || 0} contracts</p></div>
               </div>
             </div>
           )}

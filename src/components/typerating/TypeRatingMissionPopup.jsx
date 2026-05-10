@@ -34,6 +34,15 @@ const calculateTrainingDeadlineMinutes = (distanceNm, aircraft) => {
   return Math.round((Number(distanceNm || 0) / cruiseSpeed) * 60 + 20 + 15);
 };
 
+const getRouteDistanceNm = (fromIcao, toIcao, fallbackDistance) => {
+  const from = getAirportCoords(String(fromIcao || '').trim().toUpperCase());
+  const to = getAirportCoords(String(toIcao || '').trim().toUpperCase());
+  if (from && to) {
+    return Math.round(calculateDistanceNm(from.lat, from.lon, to.lat, to.lon));
+  }
+  return Math.round(Number(fallbackDistance || 0));
+};
+
 function buildTrainingRoutes(hubIcao) {
   const requestedHub = String(hubIcao || 'EDDF').trim().toUpperCase();
   const hub = getAirportCoords(requestedHub) ? requestedHub : 'EDDF';
@@ -115,20 +124,22 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
   });
 
   // Helper: create the 3 training contracts for this model.
-  async function createTrainingContracts() {
+  async function createTrainingContracts({ titleOffset = 0 } = {}) {
     const hub = company.hub_airport || 'EDDF';
     const now = Date.now();
     const presetRoutes = buildTrainingRoutes(hub);
+    const totalAfterBatch = titleOffset + presetRoutes.length;
     await Promise.all(presetRoutes.map((r, i) => {
-      const deadlineMinutes = calculateTrainingDeadlineMinutes(r.dist, aircraft);
+      const distanceNm = getRouteDistanceNm(r.from, r.to, r.dist);
+      const deadlineMinutes = calculateTrainingDeadlineMinutes(distanceNm, aircraft);
       return base44.entities.Contract.create({
         company_id: company.id,
-        title: `Type-Rating: ${modelName} (${i + 1}/3)`,
+        title: `Type-Rating: ${modelName} (${titleOffset + i + 1}/${totalAfterBatch})`,
         briefing: `__TR__:${modelName}`,
         type: 'charter',
         departure_airport: r.from,
         arrival_airport: r.to,
-        distance_nm: r.dist,
+        distance_nm: distanceNm,
         payout: 5000,
         deadline: new Date(now + deadlineMinutes * 60 * 1000).toISOString(),
         deadline_minutes: deadlineMinutes,
@@ -180,6 +191,27 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
     },
   });
 
+  const paidExtraContracts = useMutation({
+    mutationFn: async () => {
+      if (!aircraft || !company) throw new Error('Missing data');
+      const { cost: paid } = await startTypeRatingTraining({
+        aircraftModel: modelName,
+        aircraftType: aircraft.type,
+        aircraftLevelRequirement: requiredLevel,
+        company,
+      });
+      await createTrainingContracts({ titleOffset: trainingContracts.length });
+      return { paid };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['contractsPageData'] });
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      refetchTraining();
+    },
+  });
+
   // Accept a single training contract (sets it to accepted/in-progress).
   const acceptContract = useMutation({
     mutationFn: async (contract) => {
@@ -193,6 +225,11 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
   });
 
   if (!open || !aircraft) return null;
+
+  const hasAvailableTrainingContract = trainingContracts.some(
+    (contract) => String(contract?.status || 'available').toLowerCase() === 'available',
+  );
+  const canBuyExtraTrainingBatch = !hasRating && active && trainingContracts.length >= 3 && !hasAvailableTrainingContract;
 
   return (
     <AnimatePresence>
@@ -304,10 +341,43 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                         )}
                       </div>
                     )}
+                    {canBuyExtraTrainingBatch && (
+                      <div className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-4 text-center space-y-3">
+                        <p className="text-xs text-cyan-100">
+                          {lang === 'de'
+                            ? 'Alle 3 Trainingsauftraege wurden bereits aktiviert. Du kannst zum Type-Rating-Preis noch einmal 3 neue Trainingsauftraege erzeugen.'
+                            : 'All 3 training contracts have already been activated. You can pay the type-rating price again to generate 3 new training contracts.'}
+                        </p>
+                        <Button
+                          onClick={() => paidExtraContracts.mutate()}
+                          disabled={!canPay || paidExtraContracts.isPending}
+                          className="h-9 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold disabled:opacity-50"
+                        >
+                          {paidExtraContracts.isPending
+                            ? (lang === 'de' ? 'Erzeuge neue Auftraege...' : 'Generating new contracts...')
+                            : (lang === 'de' ? `3 neue Auftraege (-$${cost.toLocaleString()})` : `3 new contracts (-$${cost.toLocaleString()})`)}
+                        </Button>
+                        {!canPay && (
+                          <p className="text-xs text-red-300">
+                            {lang === 'de' ? 'Nicht genug Geld fuer eine weitere Trainingsrunde.' : 'Insufficient funds for another training round.'}
+                          </p>
+                        )}
+                        {paidExtraContracts.isError && (
+                          <p className="text-xs text-red-400">
+                            {String(paidExtraContracts.error?.message || 'Error')}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {trainingContracts.map((contract, idx) => {
                       const status = String(contract?.status || 'available').toLowerCase();
                       const isAvailable = status === 'available';
                       const isAccepted = status === 'accepted' || status === 'in_progress';
+                      const distanceNm = getRouteDistanceNm(
+                        contract.departure_airport,
+                        contract.arrival_airport,
+                        contract.distance_nm,
+                      );
                       return (
                         <motion.div
                           key={contract.id}
@@ -325,7 +395,7 @@ export default function TypeRatingMissionPopup({ open, aircraft, company, user, 
                                 <ArrowRight className="w-3 h-3" />
                                 <span>{contract.arrival_airport}</span>
                                 <span className="text-slate-600">·</span>
-                                <span className="text-cyan-300">{contract.distance_nm} NM</span>
+                                <span className="text-cyan-300">{distanceNm} NM</span>
                                 {contract.deadline_minutes && (
                                   <>
                                     <span className="text-slate-600">|</span>
