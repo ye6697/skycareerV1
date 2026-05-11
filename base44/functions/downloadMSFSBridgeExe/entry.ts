@@ -3,8 +3,8 @@ import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://sky-career.com/api/functions/receiveXPlaneData';
 const LOCAL_RELAY_ENDPOINT = 'http://127.0.0.1:50080/bridge';
-const BRIDGE_VERSION = 'bridge-2026-05-11-installer-bootstrap-r1';
-const DOWNLOAD_BUILD_ID = 'installer-bootstrap-2026-05-11-r1';
+const BRIDGE_VERSION = 'bridge-2026-05-11-installer-bootstrap-r2';
+const DOWNLOAD_BUILD_ID = 'installer-bootstrap-2026-05-11-r2';
 const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
 const DEFAULT_SIMCONNECT_CFG = `[SimConnect]
 Protocol=Ipv4
@@ -117,7 +117,7 @@ ALLOWED_FORWARD_KEYS = {
     'engine2_running', 'engines_running', 'engine_load_pct', 'engine1_load_pct',
     'engine2_load_pct', 'thrust_lever_pct', 'thrust_lever1_pct',
     'thrust_lever2_pct', 'throttle_pct', 'throttle1_pct', 'throttle2_pct',
-    'thrust_source', 'gear_down', 'flap_ratio', 'speedbrake', 'speed_brake',
+    'thrust_source', 'gear_down', 'flap_ratio', 'flaps_deployed', 'speedbrake', 'speed_brake',
     'spoiler', 'fuel_percentage', 'fuel_kg', 'fuel_total_kg',
     'fuel_flow_total_kgph', 'fuel_flow_total_lph', 'fuel_flow_total_pph',
     'engine1_fuel_flow_pph', 'engine2_fuel_flow_pph', 'fuel_flow_source',
@@ -127,6 +127,9 @@ ALLOWED_FORWARD_KEYS = {
     'rain_intensity', 'rain_detected', 'precipitation', 'precip_rate',
     'precip_state', 'ambient_precip_rate', 'ambient_precip_state',
     'turbulence', 'turbulence_intensity',
+    'touchdown_vspeed', 'landing_vspeed', 'landing_vs', 'landing_gforce',
+    'landing_g_force', 'bridge_local_landing_locked', 'landing_data_source',
+    'landing_data_timestamp', 'touchdown_detected',
 }
 
 state_lock = threading.Lock()
