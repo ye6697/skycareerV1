@@ -47,17 +47,7 @@ const readVerticalSpeedFpm = (point) => {
     point?.verticalSpeed,
     point?.vertical_speed_fpm,
     point?.verticalSpeedFpm,
-    point?.vs_fpm,
-    point?.touchdown_vspeed
-  );
-};
-
-const readTouchdownVerticalSpeedFpm = (point) => {
-  return firstFiniteNumber(
-    point?.touchdown_vspeed,
-    point?.touchdownVs,
-    point?.landing_vs,
-    point?.landingVs
+    point?.vs_fpm
   );
 };
 
@@ -108,17 +98,7 @@ const findTouchdownIndex = (history) => {
     }
   }
 
-  let bestIdx = -1;
-  let mostNegativeVs = Infinity;
-  for (let i = 0; i < history.length; i += 1) {
-    const vs = readVerticalSpeedFpm(history[i]);
-    if (!Number.isFinite(vs)) continue;
-    if (vs < mostNegativeVs) {
-      mostNegativeVs = vs;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
+  return -1;
 };
 
 export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStartIso) {
@@ -132,28 +112,21 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  const start = Math.max(0, touchdownIdx - 2);
-  const end = Math.min(sessionHistory.length - 1, touchdownIdx + 3);
-  const window = sessionHistory.slice(start, end + 1);
+  const approachWindow = sessionHistory.slice(Math.max(0, touchdownIdx - 6), touchdownIdx);
+  const gWindow = sessionHistory.slice(touchdownIdx, Math.min(sessionHistory.length, touchdownIdx + 4));
 
-  const vsValues = window
+  const vsValues = approachWindow
     .map((point) => readVerticalSpeedFpm(point))
     .filter((value) => Number.isFinite(value));
-  const touchdownVsValues = window
-    .map((point) => readTouchdownVerticalSpeedFpm(point))
-    .filter((value) => Number.isFinite(value) && Math.abs(value) > 0);
   const descendingVs = vsValues.filter((value) => value < 0);
   let resolvedVs = 0;
-  if (touchdownVsValues.length > 0) {
-    resolvedVs = Math.max(...touchdownVsValues.map((value) => Math.abs(value)));
-  }
-  if (resolvedVs <= 0 && descendingVs.length > 0) {
+  if (descendingVs.length > 0) {
     resolvedVs = Math.abs(Math.min(...descendingVs));
   } else if (resolvedVs <= 0 && vsValues.length > 0) {
     resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
   }
 
-  const gValues = window
+  const gValues = gWindow
     .map((point) => readGForce(point))
     .filter((value) => Number.isFinite(value) && value > 0);
   const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
@@ -186,6 +159,7 @@ const firstPositive = (...values) => {
 export function resolveLandingMetricsFromFlight(flight) {
   const xpd = flight?.xplane_data || {};
   const telemetryHistory = xpd.telemetry_history || xpd.telemetryHistory || xpd.profile_history || xpd.flight_profile || [];
+  const hasTelemetryHistory = Array.isArray(telemetryHistory) && telemetryHistory.length >= 2;
   const sessionStartIso = flight?.departure_time || flight?.created_date || null;
   const derived = deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStartIso);
 
@@ -211,6 +185,7 @@ export function resolveLandingMetricsFromFlight(flight) {
 
   const landingVs = (() => {
     if (Math.abs(derived.landingVs) > 0) return derived.landingVs;
+    if (hasTelemetryHistory) return 0;
     if (derived.landingG > 0) return toSignedSinkRate(clamp(trustedStoredVs, 0, 10000));
     return toSignedSinkRate(clamp(legacyStoredVs, 0, 10000));
   })();

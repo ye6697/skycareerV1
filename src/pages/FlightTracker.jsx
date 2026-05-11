@@ -1915,11 +1915,11 @@ export default function FlightTracker() {
             const localLandingG = Number(finalFlightData.landingGForce || 0);
             const telemetryLandingVs = Number(derivedLandingMetrics?.landingVs || 0);
             const telemetryLandingG = Number(derivedLandingMetrics?.landingG || 0);
-            const saveLandingTrusted = landingDataTrusted || existingLandingTrusted || localLandingVs > 0 || localLandingG > 0 || telemetryLandingVs > 0 || telemetryLandingG > 0;
+            const saveLandingTrusted = landingDataTrusted || existingLandingTrusted || Math.abs(localLandingVs) > 0 || localLandingG > 0 || Math.abs(telemetryLandingVs) > 0 || telemetryLandingG > 0;
             const resolvedTouchdownForSave = saveLandingTrusted
-              ? (telemetryLandingVs > 0
+              ? (Math.abs(telemetryLandingVs) > 0
                   ? telemetryLandingVs
-                  : (localLandingVs > 0
+                  : (Math.abs(localLandingVs) > 0
                       ? localLandingVs
                   : Number(
                       xpData.touchdown_vspeed ||

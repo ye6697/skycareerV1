@@ -1660,18 +1660,37 @@ Deno.serve(async (req) => {
     const fuelEmergencyDetected = hasBeenAirborne && toBool(fuel_emergency, false);
 
     const prevVerticalSpeed = Number(prevXd.vertical_speed ?? 0);
+    const recentApproachTouchdownVspeed = (() => {
+      if (!justTouchedDown) return 0;
+      const history = Array.isArray(prevXd.telemetry_history) ? prevXd.telemetry_history : [];
+      const samples: number[] = [];
+      for (let i = history.length - 1; i >= 0 && samples.length < 6; i -= 1) {
+        const point = history[i] || {};
+        const pointOnGround = toBool(point.og ?? point.on_ground ?? point.onGround, false);
+        if (pointOnGround && samples.length > 0) break;
+        if (pointOnGround) continue;
+        const sampleVs = Number(point.vs ?? point.vertical_speed ?? point.verticalSpeed ?? point.vs_fpm);
+        if (Number.isFinite(sampleVs)) samples.push(sampleVs);
+      }
+      const descending = samples.filter((value) => value < 0).map((value) => Math.abs(value));
+      if (descending.length > 0) return Math.max(...descending);
+      const absolute = samples.map((value) => Math.abs(value)).filter((value) => value > 0);
+      return absolute.length > 0 ? Math.max(...absolute) : 0;
+    })();
     const transitionTouchdownVspeed = justTouchedDown
       ? Math.max(
           50,
-          Math.abs(
-            Math.min(
-              Number.isFinite(prevVerticalSpeed) && Math.abs(prevVerticalSpeed) > 0
-                ? prevVerticalSpeed
-                : Number(vertical_speed || 0),
-              Number(vertical_speed || 0),
-              Number(vertical_speed_window_min || 0)
-            )
-          )
+          recentApproachTouchdownVspeed > 0
+            ? recentApproachTouchdownVspeed
+            : Math.abs(
+                Math.min(
+                  Number.isFinite(prevVerticalSpeed) && Math.abs(prevVerticalSpeed) > 0
+                    ? prevVerticalSpeed
+                    : Number(vertical_speed || 0),
+                  Number(vertical_speed || 0),
+                  Number(vertical_speed_window_min || 0)
+                )
+              )
         )
       : 0;
     const captureNowMs = Date.now();
@@ -1683,15 +1702,18 @@ Deno.serve(async (req) => {
       ? (captureNowMs - landingCaptureStartedAtMs) <= 9000
       : false;
     const mergedTouchdownVspeedNum = Math.abs(Number(mergedTouchdownVspeed || 0));
-    const touchdownCandidateRaw = mergedTouchdownVspeedNum > 0
+    const touchdownCandidateRaw = recentApproachTouchdownVspeed > 0
+      ? recentApproachTouchdownVspeed
+      : mergedTouchdownVspeedNum > 0
       ? mergedTouchdownVspeedNum
       : (useBridgeLocalLanding ? 0 : transitionTouchdownVspeed);
     const touchdownCandidate = Math.max(0, Math.min(10000, touchdownCandidateRaw));
-    // During capture window: keep PEAK values so the real spike is never lost
+    // Lock V/S at the touchdown transition. Later ground samples must not turn
+    // the stored landing V/S into a whole-flight or rollout peak.
     const effectiveTouchdownVspeedGround = useBridgeLocalLanding
       ? touchdownCandidate
-      : (landingCaptureActive
-          ? Math.max(touchdownCandidate, Number(prevTouchdownVspeed || 0))
+      : (justTouchedDown
+          ? touchdownCandidate
           : ((Number(prevTouchdownVspeed || 0) > 0) ? Number(prevTouchdownVspeed || 0) : touchdownCandidate));
     const mergedLandingGNum = Number(mergedLandingG || 0);
     const transitionLandingG = justTouchedDown ? Math.max(1.0, gForceCurrent) : 0;

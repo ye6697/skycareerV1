@@ -58,18 +58,7 @@ const readVerticalSpeedFpm = (point) => {
     point?.verticalSpeed,
     point?.vertical_speed_fpm,
     point?.verticalSpeedFpm,
-    point?.vs_fpm,
-    point?.touchdown_vspeed
-  );
-};
-
-const readTouchdownVerticalSpeedFpm = (point) => {
-  return firstFiniteNumber(
-    point?.touchdown_vspeed,
-    point?.touchdownVs,
-    point?.landing_vspeed,
-    point?.landing_vs,
-    point?.landingVs
+    point?.vs_fpm
   );
 };
 
@@ -171,26 +160,12 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  // Use a slightly wider touchdown window and resolve V/S robustly.
-  // Older logic took the max value from a tiny window and could lock onto
-  // single-sample spikes (e.g. 2200+) even when surrounding values were normal.
-  const start = Math.max(0, touchdownIdx - 6);
-  const end = Math.min(sessionHistory.length - 1, touchdownIdx + 3);
-  const window = sessionHistory.slice(start, end + 1);
-
-  const percentile = (arr, p) => {
-    if (!Array.isArray(arr) || arr.length === 0) return 0;
-    const sorted = [...arr].sort((a, b) => a - b);
-    const idx = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
-    return sorted[idx];
-  };
-
-  const touchdownVsValues = window
-    .map((point) => readTouchdownVerticalSpeedFpm(point))
-    .filter((value) => Number.isFinite(value) && Math.abs(value) > 0)
-    .map((value) => Math.abs(value));
-
-  const vsValues = window
+  // Landing V/S comes only from the last 6 raw vertical-speed samples before
+  // the touchdown on_ground sample. Do not use cumulative touchdown_vspeed here;
+  // that field can already contain a max from the whole flight.
+  const approachWindow = sessionHistory.slice(Math.max(0, touchdownIdx - 6), touchdownIdx);
+  const gWindow = sessionHistory.slice(touchdownIdx, Math.min(sessionHistory.length, touchdownIdx + 4));
+  const vsValues = approachWindow
     .map((point) => readVerticalSpeedFpm(point))
     .filter((value) => Number.isFinite(value));
   const descendingVsAbs = vsValues
@@ -199,24 +174,13 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
 
   let resolvedVs = 0;
 
-  // Prefer explicit touchdown V/S fields, but robustify with median + p80 cap.
-  if (touchdownVsValues.length > 0) {
-    const tdMedian = percentile(touchdownVsValues, 0.5);
-    const tdP80 = percentile(touchdownVsValues, 0.8);
-    resolvedVs = Math.min(tdP80, Math.max(tdMedian, 0));
-  }
-
-  // Fallback: derive from raw vertical speed near touchdown with same robust rule.
-  if (resolvedVs <= 0 && descendingVsAbs.length > 0) {
-    const vsMedian = percentile(descendingVsAbs, 0.5);
-    const vsP80 = percentile(descendingVsAbs, 0.8);
-    resolvedVs = Math.min(vsP80, Math.max(vsMedian, 0));
+  if (descendingVsAbs.length > 0) {
+    resolvedVs = Math.max(...descendingVsAbs);
   } else if (resolvedVs <= 0 && vsValues.length > 0) {
-    const absVs = vsValues.map((value) => Math.abs(value));
-    resolvedVs = percentile(absVs, 0.8);
+    resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
   }
 
-  const gValues = window
+  const gValues = gWindow
     .map((point) => readGForce(point))
     .filter((value) => Number.isFinite(value) && value > 0);
   const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
@@ -265,6 +229,9 @@ export function resolveLandingMetricsFromFlight(flight) {
     if (derived && (Math.abs(derived.landingVs) > 0 || derived.landingG > 0)) {
       return { landingVs: derived.landingVs, landingG: derived.landingG };
     }
+    const bridgeG = firstPositive(xpd.landing_g_force, xpd.landingGForce, xpd.landing_gforce);
+    const safeG = bridgeG > 0 && bridgeG < 4 ? bridgeG : 0;
+    return { landingVs: 0, landingG: Number(safeG.toFixed(2)) };
   }
 
   // Fallback: use bridge-stored landing fields but sanitize unrealistic spikes.
