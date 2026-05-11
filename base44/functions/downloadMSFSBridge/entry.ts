@@ -207,6 +207,7 @@ def main():
 
     prev_on_ground = True
     prev_vs = 0.0
+    prev_agl = float("inf")
     state = reset_flight_state()
     next_post_at = 0.0
     worker_restart_count = 0
@@ -349,6 +350,7 @@ def main():
                 state["landing_g_force"] = 0.0
                 state["window_peak_g"] = g_force
                 state["window_min_vs"] = min(0.0, vertical_speed)
+                prev_agl = alt_agl
                 state["landing_data_timestamp"] = None
                 state["landing_locked_local"] = False
                 state["touchdown_epoch"] = None
@@ -492,7 +494,16 @@ def main():
                     queue_event(state, "harsh_controls", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=8.0)
 
             # === TOUCHDOWN DETECTION ===
-            just_landed = state["was_airborne"] and on_ground and not prev_on_ground
+            touchdown_from_sim_ground = state["was_airborne"] and on_ground and not prev_on_ground
+            touchdown_from_agl_fallback = (
+                state["was_airborne"]
+                and not state["landing_locked_local"]
+                and ias > 30.0
+                and alt_agl <= 2.5
+                and (prev_agl > 6.0 or on_ground)
+                and state["window_min_vs"] < -50.0
+            )
+            just_landed = touchdown_from_sim_ground or touchdown_from_agl_fallback
             if just_landed:
                 state["touchdown_epoch"] = now_epoch
                 state["touchdown_capture_until"] = now_epoch + TOUCHDOWN_CAPTURE_AFTER_S
@@ -540,6 +551,7 @@ def main():
 
             prev_on_ground = on_ground
             prev_vs = vertical_speed
+            prev_agl = alt_agl
             state["prev_g_force"] = g_force
 
             # === ENVIRONMENT DATA ===
@@ -779,6 +791,7 @@ def main():
             state = reset_flight_state()
             prev_on_ground = True
             prev_vs = 0.0
+            prev_agl = float("inf")
             last_seen_flight_id = None
             consecutive_post_timeouts = 0
             last_successful_post_at = time.time()
