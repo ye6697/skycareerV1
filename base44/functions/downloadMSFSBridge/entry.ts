@@ -26,8 +26,8 @@ Deno.serve(async (req) => {
     }
 
     const script = `#!/usr/bin/env python3
-# SkyCareer MSFS Bridge v2.5 (MSFS 2020 + 2024 via SimConnect)
-# Fixes: ICAO type, gear position, flap unit, event reset, fuel type, tailstrike
+# SkyCareer MSFS Bridge v2.6 (MSFS 2020 + 2024 via SimConnect)
+# Fixes: ICAO type, gear position, flap percent/deadzone, event reset, fuel type, tailstrike
 # Usage:
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2020
 #   python SkyCareer_MSFS_Bridge.py --sim msfs2024
@@ -263,10 +263,14 @@ def main():
             # Gear is "down" only if handle is down AND all gear positions are > 0.95 (fully extended)
             gear_down = gear_handle > 0.5 and gear_left > 0.95 and gear_center > 0.95 and gear_right > 0.95
 
-            # === FIX #3: FLAPS - use "Position" unit instead of "percent" ===
-            flap_raw = to_float(safe_get(aq, "TRAILING EDGE FLAPS LEFT PERCENT", "Position"), 0.0)
-            # Normalize: if value > 1.0, it's likely 0-100 range; otherwise 0-1
+            # === FLAPS - read percent as percent, then normalize to 0..1 ===
+            # Some aircraft (e.g. Vision Jet) can return a discrete "Position" value
+            # for the percent simvar. A value of 1 then looked like 100% flaps.
+            flap_raw = to_float(safe_get(aq, "TRAILING EDGE FLAPS LEFT PERCENT", "percent"), 0.0)
             flap_ratio = flap_raw / 100.0 if flap_raw > 1.5 else flap_raw
+            flap_ratio = max(0.0, min(1.0, flap_ratio))
+            if flap_ratio < 0.025:
+                flap_ratio = 0.0
             speedbrake_pos = to_float(safe_get(aq, "SPOILERS HANDLE POSITION", "position"), 0.0)
             speedbrake_on = speedbrake_pos > 0.1
 
@@ -375,7 +379,7 @@ def main():
                     )
                 prev_flap_pct = int(round(float(state.get("prev_flap_pct", 0))))
                 cur_flap_pct = int(round(float(flap_ratio) * 100.0))
-                if abs(cur_flap_pct - prev_flap_pct) >= 4:
+                if abs(cur_flap_pct - prev_flap_pct) >= 5:
                     queue_event(
                         state,
                         "flaps",
@@ -471,7 +475,7 @@ def main():
             if state["was_airborne"]:
                 if flap_ratio > 0.5 and ias > 200:
                     state["event_flaps_overspeed"] = True
-                elif flap_ratio > 0.0 and ias > 250:
+                elif flap_ratio >= 0.05 and ias > 250:
                     state["event_flaps_overspeed"] = True
                 if state["event_flaps_overspeed"]:
                     queue_event(state, "flaps_overspeed", latitude, longitude, altitude, speed, vertical_speed, g_force, cooldown=8.0)

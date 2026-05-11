@@ -3,8 +3,8 @@ import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://sky-career.com/api/functions/receiveXPlaneData';
 const LOCAL_RELAY_ENDPOINT = 'http://127.0.0.1:50080/bridge';
-const BRIDGE_VERSION = 'bridge-2026-05-10-weather-panel-r7';
-const DOWNLOAD_BUILD_ID = 'weather-package-layout-2026-05-04-r3';
+const BRIDGE_VERSION = 'bridge-2026-05-11-flap-percent-r1';
+const DOWNLOAD_BUILD_ID = 'flap-percent-relay-2026-05-11-r1';
 const BRIDGE_PACKAGE_DIR = 'SkyCareer_MSFS_Bridge';
 const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
 const DEFAULT_SIMCONNECT_CFG = `[SimConnect]
@@ -221,6 +221,7 @@ def read_simconnect_throttle_snapshot(payload):
             throttle2 = normalize_percent_like(simconnect_get(aq, 'GENERAL_ENG_THROTTLE_LEVER_POSITION:2'))
             n1_1 = normalize_percent_like(simconnect_get(aq, 'TURB_ENG_N1:1'))
             n1_2 = normalize_percent_like(simconnect_get(aq, 'TURB_ENG_N1:2'))
+            flap_pct = normalize_percent_like(simconnect_get(aq, 'TRAILING_EDGE_FLAPS_LEFT_PERCENT'))
             engine1_running = bool(payload.get('engine1_running', True))
             engine2_running = bool(payload.get('engine2_running', False))
             active = []
@@ -250,6 +251,11 @@ def read_simconnect_throttle_snapshot(payload):
                 n1_avg = sum(n1_values) / len(n1_values)
                 snapshot['engine_load_pct'] = round(n1_avg, 1)
                 snapshot['thrust_source'] = 'relay_simconnect_n1'
+            if flap_pct is not None:
+                flap_ratio = max(0.0, min(1.0, flap_pct / 100.0))
+                if flap_ratio < 0.025:
+                    flap_ratio = 0.0
+                snapshot['flap_ratio'] = round(flap_ratio, 3)
             sim_last_snapshot = snapshot
             sim_last_snapshot_ts = now_ts
             return dict(snapshot)
@@ -262,11 +268,11 @@ def read_simconnect_throttle_snapshot(payload):
             return {}
 
 def enrich_payload_with_thrust(payload):
-    if payload_has_number(payload, 'thrust_lever_pct', 'throttle_pct', 'engine_load_pct', 'thrust_lever1_pct', 'throttle1_pct', 'engine1_load_pct'):
-        return
+    has_thrust = payload_has_number(payload, 'thrust_lever_pct', 'throttle_pct', 'engine_load_pct', 'thrust_lever1_pct', 'throttle1_pct', 'engine1_load_pct')
     snapshot = read_simconnect_throttle_snapshot(payload)
     for key, value in snapshot.items():
-        payload[key] = value
+        if key == 'flap_ratio' or not has_thrust:
+            payload[key] = value
 
 def forward_payload(payload, api_key):
     global forward_count, last_forward_status, last_forward_elapsed_ms

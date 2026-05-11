@@ -523,6 +523,7 @@ Deno.serve(async (req) => {
       data.flap_ratio ?? data.flapRatio ?? data.flap_position ?? data.flapPosition ?? data.flaps ?? data.flaps_position,
       0
     );
+    if (flap_ratio < 0.025) flap_ratio = 0;
     const speedbrakeRaw = data.speedbrake ??
       data.speed_brake ??
       data.speedBrake ??
@@ -2150,7 +2151,7 @@ Deno.serve(async (req) => {
         if (prevFlap !== undefined && prevFlap !== null) {
           const prevPct = Math.round(Number(prevFlap) * 100);
           const curPct = Math.round(curFlap * 100);
-          if (Math.abs(prevPct - curPct) >= 2) {
+          if (Math.abs(prevPct - curPct) >= 5) {
             appendEvent("flaps", { val: curPct }, { force: true });
           }
         }
