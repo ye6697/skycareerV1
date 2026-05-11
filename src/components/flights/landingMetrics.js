@@ -1,5 +1,11 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+const approximateVsFromG = (gForce) => {
+  const g = Number(gForce);
+  if (!Number.isFinite(g) || g <= 1.0) return 0;
+  return Math.round((g - 1.0) * 700);
+};
+
 const firstFiniteNumber = (...values) => {
   for (const value of values) {
     const n = Number(value);
@@ -29,7 +35,7 @@ const readTelemetryPointTimestampMs = (point) => {
 };
 
 const readOnGroundFlag = (point) => {
-  const raw = point?.on_ground ?? point?.onGround ?? point?.is_on_ground ?? point?.grounded;
+  const raw = point?.on_ground ?? point?.onGround ?? point?.is_on_ground ?? point?.grounded ?? point?.og;
   if (typeof raw === "boolean") return raw;
   if (typeof raw === "number") return raw > 0.5;
   if (typeof raw === "string") {
@@ -57,6 +63,7 @@ const readGForce = (point) => {
     point?.g_force,
     point?.gForce,
     point?.landing_g_force,
+    point?.landing_gforce,
     point?.landingGForce
   );
 };
@@ -180,18 +187,26 @@ export function resolveLandingMetricsFromFlight(flight) {
   );
   const storedG = firstPositive(
     xpd?.landing_g_force,
-    xpd?.landingGForce
+    xpd?.landingGForce,
+    xpd?.landing_gforce
   );
+  const safeStoredG = storedG > 0 && storedG < 4 ? storedG : 0;
+  const storedVs = trustedStoredVs > 0 ? trustedStoredVs : legacyStoredVs;
+  const safeStoredVs = (() => {
+    if (storedVs > 0 && storedVs <= 1500) return storedVs;
+    if (safeStoredG > 0) return approximateVsFromG(safeStoredG);
+    return 0;
+  })();
 
   const landingVs = (() => {
     if (Math.abs(derived.landingVs) > 0) return derived.landingVs;
+    if (safeStoredVs > 0) return toSignedSinkRate(clamp(safeStoredVs, 0, 10000));
     if (hasTelemetryHistory) return 0;
-    if (derived.landingG > 0) return toSignedSinkRate(clamp(trustedStoredVs, 0, 10000));
-    return toSignedSinkRate(clamp(legacyStoredVs, 0, 10000));
+    return 0;
   })();
 
   return {
     landingVs,
-    landingG: derived.landingG > 0 ? Number(clamp(derived.landingG, 0, 6).toFixed(2)) : Number(clamp(storedG, 0, 6).toFixed(2)),
+    landingG: derived.landingG > 0 ? Number(clamp(derived.landingG, 0, 6).toFixed(2)) : Number(clamp(safeStoredG, 0, 6).toFixed(2)),
   };
 }

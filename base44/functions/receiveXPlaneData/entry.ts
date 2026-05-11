@@ -1346,7 +1346,11 @@ Deno.serve(async (req) => {
     const incomingLandingG = Number(landing_g_force ?? data.landingG ?? 0);
     const landingDataSource = String(data.landing_data_source || "").trim().toLowerCase();
     const bridgeLocalLandingLocked = toBool(data.bridge_local_landing_locked ?? data.landing_data_locked, false);
-    const useBridgeLocalLanding = bridgeLocalLandingLocked || landingDataSource.includes("bridge_local");
+    const incomingTouchdownDetected = toBool(data.touchdown_detected ?? data.touchdownDetected, false);
+    const useBridgeLocalLanding = bridgeLocalLandingLocked || (
+      landingDataSource.includes("bridge_local") &&
+      (incomingTouchdownDetected || incomingTouchdownVspeed > 0 || incomingLandingG > 0)
+    );
 
     // Extract aircraft/env fields from plugin - normalize across X-Plane and MSFS naming
     let total_weight_kg = data.total_weight_kg ?? data.gross_weight_kg ?? data.weight_kg ?? null;
@@ -2407,6 +2411,9 @@ Deno.serve(async (req) => {
     // Track max G-force on flight level
     if (max_g_force > (flight.max_g_force || 0)) {
       updateData.max_g_force = max_g_force;
+    }
+    if (Math.abs(Number(effectiveTouchdownVspeed || 0)) > 0) {
+      updateData.landing_vs = effectiveTouchdownVspeed;
     }
 
     // Only process failures if plugin sends them (rare event, not every packet)

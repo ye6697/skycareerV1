@@ -2390,7 +2390,18 @@ export default function FlightTracker() {
       const touchdownVsRaw = prev.landingType
         ? prev.landingVs  // Already landed - keep the captured value
         : ((xp.on_ground && newWasAirborne && landingDataTrusted)
-            ? (xp.touchdown_vspeed || 0)
+            ? (
+                xp.touchdown_vspeed ||
+                xp.landing_vspeed ||
+                xp.landing_vs ||
+                ((Number(prev.verticalSpeed || 0) < -20 || Number(xp.vertical_speed || 0) < -20)
+                  ? Math.max(
+                      Math.abs(Number(prev.verticalSpeed || 0)),
+                      Math.abs(Number(xp.vertical_speed || 0)),
+                      Math.abs(Number(xp.vertical_speed_window_min || 0))
+                    )
+                  : 0)
+              )
             : 0);
       const touchdownVs = Math.max(0, Math.abs(Number(touchdownVsRaw || 0) || 0));
       // Landing G-force: Capture the ACTUAL g-force at touchdown moment
@@ -3388,6 +3399,12 @@ export default function FlightTracker() {
                       xplane_data: {
                         final_score: Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)),
                         landingGForce: flightData.landingGForce,
+                        landing_g_force: flightData.landingGForce,
+                        touchdown_vspeed: Math.abs(Number(flightData.landingVs || 0)) > 0 ? -Math.abs(Number(flightData.landingVs || 0)) : 0,
+                        landing_vspeed: Math.abs(Number(flightData.landingVs || 0)) > 0 ? -Math.abs(Number(flightData.landingVs || 0)) : 0,
+                        landing_vs: Math.abs(Number(flightData.landingVs || 0)) > 0 ? -Math.abs(Number(flightData.landingVs || 0)) : 0,
+                        touchdown_detected: Math.abs(Number(flightData.landingVs || 0)) > 0 || Number(flightData.landingGForce || 0) > 0,
+                        landing_data_locked: Math.abs(Number(flightData.landingVs || 0)) > 0 || Number(flightData.landingGForce || 0) > 0,
                         events: flightData.events,
                         levelBonus,
                         levelBonusPercent: levelBonusPercent * 100,

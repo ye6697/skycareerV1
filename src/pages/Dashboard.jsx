@@ -150,6 +150,14 @@ export default function Dashboard() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: recentTransactions = [] } = useQuery({
+    queryKey: ['transactions', 'media-feed', companyId],
+    queryFn: () => base44.entities.Transaction.filter({ company_id: companyId }, '-date', 12),
+    enabled: !!companyId,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
+  });
+
   // Filter contracts based on available aircraft capabilities
   const filteredContracts = React.useMemo(() => {
     if (!contracts.length || !aircraft.length) return contracts;
@@ -359,6 +367,7 @@ export default function Dashboard() {
         company={company}
         recentFlights={recentFlights}
         acceptedContracts={acceptedContracts}
+        transactions={recentTransactions}
         lang={lang}
       />
       
