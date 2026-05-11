@@ -30,10 +30,10 @@ const COPY = {
     copied: 'Copied',
 
     step1Title: '1. Download Connector Packages',
-    step1Desc: 'For MSFS, use the bootstrap package. It includes only SC Installer, SC Uninstaller, and README. The installer downloads the full runtime automatically during installation.',
+    step1Desc: 'For MSFS, use the bootstrap package. It includes only SC Installer and README. The installer downloads the full runtime, tools, and uninstaller automatically during installation.',
 
     msfsTitle: 'MSFS 2020/2024 Bridge Suite (Windows)',
-    msfsDesc: 'Recommended deployment path for MSFS. Includes SC Installer and SC Uninstaller as your official bridge lifecycle tools.',
+    msfsDesc: 'Recommended deployment path for MSFS. The download stays tiny; SC Installer pulls the full payload during setup.',
     msfsBtn: 'Download MSFS Bridge Package',
 
     msfsPyTitle: 'MSFS Python Bridge (Advanced Fallback)',
@@ -58,8 +58,8 @@ const COPY = {
     step2Desc: 'Follow the platform-specific installation path below.',
     installMsfsTitle: 'MSFS 2020/2024',
     installMsfs1: 'Extract the ZIP and run SC Installer.exe.',
-    installMsfs2: 'Click Install Bridge. The installer downloads and deploys the full bridge runtime.',
-    installMsfs3: 'Start MSFS, then launch SkyCareerMsfsBridge.exe from the installation folder if needed.',
+    installMsfs2: 'Click Install Bridge. The installer downloads and deploys the full payload, including SC Uninstaller.',
+    installMsfs3: 'SC Uninstaller removes installed files for a clean reset, but keeps SC Installer.',
     installMsfs4: 'Optional: extract the tablet package and copy it to Community folder.',
 
     installXpTitle: 'X-Plane 12',
@@ -71,10 +71,10 @@ const COPY = {
     installXpPy3: 'Copy PI_SkyCareer.py and README.md from the downloaded text package.',
 
     step3Title: '3. Validate Account Binding',
-    step3Desc: 'Your connector package is personalized. API key and telemetry endpoint are mapped to your SkyCareer account.',
+    step3Desc: 'Your API key and telemetry endpoint are shown here for diagnostics and connector binding.',
     apiKey: 'Personal API key',
     endpoint: 'Telemetry endpoint',
-    keyNote: 'This API key remains stable for your company profile and is preconfigured in generated connector downloads.',
+    keyNote: 'This API key remains stable for your company profile and is used by the installed connector.',
 
     step4Title: '4. Flight Operations Flow',
     step4Desc: 'Recommended operating sequence for reliable live tracking and automatic completion.',
@@ -106,10 +106,10 @@ const COPY = {
     copied: 'Kopiert',
 
     step1Title: '1. Connector-Pakete herunterladen',
-    step1Desc: 'Fuer MSFS nutzt du das Bootstrap-Paket. Es enthaelt nur SC Installer, SC Uninstaller und README. Der Installer laedt die komplette Runtime waehrend der Installation automatisch nach.',
+    step1Desc: 'Fuer MSFS nutzt du das Bootstrap-Paket. Es enthaelt nur SC Installer und README. Der Installer laedt Runtime, Tools und Uninstaller waehrend der Installation automatisch nach.',
 
     msfsTitle: 'MSFS 2020/2024 Bridge Suite (Windows)',
-    msfsDesc: 'Empfohlener Deployment-Weg fuer MSFS. Enthalten sind SC Installer und SC Uninstaller als offizieller Lifecycle-Flow.',
+    msfsDesc: 'Empfohlener Deployment-Weg fuer MSFS. Der Download bleibt klein; SC Installer zieht die komplette Payload beim Setup.',
     msfsBtn: 'MSFS Paket herunterladen',
 
     msfsPyTitle: 'MSFS Python Bridge (Advanced Fallback)',
@@ -134,8 +134,8 @@ const COPY = {
     step2Desc: 'Folge dem plattformspezifischen Installationsweg unten.',
     installMsfsTitle: 'MSFS 2020/2024',
     installMsfs1: 'ZIP entpacken und SC Installer.exe starten.',
-    installMsfs2: 'Auf Install Bridge klicken. Der Installer laedt und deployt die komplette Bridge-Runtime.',
-    installMsfs3: 'MSFS starten und bei Bedarf SkyCareerMsfsBridge.exe am Installationsort ausfuehren.',
+    installMsfs2: 'Auf Install Bridge klicken. Der Installer laedt und deployt die komplette Payload inklusive SC Uninstaller.',
+    installMsfs3: 'SC Uninstaller entfernt installierte Dateien fuer einen sauberen Reset, laesst SC Installer aber stehen.',
     installMsfs4: 'Optional: Tablet-Paket entpacken und in den Community-Ordner kopieren.',
 
     installXpTitle: 'X-Plane 12',
@@ -147,10 +147,10 @@ const COPY = {
     installXpPy3: 'PI_SkyCareer.py und README.md aus dem Textpaket uebernehmen.',
 
     step3Title: '3. Account-Bindung pruefen',
-    step3Desc: 'Dein Connector-Paket ist personalisiert. API-Key und Telemetry-Endpoint sind mit deinem SkyCareer-Account verknuepft.',
+    step3Desc: 'Dein API-Key und Telemetry-Endpoint werden hier fuer Diagnose und Connector-Bindung angezeigt.',
     apiKey: 'Persoenlicher API-Key',
     endpoint: 'Telemetry Endpoint',
-    keyNote: 'Dieser API-Key bleibt fuer dein Firmenprofil stabil und ist in generierten Connector-Downloads vorkonfiguriert.',
+    keyNote: 'Dieser API-Key bleibt fuer dein Firmenprofil stabil und wird vom installierten Connector genutzt.',
 
     step4Title: '4. Flugablauf im Betrieb',
     step4Desc: 'Empfohlene Reihenfolge fuer zuverlaessiges Live-Tracking und automatischen Abschluss.',
@@ -177,10 +177,9 @@ const COPY = {
 export default function XPlaneSetup() {
   const { lang } = useLanguage();
   const text = COPY[lang] || COPY.en;
-  const BRIDGE_VERSION = 'bridge-2026-05-10-weather-panel-r7';
-  const DOWNLOAD_CACHE_BUST = '20260510-weather-panel-r7';
+  const BRIDGE_VERSION = 'bridge-2026-05-11-installer-bootstrap-r1';
+  const DOWNLOAD_CACHE_BUST = '20260511-installer-bootstrap-r1';
   const BRIDGE_BOOTSTRAP_FILE = 'SkyCareer_MSFS_Bridge_Windows.zip';
-  const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
   const [copied, setCopied] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
@@ -211,18 +210,6 @@ export default function XPlaneSetup() {
     setTimeout(() => setCopied(false), 1800);
   };
 
-  const getApiKeyForDownload = async () => {
-    if (apiKey) return apiKey;
-
-    const response = await base44.functions.invoke('ensureApiKey', {});
-    const ensuredApiKey = String(response?.data?.api_key || '').trim();
-    if (!ensuredApiKey) {
-      throw new Error('API key unavailable');
-    }
-    setApiKey(ensuredApiKey);
-    return ensuredApiKey;
-  };
-
   const decodeBase64Zip = (base64) => {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -232,73 +219,11 @@ export default function XPlaneSetup() {
     return bytes;
   };
 
-  const escapeXml = (value) => String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/'/g, '&apos;');
-
-  const buildBridgeConfigXml = (personalApiKey, telemetryEndpoint) => `<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <appSettings>
-    <add key="ApiEndpoint" value="${escapeXml(telemetryEndpoint)}" />
-    <add key="ApiKey" value="${escapeXml(personalApiKey)}" />
-    <add key="Simulator" value="auto" />
-    <add key="LoopIntervalMs" value="2000" />
-    <add key="PollIntervalMs" value="2000" />
-    <add key="SendIntervalMs" value="2000" />
-    <add key="SampleIntervalMs" value="200" />
-    <add key="HttpTimeoutMs" value="10000" />
-    <add key="AutoRestartWorkerOnTimeout" value="true" />
-    <add key="WorkerTimeoutMs" value="15000" />
-    <add key="WorkerRestartDelayMs" value="2000" />
-    <add key="MaxConsecutiveTimeouts" value="3" />
-    <add key="BridgeVersion" value="${escapeXml(BRIDGE_VERSION)}" />
-    <add key="NativeBridgeVersion" value="${escapeXml(BRIDGE_VERSION)}" />
-    <add key="AutoStartOnSimulator" value="true" />
-    <add key="MonitorProcesses" value="FlightSimulator;FlightSimulator2024;X-Plane;X-Plane12;XPlane;XPlane12" />
-  </appSettings>
-</configuration>
-`;
-
-  const personalizeBridgePayloadZip = async (zipBytes, personalApiKey, telemetryEndpoint) => {
-    const zip = await JSZip.loadAsync(zipBytes);
-    const fileNames = Object.keys(zip.files).filter((name) => !zip.files[name]?.dir);
-    const bridgeExePath = fileNames.find((name) => /skycareermsfsbridge\.exe$/i.test(name));
-    if (!bridgeExePath) {
-      throw new Error('Bridge executable missing in payload zip');
-    }
-    const slash = bridgeExePath.lastIndexOf('/');
-    const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
-    const configPath = `${dir}SkyCareerMsfsBridge.exe.config`;
-    const simConnectCfgPath = `${dir}SimConnect.cfg`;
-    const bridgeVersionPath = `${dir}BRIDGE_VERSION.txt`;
-
-    zip.file(configPath, buildBridgeConfigXml(personalApiKey, telemetryEndpoint));
-    zip.file(bridgeVersionPath, `${BRIDGE_VERSION}\n`);
-    const hasSimConnect = fileNames.some((name) => name.toLowerCase() === simConnectCfgPath.toLowerCase());
-    if (!hasSimConnect) {
-      zip.file(simConnectCfgPath, `[SimConnect]
-Protocol=Ipv4
-Address=localhost
-Port=500
-`);
-    }
-
-    return await zip.generateAsync({
-      type: 'uint8array',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
-    });
-  };
-
-  const mergeBootstrapToolsIntoZip = async (bridgeZipBytes, bootstrapZipBytes) => {
-    const bridgeZip = await JSZip.loadAsync(bridgeZipBytes);
+  const trimBootstrapZip = async (bootstrapZipBytes) => {
     const bootstrapZip = await JSZip.loadAsync(bootstrapZipBytes);
+    const outputZip = new JSZip();
     const keepNames = new Set([
       'sc installer.exe',
-      'sc uninstaller.exe',
       'readme_start_here.txt',
       'readme.txt',
     ]);
@@ -311,18 +236,16 @@ Port=500
       const lower = fileName.toLowerCase();
       if (!keepNames.has(lower)) continue;
       const data = await file.async('uint8array');
-      bridgeZip.file(fileName, data);
+      outputZip.file(fileName, data);
     }
-    bridgeZip.file('README_START_HERE.txt', `SkyCareer MSFS Bridge (${BRIDGE_VERSION})
+    outputZip.file('README_START_HERE.txt', `SkyCareer MSFS Bridge (${BRIDGE_VERSION})
 
 1) Run: SC Installer.exe (recommended)
-2) If needed, remove everything with: SC Uninstaller.exe
-3) Bridge runtime files are inside the folder: SkyCareer_MSFS_Bridge
-4) Direct start (without installer): open SkyCareer_MSFS_Bridge and run SkyCareerMsfsBridge.exe
+2) SC Installer downloads the complete runtime payload, including SC Uninstaller.
+3) If needed, run SC Uninstaller after installation for a clean reset. It keeps SC Installer.
 `);
-    bridgeZip.file('BRIDGE_VERSION.txt', `${BRIDGE_VERSION}\n`);
 
-    return await bridgeZip.generateAsync({
+    return await outputZip.generateAsync({
       type: 'uint8array',
       compression: 'DEFLATE',
       compressionOptions: { level: 6 },
@@ -420,15 +343,8 @@ Port=500
       }
 
       if (!bytes) {
-        const fallbackApiKey = await getApiKeyForDownload();
         const basePath = import.meta?.env?.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-        const payloadCandidates = [
-          new URL(`downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
-          new URL(`${normalizedBase}downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          new URL(`/downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
-          `https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads/${BRIDGE_PAYLOAD_FILE}?v=${DOWNLOAD_CACHE_BUST}`,
-        ];
         const bootstrapCandidates = [
           new URL(`downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.href).toString(),
           new URL(`${normalizedBase}downloads/${targetFile}?v=${DOWNLOAD_CACHE_BUST}`, window.location.origin).toString(),
@@ -445,7 +361,7 @@ Port=500
             }
             const arr = new Uint8Array(await res.arrayBuffer());
             if (arr.length >= 4 && arr[0] === 0x50 && arr[1] === 0x4b) {
-              bootstrapBytes = arr;
+              bootstrapBytes = await trimBootstrapZip(arr);
               break;
             }
             lastError = `Invalid ZIP bytes @ ${bootUrl}`;
@@ -454,31 +370,7 @@ Port=500
           }
         }
 
-        for (const payloadUrl of payloadCandidates) {
-          try {
-            const res = await fetch(payloadUrl, { cache: 'no-store' });
-            if (!res.ok) {
-              lastError = `HTTP ${res.status} @ ${payloadUrl}`;
-              continue;
-            }
-            const arr = new Uint8Array(await res.arrayBuffer());
-            if (arr.length < 4 || arr[0] !== 0x50 || arr[1] !== 0x4b) {
-              lastError = `Invalid ZIP bytes @ ${payloadUrl}`;
-              continue;
-            }
-            let patched = await personalizeBridgePayloadZip(arr, fallbackApiKey, endpoint);
-            if (bootstrapBytes) {
-              patched = await mergeBootstrapToolsIntoZip(patched, bootstrapBytes);
-            }
-            bytes = patched;
-            fileName = 'SkyCareer_MSFS_Bridge_Windows_Fallback_Personalized.zip';
-            break;
-          } catch (e) {
-            lastError = `${e?.message || e} @ ${payloadUrl}`;
-          }
-        }
-
-        if (!bytes && bootstrapBytes) {
+        if (bootstrapBytes) {
           bytes = bootstrapBytes;
           fileName = targetFile;
         }
