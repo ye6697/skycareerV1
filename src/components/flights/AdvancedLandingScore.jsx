@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Star, Wind, Gauge, ArrowDown, Disc, Target } from 'lucide-react';
+import { Star, Wind, Gauge, Disc } from 'lucide-react';
 
 const colorMap = {
   red: { bar: 'from-red-600 to-red-500', text: 'text-red-400', bg: 'bg-red-500' },
@@ -13,9 +13,7 @@ const colorMap = {
 };
 
 const metricConfig = [
-  { key: 'verticalSpeed', label: 'V/S Touchdown', icon: ArrowDown, unit: 'ft/min' },
   { key: 'gForce', label: 'G-Kraft', icon: Gauge, unit: 'G' },
-  { key: 'flare', label: 'Flare-Technik', icon: Target, unit: '' },
   { key: 'crosswind', label: 'Seitenwind-Korrektur', icon: Wind, unit: '' },
   { key: 'braking', label: 'Bremsverhalten', icon: Disc, unit: '' },
 ];
@@ -100,11 +98,7 @@ export default function AdvancedLandingScore({ landingResult }) {
       </div>
 
       {/* Details */}
-      <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-700">
-        <div className="text-center">
-          <p className="text-[9px] text-slate-500 uppercase">Touch V/S</p>
-          <p className="text-xs font-mono font-bold text-slate-300">{details.touchdownVs.toFixed(0)} ft/min</p>
-        </div>
+      <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-700">
         <div className="text-center">
           <p className="text-[9px] text-slate-500 uppercase">Touch G</p>
           <p className="text-xs font-mono font-bold text-slate-300">{details.landingGForce.toFixed(2)} G</p>

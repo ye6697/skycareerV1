@@ -135,12 +135,8 @@ export default function FreeFlight() {
       xp.bridge_local_landing_locked ||
       xp.landing_data_source === 'bridge_local'
     );
-    const severeDynamics = (
-      Math.abs(Number(xp.vertical_speed || 0)) >= 1400 ||
-      Number(xp.g_force || 0) >= 3.0
-    );
+    const severeDynamics = Number(xp.g_force || 0) >= 3.0;
     const severeGroundImpact = !!xp.on_ground && landingDataTrustedForCrash && (
-      Math.abs(Number(xp.touchdown_vspeed || 0)) >= 1200 ||
       Number(xp.landing_g_force || 0) >= 3.4 ||
       severeDynamics
     );
@@ -191,10 +187,12 @@ export default function FreeFlight() {
         ? (xp.touchdown_vspeed || 0)
         : 0;
       const touchdownVs = Math.max(0, Math.min(2500, Math.abs(Number(touchdownVsRaw || 0))));
-      const hasTouchdownEvidence = landingDataTrusted && ((touchdownVs > 50) || Number(xp.landing_g_force || 0) > 0);
+      const reportedLandingG = Math.max(0, Math.min(6, Number(xp.landing_g_force || 0)));
+      const hasLandingG = reportedLandingG > 0;
+      const hasTouchdownEvidence = landingDataTrusted && ((touchdownVs > 50) || hasLandingG);
 
-      if (!prev.landingType && xp.on_ground && newWasAirborne && hasTouchdownEvidence) {
-        const lg = Math.max(0, Math.min(6, Number(xp.landing_g_force || 0)));
+      if (!prev.landingType && xp.on_ground && newWasAirborne && landingDataTrusted && hasLandingG) {
+        const lg = reportedLandingG;
         landingGForceValue = lg;
         if (lg < 1.0) { landingType = 'butter'; landingScoreChange = 40; }
         else if (lg < 1.2) { landingType = 'soft'; landingScoreChange = 20; }
@@ -204,7 +202,7 @@ export default function FreeFlight() {
       }
       const nextLandingVs = prev.landingType
         ? Number(prev.landingVs || 0)
-        : (hasTouchdownEvidence && touchdownVs > 0 ? touchdownVs : Number(prev.landingVs || 0));
+        : (hasTouchdownEvidence && touchdownVs > 0 ? -touchdownVs : Number(prev.landingVs || 0));
 
       let baseScore = prev.flightScore;
       if (landingType && !prev.landingType) {

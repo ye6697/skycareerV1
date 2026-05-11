@@ -379,7 +379,7 @@ export default function FlightTracker() {
       gForce: Number(xpd.g_force || 1.0),
       maxGForce: Math.max(1.0, Number(xpd.max_g_force || xpd.g_force || 1.0)),
       landingGForce: Number(xpd.landing_g_force || 0),
-      landingVs: Math.abs(Number(xpd.touchdown_vspeed || 0)),
+      landingVs: Math.abs(Number(xpd.touchdown_vspeed || 0)) > 0 ? -Math.abs(Number(xpd.touchdown_vspeed || 0)) : 0,
       landingType: xpd.landing_type || null,
       landingScoreChange: Number(xpd.landing_score_change || 0),
       landingMaintenanceCost: Number(xpd.landing_maintenance_cost || 0),
@@ -1939,7 +1939,8 @@ export default function FlightTracker() {
                       0
                     ))
               : 0;
-            const storedTouchdownVs = Math.max(0, Math.abs(Number(resolvedTouchdownForSave || 0) || 0));
+            const storedTouchdownVsMagnitude = Math.max(0, Math.abs(Number(resolvedTouchdownForSave || 0) || 0));
+            const storedTouchdownVs = storedTouchdownVsMagnitude > 0 ? -storedTouchdownVsMagnitude : 0;
             const storedLandingG = Math.max(0, Math.min(6, Number(resolvedLandingGForSave || 0)));
             const hasCrashedFinal = hasCrashed;
             const maintenanceCategories = MAINTENANCE_CATEGORY_KEYS;
@@ -2061,7 +2062,9 @@ export default function FlightTracker() {
                   ...finalFlightData,
                  landing_g_force: storedLandingG,
                  touchdown_vspeed: storedTouchdownVs,
-                 touchdown_detected: saveLandingTrusted && (storedTouchdownVs > 0 || storedLandingG > 0),
+                 landing_vspeed: storedTouchdownVs,
+                 landing_vs: storedTouchdownVs,
+                 touchdown_detected: saveLandingTrusted && (Math.abs(storedTouchdownVs) > 0 || storedLandingG > 0),
                  flight_path: preservedFlightPath,
                  flight_events_log: preservedFlightEventsLog,
                  bridge_event_log: preservedBridgeEventLog,
@@ -2407,7 +2410,7 @@ export default function FlightTracker() {
       const nextLandingVs = prev.landingType
         ? Number(prev.landingVs || 0)
         : ((xp.on_ground && newWasAirborne && landingDataTrusted && touchdownVs > 0)
-            ? touchdownVs
+            ? -touchdownVs
             : Number(prev.landingVs || 0));
 
       // Landing categories based on G-force only
@@ -3377,7 +3380,7 @@ export default function FlightTracker() {
                     const insuranceScoreBonus = Math.round(previewInsurance.scoreBonusPoints * 10) / 10;
                     return {
                       flight_score: Math.max(0, Math.min(100, flightData.flightScore + insuranceScoreBonus)),
-                      landing_vs: flightData.landingVs,
+                      landing_vs: Math.abs(Number(flightData.landingVs || 0)) > 0 ? -Math.abs(Number(flightData.landingVs || 0)) : 0,
                       max_g_force: flightData.maxGForce,
                       fuel_used_liters: fuelUsed,
                       flight_duration_hours: flightHours,

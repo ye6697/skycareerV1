@@ -31,6 +31,7 @@ function StatPill({ label, value, color = 'text-cyan-300' }) {
 export default function LeaderboardRow({ entry, onOpenProfile }) {
   const isMe = entry.is_me;
   const landingValue = Number(entry.avg_landing_vs || 0);
+  const landingMagnitude = Math.abs(landingValue);
 
   return (
     <button
@@ -63,7 +64,7 @@ export default function LeaderboardRow({ entry, onOpenProfile }) {
 
         <div className="hidden items-center gap-2 lg:flex">
           <StatPill label="Avg Score" value={entry.avg_score || 0} color={entry.avg_score >= 85 ? 'text-emerald-300' : entry.avg_score >= 70 ? 'text-amber-300' : 'text-red-300'} />
-          <StatPill label="Landing" value={`${landingValue || '-'} fpm`} color={landingValue < 180 ? 'text-emerald-300' : landingValue < 320 ? 'text-amber-300' : 'text-red-300'} />
+          <StatPill label="Landing" value={landingMagnitude > 0 ? `${Math.round(landingValue)} fpm` : '-'} color={landingMagnitude < 180 ? 'text-emerald-300' : landingMagnitude < 320 ? 'text-amber-300' : 'text-red-300'} />
           <StatPill label="Butter" value={`${entry.butter_pct || 0}%`} color="text-amber-300" />
           <StatPill label="Rep" value={entry.reputation || 0} color="text-indigo-300" />
         </div>

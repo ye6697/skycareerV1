@@ -17,7 +17,8 @@ import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMet
 export default function FlightRating({ flight }) {
   const { lang } = useLanguage();
   const landingMetrics = React.useMemo(() => resolveLandingMetricsFromFlight(flight), [flight]);
-  const landingVsValue = Math.max(0, Math.abs(Number(landingMetrics?.landingVs || 0) || 0));
+  const landingVsValue = Number(landingMetrics?.landingVs || 0) || 0;
+  const landingVsMagnitude = Math.abs(landingVsValue);
   const landingGValue = Math.max(0, Math.min(6, Number(landingMetrics?.landingG || 0) || 0));
   const passengerCommentsDisplay = React.useMemo(() => {
     const stored = Array.isArray(flight?.passenger_comments)
@@ -155,13 +156,13 @@ export default function FlightRating({ flight }) {
             <div>
               <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{t('landing_vs_short', lang)}</p>
               <p className={`text-xl font-mono font-bold ${
-                Math.abs(landingVsValue) < 100 ? 'text-emerald-400' :
-                Math.abs(landingVsValue) < 150 ? 'text-green-400' :
-                Math.abs(landingVsValue) < 250 ? 'text-amber-400' :
-                Math.abs(landingVsValue) < 400 ? 'text-orange-400' :
+                landingVsMagnitude < 100 ? 'text-emerald-400' :
+                landingVsMagnitude < 150 ? 'text-green-400' :
+                landingVsMagnitude < 250 ? 'text-amber-400' :
+                landingVsMagnitude < 400 ? 'text-orange-400' :
                 'text-red-400'
               }`}>
-                {Math.round(Math.abs(landingVsValue))} ft/min
+                {landingVsMagnitude > 0 ? `${Math.round(landingVsValue)} ft/min` : '-'}
               </p>
             </div>
           )}

@@ -51,8 +51,8 @@ export default function LeaderboardHeader({ myRank, totalAirlines, leader, scope
       <MetricCard
         icon={Activity}
         label="Score Model"
-        value="40 / 25 / 20 / 15"
-        detail="Flight score, level, landing, rep"
+        value="45 / 30 / 25"
+        detail="Flight score, level, reputation"
         tone="slate"
       />
     </div>

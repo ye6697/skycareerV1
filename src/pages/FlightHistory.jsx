@@ -271,7 +271,7 @@ export default function FlightHistory() {
                           ? 'bg-amber-500/20 text-amber-400'
                           : 'bg-red-500/20 text-red-400'
                       }`}>
-                        {Math.round(Math.abs(landingVs))} ft/m
+                        {Math.abs(landingVs) > 0 ? `${Math.round(landingVs)} ft/m` : '-'}
                       </span>
                     </div>
                     {/* Landing G */}

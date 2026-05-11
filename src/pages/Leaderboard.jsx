@@ -118,6 +118,7 @@ function PodiumCard({ entry, onClick }) {
 function AirlineProfile({ entry, lang }) {
   const aircraftTypes = Object.entries(entry.aircraft_types || {}).sort((a, b) => b[1] - a[1]);
   const landing = Number(entry.avg_landing_vs || 0);
+  const landingMagnitude = Math.abs(landing);
   const maintenancePct = Math.round(Number(entry.maintenance_ratio || 0) * 100);
   const primaryType = AIRCRAFT_TYPE_LABELS[entry.primary_aircraft_type] || entry.primary_aircraft_type || '-';
 
@@ -148,7 +149,7 @@ function AirlineProfile({ entry, lang }) {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ProfileStat icon={Gauge} label="Avg Score" value={entry.avg_score || 0} detail={`Best ${entry.best_score || 0}`} tone="emerald" />
-        <ProfileStat icon={Plane} label="Landing" value={`${landing || '-'} fpm`} detail={`Best ${entry.best_landing_vs ?? '-'} fpm`} tone={landing < 180 ? 'emerald' : landing < 320 ? 'amber' : 'rose'} />
+        <ProfileStat icon={Plane} label="Landing" value={landingMagnitude > 0 ? `${Math.round(landing)} fpm` : '-'} detail={`Best ${entry.best_landing_vs ?? '-'} fpm`} tone={landingMagnitude < 180 ? 'emerald' : landingMagnitude < 320 ? 'amber' : 'rose'} />
         <ProfileStat icon={Users} label="Passengers" value={(entry.total_passengers || 0).toLocaleString()} detail={`${entry.total_flights || 0} flights`} tone="cyan" />
         <ProfileStat icon={ShieldCheck} label="Reputation" value={entry.reputation || 0} detail={`${entry.butter_pct || 0}% butter landings`} tone="indigo" />
       </div>

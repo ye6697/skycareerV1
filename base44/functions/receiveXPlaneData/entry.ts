@@ -1446,7 +1446,7 @@ Deno.serve(async (req) => {
     const prevOnGround = toBool(prevXd.on_ground, false);
     const _altAgl = (Number(ground_elevation_ft || prevXd.ground_elevation_ft || 0) > 0) ? Math.max(0, Number(altitude||0) - Number(ground_elevation_ft||prevXd.ground_elevation_ft||0)) : Number(altitude||0);
     const justTouchedDown = hasBeenAirborne && on_ground && !prevOnGround && (_altAgl < 500 || Number(altitude||0) < 1500);
-    const prevTouchdownVspeed = (hasBeenAirborne && prevOnGround) ? Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0) : 0;
+    const prevTouchdownVspeed = (hasBeenAirborne && prevOnGround) ? Math.abs(Number(prevXd.touchdown_vspeed ?? prevXd.landing_vs ?? 0)) : 0;
     const prevLandingG = (hasBeenAirborne && prevOnGround) ? Number(prevXd.landing_g_force ?? prevXd.landingGForce ?? 0) : 0;
     const mergedTouchdownVspeed = Math.abs(incomingTouchdownVspeed) > 0 ? incomingTouchdownVspeed : prevTouchdownVspeed;
     const mergedLandingG = incomingLandingG > 0 ? incomingLandingG : prevLandingG;
@@ -1702,7 +1702,8 @@ Deno.serve(async (req) => {
       : (landingCaptureActive
           ? Math.max(landingGCandidate, Number(prevLandingG || 0))
           : ((Number(prevLandingG || 0) > 0) ? Number(prevLandingG || 0) : landingGCandidate));
-    const effectiveTouchdownVspeed = (hasBeenAirborne && on_ground) ? effectiveTouchdownVspeedGround : 0;
+    const effectiveTouchdownVspeedMagnitude = (hasBeenAirborne && on_ground) ? effectiveTouchdownVspeedGround : 0;
+    const effectiveTouchdownVspeed = effectiveTouchdownVspeedMagnitude > 0 ? -Math.abs(effectiveTouchdownVspeedMagnitude) : 0;
     const effectiveLandingG = (hasBeenAirborne && on_ground) ? effectiveLandingGGround : 0;
     const touchdownDetected = hasBeenAirborne && on_ground && (
       justTouchedDown ||

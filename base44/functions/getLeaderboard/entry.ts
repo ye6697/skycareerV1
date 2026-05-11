@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
       const landingVs = companyFlights.map(f => Math.abs(f.landing_vs || 0)).filter(v => v > 0);
-      const avgLandingVs = landingVs.length > 0 ? landingVs.reduce((a, b) => a + b, 0) / landingVs.length : 999;
+      const avgLandingVs = landingVs.length > 0 ? landingVs.reduce((a, b) => a + b, 0) / landingVs.length : 0;
 
       // Butter landings (< 100 fpm)
       const butterCount = landingVs.filter(v => v < 100).length;
@@ -97,17 +97,14 @@ Deno.serve(async (req) => {
         .filter(Boolean)
         .sort((a, b) => b.getTime() - a.getTime())[0] || null;
 
-      // Composite ranking score:
-      // 40% avg flight score + 25% level contribution + 20% landing quality + 15% reputation
+      // Composite ranking score: landing V/S has no scoring impact.
       const levelScore = Math.min(100, (company.level || 1) * 1.0); // max 100 at level 100
-      const landingScore = Math.max(0, 100 - (avgLandingVs / 5)); // lower VS = better, 0 fpm = 100, 500 fpm = 0
       const repScore = company.reputation || 0;
 
       const compositeScore = (
-        avgScore * 0.40 +
-        levelScore * 0.25 +
-        Math.max(0, landingScore) * 0.20 +
-        repScore * 0.15
+        avgScore * 0.45 +
+        levelScore * 0.30 +
+        repScore * 0.25
       );
 
       entries.push({
@@ -128,9 +125,9 @@ Deno.serve(async (req) => {
         primary_aircraft_type: primaryAircraftType,
         maintenance_ratio: company.current_maintenance_ratio || 0,
         avg_score: Math.round(avgScore * 10) / 10,
-        avg_landing_vs: Math.round(avgLandingVs),
+        avg_landing_vs: avgLandingVs > 0 ? -Math.round(avgLandingVs) : 0,
         best_score: Math.round(bestScore * 10) / 10,
-        best_landing_vs: bestLandingVs === null ? null : Math.round(bestLandingVs),
+        best_landing_vs: bestLandingVs === null ? null : -Math.round(bestLandingVs),
         butter_pct: Math.round(butterPct),
         composite_score: Math.round(compositeScore * 10) / 10,
         last_flight_date: lastFlightDate ? lastFlightDate.toISOString() : null,

@@ -8,6 +8,11 @@ const firstFiniteNumber = (...values) => {
   return NaN;
 };
 
+const toSignedSinkRate = (value) => {
+  const n = Math.abs(Number(value || 0));
+  return n > 0 ? -Math.round(n) : 0;
+};
+
 const parseTimestampMs = (value) => {
   const ms = Date.parse(String(value || ""));
   return Number.isFinite(ms) ? ms : NaN;
@@ -154,7 +159,7 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
   const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
 
   return {
-    landingVs: Math.round(clamp(resolvedVs, 0, 10000)),
+    landingVs: toSignedSinkRate(clamp(resolvedVs, 0, 10000)),
     landingG: Number(clamp(resolvedG, 0, 6).toFixed(2)),
     source: "telemetry",
   };
@@ -205,9 +210,9 @@ export function resolveLandingMetricsFromFlight(flight) {
   );
 
   const landingVs = (() => {
-    if (derived.landingVs > 0) return derived.landingVs;
-    if (derived.landingG > 0) return Math.round(clamp(trustedStoredVs, 0, 10000));
-    return Math.round(clamp(legacyStoredVs, 0, 10000));
+    if (Math.abs(derived.landingVs) > 0) return derived.landingVs;
+    if (derived.landingG > 0) return toSignedSinkRate(clamp(trustedStoredVs, 0, 10000));
+    return toSignedSinkRate(clamp(legacyStoredVs, 0, 10000));
   })();
 
   return {

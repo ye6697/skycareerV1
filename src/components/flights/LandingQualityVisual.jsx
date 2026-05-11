@@ -5,12 +5,11 @@ import { Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
 import { resolveLandingMetricsFromFlight } from "@/components/flights/landingMetrics";
 
-export default function LandingQualityVisual({ flight, gameSettings }) {
+export default function LandingQualityVisual({ flight }) {
   const { lang } = useLanguage();
   const landingMetrics = React.useMemo(() => resolveLandingMetricsFromFlight(flight), [flight]);
-  const landingVs = Math.max(0, Math.abs(Number(landingMetrics?.landingVs || 0) || 0));
   const landingGforce = Math.max(0, Math.min(6, Math.abs(Number(landingMetrics?.landingG || 0) || 0)));
-  const hasLandingData = landingVs > 0 || landingGforce > 0;
+  const hasLandingData = landingGforce > 0;
 
   if (!hasLandingData) {
     return (
@@ -68,8 +67,6 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
   const quality = getLandingQuality();
   const Icon = quality.icon;
 
-  const crashThreshold = gameSettings?.crash_vs_threshold || 1000;
-  const vsPercentage = Math.min((landingVs / crashThreshold) * 100, 100);
   const gforcePercentage = Math.min((landingGforce / 3) * 100, 100);
 
   const colorMap = {
@@ -95,34 +92,11 @@ export default function LandingQualityVisual({ flight, gameSettings }) {
         <p className="text-3xl font-bold">{quality.label}</p>
       </motion.div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 mb-6">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="p-4 bg-slate-900 rounded-lg"
-        >
-          <p className="text-xs text-slate-400 mb-2">{lang === 'de' ? 'Vertikale Geschwindigkeit' : 'Vertical speed'}</p>
-          <p className={`text-2xl font-bold font-mono mb-2 text-${quality.color}-400`}>
-            {landingVs.toFixed(0)} ft/min
-          </p>
-          <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${vsPercentage}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className={`h-full bg-gradient-to-r ${colorMap[quality.color]} transition-all`}
-            />
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            {lang === 'de' ? '(Vertikalgeschwindigkeit zur Referenz)' : '(Vertical speed for reference)'}
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
           className="p-4 bg-slate-900 rounded-lg"
         >
           <p className="text-xs text-slate-400 mb-2">{lang === 'de' ? 'G-Kraefte beim Aufsetzen' : 'Touchdown G-forces'}</p>

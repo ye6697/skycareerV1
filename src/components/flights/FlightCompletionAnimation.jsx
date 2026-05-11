@@ -74,7 +74,8 @@ export default function FlightCompletionAnimation({ flight: initialFlight, contr
   // authoritative telemetry-history touchdown sample.
   const landingMetrics = resolveLandingMetricsFromFlight(flight);
   const landingG = Number(landingMetrics.landingG || 0);
-  const landingVs = Math.abs(Number(landingMetrics.landingVs || 0));
+  const landingVs = Number(landingMetrics.landingVs || 0);
+  const landingVsMagnitude = Math.abs(landingVs);
   const flightHours = Number(flight?.flight_duration_hours ?? xpd.flightHours ?? 0);
 
   // Merge incident sources: xpd.events.* (legacy), boolean flags on xpd.* (current backend),
@@ -97,7 +98,7 @@ export default function FlightCompletionAnimation({ flight: initialFlight, contr
     overspeed: !!(legacyEvents.overspeed || xpd.overspeed || logHas('overspeed')),
     flaps_overspeed: !!(legacyEvents.flaps_overspeed || xpd.flaps_overspeed || logHas('flaps_overspeed')),
     gear_up_landing: !!(legacyEvents.gear_up_landing || xpd.gear_up_landing || logHas('gear_up_landing')),
-    hard_landing: !!(legacyEvents.hard_landing || (Number(landingVs) >= 600)),
+    hard_landing: !!(legacyEvents.hard_landing || (landingG >= 2.0)),
     high_g_force: !!(legacyEvents.high_g_force || logHas('high_g_force') || (Number(xpd.max_g_force || 0) >= 1.5)),
     wrong_airport: !!legacyEvents.wrong_airport,
   };
@@ -271,8 +272,8 @@ export default function FlightCompletionAnimation({ flight: initialFlight, contr
                 <StatBox
                   icon={<Wind className="w-3.5 h-3.5" />}
                   label="V/S"
-                  value={landingVs > 0 ? `${Math.round(landingVs)} fpm` : '-'}
-                  valueClass={landingVs < 150 ? 'text-emerald-400' : landingVs < 300 ? 'text-amber-400' : 'text-red-400'}
+                  value={landingVsMagnitude > 0 ? `${Math.round(landingVs)} fpm` : '-'}
+                  valueClass={landingVsMagnitude < 150 ? 'text-emerald-400' : landingVsMagnitude < 300 ? 'text-amber-400' : 'text-red-400'}
                 />
                 <StatBox
                   icon={<Star className="w-3.5 h-3.5" />}

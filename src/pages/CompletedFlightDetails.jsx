@@ -494,7 +494,8 @@ export default function CompletedFlightDetails() {
   const emergencyPayoutReduction = emergencyOffAirportCompletion
     ? Math.max(0, Math.round(basePayout * (1 - emergencyPayoutFactor)))
     : 0;
-  const landingVsValue = Math.max(0, Math.abs(Number(landingMetrics?.landingVs || 0) || 0));
+  const landingVsValue = Number(landingMetrics?.landingVs || 0) || 0;
+  const landingVsMagnitude = Math.abs(landingVsValue);
   const resolvedLandingGValue = Math.max(0, Math.min(6, Number(landingMetrics?.landingG || 0) || 0));
   const flightDurationMinutes = Number(flight?.flight_duration_hours || 0) * 60;
   const fallbackDeadlineMinutes = (() => {
@@ -840,11 +841,11 @@ export default function CompletedFlightDetails() {
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
                     <p className="text-slate-400 text-sm mb-1">{t('landing_vs_label', lang)}</p>
                     <p className={`text-2xl font-mono font-bold ${
-                      Math.abs(landingVsValue) < 150 ? 'text-emerald-400' :
-                      Math.abs(landingVsValue) < 300 ? 'text-amber-400' :
+                      landingVsMagnitude < 150 ? 'text-emerald-400' :
+                      landingVsMagnitude < 300 ? 'text-amber-400' :
                       'text-red-400'
                     }`}>
-                      {Math.round(Math.abs(landingVsValue))} ft/min
+                      {landingVsMagnitude > 0 ? `${Math.round(landingVsValue)} ft/min` : '-'}
                     </p>
                   </div>
                   <div className="p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
@@ -997,8 +998,6 @@ export default function CompletedFlightDetails() {
                   else if (lt === 'acceptable') { scoreChange = 5; financialImpact = 0; }
                   else if (lt === 'hard') { scoreChange = -30; financialImpact = -(totalRev * 0.25); }
                   else if (lt === 'very_hard') { scoreChange = -50; financialImpact = -(totalRev * 0.5); }
-                  const vs = Math.round(Math.abs(landingVsValue));
-
                   return (
                   <div className="mt-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg space-y-3">
                     <div>
@@ -1012,7 +1011,7 @@ export default function CompletedFlightDetails() {
                         <>
                           <AlertTriangle className="w-5 h-5 text-red-500" />
                           <span className="text-red-500 font-bold">CRASH</span>
-                          <span className="text-slate-400 ml-2">({vs} ft/min)</span>
+                          <span className="text-slate-400 ml-2">({landingG.toFixed(2)} G)</span>
                         </>
                       )}
                       {lt === 'very_hard' && (
