@@ -23,7 +23,8 @@ import {
         Activity,
         Star,
         Globe,
-        Trophy
+        Trophy,
+        Users
       } from "lucide-react";
 
 const APP_UI_VERSION = 'app-2026-04-09-r1';
@@ -35,6 +36,7 @@ function getNavItems(lang) {
     { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights" },
     { name: lang === 'de' ? 'Type-Ratings' : 'Type Ratings', icon: GraduationCap, path: "TypeRatings" },
     { name: t('nav_fleet', lang), icon: Plane, path: "Fleet" },
+    { name: lang === 'de' ? 'Mitarbeiter' : 'Employees', icon: Users, path: "Employees" },
     { name: t('nav_finances', lang), icon: DollarSign, path: "Finances" },
     { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory" },
     { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup" },

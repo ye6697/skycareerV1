@@ -72,6 +72,7 @@ import Achievements from './pages/Achievements';
 import TypeRatings from './pages/TypeRatings.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
+import Employees from './pages/Employees.jsx';
 import __Layout from './Layout.jsx';
 
 
@@ -101,6 +102,7 @@ export const PAGES = {
     "XPlaneSetup": XPlaneSetup,
     "About": About,
     "Contact": Contact,
+    "Employees": Employees,
 }
 
 export const pagesConfig = {
