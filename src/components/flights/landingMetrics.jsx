@@ -53,11 +53,6 @@ const readOnGroundFlag = (point) => {
 
 const readVerticalSpeedFpm = (point) => {
   return firstFiniteNumber(
-    point?.touchdown_vspeed,
-    point?.landing_vspeed,
-    point?.landing_vs,
-    point?.landingVs,
-    point?.touchdownVs,
     point?.vs,
     point?.vertical_speed,
     point?.verticalSpeed,
@@ -165,30 +160,40 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  // Keep Landing V/S and Landing G tied to the same touchdown packet.
-  const landingWindow = sessionHistory.slice(touchdownIdx, Math.min(sessionHistory.length, touchdownIdx + 4));
-  const landingPacket = landingWindow.reduce((best, point) => {
-    const currentG = readGForce(point);
-    if (!Number.isFinite(currentG) || currentG <= 0) return best;
-    if (!best) return point;
-    const bestG = readGForce(best);
-    return currentG > bestG ? point : best;
-  }, null) || sessionHistory[touchdownIdx];
+  // Landing V/S comes only from the last 6 raw vertical-speed samples before
+  // the touchdown on_ground sample. Do not use cumulative touchdown_vspeed here;
+  // that field can already contain a max from the whole flight.
+  const approachWindow = sessionHistory.slice(Math.max(0, touchdownIdx - 6), touchdownIdx);
+  const gWindow = sessionHistory.slice(touchdownIdx, Math.min(sessionHistory.length, touchdownIdx + 4));
+  const vsValues = approachWindow
+    .map((point) => readVerticalSpeedFpm(point))
+    .filter((value) => Number.isFinite(value));
+  const descendingVsAbs = vsValues
+    .filter((value) => value < 0)
+    .map((value) => Math.abs(value));
 
-  const resolvedG = readGForce(landingPacket);
-  const rawVs = readVerticalSpeedFpm(landingPacket);
-  const safeResolvedG = Number.isFinite(resolvedG) && resolvedG > 0 ? resolvedG : 0;
-  let resolvedVs = safeResolvedG > 0 && Number.isFinite(rawVs) ? Math.abs(rawVs) : 0;
+  let resolvedVs = 0;
+
+  if (descendingVsAbs.length > 0) {
+    resolvedVs = Math.max(...descendingVsAbs);
+  } else if (resolvedVs <= 0 && vsValues.length > 0) {
+    resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
+  }
+
+  const gValues = gWindow
+    .map((point) => readGForce(point))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
 
   // Sanitize: real touchdown V/S is 0..1500 fpm. Higher values are sensor
   // spikes — approximate from G instead.
-  if (resolvedVs > 1500 && safeResolvedG > 0) {
-    resolvedVs = approximateVsFromG(safeResolvedG);
+  if (resolvedVs > 1500 && resolvedG > 0) {
+    resolvedVs = approximateVsFromG(resolvedG);
   }
 
   return {
     landingVs: toSignedSinkRate(clamp(resolvedVs, 0, 10000)),
-    landingG: Number(clamp(safeResolvedG, 0, 6).toFixed(2)),
+    landingG: Number(clamp(resolvedG, 0, 6).toFixed(2)),
     source: "telemetry",
   };
 }
