@@ -70,6 +70,7 @@ const getMood = (impact, lang) => {
 function createPosts(company, flights, acceptedContracts, transactions, lang) {
   const reputation = toNumber(company?.reputation, 50);
   const repImpact = clamp(Math.round((reputation - 50) / 5), -10, 10);
+  const airlineName = compactText(company?.name || company?.company_name || company?.airline_name, lang === 'de' ? 'die Airline' : 'the airline');
   const completedFlights = [...(flights || [])].sort((a, b) => (getFlightDate(b)?.getTime() || 0) - (getFlightDate(a)?.getTime() || 0));
   const recentTransactions = [...(transactions || [])].sort((a, b) => (getTransactionDate(b)?.getTime() || 0) - (getTransactionDate(a)?.getTime() || 0));
   const withIssues = completedFlights.filter(
@@ -92,16 +93,19 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
     const route = compactText(`${dep}-${arr}`);
     const score = Math.round(toNumber(latestFlight?.overall_rating ?? latestFlight?.flight_score, avgRating));
     const landingVs = Math.abs(toNumber(latestFlight?.landing_vs ?? latestFlight?.xplane_data?.landing_vs ?? latestFlight?.xplane_data?.touchdown_vspeed, 0));
+    const landingLine = landingVs > 0
+      ? (lang === 'de' ? `Die Landing V/S wurde mit -${Math.round(landingVs)} fpm gemeldet.` : `Landing V/S came in at -${Math.round(landingVs)} fpm.`)
+      : '';
     posts.push({
       source: 'Ops Wire',
       handle: '@opswire',
       icon: PlaneTakeoff,
       tone: score >= 85 ? 'positive' : score < 65 ? 'negative' : 'neutral',
       sharedAt: getFlightDate(latestFlight) || offsetMinutes(anchorDate, 18),
-      headline: lang === 'de' ? `Flug ${route} abgeschlossen: Score ${score}` : `Flight ${route} completed: score ${score}`,
+      headline: lang === 'de' ? `${airlineName} beendet ${route} mit Score ${score}` : `${airlineName} closes ${route} with score ${score}`,
       description: lang === 'de'
-        ? `Der neueste Umlauf praegt die aktuelle Wahrnehmung: ${score >= 85 ? 'sauber abgeflogen, stabiler Service und ein gutes Signal fuer die Marke' : score < 65 ? 'sichtbare operative Nacharbeit noetig, besonders bei Ablauf und Anflug' : 'solide Leistung mit Raum fuer Feinschliff'}.${landingVs > 0 ? ` Gemeldete Landing V/S: -${Math.round(landingVs)} fpm.` : ''}`
-        : `The latest rotation is shaping the current readout: ${score >= 85 ? 'cleanly flown, stable service, and a useful brand signal' : score < 65 ? 'visible operational follow-up needed, especially around flow and approach' : 'solid execution with room for polish'}.${landingVs > 0 ? ` Reported landing V/S: -${Math.round(landingVs)} fpm.` : ''}`,
+        ? `${score >= 85 ? 'Am Ankunftsgate wirkte der Umlauf fast routiniert: kurze Wege, ruhige Ansagen und eine Crew, die auch nach dem Shutdown noch gelassen blieb.' : score < 65 ? 'Nach dem Aussteigen war die Stimmung spuerbar gedraempft. Einige Passagiere sprachen von einem holprigen Ablauf, waehrend die Ops-Leitung die Sequenz bereits nachbereitet.' : 'Der Flug kam ordentlich durch den Tag, ohne Schlagzeile, aber mit genug kleinen Momenten, die Stammgaeste bemerken.'} ${landingLine}`
+        : `${score >= 85 ? 'At the arrival gate, the rotation felt quietly well run: short pauses, calm announcements, and a crew still composed after shutdown.' : score < 65 ? 'After deboarding, the mood was noticeably muted. A few passengers called the flow uneven while operations staff were already reviewing the sequence.' : 'The flight got through the day cleanly enough, not spectacular, but with small details frequent flyers notice.'} ${landingLine}`,
       reputationImpact: clamp(Math.round((score - 75) / 4), -8, 8),
     });
   }
@@ -113,10 +117,10 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       icon: ShoppingCart,
       tone: 'positive',
       sharedAt: getTransactionDate(aircraftPurchase) || offsetMinutes(anchorDate, 38),
-      headline: lang === 'de' ? 'Flottenausbau registriert' : 'Fleet expansion registered',
+      headline: lang === 'de' ? 'Neues Flugzeug bringt Aufbruchsstimmung in die Flotte' : 'New aircraft brings fresh energy to the fleet',
       description: lang === 'de'
-        ? `Der Markt hat einen Flugzeugkauf ueber ${formatMoney(aircraftPurchase.amount, lang)} registriert. ${compactText(aircraftPurchase.description, 'Neue Kapazitaet kommt in die Flotte.')}`
-        : `The market registered an aircraft purchase worth ${formatMoney(aircraftPurchase.amount, lang)}. ${compactText(aircraftPurchase.description, 'New capacity is entering the fleet.')}`,
+        ? `In der Wartungshalle wurde der Kauf ueber ${formatMoney(aircraftPurchase.amount, lang)} sofort zum Gespraech. ${compactText(aircraftPurchase.description, 'Neue Kapazitaet kommt in die Flotte.')} Fuer die Crews fuehlt sich das wie ein Signal an: mehr Reichweite, mehr Plaene, mehr Verantwortung.`
+        : `The maintenance floor started talking as soon as the ${formatMoney(aircraftPurchase.amount, lang)} purchase posted. ${compactText(aircraftPurchase.description, 'New capacity is entering the fleet.')} For crews, it feels like a signal: more reach, more plans, more responsibility.`,
       reputationImpact: 3,
     });
   }
@@ -128,10 +132,10 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       icon: HandCoins,
       tone: 'neutral',
       sharedAt: getTransactionDate(aircraftSale) || offsetMinutes(anchorDate, 54),
-      headline: lang === 'de' ? 'Flottenverkauf veraendert Kapazitaet' : 'Aircraft sale reshapes capacity',
+      headline: lang === 'de' ? 'Abschied aus der Flotte sorgt fuer gemischte Reaktionen' : 'Fleet departure draws mixed reactions',
       description: lang === 'de'
-        ? `Ein Verkauf oder Abgang brachte ${formatMoney(aircraftSale.amount, lang)} Liquiditaet. ${compactText(aircraftSale.description, 'Analysten achten nun darauf, ob die verbleibende Flotte die Auftraege abdecken kann.')}`
-        : `A sale or retirement added ${formatMoney(aircraftSale.amount, lang)} in liquidity. ${compactText(aircraftSale.description, 'Analysts are watching whether the remaining fleet can cover the schedule.')}`,
+        ? `Der Abgang brachte ${formatMoney(aircraftSale.amount, lang)} Liquiditaet, aber am Ramp-Fenster blieb kurz diese typische Stille, wenn ein bekannter Flieger fehlt. ${compactText(aircraftSale.description, 'Analysten achten nun darauf, ob die verbleibende Flotte die Auftraege abdecken kann.')}`
+        : `The move added ${formatMoney(aircraftSale.amount, lang)} in liquidity, but there was that familiar quiet at the ramp window when a known airframe is gone. ${compactText(aircraftSale.description, 'Analysts are watching whether the remaining fleet can cover the schedule.')}`,
       reputationImpact: 0,
     });
   }
@@ -144,10 +148,10 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       icon: Banknote,
       tone: company?.active_loan ? 'neutral' : 'positive',
       sharedAt: getTransactionDate(loanTaken) || offsetMinutes(anchorDate, 71),
-      headline: lang === 'de' ? 'Kreditlinie im Fokus' : 'Credit line in focus',
+      headline: lang === 'de' ? 'Kreditlinie erhoeht den Druck im Tagesgeschaeft' : 'Credit line raises pressure on the daily operation',
       description: lang === 'de'
-        ? `${loanTaken ? `Neuer Bankkredit ueber ${formatMoney(loanAmount, lang)} aufgenommen.` : `Aktive Restschuld: ${formatMoney(company?.active_loan?.remaining, lang)}.`} Investoren achten darauf, ob die Rueckzahlung mit den naechsten Fluegen sauber bedient wird.`
-        : `${loanTaken ? `New bank loan of ${formatMoney(loanAmount, lang)} taken.` : `Active remaining debt: ${formatMoney(company?.active_loan?.remaining, lang)}.`} Investors are watching whether upcoming flights service the repayment cleanly.`,
+        ? `${loanTaken ? `Ein neuer Bankkredit ueber ${formatMoney(loanAmount, lang)} gibt Spielraum.` : `Die aktive Restschuld liegt bei ${formatMoney(company?.active_loan?.remaining, lang)}.`} Hinter den Kulissen klingt das weniger nach Drama als nach Disziplin: jeder puenktliche Flug macht die naechste Rate glaubwuerdiger.`
+        : `${loanTaken ? `A new bank loan of ${formatMoney(loanAmount, lang)} creates breathing room.` : `Active remaining debt sits at ${formatMoney(company?.active_loan?.remaining, lang)}.`} Behind the scenes, this is less drama than discipline: every punctual flight makes the next repayment feel more credible.`,
       reputationImpact: company?.active_loan ? -1 : 2,
     });
   }
@@ -159,10 +163,10 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       icon: BadgeCheck,
       tone: 'positive',
       sharedAt: getTransactionDate(loanPaid) || offsetMinutes(anchorDate, 86),
-      headline: lang === 'de' ? 'Kredit vollstaendig abbezahlt' : 'Loan fully paid off',
+      headline: lang === 'de' ? 'Letzte Kreditrate bringt spuerbare Erleichterung' : 'Final loan payment brings visible relief',
       description: lang === 'de'
-        ? `Die letzte Rate wurde verbucht. ${compactText(loanPaid.description, 'Die Bilanz wirkt dadurch belastbarer und die naechste Finanzierung duerfte leichter verhandelbar sein.')}`
-        : `The final installment has been booked. ${compactText(loanPaid.description, 'The balance sheet now looks stronger and future financing should be easier to negotiate.')}`,
+        ? `Die letzte Rate wurde verbucht, und im Finance-Office duerfte heute niemand diesen Kontoauszug zweimal pruefen muessen. ${compactText(loanPaid.description, 'Die Bilanz wirkt dadurch belastbarer und die naechste Finanzierung duerfte leichter verhandelbar sein.')}`
+        : `The final installment has been booked, and nobody in the finance office should need to check that statement twice today. ${compactText(loanPaid.description, 'The balance sheet now looks stronger and future financing should be easier to negotiate.')}`,
       reputationImpact: 5,
     });
   }
@@ -175,13 +179,13 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       tone: reputation >= 70 ? 'positive' : reputation <= 40 ? 'negative' : 'neutral',
       sharedAt: offsetMinutes(anchorDate, 96),
       headline: reputation >= 70
-        ? (lang === 'de' ? 'Luftfahrtredaktion sieht Vertrauen im SkyCareer-Netz' : 'Aviation desk sees trust across the SkyCareer network')
+        ? (lang === 'de' ? 'Redaktion sieht wachsendes Vertrauen rund um die Airline' : 'Aviation desk sees trust building around the airline')
         : reputation <= 40
-          ? (lang === 'de' ? 'Abendbericht: Marke steht nach unruhigen Umlaeufen unter Druck' : 'Evening report: brand faces pressure after unsettled rotations')
-          : (lang === 'de' ? 'Korrespondenten melden gemischte Reaktionen auf Regionalstrecken' : 'Correspondents report mixed reactions across regional routes'),
+          ? (lang === 'de' ? 'Abendbericht: Marke sucht nach einem ruhigeren naechsten Umlauf' : 'Evening report: brand needs a calmer next rotation')
+          : (lang === 'de' ? 'Korrespondenten hoeren gemischte Stimmen an den Gates' : 'Correspondents hear mixed voices at the gates'),
       description: lang === 'de'
-        ? 'Die Redaktion bewertet aktuell Flugbetrieb, Flottenentscheidungen und Finanzdisziplin zusammen. Einzelne Kennzahlen zaehlen weniger als die Frage, ob die Airline nach jedem Ereignis kontrolliert weiterarbeitet.'
-        : 'The desk is reading flight operations, fleet decisions, and financial discipline together. Individual metrics matter less than whether the airline keeps moving in a controlled way after each event.',
+        ? `In den kurzen Gespraechen zwischen Gate, Crewbus und Ops-Raum entsteht ein klareres Bild von ${airlineName}. Einzelne Kennzahlen zaehlen, aber haengen bleibt vor allem, ob die Airline nach Stressmomenten ruhig weiterarbeitet.`
+        : `In the small conversations between gate, crew bus, and operations room, a clearer picture of ${airlineName} is forming. Metrics matter, but what sticks is whether the airline keeps working calmly after stressful moments.`,
       reputationImpact: repImpact,
     },
     {
@@ -190,14 +194,14 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       icon: Users,
       tone: avgRating >= 85 ? 'positive' : avgRating <= 65 ? 'negative' : 'neutral',
       sharedAt: offsetMinutes(anchorDate, 112),
-      headline: lang === 'de' ? 'Passagierreporter fassen die Stimmung an Bord zusammen' : 'Passenger reporters summarize the mood on board',
+      headline: lang === 'de' ? 'Passagiere beschreiben die kleinen Momente an Bord' : 'Passengers describe the small moments on board',
       description: completedFlights.some((f) => toNumber(f?.overall_rating) >= 88)
         ? (lang === 'de'
-            ? 'Vielflieger loben die ruhige Kabinenroutine und das Gefuehl, dass die Crews den Ablauf im Griff haben.'
-            : 'Frequent flyers are praising the calm cabin rhythm and the sense that crews have the operation in hand.')
+            ? 'Ein Vielflieger schrieb, es habe sich nicht nach Show angefuehlt, sondern nach Vertrauen: klare Ansagen, ruhige Kabine, keine Hektik beim Sinkflug.'
+            : 'One frequent flyer wrote that it did not feel flashy, just trustworthy: clear announcements, a calm cabin, no rush during descent.')
         : (lang === 'de'
-            ? 'Die Stimmen aus den Terminals bleiben vorsichtig. Boarding, Ansagen und die letzten Minuten vor der Ankunft entscheiden ueber den professionellen Eindruck.'
-            : 'Terminal voices remain cautious. Boarding flow, announcements, and the final minutes before arrival are deciding whether the flight feels professionally handled.'),
+            ? 'Die Stimmen aus den Terminals bleiben vorsichtig. Viele verzeihen kleine Verspaetungen, aber nicht das Gefuehl, allein gelassen zu werden.'
+            : 'Terminal voices remain cautious. Many passengers forgive small delays, but not the feeling of being left in the dark.'),
       reputationImpact: clamp(Math.round((avgRating - 75) / 4), -8, 8),
     },
     {
@@ -207,15 +211,15 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       tone: withIssues.length > 0 ? 'negative' : 'positive',
       sharedAt: offsetMinutes(anchorDate, 128),
       headline: withIssues.length > 0
-        ? (lang === 'de' ? 'Operationsdesk fordert Nacharbeit nach auffaelligen Fluegen' : 'Operations desk calls for follow-up after irregular flights')
-        : (lang === 'de' ? 'Ops-Bulletin: Betriebslage bleibt ruhig' : 'Ops bulletin: operating picture stays calm'),
+        ? (lang === 'de' ? 'Operationsdesk schaut genauer auf die naechste Crewbesprechung' : 'Operations desk watching the next crew briefing')
+        : (lang === 'de' ? 'Ops-Bulletin: Ein ruhiger Tag wird als Erfolg gelesen' : 'Ops bulletin: a quiet day is being read as success'),
       description: withIssues.length > 0
         ? (lang === 'de'
-            ? 'Nach haerteren Anfluegen oder technischen Auffaelligkeiten geht der Blick auf die Reaktion der Airline.'
-            : 'After harder approaches or technical irregularities, attention is moving to the airline response.')
+            ? 'Nach haerteren Anfluegen oder technischen Auffaelligkeiten entscheidet jetzt die Reaktion: offen auswerten, Wartung ernst nehmen, naechsten Umlauf sauber fliegen.'
+            : 'After harder approaches or technical irregularities, the response matters now: debrief honestly, take maintenance seriously, fly the next rotation cleanly.')
         : (lang === 'de'
-            ? 'Die juengsten Umlaeufe liefern keinen Stoff fuer Alarmmeldungen. Das gilt als leises Signal fuer stabile Standards.'
-            : 'The latest rotations are giving monitors little to sound alarms about. That is being read as a quiet signal of stable standards.'),
+            ? 'Die juengsten Umlaeufe liefern keinen Stoff fuer Alarmmeldungen. In der Luftfahrt ist genau diese Langeweile oft das beste Kompliment.'
+            : 'The latest rotations are giving monitors little to sound alarms about. In aviation, that kind of boredom is often the best compliment.'),
       reputationImpact: withIssues.length > 0 ? -Math.min(12, withIssues.length * 3) : 4,
     },
     {
@@ -224,14 +228,14 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       icon: TrendingUp,
       tone: reputation >= 65 && withIssues.length === 0 ? 'positive' : 'neutral',
       sharedAt: offsetMinutes(anchorDate, 144),
-      headline: lang === 'de' ? 'Wirtschaftsdesk schaut auf Auftragsbuch und Kapital' : 'Business desk watches order book and capital',
+      headline: lang === 'de' ? 'Wirtschaftsdesk fragt: Traegt der Alltag den Plan?' : 'Business desk asks whether daily flying can carry the plan',
       description: (acceptedContracts?.length || 0) > 0
         ? (lang === 'de'
-            ? 'Offene Auftraege sind Chance und Belastungstest zugleich. Der Markt reagiert darauf, ob Zusagen sauber abgeflogen und finanziert werden.'
-            : 'Open contracts are both opportunity and stress test. The market is reacting to whether commitments are flown and financed cleanly.')
+            ? `Mit ${acceptedContracts.length} offenen Auftrag${acceptedContracts.length === 1 ? '' : 'en'} liegt Hoffnung im Flugplan, aber auch Druck. Der Markt schaut weniger auf grosse Worte als auf die Frage, ob jede Zusage wirklich abgeflogen wird.`
+            : `With ${acceptedContracts.length} open contract${acceptedContracts.length === 1 ? '' : 's'}, there is hope in the schedule and pressure with it. The market cares less about ambition than whether every promise actually flies.`)
         : (lang === 'de'
-            ? 'Ohne grossen Auftragsdruck liegt der Fokus auf Konsolidierung, Liquiditaet und zuverlaessigen Fluegen.'
-            : 'With no heavy contract pressure, the focus shifts to consolidation, liquidity, and reliable flights.'),
+            ? 'Ohne grossen Auftragsdruck wirkt der Moment fast ungewoehnlich ruhig. Genau jetzt kann die Airline Reserven aufbauen und Vertrauen mit zuverlaessigen Fluegen verdienen.'
+            : 'With no heavy contract pressure, the moment feels unusually quiet. This is where the airline can build reserves and earn trust through reliable flying.'),
       reputationImpact: clamp(Math.round((acceptedContracts?.length || 0) - withIssues.length * 2), -8, 8),
     },
   );
@@ -244,10 +248,10 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
       icon: ReceiptText,
       tone: latestTx.type === 'income' ? 'positive' : 'neutral',
       sharedAt: getTransactionDate(latestTx) || offsetMinutes(anchorDate, 160),
-      headline: lang === 'de' ? 'Letzte Buchung veraendert die Liquiditaet' : 'Latest booking moves liquidity',
+      headline: lang === 'de' ? 'Letzte Buchung erzaehlt mehr als nur eine Zahl' : 'Latest booking says more than the number',
       description: lang === 'de'
-        ? `${compactText(latestTx.description, 'Neue Transaktion')} (${latestTx.type === 'income' ? '+' : '-'}${formatMoney(latestTx.amount, lang)}). Der Finanzfeed bewertet solche Bewegungen zusammen mit Flugbetrieb und Flottenstrategie.`
-        : `${compactText(latestTx.description, 'New transaction')} (${latestTx.type === 'income' ? '+' : '-'}${formatMoney(latestTx.amount, lang)}). The finance feed reads these movements alongside flight operations and fleet strategy.`,
+        ? `${compactText(latestTx.description, 'Neue Transaktion')} (${latestTx.type === 'income' ? '+' : '-'}${formatMoney(latestTx.amount, lang)}). Fuer die Buchhaltung ist es eine Zeile; fuer die Airline ist es Treibstoff fuer die naechste Entscheidung.`
+        : `${compactText(latestTx.description, 'New transaction')} (${latestTx.type === 'income' ? '+' : '-'}${formatMoney(latestTx.amount, lang)}). For accounting it is one line; for the airline, it is fuel for the next decision.`,
       reputationImpact: latestTx.type === 'income' ? 1 : 0,
     });
   }
@@ -278,7 +282,7 @@ export default function AviationMediaFeed({ company, recentFlights, acceptedCont
             {lang === 'de' ? 'Airline Media Feed' : 'Airline Media Feed'}
           </h3>
           <p className="text-xs text-slate-400">
-            {lang === 'de' ? 'Reporterberichte aus deinen Fluegen, Flotten- und Finanzereignissen.' : 'Reporter-style coverage from your flights, fleet, and finance events.'}
+            {lang === 'de' ? 'Kleine Reporter-Stories aus Fluegen, Flotte und Finanzen.' : 'Short reporter stories from your flights, fleet, and finances.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
