@@ -48,6 +48,11 @@ const readOnGroundFlag = (point) => {
 
 const readVerticalSpeedFpm = (point) => {
   return firstFiniteNumber(
+    point?.touchdown_vspeed,
+    point?.landing_vspeed,
+    point?.landing_vs,
+    point?.landingVs,
+    point?.touchdownVs,
     point?.vs,
     point?.vertical_speed,
     point?.verticalSpeed,
@@ -119,28 +124,27 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  const approachWindow = sessionHistory.slice(Math.max(0, touchdownIdx - 6), touchdownIdx);
-  const gWindow = sessionHistory.slice(touchdownIdx, Math.min(sessionHistory.length, touchdownIdx + 4));
+  const landingWindow = sessionHistory.slice(touchdownIdx, Math.min(sessionHistory.length, touchdownIdx + 4));
+  const landingPacket = landingWindow.reduce((best, point) => {
+    const currentG = readGForce(point);
+    if (!Number.isFinite(currentG) || currentG <= 0) return best;
+    if (!best) return point;
+    const bestG = readGForce(best);
+    return currentG > bestG ? point : best;
+  }, null) || sessionHistory[touchdownIdx];
 
-  const vsValues = approachWindow
-    .map((point) => readVerticalSpeedFpm(point))
-    .filter((value) => Number.isFinite(value));
-  const descendingVs = vsValues.filter((value) => value < 0);
-  let resolvedVs = 0;
-  if (descendingVs.length > 0) {
-    resolvedVs = Math.abs(Math.min(...descendingVs));
-  } else if (resolvedVs <= 0 && vsValues.length > 0) {
-    resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
+  const resolvedG = readGForce(landingPacket);
+  const rawVs = readVerticalSpeedFpm(landingPacket);
+  const safeResolvedG = Number.isFinite(resolvedG) && resolvedG > 0 ? resolvedG : 0;
+  let resolvedVs = safeResolvedG > 0 && Number.isFinite(rawVs) ? Math.abs(rawVs) : 0;
+
+  if (resolvedVs > 1500 && safeResolvedG > 0) {
+    resolvedVs = approximateVsFromG(safeResolvedG);
   }
-
-  const gValues = gWindow
-    .map((point) => readGForce(point))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
 
   return {
     landingVs: toSignedSinkRate(clamp(resolvedVs, 0, 10000)),
-    landingG: Number(clamp(resolvedG, 0, 6).toFixed(2)),
+    landingG: Number(clamp(safeResolvedG, 0, 6).toFixed(2)),
     source: "telemetry",
   };
 }
