@@ -205,7 +205,10 @@ export default function FlightHistory() {
               <span>{t('route', lang)}</span>
               <span className="hidden sm:block">{t('aircraft', lang)}</span>
               <span className="text-center hidden sm:block">{t('score', lang)}</span>
-              <span className="text-center">{t('landing', lang)}</span>
+              <span className="text-center">
+                <span className="sm:hidden">{t('landing_g', lang)}</span>
+                <span className="hidden sm:inline">{t('landing', lang)}</span>
+              </span>
               <span className="text-center hidden sm:block">{t('landing_g', lang)}</span>
               <span className="text-center hidden sm:block">{t('max_g', lang)}</span>
               <span className="text-center hidden sm:block">{t('maintenance', lang)}</span>
@@ -262,9 +265,16 @@ export default function FlightHistory() {
                       <Star className={`w-3 h-3 ${flight.overall_rating >= 4 ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}`} />
                       <span className="text-white text-xs font-bold">{flight.overall_rating?.toFixed(1) || '-'}</span>
                     </div>
-                    {/* Landing V/S */}
+                    {/* Landing metric (mobile: G, desktop: V/S) */}
                     <div className="flex justify-center">
-                      <span className={`text-[11px] sm:text-xs font-bold px-1.5 py-0.5 rounded ${
+                      <span className={`sm:hidden text-[11px] font-bold ${
+                        landingG < 1.2 ? 'text-emerald-400' :
+                        landingG < 1.6 ? 'text-amber-400' :
+                        'text-red-400'
+                      }`}>
+                        {landingG > 0 ? `${landingG.toFixed(1)}G` : '-'}
+                      </span>
+                      <span className={`hidden sm:inline text-[11px] sm:text-xs font-bold px-1.5 py-0.5 rounded ${
                         Math.abs(landingVs) < 150
                           ? 'bg-emerald-500/20 text-emerald-400'
                           : Math.abs(landingVs) < 300
