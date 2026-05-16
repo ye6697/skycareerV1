@@ -485,6 +485,23 @@ export default function MaintenanceCategories({ aircraft }) {
         </div>
       </div>
 
+      {totalCostSummary.gross > 0 && (
+        <Button
+          className={`w-full ${wearSnapshot.needsMaintenance ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+          size="sm"
+          onClick={() => repairAllMutation.mutate()}
+          disabled={repairAllMutation.isPending || overdraftBlocked}
+        >
+          <Wrench className="w-4 h-4 mr-1" />
+          {repairAllMutation.isPending
+            ? tl('waiting', lang)
+            : (lang === 'de'
+              ? `Alle Kategorien reparieren ($${totalCostSummary.payable.toLocaleString()})`
+              : `Repair all categories ($${totalCostSummary.payable.toLocaleString()})`)}
+          {wearSnapshot.needsMaintenance && ` - ${tl('required_excl', lang)}`}
+        </Button>
+      )}
+
       <div className="space-y-2">
         {categories.map((cat) => {
           const Icon = cat.icon;
@@ -574,19 +591,6 @@ export default function MaintenanceCategories({ aircraft }) {
             {lang === 'de' ? 'Dispo-Limit erreicht - Wartung nicht moeglich!' : 'Overdraft limit reached - maintenance blocked!'}
           </p>
         </div>
-      )}
-
-      {totalCostSummary.gross > 0 && (
-        <Button
-          className={`w-full ${wearSnapshot.needsMaintenance ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
-          size="sm"
-          onClick={() => repairAllMutation.mutate()}
-          disabled={repairAllMutation.isPending || overdraftBlocked}
-        >
-          <Wrench className="w-4 h-4 mr-1" />
-          {repairAllMutation.isPending ? tl('waiting', lang) : `${tl('repair_all', lang)} ($${totalCostSummary.payable.toLocaleString()})`}
-          {wearSnapshot.needsMaintenance && ` - ${tl('required_excl', lang)}`}
-        </Button>
       )}
 
       <Dialog open={showInfo} onOpenChange={setShowInfo}>
