@@ -92,6 +92,17 @@ const firstFiniteNumber = (...values) => {
   return NaN;
 };
 
+const calculateReputationChange = (score, hasSevereFailure) => {
+  if (hasSevereFailure) return -8;
+  if (score >= 95) return 4;
+  if (score >= 90) return 3;
+  if (score >= 82) return 2;
+  if (score >= 75) return 1;
+  if (score >= 65) return 0;
+  if (score >= 50) return -1;
+  return -3;
+};
+
 const normalizeMapWaypointList = (list) => {
   if (!Array.isArray(list)) return [];
   return list
@@ -2213,8 +2224,7 @@ export default function FlightTracker() {
 
             // Update company - only deduct direct costs (fuel, crew, airport)
             if (company) {
-              // Reputation based on score (0-100)
-              const reputationChange = (hasCrashed || wrongAirport) ? -10 : Math.round((scoreWithInsurance - 85) / 5);
+              const reputationChange = calculateReputationChange(scoreWithInsurance, hasCrashed || wrongAirport);
               
               // XP curve: exp until Lvl 30, linear after, to keep late-game achievable
               const calculateXPForLevel = (level) => { if (level <= 30) return Math.round(100 * Math.pow(1.1, level - 1)); const b = Math.round(100 * Math.pow(1.1, 29)); return b + Math.round(b * 0.05) * (level - 30); };

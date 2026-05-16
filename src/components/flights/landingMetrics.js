@@ -119,10 +119,9 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     return { landingVs: 0, landingG: 0, source: "none" };
   }
 
-  const approachWindow = sessionHistory.slice(Math.max(0, touchdownIdx - 6), touchdownIdx);
-  const gWindow = sessionHistory.slice(touchdownIdx, Math.min(sessionHistory.length, touchdownIdx + 4));
+  const landingWindow = sessionHistory.slice(Math.max(0, touchdownIdx - 5), touchdownIdx + 1);
 
-  const vsValues = approachWindow
+  const vsValues = landingWindow
     .map((point) => readVerticalSpeedFpm(point))
     .filter((value) => Number.isFinite(value));
   const descendingVs = vsValues.filter((value) => value < 0);
@@ -133,7 +132,7 @@ export function deriveLandingMetricsFromTelemetry(telemetryHistory, sessionStart
     resolvedVs = Math.max(...vsValues.map((value) => Math.abs(value)));
   }
 
-  const gValues = gWindow
+  const gValues = landingWindow
     .map((point) => readGForce(point))
     .filter((value) => Number.isFinite(value) && value > 0);
   const resolvedG = gValues.length > 0 ? Math.max(...gValues) : 0;
