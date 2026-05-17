@@ -34,13 +34,20 @@ Deno.serve(async (req) => {
     }
 
     const allAircraft = await base44.asServiceRole.entities.Aircraft.filter({}, '-created_date', 5000);
+    const allHangars = await base44.asServiceRole.entities.Hangar.filter({}, '-created_date', 5000);
     const aircraftTypeMap = {};
     const aircraftByCompany = {};
+    const hangarsByCompany = {};
     for (const ac of allAircraft) {
       aircraftTypeMap[ac.id] = ac.type;
       if (!ac.company_id) continue;
       if (!aircraftByCompany[ac.company_id]) aircraftByCompany[ac.company_id] = [];
       aircraftByCompany[ac.company_id].push(ac);
+    }
+    for (const hangar of allHangars) {
+      if (!hangar.company_id) continue;
+      if (!hangarsByCompany[hangar.company_id]) hangarsByCompany[hangar.company_id] = [];
+      hangarsByCompany[hangar.company_id].push(hangar);
     }
 
     const normalizeScore = (value) => {
@@ -72,6 +79,7 @@ Deno.serve(async (req) => {
       if (totalFlights === 0 && (aircraftTypeFilter && aircraftTypeFilter !== 'all')) continue;
 
       const companyAircraft = aircraftByCompany[company.id] || [];
+      const companyHangars = hangarsByCompany[company.id] || [];
       const aircraftTypes = {};
       for (const ac of companyAircraft) {
         const type = ac.type || 'unknown';
@@ -79,6 +87,7 @@ Deno.serve(async (req) => {
       }
       const primaryAircraftType = Object.entries(aircraftTypes).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
       const fleetValue = companyAircraft.reduce((sum, ac) => sum + Number(ac.current_value || ac.value || ac.purchase_price || ac.price || 0), 0);
+      const hangarTotalValue = companyHangars.reduce((sum, hangar) => sum + Number(hangar.purchase_price || hangar.price || hangar.value || 0), 0);
 
       // Calculate averages
       const scores = companyFlights.map(f => normalizeScore(f.flight_score ?? f.overall_rating ?? 0)).filter(s => s > 0);
@@ -86,6 +95,12 @@ Deno.serve(async (req) => {
 
       const landingVs = companyFlights.map(f => Math.abs(f.landing_vs || 0)).filter(v => v > 0);
       const avgLandingVs = landingVs.length > 0 ? landingVs.reduce((a, b) => a + b, 0) / landingVs.length : 0;
+      const landingGForces = companyFlights
+        .map((f) => Number(f.landing_g_force ?? f.landing_gforce ?? f.landingGForce ?? 0))
+        .filter((g) => Number.isFinite(g) && g > 0);
+      const avgLandingG = landingGForces.length > 0 ? landingGForces.reduce((a, b) => a + b, 0) / landingGForces.length : 0;
+      const bestLandingG = landingGForces.length > 0 ? Math.min(...landingGForces) : null;
+      const worstLandingG = landingGForces.length > 0 ? Math.max(...landingGForces) : null;
 
       // Butter landings (< 100 fpm)
       const butterCount = landingVs.filter(v => v < 100).length;
@@ -121,6 +136,8 @@ Deno.serve(async (req) => {
         xp: company.experience_points || 0,
         fleet_size: companyAircraft.length,
         fleet_value: Math.round(fleetValue),
+        hangar_count: companyHangars.length,
+        hangar_total_value: Math.round(hangarTotalValue),
         aircraft_types: aircraftTypes,
         primary_aircraft_type: primaryAircraftType,
         maintenance_ratio: company.current_maintenance_ratio || 0,
@@ -128,6 +145,9 @@ Deno.serve(async (req) => {
         avg_landing_vs: avgLandingVs > 0 ? -Math.round(avgLandingVs) : 0,
         best_score: Math.round(bestScore * 10) / 10,
         best_landing_vs: bestLandingVs === null ? null : -Math.round(bestLandingVs),
+        avg_landing_g: avgLandingG > 0 ? Math.round(avgLandingG * 100) / 100 : null,
+        best_landing_g: bestLandingG === null ? null : Math.round(bestLandingG * 100) / 100,
+        worst_landing_g: worstLandingG === null ? null : Math.round(worstLandingG * 100) / 100,
         butter_pct: Math.round(butterPct),
         composite_score: Math.round(compositeScore * 10) / 10,
         last_flight_date: lastFlightDate ? lastFlightDate.toISOString() : null,

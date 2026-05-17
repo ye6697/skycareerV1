@@ -149,7 +149,7 @@ function AirlineProfile({ entry, lang }) {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ProfileStat icon={Gauge} label="Avg Score" value={entry.avg_score || 0} detail={`Best ${entry.best_score || 0}`} tone="emerald" />
-        <ProfileStat icon={Plane} label="Landing" value={landingMagnitude > 0 ? `${Math.round(landing)} fpm` : '-'} detail={`Best ${entry.best_landing_vs ?? '-'} fpm`} tone={landingMagnitude < 180 ? 'emerald' : landingMagnitude < 320 ? 'amber' : 'rose'} />
+        <ProfileStat icon={Plane} label="Landing" value={landingMagnitude > 0 ? `${Math.round(landing)} fpm` : '-'} detail={`Best ${entry.best_landing_vs ?? '-'} fpm • Avg G ${entry.avg_landing_g ?? '-'} • Best G ${entry.best_landing_g ?? '-'} • Worst G ${entry.worst_landing_g ?? '-'}`} tone={landingMagnitude < 180 ? 'emerald' : landingMagnitude < 320 ? 'amber' : 'rose'} />
         <ProfileStat icon={Users} label="Passengers" value={(entry.total_passengers || 0).toLocaleString()} detail={`${entry.total_flights || 0} flights`} tone="cyan" />
         <ProfileStat icon={ShieldCheck} label="Reputation" value={entry.reputation || 0} detail={`${entry.butter_pct || 0}% butter landings`} tone="indigo" />
       </div>
@@ -168,6 +168,14 @@ function AirlineProfile({ entry, lang }) {
             <div className="rounded-md bg-slate-900/70 p-3">
               <p className="text-[10px] uppercase text-slate-500">Fleet value</p>
               <p className="font-mono text-emerald-200">{formatMoney(entry.fleet_value)}</p>
+            </div>
+            <div className="rounded-md bg-slate-900/70 p-3">
+              <p className="text-[10px] uppercase text-slate-500">Hangars</p>
+              <p className="font-mono text-cyan-200">{entry.hangar_count || 0}</p>
+            </div>
+            <div className="rounded-md bg-slate-900/70 p-3">
+              <p className="text-[10px] uppercase text-slate-500">Hangar value</p>
+              <p className="font-mono text-emerald-200">{formatMoney(entry.hangar_total_value)}</p>
             </div>
             <div className="rounded-md bg-slate-900/70 p-3">
               <p className="text-[10px] uppercase text-slate-500">Cargo moved</p>
@@ -334,7 +342,7 @@ export default function Leaderboard() {
         )}
 
         <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
-          <DialogContent className="max-w-5xl border-cyan-900/60 bg-slate-950 text-slate-100">
+          <DialogContent className="max-h-[90vh] overflow-y-auto max-w-5xl border-cyan-900/60 bg-slate-950 text-slate-100">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-cyan-300" />
