@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch all completed flights in one batch for scoring
-    const allFlights = await base44.asServiceRole.entities.Flight.filter({ status: 'completed' }, '-created_date', 5000);
+    const allFlights = await base44.asServiceRole.entities.Flight.filter({ status: 'completed' }, '-created_date', 1000);
 
     // Group flights by company_id
     const flightsByCompany = {};
@@ -33,8 +33,8 @@ Deno.serve(async (req) => {
       flightsByCompany[f.company_id].push(f);
     }
 
-    const allAircraft = await base44.asServiceRole.entities.Aircraft.filter({}, '-created_date', 5000);
-    const allHangars = await base44.asServiceRole.entities.Hangar.filter({}, '-created_date', 5000);
+    const allAircraft = await base44.asServiceRole.entities.Aircraft.filter({}, '-created_date', 1000);
+    const allHangars = await base44.asServiceRole.entities.Hangar.filter({}, '-created_date', 1000);
     const aircraftTypeMap = {};
     const aircraftByCompany = {};
     const hangarsByCompany = {};
