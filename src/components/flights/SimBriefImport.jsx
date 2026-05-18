@@ -3,9 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Download, Copy, Check, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Loader2, Download, Copy, Check, RefreshCw, ExternalLink, AlertTriangle, FileText } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -19,6 +20,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [copied, setCopied] = useState(false);
   const [mismatch, setMismatch] = useState(false);
   const [waitingForPlan, setWaitingForPlan] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
   const autoFetchedRef = useRef(false);
   const pollIntervalRef = useRef(null);
 
@@ -183,6 +185,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
 
   // Show: credentials needed
   const hasCredentials = username || pilotId || savedCredentials?.username || savedCredentials?.pilotId;
+  const simbriefPdfUrl = importedData?.ofp_pdf_url || importedData?.pdf_url || null;
 
   return (
     <Card className="p-4 bg-slate-800/50 border-slate-700">
@@ -344,6 +347,44 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
               {importedData.route_string}
             </p>
           </div>
+
+          {simbriefPdfUrl && (
+            <Dialog open={pdfOpen} onOpenChange={setPdfOpen}>
+              <Button
+                type="button"
+                onClick={() => setPdfOpen(true)}
+                className="w-full h-8 text-xs bg-sky-600 hover:bg-sky-700 gap-2"
+              >
+                <FileText className="w-3 h-3" />
+                {t('show_simbrief_pdf', lang)}
+              </Button>
+              <DialogContent className="w-[calc(100vw-1rem)] max-w-6xl h-[92vh] bg-slate-950 border-slate-700 text-slate-100 p-0 overflow-hidden flex flex-col">
+                <DialogHeader className="px-4 py-3 border-b border-slate-800">
+                  <div className="flex flex-col gap-2 pr-8 sm:flex-row sm:items-center sm:justify-between">
+                    <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-sky-300" />
+                      {t('simbrief_chart_pdf', lang)}
+                    </DialogTitle>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-7 px-2 text-xs border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 self-start sm:self-auto"
+                    >
+                      <a href={simbriefPdfUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="w-3 h-3" />
+                        {t('open_pdf_new_tab', lang)}
+                      </a>
+                    </Button>
+                  </div>
+                </DialogHeader>
+                <iframe
+                  title={t('simbrief_chart_pdf', lang)}
+                  src={simbriefPdfUrl}
+                  className="flex-1 w-full bg-slate-900"
+                />
+              </DialogContent>
+            </Dialog>
+          )}
 
           <Button
             onClick={() => { 

@@ -115,9 +115,52 @@ Deno.serve(async (req) => {
       general.aircraft_type ||
       '';
 
+    const normalizeSimbriefUrl = (value) => {
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      if (/^https?:\/\//i.test(trimmed)) return trimmed;
+      if (trimmed.startsWith('//')) return `https:${trimmed}`;
+      if (trimmed.startsWith('/')) return `https://www.simbrief.com${trimmed}`;
+      return `https://www.simbrief.com/${trimmed.replace(/^\/+/, '')}`;
+    };
+
+    const pickPdfUrl = (value, pdfHint = false) => {
+      if (!value) return null;
+      if (typeof value === 'string') {
+        const normalized = normalizeSimbriefUrl(value);
+        if (!normalized) return null;
+        return pdfHint || /\.pdf(?:$|[?#])/i.test(normalized) ? normalized : null;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const picked = pickPdfUrl(item, pdfHint);
+          if (picked) return picked;
+        }
+        return null;
+      }
+      if (typeof value === 'object') {
+        for (const [key, item] of Object.entries(value)) {
+          const keyLooksLikePdf = /pdf/i.test(key);
+          const picked = pickPdfUrl(item, pdfHint || keyLooksLikePdf);
+          if (picked) return picked;
+        }
+      }
+      return null;
+    };
+
+    const ofpPdfUrl = pickPdfUrl(data.files?.pdf, true)
+      || pickPdfUrl(data.files?.ofp_pdf, true)
+      || pickPdfUrl(data.files)
+      || pickPdfUrl(data.links?.pdf, true)
+      || pickPdfUrl(data.links?.ofp_pdf, true)
+      || pickPdfUrl(general.pdf_link, true)
+      || pickPdfUrl(general.ofp_pdf, true);
+
     const result = {
       source: 'simbrief',
       route_string: routeString,
+      ofp_pdf_url: ofpPdfUrl,
       waypoints,
       departure_airport: origin.icao_code || '',
       arrival_airport: destination.icao_code || '',

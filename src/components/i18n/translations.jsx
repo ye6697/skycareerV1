@@ -645,6 +645,9 @@ const translations = {
   simbrief_opened: { en: "SimBrief has been opened. Create the flight plan there and click \"Generate OFP\". The plan will be loaded here automatically.", de: "SimBrief wurde geöffnet. Erstelle dort den Flugplan und klicke auf \"Generate OFP\". Der Plan wird automatisch hier geladen." },
   reload_manually: { en: "Reload manually", de: "Manuell neu laden" },
   create_new_plan: { en: "Create new flight plan", de: "Neuen Flugplan erstellen" },
+  show_simbrief_pdf: { en: "Show SimBrief chart PDF", de: "SimBrief Chart-PDF anzeigen" },
+  simbrief_chart_pdf: { en: "SimBrief Chart PDF", de: "SimBrief Chart-PDF" },
+  open_pdf_new_tab: { en: "Open in new tab", de: "In neuem Tab öffnen" },
 
   // === PERF CALCULATOR ===
   perf_calculator: { en: "PERF CALCULATOR", de: "PERF KALKULATOR" },
