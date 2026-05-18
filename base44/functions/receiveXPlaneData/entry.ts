@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
       const d = Number(distanceNm || 0);
       if (!Number.isFinite(d) || d <= 0) return null;
       const cruise = getCruiseSpeed(xplaneIcao, fleetAircraftType);
-      return Math.round((d / cruise) * 60 + 20 + 15);
+      return Math.round((d / cruise) * 60);
     };
     const computeLiveScore = (packet) => {
       let scoreNow = 100;

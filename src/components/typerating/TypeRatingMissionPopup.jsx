@@ -31,7 +31,7 @@ const calculateDistanceNm = (lat1, lon1, lat2, lon2) => {
 
 const calculateTrainingDeadlineMinutes = (distanceNm, aircraft) => {
   const cruiseSpeed = getCruiseSpeedForModel(aircraft?.name, aircraft?.type);
-  return Math.round((Number(distanceNm || 0) / cruiseSpeed) * 60 + 20 + 15);
+  return Math.round((Number(distanceNm || 0) / cruiseSpeed) * 60);
 };
 
 const getRouteDistanceNm = (fromIcao, toIcao, fallbackDistance) => {

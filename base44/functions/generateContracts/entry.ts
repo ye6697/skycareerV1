@@ -699,8 +699,7 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
     cargo: 450
   };
   const cruiseSpeed = cruiseSpeeds[aircraftType.type] || 250;
-  // Flight time = distance/speed, plus 20min taxi/climb/descent overhead, plus 15min buffer
-  const flightTimeMinutes = Math.round((distance / cruiseSpeed) * 60 + 20 + 15);
+  const flightTimeMinutes = Math.round((distance / cruiseSpeed) * 60);
 
   return {
     company_id: companyId,
