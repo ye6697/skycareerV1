@@ -381,10 +381,13 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
               <Button
                 type="button"
                 onClick={() => setWaypointsOpen(true)}
-                className="w-full h-8 text-xs bg-purple-700/90 hover:bg-purple-600 gap-2 text-purple-50 border border-purple-400/20"
+                className="group w-full h-9 justify-between rounded-md border border-purple-500/25 bg-slate-950/90 px-3 text-xs font-mono uppercase tracking-wide text-purple-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_0_18px_rgba(88,28,135,0.10)] hover:border-purple-400/45 hover:bg-purple-950/35 hover:text-purple-100"
               >
-                <Route className="w-3 h-3" />
-                {lang === 'de' ? 'SimBrief Waypoints anzeigen' : 'Show SimBrief waypoints'}
+                <span className="flex min-w-0 items-center gap-2">
+                  <Route className="w-3.5 h-3.5 text-purple-300" />
+                  <span className="truncate">{lang === 'de' ? 'SimBrief Waypoints anzeigen' : 'Show SimBrief waypoints'}</span>
+                </span>
+                <span className="rounded border border-purple-400/20 bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-300">{simbriefWaypoints.length}</span>
               </Button>
               <DialogContent className="h-[86dvh] w-[calc(100vw-0.75rem)] max-w-3xl bg-slate-950 border-purple-500/30 text-slate-100 p-0 overflow-hidden flex flex-col">
                 <DialogHeader className="shrink-0 px-4 py-3 border-b border-purple-500/20 bg-purple-950/30">
@@ -428,10 +431,13 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
               <Button
                 type="button"
                 onClick={() => setPdfOpen(true)}
-                className="w-full h-8 text-xs bg-sky-600 hover:bg-sky-700 gap-2"
+                className="group w-full h-9 justify-between rounded-md border border-sky-500/20 bg-slate-950/90 px-3 text-xs font-mono uppercase tracking-wide text-sky-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_0_18px_rgba(14,165,233,0.08)] hover:border-sky-400/40 hover:bg-sky-950/35 hover:text-sky-100"
               >
-                <FileText className="w-3 h-3" />
-                {t('show_simbrief_pdf', lang)}
+                <span className="flex min-w-0 items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-sky-300" />
+                  <span className="truncate">{t('show_simbrief_pdf', lang)}</span>
+                </span>
+                <ExternalLink className="w-3 h-3 text-sky-400/80 transition-transform group-hover:translate-x-0.5" />
               </Button>
               <DialogContent className="h-[94dvh] w-[calc(100vw-0.5rem)] max-w-none bg-slate-950 border-slate-700 text-slate-100 p-0 overflow-hidden flex flex-col sm:h-[92dvh] sm:w-[min(92vw,1100px)]">
                 <DialogHeader className="shrink-0 px-4 py-3 border-b border-slate-800">
