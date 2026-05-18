@@ -136,7 +136,9 @@ Deno.serve(async (req) => {
       if (typeof value === 'string') {
         const normalized = normalizeSimbriefUrl(value, directory);
         if (!normalized) return null;
-        return pdfHint || /\.pdf(?:$|[?#])/i.test(normalized) ? normalized : null;
+        const looksLikePdfUrl = /\.pdf(?:$|[?#])/i.test(normalized);
+        const looksLikePath = /^https?:\/\//i.test(value) || value.startsWith('//') || value.startsWith('/') || value.includes('/');
+        return looksLikePdfUrl || (pdfHint && looksLikePath) ? normalized : null;
       }
       if (Array.isArray(value)) {
         for (const item of value) {
@@ -147,8 +149,16 @@ Deno.serve(async (req) => {
       }
       if (typeof value === 'object') {
         const nextDirectory = typeof value.directory === 'string' ? value.directory : directory;
+        const directKeys = ['link', 'url', 'href', 'path', 'pdf', 'ofp_pdf'];
+        for (const key of directKeys) {
+          if (!(key in value)) continue;
+          const keyLooksLikePdf = /pdf/i.test(key);
+          const picked = pickPdfUrl(value[key], pdfHint || keyLooksLikePdf, nextDirectory);
+          if (picked) return picked;
+        }
         for (const [key, item] of Object.entries(value)) {
-          if (key === 'directory') continue;
+          if (key === 'directory' || key === 'name' || key === 'title' || key === 'label') continue;
+          if (directKeys.includes(key)) continue;
           const keyLooksLikePdf = /pdf/i.test(key);
           const picked = pickPdfUrl(item, pdfHint || keyLooksLikePdf, nextDirectory);
           if (picked) return picked;
