@@ -122,7 +122,12 @@ Deno.serve(async (req) => {
       if (/^https?:\/\//i.test(trimmed)) return trimmed;
       if (trimmed.startsWith('//')) return `https:${trimmed}`;
       if (trimmed.startsWith('/')) return `https://www.simbrief.com${trimmed}`;
-      return `https://www.simbrief.com/${trimmed.replace(/^\/+/, '')}`;
+      const relativePath = trimmed.replace(/^\/+/, '');
+      if (/\.pdf(?:$|[?#])/i.test(relativePath) && !relativePath.includes('/')) {
+        return `https://www.simbrief.com/ofp/flightplans/pdf/${relativePath}`;
+      }
+      if (/^ofp\//i.test(relativePath)) return `https://www.simbrief.com/${relativePath}`;
+      return `https://www.simbrief.com/ofp/flightplans/pdf/${relativePath}`;
     };
 
     const pickPdfUrl = (value, pdfHint = false) => {
