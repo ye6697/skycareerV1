@@ -186,6 +186,9 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   // Show: credentials needed
   const hasCredentials = username || pilotId || savedCredentials?.username || savedCredentials?.pilotId;
   const simbriefPdfUrl = importedData?.ofp_pdf_url || importedData?.pdf_url || null;
+  const simbriefPdfViewerUrl = simbriefPdfUrl
+    ? `${simbriefPdfUrl}${simbriefPdfUrl.includes('#') ? '&' : '#'}page=1&zoom=page-fit&view=Fit&toolbar=1&navpanes=0&pagemode=none`
+    : null;
 
   return (
     <Card className="p-4 bg-slate-800/50 border-slate-700">
@@ -358,8 +361,8 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
                 <FileText className="w-3 h-3" />
                 {t('show_simbrief_pdf', lang)}
               </Button>
-              <DialogContent className="w-[calc(100vw-1rem)] max-w-6xl h-[92vh] bg-slate-950 border-slate-700 text-slate-100 p-0 overflow-hidden flex flex-col">
-                <DialogHeader className="px-4 py-3 border-b border-slate-800">
+              <DialogContent className="h-[94dvh] w-[calc(100vw-0.5rem)] max-w-none bg-slate-950 border-slate-700 text-slate-100 p-0 overflow-hidden flex flex-col sm:h-[92dvh] sm:w-[min(92vw,1100px)]">
+                <DialogHeader className="shrink-0 px-4 py-3 border-b border-slate-800">
                   <div className="flex flex-col gap-2 pr-8 sm:flex-row sm:items-center sm:justify-between">
                     <DialogTitle className="text-sm font-semibold flex items-center gap-2">
                       <FileText className="w-4 h-4 text-sky-300" />
@@ -377,11 +380,24 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
                     </Button>
                   </div>
                 </DialogHeader>
-                <iframe
-                  title={t('simbrief_chart_pdf', lang)}
-                  src={simbriefPdfUrl}
-                  className="flex-1 w-full bg-slate-900"
-                />
+                <div className="min-h-0 flex-1 overflow-auto bg-slate-900">
+                  <object
+                    title={t('simbrief_chart_pdf', lang)}
+                    data={simbriefPdfViewerUrl}
+                    type="application/pdf"
+                    className="block h-full min-h-[76dvh] w-full sm:min-h-[78dvh]"
+                  >
+                    <div className="flex h-full min-h-[76dvh] flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-300 sm:min-h-[78dvh]">
+                      <p>{lang === 'de' ? 'Der eingebettete PDF-Viewer konnte das OFP nicht anzeigen.' : 'The embedded PDF viewer could not display the OFP.'}</p>
+                      <Button asChild className="h-8 bg-sky-600 text-xs hover:bg-sky-700">
+                        <a href={simbriefPdfUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink className="w-3 h-3" />
+                          {t('open_pdf_new_tab', lang)}
+                        </a>
+                      </Button>
+                    </div>
+                  </object>
+                </div>
               </DialogContent>
             </Dialog>
           )}
