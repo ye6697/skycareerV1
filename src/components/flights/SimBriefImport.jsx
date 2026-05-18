@@ -190,7 +190,7 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     ? `${simbriefPdfUrl}${simbriefPdfUrl.includes('#') ? '&' : '#'}page=1&zoom=page-width&view=FitH&toolbar=1&navpanes=0&pagemode=none`
     : null;
   const simbriefMobilePdfViewerUrl = simbriefPdfUrl
-    ? `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(simbriefPdfUrl)}`
+    ? `https://docs.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(simbriefPdfUrl.replace(/^http:\/\//i, 'https://'))}`
     : null;
 
   return (

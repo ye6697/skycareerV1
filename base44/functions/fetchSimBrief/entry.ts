@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
       if (typeof value !== 'string') return null;
       const trimmed = value.trim();
       if (!trimmed) return null;
+      if (/^https?:\/\/(?:www\.)?simbrief\.com/i.test(trimmed)) return trimmed.replace(/^http:\/\//i, 'https://');
       if (/^https?:\/\//i.test(trimmed)) return trimmed;
       if (trimmed.startsWith('//')) return `https:${trimmed}`;
       if (trimmed.startsWith('/')) return `https://www.simbrief.com${trimmed}`;
