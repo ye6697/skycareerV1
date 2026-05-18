@@ -187,7 +187,10 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const hasCredentials = username || pilotId || savedCredentials?.username || savedCredentials?.pilotId;
   const simbriefPdfUrl = importedData?.ofp_pdf_url || importedData?.pdf_url || null;
   const simbriefPdfViewerUrl = simbriefPdfUrl
-    ? `${simbriefPdfUrl}${simbriefPdfUrl.includes('#') ? '&' : '#'}page=1&zoom=page-fit&view=Fit&toolbar=1&navpanes=0&pagemode=none`
+    ? `${simbriefPdfUrl}${simbriefPdfUrl.includes('#') ? '&' : '#'}page=1&zoom=page-width&view=FitH&toolbar=1&navpanes=0&pagemode=none`
+    : null;
+  const simbriefMobilePdfViewerUrl = simbriefPdfUrl
+    ? `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(simbriefPdfUrl)}`
     : null;
 
   return (
@@ -380,14 +383,20 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
                     </Button>
                   </div>
                 </DialogHeader>
-                <div className="min-h-0 flex-1 overflow-auto bg-slate-900">
+                <div className="min-h-0 flex-1 overflow-auto overscroll-contain bg-slate-900 [-webkit-overflow-scrolling:touch]">
+                  <iframe
+                    title={`${t('simbrief_chart_pdf', lang)} mobile`}
+                    src={simbriefMobilePdfViewerUrl}
+                    scrolling="yes"
+                    className="block h-full min-h-[78dvh] w-full border-0 bg-white sm:hidden"
+                  />
                   <object
                     title={t('simbrief_chart_pdf', lang)}
                     data={simbriefPdfViewerUrl}
                     type="application/pdf"
-                    className="block h-full min-h-[76dvh] w-full sm:min-h-[78dvh]"
+                    className="hidden h-full min-h-[78dvh] w-full sm:block"
                   >
-                    <div className="flex h-full min-h-[76dvh] flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-300 sm:min-h-[78dvh]">
+                    <div className="flex h-full min-h-[78dvh] flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-300">
                       <p>{lang === 'de' ? 'Der eingebettete PDF-Viewer konnte das OFP nicht anzeigen.' : 'The embedded PDF viewer could not display the OFP.'}</p>
                       <Button asChild className="h-8 bg-sky-600 text-xs hover:bg-sky-700">
                         <a href={simbriefPdfUrl} target="_blank" rel="noreferrer">
