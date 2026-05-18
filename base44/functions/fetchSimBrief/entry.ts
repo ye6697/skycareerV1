@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       general.aircraft_type ||
       '';
 
-    const normalizeSimbriefUrl = (value) => {
+    const normalizeSimbriefUrl = (value, directory = null) => {
       if (typeof value !== 'string') return null;
       const trimmed = value.trim();
       if (!trimmed) return null;
@@ -123,40 +123,45 @@ Deno.serve(async (req) => {
       if (trimmed.startsWith('//')) return `https:${trimmed}`;
       if (trimmed.startsWith('/')) return `https://www.simbrief.com${trimmed}`;
       const relativePath = trimmed.replace(/^\/+/, '');
-      if (/\.pdf(?:$|[?#])/i.test(relativePath) && !relativePath.includes('/')) {
-        return `https://www.simbrief.com/ofp/flightplans/pdf/${relativePath}`;
+      if (directory) {
+        const normalizedDirectory = normalizeSimbriefUrl(directory);
+        if (normalizedDirectory) return `${normalizedDirectory.replace(/\/?$/, '/')}${relativePath}`;
       }
       if (/^ofp\//i.test(relativePath)) return `https://www.simbrief.com/${relativePath}`;
-      return `https://www.simbrief.com/ofp/flightplans/pdf/${relativePath}`;
+      return `https://www.simbrief.com/ofp/flightplans/${relativePath}`;
     };
 
-    const pickPdfUrl = (value, pdfHint = false) => {
+    const pickPdfUrl = (value, pdfHint = false, directory = null) => {
       if (!value) return null;
       if (typeof value === 'string') {
-        const normalized = normalizeSimbriefUrl(value);
+        const normalized = normalizeSimbriefUrl(value, directory);
         if (!normalized) return null;
         return pdfHint || /\.pdf(?:$|[?#])/i.test(normalized) ? normalized : null;
       }
       if (Array.isArray(value)) {
         for (const item of value) {
-          const picked = pickPdfUrl(item, pdfHint);
+          const picked = pickPdfUrl(item, pdfHint, directory);
           if (picked) return picked;
         }
         return null;
       }
       if (typeof value === 'object') {
+        const nextDirectory = typeof value.directory === 'string' ? value.directory : directory;
         for (const [key, item] of Object.entries(value)) {
+          if (key === 'directory') continue;
           const keyLooksLikePdf = /pdf/i.test(key);
-          const picked = pickPdfUrl(item, pdfHint || keyLooksLikePdf);
+          const picked = pickPdfUrl(item, pdfHint || keyLooksLikePdf, nextDirectory);
           if (picked) return picked;
         }
       }
       return null;
     };
 
-    const ofpPdfUrl = pickPdfUrl(data.files?.pdf, true)
-      || pickPdfUrl(data.files?.ofp_pdf, true)
+    const ofpPdfUrl = pickPdfUrl(data.files?.pdf, true, data.files?.directory)
+      || pickPdfUrl(data.files?.ofp_pdf, true, data.files?.directory)
+      || pickPdfUrl(data.fms_downloads?.pdf, true, data.fms_downloads?.directory)
       || pickPdfUrl(data.files)
+      || pickPdfUrl(data.fms_downloads)
       || pickPdfUrl(data.links?.pdf, true)
       || pickPdfUrl(data.links?.ofp_pdf, true)
       || pickPdfUrl(general.pdf_link, true)
