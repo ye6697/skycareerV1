@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Download, Copy, Check, RefreshCw, ExternalLink, AlertTriangle, FileText } from 'lucide-react';
+import { Loader2, Download, Copy, Check, RefreshCw, ExternalLink, AlertTriangle, FileText, Route } from 'lucide-react';
 import { useLanguage } from "@/components/LanguageContext";
 import { t } from "@/components/i18n/translations";
 
@@ -21,6 +21,9 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const [mismatch, setMismatch] = useState(false);
   const [waitingForPlan, setWaitingForPlan] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [waypointsOpen, setWaypointsOpen] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [mobilePdfReloadKey, setMobilePdfReloadKey] = useState(0);
   const autoFetchedRef = useRef(false);
   const pollIntervalRef = useRef(null);
 
@@ -190,8 +193,27 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     ? `${simbriefPdfUrl}${simbriefPdfUrl.includes('#') ? '&' : '#'}page=1&zoom=page-width&view=FitH&toolbar=1&navpanes=0&pagemode=none`
     : null;
   const simbriefMobilePdfViewerUrl = simbriefPdfUrl
-    ? `https://docs.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(simbriefPdfUrl.replace(/^http:\/\//i, 'https://'))}`
+    ? `https://docs.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(simbriefPdfUrl.replace(/^http:\/\//i, 'https://'))}&rm=minimal`
     : null;
+  const simbriefWaypoints = Array.isArray(importedData?.waypoints) ? importedData.waypoints : [];
+  const formatWaypointFlightLevel = (altitude) => {
+    const feet = Number(altitude);
+    if (!Number.isFinite(feet) || feet <= 0) return '---';
+    return `FL${String(Math.round(feet / 100)).padStart(3, '0')}`;
+  };
+
+  useEffect(() => {
+    if (!pdfOpen) return;
+    setPdfLoading(true);
+    const reloadTimer = setTimeout(() => {
+      setMobilePdfReloadKey((value) => value + 1);
+    }, 1400);
+    const fallbackTimer = setTimeout(() => setPdfLoading(false), 4200);
+    return () => {
+      clearTimeout(reloadTimer);
+      clearTimeout(fallbackTimer);
+    };
+  }, [pdfOpen, simbriefPdfUrl]);
 
   return (
     <Card className="p-4 bg-slate-800/50 border-slate-700">
@@ -354,6 +376,53 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
             </p>
           </div>
 
+          {simbriefWaypoints.length > 0 && (
+            <Dialog open={waypointsOpen} onOpenChange={setWaypointsOpen}>
+              <Button
+                type="button"
+                onClick={() => setWaypointsOpen(true)}
+                className="w-full h-8 text-xs bg-purple-700/90 hover:bg-purple-600 gap-2 text-purple-50 border border-purple-400/20"
+              >
+                <Route className="w-3 h-3" />
+                {lang === 'de' ? 'SimBrief Waypoints anzeigen' : 'Show SimBrief waypoints'}
+              </Button>
+              <DialogContent className="h-[86dvh] w-[calc(100vw-0.75rem)] max-w-3xl bg-slate-950 border-purple-500/30 text-slate-100 p-0 overflow-hidden flex flex-col">
+                <DialogHeader className="shrink-0 px-4 py-3 border-b border-purple-500/20 bg-purple-950/30">
+                  <DialogTitle className="text-sm font-semibold flex items-center gap-2 text-purple-200">
+                    <Route className="w-4 h-4 text-purple-300" />
+                    {lang === 'de' ? 'SimBrief Route Waypoints' : 'SimBrief route waypoints'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_top,rgba(88,28,135,0.28),transparent_34%),#020617] p-3 [-webkit-overflow-scrolling:touch]">
+                  <div className="space-y-2 font-mono">
+                    {simbriefWaypoints.map((wp, index) => {
+                      const stage = String(wp.type || wp.stage || 'enroute').toUpperCase();
+                      const airway = wp.airway ? String(wp.airway) : '';
+                      return (
+                        <div
+                          key={`${wp.name || 'WPT'}-${index}`}
+                          className="grid grid-cols-[2.4rem_1fr_auto] items-center gap-3 rounded-md border border-purple-500/20 bg-slate-950/75 px-3 py-2 shadow-[0_0_18px_rgba(126,34,206,0.12)]"
+                        >
+                          <div className="text-[10px] text-purple-500">#{String(index + 1).padStart(2, '0')}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-bold tracking-wide text-purple-200">{wp.name || `WPT${index + 1}`}</div>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] uppercase text-purple-400/80">
+                              <span>{stage}</span>
+                              {airway && <span className="text-cyan-300/80">AWY {airway}</span>}
+                            </div>
+                          </div>
+                          <div className="rounded border border-fuchsia-400/30 bg-purple-900/35 px-2 py-1 text-xs font-bold text-fuchsia-200">
+                            {formatWaypointFlightLevel(wp.alt || wp.altitude || wp.altitude_feet)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
           {simbriefPdfUrl && (
             <Dialog open={pdfOpen} onOpenChange={setPdfOpen}>
               <Button
@@ -383,11 +452,19 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
                     </Button>
                   </div>
                 </DialogHeader>
-                <div className="min-h-0 flex-1 overflow-auto overscroll-contain bg-slate-900 [-webkit-overflow-scrolling:touch]">
+                <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain bg-slate-900 [-webkit-overflow-scrolling:touch]">
+                  {pdfLoading && (
+                    <div className="absolute inset-x-0 top-[76px] z-10 mx-auto flex w-fit items-center gap-2 rounded-full border border-sky-400/20 bg-slate-950/90 px-3 py-1.5 text-xs text-sky-200 shadow-lg">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      {lang === 'de' ? 'PDF wird geladen...' : 'Loading PDF...'}
+                    </div>
+                  )}
                   <iframe
+                    key={mobilePdfReloadKey}
                     title={`${t('simbrief_chart_pdf', lang)} mobile`}
                     src={simbriefMobilePdfViewerUrl}
                     scrolling="yes"
+                    onLoad={() => setTimeout(() => setPdfLoading(false), 1800)}
                     className="block h-full min-h-[78dvh] w-full border-0 bg-white sm:hidden"
                   />
                   <object

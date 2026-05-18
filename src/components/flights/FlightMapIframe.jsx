@@ -20,7 +20,7 @@ export default function FlightMapIframe({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
   const [mapDistances, setMapDistances] = useState({ nextWpDist: null, nextWpName: null, arrDist: null });
-  const [weatherOn, setWeatherOn] = useState(true);
+  const [weatherOn, setWeatherOn] = useState(false);
   const fd = flightData || {};
   const estimatedArrivalText = React.useMemo(() => {
     const arrDist = Number(mapDistances?.arrDist);
