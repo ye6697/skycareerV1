@@ -108,7 +108,7 @@ export function getCruiseSpeed(xplaneIcao, fleetAircraftType) {
  */
 export function calculateDeadlineMinutes(distanceNm, xplaneIcao, fleetAircraftType) {
   const cruiseSpeed = getCruiseSpeed(xplaneIcao, fleetAircraftType);
-  return Math.round((distanceNm / cruiseSpeed) * 60);
+  return Math.round((distanceNm / cruiseSpeed) * 60 + 10);
 }
 
 // Mapping from common aircraft model names (as used in the marketplace) to ICAO type codes.

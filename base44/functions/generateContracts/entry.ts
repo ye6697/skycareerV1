@@ -699,7 +699,7 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
     cargo: 450
   };
   const cruiseSpeed = cruiseSpeeds[aircraftType.type] || 250;
-  const flightTimeMinutes = Math.round((distance / cruiseSpeed) * 60);
+  const flightTimeMinutes = Math.round((distance / cruiseSpeed) * 60 + 10);
 
   return {
     company_id: companyId,
