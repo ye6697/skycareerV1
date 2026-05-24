@@ -437,7 +437,7 @@ export default function XPlaneSetup() {
             <p className="mt-2 max-w-4xl text-sm sm:text-base text-cyan-100/90 leading-relaxed">{text.subtitle}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">MSFS 2020/2024</span>
-              <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">X-Plane 12</span>
+              <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">X-Plane 12 Beta</span>
               <span className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs font-medium text-cyan-100">Account-bound API</span>
               <span className="rounded-full border border-emerald-200/25 bg-emerald-300/10 px-3 py-1 text-xs font-medium text-emerald-100">Bridge {BRIDGE_VERSION}</span>
             </div>
