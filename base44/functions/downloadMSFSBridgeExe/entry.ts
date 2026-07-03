@@ -399,7 +399,7 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   patched = upsertAppSetting(patched, 'PollIntervalMs', '5000');
   patched = upsertAppSetting(patched, 'SendIntervalMs', '5000');
   patched = upsertAppSetting(patched, 'SampleIntervalMs', '200');
-  patched = upsertAppSetting(patched, 'HttpTimeoutMs', '5000');
+  patched = upsertAppSetting(patched, 'HttpTimeoutMs', '12000');
   patched = upsertAppSetting(patched, 'AutoRestartWorkerOnTimeout', 'true');
   patched = upsertAppSetting(patched, 'WorkerTimeoutMs', '15000');
   patched = upsertAppSetting(patched, 'WorkerRestartDelayMs', '2000');
@@ -424,7 +424,7 @@ function buildBridgeConfig(apiKey: string, endpoint: string) {
     <add key="PollIntervalMs" value="5000" />
     <add key="SendIntervalMs" value="5000" />
     <add key="SampleIntervalMs" value="200" />
-    <add key="HttpTimeoutMs" value="5000" />
+    <add key="HttpTimeoutMs" value="12000" />
     <add key="AutoRestartWorkerOnTimeout" value="true" />
     <add key="WorkerTimeoutMs" value="15000" />
     <add key="WorkerRestartDelayMs" value="2000" />

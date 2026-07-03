@@ -41,7 +41,7 @@ from SimConnect import SimConnect, AircraftRequests
 
 API_ENDPOINT = "${apiEndpoint}"
 API_KEY = "${apiKey}"
-POST_TIMEOUT = 2.0
+POST_TIMEOUT = 8.0
 LOOP_INTERVAL = 2.0
 SAMPLE_INTERVAL = 0.2
 SAMPLE_BUFFER_SECONDS = 2.0
