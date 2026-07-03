@@ -1429,7 +1429,7 @@ export default function Contracts() {
         className="h-10 w-full justify-center bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 font-bold text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/20"
       >
         <Globe2 className="w-4 h-4 mr-2" />
-        {lang === "de" ? "Map & Hangar Market (Vollbild)" : "Map & Hangar Market (Fullscreen)"}
+        {lang === "de" ? "Map & Gate Market (Vollbild)" : "Map & Gate Market (Fullscreen)"}
       </Button>
 
       <section className="relative overflow-hidden rounded-xl border border-cyan-900/40 bg-slate-950/95 p-3 sm:p-4">
@@ -1440,7 +1440,7 @@ export default function Contracts() {
             <div>
               <p className="text-xs font-mono uppercase tracking-[0.24em] text-cyan-300/80">Contract Seite 4</p>
               <h1 className="text-lg font-bold text-cyan-100 sm:text-xl">
-                {lang === "de" ? "Leaflet Mission & Hangar Marketplace" : "Leaflet Mission & Hangar Marketplace"}
+                {lang === "de" ? "Mission & Gate Marketplace" : "Mission & Gate Marketplace"}
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -1513,7 +1513,7 @@ export default function Contracts() {
       <div className="flex-1 overflow-y-auto min-h-0 pr-0.5">
         <div className="mb-3 flex items-start gap-2 rounded-lg border border-cyan-900/40 bg-cyan-950/25 p-2.5 text-xs text-cyan-100">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-300" />
-          <p>{lang === "de" ? "Alles laeuft jetzt direkt in der Leaflet-Karte: Klick auf Airport oeffnet Hangar Market + Hangar Management in der Map." : "Everything now runs directly inside the Leaflet map: click an airport to open hangar market + hangar management in-map."}</p>
+          <p>{lang === "de" ? "Alles laeuft jetzt direkt in der Karte: Klick auf einen Airport oeffnet den Gate Market – dort kaufst du Gates & Vorfeldpositionen (statt Hangars) und verwaltest deine Flugzeuge." : "Everything runs directly inside the map: click an airport to open the gate market – buy gates & apron stands there (instead of hangars) and manage your aircraft."}</p>
         </div>
 
         {filteredCompatibleContracts.length > 0 || visibleIncompatibleContracts.length > 0 ? (

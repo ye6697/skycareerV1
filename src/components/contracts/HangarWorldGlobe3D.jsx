@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2, ShoppingCart, ArrowUpCircle, Route as RouteIcon, MapPin, List, Store, X, Building2 } from "lucide-react";
 import ContractWorldMap from "@/components/contracts/ContractWorldMap";
-import HangarModelPreview3D from "@/components/contracts/HangarModelPreview3D";
+import GateMarketPanel from "@/components/gates/GateMarketPanel";
 import { getVariantSizeSpec } from "@/components/contracts/hangarModelCatalog";
 
 function normIcao(value) {
@@ -689,7 +689,7 @@ function HangarWorldGlobe3DBase({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 touch-pan-y">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-              {lang === "de" ? "Hangar Popup" : "Hangar popup"}
+              {lang === "de" ? "Gate Market" : "Gate market"}
             </div>
             <div className="text-[10px] text-slate-400">{selectedAirportData.airport_icao}</div>
           </div>
@@ -709,13 +709,7 @@ function HangarWorldGlobe3DBase({
             </p>
           </div>
 
-          <HangarModelPreview3D
-            modelPath={selectedVariant?.path || ""}
-            sizeKey={selectedVariantSpec?.key || selectedAirportHangar?.size || "small"}
-            modelVariantId={selectedVariant?.id || selectedAirportHangar?.model_variant || ""}
-            owned={Boolean(selectedAirportHangar)}
-            lang={lang}
-          />
+          <GateMarketPanel icao={selectedIcao} lang={lang} />
 
           {selectedAirportHangar && (
             <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/75 p-2">
@@ -804,114 +798,14 @@ function HangarWorldGlobe3DBase({
             </div>
           )}
 
-          {hangarVariants.length > 0 && (
-            <div className="mb-2">
-              <div className="mb-1 text-[10px] font-mono uppercase tracking-wide text-cyan-300">
-                {lang === "de" ? "Hangar Modell" : "Hangar model"}
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {hangarVariants.map((variant) => (
-                  <button
-                    key={variant.id}
-                    type="button"
-                    onClick={() => onSelectMarketVariantId?.(variant.id)}
-                    className={`rounded-md border px-2 py-1 text-left text-[10px] font-mono uppercase transition ${
-                      selectedMarketVariantId === variant.id
-                        ? "border-cyan-500/70 bg-cyan-900/35 text-cyan-100"
-                        : "border-slate-700/80 bg-slate-900/75 text-slate-300 hover:border-cyan-800/70"
-                    }`}
-                  >
-                    <div>{variant.label}</div>
-                    <div className="text-[9px] text-slate-400">
-                      {(() => {
-                        const spec = getVariantSizeSpec(variant.id);
-                        if (!spec) return "-";
-                        return `${spec.key.toUpperCase()} | ${spec.slots} slots | $${Math.round(spec.price).toLocaleString()}`;
-                      })()}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mb-2 rounded-md border border-slate-700/80 bg-slate-900/75 p-2 text-[10px]">
-            <p className="text-slate-300">{actionContext.helper}</p>
-            <p className="mt-1 font-mono text-emerald-300">${Math.round(actionContext.cost || 0).toLocaleString()}</p>
-          </div>
-
-          <Button
-            type="button"
-            disabled={!actionContext.canSubmit || isBuyingOrUpgrading}
-            onClick={() =>
-              onBuyOrUpgrade?.({
-                airportIcao: normIcao(selectedAirportIcao),
-                modelVariant: selectedMarketVariantId,
-              })
-            }
-            className="h-8 w-full bg-emerald-600 text-xs font-mono uppercase text-slate-950 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-300"
-          >
-            {isBuyingOrUpgrading ? (
-              <>
-                <ArrowUpCircle className="mr-1.5 h-3.5 w-3.5 animate-pulse" />
-                {lang === "de" ? "Wird verarbeitet" : "Processing"}
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
-                {actionContext.label}
-              </>
-            )}
-          </Button>
-
-          {selectedAirportHangar && onSellHangar && (() => {
-            const sellSpec = getVariantSizeSpec(selectedAirportHangar.model_variant);
-            const sellBase = Number(selectedAirportHangar.purchase_price || 0) || Number(sellSpec?.price || 0);
-            const refund = Math.round(sellBase * 0.6);
-            const blocked = airportAircraft.length > 0;
-            return (
-              <div className="mt-2">
-                <Button
-                  type="button"
-                  disabled={blocked || isSellingHangar}
-                  onClick={() => {
-                    if (blocked || isSellingHangar) return;
-                    const confirmMsg = lang === "de"
-                      ? `Hangar an ${selectedAirportData.airport_icao} verkaufen? Du erhaeltst $${refund.toLocaleString()} (60% Rueckerstattung).`
-                      : `Sell hangar at ${selectedAirportData.airport_icao}? You receive $${refund.toLocaleString()} (60% refund).`;
-                    if (typeof window !== "undefined" && !window.confirm(confirmMsg)) return;
-                    onSellHangar?.({ airportIcao: normIcao(selectedAirportIcao) });
-                  }}
-                  className="h-8 w-full bg-red-700 text-xs font-mono uppercase text-slate-100 hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-400"
-                >
-                  {isSellingHangar
-                    ? (lang === "de" ? "Verkaufe..." : "Selling...")
-                    : blocked
-                      ? (lang === "de"
-                          ? `Verkauf blockiert (${airportAircraft.length} Flugzeug${airportAircraft.length === 1 ? "" : "e"})`
-                          : `Sale blocked (${airportAircraft.length} aircraft)`)
-                      : (lang === "de"
-                          ? `Hangar verkaufen (+$${refund.toLocaleString()})`
-                          : `Sell hangar (+$${refund.toLocaleString()})`)}
-                </Button>
-                {blocked && (
-                  <p className="mt-1 text-[10px] text-amber-300">
-                    {lang === "de"
-                      ? "Bitte zuerst alle Flugzeuge verlegen."
-                      : "Please move all aircraft out first."}
-                  </p>
-                )}
-              </div>
-            );
-          })()}
           </div>
         </div>
       )}
 
       <div className="pointer-events-none absolute right-3 bottom-3 z-[1400] rounded-md border border-cyan-900/50 bg-slate-950/85 px-2 py-1 text-[10px] text-cyan-200 max-w-[calc(100%-1.5rem)]">
         {lang === "de"
-          ? "Klick auf Airport für Hangar, Klick auf Route für Fokus"
-          : "Click airport for hangar, click route for focus"}
+          ? "Klick auf Airport für Gates, Klick auf Route für Fokus"
+          : "Click airport for gates, click route for focus"}
       </div>
     </div>
   );
