@@ -18,6 +18,19 @@ import {
   HandCoins,
   ReceiptText,
 } from 'lucide-react';
+import {
+  pickVariant,
+  FLIGHT_VARIANTS,
+  PURCHASE_VARIANTS,
+  SALE_VARIANTS,
+  LOAN_VARIANTS,
+  LOAN_PAID_VARIANTS,
+  NEWS_VARIANTS,
+  PAX_VARIANTS,
+  ATC_VARIANTS,
+  INVESTOR_VARIANTS,
+  LEDGER_VARIANTS,
+} from '@/components/dashboard/mediaFeedVariants';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -87,6 +100,10 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
   const loanPaid = recentTransactions.find((tx) => /vollst(?:a|\u00e4|ae)ndig getilgt|fully paid|paid off|kreditr/i.test(tx?.description || ''));
   const posts = [];
 
+  // Seed base rotates daily so the same events get retold from different angles.
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const seedBase = `${company?.id || 'c'}|${dayKey}`;
+
   if (latestFlight) {
     const dep = latestFlight?.departure_airport || latestFlight?.xplane_data?.contract_departure_airport || 'DEP';
     const arr = latestFlight?.arrival_airport || latestFlight?.xplane_data?.contract_arrival_airport || 'ARR';
@@ -96,162 +113,126 @@ function createPosts(company, flights, acceptedContracts, transactions, lang) {
     const landingLine = landingVs > 0
       ? (lang === 'de' ? `Die Landing V/S wurde mit -${Math.round(landingVs)} fpm gemeldet.` : `Landing V/S came in at -${Math.round(landingVs)} fpm.`)
       : '';
+    const variant = pickVariant(`${seedBase}|flight|${latestFlight?.id || route}`, FLIGHT_VARIANTS)({ lang, airlineName, route, score, landingLine });
     posts.push({
-      source: 'Ops Wire',
-      handle: '@opswire',
+      ...variant,
       icon: PlaneTakeoff,
       tone: score >= 85 ? 'positive' : score < 65 ? 'negative' : 'neutral',
       sharedAt: getFlightDate(latestFlight) || offsetMinutes(anchorDate, 18),
-      headline: lang === 'de' ? `${airlineName} beendet ${route} mit Score ${score}` : `${airlineName} closes ${route} with score ${score}`,
-      description: lang === 'de'
-        ? `${score >= 85 ? 'Am Ankunftsgate wirkte der Umlauf fast routiniert: kurze Wege, ruhige Ansagen und eine Crew, die auch nach dem Shutdown noch gelassen blieb.' : score < 65 ? 'Nach dem Aussteigen war die Stimmung spuerbar gedraempft. Einige Passagiere sprachen von einem holprigen Ablauf, waehrend die Ops-Leitung die Sequenz bereits nachbereitet.' : 'Der Flug kam ordentlich durch den Tag, ohne Schlagzeile, aber mit genug kleinen Momenten, die Stammgaeste bemerken.'} ${landingLine}`
-        : `${score >= 85 ? 'At the arrival gate, the rotation felt quietly well run: short pauses, calm announcements, and a crew still composed after shutdown.' : score < 65 ? 'After deboarding, the mood was noticeably muted. A few passengers called the flow uneven while operations staff were already reviewing the sequence.' : 'The flight got through the day cleanly enough, not spectacular, but with small details frequent flyers notice.'} ${landingLine}`,
       reputationImpact: clamp(Math.round((score - 75) / 4), -8, 8),
     });
   }
 
   if (aircraftPurchase) {
+    const variant = pickVariant(`${seedBase}|purchase|${aircraftPurchase?.id || ''}`, PURCHASE_VARIANTS)({
+      lang, airlineName,
+      amount: formatMoney(aircraftPurchase.amount, lang),
+      detail: compactText(aircraftPurchase.description, lang === 'de' ? 'Neue Kapazität kommt in die Flotte.' : 'New capacity is entering the fleet.'),
+    });
     posts.push({
-      source: 'Fleet Desk',
-      handle: '@fleetdesk',
+      ...variant,
       icon: ShoppingCart,
       tone: 'positive',
       sharedAt: getTransactionDate(aircraftPurchase) || offsetMinutes(anchorDate, 38),
-      headline: lang === 'de' ? 'Neues Flugzeug bringt Aufbruchsstimmung in die Flotte' : 'New aircraft brings fresh energy to the fleet',
-      description: lang === 'de'
-        ? `In der Wartungshalle wurde der Kauf ueber ${formatMoney(aircraftPurchase.amount, lang)} sofort zum Gespraech. ${compactText(aircraftPurchase.description, 'Neue Kapazitaet kommt in die Flotte.')} Fuer die Crews fuehlt sich das wie ein Signal an: mehr Reichweite, mehr Plaene, mehr Verantwortung.`
-        : `The maintenance floor started talking as soon as the ${formatMoney(aircraftPurchase.amount, lang)} purchase posted. ${compactText(aircraftPurchase.description, 'New capacity is entering the fleet.')} For crews, it feels like a signal: more reach, more plans, more responsibility.`,
       reputationImpact: 3,
     });
   }
 
   if (aircraftSale) {
+    const variant = pickVariant(`${seedBase}|sale|${aircraftSale?.id || ''}`, SALE_VARIANTS)({
+      lang, airlineName,
+      amount: formatMoney(aircraftSale.amount, lang),
+      detail: compactText(aircraftSale.description, lang === 'de' ? 'Analysten achten darauf, ob die verbleibende Flotte die Aufträge abdecken kann.' : 'Analysts watch whether the remaining fleet can cover the schedule.'),
+    });
     posts.push({
-      source: 'Fleet Desk',
-      handle: '@fleetdesk',
+      ...variant,
       icon: HandCoins,
       tone: 'neutral',
       sharedAt: getTransactionDate(aircraftSale) || offsetMinutes(anchorDate, 54),
-      headline: lang === 'de' ? 'Abschied aus der Flotte sorgt fuer gemischte Reaktionen' : 'Fleet departure draws mixed reactions',
-      description: lang === 'de'
-        ? `Der Abgang brachte ${formatMoney(aircraftSale.amount, lang)} Liquiditaet, aber am Ramp-Fenster blieb kurz diese typische Stille, wenn ein bekannter Flieger fehlt. ${compactText(aircraftSale.description, 'Analysten achten nun darauf, ob die verbleibende Flotte die Auftraege abdecken kann.')}`
-        : `The move added ${formatMoney(aircraftSale.amount, lang)} in liquidity, but there was that familiar quiet at the ramp window when a known airframe is gone. ${compactText(aircraftSale.description, 'Analysts are watching whether the remaining fleet can cover the schedule.')}`,
       reputationImpact: 0,
     });
   }
 
   if (loanTaken || company?.active_loan) {
     const loanAmount = loanTaken?.amount || company?.active_loan?.amount || company?.active_loan?.remaining || 0;
+    const loanLine = loanTaken
+      ? (lang === 'de' ? `Ein neuer Bankkredit über ${formatMoney(loanAmount, lang)} gibt Spielraum.` : `A new bank loan of ${formatMoney(loanAmount, lang)} creates breathing room.`)
+      : (lang === 'de' ? `Die aktive Restschuld liegt bei ${formatMoney(company?.active_loan?.remaining, lang)}.` : `Active remaining debt sits at ${formatMoney(company?.active_loan?.remaining, lang)}.`);
+    const variant = pickVariant(`${seedBase}|loan|${loanTaken?.id || 'active'}`, LOAN_VARIANTS)({ lang, airlineName, loanLine });
     posts.push({
-      source: 'Banking Monitor',
-      handle: '@banking.monitor',
+      ...variant,
       icon: Banknote,
       tone: company?.active_loan ? 'neutral' : 'positive',
       sharedAt: getTransactionDate(loanTaken) || offsetMinutes(anchorDate, 71),
-      headline: lang === 'de' ? 'Kreditlinie erhoeht den Druck im Tagesgeschaeft' : 'Credit line raises pressure on the daily operation',
-      description: lang === 'de'
-        ? `${loanTaken ? `Ein neuer Bankkredit ueber ${formatMoney(loanAmount, lang)} gibt Spielraum.` : `Die aktive Restschuld liegt bei ${formatMoney(company?.active_loan?.remaining, lang)}.`} Hinter den Kulissen klingt das weniger nach Drama als nach Disziplin: jeder puenktliche Flug macht die naechste Rate glaubwuerdiger.`
-        : `${loanTaken ? `A new bank loan of ${formatMoney(loanAmount, lang)} creates breathing room.` : `Active remaining debt sits at ${formatMoney(company?.active_loan?.remaining, lang)}.`} Behind the scenes, this is less drama than discipline: every punctual flight makes the next repayment feel more credible.`,
       reputationImpact: company?.active_loan ? -1 : 2,
     });
   }
 
   if (loanPaid) {
+    const variant = pickVariant(`${seedBase}|loanpaid|${loanPaid?.id || ''}`, LOAN_PAID_VARIANTS)({ lang, airlineName });
     posts.push({
-      source: 'Banking Monitor',
-      handle: '@banking.monitor',
+      ...variant,
       icon: BadgeCheck,
       tone: 'positive',
       sharedAt: getTransactionDate(loanPaid) || offsetMinutes(anchorDate, 86),
-      headline: lang === 'de' ? 'Letzte Kreditrate bringt spuerbare Erleichterung' : 'Final loan payment brings visible relief',
-      description: lang === 'de'
-        ? `Die letzte Rate wurde verbucht, und im Finance-Office duerfte heute niemand diesen Kontoauszug zweimal pruefen muessen. ${compactText(loanPaid.description, 'Die Bilanz wirkt dadurch belastbarer und die naechste Finanzierung duerfte leichter verhandelbar sein.')}`
-        : `The final installment has been booked, and nobody in the finance office should need to check that statement twice today. ${compactText(loanPaid.description, 'The balance sheet now looks stronger and future financing should be easier to negotiate.')}`,
       reputationImpact: 5,
     });
   }
 
+  const hasTopFlight = completedFlights.some((f) => toNumber(f?.overall_rating) >= 88);
+  const newsCtx = {
+    lang, airlineName, reputation: Math.round(reputation),
+    hasTopFlight,
+    hasIssues: withIssues.length > 0,
+    openContracts: acceptedContracts?.length || 0,
+    flightCount: completedFlights.length,
+  };
+
   posts.push(
     {
-      source: 'SkyNews Aviation',
-      handle: '@skynews.av',
+      ...pickVariant(`${seedBase}|news`, NEWS_VARIANTS)(newsCtx),
       icon: Newspaper,
       tone: reputation >= 70 ? 'positive' : reputation <= 40 ? 'negative' : 'neutral',
       sharedAt: offsetMinutes(anchorDate, 96),
-      headline: reputation >= 70
-        ? (lang === 'de' ? 'Redaktion sieht wachsendes Vertrauen rund um die Airline' : 'Aviation desk sees trust building around the airline')
-        : reputation <= 40
-          ? (lang === 'de' ? 'Abendbericht: Marke sucht nach einem ruhigeren naechsten Umlauf' : 'Evening report: brand needs a calmer next rotation')
-          : (lang === 'de' ? 'Korrespondenten hoeren gemischte Stimmen an den Gates' : 'Correspondents hear mixed voices at the gates'),
-      description: lang === 'de'
-        ? `In den kurzen Gespraechen zwischen Gate, Crewbus und Ops-Raum entsteht ein klareres Bild von ${airlineName}. Einzelne Kennzahlen zaehlen, aber haengen bleibt vor allem, ob die Airline nach Stressmomenten ruhig weiterarbeitet.`
-        : `In the small conversations between gate, crew bus, and operations room, a clearer picture of ${airlineName} is forming. Metrics matter, but what sticks is whether the airline keeps working calmly after stressful moments.`,
       reputationImpact: repImpact,
     },
     {
-      source: 'PaxPulse',
-      handle: '@paxpulse',
+      ...pickVariant(`${seedBase}|pax`, PAX_VARIANTS)(newsCtx),
       icon: Users,
       tone: avgRating >= 85 ? 'positive' : avgRating <= 65 ? 'negative' : 'neutral',
       sharedAt: offsetMinutes(anchorDate, 112),
-      headline: lang === 'de' ? 'Passagiere beschreiben die kleinen Momente an Bord' : 'Passengers describe the small moments on board',
-      description: completedFlights.some((f) => toNumber(f?.overall_rating) >= 88)
-        ? (lang === 'de'
-            ? 'Ein Vielflieger schrieb, es habe sich nicht nach Show angefuehlt, sondern nach Vertrauen: klare Ansagen, ruhige Kabine, keine Hektik beim Sinkflug.'
-            : 'One frequent flyer wrote that it did not feel flashy, just trustworthy: clear announcements, a calm cabin, no rush during descent.')
-        : (lang === 'de'
-            ? 'Die Stimmen aus den Terminals bleiben vorsichtig. Viele verzeihen kleine Verspaetungen, aber nicht das Gefuehl, allein gelassen zu werden.'
-            : 'Terminal voices remain cautious. Many passengers forgive small delays, but not the feeling of being left in the dark.'),
       reputationImpact: clamp(Math.round((avgRating - 75) / 4), -8, 8),
     },
     {
-      source: 'ATC Watch',
-      handle: '@atc.watch',
+      ...pickVariant(`${seedBase}|atc`, ATC_VARIANTS)(newsCtx),
       icon: TriangleAlert,
       tone: withIssues.length > 0 ? 'negative' : 'positive',
       sharedAt: offsetMinutes(anchorDate, 128),
-      headline: withIssues.length > 0
-        ? (lang === 'de' ? 'Operationsdesk schaut genauer auf die naechste Crewbesprechung' : 'Operations desk watching the next crew briefing')
-        : (lang === 'de' ? 'Ops-Bulletin: Ein ruhiger Tag wird als Erfolg gelesen' : 'Ops bulletin: a quiet day is being read as success'),
-      description: withIssues.length > 0
-        ? (lang === 'de'
-            ? 'Nach haerteren Anfluegen oder technischen Auffaelligkeiten entscheidet jetzt die Reaktion: offen auswerten, Wartung ernst nehmen, naechsten Umlauf sauber fliegen.'
-            : 'After harder approaches or technical irregularities, the response matters now: debrief honestly, take maintenance seriously, fly the next rotation cleanly.')
-        : (lang === 'de'
-            ? 'Die juengsten Umlaeufe liefern keinen Stoff fuer Alarmmeldungen. In der Luftfahrt ist genau diese Langeweile oft das beste Kompliment.'
-            : 'The latest rotations are giving monitors little to sound alarms about. In aviation, that kind of boredom is often the best compliment.'),
       reputationImpact: withIssues.length > 0 ? -Math.min(12, withIssues.length * 3) : 4,
     },
     {
-      source: 'Investor Radar',
-      handle: '@investorradar',
+      ...pickVariant(`${seedBase}|investor`, INVESTOR_VARIANTS)(newsCtx),
       icon: TrendingUp,
       tone: reputation >= 65 && withIssues.length === 0 ? 'positive' : 'neutral',
       sharedAt: offsetMinutes(anchorDate, 144),
-      headline: lang === 'de' ? 'Wirtschaftsdesk fragt: Traegt der Alltag den Plan?' : 'Business desk asks whether daily flying can carry the plan',
-      description: (acceptedContracts?.length || 0) > 0
-        ? (lang === 'de'
-            ? `Mit ${acceptedContracts.length} offenen Auftrag${acceptedContracts.length === 1 ? '' : 'en'} liegt Hoffnung im Flugplan, aber auch Druck. Der Markt schaut weniger auf grosse Worte als auf die Frage, ob jede Zusage wirklich abgeflogen wird.`
-            : `With ${acceptedContracts.length} open contract${acceptedContracts.length === 1 ? '' : 's'}, there is hope in the schedule and pressure with it. The market cares less about ambition than whether every promise actually flies.`)
-        : (lang === 'de'
-            ? 'Ohne grossen Auftragsdruck wirkt der Moment fast ungewoehnlich ruhig. Genau jetzt kann die Airline Reserven aufbauen und Vertrauen mit zuverlaessigen Fluegen verdienen.'
-            : 'With no heavy contract pressure, the moment feels unusually quiet. This is where the airline can build reserves and earn trust through reliable flying.'),
       reputationImpact: clamp(Math.round((acceptedContracts?.length || 0) - withIssues.length * 2), -8, 8),
     },
   );
 
   if (recentTransactions.length > 0) {
     const latestTx = recentTransactions[0];
+    const variant = pickVariant(`${seedBase}|ledger|${latestTx?.id || ''}`, LEDGER_VARIANTS)({
+      lang, airlineName,
+      detail: compactText(latestTx.description, lang === 'de' ? 'Neue Transaktion' : 'New transaction'),
+      amount: formatMoney(latestTx.amount, lang),
+      sign: latestTx.type === 'income' ? '+' : '-',
+      isIncome: latestTx.type === 'income',
+    });
     posts.push({
-      source: 'Ledger Brief',
-      handle: '@ledger.brief',
+      ...variant,
       icon: ReceiptText,
       tone: latestTx.type === 'income' ? 'positive' : 'neutral',
       sharedAt: getTransactionDate(latestTx) || offsetMinutes(anchorDate, 160),
-      headline: lang === 'de' ? 'Letzte Buchung erzaehlt mehr als nur eine Zahl' : 'Latest booking says more than the number',
-      description: lang === 'de'
-        ? `${compactText(latestTx.description, 'Neue Transaktion')} (${latestTx.type === 'income' ? '+' : '-'}${formatMoney(latestTx.amount, lang)}). Fuer die Buchhaltung ist es eine Zeile; fuer die Airline ist es Treibstoff fuer die naechste Entscheidung.`
-        : `${compactText(latestTx.description, 'New transaction')} (${latestTx.type === 'income' ? '+' : '-'}${formatMoney(latestTx.amount, lang)}). For accounting it is one line; for the airline, it is fuel for the next decision.`,
       reputationImpact: latestTx.type === 'income' ? 1 : 0,
     });
   }

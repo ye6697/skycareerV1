@@ -95,7 +95,6 @@
         "in_progress",
         "completed",
         "failed",
-        "cancelled",
         "expired"
       ],
       "default": "available"
@@ -114,14 +113,30 @@
       "type": "number",
       "description": "Potential bonus for excellent performance"
     },
-    "reputation_multiplier": {
-      "type": "number",
-      "description": "Payout multiplier based on company reputation at generation time"
-    },
     "level_requirement": {
       "type": "number",
       "default": 1,
       "description": "Minimum company level required"
+    },
+    "gate_code": {
+      "type": "string",
+      "description": "Assigned owned gate / apron position at the departure airport"
+    },
+    "gate_terminal": {
+      "type": "string",
+      "description": "Terminal / apron area of the assigned position"
+    },
+    "gate_position_type": {
+      "type": "string",
+      "enum": [
+        "gate",
+        "apron"
+      ],
+      "description": "Whether the assigned position is a terminal gate or apron stand"
+    },
+    "gate_bonus_pct": {
+      "type": "number",
+      "description": "Extra payout percentage granted by the assigned gate position"
     },
     "description": {
       "type": "string",

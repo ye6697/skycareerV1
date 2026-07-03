@@ -1,0 +1,55 @@
+{
+  "name": "Transaction",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Reference to company for this transaction"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "description": "Transaction type"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "flight_revenue",
+        "bonus",
+        "fuel",
+        "salary",
+        "maintenance",
+        "aircraft_purchase",
+        "aircraft_sale",
+        "insurance",
+        "airport_fees",
+        "other"
+      ],
+      "description": "Transaction category"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Amount in dollars"
+    },
+    "description": {
+      "type": "string"
+    },
+    "reference_id": {
+      "type": "string",
+      "description": "Reference to related entity (flight, employee, etc.)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "company_id",
+    "type",
+    "category",
+    "amount"
+  ]
+}

@@ -37,6 +37,7 @@ function getNavItems(lang) {
     { name: lang === 'de' ? 'Type-Ratings' : 'Type Ratings', icon: GraduationCap, path: "TypeRatings" },
     { name: t('nav_fleet', lang), icon: Plane, path: "Fleet" },
     { name: lang === 'de' ? 'Mitarbeiter' : 'Employees', icon: Users, path: "Employees" },
+    { name: lang === 'de' ? 'Gates & Vorfeld' : 'Gates & Aprons', icon: Plane, path: "Gates" },
     { name: t('nav_finances', lang), icon: DollarSign, path: "Finances" },
     { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory" },
     { name: t('nav_xplane_setup', lang), icon: Settings, path: "XPlaneSetup" },

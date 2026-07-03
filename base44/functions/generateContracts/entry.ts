@@ -272,6 +272,30 @@ const HANGAR_SIZE_RULES: Record<string, { slots: number; allowed_types: string[]
   mega: { slots: 10, allowed_types: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'] }
 };
 
+// Gate ownership rules: contracts only depart from airports where the company
+// owns a gate/apron position; gate size limits aircraft types and grants a
+// payout bonus (apron positions grant an extra bonus on top).
+const GATE_CAT_ALLOWED: Record<string, string[]> = {
+  S: ['small_prop', 'turboprop'],
+  M: ['small_prop', 'turboprop', 'regional_jet'],
+  L: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'cargo'],
+  XL: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo'],
+};
+const GATE_CAT_BONUS: Record<string, number> = { S: 0.03, M: 0.06, L: 0.10, XL: 0.15 };
+const APRON_EXTRA_BONUS = 0.05;
+
+function gateAllowedTypes(gate: any): string[] {
+  if (Array.isArray(gate?.allowed_types) && gate.allowed_types.length > 0) {
+    return gate.allowed_types.map((t: unknown) => String(t || '').toLowerCase());
+  }
+  return GATE_CAT_ALLOWED[String(gate?.size_category || 'S').toUpperCase()] || GATE_CAT_ALLOWED.S;
+}
+
+function gateBonusPct(gate: any): number {
+  const base = GATE_CAT_BONUS[String(gate?.size_category || 'S').toUpperCase()] || 0.03;
+  return base + (String(gate?.position_type || '') === 'apron' ? APRON_EXTRA_BONUS : 0);
+}
+
 const briefingTemplates = {
   passenger: [
     "Befördern Sie Urlauber zu ihrem Zielort.",
@@ -820,6 +844,25 @@ Deno.serve(async (req) => {
         .map((hangar) => normalizeIcao(hangar?.airport_icao))
         .filter(Boolean)
     );
+    // Gate ownership gating: contracts can only be generated for airports
+    // where the company owns a gate or apron position.
+    const ownedGates = await base44.asServiceRole.entities.AirportGate
+      .filter({ owner_company_id: company.id })
+      .catch(() => []);
+    const gatesByAirport = new Map<string, any[]>();
+    for (const gate of (Array.isArray(ownedGates) ? ownedGates : [])) {
+      const gateIcao = normalizeIcao(gate?.airport_icao);
+      if (!gateIcao) continue;
+      const list = gatesByAirport.get(gateIcao) || [];
+      list.push(gate);
+      gatesByAirport.set(gateIcao, list);
+    }
+    if (gatesByAirport.size === 0) {
+      return Response.json({
+        error: 'Kein Gate vorhanden. Kaufe zuerst ein Gate oder eine Vorfeldposition am Abflughafen (Seite "Gates"), um Aufträge zu erhalten.'
+      }, { status: 400 });
+    }
+
     // Get user's aircraft
     const aircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
     const availableAircraft = aircraft.filter(a => a.status !== 'sold');
@@ -1000,6 +1043,8 @@ Deno.serve(async (req) => {
       const hangarRule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
       const hangarAirport = String(hangar?.airport_icao || '').toUpperCase();
       const hangarId = String(hangar?.id || '').trim();
+      const airportGates = gatesByAirport.get(hangarAirport) || [];
+      if (airportGates.length === 0) continue; // no gate owned at this airport
       const departurePool = findDeparturePoolForHangar(hangarAirport);
       const hangarAircraft = filteredAircraft.filter((plane) => {
         const aircraftHangarId = String(plane?.hangar_id || '').trim();
@@ -1007,7 +1052,8 @@ Deno.serve(async (req) => {
         const stationedHere = aircraftHangarId && hangarId
           ? aircraftHangarId === hangarId
           : planeHangarAirport === hangarAirport;
-        return stationedHere && hangarRule.allowed_types.includes(plane.type);
+        const gateAllows = airportGates.some((gate) => gateAllowedTypes(gate).includes(String(plane?.type || '').toLowerCase()));
+        return stationedHere && hangarRule.allowed_types.includes(plane.type) && gateAllows;
       });
       if (hangarAircraft.length === 0) continue;
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];
@@ -1059,6 +1105,17 @@ Deno.serve(async (req) => {
         }
         contract.hangar_airport = hangarAirport;
         contract.hangar_id = hangar.id;
+        // Assign the best owned gate for this aircraft type and apply its payout bonus.
+        const fittingGates = airportGates.filter((gate) => gateAllowedTypes(gate).includes(String(acType.type || '').toLowerCase()));
+        const assignedGate = [...fittingGates].sort((a, b) => gateBonusPct(b) - gateBonusPct(a))[0] || null;
+        if (!assignedGate) continue;
+        const bonusPct = gateBonusPct(assignedGate);
+        contract.payout = Math.round(contract.payout * (1 + bonusPct));
+        contract.bonus_potential = Math.round(contract.payout * 0.3);
+        contract.gate_code = assignedGate.gate_code;
+        contract.gate_terminal = assignedGate.terminal || '';
+        contract.gate_position_type = assignedGate.position_type;
+        contract.gate_bonus_pct = Math.round(bonusPct * 100);
         if (canFulfill) {
           compatibleContracts.push(contract);
         } else {

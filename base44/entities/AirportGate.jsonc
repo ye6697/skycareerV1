@@ -1,0 +1,74 @@
+{
+  "name": "AirportGate",
+  "type": "object",
+  "properties": {
+    "airport_icao": {
+      "type": "string",
+      "description": "ICAO code of the airport"
+    },
+    "gate_code": {
+      "type": "string",
+      "description": "Gate or apron stand code, e.g. A03 or V12"
+    },
+    "terminal": {
+      "type": "string",
+      "description": "Terminal / apron area label"
+    },
+    "position_type": {
+      "type": "string",
+      "enum": [
+        "gate",
+        "apron"
+      ],
+      "description": "Terminal gate or apron parking position"
+    },
+    "size_category": {
+      "type": "string",
+      "enum": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "description": "Max aircraft size category allowed at this position"
+    },
+    "allowed_types": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "SkyCareer aircraft types allowed at this position"
+    },
+    "owner_company_id": {
+      "type": "string",
+      "description": "Company that owns this position"
+    },
+    "owner_company_name": {
+      "type": "string"
+    },
+    "purchase_price": {
+      "type": "number"
+    },
+    "for_sale": {
+      "type": "boolean",
+      "default": false
+    },
+    "sale_price": {
+      "type": "number"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description"
+    }
+  },
+  "required": [
+    "airport_icao",
+    "gate_code",
+    "position_type",
+    "size_category"
+  ],
+  "rls": {
+    "read": {}
+  }
+}

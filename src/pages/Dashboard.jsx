@@ -338,6 +338,7 @@ export default function Dashboard() {
           { name: t('nav_contracts', lang), icon: FileText, path: "Contracts", color: "text-blue-400", alert: acceptedContracts.length > 0 },
           { name: t('nav_active_flights', lang), icon: PlayCircle, path: "ActiveFlights", color: "text-emerald-400" },
           { name: t('nav_fleet', lang), icon: Plane, path: "Fleet", color: "text-cyan-400" },
+          { name: lang === 'de' ? 'GATES & VORFELD' : 'GATES & APRONS', icon: Plane, path: "Gates", color: "text-sky-400" },
           { name: lang === 'de' ? 'Type-Ratings' : 'Type Ratings', icon: GraduationCap, path: "TypeRatings", color: "text-indigo-400" },
           { name: t('nav_finances', lang), icon: DollarSign, path: "Finances", color: "text-amber-400" },
           { name: t('nav_flight_history', lang), icon: History, path: "FlightHistory", color: "text-purple-400" },

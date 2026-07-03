@@ -1,0 +1,23 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Reference to the user's company"
+    },
+    "simbrief_username": {
+      "type": "string",
+      "description": "SimBrief username for flight plan import"
+    },
+    "simbrief_pilot_id": {
+      "type": "string",
+      "description": "SimBrief Pilot ID for flight plan import"
+    }
+  },
+  "required": [
+    "company_id",
+    "simbrief_username",
+    "simbrief_pilot_id"
+  ]
+}
