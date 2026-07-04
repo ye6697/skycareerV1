@@ -2287,15 +2287,13 @@ Deno.serve(async (req) => {
       : (Array.isArray((flight as any)?.xplane_data?.bridge_command_queue)
           ? (flight as any).xplane_data.bridge_command_queue
           : []);
-    const isWorkerRestartCommand = (cmd: any) => {
-      const commandType = String(cmd?.type || "").toLowerCase().trim();
-      return commandType === "worker_restart" || commandType === "restart_worker" || commandType === "bridge_worker_restart";
-    };
-    const isWeatherCommand = (cmd: any) => {
-      const commandType = String(cmd?.type || "").toLowerCase().trim();
-      return commandType === "set_weather" || commandType === "weather_preset" || commandType === "apply_weather";
-    };
+    const isWorkerRestartCommand = (cmd: any) => ["worker_restart", "restart_worker", "bridge_worker_restart"].includes(String(cmd?.type || "").toLowerCase().trim());
+    const isWeatherCommand = (cmd: any) => ["set_weather", "weather_preset", "apply_weather"].includes(String(cmd?.type || "").toLowerCase().trim());
     const isSessionStartCommand = (cmd: any) => isWorkerRestartCommand(cmd) || isWeatherCommand(cmd);
+    // Dedupe memory: already-dispatched command ids (persisted in xplane_data) so a lost queue-removal write can't re-dispatch the same command (fixes endless worker_restart loop).
+    const dispatchedIdsPrev = Array.isArray(prevXd.dispatched_bridge_command_ids) ? prevXd.dispatched_bridge_command_ids.map((v: any) => String(v)) : [];
+    const dispatchedIdsSet = new Set(dispatchedIdsPrev);
+    (xplaneData as any).dispatched_bridge_command_ids = dispatchedIdsPrev;
     const buildWeatherPresetPayload = (difficultyRaw: any) => {
       const difficulty = ["medium", "hard", "extreme"].includes(normalizeWeatherDifficulty(difficultyRaw))
         ? normalizeWeatherDifficulty(difficultyRaw)
@@ -2371,20 +2369,16 @@ Deno.serve(async (req) => {
     const dispatchCandidateQueue = (resetStaleFailureState || !failureTriggersEnabled)
       ? queuedBridgeCommandsSanitized.filter((cmd: any) => isSessionStartCommand(cmd))
       : queuedBridgeCommandsSanitized;
+    const skippedCommandIds = new Set();
+    const isStaleWorkerRestart = (cmd: any) => { if (!isWorkerRestartCommand(cmd)) return false; const t = Date.parse(String(cmd?.created_at || "")); return Number.isFinite(t) && (Date.now() - t) > 300000; };
     const bridgeCommandsForBridge = dispatchCandidateQueue
       .filter((cmd: any) => cmd && typeof cmd === "object" && cmd.type)
+      .filter((cmd: any) => { const id = String(cmd?.id || ""); if ((id && dispatchedIdsSet.has(id)) || isStaleWorkerRestart(cmd)) { if (id) skippedCommandIds.add(id); return false; } return true; })
       .slice(0, 4)
-      .map((cmd: any) => ({
-        id: String(cmd.id || crypto.randomUUID()),
-        type: String(cmd.type || ""),
-        simulator: String(cmd.simulator || "msfs"),
-        created_at: cmd.created_at || new Date().toISOString(),
-        source: cmd.source || "unknown",
-        persist_until_landed: cmd.persist_until_landed === true,
-        payload: cmd.payload && typeof cmd.payload === "object" ? cmd.payload : undefined,
-      }));
-    if (bridgeCommandsForBridge.length > 0) {
-      const sentIds = new Set(bridgeCommandsForBridge.map((cmd: any) => String(cmd.id)));
+      .map((cmd: any) => ({ id: String(cmd.id || crypto.randomUUID()), type: String(cmd.type || ""), simulator: String(cmd.simulator || "msfs"), created_at: cmd.created_at || new Date().toISOString(), source: cmd.source || "unknown", persist_until_landed: cmd.persist_until_landed === true, payload: cmd.payload && typeof cmd.payload === "object" ? cmd.payload : undefined }));
+    if (bridgeCommandsForBridge.length > 0 || skippedCommandIds.size > 0) {
+      const sentIds = new Set([...bridgeCommandsForBridge.map((cmd: any) => String(cmd.id)), ...skippedCommandIds]);
+      (xplaneData as any).dispatched_bridge_command_ids = [...dispatchedIdsPrev, ...bridgeCommandsForBridge.map((cmd: any) => String(cmd.id))].slice(-50);
       const remainingCommands = queuedBridgeCommandsSanitized.filter((cmd: any) => {
         const id = String(cmd?.id || "");
         return id.length === 0 || !sentIds.has(id);
@@ -2453,20 +2447,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Keep request path non-blocking so bridge packets cannot stall on DB latency.
-    base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch((err) => {
-      console.error("Flight.update failed:", err);
-    });
+    // When commands are dispatched, persist the queue removal BEFORE responding so a lost write can't re-dispatch the same command (worker_restart loop fix).
+    if (bridgeCommandsForBridge.length > 0) {
+      try { await base44.asServiceRole.entities.Flight.update(flight.id, updateData); }
+      catch (err) { console.error("Flight.update (dispatch) failed:", err); bridgeCommandsForBridge.length = 0; }
+    } else {
+      // Keep request path non-blocking so bridge packets cannot stall on DB latency.
+      base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch((err) => console.error("Flight.update failed:", err));
+    }
     patchActiveFlightCache(company.id, {
-      ...flight,
-      xplane_data: xplaneData,
-      max_g_force: updateData.max_g_force ?? flight.max_g_force,
-      active_failures: updateData.active_failures ?? flight.active_failures,
-      maintenance_damage: flight.maintenance_damage,
+      ...flight, xplane_data: xplaneData, maintenance_damage: flight.maintenance_damage, status: flight.status || "in_flight",
+      max_g_force: updateData.max_g_force ?? flight.max_g_force, active_failures: updateData.active_failures ?? flight.active_failures,
       bridge_command_queue: updateData.bridge_command_queue ?? (flight as any).bridge_command_queue,
       last_bridge_command_dispatch_at: updateData.last_bridge_command_dispatch_at ?? (flight as any).last_bridge_command_dispatch_at,
       last_bridge_command_dispatch_count: updateData.last_bridge_command_dispatch_count ?? (flight as any).last_bridge_command_dispatch_count,
-      status: flight.status || "in_flight",
     });
 
     // Use cached maintenance ratio from Company as baseline.
