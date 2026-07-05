@@ -10,9 +10,6 @@ import { HANGAR_MODEL_VARIANTS } from '@/components/contracts/hangarModelCatalog
 // LAZY-LOAD heavy 3D components – only mount when user opens the modal.
 // This prevents the landing page from spawning multiple Three.js / Leaflet
 // instances on initial render (which crashed mobile browsers).
-const AircraftHangar3D = lazy(() => import('@/components/fleet3d/AircraftHangar3D'));
-const Fleet3DView = lazy(() => import('@/components/fleet3d/Fleet3DView'));
-const MarketHangar3DView = lazy(() => import('@/components/fleet3d/MarketHangar3DView'));
 const FinalApproach3D = lazy(() => import('@/components/flights/FinalApproach3D'));
 const HangarWorldGlobe3D = lazy(() => import('@/components/contracts/HangarWorldGlobe3D'));
 
@@ -64,50 +61,6 @@ function ModalShell({ onClose, children, title, lang }) {
       </div>
       <div className="flex-1 min-h-0 relative">{children}</div>
     </div>
-  );
-}
-
-function MaintenanceModal({ onClose, lang }) {
-  return (
-    <ModalShell onClose={onClose} title={lang === 'de' ? '3D Wartung & Flotte' : '3D Maintenance & Fleet'} lang={lang}>
-      <Suspense fallback={<LoadingScreen lang={lang} />}>
-        <Fleet3DView aircraft={DEMO_AIRCRAFT_FLEET} />
-      </Suspense>
-    </ModalShell>
-  );
-}
-
-function MarketModal({ onClose, lang }) {
-  const [marketSection, setMarketSection] = useState('new');
-  return (
-    <ModalShell onClose={onClose} title={lang === 'de' ? '3D Flugzeugmarkt' : '3D Aircraft Market'} lang={lang}>
-      <Suspense fallback={<LoadingScreen lang={lang} />}>
-        <MarketHangar3DView
-          listings={DEMO_MARKET_LISTINGS}
-          lang={lang}
-          company={DEMO_COMPANY}
-          marketSection={marketSection}
-          usedConditionFilter="all"
-          usedConditionProfiles={[]}
-          onSetMarketSection={setMarketSection}
-          onSetMarketViewMode={() => {}}
-          onSetUsedConditionFilter={() => {}}
-          onClose={onClose}
-          canAfford={(price) => DEMO_COMPANY.balance >= price}
-          canPurchase={(listing) =>
-            DEMO_COMPANY.level >= (listing.level_requirement || 1) &&
-            DEMO_COMPANY.balance >= listing.purchase_price
-          }
-          onBuy={() => {}}
-          onConfirmBuy={() => {}}
-          getPurchaseHangarOptions={() => [
-            { id: 'demo-hangar-eddf', airport_icao: 'EDDF', usedSlots: 3, slots: 8, rule: { slots: 8 } },
-          ]}
-          isBuying={false}
-          selectedListingId=""
-        />
-      </Suspense>
-    </ModalShell>
   );
 }
 
@@ -271,47 +224,15 @@ function ShowcaseInner({ lang, onCta }) {
       iconColor: 'bg-blue-500',
       badge: lang === 'de' ? 'NEU · Auftrags-Globus' : 'NEW · Contract Globe',
       previewBadge: lang === 'de' ? 'Live Karte' : 'Live Map',
-      title: lang === 'de' ? 'Interaktive Auftragskarte mit Hangar-Markt' : 'Interactive contract map with hangar market',
+      title: lang === 'de' ? 'Interaktive Auftragskarte mit Gate-Markt' : 'Interactive contract map with gate market',
       desc: lang === 'de'
-        ? 'Alle Aufträge live auf der Weltkarte. Klick auf jeden Airport öffnet den Hangar-Markt – Kauf, Upgrade, Verkauf, Aircraft-Transfer direkt im Globus.'
-        : 'All contracts live on the world map. Click any airport to open the hangar market – buy, upgrade, sell, aircraft transfer right inside the globe.',
+        ? 'Alle Aufträge live auf der Weltkarte. Klick auf jeden Airport öffnet den Gate-Markt – kaufe Gates & Vorfeldpositionen direkt im Globus.'
+        : 'All contracts live on the world map. Click any airport to open the gate market – buy gates & apron stands right inside the globe.',
       bullets: lang === 'de'
-        ? ['Klickbare Routen + Großkreise', 'Filter nach Hub & NM', 'Hangar Markt im Popup', 'Aircraft Transfer mit Live-Kosten']
-        : ['Clickable great-circle routes', 'Filter by hub & NM', 'Hangar market in popup', 'Aircraft transfer with live cost'],
+        ? ['Klickbare Routen + Großkreise', 'Filter nach Hub & NM', 'Gate-Markt im Popup', 'Gates schalten Aufträge frei']
+        : ['Clickable great-circle routes', 'Filter by hub & NM', 'Gate market in popup', 'Gates unlock contracts'],
       image: PREVIEW_IMAGES.globe,
       openLabel: lang === 'de' ? 'Globus öffnen' : 'Open Globe',
-    },
-    {
-      key: 'market',
-      icon: Plane,
-      iconColor: 'bg-purple-500',
-      badge: lang === 'de' ? 'NEU · 3D Flugzeugmarkt' : 'NEW · 3D Aircraft Market',
-      previewBadge: lang === 'de' ? 'Showroom' : 'Showroom',
-      title: lang === 'de' ? '3D Flugzeugmarkt mit Live-Specs' : '3D Aircraft market with live specs',
-      desc: lang === 'de'
-        ? '50+ Flugzeuge auf einer cineastischen 3D-Bühne mit Drehteller und Spec-Panel. New & Used Markt mit Versicherung und Hangar-Zuordnung.'
-        : '50+ aircraft on a cinematic 3D turntable with spec panel. New & used market with insurance plan and hangar slot assignment.',
-      bullets: lang === 'de'
-        ? ['New & Used Markt', 'Versicherungsplan pro Aircraft', 'Hangar-Slot-Check beim Kauf', 'Permanenter Verschleiß für Used']
-        : ['New & used market', 'Per-aircraft insurance plan', 'Hangar slot check on purchase', 'Permanent wear on used aircraft'],
-      image: PREVIEW_IMAGES.market,
-      openLabel: lang === 'de' ? 'Markt öffnen' : 'Open Market',
-    },
-    {
-      key: 'maintenance',
-      icon: Wrench,
-      iconColor: 'bg-orange-500',
-      badge: lang === 'de' ? 'NEU · 3D Wartung' : 'NEW · 3D Maintenance',
-      previewBadge: lang === 'de' ? 'Hotspots' : 'Hotspots',
-      title: lang === 'de' ? '3D Wartungsansicht mit Hotspots' : '3D maintenance view with hotspots',
-      desc: lang === 'de'
-        ? 'Jedes Flugzeug als 3D-Modell – Hotspots zeigen Verschleiß je Kategorie direkt am Rumpf, Triebwerken, Fahrwerk und Avionik. Klick auf Hotspot öffnet Reparatur.'
-        : 'Every aircraft as a 3D model – hotspots show wear per category on fuselage, engines, gear and avionics. Click hotspot to open repair.',
-      bullets: lang === 'de'
-        ? ['8 Wartungs-Kategorien als Hotspots', 'Permanenter & reparabler Verschleiß', 'Live-Failure-Trigger im Sim', 'Versicherung deckt Wartungsschäden']
-        : ['8 maintenance categories as hotspots', 'Permanent & repairable wear', 'Live failure triggers in sim', 'Insurance covers maintenance damage'],
-      image: PREVIEW_IMAGES.maintenance,
-      openLabel: lang === 'de' ? 'Flotte öffnen' : 'Open Fleet',
     },
   ];
 
@@ -378,8 +299,6 @@ function ShowcaseInner({ lang, onCta }) {
 
       {openModal === 'replay' && <ReplayModal onClose={() => setOpenModal(null)} lang={lang} />}
       {openModal === 'globe' && <GlobeModal onClose={() => setOpenModal(null)} lang={lang} />}
-      {openModal === 'market' && <MarketModal onClose={() => setOpenModal(null)} lang={lang} />}
-      {openModal === 'maintenance' && <MaintenanceModal onClose={() => setOpenModal(null)} lang={lang} />}
     </section>
   );
 }

@@ -567,7 +567,18 @@ export default function Contracts() {
     };
   }, [company?.hangars, hangarSizeRankMap, hangarStorageKey]);
 
-  const ownedHangars = localHangars;
+  // Hangar system removed: gates replace hangars. Aircraft carry their gate
+  // airport in hangar_airport, so no owned-hangar list is used anymore.
+  const ownedHangars = [];
+
+  // Owned gates determine which airports count as "owned" departure points.
+  const { data: ownedGatesData } = useQuery({
+    queryKey: ["myGates"],
+    queryFn: async () => (await base44.functions.invoke("gateMarket", { action: "myGates" })).data,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+  });
+  const ownedGates = ownedGatesData?.gates || [];
 
   const allContracts = useMemo(() => {
     return (pageData?.contracts || []).slice().sort((a, b) => {
@@ -657,8 +668,8 @@ export default function Contracts() {
 
   const ownedHangarAirportSet = useMemo(() => {
     const airports = new Set(
-      ownedHangars
-        .map((hangar) => normIcao(hangar.airport_icao))
+      ownedGates
+        .map((gate) => normIcao(gate.airport_icao))
         .filter(Boolean)
     );
 
@@ -670,7 +681,7 @@ export default function Contracts() {
     });
 
     return airports;
-  }, [ownedAircraft, ownedHangars]);
+  }, [ownedAircraft, ownedGates]);
 
   const compatibleContracts = useMemo(() => {
     return allContracts.filter((contract) => {
