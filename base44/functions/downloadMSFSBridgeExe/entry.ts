@@ -307,6 +307,8 @@ def forward_payload(payload, api_key):
     data = json.dumps(clean, separators=(',', ':')).encode('utf-8')
     req = Request(target_url, data=data, method='POST')
     req.add_header('Content-Type', 'application/json')
+    req.add_header('Accept', 'application/json')
+    req.add_header('User-Agent', 'SkyCareerMsfsBridge/1.0')
     status = 0
     started = time.time()
     preview = ''
