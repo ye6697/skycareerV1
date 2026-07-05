@@ -3,8 +3,9 @@ import JSZip from 'npm:jszip@3.10.1';
 
 const API_ENDPOINT_DEFAULT = 'https://sky-career.com/api/functions/receiveXPlaneData';
 const LOCAL_RELAY_ENDPOINT = 'http://127.0.0.1:50080/bridge';
-const BRIDGE_VERSION = 'bridge-2026-05-11-installer-bootstrap-r1';
-const DOWNLOAD_BUILD_ID = 'installer-bootstrap-2026-05-11-r1';
+const BRIDGE_VERSION = 'bridge-2026-05-11-payload-relay-r3';
+const DOWNLOAD_BUILD_ID = 'payload-relay-2026-05-11-r3';
+const BRIDGE_PAYLOAD_FILE = 'SkyCareer_MSFS_Bridge_Payload.zip';
 const DEFAULT_SIMCONNECT_CFG = `[SimConnect]
 Protocol=Ipv4
 Address=localhost
@@ -111,7 +112,7 @@ ALLOWED_FORWARD_KEYS = {
     'engine2_running', 'engines_running', 'engine_load_pct', 'engine1_load_pct',
     'engine2_load_pct', 'thrust_lever_pct', 'thrust_lever1_pct',
     'thrust_lever2_pct', 'throttle_pct', 'throttle1_pct', 'throttle2_pct',
-    'thrust_source', 'gear_down', 'flap_ratio', 'speedbrake', 'speed_brake',
+    'thrust_source', 'gear_down', 'flap_ratio', 'flaps_deployed', 'speedbrake', 'speed_brake',
     'spoiler', 'fuel_percentage', 'fuel_kg', 'fuel_total_kg',
     'fuel_flow_total_kgph', 'fuel_flow_total_lph', 'fuel_flow_total_pph',
     'engine1_fuel_flow_pph', 'engine2_fuel_flow_pph', 'fuel_flow_source',
@@ -121,6 +122,9 @@ ALLOWED_FORWARD_KEYS = {
     'rain_intensity', 'rain_detected', 'precipitation', 'precip_rate',
     'precip_state', 'ambient_precip_rate', 'ambient_precip_state',
     'turbulence', 'turbulence_intensity',
+    'touchdown_vspeed', 'landing_vspeed', 'landing_vs', 'landing_gforce',
+    'landing_g_force', 'bridge_local_landing_locked', 'landing_data_source',
+    'landing_data_timestamp', 'touchdown_detected',
 }
 
 state_lock = threading.Lock()
@@ -388,7 +392,7 @@ function patchBridgeConfig(configText: string, apiKey: string, endpoint: string)
   patched = upsertAppSetting(patched, 'PollIntervalMs', '5000');
   patched = upsertAppSetting(patched, 'SendIntervalMs', '5000');
   patched = upsertAppSetting(patched, 'SampleIntervalMs', '200');
-  patched = upsertAppSetting(patched, 'HttpTimeoutMs', '5000');
+  patched = upsertAppSetting(patched, 'HttpTimeoutMs', '12000');
   patched = upsertAppSetting(patched, 'AutoRestartWorkerOnTimeout', 'true');
   patched = upsertAppSetting(patched, 'WorkerTimeoutMs', '15000');
   patched = upsertAppSetting(patched, 'WorkerRestartDelayMs', '2000');
@@ -413,7 +417,7 @@ function buildBridgeConfig(apiKey: string, endpoint: string) {
     <add key="PollIntervalMs" value="5000" />
     <add key="SendIntervalMs" value="5000" />
     <add key="SampleIntervalMs" value="200" />
-    <add key="HttpTimeoutMs" value="5000" />
+    <add key="HttpTimeoutMs" value="12000" />
     <add key="AutoRestartWorkerOnTimeout" value="true" />
     <add key="WorkerTimeoutMs" value="15000" />
     <add key="WorkerRestartDelayMs" value="2000" />
@@ -480,42 +484,73 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await ensureCompanyApiKey(base44, user);
+    const body = await req.json().catch(() => ({}));
+    const { apiKey } = await ensureCompanyApiKey(base44, user);
+    const endpoint = resolveEndpoint(req, body?.endpoint) || API_ENDPOINT_DEFAULT;
 
     const desktopZipBytes = await readFirstAvailable(DESKTOP_ZIP_CANDIDATES);
+    const bridgePayloadZipBytes = await readFirstAvailable(BRIDGE_PAYLOAD_ZIP_CANDIDATES);
 
     const desktopZip = await JSZip.loadAsync(desktopZipBytes);
+    const bridgeZip = await JSZip.loadAsync(bridgePayloadZipBytes);
     const outputZip = new JSZip();
-    let hasInstaller = false;
-    const keepNames = new Set([
-      'sc installer.exe',
-      'skycareerbridgeinstaller.exe',
-      'readme_start_here.txt',
-      'readme.txt',
-    ]);
 
     for (const [name, file] of Object.entries(desktopZip.files)) {
       if (file.dir) continue;
-      const targetName = basename(name);
-      const lower = targetName.toLowerCase();
-      if (!keepNames.has(lower)) continue;
-      if (lower.includes('installer')) {
-        hasInstaller = true;
-      }
+      const targetName = name.split('/').pop() || name;
       const data = await file.async('uint8array');
       outputZip.file(targetName, data);
     }
 
-    if (!hasInstaller) {
-      throw new Error('SC Installer missing in desktop bootstrap zip');
+    let hasSimConnectCfg = false;
+    let hasBridgeConfig = false;
+    let bridgeExePath = '';
+    for (const [name, file] of Object.entries(bridgeZip.files)) {
+      if (file.dir) continue;
+      const targetName = normalizeZipPath(name);
+      if (!targetName) continue;
+      const fileName = basename(targetName).toLowerCase();
+      if (fileName === 'skycareermsfsbridge.exe') {
+        bridgeExePath = targetName;
+      }
+
+      if (fileName === 'simconnect.cfg') {
+        hasSimConnectCfg = true;
+      }
+
+      if (fileName === 'skycareermsfsbridge.exe.config') {
+        const configText = await file.async('string');
+        const patchedConfig = patchBridgeConfig(configText, apiKey, endpoint);
+        outputZip.file(targetName, patchedConfig);
+        hasBridgeConfig = true;
+      } else {
+        const data = await file.async('uint8array');
+        outputZip.file(targetName, data);
+      }
     }
 
-    outputZip.file('README_START_HERE.txt', `SkyCareer Desktop / MSFS Bootstrap (${BRIDGE_VERSION})
+    if (bridgeExePath && !hasBridgeConfig) {
+      const slash = bridgeExePath.lastIndexOf('/');
+      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
+      outputZip.file(`${dir}SkyCareerMsfsBridge.exe.config`, buildBridgeConfig(apiKey, endpoint));
+      outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
+      outputZip.file(`${dir}SkyCareerBridgeRelay.py`, buildRelayScript(endpoint));
+    } else if (bridgeExePath) {
+      const slash = bridgeExePath.lastIndexOf('/');
+      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
+      outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
+      outputZip.file(`${dir}SkyCareerBridgeRelay.py`, buildRelayScript(endpoint));
+    }
 
-1) Run: SC Installer.exe (recommended)
-2) SC Installer downloads and installs the full payload, including SC Uninstaller.
-3) SC Uninstaller removes installed files for a clean reset, but keeps SC Installer.
-`);
+    if (!hasSimConnectCfg) {
+      const slash = bridgeExePath.lastIndexOf('/');
+      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
+      outputZip.file(`${dir}SimConnect.cfg`, DEFAULT_SIMCONNECT_CFG);
+    }
+    // Keep the payload zip in the desktop package so SC Installer consumes this exact build.
+    outputZip.file(BRIDGE_PAYLOAD_FILE, bridgePayloadZipBytes);
+    outputZip.file('Start_SkyCareer_Bridge_Fixed.cmd', buildStartScript());
+    outputZip.file('BRIDGE_VERSION.txt', `${BRIDGE_VERSION}\n`);
     const finalZipBytes = await outputZip.generateAsync({
       type: 'uint8array',
       compression: 'DEFLATE',
@@ -523,13 +558,13 @@ Deno.serve(async (req) => {
     });
 
     return Response.json({
-      filename: `SkyCareer_Desktop_Bootstrap_Windows_${BRIDGE_VERSION}.zip`,
+      filename: `SkyCareer_Desktop_AllInOne_Windows_${BRIDGE_VERSION}.zip`,
       mime_type: 'application/zip',
       base64: toBase64(finalZipBytes),
       byte_length: finalZipBytes.length,
       bridge_version: BRIDGE_VERSION,
       payload_version: DOWNLOAD_BUILD_ID,
-      personalized: false,
+      personalized: true,
     });
   } catch (error) {
     console.error('Error serving personalized SkyCareer desktop zip:', error);
