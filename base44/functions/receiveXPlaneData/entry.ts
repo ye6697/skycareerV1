@@ -1239,16 +1239,15 @@ Deno.serve(async (req) => {
         wind_gust_kts: derivedWeather.wind_gust_kts ?? null,
         wind_direction: derivedWeather.wind_direction ?? null,
       };
-      // No active flight - log to XPlaneLog so debug page can show data
-      base44.asServiceRole.entities.XPlaneLog.create({
-        company_id: company.id,
-        raw_data: noFlightData,
-        altitude,
-        speed,
-        on_ground,
-        flight_score,
-        has_active_flight: false
-      }).catch(() => {});
+      // No active flight - log to XPlaneLog so debug/free-flight pages can show data.
+      // Awaited: fire-and-forget writes can be dropped once the response is sent.
+      try {
+        await base44.asServiceRole.entities.XPlaneLog.create({
+          company_id: company.id, raw_data: noFlightData,
+          altitude, speed, on_ground, flight_score,
+          has_active_flight: false
+        });
+      } catch (err) { console.error("XPlaneLog.create failed:", err); }
 
       // Cleanup old logs very rarely
       if (Math.random() < 0.03) {
@@ -2450,8 +2449,8 @@ Deno.serve(async (req) => {
       try { await base44.asServiceRole.entities.Flight.update(flight.id, updateData); }
       catch (err) { console.error("Flight.update (dispatch) failed:", err); bridgeCommandsForBridge.length = 0; }
     } else {
-      // Keep request path non-blocking so bridge packets cannot stall on DB latency.
-      base44.asServiceRole.entities.Flight.update(flight.id, updateData).catch((err) => console.error("Flight.update failed:", err));
+      // Await the write: fire-and-forget promises can be dropped once the response is sent.
+      try { await base44.asServiceRole.entities.Flight.update(flight.id, updateData); } catch (err) { console.error("Flight.update failed:", err); }
     }
     patchActiveFlightCache(company.id, {
       ...flight, xplane_data: xplaneData, maintenance_damage: flight.maintenance_damage, status: flight.status || "in_flight",
@@ -2800,7 +2799,7 @@ Deno.serve(async (req) => {
     const shouldWriteLiveLog = !Number.isFinite(prevXPlaneLogAtMs) || prevXPlaneLogAtMs <= 0 || (nowLogMs - prevXPlaneLogAtMs) >= 2000;
     xplaneData.last_xplanelog_at_ms = shouldWriteLiveLog ? nowLogMs : prevXPlaneLogAtMs;
     if (shouldWriteLiveLog) {
-      base44.asServiceRole.entities.XPlaneLog.create({ company_id: company.id, raw_data: xplaneData, altitude, speed, on_ground, flight_score: liveScore, has_active_flight: true }).catch(() => {});
+      try { await base44.asServiceRole.entities.XPlaneLog.create({ company_id: company.id, raw_data: xplaneData, altitude, speed, on_ground, flight_score: liveScore, has_active_flight: true }); } catch (err) { console.error("XPlaneLog.create failed:", err); }
     }
 
     if (Math.random() < 0.02) {
