@@ -26,14 +26,15 @@ const BRIDGE_ROOT_README = `SkyCareer MSFS Bridge (${BRIDGE_VERSION})
 4) Direct start (without installer): run Start_SkyCareer_Bridge_Fixed.cmd
 `;
 const BRIDGE_ZIP_CANDIDATES = [
-  new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
-  new URL('./assets/SkyCareer_MSFS_Bridge_Windows.zip', import.meta.url),
+  '../../../../public/downloads/SkyCareer_MSFS_Bridge_Windows.zip',
+  './assets/SkyCareer_MSFS_Bridge_Windows.zip',
 ];
 const BRIDGE_PAYLOAD_ZIP_CANDIDATES = [
-  new URL('../../../../public/downloads/SkyCareer_MSFS_Bridge_Payload.zip', import.meta.url),
-  new URL('./assets/SkyCareer_MSFS_Bridge_Payload.zip', import.meta.url),
+  '../../../../public/downloads/SkyCareer_MSFS_Bridge_Payload.zip',
+  './assets/SkyCareer_MSFS_Bridge_Payload.zip',
 ];
 const GITHUB_MEDIA_BASE = 'https://media.githubusercontent.com/media/ye6697/skycareerV1/main/public/downloads';
+const PAYLOAD_URL = `${GITHUB_MEDIA_BASE}/${BRIDGE_PAYLOAD_FILE}`;
 
 function toBase64(bytes: Uint8Array) {
   let binary = '';
@@ -50,8 +51,8 @@ function isLikelyLfsPointer(bytes: Uint8Array) {
   return head.includes('git-lfs.github.com/spec/v1');
 }
 
-function candidateFileName(candidate: URL) {
-  return candidate.pathname.split('/').pop() || '';
+function candidateFileName(candidate: string) {
+  return candidate.split('/').pop() || '';
 }
 
 async function fetchFromGithubMedia(fileName: string) {
@@ -65,10 +66,10 @@ async function fetchFromGithubMedia(fileName: string) {
   return new Uint8Array(await res.arrayBuffer());
 }
 
-async function readFirstAvailable(candidates: URL[]) {
+async function readFirstAvailable(candidates: string[]) {
   for (const candidate of candidates) {
     try {
-      const bytes = await Deno.readFile(candidate);
+      const bytes = await Deno.readFile(new URL(candidate, import.meta.url));
       if (isLikelyLfsPointer(bytes)) {
         return await fetchFromGithubMedia(candidateFileName(candidate));
       }
@@ -387,16 +388,65 @@ if __name__ == '__main__':
 `;
 }
 
+function buildApplyConfigScript() {
+  return `param(
+  [Parameter(Mandatory=$true)][string]$BridgeConfig,
+  [Parameter(Mandatory=$true)][string]$Template
+)
+if (-not (Test-Path -LiteralPath $Template)) { exit 0 }
+if (-not (Test-Path -LiteralPath $BridgeConfig)) {
+  Copy-Item -LiteralPath $Template -Destination $BridgeConfig -Force
+  exit 0
+}
+try {
+  $cfg = [xml](Get-Content -LiteralPath $BridgeConfig -Raw)
+  $tpl = [xml](Get-Content -LiteralPath $Template -Raw)
+  $appSettings = $cfg.configuration.appSettings
+  if (-not $appSettings) {
+    Copy-Item -LiteralPath $Template -Destination $BridgeConfig -Force
+    exit 0
+  }
+  foreach ($add in $tpl.configuration.appSettings.add) {
+    $existing = $appSettings.add | Where-Object { $_.key -eq $add.key }
+    if ($existing) {
+      $existing.value = $add.value
+    } else {
+      $node = $cfg.CreateElement('add')
+      $node.SetAttribute('key', $add.key)
+      $node.SetAttribute('value', $add.value)
+      [void]$appSettings.AppendChild($node)
+    }
+  }
+  $cfg.Save($BridgeConfig)
+} catch {
+  Copy-Item -LiteralPath $Template -Destination $BridgeConfig -Force
+}
+`;
+}
+
 function buildStartScript() {
   return `@echo off
 setlocal
 set "ROOT=%~dp0"
+set "PAYLOAD=%ROOT%${BRIDGE_PAYLOAD_FILE}"
 set "BRIDGE_DIR=%ROOT%${BRIDGE_PACKAGE_DIR}"
-set "RELAY=%BRIDGE_DIR%\\SkyCareerBridgeRelay.py"
-if not exist "%RELAY%" set "RELAY=%ROOT%SkyCareerBridgeRelay.py"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-NetTCPConnection -LocalPort 50080 -State Listen -ErrorAction SilentlyContinue)) { Start-Process -FilePath 'python.exe' -ArgumentList @('%RELAY%') -WorkingDirectory '%BRIDGE_DIR%' -WindowStyle Hidden }"
+if not exist "%PAYLOAD%" if not exist "%BRIDGE_DIR%\\SkyCareerMsfsBridge.exe" (
+  echo Downloading SkyCareer bridge payload...
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '${PAYLOAD_URL}' -OutFile '%PAYLOAD%'"
+)
+if not exist "%BRIDGE_DIR%\\SkyCareerMsfsBridge.exe" (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '%PAYLOAD%' -DestinationPath '%BRIDGE_DIR%' -Force"
+)
+set "BRIDGE_EXE=%BRIDGE_DIR%\\SkyCareerMsfsBridge.exe"
+if not exist "%BRIDGE_EXE%" (
+  for /f "delims=" %%F in ('powershell -NoProfile -Command "(Get-ChildItem -Path '%BRIDGE_DIR%' -Recurse -Filter 'SkyCareerMsfsBridge.exe' ^| Select-Object -First 1).FullName"') do set "BRIDGE_EXE=%%F"
+)
+for %%F in ("%BRIDGE_EXE%") do set "BRIDGE_HOME=%%~dpF"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%Apply_SkyCareer_Config.ps1" -BridgeConfig "%BRIDGE_HOME%SkyCareerMsfsBridge.exe.config" -Template "%ROOT%SkyCareerMsfsBridge.exe.config"
+set "RELAY=%ROOT%SkyCareerBridgeRelay.py"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-NetTCPConnection -LocalPort 50080 -State Listen -ErrorAction SilentlyContinue)) { Start-Process -FilePath 'python.exe' -ArgumentList @('%RELAY%') -WorkingDirectory '%ROOT%' -WindowStyle Hidden }"
 timeout /t 2 /nobreak >nul
-start "" "%BRIDGE_DIR%\\SkyCareerMsfsBridge.exe"
+start "" "%BRIDGE_EXE%"
 `;
 }
 
@@ -504,104 +554,17 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { apiKey } = await ensureCompanyApiKey(base44, user);
     const endpoint = resolveEndpoint(req, body?.endpoint) || API_ENDPOINT_DEFAULT;
-    const sourceZipBytes = await readFirstAvailable(BRIDGE_ZIP_CANDIDATES);
-    const payloadZipBytes = await readFirstAvailable(BRIDGE_PAYLOAD_ZIP_CANDIDATES);
 
-    const sourceZip = await JSZip.loadAsync(sourceZipBytes);
+    // The full bridge payload (~136MB) exceeds the backend memory limit, so this
+    // function builds the personalized package and the browser embeds the payload
+    // zip client-side via payload_url. Start_SkyCareer_Bridge_Fixed.cmd also
+    // downloads the payload itself if it is missing.
     const outputZip = new JSZip();
-    let hasBridgeRuntime = false;
-    let bridgeExePath = '';
-    let bridgeConfigPath = '';
-    let hasSimConnectCfg = false;
-
-    for (const [name, file] of Object.entries(sourceZip.files)) {
-      if (file.dir) continue;
-      const targetName = normalizeZipPath(name);
-      if (!targetName) continue;
-      if (targetName.toLowerCase() === 'readme_start_here.txt') {
-        continue;
-      }
-      const relativeName = targetName.startsWith(`${BRIDGE_PACKAGE_DIR}/`)
-        ? targetName.slice(BRIDGE_PACKAGE_DIR.length + 1)
-        : targetName;
-      if (!relativeName) continue;
-      const fileName = basename(relativeName).toLowerCase();
-      const packagedName = ROOT_LEVEL_FILES.has(fileName)
-        ? basename(relativeName)
-        : `${BRIDGE_PACKAGE_DIR}/${relativeName}`;
-
-      if (fileName === 'skycareermsfsbridge.exe') {
-        hasBridgeRuntime = true;
-        bridgeExePath = packagedName;
-      }
-      if (fileName === 'simconnect.cfg') {
-        hasSimConnectCfg = true;
-      }
-      if (fileName === 'skycareermsfsbridge.exe.config') {
-        const configText = await file.async('string');
-        outputZip.file(packagedName, patchBridgeConfig(configText, apiKey, endpoint));
-        bridgeConfigPath = packagedName;
-      } else {
-        const data = await file.async('uint8array');
-        outputZip.file(packagedName, data);
-      }
-    }
-
-    if (!hasBridgeRuntime) {
-      const payloadZip = await JSZip.loadAsync(payloadZipBytes);
-      for (const [name, file] of Object.entries(payloadZip.files)) {
-        if (file.dir) continue;
-        const payloadPath = normalizeZipPath(name);
-        if (!payloadPath) continue;
-        const payloadRelative = payloadPath.startsWith(`${BRIDGE_PACKAGE_DIR}/`)
-          ? payloadPath.slice(BRIDGE_PACKAGE_DIR.length + 1)
-          : payloadPath;
-        const fileName = basename(payloadRelative).toLowerCase();
-        const packagedName = `${BRIDGE_PACKAGE_DIR}/${payloadRelative}`;
-
-        if (fileName === 'skycareermsfsbridge.exe') {
-          hasBridgeRuntime = true;
-          bridgeExePath = packagedName;
-        }
-        if (fileName === 'simconnect.cfg') {
-          hasSimConnectCfg = true;
-        }
-
-        if (fileName === 'skycareermsfsbridge.exe.config') {
-          const configText = await file.async('string');
-          outputZip.file(packagedName, patchBridgeConfig(configText, apiKey, endpoint));
-          bridgeConfigPath = packagedName;
-          continue;
-        }
-
-        const data = await file.async('uint8array');
-        outputZip.file(packagedName, data);
-      }
-    }
-
-    if (bridgeExePath && !bridgeConfigPath) {
-      const slash = bridgeExePath.lastIndexOf('/');
-      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
-      bridgeConfigPath = `${dir}SkyCareerMsfsBridge.exe.config`;
-      outputZip.file(bridgeConfigPath, buildBridgeConfig(apiKey, endpoint));
-      outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
-      outputZip.file(`${dir}SkyCareerBridgeRelay.py`, buildRelayScript(endpoint));
-    } else if (bridgeExePath) {
-      const slash = bridgeExePath.lastIndexOf('/');
-      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
-      outputZip.file(`${dir}BRIDGE_VERSION.txt`, `${BRIDGE_VERSION}\n`);
-      outputZip.file(`${dir}SkyCareerBridgeRelay.py`, buildRelayScript(endpoint));
-    }
-
-    if (bridgeExePath && !hasSimConnectCfg) {
-      const slash = bridgeExePath.lastIndexOf('/');
-      const dir = slash >= 0 ? bridgeExePath.slice(0, slash + 1) : '';
-      outputZip.file(`${dir}SimConnect.cfg`, DEFAULT_SIMCONNECT_CFG);
-    }
-
-    // Keep the latest runtime payload next to SC Installer so it cannot fall back to stale remote assets.
-    outputZip.file(BRIDGE_PAYLOAD_FILE, payloadZipBytes);
     outputZip.file('Start_SkyCareer_Bridge_Fixed.cmd', buildStartScript());
+    outputZip.file('SkyCareerMsfsBridge.exe.config', buildBridgeConfig(apiKey, endpoint));
+    outputZip.file('Apply_SkyCareer_Config.ps1', buildApplyConfigScript());
+    outputZip.file('SkyCareerBridgeRelay.py', buildRelayScript(endpoint));
+    outputZip.file('SimConnect.cfg', DEFAULT_SIMCONNECT_CFG);
     outputZip.file('README_START_HERE.txt', BRIDGE_ROOT_README);
     outputZip.file('BRIDGE_VERSION.txt', `${BRIDGE_VERSION}\n`);
     const finalZipBytes = await outputZip.generateAsync({
@@ -618,6 +581,8 @@ Deno.serve(async (req) => {
       bridge_version: BRIDGE_VERSION,
       payload_version: DOWNLOAD_BUILD_ID,
       personalized: true,
+      payload_url: `${PAYLOAD_URL}?v=${encodeURIComponent(DOWNLOAD_BUILD_ID)}`,
+      payload_name: BRIDGE_PAYLOAD_FILE,
     });
   } catch (error) {
     console.error('Error serving personalized MSFS bridge exe zip:', error);
