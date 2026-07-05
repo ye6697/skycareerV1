@@ -25,6 +25,7 @@ import { t } from "@/components/i18n/translations";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
 import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
+import MarketShowroom3D from "@/components/fleet3d/MarketShowroom3D";
 import { formatPayoutFactor } from "@/lib/payoutFactors";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
@@ -320,6 +321,7 @@ export default function Fleet() {
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [selectedPurchaseGateId, setSelectedPurchaseGateId] = useState('');
   const [marketSection, setMarketSection] = useState('new');
+  const [show3DMarket, setShow3DMarket] = useState(false);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
@@ -744,6 +746,12 @@ export default function Fleet() {
                   onClick={() => setMarketSection('used')}>
                   {lang === 'de' ? 'Gebrauchtmarkt' : 'Used market'}
                 </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-[10px] bg-purple-800/70 text-purple-100 hover:bg-purple-700 border border-purple-600/50"
+                  onClick={() => setShow3DMarket(true)}>
+                  {lang === 'de' ? '3D Showroom' : '3D Showroom'}
+                </Button>
               </div>
               {marketSection === 'used' &&
               <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
@@ -777,46 +785,73 @@ export default function Fleet() {
                  </div>
               }
               {selectedAircraft &&
-              <div className="mb-3 rounded border border-emerald-800/50 bg-emerald-950/20 p-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] font-mono uppercase text-emerald-300">
-                      {lang === 'de' ? 'Kauf bestaetigen' : 'Confirm purchase'}: {selectedAircraft.name}
+              <div
+                className="fixed inset-0 z-[140] bg-black/80 flex items-center justify-center p-4"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) {
+                    setSelectedAircraft(null);
+                    setSelectedPurchaseGateId('');
+                  }
+                }}>
+                <div className="w-full max-w-md rounded-lg border border-emerald-700/60 bg-slate-900 p-4 space-y-3 font-mono">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] uppercase text-emerald-300">
+                      {lang === 'de' ? 'Kauf bestaetigen' : 'Confirm purchase'}
                     </p>
-                    <p className="text-[10px] font-mono text-emerald-200">
+                    <p className="text-[11px] text-emerald-200">
                       ${Math.round(selectedAircraft.purchase_price || 0).toLocaleString()}
                     </p>
                   </div>
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                  <p className="text-sm font-bold text-white uppercase">{selectedAircraft.name}</p>
+                  <div>
+                    <p className="mb-1 text-[10px] uppercase text-slate-400">
+                      {lang === 'de' ? 'Gate zuweisen (Pflicht)' : 'Assign gate (required)'}
+                    </p>
                     <select
-                    value={selectedPurchaseGateId}
-                    onChange={(event) => setSelectedPurchaseGateId(event.target.value)}
-                    className="h-8 w-full rounded border border-emerald-900/60 bg-slate-950/90 px-2 text-xs text-emerald-100">
-                      <option value="">{lang === 'de' ? 'Gate zuweisen (Pflicht)' : 'Assign gate (required)'}</option>
+                      value={selectedPurchaseGateId}
+                      onChange={(event) => setSelectedPurchaseGateId(event.target.value)}
+                      className="h-9 w-full rounded border border-emerald-900/60 bg-slate-950/90 px-2 text-xs text-emerald-100">
+                      <option value="">{lang === 'de' ? '-- Gate waehlen --' : '-- Select gate --'}</option>
                       {purchaseGateOptions.map((gate) => (
                         <option key={gate.id} value={String(gate.id)}>
                           {normIcao(gate.airport_icao)} {gate.gate_code} · {gate.size_category}{gate.position_type === 'apron' ? (lang === 'de' ? ' · Vorfeld' : ' · Apron') : ''}
                         </option>
                       ))}
                     </select>
+                  </div>
+                  {purchaseGateOptions.length === 0 &&
+                  <p className="text-[10px] text-amber-300">
+                    {lang === 'de'
+                      ? 'Kein freies, kompatibles Gate vorhanden. Kaufe ein passendes Gate im Gate-Markt.'
+                      : 'No free, compatible gate available. Buy a suitable gate in the gate market.'}
+                  </p>
+                  }
+                  {purchaseMutation.isError &&
+                  <p className="text-[10px] text-red-300">{purchaseMutation.error?.message}</p>
+                  }
+                  <div className="flex gap-2">
                     <Button
-                    onClick={() => purchaseMutation.mutate({
-                      ...selectedAircraft,
-                      selected_gate_id: selectedPurchaseGateId
-                    })}
-                    disabled={!selectedPurchaseGate || purchaseMutation.isPending}
-                    size="sm"
-                    className="h-8 bg-emerald-700 text-white hover:bg-emerald-600 disabled:bg-slate-700">
+                      onClick={() => {
+                        setSelectedAircraft(null);
+                        setSelectedPurchaseGateId('');
+                      }}
+                      size="sm"
+                      className="h-9 flex-1 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                      {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+                    </Button>
+                    <Button
+                      onClick={() => purchaseMutation.mutate({
+                        ...selectedAircraft,
+                        selected_gate_id: selectedPurchaseGateId
+                      })}
+                      disabled={!selectedPurchaseGate || purchaseMutation.isPending}
+                      size="sm"
+                      className="h-9 flex-1 bg-emerald-700 text-white hover:bg-emerald-600 disabled:bg-slate-700">
                       {purchaseMutation.isPending ? t('buying', lang) : t('buy', lang)}
                     </Button>
                   </div>
-                  {purchaseGateOptions.length === 0 &&
-                <p className="mt-1 text-[10px] text-amber-300">
-                      {lang === 'de'
-                    ? 'Kein freies, kompatibles Gate vorhanden. Kaufe ein passendes Gate im Gate-Markt.'
-                    : 'No free, compatible gate available. Buy a suitable gate in the gate market.'}
-                    </p>
-                }
                 </div>
+              </div>
               }
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1070,6 +1105,26 @@ export default function Fleet() {
                     </div>
                   </div>
                 </div>
+              }
+
+              {show3DMarket &&
+              <MarketShowroom3D
+                listings={marketAircraft}
+                lang={lang}
+                getPurchaseState={(ac) => {
+                  const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
+                  const hasBalance = canAfford(ac.purchase_price);
+                  const hasGate = getFreeGatesForType(ac.type).length > 0;
+                  const hasRating = hasRatingFor(ac);
+                  let reason = '';
+                  if (!hasLevel) reason = t('level_required', lang).replace('{0}', ac.level_requirement);
+                  else if (!hasBalance) reason = lang === 'de' ? 'Nicht genug Guthaben.' : 'Not enough balance.';
+                  else if (!hasGate) reason = lang === 'de' ? 'Kein freies, passendes Gate. Kaufe eins im Gate-Markt.' : 'No free compatible gate. Buy one in the gate market.';
+                  else if (!hasRating) reason = lang === 'de' ? 'Type-Rating erforderlich.' : 'Type-rating required.';
+                  return { ok: hasLevel && hasBalance && hasGate && hasRating, reason };
+                }}
+                onBuy={(ac) => beginPurchaseFlow(ac)}
+                onClose={() => setShow3DMarket(false)} />
               }
 
               <DialogFooter>
