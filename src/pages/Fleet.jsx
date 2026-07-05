@@ -372,13 +372,15 @@ export default function Fleet() {
   });
 
   // Owned gates replace the old hangar system: every aircraft parks at one owned gate.
-  const { data: ownedGates = [] } = useQuery({
+  // Loaded via the gateMarket backend function (same as the Gates page).
+  const { data: ownedGatesData } = useQuery({
     queryKey: ['ownedGates', company?.id],
-    queryFn: () => base44.entities.AirportGate.filter({ owner_company_id: company.id }),
+    queryFn: async () => (await base44.functions.invoke('gateMarket', { action: 'myGates' })).data,
     enabled: !!company?.id,
     staleTime: 60000,
     refetchOnWindowFocus: false
   });
+  const ownedGates = React.useMemo(() => ownedGatesData?.gates || [], [ownedGatesData]);
 
   const loadCurrentCompany = React.useCallback(async () => {
     if (company?.id) return company;
