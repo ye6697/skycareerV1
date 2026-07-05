@@ -66,10 +66,8 @@ const getCompanyByApiKeyCached = async (base44, apiKey) => {
 };
 
 const fetchActiveFlightForCompany = async (base44, companyId) => {
-  const flights = await base44.asServiceRole.entities.Flight.filter({
-    company_id: companyId,
-    status: "in_flight",
-  });
+  // Newest in_flight flight wins; stale never-completed sessions must not swallow live telemetry.
+  const flights = await base44.asServiceRole.entities.Flight.filter({ company_id: companyId, status: "in_flight" }, "-created_date", 1);
   return flights[0] || null;
 };
 
