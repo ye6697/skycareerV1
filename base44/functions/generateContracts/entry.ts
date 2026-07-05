@@ -862,13 +862,17 @@ Deno.serve(async (req) => {
         error: 'Kein Gate vorhanden. Kaufe zuerst ein Gate oder eine Vorfeldposition am Abflughafen (Seite "Gates"), um Aufträge zu erhalten.'
       }, { status: 400 });
     }
+    const gateAirports = Array.from(gatesByAirport.keys());
+    const gateAirportSet = new Set(gateAirports);
 
     // Get user's aircraft
     const aircraft = await base44.asServiceRole.entities.Aircraft.filter({ company_id: company.id });
     const availableAircraft = aircraft.filter(a => a.status !== 'sold');
     const availableAircraftById = new Map(availableAircraft.map((plane) => [plane.id, plane]));
     const assignmentMap = getAircraftHangarAssignmentsMap(company);
-    const normalizedAvailableAircraft = resolveAircraftHangars(availableAircraft, normalizedHangars, assignmentMap);
+    // Gate model: aircraft keep their gate assignment (hangar_id = gate id,
+    // hangar_airport = gate airport). No legacy hangar re-resolution.
+    const normalizedAvailableAircraft = availableAircraft;
 
     const aircraftHangarFixes = [];
     for (const plane of normalizedAvailableAircraft) {
@@ -931,14 +935,14 @@ Deno.serve(async (req) => {
         return canAircraftFulfillContract(plane, contract);
       });
     });
-    const hasAvailableFromOwnedHangar = existingContracts.some((contract) =>
+    const hasAvailableFromOwnedGateAirport = existingContracts.some((contract) =>
       contract?.status === 'available'
-      && normalizedHangarAirportSet.has(normalizeIcao(contract?.departure_airport))
+      && gateAirportSet.has(normalizeIcao(contract?.departure_airport))
     );
     if (
       todaysAlreadyGenerated
       && hasFulfillableAvailableContract
-      && (normalizedHangarAirportSet.size === 0 || hasAvailableFromOwnedHangar)
+      && hasAvailableFromOwnedGateAirport
     ) {
       return Response.json({
         success: true,
@@ -999,13 +1003,9 @@ Deno.serve(async (req) => {
     };
 
     const globalDeparturePool = (() => {
-      if (normalizedHangarAirports.length > 0) {
-        const direct = airports.filter((airport) => hangarAirportSet.has(airport.icao));
+      if (gateAirports.length > 0) {
+        const direct = airports.filter((airport) => gateAirportSet.has(airport.icao));
         if (direct.length > 0) return direct;
-        const byPrefix = airports.filter((airport) =>
-          hangarPrefixes.has(String(airport?.icao || '').slice(0, 2))
-        );
-        if (byPrefix.length > 0) return byPrefix;
         return airports;
       }
       if (aircraftStationAirports.length > 0) {
@@ -1031,29 +1031,23 @@ Deno.serve(async (req) => {
       companyReputation: company?.reputation || 50,
     };
 
-    const hangarsForGeneration = normalizedHangars.length > 0
-      ? normalizedHangars
-      : [{
-          id: 'legacy-world-hangar',
-          airport_icao: fallbackHubAirport || airports[0].icao,
-          size: 'mega'
-        }];
+    // Generate contracts per gate-owned airport (gate model replaces hangars).
+    const hangarsForGeneration = gateAirports.map((icao) => ({
+      id: `gate_station_${icao}`,
+      airport_icao: icao,
+      size: 'mega',
+    }));
 
     for (const hangar of hangarsForGeneration) {
-      const hangarRule = HANGAR_SIZE_RULES[hangar?.size] || HANGAR_SIZE_RULES.small;
       const hangarAirport = String(hangar?.airport_icao || '').toUpperCase();
-      const hangarId = String(hangar?.id || '').trim();
       const airportGates = gatesByAirport.get(hangarAirport) || [];
       if (airportGates.length === 0) continue; // no gate owned at this airport
       const departurePool = findDeparturePoolForHangar(hangarAirport);
       const hangarAircraft = filteredAircraft.filter((plane) => {
-        const aircraftHangarId = String(plane?.hangar_id || '').trim();
         const planeHangarAirport = String(plane?.hangar_airport || '').toUpperCase();
-        const stationedHere = aircraftHangarId && hangarId
-          ? aircraftHangarId === hangarId
-          : planeHangarAirport === hangarAirport;
+        const stationedHere = planeHangarAirport === hangarAirport;
         const gateAllows = airportGates.some((gate) => gateAllowedTypes(gate).includes(String(plane?.type || '').toLowerCase()));
-        return stationedHere && hangarRule.allowed_types.includes(plane.type) && gateAllows;
+        return stationedHere && gateAllows;
       });
       if (hangarAircraft.length === 0) continue;
       const ownedTypesAtHangar = [...new Set(hangarAircraft.map((plane) => plane.type))];
