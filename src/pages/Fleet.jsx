@@ -25,6 +25,8 @@ import { t } from "@/components/i18n/translations";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
 import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
+import MarketShowroom3D from "@/components/fleet3d/MarketShowroom3D";
+import FleetHangar3D from "@/components/fleet3d/FleetHangar3D";
 import { formatPayoutFactor } from "@/lib/payoutFactors";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
@@ -320,6 +322,8 @@ export default function Fleet() {
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [selectedPurchaseGateId, setSelectedPurchaseGateId] = useState('');
   const [marketSection, setMarketSection] = useState('new');
+  const [show3DMarket, setShow3DMarket] = useState(false);
+  const [hangar3DAircraftId, setHangar3DAircraftId] = useState(null);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
@@ -625,6 +629,7 @@ export default function Fleet() {
   });
 
   const displayAircraft = aircraft;
+  const hangar3DAircraft = aircraft.find((ac) => ac.id === hangar3DAircraftId) || null;
 
   const filteredAircraft = displayAircraft.filter((ac) => {
     if (ac.status === 'sold') return false;
@@ -743,6 +748,12 @@ export default function Fleet() {
                   className={`h-7 text-[10px] ${marketSection === 'used' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'}`}
                   onClick={() => setMarketSection('used')}>
                   {lang === 'de' ? 'Gebrauchtmarkt' : 'Used market'}
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-[10px] bg-purple-800/70 text-purple-100 hover:bg-purple-700 border border-purple-600/50"
+                  onClick={() => setShow3DMarket(true)}>
+                  {lang === 'de' ? '3D Showroom' : '3D Showroom'}
                 </Button>
               </div>
               {marketSection === 'used' &&
@@ -1099,6 +1110,26 @@ export default function Fleet() {
                 </div>
               }
 
+              {show3DMarket &&
+              <MarketShowroom3D
+                listings={marketAircraft}
+                lang={lang}
+                getPurchaseState={(ac) => {
+                  const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
+                  const hasBalance = canAfford(ac.purchase_price);
+                  const hasGate = getFreeGatesForType(ac.type).length > 0;
+                  const hasRating = hasRatingFor(ac);
+                  let reason = '';
+                  if (!hasLevel) reason = t('level_required', lang).replace('{0}', ac.level_requirement);
+                  else if (!hasBalance) reason = lang === 'de' ? 'Nicht genug Guthaben.' : 'Not enough balance.';
+                  else if (!hasGate) reason = lang === 'de' ? 'Kein freies, passendes Gate. Kaufe eins im Gate-Markt.' : 'No free compatible gate. Buy one in the gate market.';
+                  else if (!hasRating) reason = lang === 'de' ? 'Type-Rating erforderlich.' : 'Type-rating required.';
+                  return { ok: hasLevel && hasBalance && hasGate && hasRating, reason };
+                }}
+                onBuy={(ac) => beginPurchaseFlow(ac)}
+                onClose={() => setShow3DMarket(false)} />
+              }
+
               <DialogFooter>
                 <Button onClick={() => setIsPurchaseDialogOpen(false)} className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8">
                   {t('close', lang).toUpperCase()}
@@ -1138,7 +1169,15 @@ export default function Fleet() {
           <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
               <AnimatePresence>
                 {filteredAircraft.map((ac) =>
-              <AircraftCard key={ac.id} aircraft={ac} />
+              <div key={ac.id} className="relative">
+                <AircraftCard aircraft={ac} />
+                <button
+                  type="button"
+                  onClick={() => setHangar3DAircraftId(ac.id)}
+                  className="absolute top-1.5 right-1.5 z-10 px-2 py-0.5 rounded border border-purple-600/60 bg-purple-950/85 text-purple-200 text-[9px] font-mono font-bold uppercase hover:bg-purple-800/80 shadow-md">
+                  3D
+                </button>
+              </div>
               )}
               </AnimatePresence>
             </motion.div> :
@@ -1149,6 +1188,9 @@ export default function Fleet() {
         }
       </div>
 
+      {hangar3DAircraft &&
+      <FleetHangar3D aircraft={hangar3DAircraft} onClose={() => setHangar3DAircraftId(null)} />
+      }
     </div>);
 
 }
