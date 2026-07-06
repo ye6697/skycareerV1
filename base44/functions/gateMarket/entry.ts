@@ -20,6 +20,21 @@ function hashStr(input) {
   return h >>> 0;
 }
 
+// AI-controlled positions: deterministic per airport+gate. They cannot be
+// bought directly - they must be conquered via the gateConquest function.
+// Must match gateConquest/entry.ts.
+const AI_AIRLINES = [
+  { name: 'Nordwind Aviation', skill: 45 },
+  { name: 'Cirrus Global', skill: 60 },
+  { name: 'Pacific Crown', skill: 75 },
+  { name: 'Royal Meridian', skill: 90 },
+];
+function getAiOwner(icao, code) {
+  const roll = hashStr('ai:' + icao + code) % 100;
+  if (roll >= 35) return null;
+  return AI_AIRLINES[hashStr('air:' + icao + code) % AI_AIRLINES.length];
+}
+
 // Real-world-inspired gate layouts for major airports.
 // spec: { terminal, prefix, from, to, cat, xlEvery? }
 const CURATED = {
@@ -231,7 +246,11 @@ Deno.serve(async (req) => {
       const ownershipByCode = new Map((ownedRecords || []).map((r) => [String(r.gate_code), r]));
       const merged = catalog.map((entry) => {
         const record = ownershipByCode.get(entry.gate_code);
-        if (!record) return { ...entry, status: 'available' };
+        if (!record) {
+          const ai = getAiOwner(icao, entry.gate_code);
+          if (ai) return { ...entry, status: 'ai_owned', owner_company_name: ai.name, ai_skill: ai.skill };
+          return { ...entry, status: 'available' };
+        }
         const mine = String(record.owner_company_id) === String(company.id);
         return {
           ...entry,
@@ -255,6 +274,10 @@ Deno.serve(async (req) => {
       const existing = await base44.asServiceRole.entities.AirportGate.filter({ airport_icao: icao, gate_code: gateCode });
       const record = existing?.[0] || null;
       const balance = Number(company.balance || 0);
+
+      if (!record && getAiOwner(icao, gateCode)) {
+        return Response.json({ error: 'Diese Position wird von einer KI-Airline kontrolliert – erobere sie über den Eroberungs-Modus' }, { status: 409 });
+      }
 
       if (record) {
         if (String(record.owner_company_id) === String(company.id)) {

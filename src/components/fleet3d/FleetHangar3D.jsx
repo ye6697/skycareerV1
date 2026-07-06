@@ -3,16 +3,38 @@ import * as THREE from 'three';
 import { X } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { buildHangar } from '@/components/fleet3d/hangarScene';
-import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
+import { buildCustomAircraftModel } from '@/components/flights/customAircraftModel';
+import { loadGLB, normalizeModel } from '@/components/flights/glbLoader';
+import { getVariantMeta, HANGAR_MODEL_VARIANTS } from '@/components/contracts/hangarModelCatalog';
 import { getHotspotLayoutForAircraft, getHotspotColor } from '@/components/fleet3d/maintenanceHotspots';
 import HotspotInfoPopup from '@/components/fleet3d/HotspotInfoPopup';
 import MaintenanceCategoryList from '@/components/fleet3d/MaintenanceCategoryList';
 import { useLanguage } from '@/components/LanguageContext';
 
 const clampPct = (v) => Math.max(0, Math.min(100, Number(v) || 0));
+const HANGAR_TARGET_SIZE = { small: 38, medium: 50, large: 68, mega: 150 };
 
-// Interactive 3D hangar: the owned aircraft parked inside a full hangar scene
-// with clickable maintenance hotspots per category (as before the gate update).
+const disposeGroup = (group) => {
+  group.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose?.();
+    if (obj.material) {
+      (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m?.dispose?.());
+    }
+  });
+};
+
+const pickHangarVariant = (aircraft) => {
+  const explicit = getVariantMeta(aircraft?.hangar_model_variant);
+  if (explicit) return explicit;
+  const type = String(aircraft?.type || '').toLowerCase();
+  return (
+    HANGAR_MODEL_VARIANTS.find((h) => (h.allowedTypes || []).includes(type)) ||
+    HANGAR_MODEL_VARIANTS[HANGAR_MODEL_VARIANTS.length - 1]
+  );
+};
+
+// Interactive 3D hangar: the owned aircraft (real GLB model) parked inside the
+// original GLTF hangar model, with clickable maintenance hotspots per category.
 export default function FleetHangar3D({ aircraft, onClose }) {
   const { lang } = useLanguage();
   const mountRef = useRef(null);
@@ -33,15 +55,29 @@ export default function FleetHangar3D({ aircraft, onClose }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
 
-    scene.add(new THREE.HemisphereLight(0xdfe8f5, 0x1a2230, 0.85));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+    scene.add(new THREE.HemisphereLight(0xdfe8f5, 0x1a2230, 0.9));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.7);
     sun.position.set(30, 60, 50);
     scene.add(sun);
+    const fill = new THREE.PointLight(0x38bdf8, 0.5, 120);
+    fill.position.set(-20, 18, -20);
+    scene.add(fill);
 
-    const { group: hangar } = buildHangar({ width: 110, depth: 130, height: 55 });
-    scene.add(hangar);
+    // Ground plane so there is a floor even outside the hangar model.
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(240, 48),
+      new THREE.MeshStandardMaterial({ color: 0x0e1626, roughness: 0.9, metalness: 0.15 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.05;
+    scene.add(floor);
+
+    // Procedural hangar as instant placeholder; replaced by the real GLTF model.
+    const { group: proceduralHangar } = buildHangar({ width: 110, depth: 130, height: 55 });
+    scene.add(proceduralHangar);
 
     const target = new THREE.Vector3(0, 6, 0);
     const spherical = { radius: 46, theta: Math.PI * 0.25, phi: Math.PI * 0.4 };
@@ -55,8 +91,31 @@ export default function FleetHangar3D({ aircraft, onClose }) {
     };
     applyCamera();
 
-    const ctx = { scene, camera, renderer, target, spherical, applyCamera, hotspotMeshes: [], modelGroup: null };
+    const ctx = { scene, camera, renderer, target, spherical, applyCamera, hotspotMeshes: [], modelGroup: null, hangarModel: proceduralHangar };
     ctxRef.current = ctx;
+
+    // Load the real hangar GLTF model (same catalog as the old hangar system).
+    let hangarCancelled = false;
+    const variant = pickHangarVariant(aircraft);
+    loadGLB(variant.path)
+      .then((model) => {
+        if (hangarCancelled || ctxRef.current !== ctx) { disposeGroup(model); return; }
+        model.traverse((node) => {
+          const n = String(node?.name || '').toLowerCase();
+          const mats = Array.isArray(node.material) ? node.material : [node.material];
+          const colliderMat = mats.some((m) => {
+            const mn = String(m?.name || '').toLowerCase();
+            return mn.includes('collider') || mn.includes('collision');
+          });
+          if (n.includes('collider') || n.includes('collision') || colliderMat) node.visible = false;
+        });
+        normalizeModel(model, { targetSize: HANGAR_TARGET_SIZE[variant.sizeKey] || 44 });
+        scene.remove(ctx.hangarModel);
+        disposeGroup(ctx.hangarModel);
+        scene.add(model);
+        ctx.hangarModel = model;
+      })
+      .catch(() => { /* keep procedural fallback */ });
 
     let frame;
     const animate = () => {
@@ -93,7 +152,6 @@ export default function FleetHangar3D({ aircraft, onClose }) {
       const wasDragging = dragging;
       dragging = false;
       if (!wasDragging || moved > 8) return;
-      // Click: raycast against hotspots
       const rect = el.getBoundingClientRect();
       const ndc = new THREE.Vector2(
         ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -113,7 +171,7 @@ export default function FleetHangar3D({ aircraft, onClose }) {
     };
     const onWheel = (e) => {
       e.preventDefault();
-      spherical.radius = Math.max(16, Math.min(100, spherical.radius + e.deltaY * 0.05));
+      spherical.radius = Math.max(14, Math.min(140, spherical.radius + e.deltaY * 0.05));
       applyCamera();
     };
     const onResize = () => {
@@ -129,31 +187,26 @@ export default function FleetHangar3D({ aircraft, onClose }) {
     window.addEventListener('resize', onResize);
 
     return () => {
+      hangarCancelled = true;
       cancelAnimationFrame(frame);
       el.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('wheel', onWheel);
       window.removeEventListener('resize', onResize);
+      if (ctx.hangarModel) disposeGroup(ctx.hangarModel);
       renderer.dispose();
       if (el.parentNode === mount) mount.removeChild(el);
       ctxRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Aircraft model + maintenance hotspots (rebuild on data change) ---
+  // --- Real GLB aircraft model + maintenance hotspots (rebuild on data change) ---
   useEffect(() => {
     const ctx = ctxRef.current;
     if (!ctx || !aircraft) return undefined;
 
-    const disposeGroup = (group) => {
-      group.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
-        }
-      });
-    };
     if (ctx.modelGroup) {
       ctx.scene.remove(ctx.modelGroup);
       disposeGroup(ctx.modelGroup);
@@ -167,38 +220,45 @@ export default function FleetHangar3D({ aircraft, onClose }) {
     ctx.hotspotMeshes = [];
 
     const hint = `${aircraft.name || ''} ${aircraft.type || ''}`;
-    const { group } = buildAircraftModel(hint);
-    const box = new THREE.Box3().setFromObject(group);
-    group.position.y -= box.min.y; // wheels on the floor
+    const { group, ready } = buildCustomAircraftModel(hint);
     ctx.scene.add(group);
     ctx.modelGroup = group;
 
-    const worldBox = new THREE.Box3().setFromObject(group);
-    const size = new THREE.Vector3();
-    worldBox.getSize(size);
-    const layout = getHotspotLayoutForAircraft({
-      aircraftHint: hint,
-      bounds: { min: worldBox.min, max: worldBox.max, size },
+    let stale = false;
+    ready.then(({ bounds }) => {
+      if (stale || ctxRef.current !== ctx || ctx.modelGroup !== group) return;
+      const size = new THREE.Vector3(bounds.size.x, bounds.size.y, bounds.size.z);
+      const layout = getHotspotLayoutForAircraft({
+        aircraftHint: hint,
+        bounds: {
+          min: new THREE.Vector3(bounds.min.x, bounds.min.y, bounds.min.z),
+          max: new THREE.Vector3(bounds.max.x, bounds.max.y, bounds.max.z),
+          size,
+        },
+      });
+
+      const cats = aircraft.maintenance_categories || {};
+      const perm = aircraft.permanent_wear_categories || {};
+      const radius = Math.max(0.55, size.length() / 42);
+      ctx.hotspotMeshes = Object.entries(layout).map(([key, pos]) => {
+        const wear = Math.min(100, clampPct(cats[key]) + clampPct(perm[key]));
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(radius, 16, 12),
+          new THREE.MeshBasicMaterial({ color: getHotspotColor(wear), transparent: true, opacity: 0.92, depthTest: false }),
+        );
+        mesh.renderOrder = 10;
+        mesh.position.set(pos.x, pos.y, pos.z);
+        mesh.userData = { categoryKey: key, selected: false };
+        ctx.scene.add(mesh);
+        return mesh;
+      });
+
+      ctx.target.set(0, Math.max(3, size.y * 0.45), 0);
+      ctx.spherical.radius = Math.max(26, Math.min(90, size.length() * 1.15));
+      ctx.applyCamera();
     });
 
-    const cats = aircraft.maintenance_categories || {};
-    const perm = aircraft.permanent_wear_categories || {};
-    const radius = Math.max(0.55, size.length() / 42);
-    ctx.hotspotMeshes = Object.entries(layout).map(([key, pos]) => {
-      const wear = Math.min(100, clampPct(cats[key]) + clampPct(perm[key]));
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 16, 12),
-        new THREE.MeshBasicMaterial({ color: getHotspotColor(wear), transparent: true, opacity: 0.92 }),
-      );
-      mesh.position.set(pos.x, pos.y, pos.z);
-      mesh.userData = { categoryKey: key, selected: false };
-      ctx.scene.add(mesh);
-      return mesh;
-    });
-
-    ctx.target.set(0, Math.max(4, size.y * 0.45), 0);
-    ctx.applyCamera();
-    return undefined;
+    return () => { stale = true; };
   }, [aircraft]);
 
   // Keep hotspot highlight in sync with the selected category.

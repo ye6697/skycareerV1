@@ -1,0 +1,82 @@
+{
+  "name": "GateChallenge",
+  "type": "object",
+  "properties": {
+    "airport_icao": {
+      "type": "string",
+      "description": "ICAO code of the airport"
+    },
+    "gate_code": {
+      "type": "string",
+      "description": "Gate / apron code being contested"
+    },
+    "gate_record_id": {
+      "type": "string",
+      "description": "AirportGate record id (PvP challenges only)"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "pve",
+        "pvp"
+      ],
+      "description": "Against AI airline (pve) or another player (pvp)"
+    },
+    "challenger_company_id": {
+      "type": "string"
+    },
+    "challenger_company_name": {
+      "type": "string"
+    },
+    "defender_company_id": {
+      "type": "string",
+      "description": "Defending player company (pvp) - empty for AI"
+    },
+    "defender_company_name": {
+      "type": "string",
+      "description": "Defending airline name (player or AI)"
+    },
+    "stake": {
+      "type": "number",
+      "description": "Money staked / fee paid by the challenger"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "won",
+        "lost",
+        "cancelled"
+      ],
+      "default": "active"
+    },
+    "challenger_score": {
+      "type": "number"
+    },
+    "defender_score": {
+      "type": "number"
+    },
+    "resolve_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the PvP duel window closes"
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "airport_icao",
+    "gate_code",
+    "mode",
+    "challenger_company_id"
+  ],
+  "rls": {
+    "read": {}
+  }
+}

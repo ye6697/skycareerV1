@@ -74,6 +74,7 @@ import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 import Employees from './pages/Employees.jsx';
 import Gates from './pages/Gates.jsx';
+import Conquest from './pages/Conquest.jsx';
 import __Layout from './Layout.jsx';
 
 
@@ -105,6 +106,7 @@ export const PAGES = {
     "Contact": Contact,
     "Employees": Employees,
     "Gates": Gates,
+    "Conquest": Conquest,
 }
 
 export const pagesConfig = {

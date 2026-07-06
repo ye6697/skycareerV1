@@ -56,6 +56,11 @@
     "sale_price": {
       "type": "number"
     },
+    "defense_level": {
+      "type": "number",
+      "default": 0,
+      "description": "Fortification level (0-5) protecting this position in PvP gate duels"
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,

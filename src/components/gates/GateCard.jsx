@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DoorOpen, ParkingSquare, Lock, Tag } from 'lucide-react';
+import { DoorOpen, ParkingSquare, Lock, Tag, Bot } from 'lucide-react';
 
 const CAT_COLORS = {
   S: 'border-emerald-500/40 text-emerald-300',
@@ -21,7 +21,8 @@ export default function GateCard({ gate, lang, busy, onBuy, onSell, onUnlist }) 
     <div className={`rounded-lg border p-2.5 flex flex-col gap-1.5 bg-slate-900/70 ${
       gate.status === 'owned_by_me' ? 'border-emerald-600/60' :
       gate.status === 'sold_out' ? 'border-slate-800 opacity-60' :
-      gate.status === 'for_sale' ? 'border-amber-600/60' : 'border-slate-800'
+      gate.status === 'for_sale' ? 'border-amber-600/60' :
+      gate.status === 'ai_owned' ? 'border-purple-800/60' : 'border-slate-800'
     }`}>
       <div className="flex items-center justify-between gap-1">
         <span className="font-mono font-bold text-slate-100 text-sm flex items-center gap-1">
@@ -61,6 +62,11 @@ export default function GateCard({ gate, lang, busy, onBuy, onSell, onUnlist }) 
           className="h-6 text-[10px] font-mono bg-amber-900/50 border border-amber-700 text-amber-200 hover:bg-amber-800">
           {de ? 'Kaufen' : 'Buy'} {fmt(gate.sale_price)} · {gate.owner_company_name}
         </Button>
+      )}
+      {gate.status === 'ai_owned' && (
+        <Badge className="border-purple-500/40 bg-purple-500/10 text-purple-300 text-[9px] justify-center">
+          <Bot className="w-3 h-3 mr-1" />{de ? 'KI-Airline' : 'AI airline'} · {gate.owner_company_name}
+        </Badge>
       )}
       {gate.status === 'sold_out' && (
         <Badge className="border-rose-500/40 bg-rose-500/10 text-rose-300 text-[9px] justify-center">

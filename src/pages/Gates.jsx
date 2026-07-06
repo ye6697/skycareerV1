@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/components/LanguageContext';
 import GateCard from '@/components/gates/GateCard';
 import SellGateDialog from '@/components/gates/SellGateDialog';
-import { DoorOpen, ParkingSquare, Search, Info } from 'lucide-react';
+import { DoorOpen, ParkingSquare, Search, Info, Swords } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 
 const HUBS = ['EDDF', 'EDDM', 'EDDB', 'EDDH', 'EDDL', 'EDDS', 'LOWW', 'LSZH', 'EHAM', 'LFPG', 'EGLL', 'KJFK', 'OMDB'];
 
@@ -82,11 +84,18 @@ export default function Gates() {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <Card className="border-cyan-900/40 bg-slate-950/70 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <DoorOpen className="w-5 h-5 text-cyan-400" />
-          <h1 className="text-lg font-bold font-mono uppercase tracking-widest text-cyan-200">
-            {de ? 'Gates & Vorfeldpositionen' : 'Gates & Apron Stands'}
-          </h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <DoorOpen className="w-5 h-5 text-cyan-400" />
+            <h1 className="text-lg font-bold font-mono uppercase tracking-widest text-cyan-200">
+              {de ? 'Gates & Vorfeldpositionen' : 'Gates & Apron Stands'}
+            </h1>
+          </div>
+          <Link to={createPageUrl('Conquest')}>
+            <Button size="sm" className="h-8 bg-rose-900/60 border border-rose-700 text-rose-200 hover:bg-rose-800 font-mono text-[10px] uppercase">
+              <Swords className="w-3.5 h-3.5 mr-1.5" />{de ? 'Eroberungs-Modus' : 'Conquest mode'}
+            </Button>
+          </Link>
         </div>
         <p className="text-xs text-slate-400 flex items-start gap-1.5">
           <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-cyan-500" />

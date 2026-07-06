@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { buildAircraftModel } from '@/components/flights/aircraftModels3D';
+import { buildCustomAircraftModel } from '@/components/flights/customAircraftModel';
 import { Button } from '@/components/ui/button';
 import { X, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 
@@ -100,10 +100,17 @@ export default function MarketShowroom3D({ listings = [], lang = 'de', getPurcha
       });
       modelRef.current = null;
     }
-    const { group } = buildAircraftModel(`${listing.name} ${listing.type}`);
-    group.position.y = 3.2;
+    // Real GLB aircraft model (with procedural fallback handled internally).
+    const { group, ready } = buildCustomAircraftModel(`${listing.name} ${listing.type}`);
+    group.position.y = 0.1;
     ctx.scene.add(group);
     modelRef.current = group;
+    ready.then(({ bounds }) => {
+      if (modelRef.current !== group) return;
+      // Fit large aircraft onto the showroom stage.
+      const longest = Math.max(bounds.size.x, bounds.size.z);
+      if (longest > 24) group.scale.setScalar(24 / longest);
+    });
   }, [listing?.name, listing?.type, listing?.market_listing_id]);
 
   if (!listing) return null;
