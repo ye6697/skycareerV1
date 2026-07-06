@@ -26,6 +26,7 @@ import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance'
 import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
 import MarketShowroom3D from "@/components/fleet3d/MarketShowroom3D";
+import FleetHangar3D from "@/components/fleet3d/FleetHangar3D";
 import { formatPayoutFactor } from "@/lib/payoutFactors";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
@@ -322,6 +323,7 @@ export default function Fleet() {
   const [selectedPurchaseGateId, setSelectedPurchaseGateId] = useState('');
   const [marketSection, setMarketSection] = useState('new');
   const [show3DMarket, setShow3DMarket] = useState(false);
+  const [hangar3DAircraftId, setHangar3DAircraftId] = useState(null);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
@@ -627,6 +629,7 @@ export default function Fleet() {
   });
 
   const displayAircraft = aircraft;
+  const hangar3DAircraft = aircraft.find((ac) => ac.id === hangar3DAircraftId) || null;
 
   const filteredAircraft = displayAircraft.filter((ac) => {
     if (ac.status === 'sold') return false;
@@ -1166,7 +1169,15 @@ export default function Fleet() {
           <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" layout>
               <AnimatePresence>
                 {filteredAircraft.map((ac) =>
-              <AircraftCard key={ac.id} aircraft={ac} />
+              <div key={ac.id} className="relative">
+                <AircraftCard aircraft={ac} />
+                <button
+                  type="button"
+                  onClick={() => setHangar3DAircraftId(ac.id)}
+                  className="absolute top-1.5 right-1.5 z-10 px-2 py-0.5 rounded border border-purple-600/60 bg-purple-950/85 text-purple-200 text-[9px] font-mono font-bold uppercase hover:bg-purple-800/80 shadow-md">
+                  3D
+                </button>
+              </div>
               )}
               </AnimatePresence>
             </motion.div> :
@@ -1176,6 +1187,10 @@ export default function Fleet() {
           </Card>
         }
       </div>
+
+      {hangar3DAircraft &&
+      <FleetHangar3D aircraft={hangar3DAircraft} onClose={() => setHangar3DAircraftId(null)} />
+      }
     </div>);
 
 }
