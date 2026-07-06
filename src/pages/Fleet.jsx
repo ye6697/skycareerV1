@@ -27,6 +27,8 @@ import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
 import MarketShowroom3D from "@/components/fleet3d/MarketShowroom3D";
 import FleetHangar3D from "@/components/fleet3d/FleetHangar3D";
+import HangarTransferDialog from "@/components/aircraft/HangarTransferDialog";
+import { getVariantMeta, getSizeSpec } from "@/components/contracts/hangarModelCatalog";
 import { formatPayoutFactor } from "@/lib/payoutFactors";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
@@ -99,19 +101,24 @@ export const AIRCRAFT_MARKET_SPECS = [
 { name: "Aérospatiale/BAC Concorde", type: "wide_body", passenger_capacity: 120, cargo_capacity_kg: 2500, fuel_consumption_per_hour: 15000, range_nm: 3900, purchase_price: 395000000, maintenance_cost_per_hour: 5200, level_requirement: 33 },
 { name: "Airbus A380", type: "wide_body", passenger_capacity: 555, cargo_capacity_kg: 18600, fuel_consumption_per_hour: 12500, range_nm: 8000, purchase_price: 440000000, maintenance_cost_per_hour: 5000, level_requirement: 36 }];
 
-// Gates replace hangars: which aircraft types fit on which gate size (fallback if gate has no allowed_types).
-const GATE_FALLBACK_ALLOWED = {
-  S: ['small_prop', 'turboprop'],
-  M: ['small_prop', 'turboprop', 'regional_jet'],
-  L: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'cargo'],
-  XL: ['small_prop', 'turboprop', 'regional_jet', 'narrow_body', 'wide_body', 'cargo']
-};
-
-function getGateAllowedTypes(gate) {
-  if (Array.isArray(gate?.allowed_types) && gate.allowed_types.length > 0) {
-    return gate.allowed_types.map((type) => String(type || '').trim().toLowerCase());
+// Hangar system: which aircraft types fit into a hangar and how many slots it has.
+function getHangarAllowedTypes(hangar) {
+  if (Array.isArray(hangar?.allowed_types) && hangar.allowed_types.length > 0) {
+    return hangar.allowed_types.map((type) => String(type || '').trim().toLowerCase());
   }
-  return GATE_FALLBACK_ALLOWED[String(gate?.size_category || 'S').toUpperCase()] || GATE_FALLBACK_ALLOWED.S;
+  const variant = getVariantMeta(hangar?.model_variant);
+  if (Array.isArray(variant?.allowedTypes) && variant.allowedTypes.length > 0) return variant.allowedTypes;
+  return getSizeSpec(hangar?.size)?.allowedTypes || ['small_prop'];
+}
+
+function getHangarSlots(hangar) {
+  const explicit = Number(hangar?.slots);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  return getVariantMeta(hangar?.model_variant)?.slots || getSizeSpec(hangar?.size)?.slots || 1;
+}
+
+function getHangarLabel(hangar) {
+  return getVariantMeta(hangar?.model_variant)?.label || String(hangar?.size || 'Hangar');
 }
 
 function normIcao(value) {
@@ -320,10 +327,11 @@ export default function Fleet() {
   const [activeTab, setActiveTab] = useState('all');
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
-  const [selectedPurchaseGateId, setSelectedPurchaseGateId] = useState('');
+  const [selectedPurchaseHangarId, setSelectedPurchaseHangarId] = useState('');
   const [marketSection, setMarketSection] = useState('new');
   const [show3DMarket, setShow3DMarket] = useState(false);
   const [hangar3DAircraftId, setHangar3DAircraftId] = useState(null);
+  const [hangarTransferAircraftId, setHangarTransferAircraftId] = useState(null);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
@@ -375,16 +383,11 @@ export default function Fleet() {
     refetchOnWindowFocus: false
   });
 
-  // Owned gates replace the old hangar system: every aircraft parks at one owned gate.
-  // Loaded via the gateMarket backend function (same as the Gates page).
-  const { data: ownedGatesData } = useQuery({
-    queryKey: ['ownedGates', company?.id],
-    queryFn: async () => (await base44.functions.invoke('gateMarket', { action: 'myGates' })).data,
-    enabled: !!company?.id,
-    staleTime: 60000,
-    refetchOnWindowFocus: false
-  });
-  const ownedGates = React.useMemo(() => ownedGatesData?.gates || [], [ownedGatesData]);
+  // Owned hangars (stored on the company record) - every aircraft parks in one hangar.
+  const companyHangars = React.useMemo(
+    () => (Array.isArray(company?.hangars) ? company.hangars : []),
+    [company]
+  );
 
   const loadCurrentCompany = React.useCallback(async () => {
     if (company?.id) return company;
@@ -486,20 +489,20 @@ export default function Fleet() {
     refetchOnWindowFocus: false
   });
 
-  // Gates that are compatible with the given aircraft type and not occupied by another active aircraft.
-  const getFreeGatesForType = React.useCallback((aircraftType) => {
+  // Hangars that fit the given aircraft type and still have a free slot.
+  const getFreeHangarsForType = React.useCallback((aircraftType) => {
     const normalizedType = String(aircraftType || '').trim().toLowerCase();
     if (!normalizedType) return [];
-    const occupiedGateIds = new Set(
-      aircraft
-        .filter((entry) => isAircraftActiveInFleet(entry))
-        .map((entry) => String(entry?.hangar_id || '').trim())
-        .filter(Boolean)
-    );
-    return (ownedGates || []).filter(
-      (gate) => getGateAllowedTypes(gate).includes(normalizedType) && !occupiedGateIds.has(String(gate.id))
-    );
-  }, [aircraft, ownedGates]);
+    const occupancy = {};
+    aircraft.filter((entry) => isAircraftActiveInFleet(entry)).forEach((entry) => {
+      const hid = String(entry?.hangar_id || '').trim();
+      if (hid) occupancy[hid] = (occupancy[hid] || 0) + 1;
+    });
+    return companyHangars.filter((hangar) => {
+      if (!getHangarAllowedTypes(hangar).includes(normalizedType)) return false;
+      return (occupancy[String(hangar.id)] || 0) < getHangarSlots(hangar);
+    });
+  }, [aircraft, companyHangars]);
 
   const purchaseMutation = useMutation({
     mutationFn: async (aircraftData) => {
@@ -521,16 +524,16 @@ export default function Fleet() {
       const defaultInsurance = getInsurancePlanConfig(DEFAULT_INSURANCE_PLAN);
       const finalPurchasePrice = Number(aircraftData.purchase_price || specs.purchase_price || 0);
 
-      // Gate assignment (gates replace hangars).
-      const selectedGateId = String(aircraftData?.selected_gate_id || '').trim();
-      const freeGates = getFreeGatesForType(specs.type);
-      const assignedGate =
-        freeGates.find((gate) => String(gate.id) === selectedGateId) || null;
-      if (!assignedGate) {
+      // Hangar assignment: every aircraft needs a free hangar slot.
+      const selectedHangarId = String(aircraftData?.selected_hangar_id || '').trim();
+      const freeHangars = getFreeHangarsForType(specs.type);
+      const assignedHangar =
+        freeHangars.find((hangar) => String(hangar.id) === selectedHangarId) || null;
+      if (!assignedHangar) {
         throw new Error(
           lang === 'de'
-            ? `Bitte waehle ein freies, kompatibles Gate fuer ${specs.type}.`
-            : `Please select a free, compatible gate for ${specs.type}.`
+            ? `Bitte waehle einen freien, kompatiblen Hangar fuer ${specs.type}.`
+            : `Please select a free, compatible hangar for ${specs.type}.`
         );
       }
 
@@ -600,8 +603,9 @@ export default function Fleet() {
         used_wear_avg: Number(aircraftData.used_wear_avg || 0),
         used_wear_peak: Number(aircraftData.used_wear_peak || 0),
         used_permanent_avg: Number(aircraftData.used_permanent_avg || persistedPermanentAvg || 0),
-        hangar_id: String(assignedGate.id),
-        hangar_airport: normIcao(assignedGate.airport_icao)
+        hangar_id: String(assignedHangar.id),
+        hangar_airport: normIcao(assignedHangar.airport_icao),
+        hangar_model_variant: assignedHangar.model_variant || null
       });
 
       if (company) {
@@ -621,10 +625,9 @@ export default function Fleet() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
-      queryClient.invalidateQueries({ queryKey: ['ownedGates'] });
       setIsPurchaseDialogOpen(false);
       setSelectedAircraft(null);
-      setSelectedPurchaseGateId('');
+      setSelectedPurchaseHangarId('');
     }
   });
 
@@ -649,19 +652,19 @@ export default function Fleet() {
     cargo: t('cargo_type', lang)
   };
 
-  const purchaseGateOptions = React.useMemo(() => {
+  const purchaseHangarOptions = React.useMemo(() => {
     if (!selectedAircraft) return [];
-    return getFreeGatesForType(selectedAircraft.type);
-  }, [getFreeGatesForType, selectedAircraft]);
+    return getFreeHangarsForType(selectedAircraft.type);
+  }, [getFreeHangarsForType, selectedAircraft]);
 
-  const selectedPurchaseGate = React.useMemo(
-    () => purchaseGateOptions.find((gate) => String(gate.id) === selectedPurchaseGateId) || null,
-    [purchaseGateOptions, selectedPurchaseGateId]
+  const selectedPurchaseHangar = React.useMemo(
+    () => purchaseHangarOptions.find((gate) => String(gate.id) === selectedPurchaseHangarId) || null,
+    [purchaseHangarOptions, selectedPurchaseHangarId]
   );
 
   const beginPurchaseFlow = React.useCallback((aircraftListing) => {
     setSelectedAircraft(aircraftListing);
-    setSelectedPurchaseGateId('');
+    setSelectedPurchaseHangarId('');
   }, []);
 
   const canAfford = (price) => (company?.balance || 0) >= price;
@@ -690,8 +693,8 @@ export default function Fleet() {
               <div className="text-cyan-300 font-bold text-sm">{filteredAircraft.length}</div>
             </Card>
             <Card className="p-2 bg-slate-900/80 border-amber-900/50">
-              <div className="text-amber-700">{lang === 'de' ? 'Gates' : 'Gates'}</div>
-              <div className="text-amber-300 font-bold text-sm">{ownedGates.length}</div>
+              <div className="text-amber-700">{lang === 'de' ? 'Hangars' : 'Hangars'}</div>
+              <div className="text-amber-300 font-bold text-sm">{companyHangars.length}</div>
             </Card>
             <Card className="p-2 bg-slate-900/80 border-emerald-900/50">
               <div className="text-emerald-700">{lang === 'de' ? 'Budget' : 'Budget'}</div>
@@ -719,7 +722,7 @@ export default function Fleet() {
               if (!open) {
                 setMaintenancePreviewListing(null);
                 setSelectedAircraft(null);
-                setSelectedPurchaseGateId('');
+                setSelectedPurchaseHangarId('');
               }
             }}>
 
@@ -793,7 +796,7 @@ export default function Fleet() {
                 onClick={(event) => {
                   if (event.target === event.currentTarget) {
                     setSelectedAircraft(null);
-                    setSelectedPurchaseGateId('');
+                    setSelectedPurchaseHangarId('');
                   }
                 }}>
                 <div className="w-full max-w-md rounded-lg border border-emerald-700/60 bg-slate-900 p-4 space-y-3 font-mono">
@@ -808,25 +811,25 @@ export default function Fleet() {
                   <p className="text-sm font-bold text-white uppercase">{selectedAircraft.name}</p>
                   <div>
                     <p className="mb-1 text-[10px] uppercase text-slate-400">
-                      {lang === 'de' ? 'Gate zuweisen (Pflicht)' : 'Assign gate (required)'}
+                      {lang === 'de' ? 'Hangar zuweisen (Pflicht)' : 'Assign hangar (required)'}
                     </p>
                     <select
-                      value={selectedPurchaseGateId}
-                      onChange={(event) => setSelectedPurchaseGateId(event.target.value)}
+                      value={selectedPurchaseHangarId}
+                      onChange={(event) => setSelectedPurchaseHangarId(event.target.value)}
                       className="h-9 w-full rounded border border-emerald-900/60 bg-slate-950/90 px-2 text-xs text-emerald-100">
-                      <option value="">{lang === 'de' ? '-- Gate waehlen --' : '-- Select gate --'}</option>
-                      {purchaseGateOptions.map((gate) => (
-                        <option key={gate.id} value={String(gate.id)}>
-                          {normIcao(gate.airport_icao)} {gate.gate_code} · {gate.size_category}{gate.position_type === 'apron' ? (lang === 'de' ? ' · Vorfeld' : ' · Apron') : ''}
+                      <option value="">{lang === 'de' ? '-- Hangar waehlen --' : '-- Select hangar --'}</option>
+                      {purchaseHangarOptions.map((hangar) => (
+                        <option key={hangar.id} value={String(hangar.id)}>
+                          {normIcao(hangar.airport_icao)} · {getHangarLabel(hangar)}
                         </option>
                       ))}
                     </select>
                   </div>
-                  {purchaseGateOptions.length === 0 &&
+                  {purchaseHangarOptions.length === 0 &&
                   <p className="text-[10px] text-amber-300">
                     {lang === 'de'
-                      ? 'Kein freies, kompatibles Gate vorhanden. Kaufe ein passendes Gate im Gate-Markt.'
-                      : 'No free, compatible gate available. Buy a suitable gate in the gate market.'}
+                      ? 'Kein freier, kompatibler Hangar-Platz vorhanden.'
+                      : 'No free, compatible hangar slot available.'}
                   </p>
                   }
                   {purchaseMutation.isError &&
@@ -836,7 +839,7 @@ export default function Fleet() {
                     <Button
                       onClick={() => {
                         setSelectedAircraft(null);
-                        setSelectedPurchaseGateId('');
+                        setSelectedPurchaseHangarId('');
                       }}
                       size="sm"
                       className="h-9 flex-1 bg-slate-800 text-slate-300 hover:bg-slate-700">
@@ -845,9 +848,9 @@ export default function Fleet() {
                     <Button
                       onClick={() => purchaseMutation.mutate({
                         ...selectedAircraft,
-                        selected_gate_id: selectedPurchaseGateId
+                        selected_hangar_id: selectedPurchaseHangarId
                       })}
-                      disabled={!selectedPurchaseGate || purchaseMutation.isPending}
+                      disabled={!selectedPurchaseHangar || purchaseMutation.isPending}
                       size="sm"
                       className="h-9 flex-1 bg-emerald-700 text-white hover:bg-emerald-600 disabled:bg-slate-700">
                       {purchaseMutation.isPending ? t('buying', lang) : t('buy', lang)}
@@ -871,9 +874,9 @@ export default function Fleet() {
                 {marketAircraft.map((ac, index) => {
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                   const hasBalance = canAfford(ac.purchase_price);
-                  const hasGateCapacity = getFreeGatesForType(ac.type).length > 0;
+                  const hasHangarCapacity = getFreeHangarsForType(ac.type).length > 0;
                   const hasRating = hasRatingFor(ac);
-                  const isPurchasable = hasLevel && hasBalance && hasGateCapacity && hasRating;
+                  const isPurchasable = hasLevel && hasBalance && hasHangarCapacity && hasRating;
                   const isBuyingThis = purchaseMutation.isPending && (
                   ac.market_listing_id && selectedAircraft?.market_listing_id === ac.market_listing_id ||
                   !ac.market_listing_id && selectedAircraft?.name === ac.name);
@@ -982,9 +985,9 @@ export default function Fleet() {
                               </div>
                             }
                             {!hasLevel && <p className="text-[9px] text-amber-500 text-center">{t('level_required', lang).replace('{0}', ac.level_requirement)}</p>}
-                            {hasLevel && hasBalance && !hasGateCapacity &&
+                            {hasLevel && hasBalance && !hasHangarCapacity &&
                             <p className="text-[9px] text-amber-500 text-center">
-                              {lang === 'de' ? 'Kein freies, passendes Gate. Kaufe eins im Gate-Markt.' : 'No free compatible gate. Buy one in the gate market.'}
+                              {lang === 'de' ? 'Kein freier Hangar-Platz fuer diesen Typ.' : 'No free hangar slot for this type.'}
                             </p>
                             }
                             {!hasRating ? (
@@ -1117,14 +1120,14 @@ export default function Fleet() {
                 getPurchaseState={(ac) => {
                   const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
                   const hasBalance = canAfford(ac.purchase_price);
-                  const hasGate = getFreeGatesForType(ac.type).length > 0;
+                  const hasHangar = getFreeHangarsForType(ac.type).length > 0;
                   const hasRating = hasRatingFor(ac);
                   let reason = '';
                   if (!hasLevel) reason = t('level_required', lang).replace('{0}', ac.level_requirement);
                   else if (!hasBalance) reason = lang === 'de' ? 'Nicht genug Guthaben.' : 'Not enough balance.';
-                  else if (!hasGate) reason = lang === 'de' ? 'Kein freies, passendes Gate. Kaufe eins im Gate-Markt.' : 'No free compatible gate. Buy one in the gate market.';
+                  else if (!hasHangar) reason = lang === 'de' ? 'Kein freier Hangar-Platz fuer diesen Typ.' : 'No free hangar slot for this type.';
                   else if (!hasRating) reason = lang === 'de' ? 'Type-Rating erforderlich.' : 'Type-rating required.';
-                  return { ok: hasLevel && hasBalance && hasGate && hasRating, reason };
+                  return { ok: hasLevel && hasBalance && hasHangar && hasRating, reason };
                 }}
                 onBuy={(ac) => beginPurchaseFlow(ac)}
                 onClose={() => setShow3DMarket(false)} />
@@ -1177,6 +1180,12 @@ export default function Fleet() {
                   className="absolute top-1.5 right-1.5 z-10 px-2 py-0.5 rounded border border-purple-600/60 bg-purple-950/85 text-purple-200 text-[9px] font-mono font-bold uppercase hover:bg-purple-800/80 shadow-md">
                   3D
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setHangarTransferAircraftId(ac.id)}
+                  className="absolute top-1.5 right-10 z-10 px-2 py-0.5 rounded border border-cyan-600/60 bg-cyan-950/85 text-cyan-200 text-[9px] font-mono font-bold uppercase hover:bg-cyan-800/80 shadow-md">
+                  HGR
+                </button>
               </div>
               )}
               </AnimatePresence>
@@ -1190,6 +1199,15 @@ export default function Fleet() {
 
       {hangar3DAircraft &&
       <FleetHangar3D aircraft={hangar3DAircraft} onClose={() => setHangar3DAircraftId(null)} />
+      }
+
+      {hangarTransferAircraftId &&
+      <HangarTransferDialog
+        aircraft={aircraft.find((ac) => ac.id === hangarTransferAircraftId) || null}
+        hangars={companyHangars}
+        fleet={aircraft}
+        companyId={company?.id}
+        onClose={() => setHangarTransferAircraftId(null)} />
       }
     </div>);
 
