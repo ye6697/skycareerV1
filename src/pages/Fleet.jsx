@@ -25,8 +25,8 @@ import { t } from "@/components/i18n/translations";
 import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance';
 import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
-import MarketShowroom3D from "@/components/fleet3d/MarketShowroom3D";
-import FleetHangar3D from "@/components/fleet3d/FleetHangar3D";
+import MarketHangar3DView from "@/components/fleet3d/MarketHangar3DView";
+import Fleet3DView from "@/components/fleet3d/Fleet3DView";
 import { formatPayoutFactor } from "@/lib/payoutFactors";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
 
@@ -322,13 +322,25 @@ export default function Fleet() {
   const [selectedAircraft, setSelectedAircraft] = useState(null);
   const [selectedPurchaseGateId, setSelectedPurchaseGateId] = useState('');
   const [marketSection, setMarketSection] = useState('new');
-  const [show3DMarket, setShow3DMarket] = useState(false);
-  const [hangar3DAircraftId, setHangar3DAircraftId] = useState(null);
+  const [marketViewMode, setMarketViewMode] = useState('3d');
+  const [is3DMaintenanceOpen, setIs3DMaintenanceOpen] = useState(false);
+  const [is3DMaintenanceAircraftId, setIs3DMaintenanceAircraftId] = useState(null);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
   const [typeRatingPopupAircraft, setTypeRatingPopupAircraft] = useState(null);
   const usedMarketSeed = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  // Listen for "open 3D maintenance for this aircraft" events from AircraftCard.
+  React.useEffect(() => {
+    const handler = (e) => {
+      const acId = e?.detail?.aircraftId || null;
+      setIs3DMaintenanceAircraftId(acId);
+      setIs3DMaintenanceOpen(true);
+    };
+    window.addEventListener('fleet3d-open', handler);
+    return () => window.removeEventListener('fleet3d-open', handler);
+  }, []);
 
   const resolveUserCompanyId = React.useCallback((user) =>
   user?.company_id ||
@@ -629,7 +641,6 @@ export default function Fleet() {
   });
 
   const displayAircraft = aircraft;
-  const hangar3DAircraft = aircraft.find((ac) => ac.id === hangar3DAircraftId) || null;
 
   const filteredAircraft = displayAircraft.filter((ac) => {
     if (ac.status === 'sold') return false;
@@ -669,6 +680,16 @@ export default function Fleet() {
     (ac) => userHasTypeRating(currentUser, ac?.name),
     [currentUser]
   );
+
+  const canPurchase = (ac) =>
+    (company?.level || 1) >= (ac.level_requirement || 1) &&
+    canAfford(ac.purchase_price) &&
+    getFreeGatesForType(ac.type).length > 0 &&
+    hasRatingFor(ac);
+
+  // Gates mapped into the shape the 3D market view expects for its parking selector.
+  const getPurchaseGateOptionsForListing = (ac) =>
+    getFreeGatesForType(ac.type).map((gate) => ({ ...gate, usedSlots: 0, slots: 1 }));
 
   const marketAircraft = (marketSection === 'used' ? usedMarketInventory : AIRCRAFT_MARKET_SPECS).
   filter((ac) => {
@@ -728,12 +749,18 @@ export default function Fleet() {
                 + {t('buy_aircraft', lang)}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-800 shadow-2xl">
-              <DialogHeader>
+            <DialogContent
+              className={
+                marketViewMode === '3d'
+                  ? 'w-screen h-screen max-w-none max-h-screen overflow-hidden bg-slate-950 border-0 rounded-none p-0 m-0 left-0 top-0 !translate-x-0 !translate-y-0'
+                  : 'max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-800 shadow-2xl'
+              }
+            >
+              {marketViewMode !== '3d' && <DialogHeader>
                 <DialogTitle className="text-xl font-mono text-cyan-400 uppercase">{t('aircraft_market', lang)}</DialogTitle>
                 <p className="text-[10px] font-mono text-cyan-600/70 uppercase">{t('choose_next_aircraft', lang)}</p>
-              </DialogHeader>
-              <div className="flex items-center gap-2 mb-2">
+              </DialogHeader>}
+              {marketViewMode !== '3d' && <div className="flex items-center gap-2 mb-2">
                 <Button
                   size="sm"
                   className={`h-7 text-[10px] ${marketSection === 'new' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
@@ -749,14 +776,22 @@ export default function Fleet() {
                   onClick={() => setMarketSection('used')}>
                   {lang === 'de' ? 'Gebrauchtmarkt' : 'Used market'}
                 </Button>
-                <Button
-                  size="sm"
-                  className="h-7 text-[10px] bg-purple-800/70 text-purple-100 hover:bg-purple-700 border border-purple-600/50"
-                  onClick={() => setShow3DMarket(true)}>
-                  {lang === 'de' ? '3D Showroom' : '3D Showroom'}
-                </Button>
-              </div>
-              {marketSection === 'used' &&
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    className={`h-7 text-[10px] ${marketViewMode === '3d' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+                    onClick={() => setMarketViewMode('3d')}>
+                    🛩 3D
+                  </Button>
+                  <Button
+                    size="sm"
+                    className={`h-7 text-[10px] ${marketViewMode === 'grid' ? 'bg-cyan-700 text-white' : 'bg-slate-800 text-slate-300'}`}
+                    onClick={() => setMarketViewMode('grid')}>
+                    ▦ GRID
+                  </Button>
+                </div>
+              </div>}
+              {marketViewMode !== '3d' && marketSection === 'used' &&
               <div className="mb-3 p-2 bg-amber-950/20 border border-amber-900/40 rounded">
                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                      <p className="text-[10px] text-amber-300 font-mono uppercase">
@@ -787,7 +822,7 @@ export default function Fleet() {
                    </div>
                  </div>
               }
-              {selectedAircraft &&
+              {selectedAircraft && marketViewMode !== '3d' &&
               <div
                 className="fixed inset-0 z-[140] bg-black/80 flex items-center justify-center p-4"
                 onClick={(event) => {
@@ -857,6 +892,43 @@ export default function Fleet() {
               </div>
               }
 
+              {marketViewMode === '3d' ?
+              <MarketHangar3DView
+                listings={marketAircraft}
+                lang={lang}
+                company={company}
+                marketSection={marketSection}
+                usedConditionFilter={usedConditionFilter}
+                usedConditionProfiles={USED_CONDITION_PROFILES}
+                onSetMarketSection={(nextSection) => {
+                  setMarketSection(nextSection);
+                  if (nextSection === 'new') setUsedConditionFilter('all');
+                }}
+                onSetMarketViewMode={setMarketViewMode}
+                onSetUsedConditionFilter={setUsedConditionFilter}
+                onClose={() => setIsPurchaseDialogOpen(false)}
+                canAfford={canAfford}
+                canPurchase={canPurchase}
+                onBuy={beginPurchaseFlow}
+                onConfirmBuy={(ac, selectedGateIdFromView) => {
+                  const gateIdFrom3d = String(selectedGateIdFromView || '').trim();
+                  const selectedGate = getPurchaseGateOptionsForListing(ac).find(
+                    (gate) => String(gate.id) === gateIdFrom3d
+                  ) || null;
+                  if (!selectedGate) return;
+                  setSelectedAircraft(ac);
+                  setSelectedPurchaseGateId(gateIdFrom3d);
+                  purchaseMutation.mutate({
+                    ...ac,
+                    selected_gate_id: gateIdFrom3d
+                  });
+                }}
+                getPurchaseHangarOptions={getPurchaseGateOptionsForListing}
+                isBuying={purchaseMutation.isPending}
+                selectedListingId={selectedAircraft?.market_listing_id || selectedAircraft?.name}
+                currentUser={currentUser}
+                onRequestTypeRating={(ac) => setTypeRatingPopupAircraft(ac)}
+                interactionsLocked={!!typeRatingPopupAircraft} /> :
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {company &&
                 <motion.div
@@ -1010,7 +1082,7 @@ export default function Fleet() {
                     </motion.div>);
 
                 })}
-              </div>
+              </div>}
 
               {maintenancePreviewListing &&
               <div
@@ -1110,31 +1182,11 @@ export default function Fleet() {
                 </div>
               }
 
-              {show3DMarket &&
-              <MarketShowroom3D
-                listings={marketAircraft}
-                lang={lang}
-                getPurchaseState={(ac) => {
-                  const hasLevel = (company?.level || 1) >= (ac.level_requirement || 1);
-                  const hasBalance = canAfford(ac.purchase_price);
-                  const hasGate = getFreeGatesForType(ac.type).length > 0;
-                  const hasRating = hasRatingFor(ac);
-                  let reason = '';
-                  if (!hasLevel) reason = t('level_required', lang).replace('{0}', ac.level_requirement);
-                  else if (!hasBalance) reason = lang === 'de' ? 'Nicht genug Guthaben.' : 'Not enough balance.';
-                  else if (!hasGate) reason = lang === 'de' ? 'Kein freies, passendes Gate. Kaufe eins im Gate-Markt.' : 'No free compatible gate. Buy one in the gate market.';
-                  else if (!hasRating) reason = lang === 'de' ? 'Type-Rating erforderlich.' : 'Type-rating required.';
-                  return { ok: hasLevel && hasBalance && hasGate && hasRating, reason };
-                }}
-                onBuy={(ac) => beginPurchaseFlow(ac)}
-                onClose={() => setShow3DMarket(false)} />
-              }
-
-              <DialogFooter>
+              {marketViewMode !== '3d' && <DialogFooter>
                 <Button onClick={() => setIsPurchaseDialogOpen(false)} className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-mono h-8">
                   {t('close', lang).toUpperCase()}
                 </Button>
-              </DialogFooter>
+              </DialogFooter>}
             </DialogContent>
           </Dialog>
         </div>
@@ -1173,7 +1225,7 @@ export default function Fleet() {
                 <AircraftCard aircraft={ac} />
                 <button
                   type="button"
-                  onClick={() => setHangar3DAircraftId(ac.id)}
+                  onClick={() => { setIs3DMaintenanceAircraftId(ac.id); setIs3DMaintenanceOpen(true); }}
                   className="absolute top-1.5 right-1.5 z-10 px-2 py-0.5 rounded border border-purple-600/60 bg-purple-950/85 text-purple-200 text-[9px] font-mono font-bold uppercase hover:bg-purple-800/80 shadow-md">
                   3D
                 </button>
@@ -1188,9 +1240,17 @@ export default function Fleet() {
         }
       </div>
 
-      {hangar3DAircraft &&
-      <FleetHangar3D aircraft={hangar3DAircraft} onClose={() => setHangar3DAircraftId(null)} />
-      }
+      {is3DMaintenanceOpen && (
+        <div className="fixed inset-0 z-[300]">
+          <button
+            onClick={() => { setIs3DMaintenanceOpen(false); setIs3DMaintenanceAircraftId(null); }}
+            className="absolute top-3 left-3 z-[310] px-3 py-1.5 text-[11px] font-mono uppercase border border-cyan-700 bg-cyan-950/80 text-cyan-300 rounded hover:bg-cyan-900 backdrop-blur-sm"
+          >
+            ◀ {lang === 'de' ? 'Schließen' : 'Close'}
+          </button>
+          <Fleet3DView aircraft={displayAircraft} initialAircraftId={is3DMaintenanceAircraftId} />
+        </div>
+      )}
     </div>);
 
 }
