@@ -656,12 +656,11 @@ export default function Contracts() {
     if (!contract) return null;
     const departure = normIcao(contract.departure_airport);
     const pool = selectedAircraft ? [selectedAircraft] : availableAircraft;
+    const compatible = pool.filter((aircraft) => isContractCompatibleWithAircraft(contract, aircraft));
     return (
-      pool.find(
-        (aircraft) =>
-          normIcao(aircraft.hangar_airport) === departure &&
-          isContractCompatibleWithAircraft(contract, aircraft)
-      ) || null
+      compatible.find((aircraft) => normIcao(aircraft.hangar_airport) === departure)
+      || compatible[0]
+      || null
     );
   }
 
@@ -1221,6 +1220,11 @@ export default function Contracts() {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       const aircraft = getContractAircraft(contract);
       if (aircraft && isPassengerContract(contract)) {
+        // The map can run in native fullscreen; a dialog portal would be hidden
+        // behind it, so leave fullscreen before showing the booking animation.
+        if (typeof document !== "undefined" && document.fullscreenElement) {
+          document.exitFullscreen?.();
+        }
         setBookingSession({ contract, aircraft });
         return;
       }
