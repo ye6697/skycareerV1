@@ -38,6 +38,8 @@ import { useLanguage } from "@/components/LanguageContext";
 import { getAirportCoords, getAllAirportCoords, isRealAirportIcao } from "@/utils/airportCoordinates";
 import { useToast } from "@/components/ui/use-toast";
 import { getAgreementFee, getAgreementInfo } from "@/lib/airportAgreements";
+import { getPayoutRange, isPassengerContract } from "@/lib/cabinConfig";
+import BookingAnimationDialog from "@/components/flights/BookingAnimationDialog";
 
 const HANGAR_MARKET = [
   { airport_icao: "EDDF", label: "Frankfurt" },
@@ -647,6 +649,28 @@ export default function Contracts() {
     },
   });
 
+  // Aircraft used for payout range / booking of a given contract.
+  const [bookingSession, setBookingSession] = useState(null);
+
+  function getContractAircraft(contract) {
+    if (!contract) return null;
+    const departure = normIcao(contract.departure_airport);
+    const pool = selectedAircraft ? [selectedAircraft] : availableAircraft;
+    return (
+      pool.find(
+        (aircraft) =>
+          normIcao(aircraft.hangar_airport) === departure &&
+          isContractCompatibleWithAircraft(contract, aircraft)
+      ) || null
+    );
+  }
+
+  function getContractPayoutRange(contract) {
+    const aircraft = getContractAircraft(contract);
+    if (!aircraft || !isPassengerContract(contract)) return null;
+    return { ...getPayoutRange({ contract, aircraft }), aircraftName: aircraft.name || aircraft.registration };
+  }
+
   const allContracts = useMemo(() => {
     return (pageData?.contracts || []).slice().sort((a, b) => {
       return new Date(b.created_date) - new Date(a.created_date);
@@ -1190,10 +1214,16 @@ export default function Contracts() {
   const acceptContractMutation = useMutation({
     mutationFn: async (contract) => {
       await base44.functions.invoke("acceptContract", { contractId: contract.id });
+      return contract;
     },
-    onSuccess: () => {
+    onSuccess: (contract) => {
       queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      const aircraft = getContractAircraft(contract);
+      if (aircraft && isPassengerContract(contract)) {
+        setBookingSession({ contract, aircraft });
+        return;
+      }
       navigate(createPageUrl("ActiveFlights"));
     },
     onError: (error) => {
@@ -1636,9 +1666,12 @@ export default function Contracts() {
                 <h2 className="mb-2 text-sm font-mono uppercase tracking-[0.18em] text-cyan-200">{lang === "de" ? "Kompatible Vertraege" : "Compatible Contracts"} ({filteredCompatibleContracts.length})</h2>
                 <motion.div layout className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
                   <AnimatePresence>
-                    {filteredCompatibleContracts.map((contract) => (
-                      <ContractCard key={contract.id} contract={contract} companyReputation={company?.reputation} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} arrivalAgreementOk={agreementAirportSet.has(normIcao(contract.arrival_airport))} agreementFee={getAgreementFee(contract.arrival_airport)} agreementTierLabel={getAgreementInfo(contract.arrival_airport).label[lang === "de" ? "de" : "en"]} onBuyAgreement={(selected) => buyAgreementMutation.mutate(selected)} isBuyingAgreement={buyAgreementMutation.isPending} />
-                    ))}
+                    {filteredCompatibleContracts.map((contract) => {
+                      const range = getContractPayoutRange(contract);
+                      return (
+                      <ContractCard key={contract.id} contract={contract} companyReputation={company?.reputation} payoutRange={range} payoutAircraftName={range?.aircraftName || ""} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} arrivalAgreementOk={agreementAirportSet.has(normIcao(contract.arrival_airport))} agreementFee={getAgreementFee(contract.arrival_airport)} agreementTierLabel={getAgreementInfo(contract.arrival_airport).label[lang === "de" ? "de" : "en"]} onBuyAgreement={(selected) => buyAgreementMutation.mutate(selected)} isBuyingAgreement={buyAgreementMutation.isPending} />
+                      );
+                    })}
                   </AnimatePresence>
                 </motion.div>
               </>
@@ -1724,6 +1757,38 @@ export default function Contracts() {
           lang={lang}
         />
       )}
+
+      <BookingAnimationDialog
+        open={!!bookingSession}
+        contract={bookingSession?.contract}
+        aircraft={bookingSession?.aircraft}
+        company={company}
+        onFinished={async (booking) => {
+          const contract = bookingSession?.contract;
+          const aircraft = bookingSession?.aircraft;
+          if (!contract || !aircraft) return;
+          await base44.entities.Contract.update(contract.id, {
+            reference_payout: Number(contract.payout || 0),
+            payout: booking.revenue.total,
+            bonus_potential: Math.round(booking.revenue.total * 0.3),
+            booking: {
+              aircraft_id: aircraft.id,
+              economy_booked: booking.economy_booked,
+              business_booked: booking.business_booked,
+              first_booked: booking.first_booked,
+              total_booked: booking.total_booked,
+              load_factor: booking.load_factor,
+              seats: booking.seats,
+              revenue: booking.revenue,
+            },
+          });
+          queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
+        }}
+        onClose={() => {
+          setBookingSession(null);
+          navigate(createPageUrl("ActiveFlights"));
+        }}
+      />
 
       {selectedContract && (
         <div className="rounded-xl border border-cyan-900/40 bg-slate-950/80 p-2.5 text-xs font-mono text-cyan-100">

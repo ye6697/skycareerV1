@@ -54,6 +54,40 @@
       "type": "number",
       "description": "Contract payout in dollars"
     },
+    "reference_payout": {
+      "type": "number",
+      "description": "Original full-load reference payout before booking was resolved"
+    },
+    "booking": {
+      "type": "object",
+      "description": "Resolved seat booking snapshot (set after the contract was accepted)",
+      "properties": {
+        "aircraft_id": {
+          "type": "string"
+        },
+        "economy_booked": {
+          "type": "number"
+        },
+        "business_booked": {
+          "type": "number"
+        },
+        "first_booked": {
+          "type": "number"
+        },
+        "total_booked": {
+          "type": "number"
+        },
+        "load_factor": {
+          "type": "number"
+        },
+        "seats": {
+          "type": "object"
+        },
+        "revenue": {
+          "type": "object"
+        }
+      }
+    },
     "deadline": {
       "type": "string",
       "format": "date-time",

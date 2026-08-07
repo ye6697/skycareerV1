@@ -245,14 +245,15 @@ const RAW_CATEGORY_PAYOUT_FALLBACK: Record<string, number> = {
   cargo: 42.0,
 };
 
-const PAYOUT_BASE_MULTIPLIER = 12;
-const PAYOUT_FACTOR_EXPONENT = 1.45;
+// Model quality factor: better/newer models earn a moderate premium per seat.
+// Deliberately flat (no exponential blow-up) — the payout scale comes from
+// realistic per-passenger / per-kg / per-NM revenue instead.
+const PAYOUT_MODEL_WEIGHT = 0.05;
 
 function curvePayoutFactor(rawFactor: number): number {
   const factor = Number(rawFactor);
   if (!Number.isFinite(factor) || factor <= 0) return 1.0;
-  if (factor <= 1) return 1.0;
-  return Math.round(Math.pow(factor, PAYOUT_FACTOR_EXPONENT) * 10) / 10;
+  return Math.round((1 + factor * PAYOUT_MODEL_WEIGHT) * 100) / 100;
 }
 
 function resolvePayoutMultiplier(aircraftName?: string | null, aircraftType?: string | null): number {
@@ -261,7 +262,7 @@ function resolvePayoutMultiplier(aircraftName?: string | null, aircraftType?: st
     Number.isFinite(fromModel) && fromModel > 0
       ? fromModel
       : (RAW_CATEGORY_PAYOUT_FALLBACK[String(aircraftType || '').trim().toLowerCase()] || 1.0);
-  return curvePayoutFactor(factor) * PAYOUT_BASE_MULTIPLIER;
+  return curvePayoutFactor(factor);
 }
 
 const contractTypes = ["passenger", "cargo", "charter", "emergency"];
@@ -702,7 +703,14 @@ function generateContract(companyId, aircraftType, companyLevel, options = {}) {
   // company at the hangar, so the payout scales with the model factor.
   const tierMultiplier = resolvePayoutMultiplier(options.aircraftName, aircraftType.type);
 
-  const basePayout = (distance * 14 + passengers * 220 + cargo * 2.8) * tierMultiplier;
+  // Realistic revenue build-up (payout = revenue at FULL load in basic economy):
+  //  - per passenger: distance-based fare + fixed handling share
+  //  - per kg cargo: distance-based freight rate + fixed handling
+  //  - flat route/dispatch component
+  const paxRevenue = passengers * (distance * 0.85 + 60);
+  const cargoRevenue = cargo * (distance * 0.012 + 0.9);
+  const routeRevenue = distance * 8 + 400;
+  const basePayout = (paxRevenue + cargoRevenue + routeRevenue) * tierMultiplier;
   const reputationBaseMultiplier = Math.max(0.72, Math.min(1.22, 1 + ((companyReputation - 50) / 170)));
   const reputationVariance = 0.975 + Math.random() * 0.05; // keeps slight per-contract variation
   const reputationMultiplier = Math.max(0.68, Math.min(1.25, reputationBaseMultiplier * reputationVariance));

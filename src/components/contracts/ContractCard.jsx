@@ -82,6 +82,8 @@ export default function ContractCard({
   agreementTierLabel = "",
   onBuyAgreement,
   isBuyingAgreement = false,
+  payoutRange = null,
+  payoutAircraftName = "",
 }) {
   const { lang } = useLanguage();
   const meta = TYPE_META[contract.type] || TYPE_META.passenger;
@@ -172,21 +174,53 @@ export default function ContractCard({
           </div>
         </div>
 
-        <div className="mb-4 rounded-lg border border-emerald-800/50 bg-emerald-950/30 p-2.5">
-          <p className="text-[10px] font-mono uppercase tracking-wide text-emerald-300/80">
-            {lang === "de" ? "Auszahlung" : "Payout"}
+        <div className="mb-4 rounded-lg border border-emerald-800/50 bg-emerald-950/30 p-3">
+          <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-emerald-300/70">
+            {payoutRange
+              ? (lang === "de" ? "Erlös bei Vollauslastung" : "Revenue at full load")
+              : (lang === "de" ? "Referenz-Auszahlung" : "Reference payout")}
           </p>
-          <p className="text-lg font-bold text-emerald-300">${payout.toLocaleString()}</p>
-          <p className="text-[11px] text-emerald-200/90">
-            ~ ${Math.round(payoutPerNm).toLocaleString()}/NM
-          </p>
-          <p className={`text-[11px] ${reputationImpactPercent >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+          {payoutRange ? (
+            <>
+              <p className="mt-0.5 font-mono text-base font-bold leading-tight text-emerald-300 sm:text-lg">
+                ${payoutRange.min.toLocaleString()}
+                <span className="mx-1 text-emerald-600">–</span>
+                ${payoutRange.max.toLocaleString()}
+              </p>
+              <p className="mt-0.5 text-[10px] font-mono text-emerald-200/70">
+                {payoutAircraftName ? `${payoutAircraftName} · ` : ""}
+                {payoutRange.seats.total} {lang === "de" ? "Sitze" : "seats"} · ~${Math.round(payoutPerNm).toLocaleString()}/NM
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-0.5 font-mono text-lg font-bold text-emerald-300">${payout.toLocaleString()}</p>
+              <p className="text-[10px] font-mono text-emerald-200/70">
+                ~ ${Math.round(payoutPerNm).toLocaleString()}/NM
+              </p>
+            </>
+          )}
 
-            {lang === "de" ? "Reputations-Effekt" : "Reputation effect"}: {reputationImpactLabel}
-          </p>
-          {bonus > 0 && (
-            <p className="text-[11px] text-amber-300">
-              +${bonus.toLocaleString()} {lang === "de" ? "Bonus moeglich" : "bonus possible"}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-emerald-900/40 pt-2">
+            <span className={`rounded border px-1.5 py-0.5 text-[10px] font-mono ${
+              reputationImpactPercent >= 0
+                ? "border-emerald-800/50 bg-emerald-900/25 text-emerald-300"
+                : "border-rose-800/50 bg-rose-900/25 text-rose-300"
+            }`}>
+              {lang === "de" ? "REP" : "REP"} {reputationImpactLabel}
+            </span>
+            {bonus > 0 && (
+              <span className="rounded border border-amber-800/50 bg-amber-900/25 px-1.5 py-0.5 text-[10px] font-mono text-amber-300">
+                +${bonus.toLocaleString()} {lang === "de" ? "Bonus" : "bonus"}
+              </span>
+            )}
+          </div>
+
+          {payoutRange && (
+            <p className="mt-1.5 text-[9px] leading-relaxed text-emerald-200/50">
+              {lang === "de"
+                ? "Endgültiger Payout entsteht beim Ticketverkauf nach dem Annehmen."
+                : "Final payout is determined by ticket sales after accepting."}
             </p>
           )}
         </div>

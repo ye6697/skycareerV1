@@ -187,6 +187,28 @@ export function getRevenuePotential(aircraft, cabinOverride = null) {
   };
 }
 
+// Payout range for a contract flown with a specific aircraft AT FULL LOAD.
+// min = every seat sold but no premium demand (economy fares only for premium seats)
+// max = every seat sold at its own class fare.
+export function getPayoutRange({ contract, aircraft }) {
+  const seats = getSeatCounts(aircraft);
+  const demand = Math.max(1, Math.round(Number(contract?.passenger_count) || 0));
+  const ticketBase = Math.max(0, Number(contract?.payout) || 0) / demand;
+  const distanceNm = Math.max(50, Number(contract?.distance_nm) || 300);
+  const longHaul = clamp((distanceNm - 500) / 2500, 0, 1);
+  const ecoMult = ECONOMY_TIERS[seats.economy_tier]?.priceMult || 1;
+
+  const ticketEconomy = ticketBase * ecoMult;
+  const ticketBusiness = ticketBase * BUSINESS_CLASS.priceMult * (1 + 0.5 * longHaul);
+  const ticketFirst = ticketBase * FIRST_CLASS.priceMult * (1 + 0.7 * longHaul);
+
+  const min = Math.round(seats.total * ticketEconomy);
+  const max = Math.round(
+    seats.economy * ticketEconomy + seats.business * ticketBusiness + seats.first * ticketFirst
+  );
+  return { min, max: Math.max(min, max), seats };
+}
+
 export function isPassengerContract(contract) {
   return ['passenger', 'charter', 'emergency'].includes(String(contract?.type || '')) && Number(contract?.passenger_count) > 0;
 }
