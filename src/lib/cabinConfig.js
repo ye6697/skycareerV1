@@ -137,11 +137,35 @@ export function computeBooking({ contract, aircraft, company }) {
   const revenueBusiness = Math.round(businessBooked * ticketBusiness);
   const revenueFirst = Math.round(firstBooked * ticketFirst);
   const totalBooked = economyBooked + businessBooked + firstBooked;
-  const totalRevenue = revenueEconomy + revenueBusiness + revenueFirst;
+
+  // ---- Freight -------------------------------------------------------------
+  // Cargo contracts: the contract payout IS the freight rate for the requested
+  // tonnage. Passenger contracts: belly freight billed per kg over distance.
+  const cargoDemandKg = Math.max(0, Math.round(Number(contract?.cargo_weight_kg) || 0));
+  const cargoCapacityKg = Math.max(0, Math.round(Number(aircraft?.cargo_capacity_kg) || 0));
+  const isCargoContract = !Number(contract?.passenger_count);
+  const cargoFillFactor = clamp(0.7 + (rep / 100) * 0.3 + (rand() - 0.5) * 0.08, 0.6, 1);
+  const cargoLoadedKg = Math.round(
+    Math.min(cargoDemandKg, cargoCapacityKg) * (isCargoContract ? 1 : cargoFillFactor)
+  );
+  const cargoRatePerKg = isCargoContract && cargoDemandKg > 0
+    ? basePayout / cargoDemandKg
+    : 0.12 + 0.00035 * distanceNm;
+  const revenueCargo = Math.round(cargoLoadedKg * cargoRatePerKg);
+
+  const totalRevenue = revenueEconomy + revenueBusiness + revenueFirst + revenueCargo;
 
   return {
     seats,
     demand,
+    cargo: {
+      demand_kg: cargoDemandKg,
+      capacity_kg: cargoCapacityKg,
+      loaded_kg: cargoLoadedKg,
+      rate_per_kg: Math.round(cargoRatePerKg * 100) / 100,
+      is_cargo_contract: isCargoContract,
+      fill: cargoDemandKg > 0 ? cargoLoadedKg / cargoDemandKg : 0,
+    },
     economy_booked: economyBooked,
     business_booked: businessBooked,
     first_booked: firstBooked,
@@ -163,6 +187,7 @@ export function computeBooking({ contract, aircraft, company }) {
       economy: revenueEconomy,
       business: revenueBusiness,
       first: revenueFirst,
+      cargo: revenueCargo,
       total: totalRevenue,
       avg_ticket: totalBooked > 0 ? Math.round(totalRevenue / totalBooked) : 0,
     },
@@ -202,13 +227,28 @@ export function getPayoutRange({ contract, aircraft }) {
   const ticketBusiness = ticketBase * BUSINESS_CLASS.priceMult * (1 + 0.5 * longHaul);
   const ticketFirst = ticketBase * FIRST_CLASS.priceMult * (1 + 0.7 * longHaul);
 
-  const min = Math.round(seats.total * ticketEconomy);
+  // Freight share (same model as computeBooking, at full load).
+  const cargoDemandKg = Math.max(0, Math.round(Number(contract?.cargo_weight_kg) || 0));
+  const cargoCapacityKg = Math.max(0, Math.round(Number(aircraft?.cargo_capacity_kg) || 0));
+  const isCargoContract = !Number(contract?.passenger_count);
+  const cargoLoadedKg = Math.min(cargoDemandKg, cargoCapacityKg);
+  const cargoRatePerKg = isCargoContract && cargoDemandKg > 0
+    ? Math.max(0, Number(contract?.payout) || 0) / cargoDemandKg
+    : 0.12 + 0.00035 * distanceNm;
+  const cargoRevenue = Math.round(cargoLoadedKg * cargoRatePerKg);
+
+  const min = Math.round(seats.total * ticketEconomy) + cargoRevenue;
   const max = Math.round(
     seats.economy * ticketEconomy + seats.business * ticketBusiness + seats.first * ticketFirst
-  );
-  return { min, max: Math.max(min, max), seats };
+  ) + cargoRevenue;
+  return { min, max: Math.max(min, max), seats, cargo_revenue: cargoRevenue, cargo_kg: cargoLoadedKg };
 }
 
 export function isPassengerContract(contract) {
   return ['passenger', 'charter', 'emergency'].includes(String(contract?.type || '')) && Number(contract?.passenger_count) > 0;
+}
+
+// Contracts that get the booking/loading animation: passengers, freight or both.
+export function hasBookingLoad(contract) {
+  return Number(contract?.passenger_count) > 0 || Number(contract?.cargo_weight_kg) > 0;
 }

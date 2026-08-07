@@ -38,7 +38,7 @@ import { useLanguage } from "@/components/LanguageContext";
 import { getAirportCoords, getAllAirportCoords, isRealAirportIcao } from "@/utils/airportCoordinates";
 import { useToast } from "@/components/ui/use-toast";
 import { getAgreementFee, getAgreementInfo } from "@/lib/airportAgreements";
-import { getPayoutRange, isPassengerContract } from "@/lib/cabinConfig";
+import { getPayoutRange, hasBookingLoad } from "@/lib/cabinConfig";
 import BookingAnimationDialog from "@/components/flights/BookingAnimationDialog";
 
 const HANGAR_MARKET = [
@@ -666,7 +666,7 @@ export default function Contracts() {
 
   function getContractPayoutRange(contract) {
     const aircraft = getContractAircraft(contract);
-    if (!aircraft || !isPassengerContract(contract)) return null;
+    if (!aircraft || !hasBookingLoad(contract)) return null;
     return { ...getPayoutRange({ contract, aircraft }), aircraftName: aircraft.name || aircraft.registration };
   }
 
@@ -1219,7 +1219,7 @@ export default function Contracts() {
       queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       const aircraft = getContractAircraft(contract);
-      if (aircraft && isPassengerContract(contract)) {
+      if (aircraft && hasBookingLoad(contract)) {
         // The map can run in native fullscreen; a dialog portal would be hidden
         // behind it, so leave fullscreen before showing the booking animation.
         if (typeof document !== "undefined" && document.fullscreenElement) {
