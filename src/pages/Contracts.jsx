@@ -71,6 +71,9 @@ const MARKET_LABELS = Object.fromEntries(
 
 const HANGAR_STORAGE_KEY_PREFIX = "contracts_hangars";
 
+// One-time fee for a service agreement with an arrival airport.
+export const AIRPORT_AGREEMENT_FEE = 25000;
+
 function normIcao(value) {
   return String(value || "").trim().toUpperCase();
 }
@@ -579,6 +582,68 @@ export default function Contracts() {
     refetchOnWindowFocus: false,
   });
   const ownedGates = ownedGatesData?.gates || [];
+
+  // Airport service agreements: required for a contract's ARRIVAL airport.
+  const { data: airportAgreements = [] } = useQuery({
+    queryKey: ["airportAgreements", company?.id],
+    queryFn: () => base44.entities.AirportServiceAgreement.filter({ company_id: company.id }),
+    enabled: !!company?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+  });
+  const agreementAirportSet = useMemo(
+    () => new Set(airportAgreements.map((agreement) => normIcao(agreement.airport_icao))),
+    [airportAgreements]
+  );
+
+  const buyAgreementMutation = useMutation({
+    mutationFn: async (contract) => {
+      if (!company?.id) throw new Error("Company not found.");
+      const airport = normIcao(contract.arrival_airport);
+      if (!airport) throw new Error(lang === "de" ? "Kein Zielflughafen." : "No arrival airport.");
+      if (agreementAirportSet.has(airport)) return { airport, alreadyOwned: true };
+      if (Number(company.balance || 0) < AIRPORT_AGREEMENT_FEE) {
+        throw new Error(lang === "de" ? "Nicht genug Guthaben." : "Insufficient balance.");
+      }
+      await base44.entities.AirportServiceAgreement.create({
+        company_id: company.id,
+        airport_icao: airport,
+        fee_paid: AIRPORT_AGREEMENT_FEE,
+        signed_at: new Date().toISOString(),
+      });
+      await base44.entities.Company.update(company.id, {
+        balance: Number(company.balance || 0) - AIRPORT_AGREEMENT_FEE,
+      });
+      await base44.entities.Transaction.create({
+        company_id: company.id,
+        type: "expense",
+        category: "airport_fees",
+        amount: AIRPORT_AGREEMENT_FEE,
+        description: lang === "de"
+          ? `Servicevertrag Flughafen ${airport}`
+          : `Airport service agreement ${airport}`,
+        date: new Date().toISOString(),
+      });
+      return { airport };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["airportAgreements"] });
+      queryClient.invalidateQueries({ queryKey: ["contractsPageData"] });
+      toast({
+        title: lang === "de" ? "Vertrag abgeschlossen" : "Agreement signed",
+        description: lang === "de"
+          ? `Du darfst jetzt Aufträge nach ${result.airport} annehmen.`
+          : `You can now accept contracts arriving at ${result.airport}.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: lang === "de" ? "Vertrag fehlgeschlagen" : "Agreement failed",
+        description: error?.message || (lang === "de" ? "Unbekannter Fehler." : "Unknown error."),
+      });
+    },
+  });
 
   const allContracts = useMemo(() => {
     return (pageData?.contracts || []).slice().sort((a, b) => {
@@ -1129,6 +1194,18 @@ export default function Contracts() {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       navigate(createPageUrl("ActiveFlights"));
     },
+    onError: (error) => {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        (lang === "de" ? "Unbekannter Fehler." : "Unknown error.");
+      toast({
+        variant: "destructive",
+        title: lang === "de" ? "Auftrag kann nicht angenommen werden" : "Cannot accept contract",
+        description: message,
+      });
+    },
   });
 
   const activeOwnedAircraft = useMemo(
@@ -1535,7 +1612,7 @@ export default function Contracts() {
                 <motion.div layout className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
                   <AnimatePresence>
                     {filteredCompatibleContracts.map((contract) => (
-                      <ContractCard key={contract.id} contract={contract} companyReputation={company?.reputation} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} />
+                      <ContractCard key={contract.id} contract={contract} companyReputation={company?.reputation} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} arrivalAgreementOk={agreementAirportSet.has(normIcao(contract.arrival_airport))} agreementFee={AIRPORT_AGREEMENT_FEE} onBuyAgreement={(selected) => buyAgreementMutation.mutate(selected)} isBuyingAgreement={buyAgreementMutation.isPending} />
                     ))}
                   </AnimatePresence>
                 </motion.div>

@@ -159,6 +159,36 @@
         }
       }
     },
+    "booking": {
+      "type": "object",
+      "description": "Seat booking snapshot computed at flight start (load factor system)",
+      "properties": {
+        "economy_booked": {
+          "type": "number"
+        },
+        "business_booked": {
+          "type": "number"
+        },
+        "first_booked": {
+          "type": "number"
+        },
+        "total_booked": {
+          "type": "number"
+        },
+        "load_factor": {
+          "type": "number"
+        },
+        "ticket_base": {
+          "type": "number"
+        },
+        "seats": {
+          "type": "object"
+        },
+        "revenue": {
+          "type": "object"
+        }
+      }
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,

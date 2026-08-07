@@ -26,6 +26,7 @@ import { DEFAULT_INSURANCE_PLAN, getInsurancePlanConfig } from '@/lib/insurance'
 import { resolveAircraftValueSnapshot } from '@/lib/maintenance';
 import { getCruiseSpeedForModel } from "@/components/flights/aircraftSpeedLookup";
 import MarketHangar3DView from "@/components/fleet3d/MarketHangar3DView";
+import CabinEditorDialog from "@/components/aircraft/CabinEditorDialog";
 import Fleet3DView from "@/components/fleet3d/Fleet3DView";
 import { formatPayoutFactor } from "@/lib/payoutFactors";
 const FAILURE_TOGGLE_UI_VERSION = 'ft-2026-04-07-e';
@@ -325,6 +326,7 @@ export default function Fleet() {
   const [marketViewMode, setMarketViewMode] = useState('3d');
   const [is3DMaintenanceOpen, setIs3DMaintenanceOpen] = useState(false);
   const [is3DMaintenanceAircraftId, setIs3DMaintenanceAircraftId] = useState(null);
+  const [cabinEditorAircraftId, setCabinEditorAircraftId] = useState(null);
   const [usedConditionFilter, setUsedConditionFilter] = useState('all');
   const [maintenancePreviewListing, setMaintenancePreviewListing] = useState(null);
   const [failureToggleError, setFailureToggleError] = useState('');
@@ -1229,6 +1231,14 @@ export default function Fleet() {
                   className="absolute top-1.5 right-1.5 z-10 px-2 py-0.5 rounded border border-purple-600/60 bg-purple-950/85 text-purple-200 text-[9px] font-mono font-bold uppercase hover:bg-purple-800/80 shadow-md">
                   3D
                 </button>
+                {ac.type !== 'cargo' && (
+                  <button
+                    type="button"
+                    onClick={() => setCabinEditorAircraftId(ac.id)}
+                    className="absolute top-1.5 right-11 z-10 px-2 py-0.5 rounded border border-cyan-600/60 bg-cyan-950/85 text-cyan-200 text-[9px] font-mono font-bold uppercase hover:bg-cyan-800/80 shadow-md">
+                    {lang === 'de' ? 'Kabine' : 'Cabin'}
+                  </button>
+                )}
               </div>
               )}
               </AnimatePresence>
@@ -1239,6 +1249,13 @@ export default function Fleet() {
           </Card>
         }
       </div>
+
+      <CabinEditorDialog
+        aircraft={displayAircraft.find((ac) => ac.id === cabinEditorAircraftId) || null}
+        company={company}
+        open={!!cabinEditorAircraftId}
+        onClose={() => setCabinEditorAircraftId(null)}
+      />
 
       {is3DMaintenanceOpen && (
         <div className="fixed inset-0 z-[300]">

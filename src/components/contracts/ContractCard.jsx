@@ -76,6 +76,10 @@ export default function ContractCard({
   onSelect,
   disabled = false,
   companyReputation = 50,
+  arrivalAgreementOk = true,
+  agreementFee = 0,
+  onBuyAgreement,
+  isBuyingAgreement = false,
 }) {
   const { lang } = useLanguage();
   const meta = TYPE_META[contract.type] || TYPE_META.passenger;
@@ -200,7 +204,25 @@ export default function ContractCard({
             {lang === "de" ? "Details" : "Details"}
           </Button>
 
-          {contract.status === "available" ? (
+          {contract.status === "available" && !arrivalAgreementOk ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={(event) => {
+                event.stopPropagation();
+                onBuyAgreement?.(contract);
+              }}
+              disabled={isBuyingAgreement || disabled}
+              title={lang === "de"
+                ? `Servicevertrag mit ${contract.arrival_airport} abschließen, um dich für diese Route zu qualifizieren.`
+                : `Sign a service agreement with ${contract.arrival_airport} to qualify for this route.`}
+              className="h-8 bg-amber-600 text-xs font-mono uppercase text-slate-950 hover:bg-amber-500"
+            >
+              {lang === "de"
+                ? `Vertrag ${contract.arrival_airport} ($${Math.round(agreementFee).toLocaleString()})`
+                : `Agreement ${contract.arrival_airport} ($${Math.round(agreementFee).toLocaleString()})`}
+            </Button>
+          ) : contract.status === "available" ? (
             <Button
               type="button"
               size="sm"

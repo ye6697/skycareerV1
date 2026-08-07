@@ -47,6 +47,8 @@ import {
 "lucide-react";
 
 import ActiveFlightCard from "@/components/flights/ActiveFlightCard";
+import BookingPreview from "@/components/flights/BookingPreview";
+import { computeBooking, isPassengerContract } from "@/lib/cabinConfig";
 
 const DIFFICULTY_OPTIONS = [
   {
@@ -300,7 +302,27 @@ export default function ActiveFlights() {
         if (ac.range_nm < (selectedContract?.distance_nm || 0)) {
           throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Reichweite' : 'Aircraft does not have enough range');
         }
+        // Departure gate must exist and allow this aircraft type.
+        const departureIcao = String(selectedContract?.departure_airport || '').trim().toUpperCase();
+        const departureGates = await base44.entities.AirportGate.filter({
+          owner_company_id: company.id,
+          airport_icao: departureIcao,
+        });
+        const gateOk = departureGates.some((g) => {
+          const allowed = Array.isArray(g.allowed_types) ? g.allowed_types : [];
+          return allowed.length === 0 || allowed.includes(ac.type);
+        });
+        if (!gateOk) {
+          throw new Error(lang === 'de'
+            ? `Kein passendes Gate / keine Parkposition für diesen Flugzeugtyp in ${departureIcao}.`
+            : `No suitable gate / parking position for this aircraft type at ${departureIcao}.`);
+        }
       }
+
+      // Compute seat booking (load factor) for passenger contracts.
+      const booking = (!isTrContract(selectedContract) && ac && isPassengerContract(selectedContract))
+        ? computeBooking({ contract: selectedContract, aircraft: ac, company })
+        : null;
 
       const nowIso = new Date().toISOString();
       const normalizePctLike = (value) => {
@@ -358,6 +380,7 @@ export default function ActiveFlights() {
         departure_time: new Date().toISOString(),
         status: 'in_flight',
         active_failures: [],
+        ...(booking ? { booking } : {}),
         bridge_command_queue: startBridgeCommands,
         xplane_data: {
           contract_id: selectedContract.id,
@@ -393,7 +416,9 @@ export default function ActiveFlights() {
       // Update contract status and persist the user-selected challenge level.
       await base44.entities.Contract.update(selectedContract.id, {
         status: 'in_progress',
-        difficulty: normalizedDifficulty
+        difficulty: normalizedDifficulty,
+        // Booking system: payout = actual ticket revenue from booked seats.
+        ...(booking ? { payout: booking.revenue.total } : {})
       });
 
       // Update aircraft status — but only if it isn't already in flight
@@ -1018,6 +1043,10 @@ export default function ActiveFlights() {
                         </>
                       );
                     })()}
+
+                    {selectedAircraftObj && !selectedAircraftMissingRating && isPassengerContract(selectedContract) && (
+                      <BookingPreview contract={selectedContract} aircraft={selectedAircraftObj} company={company} />
+                    )}
 
                     {selectedAircraftMissingRating && selectedAircraftObj && (
                       <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 p-4 space-y-3">

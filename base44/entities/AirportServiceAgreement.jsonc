@@ -1,0 +1,33 @@
+{
+  "name": "AirportServiceAgreement",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Company that signed this agreement"
+    },
+    "airport_icao": {
+      "type": "string",
+      "description": "ICAO code of the airport this agreement covers (required as arrival airport)"
+    },
+    "fee_paid": {
+      "type": "number",
+      "description": "One-time fee paid for this agreement"
+    },
+    "signed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "company_id",
+    "airport_icao"
+  ],
+  "rls": {
+    "read": {}
+  }
+}

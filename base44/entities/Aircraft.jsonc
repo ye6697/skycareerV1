@@ -237,6 +237,25 @@
       "type": "string",
       "description": "ID of the used-market listing this aircraft was purchased from"
     },
+    "cabin_config": {
+      "type": "object",
+      "description": "Cabin layout configuration: economy tier and premium class seat counts",
+      "properties": {
+        "economy_tier": {
+          "type": "number",
+          "default": 1,
+          "description": "Economy quality tier: 1=Basic, 2=Comfort, 3=Premium"
+        },
+        "business_seats": {
+          "type": "number",
+          "default": 0
+        },
+        "first_seats": {
+          "type": "number",
+          "default": 0
+        }
+      }
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,
