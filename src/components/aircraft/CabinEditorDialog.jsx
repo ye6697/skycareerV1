@@ -46,16 +46,22 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
     ? Math.round(((newPotential.total - currentPotential.total) / currentPotential.total) * 100)
     : 0;
 
+  const canSetBusiness = (next) => {
+    const test = getSeatCounts(aircraft, { ...cabin, business_seats: next });
+    return test.business === next && test.economy > 0;
+  };
+  const canSetFirst = (next) => {
+    const test = getSeatCounts(aircraft, { ...cabin, first_seats: next });
+    return test.first === next && test.economy > 0;
+  };
   const setBusiness = (delta) => {
     const next = Math.max(0, cabin.business_seats + delta);
-    const test = getSeatCounts(aircraft, { ...cabin, business_seats: next });
-    if (delta > 0 && test.economy <= 0) return;
+    if (delta > 0 && !canSetBusiness(next)) return;
     setCabin({ ...cabin, business_seats: next });
   };
   const setFirst = (delta) => {
     const next = Math.max(0, cabin.first_seats + delta);
-    const test = getSeatCounts(aircraft, { ...cabin, first_seats: next });
-    if (delta > 0 && test.economy <= 0) return;
+    if (delta > 0 && !canSetFirst(next)) return;
     setCabin({ ...cabin, first_seats: next });
   };
 
@@ -120,7 +126,7 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
               <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-slate-500">
                 <span>{de ? 'Sitzplan (Draufsicht)' : 'Seat map (top view)'}</span>
                 <span className="text-cyan-300">
-                  {seats.total} / {seats.capacity} {de ? 'Plätze' : 'seats'}
+                  {seats.total} {de ? 'Sitze' : 'seats'} · {Math.round((seats.spaceUsed / Math.max(1, seats.capacity)) * 100)}% {de ? 'Fläche' : 'floor'}
                 </span>
               </div>
 
@@ -168,7 +174,7 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
                 <div className="grid grid-cols-3 gap-1.5">
                   {[1, 2, 3].map((tier) => {
                     const cfg = ECONOMY_TIERS[tier];
-                    const locked = tier < current.economy_tier || level < cfg.levelReq;
+                    const locked = tier > current.economy_tier && level < cfg.levelReq;
                     const active = cabin.economy_tier === tier;
                     return (
                       <button
@@ -214,6 +220,8 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
                 seats={cabin.business_seats}
                 onDec={() => setBusiness(-2)}
                 onInc={() => setBusiness(2)}
+                canDecrease={cabin.business_seats > 0}
+                canIncrease={canSetBusiness(cabin.business_seats + 2)}
                 enabled={businessAllowed && businessLevelOk}
                 lockLabel={!businessAllowed ? (de ? 'Ab Regional-Jet' : 'Regional jet+') : `Lvl ${BUSINESS_CLASS.levelReq}`}
                 costPerSeat={BUSINESS_CLASS.costPerSeat}
@@ -229,6 +237,8 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
                 seats={cabin.first_seats}
                 onDec={() => setFirst(-2)}
                 onInc={() => setFirst(2)}
+                canDecrease={cabin.first_seats > 0}
+                canIncrease={canSetFirst(cabin.first_seats + 2)}
                 enabled={firstAllowed && firstLevelOk}
                 lockLabel={!firstAllowed ? (de ? 'Ab Narrow-Body' : 'Narrow body+') : `Lvl ${FIRST_CLASS.levelReq}`}
                 costPerSeat={FIRST_CLASS.costPerSeat}

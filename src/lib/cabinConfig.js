@@ -6,17 +6,17 @@ export const ECONOMY_TIERS = {
   1: {
     key: 1, label: { de: 'Economy Basic', en: 'Economy Basic' },
     desc: { de: '29" Sitzabstand, keine Extras', en: '29" pitch, no frills' },
-    priceMult: 1.0, loadBonus: 0, upgradeCostPerSeat: 0, levelReq: 1,
+    priceMult: 1.0, loadBonus: 0, spaceMult: 1, upgradeCostPerSeat: 0, levelReq: 1,
   },
   2: {
     key: 2, label: { de: 'Economy Comfort', en: 'Economy Comfort' },
     desc: { de: '32" Sitzabstand, verstellbare Lehnen', en: '32" pitch, recliner seats' },
-    priceMult: 1.2, loadBonus: 0.04, upgradeCostPerSeat: 1200, levelReq: 3,
+    priceMult: 1.2, loadBonus: 0.04, spaceMult: 1.1, upgradeCostPerSeat: 1200, levelReq: 3,
   },
   3: {
     key: 3, label: { de: 'Economy Premium', en: 'Economy Premium' },
     desc: { de: '34" Sitzabstand, Entertainment & Catering', en: '34" pitch, IFE & catering' },
-    priceMult: 1.45, loadBonus: 0.08, upgradeCostPerSeat: 2600, levelReq: 8,
+    priceMult: 1.45, loadBonus: 0.08, spaceMult: 1.18, upgradeCostPerSeat: 2600, levelReq: 8,
   },
 };
 
@@ -38,26 +38,38 @@ export const FIRST_CLASS = {
 
 export function getCabinConfig(aircraft) {
   const raw = aircraft?.cabin_config || {};
-  return {
-    economy_tier: Math.min(3, Math.max(1, Number(raw.economy_tier) || 1)),
-    business_seats: Math.max(0, Math.round(Number(raw.business_seats) || 0)),
-    first_seats: Math.max(0, Math.round(Number(raw.first_seats) || 0)),
-  };
+  const capacity = Math.max(0, Math.round(Number(aircraft?.passenger_capacity) || 0));
+  const economy_tier = Math.min(3, Math.max(1, Number(raw.economy_tier) || 1));
+  const requestedFirst = Math.max(0, Math.round(Number(raw.first_seats) || 0));
+  const first_seats = Math.min(requestedFirst, Math.floor(capacity / FIRST_CLASS.spacePerSeat));
+  const remainingSpace = Math.max(0, capacity - first_seats * FIRST_CLASS.spacePerSeat);
+  const requestedBusiness = Math.max(0, Math.round(Number(raw.business_seats) || 0));
+  const business_seats = Math.min(requestedBusiness, Math.floor(remainingSpace / BUSINESS_CLASS.spacePerSeat));
+  return { economy_tier, business_seats, first_seats };
 }
 
 // Seat counts derived from capacity and premium seat space usage.
 export function getSeatCounts(aircraft, cabinOverride = null) {
   const capacity = Math.max(0, Math.round(Number(aircraft?.passenger_capacity) || 0));
-  const cabin = cabinOverride || getCabinConfig(aircraft);
-  const spaceUsed = cabin.business_seats * BUSINESS_CLASS.spacePerSeat + cabin.first_seats * FIRST_CLASS.spacePerSeat;
-  const economy = Math.max(0, Math.floor(capacity - spaceUsed));
+  const cabin = cabinOverride
+    ? getCabinConfig({ ...aircraft, cabin_config: cabinOverride })
+    : getCabinConfig(aircraft);
+  const economySpace = ECONOMY_TIERS[cabin.economy_tier]?.spaceMult || 1;
+  const first = Math.min(cabin.first_seats, Math.floor(capacity / FIRST_CLASS.spacePerSeat));
+  const afterFirst = Math.max(0, capacity - first * FIRST_CLASS.spacePerSeat);
+  const business = Math.min(cabin.business_seats, Math.floor(afterFirst / BUSINESS_CLASS.spacePerSeat));
+  const premiumSpace = business * BUSINESS_CLASS.spacePerSeat + first * FIRST_CLASS.spacePerSeat;
+  const economy = Math.max(0, Math.floor((capacity - premiumSpace) / economySpace));
+  const usedSpace = premiumSpace + economy * economySpace;
   return {
     capacity,
     economy,
-    business: cabin.business_seats,
-    first: cabin.first_seats,
-    total: economy + cabin.business_seats + cabin.first_seats,
-    spaceLeft: Math.max(0, capacity - spaceUsed),
+    business,
+    first,
+    total: economy + business + first,
+    spaceUsed: usedSpace,
+    spaceLeft: Math.max(0, capacity - usedSpace),
+    economy_space: economySpace,
     economy_tier: cabin.economy_tier,
   };
 }
@@ -100,9 +112,9 @@ function clamp(v, min, max) {
 //    premium fares scale up with distance.
 export function computeBooking({ contract, aircraft, company }) {
   const seats = getSeatCounts(aircraft);
-  const demand = Math.max(1, Math.round(Number(contract?.passenger_count) || 0));
-  const basePayout = Math.max(0, Number(contract?.payout) || 0);
-  const ticketBase = basePayout / demand;
+  const demand = Math.max(0, Math.round(Number(contract?.passenger_count) || 0));
+  const basePayout = Math.max(0, Number(contract?.reference_payout ?? contract?.payout) || 0);
+  const ticketBase = demand > 0 ? basePayout / demand : 0;
   const rep = clamp(Number(company?.reputation) || 50, 0, 100);
   const rand = seededRandom(`${contract?.id || ''}_${aircraft?.id || ''}`);
 
@@ -111,21 +123,27 @@ export function computeBooking({ contract, aircraft, company }) {
   const longHaul = clamp((distanceNm - 500) / 2500, 0, 1);
   const tierBonus = ECONOMY_TIERS[seats.economy_tier]?.loadBonus || 0;
 
-  // Economy load factor: reputation-driven, boosted by cabin comfort.
-  const loadFactor = clamp(0.32 + (rep / 100) * 0.55 + tierBonus + (rand() - 0.5) * 0.1, 0.25, 1);
-  const ecoDemand = Math.min(demand, seats.economy);
-  const economyBooked = Math.min(seats.economy, Math.max(0, Math.round(ecoDemand * loadFactor)));
-
-  // Premium demand: needs reputation AND route length (nobody books First on a hop).
+  // Sell one capacity-limited passenger total, then distribute it across classes.
+  // This prevents Economy + Business + First from exceeding contract demand.
+  const loadFactor = demand > 0
+    ? clamp(0.32 + (rep / 100) * 0.55 + tierBonus + (rand() - 0.5) * 0.1, 0.25, 1)
+    : 0;
+  const targetBooked = Math.min(demand, seats.total, Math.max(0, Math.round(Math.min(demand, seats.total) * loadFactor)));
   const premiumAppeal = clamp((rep - 30) / 60, 0, 1) * (0.55 + 0.45 * longHaul);
-  const businessBooked = Math.min(
-    seats.business,
-    Math.round(seats.business * premiumAppeal * (0.5 + rand() * 0.5))
-  );
-  const firstBooked = Math.min(
-    seats.first,
-    Math.round(seats.first * Math.pow(premiumAppeal, 1.6) * (0.35 + rand() * 0.65))
-  );
+  let remaining = targetBooked;
+  const firstTarget = Math.min(seats.first, Math.round(seats.first * Math.pow(premiumAppeal, 1.6) * (0.35 + rand() * 0.65)));
+  const firstBooked = Math.min(firstTarget, remaining);
+  remaining -= firstBooked;
+  const businessTarget = Math.min(seats.business, Math.round(seats.business * premiumAppeal * (0.5 + rand() * 0.5)));
+  let businessBooked = Math.min(businessTarget, remaining);
+  remaining -= businessBooked;
+  const economyBooked = Math.min(seats.economy, remaining);
+  remaining -= economyBooked;
+  const businessBackfill = Math.min(seats.business - businessBooked, remaining);
+  businessBooked += businessBackfill;
+  remaining -= businessBackfill;
+  const firstBackfill = Math.min(seats.first - firstBooked, remaining);
+  const finalFirstBooked = firstBooked + firstBackfill;
 
   // Per-class ticket prices. Premium fares scale further with distance.
   const ecoMult = ECONOMY_TIERS[seats.economy_tier]?.priceMult || 1;
@@ -135,8 +153,8 @@ export function computeBooking({ contract, aircraft, company }) {
 
   const revenueEconomy = Math.round(economyBooked * ticketEconomy);
   const revenueBusiness = Math.round(businessBooked * ticketBusiness);
-  const revenueFirst = Math.round(firstBooked * ticketFirst);
-  const totalBooked = economyBooked + businessBooked + firstBooked;
+  const revenueFirst = Math.round(finalFirstBooked * ticketFirst);
+  const totalBooked = economyBooked + businessBooked + finalFirstBooked;
 
   // ---- Freight -------------------------------------------------------------
   // Cargo contracts: the contract payout IS the freight rate for the requested
@@ -168,7 +186,7 @@ export function computeBooking({ contract, aircraft, company }) {
     },
     economy_booked: economyBooked,
     business_booked: businessBooked,
-    first_booked: firstBooked,
+    first_booked: finalFirstBooked,
     total_booked: totalBooked,
     load_factor: seats.total > 0 ? totalBooked / seats.total : 0,
     ticket_base: Math.round(ticketBase),
@@ -189,7 +207,7 @@ export function computeBooking({ contract, aircraft, company }) {
       first: revenueFirst,
       cargo: revenueCargo,
       total: totalRevenue,
-      avg_ticket: totalBooked > 0 ? Math.round(totalRevenue / totalBooked) : 0,
+      avg_ticket: totalBooked > 0 ? Math.round((revenueEconomy + revenueBusiness + revenueFirst) / totalBooked) : 0,
     },
   };
 }
@@ -217,8 +235,9 @@ export function getRevenuePotential(aircraft, cabinOverride = null) {
 // max = every seat sold at its own class fare.
 export function getPayoutRange({ contract, aircraft }) {
   const seats = getSeatCounts(aircraft);
-  const demand = Math.max(1, Math.round(Number(contract?.passenger_count) || 0));
-  const ticketBase = Math.max(0, Number(contract?.payout) || 0) / demand;
+  const demand = Math.max(0, Math.round(Number(contract?.passenger_count) || 0));
+  const referencePayout = Math.max(0, Number(contract?.reference_payout ?? contract?.payout) || 0);
+  const ticketBase = demand > 0 ? referencePayout / demand : 0;
   const distanceNm = Math.max(50, Number(contract?.distance_nm) || 300);
   const longHaul = clamp((distanceNm - 500) / 2500, 0, 1);
   const ecoMult = ECONOMY_TIERS[seats.economy_tier]?.priceMult || 1;
@@ -233,13 +252,17 @@ export function getPayoutRange({ contract, aircraft }) {
   const isCargoContract = !Number(contract?.passenger_count);
   const cargoLoadedKg = Math.min(cargoDemandKg, cargoCapacityKg);
   const cargoRatePerKg = isCargoContract && cargoDemandKg > 0
-    ? Math.max(0, Number(contract?.payout) || 0) / cargoDemandKg
+    ? referencePayout / cargoDemandKg
     : 0.12 + 0.00035 * distanceNm;
   const cargoRevenue = Math.round(cargoLoadedKg * cargoRatePerKg);
 
-  const min = Math.round(seats.total * ticketEconomy) + cargoRevenue;
+  const passengerLimit = Math.min(demand, seats.total);
+  const premiumFirst = Math.min(seats.first, passengerLimit);
+  const premiumBusiness = Math.min(seats.business, passengerLimit - premiumFirst);
+  const economySold = Math.min(seats.economy, passengerLimit - premiumFirst - premiumBusiness);
+  const min = Math.round(passengerLimit * ticketEconomy) + cargoRevenue;
   const max = Math.round(
-    seats.economy * ticketEconomy + seats.business * ticketBusiness + seats.first * ticketFirst
+    economySold * ticketEconomy + premiumBusiness * ticketBusiness + premiumFirst * ticketFirst
   ) + cargoRevenue;
   return { min, max: Math.max(min, max), seats, cargo_revenue: cargoRevenue, cargo_kg: cargoLoadedKg };
 }

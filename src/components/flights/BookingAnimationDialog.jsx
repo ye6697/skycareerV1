@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import SeatMapView from '@/components/aircraft/SeatMapView';
@@ -16,18 +16,42 @@ export default function BookingAnimationDialog({ contract, aircraft, company, op
   const { lang } = useLanguage();
   const de = lang === 'de';
   const [progress, setProgress] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const bookingRef = useRef(null);
-  const finishedRef = useRef(false);
+  const finalizingRef = useRef(false);
+  const onFinishedRef = useRef(onFinished);
+  onFinishedRef.current = onFinished;
 
   if (open && contract && aircraft && !bookingRef.current) {
     bookingRef.current = computeBooking({ contract, aircraft, company });
   }
 
+  const finalizeBooking = useCallback(async () => {
+    if (finalizingRef.current || !bookingRef.current) return;
+    finalizingRef.current = true;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onFinishedRef.current?.(bookingRef.current);
+      setSaved(true);
+    } catch (error) {
+      setSaveError(error?.message || (de ? 'Buchung konnte nicht gespeichert werden.' : 'Booking could not be saved.'));
+    } finally {
+      finalizingRef.current = false;
+      setSaving(false);
+    }
+  }, [de]);
+
   useEffect(() => {
     if (!open) {
       bookingRef.current = null;
-      finishedRef.current = false;
+      finalizingRef.current = false;
       setProgress(0);
+      setSaved(false);
+      setSaving(false);
+      setSaveError('');
       return undefined;
     }
     const start = Date.now();
@@ -36,15 +60,11 @@ export default function BookingAnimationDialog({ contract, aircraft, company, op
       setProgress(p);
       if (p >= 1) {
         clearInterval(id);
-        if (!finishedRef.current && bookingRef.current) {
-          finishedRef.current = true;
-          onFinished?.(bookingRef.current);
-        }
+        finalizeBooking();
       }
     }, 120);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [finalizeBooking, open]);
 
   const booking = bookingRef.current;
   if (!open || !booking) return null;
@@ -55,12 +75,17 @@ export default function BookingAnimationDialog({ contract, aircraft, company, op
   const business = Math.round(booking.business_booked * Math.min(1, eased * 1.15));
   const first = Math.round(booking.first_booked * Math.min(1, eased * 1.3));
   const booked = economy + business + first;
-  const revenue = Math.round(booking.revenue.total * eased);
-  const done = progress >= 1;
+  const animationDone = progress >= 1;
+  const done = animationDone && saved;
   const cargo = booking.cargo || { demand_kg: 0, loaded_kg: 0, capacity_kg: 0, rate_per_kg: 0 };
-  const cargoLoaded = Math.round(cargo.loaded_kg * Math.min(1, eased * 1.1));
-  const cargoRevenue = Math.round((booking.revenue.cargo || 0) * Math.min(1, eased * 1.1));
-  const hasSeats = booking.seats.total > 0;
+  const cargoProgress = Math.min(1, eased * 1.1);
+  const cargoLoaded = Math.round(cargo.loaded_kg * cargoProgress);
+  const cargoRevenue = Math.round((booking.revenue.cargo || 0) * cargoProgress);
+  const ticketRevenue = Math.round(booking.revenue.economy * eased)
+    + Math.round(booking.revenue.business * Math.min(1, eased * 1.15))
+    + Math.round(booking.revenue.first * Math.min(1, eased * 1.3));
+  const revenue = ticketRevenue + cargoRevenue;
+  const hasPassengers = booking.demand > 0 && booking.seats.total > 0;
   const lfPct = Math.round((booked / Math.max(1, booking.seats.total)) * 100);
 
   return (
@@ -75,8 +100,10 @@ export default function BookingAnimationDialog({ contract, aircraft, company, op
               <h2 className="mt-0.5 flex items-center gap-2 font-mono text-sm uppercase tracking-wider text-cyan-200">
                 {done ? <Ticket className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
                 {done
-                  ? (de ? 'Beladung abgeschlossen' : 'Loading complete')
-                  : (de ? 'Verkauf & Beladung läuft…' : 'Selling & loading…')}
+                  ? (de ? 'Buchung sicher gespeichert' : 'Booking saved')
+                  : animationDone
+                    ? (de ? 'Buchung wird gespeichert…' : 'Saving booking…')
+                    : (de ? 'Verkauf & Beladung läuft…' : 'Selling & loading…')}
               </h2>
             </div>
             <span className="shrink-0 rounded border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-[10px] text-slate-300">
@@ -92,13 +119,15 @@ export default function BookingAnimationDialog({ contract, aircraft, company, op
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="rounded-xl border border-cyan-900/40 bg-[radial-gradient(circle_at_top,rgba(8,145,178,0.18),transparent_50%),#020617] p-2">
-              <SeatMapView aircraft={aircraft} occupied={{ first, business, economy }} height={300} />
-            </div>
+          <div className={`grid grid-cols-1 gap-3 ${hasPassengers ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : ''}`}>
+            {hasPassengers && (
+              <div className="rounded-xl border border-cyan-900/40 bg-[radial-gradient(circle_at_top,rgba(8,145,178,0.18),transparent_50%),#020617] p-2">
+                <SeatMapView aircraft={aircraft} occupied={{ first, business, economy }} height={300} />
+              </div>
+            )}
 
             <div className="space-y-2.5">
-              {hasSeats && (
+              {hasPassengers && (
                 <>
                   <div className="rounded-xl border border-cyan-900/40 bg-slate-950/80 p-3">
                     <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider">
@@ -140,7 +169,7 @@ export default function BookingAnimationDialog({ contract, aircraft, company, op
                 </p>
                 <p className="font-mono text-2xl font-bold text-emerald-300">${revenue.toLocaleString()}</p>
                 <p className="font-mono text-[10px] text-slate-500">
-                  {de ? 'Tickets' : 'Tickets'} ${Math.round((booking.revenue.total - (booking.revenue.cargo || 0)) * eased).toLocaleString()}
+                  {de ? 'Tickets' : 'Tickets'} ${ticketRevenue.toLocaleString()}
                   {cargo.demand_kg > 0 && <> · {de ? 'Fracht' : 'Freight'} ${cargoRevenue.toLocaleString()}</>}
                 </p>
               </div>
@@ -149,12 +178,24 @@ export default function BookingAnimationDialog({ contract, aircraft, company, op
         </div>
 
         <div className="shrink-0 border-t border-slate-800 bg-slate-950/95 p-3">
+          {saveError && (
+            <div className="mb-2 flex items-center justify-between gap-2 rounded border border-rose-800/60 bg-rose-950/35 px-2.5 py-2 font-mono text-[10px] text-rose-200">
+              <span>{saveError}</span>
+              <button type="button" onClick={finalizeBooking} className="shrink-0 text-cyan-300 hover:text-cyan-200">
+                {de ? 'ERNEUT' : 'RETRY'}
+              </button>
+            </div>
+          )}
           <Button
             onClick={() => onClose?.()}
             disabled={!done}
             className="h-9 w-full bg-cyan-600 font-mono text-xs font-bold uppercase text-slate-950 hover:bg-cyan-500 disabled:opacity-50"
           >
-            {done ? (de ? 'Zu den aktiven Flügen' : 'Go to active flights') : (de ? 'Bitte warten…' : 'Please wait…')}
+            {done
+              ? (de ? 'Zu den aktiven Flügen' : 'Go to active flights')
+              : saving
+                ? (de ? 'SPEICHERE BUCHUNG…' : 'SAVING BOOKING…')
+                : (de ? 'BITTE WARTEN…' : 'PLEASE WAIT…')}
           </Button>
         </div>
       </DialogContent>

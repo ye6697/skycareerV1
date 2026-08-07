@@ -83,6 +83,8 @@ export default function ContractDetails() {
   const config = typeConfig[contract.type] || typeConfig.passenger;
   const difficulty = difficultyConfig[contract.difficulty] || difficultyConfig.medium;
   const TypeIcon = config.icon;
+  const resolvedPassengers = Number(contract.booking?.total_booked ?? contract.passenger_count ?? 0);
+  const resolvedCargoKg = Number(contract.booking?.cargo?.loaded_kg ?? contract.cargo_weight_kg ?? 0);
 
   return (
     <div className="h-full flex flex-col gap-2">
@@ -168,19 +170,19 @@ export default function ContractDetails() {
                     {contract.distance_nm?.toLocaleString()} NM
                   </p>
                 </div>
-                {contract.passenger_count > 0 && (
+                {resolvedPassengers > 0 && (
                   <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('passengers', lang)}</p>
+                    <p className="text-slate-400 text-xs sm:text-sm mb-1">{contract.booking ? (lang === 'de' ? 'Gebuchte Passagiere' : 'Booked passengers') : t('passengers', lang)}</p>
                     <p className="text-xl sm:text-2xl font-bold text-emerald-400">
-                      {contract.passenger_count}
+                      {resolvedPassengers.toLocaleString()}
                     </p>
                   </div>
                 )}
-                {contract.cargo_weight_kg > 0 && (
+                {resolvedCargoKg > 0 && (
                   <div className="p-3 sm:p-4 bg-slate-900 rounded-lg">
-                    <p className="text-slate-400 text-xs sm:text-sm mb-1">{t('cargo', lang)}</p>
+                    <p className="text-slate-400 text-xs sm:text-sm mb-1">{contract.booking?.cargo ? (lang === 'de' ? 'Geladene Fracht' : 'Loaded cargo') : t('cargo', lang)}</p>
                     <p className="text-xl sm:text-2xl font-bold text-orange-400">
-                      {contract.cargo_weight_kg?.toLocaleString()} kg
+                      {resolvedCargoKg.toLocaleString()} kg
                     </p>
                   </div>
                 )}

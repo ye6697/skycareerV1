@@ -27,6 +27,8 @@ export default function CabinClassRow({
   seats,
   onDec,
   onInc,
+  canDecrease = true,
+  canIncrease = true,
   enabled,
   lockLabel,
   costPerSeat,
@@ -50,7 +52,9 @@ export default function CabinClassRow({
             <button
               type="button"
               onClick={onDec}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
+              disabled={!canDecrease}
+              aria-label={`${title} seats decrease`}
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-35"
             >
               <Minus className="h-3.5 w-3.5" />
             </button>
@@ -58,7 +62,9 @@ export default function CabinClassRow({
             <button
               type="button"
               onClick={onInc}
-              className={`flex h-7 w-7 items-center justify-center rounded-md text-slate-950 ${a.plus}`}
+              disabled={!canIncrease}
+              aria-label={`${title} seats increase`}
+              className={`flex h-7 w-7 items-center justify-center rounded-md text-slate-950 disabled:cursor-not-allowed disabled:opacity-35 ${a.plus}`}
             >
               <Plus className="h-3.5 w-3.5" />
             </button>

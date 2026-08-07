@@ -1782,7 +1782,12 @@ export default function Contracts() {
               first_booked: booking.first_booked,
               total_booked: booking.total_booked,
               load_factor: booking.load_factor,
+              demand: booking.demand,
+              ticket_base: booking.ticket_base,
               seats: booking.seats,
+              cargo: booking.cargo,
+              tickets: booking.tickets,
+              factors: booking.factors,
               revenue: booking.revenue,
             },
           });

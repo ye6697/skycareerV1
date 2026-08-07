@@ -161,8 +161,14 @@
     },
     "booking": {
       "type": "object",
-      "description": "Seat booking snapshot computed at flight start (load factor system)",
+      "description": "Resolved passenger and cargo booking snapshot used for this flight",
       "properties": {
+        "aircraft_id": {
+          "type": "string"
+        },
+        "demand": {
+          "type": "number"
+        },
         "economy_booked": {
           "type": "number"
         },
@@ -182,6 +188,15 @@
           "type": "number"
         },
         "seats": {
+          "type": "object"
+        },
+        "cargo": {
+          "type": "object"
+        },
+        "tickets": {
+          "type": "object"
+        },
+        "factors": {
           "type": "object"
         },
         "revenue": {

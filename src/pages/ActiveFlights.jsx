@@ -48,7 +48,7 @@ import {
 
 import ActiveFlightCard from "@/components/flights/ActiveFlightCard";
 import BookingPreview from "@/components/flights/BookingPreview";
-import { computeBooking, isPassengerContract } from "@/lib/cabinConfig";
+import { computeBooking, getSeatCounts, hasBookingLoad } from "@/lib/cabinConfig";
 
 const DIFFICULTY_OPTIONS = [
   {
@@ -292,11 +292,18 @@ export default function ActiveFlights() {
           : 'You need at least one aircraft in your fleet (any type).');
       }
       if (!isTr) {
-        // Validate aircraft is suitable for contract
-        if (ac.passenger_capacity < (selectedContract?.passenger_count || 0)) {
-          throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Sitze' : 'Aircraft does not have enough seats');
+        // Validate the resolved payload, not the original market demand.
+        const usesAcceptedBooking = selectedContract?.booking?.aircraft_id === ac.id;
+        const requiredPassengers = usesAcceptedBooking
+          ? Number(selectedContract?.booking?.total_booked || 0)
+          : Math.min(Number(selectedContract?.passenger_count || 0), getSeatCounts(ac).total);
+        const requiredCargoKg = usesAcceptedBooking
+          ? Number(selectedContract?.booking?.cargo?.loaded_kg ?? selectedContract?.cargo_weight_kg ?? 0)
+          : Number(selectedContract?.cargo_weight_kg || 0);
+        if (getSeatCounts(ac).total < requiredPassengers) {
+          throw new Error(lang === 'de' ? 'Kabinenkonfiguration hat nicht genug Sitze' : 'Cabin configuration does not have enough seats');
         }
-        if (ac.cargo_capacity_kg < (selectedContract?.cargo_weight_kg || 0)) {
+        if (Number(ac.cargo_capacity_kg || 0) < requiredCargoKg) {
           throw new Error(lang === 'de' ? 'Flugzeug hat nicht genug Frachtraum' : 'Aircraft does not have enough cargo capacity');
         }
         if (ac.range_nm < (selectedContract?.distance_nm || 0)) {
@@ -319,10 +326,15 @@ export default function ActiveFlights() {
         }
       }
 
-      // Compute seat booking (load factor) for passenger contracts.
-      const booking = (!isTrContract(selectedContract) && ac && isPassengerContract(selectedContract))
-        ? computeBooking({ contract: selectedContract, aircraft: ac, company })
+      // Keep the accepted booking when the same aircraft is used; otherwise
+      // recompute once for the newly selected aircraft (passengers and cargo).
+      const savedBooking = selectedContract?.booking?.aircraft_id === ac?.id
+        ? selectedContract.booking
         : null;
+      const booking = (!isTrContract(selectedContract) && ac && hasBookingLoad(selectedContract))
+        ? (savedBooking || computeBooking({ contract: selectedContract, aircraft: ac, company }))
+        : null;
+      const resolvedBooking = booking ? { ...booking, aircraft_id: ac.id } : null;
 
       const nowIso = new Date().toISOString();
       const normalizePctLike = (value) => {
@@ -380,7 +392,7 @@ export default function ActiveFlights() {
         departure_time: new Date().toISOString(),
         status: 'in_flight',
         active_failures: [],
-        ...(booking ? { booking } : {}),
+        ...(resolvedBooking ? { booking: resolvedBooking } : {}),
         bridge_command_queue: startBridgeCommands,
         xplane_data: {
           contract_id: selectedContract.id,
@@ -417,8 +429,8 @@ export default function ActiveFlights() {
       await base44.entities.Contract.update(selectedContract.id, {
         status: 'in_progress',
         difficulty: normalizedDifficulty,
-        // Booking system: payout = actual ticket revenue from booked seats.
-        ...(booking ? { payout: booking.revenue.total } : {})
+        // Booking system: persist the exact payload and payout used by the flight.
+        ...(resolvedBooking ? { payout: resolvedBooking.revenue.total, booking: resolvedBooking } : {})
       });
 
       // Update aircraft status — but only if it isn't already in flight
@@ -521,6 +533,7 @@ export default function ActiveFlights() {
   const selectedDifficultyOption = DIFFICULTY_OPTIONS.find((option) => option.value === selectedDifficulty) || DIFFICULTY_OPTIONS[1];
   const openPrepareDialog = (contract) => {
     setSelectedContract(contract);
+    setSelectedAircraft(contract?.booking?.aircraft_id || '');
     setSelectedDifficulty(normalizeDifficulty(contract?.difficulty));
     setIsAssignDialogOpen(true);
   };
@@ -850,8 +863,8 @@ export default function ActiveFlights() {
                     <span className="flex items-center gap-1 font-mono"><MapPin className="w-3 h-3" />{selectedContract.arrival_airport}</span>
                     <span className="text-slate-600">|</span>
                     <span className="font-mono">{selectedContract.distance_nm} NM</span>
-                    {selectedContract.passenger_count > 0 && (<><span className="text-slate-600">|</span><span className="flex items-center gap-1 font-mono"><Users className="w-3 h-3" />{selectedContract.passenger_count}</span></>)}
-                    {selectedContract.cargo_weight_kg > 0 && (<><span className="text-slate-600">|</span><span className="flex items-center gap-1 font-mono"><Package className="w-3 h-3" />{selectedContract.cargo_weight_kg} kg</span></>)}
+                    {(selectedContract.booking?.total_booked ?? selectedContract.passenger_count) > 0 && (<><span className="text-slate-600">|</span><span className="flex items-center gap-1 font-mono"><Users className="w-3 h-3" />{selectedContract.booking?.total_booked ?? selectedContract.passenger_count}</span></>)}
+                    {(selectedContract.booking?.cargo?.loaded_kg ?? selectedContract.cargo_weight_kg) > 0 && (<><span className="text-slate-600">|</span><span className="flex items-center gap-1 font-mono"><Package className="w-3 h-3" />{(selectedContract.booking?.cargo?.loaded_kg ?? selectedContract.cargo_weight_kg).toLocaleString()} kg</span></>)}
                   </div>
                 )}
               </DialogHeader>
@@ -1000,8 +1013,15 @@ export default function ActiveFlights() {
                     </Label>
                     {(() => {
                       const withEligibility = aircraft.map((ac) => {
-                        const passengerOk = ac.passenger_capacity >= (selectedContract?.passenger_count || 0);
-                        const cargoOk = ac.cargo_capacity_kg >= (selectedContract?.cargo_weight_kg || 0);
+                        const usesAcceptedBooking = selectedContract?.booking?.aircraft_id === ac.id;
+                        const requiredPassengers = usesAcceptedBooking
+                          ? Number(selectedContract?.booking?.total_booked || 0)
+                          : Math.min(Number(selectedContract?.passenger_count || 0), getSeatCounts(ac).total);
+                        const requiredCargoKg = usesAcceptedBooking
+                          ? Number(selectedContract?.booking?.cargo?.loaded_kg ?? selectedContract?.cargo_weight_kg ?? 0)
+                          : Number(selectedContract?.cargo_weight_kg || 0);
+                        const passengerOk = getSeatCounts(ac).total >= requiredPassengers;
+                        const cargoOk = Number(ac.cargo_capacity_kg || 0) >= requiredCargoKg;
                         const rangeOk = ac.range_nm >= (selectedContract?.distance_nm || 0);
                         const eligible = passengerOk && cargoOk && rangeOk;
                         return { ac, eligible, passengerOk, cargoOk, rangeOk };
@@ -1022,7 +1042,7 @@ export default function ActiveFlights() {
                                   disabled={!eligible}
                                   className="focus:bg-slate-800"
                                 >
-                                  {ac.name} ({ac.registration}) - {ac.passenger_capacity} {t('seats', lang)}
+                                  {ac.name} ({ac.registration}) - {getSeatCounts(ac).total} {t('seats', lang)}
                                   {!eligible && ` • ${lang === 'de' ? 'nicht kompatibel' : 'not compatible'}`}
                                 </SelectItem>
                               ))}
@@ -1044,7 +1064,7 @@ export default function ActiveFlights() {
                       );
                     })()}
 
-                    {selectedAircraftObj && !selectedAircraftMissingRating && isPassengerContract(selectedContract) && (
+                    {selectedAircraftObj && !selectedAircraftMissingRating && hasBookingLoad(selectedContract) && (
                       <BookingPreview contract={selectedContract} aircraft={selectedAircraftObj} company={company} />
                     )}
 

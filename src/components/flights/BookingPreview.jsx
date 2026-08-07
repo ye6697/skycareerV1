@@ -1,5 +1,6 @@
 import React from 'react';
 import SeatMapView from '@/components/aircraft/SeatMapView';
+import CargoHoldView from '@/components/flights/CargoHoldView';
 import { computeBooking, ECONOMY_TIERS } from '@/lib/cabinConfig';
 import { useLanguage } from '@/components/LanguageContext';
 import { TrendingUp, Route } from 'lucide-react';
@@ -29,7 +30,9 @@ export default function BookingPreview({ contract, aircraft, company }) {
   const de = lang === 'de';
   if (!contract || !aircraft) return null;
 
-  const booking = computeBooking({ contract, aircraft, company });
+  const booking = contract.booking?.aircraft_id === aircraft.id && contract.booking?.cargo && contract.booking?.tickets
+    ? contract.booking
+    : computeBooking({ contract, aircraft, company });
   const { seats, revenue, tickets, factors } = booking;
   const ecoLabel = ECONOMY_TIERS[seats.economy_tier]?.label?.[de ? 'de' : 'en'] || 'Economy';
   const lfPct = Math.round(booking.load_factor * 100);
@@ -73,8 +76,17 @@ export default function BookingPreview({ contract, aircraft, company }) {
             barClass="bg-cyan-400" textClass="text-cyan-200" borderClass="border-cyan-900/40"
           />
 
+          <CargoHoldView
+            loadedKg={booking.cargo.loaded_kg}
+            demandKg={booking.cargo.demand_kg}
+            capacityKg={booking.cargo.capacity_kg}
+            revenue={revenue.cargo}
+            ratePerKg={booking.cargo.rate_per_kg}
+            de={de}
+          />
+
           <div className="flex justify-between rounded border border-emerald-800/50 bg-emerald-950/30 px-2 py-2">
-            <span className="text-emerald-200 font-bold">{de ? 'Ticket-Umsatz' : 'Ticket revenue'}</span>
+            <span className="text-emerald-200 font-bold">{de ? 'Gesamterlös' : 'Total revenue'}</span>
             <span className="text-emerald-300 font-bold text-sm">${revenue.total.toLocaleString()}</span>
           </div>
 
@@ -95,8 +107,8 @@ export default function BookingPreview({ contract, aircraft, company }) {
 
           <p className="text-[9px] text-slate-500 leading-relaxed">
             {de
-              ? 'Gebuchte Sitze werden beim Flugstart fixiert. Bessere Reputation füllt die Kabine, Langstrecken steigern Premium-Nachfrage und -Preise.'
-              : 'Booked seats are locked in at flight start. Better reputation fills the cabin; long-haul routes boost premium demand and fares.'}
+              ? 'Die bei Annahme gespeicherte Buchung bleibt beim Flugstart erhalten. Passagiere und Fracht überschreiten nie die Flugzeugkapazität.'
+              : 'The booking saved on acceptance is retained at flight start. Passengers and cargo never exceed aircraft capacity.'}
           </p>
         </div>
       </div>

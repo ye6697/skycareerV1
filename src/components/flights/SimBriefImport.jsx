@@ -134,7 +134,9 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
   const contractPax = contract
     ? Math.max(0, Math.round(Number(contract.booking?.total_booked ?? contract.passenger_count) || 0))
     : 0;
-  const contractCargoKg = contract ? Math.max(0, Math.round(Number(contract.cargo_weight_kg) || 0)) : 0;
+  const contractCargoKg = contract
+    ? Math.max(0, Math.round(Number(contract.booking?.cargo?.loaded_kg ?? contract.cargo_weight_kg) || 0))
+    : 0;
 
   // Open SimBrief dispatch with contract data pre-filled
   const openSimBriefDispatch = () => {

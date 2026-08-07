@@ -44,26 +44,29 @@
     },
     "passenger_count": {
       "type": "number",
-      "description": "Number of passengers (for passenger contracts)"
+      "description": "Passenger demand before booking resolution"
     },
     "cargo_weight_kg": {
       "type": "number",
-      "description": "Cargo weight in kg (for cargo contracts)"
+      "description": "Cargo demand in kg before booking resolution"
     },
     "payout": {
       "type": "number",
-      "description": "Contract payout in dollars"
+      "description": "Resolved contract payout in dollars"
     },
     "reference_payout": {
       "type": "number",
-      "description": "Original full-load reference payout before booking was resolved"
+      "description": "Original full-demand reference payout before booking was resolved"
     },
     "booking": {
       "type": "object",
-      "description": "Resolved seat booking snapshot (set after the contract was accepted)",
+      "description": "Resolved passenger and cargo booking snapshot set after acceptance",
       "properties": {
         "aircraft_id": {
           "type": "string"
+        },
+        "demand": {
+          "type": "number"
         },
         "economy_booked": {
           "type": "number"
@@ -80,7 +83,19 @@
         "load_factor": {
           "type": "number"
         },
+        "ticket_base": {
+          "type": "number"
+        },
         "seats": {
+          "type": "object"
+        },
+        "cargo": {
+          "type": "object"
+        },
+        "tickets": {
+          "type": "object"
+        },
+        "factors": {
           "type": "object"
         },
         "revenue": {

@@ -30,6 +30,8 @@ export default function ActiveFlightCard({
   const isInProgress = contract.status === "in_progress";
   const distance = Number(contract.distance_nm || 0);
   const payout = Number(contract.payout || 0);
+  const bookedPassengers = Number(contract.booking?.total_booked ?? contract.passenger_count ?? 0);
+  const loadedCargoKg = Number(contract.booking?.cargo?.loaded_kg ?? contract.cargo_weight_kg ?? 0);
 
   // Visual theme: TR = amber/training, normal = cyan/operations.
   const theme = isTr
@@ -153,16 +155,16 @@ export default function ActiveFlightCard({
               <span className="text-slate-400 text-[11px]">{distance} NM</span>
             </div>
             <div className="flex items-center gap-3 mt-1.5 text-[10px] font-mono text-slate-400">
-              {contract.passenger_count > 0 && (
+              {bookedPassengers > 0 && (
                 <span className="flex items-center gap-1">
                   <Users className="w-3 h-3" />
-                  {contract.passenger_count} PAX
+                  {bookedPassengers.toLocaleString()} PAX
                 </span>
               )}
-              {contract.cargo_weight_kg > 0 && (
+              {loadedCargoKg > 0 && (
                 <span className="flex items-center gap-1">
                   <Package className="w-3 h-3" />
-                  {contract.cargo_weight_kg} kg
+                  {loadedCargoKg.toLocaleString()} kg
                 </span>
               )}
               {contract.difficulty && (
