@@ -37,6 +37,7 @@ import InsolvencyBanner from "@/components/InsolvencyBanner";
 import { useLanguage } from "@/components/LanguageContext";
 import { getAirportCoords, getAllAirportCoords, isRealAirportIcao } from "@/utils/airportCoordinates";
 import { useToast } from "@/components/ui/use-toast";
+import { getAgreementFee, getAgreementInfo } from "@/lib/airportAgreements";
 
 const HANGAR_MARKET = [
   { airport_icao: "EDDF", label: "Frankfurt" },
@@ -602,23 +603,24 @@ export default function Contracts() {
       const airport = normIcao(contract.arrival_airport);
       if (!airport) throw new Error(lang === "de" ? "Kein Zielflughafen." : "No arrival airport.");
       if (agreementAirportSet.has(airport)) return { airport, alreadyOwned: true };
-      if (Number(company.balance || 0) < AIRPORT_AGREEMENT_FEE) {
+      const fee = getAgreementFee(airport);
+      if (Number(company.balance || 0) < fee) {
         throw new Error(lang === "de" ? "Nicht genug Guthaben." : "Insufficient balance.");
       }
       await base44.entities.AirportServiceAgreement.create({
         company_id: company.id,
         airport_icao: airport,
-        fee_paid: AIRPORT_AGREEMENT_FEE,
+        fee_paid: fee,
         signed_at: new Date().toISOString(),
       });
       await base44.entities.Company.update(company.id, {
-        balance: Number(company.balance || 0) - AIRPORT_AGREEMENT_FEE,
+        balance: Number(company.balance || 0) - fee,
       });
       await base44.entities.Transaction.create({
         company_id: company.id,
         type: "expense",
         category: "airport_fees",
-        amount: AIRPORT_AGREEMENT_FEE,
+        amount: fee,
         description: lang === "de"
           ? `Servicevertrag Flughafen ${airport}`
           : `Airport service agreement ${airport}`,
@@ -1598,6 +1600,29 @@ export default function Contracts() {
         </Tabs>
       </div>
 
+      {airportAgreements.length > 0 && (
+        <div className="rounded-xl border border-emerald-900/40 bg-slate-950/90 p-2">
+          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-mono uppercase text-emerald-300/80">
+            <Globe2 className="h-3 w-3" />
+            {lang === "de" ? "Servicevertrag-Netzwerk" : "Service agreement network"} ({airportAgreements.length})
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {airportAgreements
+              .slice()
+              .sort((a, b) => normIcao(a.airport_icao).localeCompare(normIcao(b.airport_icao)))
+              .map((agreement) => {
+                const icao = normIcao(agreement.airport_icao);
+                const info = getAgreementInfo(icao);
+                return (
+                  <span key={agreement.id} className="rounded-md border border-emerald-800/50 bg-emerald-950/30 px-2 py-0.5 text-[10px] font-mono text-emerald-100">
+                    {icao} <span className="text-emerald-500/80">· {info.short[lang === "de" ? "de" : "en"]}</span>
+                  </span>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto min-h-0 pr-0.5">
         <div className="mb-3 flex items-start gap-2 rounded-lg border border-cyan-900/40 bg-cyan-950/25 p-2.5 text-xs text-cyan-100">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-300" />
@@ -1612,7 +1637,7 @@ export default function Contracts() {
                 <motion.div layout className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
                   <AnimatePresence>
                     {filteredCompatibleContracts.map((contract) => (
-                      <ContractCard key={contract.id} contract={contract} companyReputation={company?.reputation} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} arrivalAgreementOk={agreementAirportSet.has(normIcao(contract.arrival_airport))} agreementFee={AIRPORT_AGREEMENT_FEE} onBuyAgreement={(selected) => buyAgreementMutation.mutate(selected)} isBuyingAgreement={buyAgreementMutation.isPending} />
+                      <ContractCard key={contract.id} contract={contract} companyReputation={company?.reputation} onAccept={(selected) => acceptContractMutation.mutate(selected)} onView={(selected) => navigate(createPageUrl(`ContractDetails?id=${selected.id}`))} onSelect={(selected) => setSelectedContractId(selected.id)} selected={contract.id === selectedContractId} isAccepting={acceptContractMutation.isPending} arrivalAgreementOk={agreementAirportSet.has(normIcao(contract.arrival_airport))} agreementFee={getAgreementFee(contract.arrival_airport)} agreementTierLabel={getAgreementInfo(contract.arrival_airport).label[lang === "de" ? "de" : "en"]} onBuyAgreement={(selected) => buyAgreementMutation.mutate(selected)} isBuyingAgreement={buyAgreementMutation.isPending} />
                     ))}
                   </AnimatePresence>
                 </motion.div>

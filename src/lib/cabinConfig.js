@@ -3,9 +3,21 @@
 // Business/First seats consume more floor space than economy seats.
 
 export const ECONOMY_TIERS = {
-  1: { key: 1, label: { de: 'Economy Basic', en: 'Economy Basic' }, priceMult: 1.0, upgradeCostPerSeat: 0, levelReq: 1 },
-  2: { key: 2, label: { de: 'Economy Comfort', en: 'Economy Comfort' }, priceMult: 1.2, upgradeCostPerSeat: 1200, levelReq: 3 },
-  3: { key: 3, label: { de: 'Economy Premium', en: 'Economy Premium' }, priceMult: 1.45, upgradeCostPerSeat: 2600, levelReq: 8 },
+  1: {
+    key: 1, label: { de: 'Economy Basic', en: 'Economy Basic' },
+    desc: { de: '29" Sitzabstand, keine Extras', en: '29" pitch, no frills' },
+    priceMult: 1.0, loadBonus: 0, upgradeCostPerSeat: 0, levelReq: 1,
+  },
+  2: {
+    key: 2, label: { de: 'Economy Comfort', en: 'Economy Comfort' },
+    desc: { de: '32" Sitzabstand, verstellbare Lehnen', en: '32" pitch, recliner seats' },
+    priceMult: 1.2, loadBonus: 0.04, upgradeCostPerSeat: 1200, levelReq: 3,
+  },
+  3: {
+    key: 3, label: { de: 'Economy Premium', en: 'Economy Premium' },
+    desc: { de: '34" Sitzabstand, Entertainment & Catering', en: '34" pitch, IFE & catering' },
+    priceMult: 1.45, loadBonus: 0.08, upgradeCostPerSeat: 2600, levelReq: 8,
+  },
 };
 
 export const BUSINESS_CLASS = {
@@ -80,7 +92,12 @@ function clamp(v, min, max) {
 
 // Compute booked seats + revenue for a passenger/charter contract.
 // contract.payout is treated as "route revenue at full demand in basic economy",
-// so ticketBase = payout / demand. Reputation drives the load factor.
+// so ticketBase = payout / demand.
+// Booking drivers:
+//  - Reputation (main): fuller flights, more premium bookings.
+//  - Economy tier: comfortable cabins attract more passengers (+load factor).
+//  - Route distance: long-haul routes have much stronger premium demand and
+//    premium fares scale up with distance.
 export function computeBooking({ contract, aircraft, company }) {
   const seats = getSeatCounts(aircraft);
   const demand = Math.max(1, Math.round(Number(contract?.passenger_count) || 0));
@@ -89,41 +106,84 @@ export function computeBooking({ contract, aircraft, company }) {
   const rep = clamp(Number(company?.reputation) || 50, 0, 100);
   const rand = seededRandom(`${contract?.id || ''}_${aircraft?.id || ''}`);
 
-  // Economy load factor: 35%..100%, mostly reputation-driven.
-  const loadFactor = clamp(0.35 + (rep / 100) * 0.58 + (rand() - 0.5) * 0.12, 0.3, 1);
+  const distanceNm = Math.max(50, Number(contract?.distance_nm) || 300);
+  // 0 for short hops (<=500 NM), 1 for true long-haul (>=3000 NM).
+  const longHaul = clamp((distanceNm - 500) / 2500, 0, 1);
+  const tierBonus = ECONOMY_TIERS[seats.economy_tier]?.loadBonus || 0;
+
+  // Economy load factor: reputation-driven, boosted by cabin comfort.
+  const loadFactor = clamp(0.32 + (rep / 100) * 0.55 + tierBonus + (rand() - 0.5) * 0.1, 0.25, 1);
   const ecoDemand = Math.min(demand, seats.economy);
   const economyBooked = Math.min(seats.economy, Math.max(0, Math.round(ecoDemand * loadFactor)));
 
-  // Premium classes fill only with good reputation.
-  const premiumAppeal = clamp((rep - 35) / 60, 0, 1);
+  // Premium demand: needs reputation AND route length (nobody books First on a hop).
+  const premiumAppeal = clamp((rep - 30) / 60, 0, 1) * (0.55 + 0.45 * longHaul);
   const businessBooked = Math.min(
     seats.business,
-    Math.round(seats.business * premiumAppeal * (0.55 + rand() * 0.45))
+    Math.round(seats.business * premiumAppeal * (0.5 + rand() * 0.5))
   );
   const firstBooked = Math.min(
     seats.first,
-    Math.round(seats.first * premiumAppeal * premiumAppeal * (0.4 + rand() * 0.6))
+    Math.round(seats.first * Math.pow(premiumAppeal, 1.6) * (0.35 + rand() * 0.65))
   );
 
+  // Per-class ticket prices. Premium fares scale further with distance.
   const ecoMult = ECONOMY_TIERS[seats.economy_tier]?.priceMult || 1;
-  const revenueEconomy = Math.round(economyBooked * ticketBase * ecoMult);
-  const revenueBusiness = Math.round(businessBooked * ticketBase * BUSINESS_CLASS.priceMult);
-  const revenueFirst = Math.round(firstBooked * ticketBase * FIRST_CLASS.priceMult);
+  const ticketEconomy = ticketBase * ecoMult;
+  const ticketBusiness = ticketBase * BUSINESS_CLASS.priceMult * (1 + 0.5 * longHaul);
+  const ticketFirst = ticketBase * FIRST_CLASS.priceMult * (1 + 0.7 * longHaul);
+
+  const revenueEconomy = Math.round(economyBooked * ticketEconomy);
+  const revenueBusiness = Math.round(businessBooked * ticketBusiness);
+  const revenueFirst = Math.round(firstBooked * ticketFirst);
+  const totalBooked = economyBooked + businessBooked + firstBooked;
+  const totalRevenue = revenueEconomy + revenueBusiness + revenueFirst;
 
   return {
     seats,
+    demand,
     economy_booked: economyBooked,
     business_booked: businessBooked,
     first_booked: firstBooked,
-    total_booked: economyBooked + businessBooked + firstBooked,
-    load_factor: seats.total > 0 ? (economyBooked + businessBooked + firstBooked) / seats.total : 0,
+    total_booked: totalBooked,
+    load_factor: seats.total > 0 ? totalBooked / seats.total : 0,
     ticket_base: Math.round(ticketBase),
+    tickets: {
+      economy: Math.round(ticketEconomy),
+      business: Math.round(ticketBusiness),
+      first: Math.round(ticketFirst),
+    },
+    factors: {
+      reputation: rep,
+      long_haul: longHaul,
+      tier_bonus: tierBonus,
+      distance_nm: distanceNm,
+    },
     revenue: {
       economy: revenueEconomy,
       business: revenueBusiness,
       first: revenueFirst,
-      total: revenueEconomy + revenueBusiness + revenueFirst,
+      total: totalRevenue,
+      avg_ticket: totalBooked > 0 ? Math.round(totalRevenue / totalBooked) : 0,
     },
+  };
+}
+
+// Expected revenue index of a cabin layout (reference reputation 70).
+// Used in the cabin editor to compare configurations independent of a contract.
+export function getRevenuePotential(aircraft, cabinOverride = null) {
+  const seats = getSeatCounts(aircraft, cabinOverride);
+  const ecoMult = ECONOMY_TIERS[seats.economy_tier]?.priceMult || 1;
+  const tierBonus = ECONOMY_TIERS[seats.economy_tier]?.loadBonus || 0;
+  const ecoFill = clamp(0.32 + 0.7 * 0.55 + tierBonus, 0, 1);
+  const economy = seats.economy * ecoMult * ecoFill;
+  const business = seats.business * BUSINESS_CLASS.priceMult * 0.55;
+  const first = seats.first * FIRST_CLASS.priceMult * 0.42;
+  return {
+    economy: Math.round(economy * 10),
+    business: Math.round(business * 10),
+    first: Math.round(first * 10),
+    total: Math.round((economy + business + first) * 10),
   };
 }
 

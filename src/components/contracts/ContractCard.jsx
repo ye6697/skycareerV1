@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   ArrowUpRight,
   Clock3,
+  Lock,
   MapPin,
   Package,
   Star,
@@ -78,6 +79,7 @@ export default function ContractCard({
   companyReputation = 50,
   arrivalAgreementOk = true,
   agreementFee = 0,
+  agreementTierLabel = "",
   onBuyAgreement,
   isBuyingAgreement = false,
 }) {
@@ -189,6 +191,25 @@ export default function ContractCard({
           )}
         </div>
 
+        {contract.status === "available" && !arrivalAgreementOk && (
+          <div className="mb-3 rounded-lg border border-amber-700/40 bg-amber-950/25 p-2.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wide text-amber-300">
+              <Lock className="h-3 w-3" />
+              {lang === "de" ? "Route gesperrt" : "Route locked"}
+            </div>
+            <p className="mt-1 text-[11px] text-amber-100/90">
+              {lang === "de"
+                ? `Für Landungen in ${contract.arrival_airport} brauchst du einen Servicevertrag (Bodenabfertigung & Slots).`
+                : `Landing at ${contract.arrival_airport} requires a service agreement (ground handling & slots).`}
+            </p>
+            {agreementTierLabel && (
+              <p className="mt-0.5 text-[10px] font-mono text-amber-300/70">
+                {contract.arrival_airport} · {agreementTierLabel} · ${Math.round(agreementFee).toLocaleString()} {lang === "de" ? "einmalig" : "one-time"}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
           <Button
             type="button"
@@ -213,14 +234,12 @@ export default function ContractCard({
                 onBuyAgreement?.(contract);
               }}
               disabled={isBuyingAgreement || disabled}
-              title={lang === "de"
-                ? `Servicevertrag mit ${contract.arrival_airport} abschließen, um dich für diese Route zu qualifizieren.`
-                : `Sign a service agreement with ${contract.arrival_airport} to qualify for this route.`}
               className="h-8 bg-amber-600 text-xs font-mono uppercase text-slate-950 hover:bg-amber-500"
             >
+              <Lock className="mr-1.5 h-3 w-3" />
               {lang === "de"
-                ? `Vertrag ${contract.arrival_airport} ($${Math.round(agreementFee).toLocaleString()})`
-                : `Agreement ${contract.arrival_airport} ($${Math.round(agreementFee).toLocaleString()})`}
+                ? `Vertrag abschließen ($${Math.round(agreementFee).toLocaleString()})`
+                : `Sign agreement ($${Math.round(agreementFee).toLocaleString()})`}
             </Button>
           ) : contract.status === "available" ? (
             <Button

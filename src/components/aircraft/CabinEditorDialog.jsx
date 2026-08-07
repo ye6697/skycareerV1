@@ -3,11 +3,11 @@ import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Armchair, Crown, Star, Minus, Plus } from 'lucide-react';
+import { Armchair, Crown, Star, Minus, Plus, TrendingUp, TrendingDown } from 'lucide-react';
 import SeatMapView from '@/components/aircraft/SeatMapView';
 import {
   ECONOMY_TIERS, BUSINESS_CLASS, FIRST_CLASS,
-  getCabinConfig, getSeatCounts, canHaveBusiness, canHaveFirst,
+  getCabinConfig, getSeatCounts, canHaveBusiness, canHaveFirst, getRevenuePotential,
 } from '@/lib/cabinConfig';
 import { useLanguage } from '@/components/LanguageContext';
 
@@ -37,6 +37,13 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
     || cabin.business_seats !== current.business_seats
     || cabin.first_seats !== current.first_seats;
   const canAfford = balance >= totalCost;
+
+  // Revenue potential comparison (reference reputation).
+  const currentPotential = getRevenuePotential(aircraft, current);
+  const newPotential = getRevenuePotential(aircraft, cabin);
+  const potentialDeltaPct = currentPotential.total > 0
+    ? Math.round(((newPotential.total - currentPotential.total) / currentPotential.total) * 100)
+    : 0;
 
   const setBusiness = (delta) => {
     const next = Math.max(0, cabin.business_seats + delta);
@@ -100,11 +107,28 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Seat map preview */}
           <div className="rounded-lg border border-slate-700 bg-slate-950/70 p-2">
-            <SeatMapView aircraft={aircraft} cabin={cabin} height={360} />
+            <SeatMapView aircraft={aircraft} cabin={cabin} height={340} />
             <div className="flex justify-center gap-3 text-[10px] font-mono mt-1">
               {seats.first > 0 && <span className="text-amber-300">■ First: {seats.first}</span>}
               {seats.business > 0 && <span className="text-purple-300">■ Business: {seats.business}</span>}
               <span className="text-cyan-300">■ Economy: {seats.economy}</span>
+            </div>
+            {/* Revenue potential comparison */}
+            <div className="mt-2 rounded border border-slate-800 bg-slate-900/70 px-2 py-1.5 text-[10px] font-mono">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{de ? 'Umsatz-Potenzial' : 'Revenue potential'}</span>
+                <span className={`flex items-center gap-1 font-bold ${
+                  potentialDeltaPct > 0 ? 'text-emerald-300' : potentialDeltaPct < 0 ? 'text-red-400' : 'text-slate-300'
+                }`}>
+                  {potentialDeltaPct > 0 ? <TrendingUp className="w-3 h-3" /> : potentialDeltaPct < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                  {potentialDeltaPct > 0 ? '+' : ''}{potentialDeltaPct}%
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 rounded-full bg-slate-800 overflow-hidden flex">
+                {newPotential.first > 0 && <div className="h-full bg-amber-400" style={{ width: `${(newPotential.first / newPotential.total) * 100}%` }} />}
+                {newPotential.business > 0 && <div className="h-full bg-purple-400" style={{ width: `${(newPotential.business / newPotential.total) * 100}%` }} />}
+                <div className="h-full bg-cyan-400" style={{ width: `${(newPotential.economy / Math.max(1, newPotential.total)) * 100}%` }} />
+              </div>
             </div>
           </div>
 
@@ -140,8 +164,14 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
                   );
                 })}
               </div>
+              <p className="text-[9px] text-slate-500 mt-1.5 font-mono">
+                {ECONOMY_TIERS[cabin.economy_tier]?.desc?.[de ? 'de' : 'en']}
+                {(ECONOMY_TIERS[cabin.economy_tier]?.loadBonus || 0) > 0 && (
+                  <span className="text-emerald-400"> · +{Math.round((ECONOMY_TIERS[cabin.economy_tier].loadBonus) * 100)}% {de ? 'Auslastung' : 'load factor'}</span>
+                )}
+              </p>
               {ecoUpgradeCost > 0 && (
-                <p className="text-[10px] text-amber-300 mt-1.5 font-mono">
+                <p className="text-[10px] text-amber-300 mt-1 font-mono">
                   {de ? 'Upgrade-Kosten' : 'Upgrade cost'}: ${ecoUpgradeCost.toLocaleString()}
                 </p>
               )}
@@ -207,8 +237,8 @@ export default function CabinEditorDialog({ aircraft, company, open, onClose }) 
               </div>
               <p className="text-[9px] text-slate-500">
                 {de
-                  ? 'Höherwertige Sitze füllen sich nur bei guter Reputation, bringen aber deutlich mehr Umsatz pro Sitz.'
-                  : 'Premium seats only fill with good reputation, but earn much more revenue per seat.'}
+                  ? 'Premium-Sitze füllen sich nur bei guter Reputation und auf Langstrecken, bringen aber ein Vielfaches pro Sitz.'
+                  : 'Premium seats only fill with good reputation and on long-haul routes, but earn multiples per seat.'}
               </p>
               {saveMutation.isError && (
                 <p className="text-[10px] text-red-400">{saveMutation.error?.message}</p>
