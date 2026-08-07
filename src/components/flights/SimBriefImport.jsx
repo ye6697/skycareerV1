@@ -129,13 +129,22 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
     await fetchAndCheckPlan(username, pilotId);
   };
 
+  // Payload for this specific contract: use the actually booked seats once the
+  // booking was resolved, otherwise the contract's passenger count.
+  const contractPax = contract
+    ? Math.max(0, Math.round(Number(contract.booking?.total_booked ?? contract.passenger_count) || 0))
+    : 0;
+  const contractCargoKg = contract ? Math.max(0, Math.round(Number(contract.cargo_weight_kg) || 0)) : 0;
+
   // Open SimBrief dispatch with contract data pre-filled
   const openSimBriefDispatch = () => {
     const params = new URLSearchParams();
     if (contract) {
       params.set('orig', contract.departure_airport || '');
       params.set('dest', contract.arrival_airport || '');
-      if (contract.passenger_count) params.set('pax', String(contract.passenger_count));
+      params.set('units', 'KGS');
+      params.set('pax', String(contractPax));
+      params.set('cargo', String(contractCargoKg));
     }
     
     const url = `https://dispatch.simbrief.com/options/custom?${params.toString()}`;
@@ -302,6 +311,24 @@ export default function SimBriefImport({ onRouteLoaded, contract }) {
               </div>
             </div>
           </div>
+
+          {contract && (
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
+                <span className="text-[10px] text-slate-500 uppercase">PAX</span>
+                <p className="text-xs font-mono font-bold text-cyan-400">{contractPax}</p>
+              </div>
+              <div className="p-1.5 bg-slate-800/60 border border-slate-700/50 rounded">
+                <span className="text-[10px] text-slate-500 uppercase">Cargo</span>
+                <p className="text-xs font-mono font-bold text-amber-400">{contractCargoKg.toLocaleString()} kg</p>
+              </div>
+              <p className="col-span-2 text-[10px] text-slate-500">
+                {lang === 'de'
+                  ? 'Diese Werte werden automatisch in SimBrief vorausgefüllt.'
+                  : 'These values are pre-filled in SimBrief automatically.'}
+              </p>
+            </div>
+          )}
 
           <Button
             onClick={openSimBriefDispatch}
